@@ -1532,21 +1532,18 @@ class PT_query_expression final : public PT_query_primary {
  public:
   PT_query_expression(PT_with_clause *with_clause,
                       PT_query_expression_body *body, PT_order *order,
-                      PT_limit_clause *limit,
-                      PT_locking_clause_list *locking_clauses)
+                      PT_limit_clause *limit)
       : m_body(body),
         m_order(order),
         m_limit(limit),
-        m_locking_clauses(locking_clauses),
         m_with_clause(with_clause) {}
 
   PT_query_expression(PT_query_expression_body *body, PT_order *order,
-                      PT_limit_clause *limit,
-                      PT_locking_clause_list *locking_clauses)
-      : PT_query_expression(nullptr, body, order, limit, locking_clauses) {}
+                      PT_limit_clause *limit)
+      : PT_query_expression(nullptr, body, order, limit) {}
 
   explicit PT_query_expression(PT_query_expression_body *body)
-      : PT_query_expression(body, NULL, NULL, NULL) {}
+      : PT_query_expression(body, nullptr, nullptr) {}
 
   bool contextualize(Parse_context *pc) override;
 
@@ -1617,21 +1614,60 @@ class PT_query_expression final : public PT_query_primary {
   PT_query_expression_body *m_body;
   PT_order *m_order;
   PT_limit_clause *m_limit;
-  PT_locking_clause_list *m_locking_clauses;
   PT_with_clause *m_with_clause;
+};
+
+/*
+  After the removal of the `... <locking_clause> <into_clause>` syntax
+  PT_locking will disappear.
+*/
+class PT_locking final : public PT_query_primary {
+  using super = PT_query_primary;
+
+ public:
+  PT_locking(PT_query_expression_body *qe,
+             PT_locking_clause_list *locking_clauses)
+      : m_query_expression{qe}, m_locking_clauses{locking_clauses} {}
+
+  bool contextualize(Parse_context *pc) override {
+    return (super::contextualize(pc) || m_query_expression->contextualize(pc) ||
+            m_locking_clauses->contextualize(pc));
+  }
+
+  bool is_union() const override { return m_query_expression->is_union(); }
+
+  bool has_into_clause() const override {
+    return m_query_expression->has_into_clause();
+  }
+
+  bool can_absorb_order_and_limit(bool order, bool limit) const override {
+    return m_query_expression->can_absorb_order_and_limit(order, limit);
+  }
+
+  bool is_table_value_constructor() const override {
+    return m_query_expression->is_table_value_constructor();
+  }
+
+  PT_insert_values_list *get_row_value_list() const override {
+    return m_query_expression->get_row_value_list();
+  }
+
+ private:
+  PT_query_expression_body *const m_query_expression;
+  PT_locking_clause_list *const m_locking_clauses;
 };
 
 class PT_subquery : public Parse_tree_node {
   typedef Parse_tree_node super;
 
-  PT_query_expression *qe;
+  PT_query_primary *qe;
   POS pos;
   SELECT_LEX *select_lex;
 
  public:
   bool m_is_derived_table;
 
-  PT_subquery(POS p, PT_query_expression *query_expression)
+  PT_subquery(POS p, PT_query_primary *query_expression)
       : qe(query_expression),
         pos(p),
         select_lex(NULL),
@@ -1680,7 +1716,7 @@ class PT_select_stmt : public Parse_tree_root {
     @param qe The query expression.
     @param sql_command The type of SQL command.
   */
-  PT_select_stmt(enum_sql_command sql_command, PT_query_expression *qe)
+  PT_select_stmt(enum_sql_command sql_command, PT_query_expression_body *qe)
       : m_sql_command(sql_command), m_qe(qe), m_into(NULL) {}
 
   /**
@@ -1689,16 +1725,15 @@ class PT_select_stmt : public Parse_tree_root {
     @param qe The query expression.
     @param into The trailing INTO destination.
   */
-  PT_select_stmt(PT_query_expression *qe, PT_into_destination *into)
+  explicit PT_select_stmt(PT_query_expression_body *qe,
+                          PT_into_destination *into = nullptr)
       : m_sql_command(SQLCOM_SELECT), m_qe(qe), m_into(into) {}
-
-  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, NULL) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
  private:
   enum_sql_command m_sql_command;
-  PT_query_expression *m_qe;
+  PT_query_expression_body *m_qe;
   PT_into_destination *m_into;
 };
 
@@ -1839,7 +1874,7 @@ class PT_insert final : public Parse_tree_root {
   List<String> *const opt_use_partition;
   PT_item_list *const column_list;
   PT_insert_values_list *row_value_list;
-  PT_query_expression *insert_query_expression;
+  PT_query_primary *insert_query_expression;
   const char *const opt_values_table_alias;
   Create_col_name_list *const opt_values_column_list;
   PT_item_list *const opt_on_duplicate_column_list;
@@ -1851,7 +1886,7 @@ class PT_insert final : public Parse_tree_root {
             Table_ident *table_ident_arg, List<String> *opt_use_partition_arg,
             PT_item_list *column_list_arg,
             PT_insert_values_list *row_value_list_arg,
-            PT_query_expression *insert_query_expression_arg,
+            PT_query_primary *insert_query_expression_arg,
             const LEX_CSTRING &opt_values_table_alias_arg,
             Create_col_name_list *opt_values_column_list_arg,
             PT_item_list *opt_on_duplicate_column_list_arg,
@@ -2759,7 +2794,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
   const Mem_root_array<PT_create_table_option *> *opt_create_table_options;
   PT_partition *opt_partitioning;
   On_duplicate on_duplicate;
-  PT_query_expression *opt_query_expression;
+  PT_query_primary *opt_query_expression;
   Table_ident *opt_like_clause;
 
   HA_CREATE_INFO m_create_info;
@@ -2788,7 +2823,7 @@ class PT_create_table_stmt final : public PT_table_ddl_stmt_base {
       const Mem_root_array<PT_table_element *> *opt_table_element_list,
       const Mem_root_array<PT_create_table_option *> *opt_create_table_options,
       PT_partition *opt_partitioning, On_duplicate on_duplicate,
-      PT_query_expression *opt_query_expression)
+      PT_query_primary *opt_query_expression)
       : PT_table_ddl_stmt_base(mem_root),
         is_temporary(is_temporary),
         only_if_not_exists(only_if_not_exists),

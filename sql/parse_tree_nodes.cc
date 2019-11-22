@@ -3056,8 +3056,6 @@ bool PT_query_expression::contextualize(Parse_context *pc) {
 
   if (contextualize_order_and_limit(pc)) return true;
 
-  if (contextualize_safe(pc, m_locking_clauses)) return true;
-
   return false;
 }
 

@@ -307,7 +307,7 @@ SELECT_LEX *Select_lex_builder::prepare_select_lex() {
   }
 
   PT_query_expression *query_expression = new (m_thd->mem_root)
-      PT_query_expression(query_specification, pt_order_by, nullptr, nullptr);
+      PT_query_expression(query_specification, pt_order_by, nullptr);
   if (query_expression == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;
