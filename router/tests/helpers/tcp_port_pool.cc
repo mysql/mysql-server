@@ -289,6 +289,7 @@ uint16_t TcpPortPool::get_next_available(
     unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
                       number_of_ids_used_++;
 
+#ifndef _WIN32
     // there is no lock file for a given port but let's also check if there
     // really is nothing that will accept our connection attempt on that port
     if (!try_to_connect(result, socket_probe_timeout, "127.0.0.1"))
@@ -296,5 +297,12 @@ uint16_t TcpPortPool::get_next_available(
 
     std::cerr << "get_next_available(): port " << result
               << " seems busy, not using\n";
+#else
+    // On Windows we skip that as this introduces a big time overhead (500ms)
+    // for each try. Windows' connect() will not fail right away but will block
+    // for that long if the port is available (which is most of the cases we
+    // expect here).
+    return result;
+#endif
   }
 }

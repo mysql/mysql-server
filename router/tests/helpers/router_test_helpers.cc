@@ -271,6 +271,13 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
     std::shared_ptr<void> exit_close_socket(
         nullptr, [&](void *) { close_socket(sock_id); });
 
+#ifdef _WIN32
+    // On Windows if the port is not ready yet when we try the connect() first
+    // time it will block for 500ms (depends on the OS wide configuration) and
+    // retry again internally. Here we sleep for 100ms but will save this 500ms
+    // for most of the cases which is still a good deal
+    std::this_thread::sleep_for(100ms);
+#endif
     status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
     if (status < 0) {
       const auto step = std::min(timeout, MSEC_STEP);
