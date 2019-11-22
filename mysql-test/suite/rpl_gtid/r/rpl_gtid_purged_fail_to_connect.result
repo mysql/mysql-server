@@ -56,6 +56,7 @@ include/assert_grep.inc [Found a message about the long GTIDs in the slave error
 CHANGE MASTER TO MASTER_LOG_FILE = 'MASTER_FILE', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
 include/start_slave.inc
 include/assert.inc [t1 should contain only one row with the value 2]
+include/stop_slave.inc
 include/assert_grep.inc [Found warning containing lost GTIDs in the master error log.]
 include/assert_grep.inc [Found warning containing lost GTIDs in the slave error log.]
 [connection master]
@@ -66,7 +67,6 @@ CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missin
 # 7) Cleanup.
 #
 [connection slave]
-include/stop_slave.inc
 RESET MASTER;
 RESET SLAVE;
 [connection master]
