@@ -125,6 +125,7 @@ eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master
 --let $assert_text= t1 should contain only one row with the value 2
 --let $assert_cond= "[SELECT COUNT(*) FROM t1]" = "1" AND "[SELECT * FROM t1]" = "2"
 --source include/assert.inc
+--source include/stop_slave.inc
 
 # Verify that warning about the missing transactions are logged into the master's error log.
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -152,7 +153,6 @@ CALL mtr.add_suppression("Got fatal error 1236 from master.*Replicate the missin
 --echo # 7) Cleanup.
 --echo #
 --source include/rpl_connection_slave.inc
---source include/stop_slave.inc
 RESET MASTER;
 RESET SLAVE;
 --source include/rpl_connection_master.inc
