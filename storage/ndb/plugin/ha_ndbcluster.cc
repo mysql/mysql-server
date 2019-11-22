@@ -11701,6 +11701,7 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
           "definition changed",
           name);
       my_error(HA_ERR_TABLE_DEF_CHANGED, MYF(0), db, name);
+      free(unpacked_data);
       return 1;
     }
 
