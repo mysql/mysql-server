@@ -10,13 +10,13 @@
 -- source include/have_ndb.inc
 
 
-CREATE TABLE S (
+CREATE TABLE t (
   pk int NOT NULL,
   col_int int NOT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO S VALUES
+INSERT INTO t VALUES
  (19, 4),                             
  (12, 36),                            
  (5, 47),                             
@@ -58,8 +58,8 @@ let $query=
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-  S AS t1, S AS t2, S as t3, S as t4
-  JOIN S as t5 ON t5.pk = t4.col_int
+  t AS t1, t AS t2, t as t3, t as t4
+  JOIN t as t5 ON t5.pk = t4.col_int
 ;
 
 eval EXPLAIN $query;
@@ -100,4 +100,4 @@ eval $query;
 
 set join_buffer_size = default;
 
-DROP TABLE S;
+DROP TABLE t;
