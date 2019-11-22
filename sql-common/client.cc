@@ -6302,8 +6302,20 @@ static mysql_state_machine_status csm_parse_handshake(
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
       ctx->scramble_data_len = pkt_scramble_len;
       ctx->scramble_plugin = ctx->scramble_data + ctx->scramble_data_len;
-      if (ctx->scramble_data + ctx->scramble_data_len > pkt_end)
-        ctx->scramble_data_len = (int)(pkt_end - ctx->scramble_data);
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
+      if (ctx->scramble_data + ctx->scramble_data_len > pkt_end) {
+        ctx->scramble_data = 0;
+        ctx->scramble_data_len = 0;
+        ctx->scramble_plugin = const_cast<char *>("");
+      }
     } else {
       ctx->scramble_data_len = (int)(pkt_end - ctx->scramble_data);
       ctx->scramble_plugin = caching_sha2_password_plugin_name;
