@@ -1480,7 +1480,7 @@ static inline bool in_LTM(THD *thd) {
 }
 
 /**
-  Check if the given TABLE_LIST belongs to a a DD table.
+  Check if the given TABLE_LIST belongs to a DD table.
 
   The function checks whether the table is a DD table being used in the
   context of a DD transaction, or whether it is referred by a system view.
@@ -1489,6 +1489,9 @@ static inline bool in_LTM(THD *thd) {
   situation, then this function does not return 'true'. We do not know if
   there is such a situation right now.
 
+  This function ignores materialized table/view that is created by optimizer
+  when processing a system view.
+
   @param    tl             TABLE_LIST point to the table.
 
   @retval   true           If table belongs to a DD table.
@@ -1496,7 +1499,8 @@ static inline bool in_LTM(THD *thd) {
 */
 static bool belongs_to_dd_table(const TABLE_LIST *tl) {
   return (tl->is_dd_ctx_table ||
-          (tl->referencing_view && tl->referencing_view->is_system_view));
+          (!tl->uses_materialization() && tl->referencing_view &&
+           tl->referencing_view->is_system_view));
 }
 
 /**

@@ -2582,3 +2582,14 @@ WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
 SET OPTIMIZER_SWITCH=default;
 DROP VIEW v1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30476213 ASSERTION TEMPTABLE..HANDLER..GET_ERROR_MESSAGE
+--echo #
+
+SET @@SESSION.optimizer_switch="derived_merge=off";
+LOCK TABLE mysql.user READ;
+--echo # Without the fix, this statement fails.
+SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS;
+UNLOCK TABLES;
