@@ -154,7 +154,6 @@
 #include "sql/sql_select.h"         // handle_query
 #include "sql/sql_show.h"           // find_schema_table
 #include "sql/sql_table.h"          // mysql_create_table
-#include "sql/sql_test.h"           // mysql_print_status
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
 #include "sql/sql_view.h"  // mysql_create_view
@@ -2132,7 +2131,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     case COM_DEBUG:
       thd->status_var.com_other++;
       if (check_global_access(thd, SUPER_ACL)) break; /* purecov: inspected */
-      mysql_print_status();
       query_logger.general_log_print(thd, command, NullS);
       my_eof(thd);
 #ifdef WITH_LOCK_ORDER

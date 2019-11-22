@@ -1895,7 +1895,7 @@ int Protocol_classic::read_packet() {
   @return @ref page_protocol_basic_err_packet or
     @ref page_protocol_basic_ok_packet
 
-  @sa mysql_dump_debug_info, dispatch_command, mysql_print_status
+  @sa mysql_dump_debug_info, dispatch_command
 */
 
 /**

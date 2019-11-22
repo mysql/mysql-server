@@ -690,7 +690,6 @@ The documentation is based on the source files such as:
 #include "sql/sql_servers.h"
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"  // build_table_filename
-#include "sql/sql_test.h"   // mysql_print_status
 #include "sql/sql_udf.h"
 #include "sql/ssl_acceptor_context.h"
 #include "sql/sys_vars.h"         // fixup_enforce_gtid_consistency_...
@@ -3323,7 +3322,6 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
       case SIGHUP:
         if (!connection_events_loop_aborted()) {
           int not_used;
-          mysql_print_status();  // Print some debug info
           handle_reload_request(
               nullptr,
               (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST | REFRESH_GRANT |
