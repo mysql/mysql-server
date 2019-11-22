@@ -227,5 +227,8 @@ START SLAVE;
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+START SLAVE;
 DROP USER 'u1'@'localhost';
 --source include/rpl_end.inc

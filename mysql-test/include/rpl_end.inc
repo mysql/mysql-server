@@ -206,13 +206,22 @@ while ($_rpl_server)
     --enable_query_log
   }
 
-  # Drop created privileged database
+  # Restore state for PRIVILEGE_CHECKS_USER
   if ($rpl_privilege_checks_user)
   {
     --disable_query_log
     SET @@sql_log_bin = 0;
+    # Drop created privileged database
     DROP DATABASE rpl_priv;
     SET @@sql_log_bin = 1;
+    CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL;
+    --enable_query_log
+  }
+  # Restore state for REQUIRE_ROW_FORMAT
+  if ($rpl_require_row_format)
+  {
+    --disable_query_log
+    CHANGE MASTER TO REQUIRE_ROW_FORMAT=0;
     --enable_query_log
   }
 

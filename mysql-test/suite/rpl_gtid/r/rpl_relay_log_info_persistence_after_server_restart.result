@@ -1,0 +1,44 @@
+#
+# 1. Instantiate `PRIVILEGE_CHECKS_USER` and `REQUIRE_ROW_FORMAT`
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (a INT PRIMARY KEY);
+INSERT INTO t VALUES (1);
+include/sync_slave_sql_with_master.inc
+#
+# 2. Check that the options values are instantiated.
+#
+include/assert.inc [The performance_schema.replication_applier_configuration holds saved data: PCU='u'@'localhost' & RRF=1]
+#
+# 3. Stop and reset the slave.
+#
+STOP SLAVE;
+RESET SLAVE;
+#
+# 4. Check that the options values are instantiated.
+#
+include/assert.inc [The performance_schema.replication_applier_configuration holds saved data: PCU='u'@'localhost' & RRF=1]
+#
+# 5. Restart the server.
+#
+include/rpl_restart_server.inc [server_number=2]
+#
+# 6. Check that the options values are instantiated.
+#
+include/assert.inc [The performance_schema.replication_applier_configuration holds saved data: PCU='u'@'localhost' & RRF=1]
+#
+# 7. Start the slave.
+#
+[connection slave]
+START SLAVE;
+#
+# 8. Check that the options values are instantiated.
+#
+include/assert.inc [The performance_schema.replication_applier_configuration holds saved data: PCU='u'@'localhost' & RRF=1]
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc

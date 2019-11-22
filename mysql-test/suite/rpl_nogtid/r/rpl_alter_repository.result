@@ -8,13 +8,13 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Number_of_lines` int unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
-  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
-  `Relay_log_pos` bigint unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
-  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
-  `Master_log_pos` bigint unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
-  `Sql_delay` int NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
-  `Number_of_workers` int unsigned NOT NULL,
-  `Id` int unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int DEFAULT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int unsigned DEFAULT NULL,
+  `Id` int unsigned DEFAULT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
@@ -26,13 +26,13 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Number_of_lines` int unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
-  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
-  `Relay_log_pos` bigint unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
-  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
-  `Master_log_pos` bigint unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
-  `Sql_delay` int NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
-  `Number_of_workers` int unsigned NOT NULL,
-  `Id` int unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int DEFAULT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int unsigned DEFAULT NULL,
+  `Id` int unsigned DEFAULT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
@@ -68,7 +68,7 @@ include/stop_slave_io.inc
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 START SLAVE SQL_THREAD;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 include/rpl_restart_server.inc [server_number=2 parameters: --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE]
 include/start_slave.inc
@@ -85,7 +85,7 @@ RESET SLAVE ALL;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
 ERROR HY000: Column count of mysql.slave_relay_log_info is wrong. Expected 12, found 11. The table is probably corrupted
-ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED NOT NULL AFTER Sql_delay;
+ALTER TABLE mysql.slave_relay_log_info ADD COLUMN Number_of_workers INTEGER UNSIGNED AFTER Sql_delay;
 UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 RESET SLAVE ALL;
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
@@ -184,13 +184,13 @@ SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Number_of_lines` int unsigned NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
-  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.',
-  `Relay_log_pos` bigint unsigned NOT NULL COMMENT 'The relay log position of the last executed event.',
-  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
-  `Master_log_pos` bigint unsigned NOT NULL COMMENT 'The master log position of the last executed event.',
-  `Sql_delay` int NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
-  `Number_of_workers` int unsigned NOT NULL,
-  `Id` int unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  `Relay_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+  `Relay_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The relay log position of the last executed event.',
+  `Master_log_name` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  `Master_log_pos` bigint unsigned DEFAULT NULL COMMENT 'The master log position of the last executed event.',
+  `Sql_delay` int DEFAULT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
+  `Number_of_workers` int unsigned DEFAULT NULL,
+  `Id` int unsigned DEFAULT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   `Privilege_checks_username` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',

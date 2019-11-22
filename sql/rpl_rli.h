@@ -454,8 +454,6 @@ class Relay_log_info : public Rpl_info {
 
     @param param_privilege_checks_username the username part of the user.
     @param param_privilege_checks_hostname the hostname part of the user.
-    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
-                  TO` statement, for cross-option validation, if needed.
 
     @return a status code describing the state of the data initialization.
    */
@@ -482,8 +480,6 @@ class Relay_log_info : public Rpl_info {
 
     @param param_privilege_checks_username the username part of the user.
     @param param_privilege_checks_hostname the hostname part of the user.
-    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
-                  TO` statement, for cross-option validation, if needed.
 
     @return a status code describing the state of the data initialization.
    */
@@ -566,8 +562,6 @@ class Relay_log_info : public Rpl_info {
     only.
 
     @param require_row the flag value.
-    @param lex_mi optional parameter holding the options set with `CHANGE MASTER
-                  TO` statement, for cross-option validation, if needed.
 
      @return a status code describing the state of the data initialization.
    */
@@ -1428,6 +1422,26 @@ class Relay_log_info : public Rpl_info {
   int rli_init_info(bool skip_received_gtid_set_recovery = false);
   void end_info();
   int flush_info(bool force = false);
+  /**
+   Clears from `this` Relay_log_info object all attribute values that are
+   not to be kept.
+
+   @returns true if there were a problem with clearing the data and false
+            otherwise.
+   */
+  bool clear_info();
+  /**
+   Checks if the underlying `Rpl_info` handler holds information for the fields
+   to be kept between slave resets, while the other fields were cleared.
+
+   @param previous_result the result return from invoking the `check_info`
+                          method on `this` object.
+
+   @returns function success state represented by the `enum_return_check`
+            enumeration.
+   */
+  enum_return_check check_if_info_was_cleared(
+      const enum_return_check &previous_result) const;
   int flush_current_log();
   void set_master_info(Master_info *info);
 

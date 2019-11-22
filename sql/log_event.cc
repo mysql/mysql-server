@@ -5774,7 +5774,7 @@ bool Intvar_log_event::write(Basic_ostream *ostream) {
 
 #ifndef MYSQL_SERVER
 void Intvar_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
-  char llbuff[22];
+  char llbuff[22] = {0};
   const char *msg = nullptr;
   IO_CACHE *const head = &print_event_info->head_cache;
 

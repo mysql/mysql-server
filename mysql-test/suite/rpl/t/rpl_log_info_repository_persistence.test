@@ -76,7 +76,7 @@
 #
 # TC.P.T3: RESET SLAVE should keep value of PRIVILEGE_CHECKS_USER.
 #   1. reset slave for channel "".
-#   2. verify that slave_relay_log_info table has only 2 entries but pfs has 3.
+#   2. verify that slave_relay_log_info table and pfs have 3 records.
 #   3. verify that "ch1" kept values for PRIVILEGE_CHECKS_USER,
 #      and (Privilege_checks_username, Privilege_checks_hostname) in
 #      respectively pfs and slave_relay_log_info tables.
@@ -633,10 +633,9 @@ FLUSH RELAY LOGS FOR CHANNEL "ch2";
 
 #   1. reset slave for channel "".
 RESET SLAVE FOR CHANNEL "";
-#   2. verify that there are 3 and 2 channel entries in pfs and
-#      slave_relay_log_info tables respectively.
+#   2. verify that slave_relay_log_info table and pfs have 3 records.
 --let $assert_text = Check that mysql.slave_relay_log_info has 2 entries for 2 channels
---let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info] = 2
+--let $assert_cond = [SELECT COUNT(*) FROM mysql.slave_relay_log_info] = 3
 --source include/assert.inc
 
 --let $assert_text = Check that performance_schema.replication_applier_configuration has 3 entries for 3 channels

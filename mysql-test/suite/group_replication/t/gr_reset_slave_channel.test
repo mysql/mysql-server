@@ -259,8 +259,8 @@ INSERT INTO t1 VALUES (5);
 --echo RESET SLAVE command clears master and slave info repositories and will flush master info
 RESET SLAVE;
 
---let $assert_text= 'mysql.slave_relay_log_info contains no group replication channel information'
---let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name like "group_replication%", count, 1] = 0
+--let $assert_text= 'mysql.slave_relay_log_info contains flushed group replication channel information'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name like "group_replication%", count, 1] = 2
 --source include/assert.inc
 
 --let $assert_text= 'mysql.slave_master_info contains flushed group replication channel information'

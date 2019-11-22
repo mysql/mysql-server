@@ -334,14 +334,14 @@ DROP PREPARE stmt;
 
 
 SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
-  Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.', 
-  Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the current relay log file.', 
-  Relay_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The relay log position of the last executed event.', 
-  Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log file from which the events in the relay log file were read.', 
-  Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last executed event.', 
-  Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.', 
-  Number_of_workers INTEGER UNSIGNED NOT NULL,
-  Id INTEGER UNSIGNED NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
+  Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file or rows in the table. Used to version table definitions.',
+  Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
+  Relay_log_pos BIGINT UNSIGNED COMMENT 'The relay log position of the last executed event.',
+  Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the master binary log file from which the events in the relay log file were read.',
+  Master_log_pos BIGINT UNSIGNED COMMENT 'The master log position of the last executed event.',
+  Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
+  Number_of_workers INTEGER UNSIGNED,
+  Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.',
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
   Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
@@ -393,18 +393,18 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd= "CREATE TABLE IF NOT EXISTS slave_worker_info (
-  Id INTEGER UNSIGNED NOT NULL, 
-  Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
-  Relay_log_pos BIGINT UNSIGNED NOT NULL, 
-  Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
-  Master_log_pos BIGINT UNSIGNED NOT NULL, 
-  Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
-  Checkpoint_relay_log_pos BIGINT UNSIGNED NOT NULL, 
-  Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL, 
-  Checkpoint_master_log_pos BIGINT UNSIGNED NOT NULL, 
-  Checkpoint_seqno INT UNSIGNED NOT NULL, 
-  Checkpoint_group_size INTEGER UNSIGNED NOT NULL, 
-  Checkpoint_group_bitmap BLOB NOT NULL, 
+  Id INTEGER UNSIGNED NOT NULL,
+  Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  Relay_log_pos BIGINT UNSIGNED NOT NULL,
+  Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  Master_log_pos BIGINT UNSIGNED NOT NULL,
+  Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  Checkpoint_relay_log_pos BIGINT UNSIGNED NOT NULL,
+  Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  Checkpoint_master_log_pos BIGINT UNSIGNED NOT NULL,
+  Checkpoint_seqno INT UNSIGNED NOT NULL,
+  Checkpoint_group_size INTEGER UNSIGNED NOT NULL,
+  Checkpoint_group_bitmap BLOB NOT NULL,
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY(Channel_name, Id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Worker Information'";
 

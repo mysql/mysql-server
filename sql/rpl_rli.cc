@@ -1702,7 +1702,19 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     goto err;
   }
 
-  if (check_return == REPOSITORY_DOES_NOT_EXIST) {
+  check_return = check_if_info_was_cleared(check_return);
+
+  if (check_return & REPOSITORY_EXISTS) {
+    if (read_info(handler)) {
+      msg = "Error reading relay log configuration";
+      error = 1;
+      goto err;
+    }
+  }
+
+  if (check_return == REPOSITORY_DOES_NOT_EXIST ||  // Hasn't been initialized
+      check_return == REPOSITORY_CLEARED  // Was initialized but was RESET
+  ) {
     /* Init relay log with first entry in the relay index file */
     if (reset_group_relay_log_pos(&msg)) {
       error = 1;
@@ -1711,12 +1723,6 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
     group_master_log_name[0] = 0;
     group_master_log_pos = 0;
   } else {
-    if (read_info(handler)) {
-      msg = "Error reading relay log configuration";
-      error = 1;
-      goto err;
-    }
-
     if (is_relay_log_recovery && init_recovery(mi)) {
       error = 1;
       goto err;
@@ -1872,6 +1878,76 @@ err:
   return 1;
 }
 
+enum_return_check Relay_log_info::check_if_info_was_cleared(
+    const enum_return_check &previous_result) const {
+  enum_return_check result = previous_result;
+
+  if (result == REPOSITORY_EXISTS) {
+    char number_of_lines[FN_REFLEN] = {0};
+
+    if (this->handler->prepare_info_for_read() ||
+        !!this->handler->get_info(number_of_lines, sizeof(number_of_lines), ""))
+      return ERROR_CHECKING_REPOSITORY;
+
+    char *first_non_digit{nullptr};
+    int lines = strtoul(number_of_lines, &first_non_digit, 10);
+
+    if (number_of_lines[0] != '\0' && *first_non_digit == '\0' &&
+        lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
+      char log_name[FN_REFLEN] = {0};
+
+      if (this->handler->get_info(log_name, sizeof(log_name), "") ==
+          Rpl_info_handler::enum_field_get_status::FAILURE)
+        return ERROR_CHECKING_REPOSITORY;
+
+      if (log_name[0] == '\0') return REPOSITORY_CLEARED;
+    }
+  }
+  return result;
+}
+
+bool Relay_log_info::clear_info() {
+  this->handler->init_info();
+
+  if (this->handler->prepare_info_for_write() ||
+      this->handler->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) || this->handler->set_info(nullptr) ||
+      this->handler->set_info(nullptr) ||
+      this->handler->set_info(this->channel))
+    return true;
+
+  if (this->m_privilege_checks_username.length() != 0) {
+    if (this->handler->set_info(this->m_privilege_checks_username.c_str()))
+      return true;
+  } else {
+    if (this->handler->set_info(nullptr)) {
+      return true;
+    }
+  }
+  if (this->m_privilege_checks_hostname.length() != 0) {
+    if (this->handler->set_info(this->m_privilege_checks_hostname.c_str()))
+      return true;
+  } else {
+    if (this->handler->set_info(nullptr)) return true;
+  }
+
+  if (this->handler->set_info(this->m_require_row_format)) return true;
+
+  if (this->handler->flush_info(true)) return true;
+
+  this->group_relay_log_name[0] = '\0';
+  this->group_relay_log_pos = 0;
+  this->group_master_log_name[0] = '\0';
+  this->group_master_log_pos = 0;
+  this->sql_delay = 0;
+  this->recovery_parallel_workers = 0;
+  this->internal_id = 1;
+
+  return false;
+}
+
 size_t Relay_log_info::get_number_info_rli_fields() {
   return sizeof(info_rli_fields) / sizeof(info_rli_fields[0]);
 }
@@ -1879,9 +1955,9 @@ size_t Relay_log_info::get_number_info_rli_fields() {
 void Relay_log_info::set_nullable_fields(MY_BITMAP *nullable_fields) {
   bitmap_init(nullable_fields, nullptr,
               Relay_log_info::get_number_info_rli_fields());
-  bitmap_clear_all(nullable_fields);
-  bitmap_set_bit(nullable_fields, 9);
-  bitmap_set_bit(nullable_fields, 10);
+  bitmap_set_all(nullable_fields);       // All fields may be NULL except for
+  bitmap_clear_bit(nullable_fields, 0);  // NUMBER_OF_LINES and
+  bitmap_clear_bit(nullable_fields, 8);  // CHANNEL_NAME
 }
 
 void Relay_log_info::start_sql_delay(time_t delay_end) {
@@ -1898,6 +1974,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   int temp_sql_delay = 0;
   int temp_internal_id = internal_id;
   int temp_require_row_format = 0;
+  Rpl_info_handler::enum_field_get_status status{
+      Rpl_info_handler::enum_field_get_status::FAILURE};
 
   DBUG_TRACE;
 
@@ -1948,28 +2026,40 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (group_relay_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
     /* Seems to be new format => read group relay log name */
-    if (!!from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
-                         ""))
-      return true;
+    status =
+        from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "");
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+    if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+      group_relay_log_name[0] = '\0';
   } else
     DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
-  if (!!from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
-      !!from->get_info(group_master_log_name, sizeof(group_relay_log_name),
-                       "") ||
-      !!from->get_info(&temp_group_master_log_pos, 0UL))
-    return true;
+  status =
+      from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE);
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+
+  status =
+      from->get_info(group_master_log_name, sizeof(group_master_log_name), "");
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+  if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+    group_master_log_name[0] = '\0';
+
+  status = from->get_info(&temp_group_master_log_pos, 0UL);
+  if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
-    if (!!from->get_info(&temp_sql_delay, 0)) return true;
+    status = from->get_info(&temp_sql_delay, 0);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) {
-    if (!!from->get_info(&recovery_parallel_workers, 0UL)) return true;
+    status = from->get_info(&recovery_parallel_workers, 0UL);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID) {
-    if (!!from->get_info(&temp_internal_id, 1)) return true;
+    status = from->get_info(&temp_internal_id, 1);
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
   }
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL) {
@@ -1984,9 +2074,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   char temp_privilege_checks_username[PRIV_CHECKS_USERNAME_LENGTH + 4] = {0};
   char *username = nullptr;
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_USERNAME) {
-    Rpl_info_handler::enum_field_get_status status =
-        from->get_info(temp_privilege_checks_username,
-                       PRIV_CHECKS_USERNAME_LENGTH + 1, nullptr);
+    status = from->get_info(temp_privilege_checks_username,
+                            PRIV_CHECKS_USERNAME_LENGTH + 1, nullptr);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
     if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
       username = temp_privilege_checks_username;
@@ -1999,9 +2088,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   char temp_privilege_checks_hostname[PRIV_CHECKS_HOSTNAME_LENGTH + 4] = {0};
   char *hostname = nullptr;
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_PRIV_CHECKS_HOSTNAME) {
-    Rpl_info_handler::enum_field_get_status status =
-        from->get_info(temp_privilege_checks_hostname,
-                       PRIV_CHECKS_HOSTNAME_LENGTH + 1, nullptr);
+    status = from->get_info(temp_privilege_checks_hostname,
+                            PRIV_CHECKS_HOSTNAME_LENGTH + 1, nullptr);
     if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
     if (status == Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL)
       hostname = temp_privilege_checks_hostname;
