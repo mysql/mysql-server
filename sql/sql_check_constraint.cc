@@ -155,7 +155,7 @@ bool Check_constraint_column_dependency_checker::operator()(
     const Alter_drop *drop) {
   if (drop->type != Alter_drop::COLUMN) return false;
   return any_check_constraint_uses_column(drop->name);
-};
+}
 
 bool Check_constraint_column_dependency_checker::operator()(
     const Alter_column *alter_column) {
