@@ -35,6 +35,14 @@ if(mysqld.global.primary_id === undefined){
     mysqld.global.primary_id = 0;
 }
 
+if(mysqld.global.mysqlx_wait_timeout_unsupported === undefined){
+    mysqld.global.mysqlx_wait_timeout_unsupported = 0;
+}
+
+if(mysqld.global.gr_notices_unsupported === undefined){
+    mysqld.global.gr_notices_unsupported = 0;
+}
+
 var nodes = function(host, port_and_state) {
   return port_and_state.map(function (current_value) {
     return [ current_value[0], host, current_value[0], current_value[1], current_value[2]];
@@ -82,10 +90,29 @@ var nodes = function(host, port_and_state) {
       mysqld.global.md_query_count++;
       return router_select_metadata;
     }
-    else if (stmt === "enable_notices" || stmt === "set @@mysqlx_wait_timeout = 28800") {
-      return {
-        ok: {}
-      }
+    else if (stmt === "set @@mysqlx_wait_timeout = 28800") {
+      if (mysqld.global.mysqlx_wait_timeout_unsupported === 0)
+        return { ok: {} }
+      else
+        return {
+          error: {
+            code: 1193,
+            sql_state: "HY001",
+            message: "Unknown system variable 'mysqlx_wait_timeout'"
+          }
+        }
+    }
+    else if (stmt === "enable_notices") {
+      if (mysqld.global.gr_notices_unsupported === 0)
+        return { ok: {} }
+      else
+        return {
+          error: {
+            code: 5163,
+            sql_state: "HY001",
+            message: "Invalid notice name group_replication/membership/quorum_loss"
+          }
+        }
     }
     else {
       return common_stmts.unknown_statement_response(stmt);

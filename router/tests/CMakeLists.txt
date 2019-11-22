@@ -37,6 +37,7 @@ SET(helper_sources
   helpers/process_manager.cc
   helpers/process_wrapper.cc
   helpers/router_component_test.cc
+  helpers/router_component_testutils.cc
   helpers/router_component_system_layout.cc
   helpers/router_test_helpers.cc
   helpers/script_generator.cc
