@@ -54,7 +54,8 @@ std::string json_to_string(const JsonValue &json_doc) {
 JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
                                    const std::vector<uint16_t> &gr_node_ports,
                                    unsigned primary_id, unsigned view_id,
-                                   bool error_on_md_query) {
+                                   bool error_on_md_query,
+                                   const std::string &gr_node_host) {
   JsonValue json_doc(rapidjson::kObjectType);
   JsonAllocator allocator;
   json_doc.AddMember(
@@ -73,6 +74,10 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
     json_doc.AddMember("view_id", static_cast<int>(view_id), allocator);
   }
   json_doc.AddMember("error_on_md_query", error_on_md_query ? 1 : 0, allocator);
+  json_doc.AddMember(
+      "gr_node_host",
+      JsonValue(gr_node_host.c_str(), gr_node_host.length(), allocator),
+      allocator);
 
   return json_doc;
 }
@@ -80,9 +85,11 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
                        unsigned primary_id, unsigned view_id,
-                       bool error_on_md_query) {
-  const auto json_doc = mock_GR_metadata_as_json(
-      gr_id, gr_node_ports, primary_id, view_id, error_on_md_query);
+                       bool error_on_md_query,
+                       const std::string &gr_node_host) {
+  const auto json_doc =
+      mock_GR_metadata_as_json(gr_id, gr_node_ports, primary_id, view_id,
+                               error_on_md_query, gr_node_host);
 
   const auto json_str = json_to_string(json_doc);
 

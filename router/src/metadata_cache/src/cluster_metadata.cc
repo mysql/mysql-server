@@ -172,18 +172,13 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
                         const size_t classic_port_column,
                         const size_t x_port_column) {
   try {
-    std::string uri = get_string(row[classic_port_column]);
-    std::string::size_type p;
-    if ((p = uri.find(':')) != std::string::npos) {
-      instance.host = uri.substr(0, p);
-      instance.port =
-          static_cast<uint16_t>(strtoi_checked(uri.substr(p + 1).c_str()));
-    } else {
-      instance.host = uri;
-      instance.port = 3306;
-    }
+    const std::string classic_port = get_string(row[classic_port_column]);
+    const auto addr_port = mysqlrouter::split_addr_port(classic_port);
+    instance.host = addr_port.first;
+    instance.port = addr_port.second != 0 ? addr_port.second : 3306;
+
   } catch (const std::runtime_error &e) {
-    log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
+    log_warning("Error parsing host:port in metadata for instance %s: '%s': %s",
                 instance.mysql_server_uuid.c_str(), row[classic_port_column],
                 e.what());
     return false;
@@ -191,20 +186,13 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
   // X protocol support is not mandatory
   if (row[x_port_column] && *row[x_port_column]) {
     try {
-      std::string uri = get_string(row[x_port_column]);
-      std::string::size_type p;
-      if ((p = uri.find(':')) != std::string::npos) {
-        instance.host = uri.substr(0, p);
-        instance.xport =
-            static_cast<uint16_t>(strtoi_checked(uri.substr(p + 1).c_str()));
-      } else {
-        instance.host = uri;
-        instance.xport = 33060;
-      }
+      const std::string x_port = get_string(row[x_port_column]);
+      const auto addr_port = mysqlrouter::split_addr_port(x_port);
+      instance.xport = addr_port.second != 0 ? addr_port.second : 33060;
     } catch (const std::runtime_error &e) {
-      log_warning("Error parsing URI in metadata for instance %s: '%s': %s",
-                  instance.mysql_server_uuid.c_str(), row[x_port_column],
-                  e.what());
+      log_warning(
+          "Error parsing host:xport in metadata for instance %s: '%s': %s",
+          instance.mysql_server_uuid.c_str(), row[x_port_column], e.what());
       return false;
     }
   } else {

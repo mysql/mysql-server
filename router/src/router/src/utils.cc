@@ -270,6 +270,10 @@ std::pair<string, uint16_t> split_addr_port(string data) {
   uint16_t port = 0;
   trim(data);
 
+  if (data.empty()) {
+    return std::make_pair(addr, port);
+  }
+
   if (data.at(0) == '[') {
     // IPv6 with port
     pos = data.find(']');

@@ -107,10 +107,11 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
         PluginConfig config{section};
         const std::string key = section->name + ":" + section->key;
-        mock_servers.emplace(
-            std::make_pair(key, std::make_shared<server_mock::MySQLServerMock>(
-                                    config.trace_filename, config.module_prefix,
-                                    config.srv_port, config.srv_protocol, 0)));
+        mock_servers.emplace(std::make_pair(
+            key,
+            std::make_shared<server_mock::MySQLServerMock>(
+                config.trace_filename, config.module_prefix, config.srv_address,
+                config.srv_port, config.srv_protocol, 0)));
 
         MockServerComponent::get_instance().register_server(
             mock_servers.at(key));

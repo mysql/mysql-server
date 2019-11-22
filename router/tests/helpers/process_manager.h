@@ -144,13 +144,15 @@ class ProcessManager {
    * @param x_port  port number where the mock server will accept x client
    *                  connections
    * @param module_prefix base-path for javascript modules used by the tests
+   * @param bind_address listen address for the mock server to bind to
    *
    * @returns handle to the launched proccess
    */
   ProcessWrapper &launch_mysql_server_mock(
       const std::string &json_file, unsigned port, int expected_exit_code = 0,
       bool debug_mode = false, uint16_t http_port = 0, uint16_t x_port = 0,
-      const std::string &module_prefix = "");
+      const std::string &module_prefix = "",
+      const std::string &bind_address = "0.0.0.0");
 
   /** @brief Launches a process.
    *

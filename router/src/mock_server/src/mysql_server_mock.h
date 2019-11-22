@@ -50,6 +50,7 @@ class MySQLServerMock {
    *                        of the expected SQL statements and responses
    * @param module_prefix prefix of javascript modules used by the nodejs
    * compatible module-loader
+   * @param bind_address Address on which the server accepts client connections
    * @param bind_port Number of the port on which the server accepts clients
    *                        connections
    * @param protocol the protocol this mock instance speaks: "x" or "classic"
@@ -57,7 +58,8 @@ class MySQLServerMock {
    * to the standard output
    */
   MySQLServerMock(const std::string &expected_queries_file,
-                  const std::string &module_prefix, unsigned bind_port,
+                  const std::string &module_prefix,
+                  const std::string &bind_address, unsigned bind_port,
                   const std::string &protocol, bool debug_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
@@ -75,6 +77,7 @@ class MySQLServerMock {
   void handle_connections(mysql_harness::PluginFuncEnv *env);
 
   static constexpr int kListenQueueSize = 128;
+  std::string bind_address_;
   unsigned bind_port_;
   bool debug_mode_;
   socket_t listener_{socket_t(-1)};
