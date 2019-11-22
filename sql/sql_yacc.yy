@@ -1614,7 +1614,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <locking_clause> locking_clause
 
-%type <locking_clause_list> opt_locking_clause_list locking_clause_list
+%type <locking_clause_list> locking_clause_list
 
 %type <lock_strength> lock_strength
 
@@ -1655,10 +1655,14 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <select_var_list> select_var_list
 
-%type <query_primary> query_primary  query_specification
+%type <query_primary>
+        as_create_query_expression
+        query_expression_or_parens
+        query_expression_parens
+        query_primary
+        query_specification
 
-%type <query_expression> query_expression query_expression_parens
-        query_expression_or_parens as_create_query_expression
+%type <query_expression> query_expression
 
 %type <subquery> subquery row_subquery table_subquery
 
@@ -5645,8 +5649,8 @@ opt_duplicate_as_qe:
         ;
 
 as_create_query_expression:
-          AS query_expression_or_parens { $$= $2; }
-        | query_expression_or_parens
+          AS query_expression_or_parens { $$ = $2; }
+        | query_expression_or_parens    { $$ = $1; }
         ;
 
 /*
@@ -8998,13 +9002,15 @@ opt_ignore_leaves:
 select_stmt:
           query_expression
           {
-            $$= NEW_PTN PT_select_stmt($1);
+            $$ = NEW_PTN PT_select_stmt($1);
+          }
+        | query_expression locking_clause_list
+          {
+            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2));
           }
         | query_expression_parens
           {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-            $$= NEW_PTN PT_select_stmt($1);
+            $$ = NEW_PTN PT_select_stmt($1);
           }
         | select_stmt_with_into
         ;
@@ -9044,11 +9050,19 @@ select_stmt:
 select_stmt_with_into:
           '(' select_stmt_with_into ')'
           {
-            $$= $2;
+            $$ = $2;
           }
         | query_expression into_clause
           {
-            $$= NEW_PTN PT_select_stmt($1, $2);
+            $$ = NEW_PTN PT_select_stmt($1, $2);
+          }
+        | query_expression into_clause locking_clause_list
+          {
+            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $3), $2);
+          }
+        | query_expression locking_clause_list into_clause
+          {
+            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2), $3);
           }
         ;
 
@@ -9088,51 +9102,44 @@ query_expression:
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_locking_clause_list
           {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
+            $$ = NEW_PTN PT_query_expression($1, $2, $3);
           }
         | with_clause
           query_expression_body
           opt_order_clause
           opt_limit_clause
-          opt_locking_clause_list
-          {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
-          }
-        | query_expression_parens
-          order_clause
-          opt_limit_clause
-          opt_locking_clause_list
           {
             $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
+        | query_expression_parens
+          order_clause
+          opt_limit_clause
+          {
+            $$= NEW_PTN PT_query_expression($1, $2, $3);
+          }
         | with_clause
           query_expression_parens
           order_clause
           opt_limit_clause
-          opt_locking_clause_list
           {
-            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4);
           }
         | query_expression_parens
           limit_clause
-          opt_locking_clause_list
           {
-            $$ = NEW_PTN PT_query_expression($1, nullptr, $2, $3);
+            $$ = NEW_PTN PT_query_expression($1, nullptr, $2);
           }
         | with_clause
           query_expression_parens
           limit_clause
-          opt_locking_clause_list
           {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, $3, $4);
+            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, $3);
           }
         | with_clause
           query_expression_parens
-          opt_locking_clause_list
           {
-            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, nullptr, $3);
+            $$ = NEW_PTN PT_query_expression($1, $2, nullptr, nullptr);
           }
         ;
 
@@ -9162,7 +9169,11 @@ query_expression_body:
 
 query_expression_parens:
           '(' query_expression_parens ')' { $$= $2; }
-        | '(' query_expression ')' { $$= $2; }
+        | '(' query_expression')' { $$= $2; }
+        | '(' query_expression locking_clause_list')'
+          {
+            $$ = NEW_PTN PT_locking($2, $3);
+          }
         ;
 
 query_primary:
@@ -9305,11 +9316,6 @@ select_option:
             /* Ignored since MySQL 8.0. */
             $$.query_spec_options= 0;
           }
-        ;
-
-opt_locking_clause_list:
-          /* Empty. */ { $$= NULL; }
-        | locking_clause_list
         ;
 
 locking_clause_list:
@@ -12369,8 +12375,12 @@ insert_values:
         ;
 
 query_expression_or_parens:
-          query_expression
-        | query_expression_parens
+          query_expression                      { $$ = $1; }
+        | query_expression locking_clause_list
+          {
+            $$ = NEW_PTN PT_locking($1, $2);
+          }
+        | query_expression_parens               { $$ = $1; }
         ;
 
 value_or_values:

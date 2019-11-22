@@ -385,7 +385,7 @@ union YYSTYPE {
   } column_row_value_list_pair;
   struct {
     class PT_item_list *column_list;
-    class PT_query_expression *insert_query_expression;
+    class PT_query_primary *insert_query_expression;
   } insert_query_expression;
   struct {
     class Item *offset;
@@ -477,7 +477,7 @@ union YYSTYPE {
     Mem_root_array<PT_create_table_option *> *opt_create_table_options;
     PT_partition *opt_partitioning;
     On_duplicate on_duplicate;
-    PT_query_expression *opt_query_expression;
+    PT_query_primary *opt_query_expression;
   } create_table_tail;
   Lock_strength lock_strength;
   Locked_row_action locked_row_action;
