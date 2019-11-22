@@ -1,9 +1,9 @@
-CREATE TABLE S (
+CREATE TABLE t (
 pk int NOT NULL,
 col_int int NOT NULL,
 PRIMARY KEY (`pk`)
 ) ENGINE=ndbcluster;
-INSERT INTO S VALUES
+INSERT INTO t VALUES
 (19, 4),                             
 (12, 36),                            
 (5, 47),                             
@@ -32,8 +32,8 @@ INSERT INTO S VALUES
 EXPLAIN SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	25	100.00	NULL
@@ -48,12 +48,12 @@ Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
 Note	1003	Cannot push table 't5' as child of table 't1'. Doing so would prevent using join buffer for table 't4'.
 Note	1003	Cannot push table 't5' as child of table 't2'. Doing so would prevent using join buffer for table 't4'.
 Note	1003	Cannot push table 't5' as child of table 't3'. Doing so would prevent using join buffer for table 't4'.
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`S` `t1` join `test`.`S` `t2` join `test`.`S` `t3` join `test`.`S` `t4` join `test`.`S` `t5` where (`test`.`t5`.`pk` = `test`.`t4`.`col_int`)
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t` `t1` join `test`.`t` `t2` join `test`.`t` `t3` join `test`.`t` `t4` join `test`.`t` `t5` where (`test`.`t5`.`pk` = `test`.`t4`.`col_int`)
 EXPLAIN FORMAT=TREE SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 EXPLAIN
 -> Aggregate: count(0)
@@ -81,8 +81,8 @@ set join_buffer_size = 128;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -90,8 +90,8 @@ set join_buffer_size = 1024;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -99,8 +99,8 @@ set join_buffer_size = 2048;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -108,8 +108,8 @@ set join_buffer_size = 4096;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -117,8 +117,8 @@ set join_buffer_size = 16000;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -126,8 +126,8 @@ set join_buffer_size = 64000;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -135,8 +135,8 @@ set join_buffer_size = 256000;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
@@ -144,10 +144,10 @@ set join_buffer_size = 1024000;
 SELECT
 STRAIGHT_JOIN count(*)
 FROM 
-S AS t1, S AS t2, S as t3, S as t4
-JOIN S as t5 ON t5.pk = t4.col_int
+t AS t1, t AS t2, t as t3, t as t4
+JOIN t as t5 ON t5.pk = t4.col_int
 ;
 count(*)
 265625
 set join_buffer_size = default;
-DROP TABLE S;
+DROP TABLE t;
