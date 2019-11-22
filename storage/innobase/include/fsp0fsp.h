@@ -932,6 +932,7 @@ class File_segment_inode {
  public:
   /** Constructor
    @param[in]   space_id  table space identifier
+   @param[in]   page_size Size of each page in the tablespace.
    @param[in]   inode     file segment inode pointer
    @param[in]   mtr       mini transaction context. */
   File_segment_inode(space_id_t space_id, const page_size_t &page_size,
