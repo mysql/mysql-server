@@ -18380,6 +18380,36 @@ static bool prepare_check_constraints_for_alter(
         new_cc_names.push_back(cc_spec->name.str);
       }
     }
+
+    /*
+      Check if any check constraint refers to column(s) being dropped or
+      renamed.
+    */
+    if (!new_check_cons_list.empty()) {
+      // Check if any check constraint refers column(s) being dropped.
+      if (std::any_of(
+              alter_info->drop_list.begin(), alter_info->drop_list.end(),
+              Check_constraint_column_dependency_checker(new_check_cons_list)))
+        return true;
+
+      /*
+        Check if any check constraint refers column(s) being renamed using
+        RENAME COLUMN clause.
+      */
+      if (std::any_of(
+              alter_info->alter_list.begin(), alter_info->alter_list.end(),
+              Check_constraint_column_dependency_checker(new_check_cons_list)))
+        return true;
+
+      /*
+        Check if any check constraint refers column(s) being renamed using
+        CHANGE [COLUMN] clause.
+      */
+      if (std::any_of(
+              alter_info->create_list.begin(), alter_info->create_list.end(),
+              Check_constraint_column_dependency_checker(new_check_cons_list)))
+        return true;
+    }
   }
 
   // Update check constraint enforcement state (i.e. enforced or not enforced).

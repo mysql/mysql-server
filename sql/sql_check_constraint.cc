@@ -29,6 +29,7 @@
 #include "mysql/thread_type.h"                     // SYSTEM_THREAD_SLAVE_*
 #include "mysql_com.h"                             // NAME_CHAR_LEN
 #include "mysqld_error.h"                          // ER_*
+#include "sql/create_field.h"                      // Create_field
 #include "sql/enum_query_type.h"                   // QT_*
 #include "sql/field.h"             // pre_validate_value_generator_expr
 #include "sql/item.h"              // Item, Item_field
@@ -132,4 +133,44 @@ bool check_constraint_expr_refers_to_only_column(Item *check_expr,
       return false;
   }
   return true;
+}
+
+bool Check_constraint_column_dependency_checker::
+    any_check_constraint_uses_column(const char *column_name) {
+  auto column_used_by_constraint =
+      [column_name](Sql_check_constraint_spec *cc_spec) {
+        if (cc_spec->expr_refers_column(column_name)) {
+          my_error(ER_DEPENDENT_BY_CHECK_CONSTRAINT, MYF(0), cc_spec->name.str,
+                   column_name);
+          return true;
+        }
+        return false;
+      };
+
+  return std::any_of(m_check_constraint_list.begin(),
+                     m_check_constraint_list.end(), column_used_by_constraint);
+}
+
+bool Check_constraint_column_dependency_checker::operator()(
+    const Alter_drop *drop) {
+  if (drop->type != Alter_drop::COLUMN) return false;
+  return any_check_constraint_uses_column(drop->name);
+};
+
+bool Check_constraint_column_dependency_checker::operator()(
+    const Alter_column *alter_column) {
+  if (alter_column->change_type() != Alter_column::Type::RENAME_COLUMN)
+    return false;
+  if (my_strcasecmp(system_charset_info, alter_column->name,
+                    alter_column->m_new_name) == 0)
+    return false;
+  return any_check_constraint_uses_column(alter_column->name);
+}
+
+bool Check_constraint_column_dependency_checker::operator()(
+    const Create_field &fld) {
+  if (fld.change == nullptr) return false;
+  if (my_strcasecmp(system_charset_info, fld.field_name, fld.change) == 0)
+    return false;
+  return any_check_constraint_uses_column(fld.change);
 }

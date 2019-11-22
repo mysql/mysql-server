@@ -820,7 +820,7 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITH
 ALTER TABLE t1 ADD f3 INT CHECK (f3 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 ALTER TABLE t1 ADD CONSTRAINT CHECK (f2 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 ALTER TABLE t1 RENAME COLUMN f1 TO f10;
-ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_1 expression'
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
 #------------------------------------------------------------------------
 # Test case to verify check constraints creation with ALTER TABLE DROP
 # CONSTRAINT operation.
@@ -1210,9 +1210,9 @@ t1	CREATE TABLE `t1` (
   CONSTRAINT `t1_chk_3` CHECK ((`f2` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN f1;
-ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_2 expression'
+ERROR HY000: Check constraint 't1_chk_2' uses column 'f1', hence column cannot be dropped or renamed.
 ALTER TABLE t1 RENAME COLUMN f1 to f3;
-ERROR 42S22: Unknown column 'f1' in 'check constraint t1_chk_1 expression'
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
 # Drops column f1 and constraints t1_chk_1, t1_chk_2.
 ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
 SHOW CREATE TABLE t1;
@@ -3416,5 +3416,112 @@ t1	CREATE TABLE `t1` (
   `b` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   CONSTRAINT `c` CHECK ((`b` is null))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#30239721 - ALTER TABLE RENAME RETURN IMPROPER ERROR MESSAGE FOR
+#                CHECK CONSTRAINT
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, f4 FLOAT AS (f3 * 0.01), f5 INT,
+CHECK (f1 < f2));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` float GENERATED ALWAYS AS ((`f3` * 0.01)) VIRTUAL,
+  `f5` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < `f2`))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Check constraint is dependent on column f1. Error is reported.
+ALTER TABLE t1 DROP COLUMN f1;
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
+# Check constraint is dependent on column f1. Error is reported.
+ALTER TABLE t1 RENAME COLUMN f1 TO f6;
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
+# Check constraint is dependent on column f1. Error is reported.
+ALTER TABLE t1 CHANGE f1 f6 FLOAT;
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
+# Renaming column to same name will not affect dependency. No error
+# is reported in this case.
+ALTER TABLE t1 RENAME COLUMN f1 TO f1;
+ALTER TABLE t1 CHANGE f1 f1 FLOAT;
+# Dropping a column used by a check constraint and creating a new column
+# with the same name still reports an error. This behavior is similar to
+# generated columns and default expressions.
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 FLOAT;
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
+ALTER TABLE t1 DROP COLUMN f3, ADD COLUMN f3 FLOAT;
+ERROR HY000: Column 'f3' has a generated column dependency.
+# Similar to drop column, even renaming column reports an error.
+# This behavior is similar to generated columns and default expressions.
+ALTER TABLE t1 RENAME COLUMN f1 TO f6, RENAME COLUMN f5 TO f1;
+ERROR HY000: Check constraint 't1_chk_1' uses column 'f1', hence column cannot be dropped or renamed.
+ALTER TABLE t1 RENAME COLUMN f3 TO f6, RENAME COLUMN f5 TO f3;
+ERROR HY000: Column 'f3' has a generated column dependency.
+# Adding a new check constraint with reference to column being dropped
+# or renamed in the same ALTER statement reports unknown column error.
+# This behavior is similar to generated columns and default expressions.
+ALTER TABLE t1 DROP COLUMN f5, ADD CONSTRAINT CHECK (f5 < 10);
+ERROR 42S22: Unknown column 'f5' in 'check constraint t1_chk_2 expression'
+ALTER TABLE t1 DROP COLUMN f5, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+ERROR 42S22: Unknown column 'f5' in 'generated column function'
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f5 < 10);
+ERROR 42S22: Unknown column 'f5' in 'check constraint t1_chk_2 expression'
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+ERROR 42S22: Unknown column 'f5' in 'generated column function'
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD CONSTRAINT CHECK (f5 < 10);
+ERROR 42S22: Unknown column 'f5' in 'check constraint t1_chk_2 expression'
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+ERROR 42S22: Unknown column 'f5' in 'generated column function'
+# Adding a new check constraint with reference to column being renamed
+# to same name. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f2 TO f2, ADD CONSTRAINT CHECK(f2 < 1105);
+ALTER TABLE t1 CHANGE f2 f2 FLOAT, ADD CONSTRAINT CHECK(f2 < 1105);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` float DEFAULT NULL,
+  `f2` float DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` float GENERATED ALWAYS AS ((`f3` * 0.01)) VIRTUAL,
+  `f5` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < `f2`)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` < 1105)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 1105))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Adding a new check constraint with reference to a new name of the
+# column being renamed. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f6 < 10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` float DEFAULT NULL,
+  `f2` float DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` float GENERATED ALWAYS AS ((`f3` * 0.01)) VIRTUAL,
+  `f6` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` < `f2`)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` < 1105)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 1105)),
+  CONSTRAINT `t1_chk_4` CHECK ((`f6` < 10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Re-creating check constraint with reference to a new name of the
+# column being renamed. Table is altered in this case.
+ALTER TABLE t1 DROP CONSTRAINT t1_chk_1, RENAME COLUMN f1 to f11,
+ADD CONSTRAINT t1_chk_1 CHECK (f11 < 10);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f11` float DEFAULT NULL,
+  `f2` float DEFAULT NULL,
+  `f3` int DEFAULT NULL,
+  `f4` float GENERATED ALWAYS AS ((`f3` * 0.01)) VIRTUAL,
+  `f6` int DEFAULT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`f11` < 10)),
+  CONSTRAINT `t1_chk_2` CHECK ((`f2` < 1105)),
+  CONSTRAINT `t1_chk_3` CHECK ((`f2` < 1105)),
+  CONSTRAINT `t1_chk_4` CHECK ((`f6` < 10))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
