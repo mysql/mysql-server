@@ -26,6 +26,9 @@
 #include "lex_string.h"          // LEX_STRING
 #include "sql/mem_root_array.h"  // Mem_root_array
 
+class Alter_column;
+class Alter_drop;
+class Create_field;
 class Item;
 class String;
 struct TABLE;
@@ -234,4 +237,62 @@ bool is_slave_with_master_without_check_constraints_support(THD *thd);
 */
 bool check_constraint_expr_refers_to_only_column(Item *check_expr,
                                                  const char *column_name);
+
+/**
+  Helper class to check if column being dropped or removed in ALTER statement
+  is in use by Check constraints.
+*/
+class Check_constraint_column_dependency_checker {
+ public:
+  explicit Check_constraint_column_dependency_checker(
+      const Sql_check_constraint_spec_list &check_constraint_list)
+      : m_check_constraint_list(check_constraint_list) {}
+
+  /**
+    Method to check if column being dropped is in use by check constraints.
+
+    @param   drop    Instance of Alter_drop.
+
+    @retval  true    If some check constraint uses the column being dropped.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Alter_drop *drop);
+
+  /**
+    Method to check if column being renamed using RENAME COLUMN clause of the
+    ALTER TABLE statement is in use by check constraints.
+
+    @param   alter_column   Instance of Alter_column.
+
+    @retval  true    If some check constraint uses the column being renamed.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Alter_column *alter_column);
+
+  /**
+    Method to check if column being renamed using CHANGE [COLUMN] clause of the
+    ALTER TABLE statement is in use by check constraints.
+
+    @param   fld     Instance of Create_field.
+
+    @retval  true    If some check constraint uses the column being renamed.
+    @retval  false   Otherwise.
+  */
+  bool operator()(const Create_field &fld);
+
+ private:
+  /**
+    Check if any check constraint uses "column_name".
+
+    @param   column_name  Column name.
+
+    @retval  true         If column is used by the check constraint.
+    @retval  false        Otherwise.
+  */
+  bool any_check_constraint_uses_column(const char *column_name);
+
+ private:
+  /// Check constraint specification list.
+  const Sql_check_constraint_spec_list &m_check_constraint_list;
+};
 #endif  // SQL_CHECK_CONSTRAINT_INCLUDED

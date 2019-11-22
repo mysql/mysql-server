@@ -559,7 +559,7 @@ ALTER TABLE t3 ADD f2 INT CHECK (f2 < 10), ALGORITHM=INPLACE;
 ALTER TABLE t1 ADD f3 INT CHECK (f3 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 ALTER TABLE t1 ADD CONSTRAINT CHECK (f2 < 10) NOT ENFORCED, ALGORITHM=INPLACE;
 
---ERROR ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 RENAME COLUMN f1 TO f10;
 
 
@@ -748,9 +748,9 @@ ALTER TABLE t1 ADD COLUMN f1 INT check(f1 < 10),
                ADD CONSTRAINT check(f1 + f2 < 10),
                ADD CONSTRAINT check(f2 < 10);
 SHOW CREATE TABLE t1;
---error ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 DROP COLUMN f1;
---error ER_BAD_FIELD_ERROR
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
 ALTER TABLE t1 RENAME COLUMN f1 to f3;
 --echo # Drops column f1 and constraints t1_chk_1, t1_chk_2.
 ALTER TABLE t1 DROP CHECK t1_chk_2, DROP COLUMN f1;
@@ -2677,4 +2677,79 @@ remove_file $MYSQLTEST_VARDIR/tmp/tmp1.xml;
 --echo #-----------------------------------------------------------------------
 CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, b INT, CONSTRAINT c CHECK (b IS NULL)) IGNORE AS SELECT 1 AS id, 1 AS b;
 SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30239721 - ALTER TABLE RENAME RETURN IMPROPER ERROR MESSAGE FOR
+--echo #                CHECK CONSTRAINT
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 INT, f2 INT, f3 INT, f4 FLOAT AS (f3 * 0.01), f5 INT,
+                 CHECK (f1 < f2));
+SHOW CREATE TABLE t1;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 DROP COLUMN f1;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 RENAME COLUMN f1 TO f6;
+
+--echo # Check constraint is dependent on column f1. Error is reported.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 CHANGE f1 f6 FLOAT;
+
+--echo # Renaming column to same name will not affect dependency. No error
+--echo # is reported in this case.
+ALTER TABLE t1 RENAME COLUMN f1 TO f1;
+ALTER TABLE t1 CHANGE f1 f1 FLOAT;
+
+--echo # Dropping a column used by a check constraint and creating a new column
+--echo # with the same name still reports an error. This behavior is similar to
+--echo # generated columns and default expressions.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 DROP COLUMN f1, ADD COLUMN f1 FLOAT;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN f3, ADD COLUMN f3 FLOAT;
+--echo # Similar to drop column, even renaming column reports an error.
+--echo # This behavior is similar to generated columns and default expressions.
+--error ER_DEPENDENT_BY_CHECK_CONSTRAINT
+ALTER TABLE t1 RENAME COLUMN f1 TO f6, RENAME COLUMN f5 TO f1;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN f3 TO f6, RENAME COLUMN f5 TO f3;
+
+--echo # Adding a new check constraint with reference to column being dropped
+--echo # or renamed in the same ALTER statement reports unknown column error.
+--echo # This behavior is similar to generated columns and default expressions.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN f5, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN f5, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD CONSTRAINT CHECK (f5 < 10);
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 CHANGE f5 f6 FLOAT, ADD COLUMN f7 FLOAT AS (f5 * 0.01);
+
+--echo # Adding a new check constraint with reference to column being renamed
+--echo # to same name. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f2 TO f2, ADD CONSTRAINT CHECK(f2 < 1105);
+ALTER TABLE t1 CHANGE f2 f2 FLOAT, ADD CONSTRAINT CHECK(f2 < 1105);
+SHOW CREATE TABLE t1;
+
+--echo # Adding a new check constraint with reference to a new name of the
+--echo # column being renamed. Table is altered in this case.
+ALTER TABLE t1 RENAME COLUMN f5 to f6, ADD CONSTRAINT CHECK (f6 < 10);
+SHOW CREATE TABLE t1;
+
+--echo # Re-creating check constraint with reference to a new name of the
+--echo # column being renamed. Table is altered in this case.
+ALTER TABLE t1 DROP CONSTRAINT t1_chk_1, RENAME COLUMN f1 to f11,
+               ADD CONSTRAINT t1_chk_1 CHECK (f11 < 10);
+SHOW CREATE TABLE t1;
+
 DROP TABLE t1;
