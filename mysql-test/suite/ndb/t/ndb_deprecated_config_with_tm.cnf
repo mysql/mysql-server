@@ -1,0 +1,8 @@
+!include ../my.cnf
+[mysqld.3.1]
+#This is a trick to have Mtr giving us a port that we can use for ndb_mgmd in test.
+#The third mysqld is never started by Mtr
+
+[ENV]
+MASTER_MYPORT2=                @mysqld.3.1.port
+

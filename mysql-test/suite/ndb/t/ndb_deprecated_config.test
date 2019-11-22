@@ -1,0 +1,35 @@
+source include/have_ndb.inc;
+
+
+
+--let $assert_select= MaxNoOfConcurrentIndexOperations is deprecated
+--let $assert_text= deprecated warning for MaxNoOfConcurrentIndexOperations found
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_mgmd.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--let $assert_select= MaxNoOfFiredTriggers is deprecated
+--let $assert_text= deprecated warning for MaxNoOfFiredTriggers found
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_mgmd.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--let $assert_select= MaxNoOfLocalOperations is deprecated
+--let $assert_text= deprecated warning for MaxNoOfLocalOperations found
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_mgmd.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+--let $assert_select= MaxNoOfLocalScans is deprecated
+--let $assert_text= deprecated warning for MaxNoOfLocalScans found
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_mgmd.log
+--let $assert_count= 2
+--source include/assert_grep.inc
+
+
+
+--let $assert_select= TransactionMemory calculated to
+--let $assert_text= TransactionMemory is calculated from deprecated config and written to ndbd log
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.1/ndbd.log
+--let $assert_count= 1
+--source include/assert_grep.inc
