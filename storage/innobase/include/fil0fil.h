@@ -49,6 +49,29 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <list>
 #include <vector>
 
+/** Maximum number of tablespaces to be scanned by a thread while scanning
+for available tablespaces during server startup. This is a hard maximum.
+If the number of files to be scanned is more than
+FIL_SCAN_MAX_TABLESPACES_PER_THREAD,
+then additional threads will be spawned to scan the additional files in
+parallel. */
+constexpr size_t FIL_SCAN_MAX_TABLESPACES_PER_THREAD = 8000;
+
+/** Maximum number of threads that will be used for scanning the tablespace
+files. This can be further adjusted depending on the number of available
+cores. */
+constexpr size_t FIL_SCAN_MAX_THREADS = 16;
+
+/** Number of threads per core. */
+constexpr size_t FIL_SCAN_THREADS_PER_CORE = 2;
+
+/** Calculate the number of threads that can be spawned to scan the given
+number of files taking into the consideration, number of cores available
+on the machine.
+@param[in]	num_files	Number of files to be scanned
+@return number of threads to be spawned for scanning the files */
+size_t fil_get_scan_threads(size_t num_files);
+
 /** This tablespace name is used internally during file discovery to open a
 general tablespace before the data dictionary is recovered and available. */
 static constexpr char general_space_name[] = "innodb_general";

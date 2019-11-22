@@ -3055,15 +3055,6 @@ class Validate_files {
   using DD_tablespaces = std::vector<const dd::Tablespace *>;
   using Const_iter = DD_tablespaces::const_iterator;
 
-  /* This is the maximum number of tablespaces that can be handled by
-  a single thread.  If more than that, the tablespaces will be divided
-  up between up to 8 threads. */
-  const size_t MAX_TABLESPACES_PER_THREAD = 50000;
-
-  /* If therea are more than MAX_TABLESPACES_PER_THREAD scanned, then
-  the work will be distributed among up to this many parallel threads. */
-  const size_t MAX_THREADS = 8;
-
  public:
   /** Constructor */
   Validate_files()
@@ -3392,11 +3383,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 @return DB_SUCCESS if all OK */
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces,
                                  size_t *moved_count) {
-  m_n_threads = tablespaces.size() / MAX_TABLESPACES_PER_THREAD;
-
-  if (m_n_threads > MAX_THREADS) {
-    m_n_threads = MAX_THREADS;
-  }
+  m_n_threads = fil_get_scan_threads(tablespaces.size());
 
   using std::placeholders::_1;
   using std::placeholders::_2;
