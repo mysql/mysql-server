@@ -4551,8 +4551,20 @@ MYSQL *STDCALL CLI_MYSQL_REAL_CONNECT(MYSQL *mysql, const char *host,
     if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
       scramble_data_len = pkt_scramble_len;
       scramble_plugin = scramble_data + scramble_data_len;
-      if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len = (int)(pkt_end - scramble_data);
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
+      if (scramble_data + scramble_data_len > pkt_end) {
+        scramble_plugin = (char*)"";
+        scramble_data = 0;
+        scramble_data_len = 0;
+      }
     } else {
       scramble_data_len = (int)(pkt_end - scramble_data);
       scramble_plugin = native_password_plugin_name;
