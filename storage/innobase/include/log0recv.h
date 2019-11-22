@@ -492,6 +492,8 @@ struct recv_sys_t {
   keeping free blocks.  BUF_FLUSH_LIST: flush all of blocks. */
   buf_flush_t flush_type;
 
+#else  /* !UNIV_HOTBACKUP */
+  bool apply_file_operations;
 #endif /* !UNIV_HOTBACKUP */
 
   /** This is true when log rec application to pages is allowed;
