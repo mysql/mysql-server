@@ -1447,6 +1447,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   int2store(end + 5, protocol->get_client_capabilities() >> 16);
   end[7] = data_len;
   DBUG_EXECUTE_IF("poison_srv_handshake_scramble_len", end[7] = -100;);
+  DBUG_EXECUTE_IF("increase_srv_handshake_scramble_len", end[7] = 50;);
   memset(end + 8, 0, 10);
   end += 18;
   /* write scramble tail */
