@@ -8,7 +8,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #      doesn't have REPLICATION_APPLIER privilege.
 # -------------------------------------------------------------------
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE USER 'u1'@'localhost';
@@ -58,7 +57,7 @@ SET sql_log_bin= 1;
 [connection slave]
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', REQUIRE_ROW_FORMAT=1, MASTER_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

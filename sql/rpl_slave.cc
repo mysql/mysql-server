@@ -9300,8 +9300,7 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
         mi->rli->set_privilege_checks_user(
             lex_mi->privilege_checks_username,
             lex_mi->privilege_checks_none ? nullptr
-                                          : lex_mi->privilege_checks_hostname,
-            lex_mi)};
+                                          : lex_mi->privilege_checks_hostname)};
     if (!!error) {
       mi->rli->report_privilege_check_error(
           ERROR_LEVEL, error, true /* to client*/, mi->rli->get_channel(),
@@ -9311,14 +9310,7 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
   }
 
   if (lex_mi->require_row_format != -1) {  // Is included in CHM statement
-    Relay_log_info::enum_require_row_status error{
-        mi->rli->set_require_row_format(lex_mi->require_row_format, lex_mi)};
-    if (!!error) {
-      mi->rli->report_require_row_error(ERROR_LEVEL, error, true /* to client*/,
-                                        mi->rli->get_channel(),
-                                        lex_mi->require_row_format);
-      return true;
-    }
+    mi->rli->set_require_row_format(lex_mi->require_row_format);
   }
 
   if (lex_mi->relay_log_name) {
@@ -9579,16 +9571,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
   }
 
   if (channel_map.is_group_replication_channel_name(lex_mi->channel)) {
-    Relay_log_info::enum_require_row_status require_row_error{
-        mi->rli->set_require_row_format(true)};
-    if (!!require_row_error) {
-      /* purecov: begin inspected */
-      mi->rli->report_require_row_error(ERROR_LEVEL, require_row_error,
-                                        true /* to client*/,
-                                        mi->rli->get_channel(), 1);
-      goto err;
-      /* purecov: end */
-    }
+    mi->rli->set_require_row_format(true);
   }
 
   if (have_execute_option && (error = change_execute_options(lex_mi, mi)))

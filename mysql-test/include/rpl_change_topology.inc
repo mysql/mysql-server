@@ -251,17 +251,10 @@ if ($_rpl_change_topology_privilege_checks_all_index)
   --let $_rpl_change_topology_privilege_checks_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_privilege_checks_user", $_rpl_change_topology_privilege_checks_all_index), ',', 1), ':', -1)`
 }
 
-if ($_rpl_change_topology_privilege_checks_all != '')
+--let $_rpl_change_topology_require_row_all_index= `SELECT LOCATE('*:', "$rpl_require_row_format")`
+if ($_rpl_change_topology_require_row_all_index)
 {
-  --let $_rpl_change_topology_require_row_all= 1
-}
-if ($_rpl_change_topology_privilege_checks_all == '')
-{
-  --let $_rpl_change_topology_require_row_all_index= `SELECT LOCATE('*:', "$rpl_require_row_format")`
-  if ($_rpl_change_topology_require_row_all_index)
-  {
-    --let $_rpl_change_topology_require_row_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_require_row_all_index), ',', 1), ':', -1)`
-  }
+  --let $_rpl_change_topology_require_row_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_require_row_all_index), ',', 1), ':', -1)`
 }
 
 if (!$rpl_skip_change_master)

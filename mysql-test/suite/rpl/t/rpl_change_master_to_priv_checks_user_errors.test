@@ -69,10 +69,6 @@
 #
 --source include/rpl_connection_slave.inc
 
-# Set REQUIRE_ROW_FORMAT to 1 in order to be able to freely set
-# PRIVILEGE_CHECKS_USER
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
-
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 
@@ -177,7 +173,7 @@ CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 
 --replace_result $MASTER_MYPORT MY_MASTER_PORT $master_log_pos MY_MASTER_LOG_POS
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', REQUIRE_ROW_FORMAT=1, MASTER_LOG_POS=$master_log_pos
+--eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=$master_log_pos
 --source include/start_slave.inc
 
 #
