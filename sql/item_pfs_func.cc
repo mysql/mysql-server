@@ -159,7 +159,7 @@ bool Item_func_pfs_format_bytes::resolve_type(THD *) {
 
 String *Item_func_pfs_format_bytes::val_str(String *) {
   /* Evaluate argument value. */
-  volatile double bytes = args[0]->val_real();
+  double bytes = args[0]->val_real();
 
   /* If input is null, return null. */
   null_value = args[0]->null_value;
@@ -170,14 +170,14 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
   /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
   volatile double bytes_abs = std::abs(bytes);
 
-  volatile const double kib = 1024ULL;
-  volatile const double mib = static_cast<double>(1024ULL * kib);
-  volatile const double gib = static_cast<double>(1024ULL * mib);
-  volatile const double tib = static_cast<double>(1024ULL * gib);
-  volatile const double pib = static_cast<double>(1024ULL * tib);
-  volatile const double eib = static_cast<double>(1024ULL * pib);
+  constexpr uint64_t kib{1024};
+  constexpr uint64_t mib{1024 * kib};
+  constexpr uint64_t gib{1024 * mib};
+  constexpr uint64_t tib{1024 * gib};
+  constexpr uint64_t pib{1024 * tib};
+  constexpr uint64_t eib{1024 * pib};
 
-  volatile double divisor;
+  uint64_t divisor;
   int len;
   const char *unit;
 
@@ -231,7 +231,7 @@ bool Item_func_pfs_format_pico_time::resolve_type(THD *) {
 
 String *Item_func_pfs_format_pico_time::val_str(String *) {
   /* Evaluate the argument */
-  volatile double time_val = args[0]->val_real();
+  double time_val = args[0]->val_real();
 
   /* If argument is null, return null. */
   null_value = args[0]->null_value;
@@ -239,18 +239,18 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
     return error_str();
   }
 
-  /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
-  volatile const double nano = 1000ull;
-  volatile const double micro = static_cast<double>(1000ull * nano);
-  volatile const double milli = static_cast<double>(1000ull * micro);
-  volatile const double sec = static_cast<double>(1000ull * milli);
-  volatile const double min = static_cast<double>(60ull * sec);
-  volatile const double hour = static_cast<double>(60ull * min);
-  volatile const double day = static_cast<double>(24ull * hour);
+  constexpr uint64_t nano{1000};
+  constexpr uint64_t micro{1000 * nano};
+  constexpr uint64_t milli{1000 * micro};
+  constexpr uint64_t sec{1000 * milli};
+  constexpr uint64_t min{60 * sec};
+  constexpr uint64_t hour{60 * min};
+  constexpr uint64_t day{24 * hour};
 
+  /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
   volatile double time_abs = std::abs(time_val);
 
-  volatile double divisor;
+  uint64_t divisor;
   int len;
   const char *unit;
 

@@ -1030,7 +1030,6 @@ void adjust_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
 */
 class Time_zone_system : public Time_zone {
  public:
-  Time_zone_system() {} /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;
@@ -1117,7 +1116,6 @@ const String *Time_zone_system::get_name() const { return &tz_SYSTEM_name; }
 */
 class Time_zone_utc : public Time_zone {
  public:
-  Time_zone_utc() {} /* Remove gcc warning */
   virtual my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t,
                                     bool *in_dst_time_gap) const;
   virtual void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const;

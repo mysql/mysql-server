@@ -5534,8 +5534,6 @@ bool default_rm_tmp_tables(handlerton *hton, THD *, List<LEX_STRING> *files) {
   return false;
 }
 
-void HA_CHECK_OPT::init() { flags = sql_flags = 0; }
-
 /*****************************************************************************
   Key cache handling.
 

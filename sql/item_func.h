@@ -2956,8 +2956,6 @@ class user_var_entry {
   void assert_locked() const;
 
  public:
-  user_var_entry() {} /* Remove gcc warning */
-
   Simple_cstring entry_name;  // Variable name
   DTCollation collation;      // Collation with attributes
   query_id_t update_query_id, used_query_id;

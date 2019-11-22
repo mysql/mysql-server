@@ -2484,8 +2484,7 @@ double Item_func_acos::val_real() {
   DBUG_ASSERT(fixed == 1);
   /* One can use this to defer SELECT processing. */
   DEBUG_SYNC(current_thd, "before_acos_function");
-  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   if ((null_value = (args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return acos(value);
@@ -2493,8 +2492,7 @@ double Item_func_acos::val_real() {
 
 double Item_func_asin::val_real() {
   DBUG_ASSERT(fixed == 1);
-  // the volatile's for BUG #2338 to calm optimizer down (because of gcc's bug)
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   if ((null_value = (args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
   return asin(value);
@@ -2949,11 +2947,7 @@ longlong Item_func_ceiling::int_op() {
 }
 
 double Item_func_ceiling::real_op() {
-  /*
-    the volatile's for BUG #3051 to calm optimizer down (because of gcc's
-    bug)
-  */
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   null_value = args[0]->null_value;
   return ceil(value);
 }
@@ -2989,11 +2983,7 @@ longlong Item_func_floor::int_op() {
 }
 
 double Item_func_floor::real_op() {
-  /*
-    the volatile's for BUG #3051 to calm optimizer down (because of gcc's
-    bug)
-  */
-  volatile double value = args[0]->val_real();
+  double value = args[0]->val_real();
   null_value = args[0]->null_value;
   return floor(value);
 }
@@ -3097,37 +3087,27 @@ bool Item_func_round::resolve_type(THD *) {
 
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate) {
-  double tmp;
   bool dec_negative = (dec < 0) && !dec_unsigned;
   int log_10_size = array_elements(log_10);  // 309
   if (dec_negative && dec <= -log_10_size) return 0.0;
 
   ulonglong abs_dec = dec_negative ? -dec : dec;
-  /*
-    tmp2 is here to avoid return the value with 80 bit precision
-    This will fix that the test round(0.1,1) = round(0.1,1) is true
-    Tagging with volatile is no guarantee, it may still be optimized away...
-  */
-  volatile double tmp2 = 0.0;
 
-  tmp = (abs_dec < array_elements(log_10) ? log_10[abs_dec]
-                                          : pow(10.0, (double)abs_dec));
+  double tmp = (abs_dec < array_elements(log_10) ? log_10[abs_dec]
+                                                 : pow(10.0, (double)abs_dec));
 
-  // Pre-compute these, to avoid optimizing away e.g. 'floor(v/tmp) * tmp'.
-  volatile double value_div_tmp = value / tmp;
-  volatile double value_mul_tmp = value * tmp;
+  double value_mul_tmp = value * tmp;
+  if (!dec_negative && !std::isfinite(value_mul_tmp)) return value;
 
-  if (!dec_negative && !std::isfinite(value_mul_tmp))
-    tmp2 = value;
-  else if (truncate) {
+  double value_div_tmp = value / tmp;
+  if (truncate) {
     if (value >= 0.0)
-      tmp2 = dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
+      return dec < 0 ? floor(value_div_tmp) * tmp : floor(value_mul_tmp) / tmp;
     else
-      tmp2 = dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
-  } else
-    tmp2 = dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
+      return dec < 0 ? ceil(value_div_tmp) * tmp : ceil(value_mul_tmp) / tmp;
+  }
 
-  return tmp2;
+  return dec < 0 ? rint(value_div_tmp) * tmp : rint(value_mul_tmp) / tmp;
 }
 
 double Item_func_round::real_op() {

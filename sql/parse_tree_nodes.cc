@@ -2214,7 +2214,6 @@ Sql_cmd *PT_repair_table_stmt::make_cmd(THD *thd) {
   SELECT_LEX *const select = lex->current_select();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
@@ -2232,7 +2231,6 @@ Sql_cmd *PT_analyze_table_stmt::make_cmd(THD *thd) {
   SELECT_LEX *const select = lex->current_select();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
     return nullptr;
@@ -2258,7 +2256,6 @@ Sql_cmd *PT_check_table_stmt::make_cmd(THD *thd) {
     return nullptr;
   }
 
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
@@ -2276,7 +2273,6 @@ Sql_cmd *PT_optimize_table_stmt::make_cmd(THD *thd) {
   SELECT_LEX *const select = lex->current_select();
 
   lex->no_write_to_binlog = m_no_write_to_binlog;
-  lex->check_opt.init();
   if (select->add_tables(thd, m_table_list, TL_OPTION_UPDATING, TL_UNLOCK,
                          MDL_SHARED_READ))
     return nullptr;
@@ -3418,7 +3414,6 @@ bool PT_alter_table_optimize_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 
@@ -3426,7 +3421,6 @@ bool PT_alter_table_analyze_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
   pc->thd->lex->no_write_to_binlog = m_no_write_to_binlog;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 
@@ -3435,7 +3429,6 @@ bool PT_alter_table_check_partition::contextualize(
   if (super::contextualize(pc)) return true;
 
   LEX *const lex = pc->thd->lex;
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
   return false;
@@ -3448,7 +3441,6 @@ bool PT_alter_table_repair_partition::contextualize(
   LEX *const lex = pc->thd->lex;
   lex->no_write_to_binlog = m_no_write_to_binlog;
 
-  lex->check_opt.init();
   lex->check_opt.flags |= m_flags;
   lex->check_opt.sql_flags |= m_sql_flags;
 
@@ -3467,7 +3459,6 @@ bool PT_alter_table_coalesce_partition::contextualize(
 bool PT_alter_table_truncate_partition::contextualize(
     Table_ddl_parse_context *pc) {
   if (super::contextualize(pc)) return true;
-  pc->thd->lex->check_opt.init();
   return false;
 }
 

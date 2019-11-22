@@ -1549,8 +1549,6 @@ bool ha_archive::check_and_repair(THD *thd) {
   HA_CHECK_OPT check_opt;
   DBUG_TRACE;
 
-  check_opt.init();
-
   return repair(thd, &check_opt);
 }
 

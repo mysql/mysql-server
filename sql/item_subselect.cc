@@ -602,23 +602,14 @@ err:
   return res;
 }
 
-/**
-  Workaround for bug in gcc 4.1.
-  @see Item_in_subselect::walk()
-*/
-bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
-                               uchar *arg) {
+bool Item_subselect::walk(Item_processor processor, enum_walk walk,
+                          uchar *arg) {
   if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   if ((walk & enum_walk::SUBQUERY) && unit->walk(processor, walk, arg))
     return true;
 
   return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
-}
-
-bool Item_subselect::walk(Item_processor processor, enum_walk walk,
-                          uchar *arg) {
-  return walk_body(processor, walk, arg);
 }
 
 /**
@@ -697,12 +688,7 @@ void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
 bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
                              uchar *arg) {
   if (left_expr->walk(processor, walk, arg)) return true;
-  /*
-    Cannot call "Item_subselect::walk(...)" because with gcc 4.1
-    Item_in_subselect::walk() was incorrectly called instead.
-    Using Item_subselect::walk_body() instead is a workaround.
-  */
-  return walk_body(processor, walk, arg);
+  return Item_subselect::walk(processor, walk, arg);
 }
 
 /*

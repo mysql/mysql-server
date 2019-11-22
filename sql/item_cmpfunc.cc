@@ -1695,12 +1695,7 @@ int Arg_comparator::compare_binary_string() {
 }
 
 int Arg_comparator::compare_real() {
-  /*
-    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
-    gcc to flush double values out of 80-bit Intel FPU registers before
-    performing the comparison.
-  */
-  volatile double val1, val2;
+  double val1, val2;
   val1 = (*left)->val_real();
   if (!(*left)->null_value) {
     val2 = (*right)->val_real();
@@ -1731,12 +1726,7 @@ int Arg_comparator::compare_decimal() {
 }
 
 int Arg_comparator::compare_real_fixed() {
-  /*
-    Fix yet another manifestation of Bug#2338. 'Volatile' will instruct
-    gcc to flush double values out of 80-bit Intel FPU registers before
-    performing the comparison.
-  */
-  volatile double val1, val2;
+  double val1, val2;
   val1 = (*left)->val_real();
   if (!(*left)->null_value) {
     val2 = (*right)->val_real();

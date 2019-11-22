@@ -516,9 +516,6 @@ class Name_resolution_context_state {
   TABLE_LIST *save_next_local;
 
  public:
-  Name_resolution_context_state() {} /* Remove gcc warning */
-
- public:
   /* Save the state of a name resolution context. */
   void save_state(Name_resolution_context *context, TABLE_LIST *table_list) {
     save_table_list = context->table_list;
@@ -3104,7 +3101,7 @@ class Item_num : public Item_basic_constant {
   typedef Item_basic_constant super;
 
  public:
-  Item_num() { collation.set_numeric(); } /* Remove gcc warning */
+  Item_num() { collation.set_numeric(); }
   explicit Item_num(const POS &pos) : super(pos) { collation.set_numeric(); }
 
   virtual Item_num *neg() = 0;
@@ -4559,7 +4556,6 @@ class Item_result_field : public Item {
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
   Item_result_field(THD *thd, const Item_result_field *item)
       : Item(thd, item), result_field(item->result_field) {}
-  ~Item_result_field() override {} /* Required with gcc 2.95 */
   Field *get_tmp_table_field() override { return result_field; }
   Field *tmp_table_field(TABLE *) override { return result_field; }
   table_map used_tables() const override { return 1; }

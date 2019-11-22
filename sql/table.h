@@ -3556,8 +3556,7 @@ struct TABLE_LIST {
 
 class Field_iterator {
  public:
-  Field_iterator() {} /* Remove gcc warning */
-  virtual ~Field_iterator() {}
+  virtual ~Field_iterator() = default;
   virtual void set(TABLE_LIST *) = 0;
   virtual void next() = 0;
   virtual bool end_of_fields() = 0; /* Return 1 at end of list */

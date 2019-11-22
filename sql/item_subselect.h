@@ -217,7 +217,6 @@ class Item_subselect : public Item_result_field {
   */
   virtual void reset_value_registration() {}
   enum_parsing_context place() { return parsing_place; }
-  bool walk_body(Item_processor processor, enum_walk walk, uchar *arg);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   bool explain_subquery_checker(uchar **arg) override;
   bool inform_item_in_cond_of_tab(uchar *arg) override;

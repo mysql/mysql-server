@@ -2575,7 +2575,7 @@ class TABLE_READ_PLAN {
   static void operator delete(
       void *, MEM_ROOT *, const std::nothrow_t &)noexcept { /* Never called */
   }
-  virtual ~TABLE_READ_PLAN() {} /* Remove gcc warning */
+  virtual ~TABLE_READ_PLAN() = default;
 
   /**
      Add basic info for this TABLE_READ_PLAN to the optimizer trace.
@@ -2608,7 +2608,6 @@ class TRP_RANGE : public TABLE_READ_PLAN {
 
   TRP_RANGE(SEL_ROOT *key_arg, uint idx_arg, uint mrr_flags_arg)
       : key(key_arg), key_idx(idx_arg), mrr_flags(mrr_flags_arg) {}
-  virtual ~TRP_RANGE() {} /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool, MEM_ROOT *parent_alloc) {
     DBUG_TRACE;
@@ -2684,7 +2683,6 @@ class TRP_ROR_INTERSECT : public TABLE_READ_PLAN {
   explicit TRP_ROR_INTERSECT(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
 
-  virtual ~TRP_ROR_INTERSECT() {} /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
 
@@ -2747,7 +2745,6 @@ class TRP_ROR_UNION : public TABLE_READ_PLAN {
  public:
   explicit TRP_ROR_UNION(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
-  virtual ~TRP_ROR_UNION() {} /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TABLE_READ_PLAN **first_ror; /* array of ptrs to plans for merged scans */
@@ -2780,7 +2777,6 @@ class TRP_INDEX_MERGE : public TABLE_READ_PLAN {
  public:
   explicit TRP_INDEX_MERGE(bool forced_by_hint_arg)
       : forced_by_hint(forced_by_hint_arg) {}
-  virtual ~TRP_INDEX_MERGE() {} /* Remove gcc warning */
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);
   TRP_RANGE **range_scans;     /* array of ptrs to plans of merged scans */
@@ -2863,7 +2859,6 @@ class TRP_GROUP_MIN_MAX : public TABLE_READ_PLAN {
         param_idx(param_idx_arg),
         is_index_scan(false),
         quick_prefix_records(quick_prefix_records_arg) {}
-  virtual ~TRP_GROUP_MIN_MAX() {} /* Remove gcc warning */
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc);

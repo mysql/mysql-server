@@ -1862,9 +1862,6 @@ class Plan_change_watchdog {
     @param no_changes_arg whether a change to the access path is allowed
   */
   Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {
-    // Only to keep gcc 4.1.2-44 silent about uninitialized variables
-    quick = nullptr;
-    quick_index = 0;
     if (no_changes_arg) {
       tab = tab_arg;
       type = tab->type();
@@ -1875,7 +1872,6 @@ class Plan_change_watchdog {
       index = tab->index();
     } else {
       tab = nullptr;
-      // Only to keep gcc 4.1.2-44 silent about uninitialized variables
       type = JT_UNKNOWN;
       quick = nullptr;
       ref_key = ref_key_parts = index = 0;
@@ -1898,9 +1894,9 @@ class Plan_change_watchdog {
   const JOIN_TAB *tab;  ///< table, or NULL if changes are allowed
   enum join_type type;  ///< copy of tab->type()
   // "Range / index merge" info
-  const QUICK_SELECT_I *quick;  ///< copy of tab->select->quick
-  uint quick_index;             ///< copy of tab->select->quick->index
-  enum quick_type use_quick;    ///< copy of tab->use_quick
+  const QUICK_SELECT_I *quick{nullptr};  ///< copy of tab->select->quick
+  uint quick_index{0};                   ///< copy of tab->select->quick->index
+  enum quick_type use_quick;             ///< copy of tab->use_quick
   // "ref access" info
   int ref_key;         ///< copy of tab->ref().key
   uint ref_key_parts;  /// copy of tab->ref().key_parts
@@ -9743,8 +9739,6 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
 
   // De-optimization in conjunction with window functions
   if (group_by && m_windows.elements > 0) *simple_order = false;
-
-  /* NOTE: A variable of not_const_tables ^ first_table; breaks gcc 2.7 */
 
   update_depend_map(first_order);
 

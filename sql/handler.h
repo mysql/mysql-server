@@ -3192,11 +3192,9 @@ class Alter_inplace_info {
 };
 
 struct HA_CHECK_OPT {
-  HA_CHECK_OPT() {} /* Remove gcc warning */
-  uint flags;       /* isam layer flags (e.g. for myisamchk) */
-  uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
+  uint flags{0};     /* isam layer flags (e.g. for myisamchk) */
+  uint sql_flags{0}; /* sql layer flags - for something myisamchk cannot do */
   KEY_CACHE *key_cache; /* new key cache when changing key cache */
-  void init();
 };
 
 /*

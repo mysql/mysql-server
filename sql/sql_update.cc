@@ -991,7 +991,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       It's assumed that if an error was set in combination with an effective
       killed status then the error is due to killing.
     */
-    killed_status = thd->killed;  // get the status of the volatile
+    killed_status = thd->killed;  // get the status of the atomic
     // simulated killing after the loop must be ineffective for binlogging
     DBUG_EXECUTE_IF("simulate_kill_bug27571",
                     { thd->killed = THD::KILL_QUERY; };);

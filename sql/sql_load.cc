@@ -1377,7 +1377,7 @@ READ_INFO::~READ_INFO() {
            true if terminator was not found
 */
 inline bool READ_INFO::terminator(const uchar *ptr, size_t length) {
-  int chr = 0;  // Keep gcc happy
+  int chr = 0;
   size_t i;
   for (i = 1; i < length; i++) {
     chr = GET;

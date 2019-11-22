@@ -47,8 +47,7 @@
 #include "sql/table.h"
 #include "sql_string.h"  // String
 
-// gcc.gnu.org/bugzilla/show_bug.cgi?id=29365
-namespace random_name_to_avoid_gcc_bug_29365 {
+namespace {
 /**
   A wrapper of class String, for storing query or trace.
   Any memory allocation error in this class is reported by my_error(), see
@@ -96,9 +95,7 @@ class Buffer {
   void set_allowed_mem_size(size_t a) { allowed_mem_size = a; }
 };
 
-}  // namespace random_name_to_avoid_gcc_bug_29365
-
-using random_name_to_avoid_gcc_bug_29365::Buffer;
+}  // namespace
 
 /**
   @class Opt_trace_stmt
@@ -658,7 +655,7 @@ void Opt_trace_stmt::missing_privilege() {
 
 // Implementation of class Buffer
 
-namespace random_name_to_avoid_gcc_bug_29365 {
+namespace {
 
 void Buffer::append_escaped(const char *str, size_t length) {
   if (alloced_length() >= allowed_mem_size) {
@@ -805,7 +802,7 @@ void Buffer::prealloc() {
   }
 }
 
-}  // namespace random_name_to_avoid_gcc_bug_29365
+}  // namespace
 
 // Implementation of Opt_trace_context class
 

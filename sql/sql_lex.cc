@@ -472,6 +472,7 @@ void LEX::reset() {
   m_extended_show = false;
   option_type = OPT_DEFAULT;
   force_iterator_executor = false;
+  check_opt = HA_CHECK_OPT();
 
   clear_privileges();
   grant_as.cleanup();

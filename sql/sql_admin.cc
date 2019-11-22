@@ -1384,7 +1384,6 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   KEY_CACHE *key_cache;
   DBUG_TRACE;
 
-  check_opt.init();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache = get_key_cache(&m_key_cache_name))) {
     mysql_mutex_unlock(&LOCK_global_system_variables);

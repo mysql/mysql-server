@@ -555,8 +555,6 @@ class Ne_creator : public Linear_comp_creator {
 
 class Gt_creator : public Comp_creator {
  public:
-  Gt_creator() {}          /* Remove gcc warning */
-  virtual ~Gt_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? "<=" : ">"; }
   virtual bool eqne_op() const { return false; }
@@ -565,8 +563,6 @@ class Gt_creator : public Comp_creator {
 
 class Lt_creator : public Comp_creator {
  public:
-  Lt_creator() {}          /* Remove gcc warning */
-  virtual ~Lt_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? ">=" : "<"; }
   virtual bool eqne_op() const { return false; }
@@ -575,8 +571,6 @@ class Lt_creator : public Comp_creator {
 
 class Ge_creator : public Comp_creator {
  public:
-  Ge_creator() {}          /* Remove gcc warning */
-  virtual ~Ge_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? "<" : ">="; }
   virtual bool eqne_op() const { return false; }
@@ -585,8 +579,6 @@ class Ge_creator : public Comp_creator {
 
 class Le_creator : public Comp_creator {
  public:
-  Le_creator() {}          /* Remove gcc warning */
-  virtual ~Le_creator() {} /* Remove gcc warning */
   virtual Item_bool_func *create(Item *a, Item *b) const;
   virtual const char *symbol(bool invert) const { return invert ? ">" : "<="; }
   virtual bool eqne_op() const { return false; }
@@ -1744,7 +1736,6 @@ class cmp_item_int final : public cmp_item_scalar {
   longlong value;
 
  public:
-  cmp_item_int() {} /* Remove gcc warning */
   void store_value(Item *item) override {
     value = item->val_int();
     set_null_value(item->null_value);
@@ -1789,7 +1780,6 @@ class cmp_item_real : public cmp_item_scalar {
   double value;
 
  public:
-  cmp_item_real() {} /* Remove gcc warning */
   void store_value(Item *item) override {
     value = item->val_real();
     set_null_value(item->null_value);
@@ -1809,7 +1799,6 @@ class cmp_item_decimal : public cmp_item_scalar {
   my_decimal value;
 
  public:
-  cmp_item_decimal() {} /* Remove gcc warning */
   void store_value(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *c) const;

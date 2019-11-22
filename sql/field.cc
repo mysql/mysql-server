@@ -3963,12 +3963,10 @@ double Field_longlong::val_real() const {
     j = sint8korr(ptr);
   else
     j = longlongget(ptr);
-  /* The following is open coded to avoid a bug in gcc 3.3 */
   if (unsigned_flag) {
-    ulonglong tmp = (ulonglong)j;
-    return ulonglong2double(tmp);
+    return ulonglong2double(static_cast<ulonglong>(j));
   }
-  return (double)j;
+  return static_cast<double>(j);
 }
 
 longlong Field_longlong::val_int() const {
