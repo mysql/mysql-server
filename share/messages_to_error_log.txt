@@ -744,7 +744,7 @@ ER_XA_ROLLING_BACK_XID
   eng "rollback xid %s"
 
 ER_XA_STARTING_RECOVERY
-  eng "Starting crash recovery..."
+  eng "Starting XA crash recovery..."
 
 ER_XA_NO_MULTI_2PC_HEURISTIC_RECOVER
   eng "--tc-heuristic-recover rollback strategy is not safe on systems with more than one 2-phase-commit-capable storage engine. Aborting crash recovery."
@@ -753,7 +753,7 @@ ER_XA_RECOVER_EXPLANATION
   eng "Found %d prepared transactions! It means that mysqld was not shut down properly last time and critical recovery information (last binlog or %s file) was manually deleted after a crash. You have to start mysqld with --tc-heuristic-recover switch to commit or rollback pending transactions."
 
 ER_XA_RECOVERY_DONE
-  eng "Crash recovery finished."
+  eng "XA crash recovery finished."
 
 ER_TRX_GTID_COLLECT_REJECT
   eng "Failed to collect GTID to send in the response packet!"
