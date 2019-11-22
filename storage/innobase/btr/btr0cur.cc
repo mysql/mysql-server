@@ -3809,46 +3809,14 @@ static void btr_cur_pess_upd_restore_supremum(
   lock_rec_reset_and_inherit_gap_locks(prev_block, block, PAGE_HEAP_NO_SUPREMUM,
                                        page_rec_get_heap_no(rec));
 }
-/** Performs an update of a record on a page of a tree. It is assumed
- that mtr holds an x-latch on the tree and on the cursor page. If the
- update is made on the leaf level, to avoid deadlocks, mtr must also
- own x-latches to brothers of page, if those brothers exist. We assume
- here that the ordering fields of the record do not change.
- @return DB_SUCCESS or error code */
-dberr_t btr_cur_pessimistic_update(
-    ulint flags,       /*!< in: undo logging, locking, and rollback
-                       flags */
-    btr_cur_t *cursor, /*!< in/out: cursor on the record to update;
-                       cursor may become invalid if *big_rec == NULL
-                       || !(flags & BTR_KEEP_POS_FLAG) */
-    ulint **offsets,   /*!< out: offsets on cursor->page_cur.rec */
-    mem_heap_t **offsets_heap,
-    /*!< in/out: pointer to memory heap
-    that can be emptied, or NULL */
-    mem_heap_t *entry_heap,
-    /*!< in/out: memory heap for allocating
-    big_rec and the index tuple */
-    big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
-                         be stored externally by the caller, or NULL */
-    upd_t *update,       /*!< in/out: update vector; this is allowed to
-                         also contain trx id and roll ptr fields.
-                         Non-updated columns that are moved offpage will
-                         be appended to this. */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_UNDO_LOG_FLAG
-                         | BTR_NO_LOCKING_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    undo_no_t undo_no,
-    /*!< in: undo number of the transaction. This
-    is needed for rollback to savepoint of
-    partially updated LOB.*/
-    mtr_t *mtr) /*!< in/out: mini-transaction; must be
-                committed before latching any further pages */
-{
+
+dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
+                                   ulint **offsets, mem_heap_t **offsets_heap,
+                                   mem_heap_t *entry_heap, big_rec_t **big_rec,
+                                   upd_t *update, ulint cmpl_info,
+                                   que_thr_t *thr, trx_id_t trx_id,
+                                   undo_no_t undo_no, mtr_t *mtr,
+                                   btr_pcur_t *pcur) {
   DBUG_TRACE;
   big_rec_t *big_rec_vec = nullptr;
   big_rec_t *dummy_big_rec;
@@ -4013,7 +3981,7 @@ dberr_t btr_cur_pessimistic_update(
     DBUG_EXECUTE_IF("ib_blob_update_rollback", DBUG_SUICIDE(););
     RECOVERY_CRASH(99);
 
-    lob::BtrContext ctx(mtr, nullptr, index, rec, *offsets, block);
+    lob::BtrContext ctx(mtr, pcur, index, rec, *offsets, block);
 
     ctx.free_updated_extern_fields(trx_id, undo_no, update, true);
   }
@@ -4079,7 +4047,7 @@ dberr_t btr_cur_pessimistic_update(
     if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
       /* The new inserted record owns its possible externally
       stored fields */
-      lob::BtrContext btr_ctx(mtr, nullptr, index, rec, *offsets, block);
+      lob::BtrContext btr_ctx(mtr, pcur, index, rec, *offsets, block);
       btr_ctx.unmark_extern_fields();
     }
 
@@ -4695,42 +4663,11 @@ ibool btr_cur_optimistic_delete_func(
   return (no_compress_needed);
 }
 
-/** Removes the record on which the tree cursor is positioned. Tries
- to compress the page if its fillfactor drops below a threshold
- or if it is the only page on the level. It is assumed that mtr holds
- an x-latch on the tree and on the cursor page. To avoid deadlocks,
- mtr must also own x-latches to brothers of page, if those brothers
- exist.
- @return true if compression occurred and false if not or something
- wrong. */
-ibool btr_cur_pessimistic_delete(
-    dberr_t *err,               /*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
-                                the latter may occur because we may have
-                                to update node pointers on upper levels,
-                                and in the case of variable length keys
-                                these may actually grow in size */
-    ibool has_reserved_extents, /*!< in: TRUE if the
-                  caller has already reserved enough free
-                  extents so that he knows that the operation
-                  will succeed */
-    btr_cur_t *cursor,          /*!< in: cursor on the record to delete;
-                                if compression does not occur, the cursor
-                                stays valid: it points to successor of
-                                deleted record on function exit */
-    ulint flags,                /*!< in: BTR_CREATE_FLAG or 0 */
-    bool rollback,              /*!< in: performing rollback? */
-    trx_id_t trx_id,            /*!< in: the current transaction id. */
-    undo_no_t undo_no,
-    /*!< in: the undo number within the
-    current trx, used for rollback to savepoint
-    for an LOB. */
-    ulint rec_type,
-    /*!< in: undo record type. */
-    mtr_t *mtr) /*!< in: mtr */
-{
+ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
+                                 btr_cur_t *cursor, ulint flags, bool rollback,
+                                 trx_id_t trx_id, undo_no_t undo_no,
+                                 ulint rec_type, mtr_t *mtr, btr_pcur_t *pcur) {
   DBUG_TRACE;
-
-  DBUG_LOG("btr", "rollback=" << rollback << ", trxid=" << trx_id);
 
   buf_block_t *block;
   page_t *page;
@@ -4784,7 +4721,7 @@ ibool btr_cur_pessimistic_delete(
   offsets = rec_get_offsets(rec, index, nullptr, ULINT_UNDEFINED, &heap);
 
   if (rec_offs_any_extern(offsets)) {
-    lob::BtrContext btr_ctx(mtr, nullptr, index, rec, offsets, block);
+    lob::BtrContext btr_ctx(mtr, pcur, index, rec, offsets, block);
 
     btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
 #ifdef UNIV_ZIP_DEBUG

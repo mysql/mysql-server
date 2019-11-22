@@ -396,45 +396,42 @@ dberr_t btr_cur_optimistic_update(
                          mtr_commit(mtr) before latching any
                          further pages */
     MY_ATTRIBUTE((warn_unused_result));
+
 /** Performs an update of a record on a page of a tree. It is assumed
- that mtr holds an x-latch on the tree and on the cursor page. If the
- update is made on the leaf level, to avoid deadlocks, mtr must also
- own x-latches to brothers of page, if those brothers exist.
- @return DB_SUCCESS or error code */
+that mtr holds an x-latch on the tree and on the cursor page. If the
+update is made on the leaf level, to avoid deadlocks, mtr must also
+own x-latches to brothers of page, if those brothers exist.
+@param[in]     flags         undo logging, locking, and rollback flags
+@param[in,out] cursor        cursor on the record to update;
+                             cursor may become invalid if *big_rec == NULL
+                             || !(flags & BTR_KEEP_POS_FLAG)
+@param[out]    offsets       offsets on cursor->page_cur.rec
+@param[in,out] offsets_heap  pointer to memory heap that can be emptied,
+                             or NULL
+@param[in,out] entry_heap    memory heap for allocating big_rec and the
+                             index tuple.
+@param[out]    big_rec       big rec vector whose fields have to be stored
+                             externally by the caller, or NULL
+@param[in,out] update        update vector; this is allowed to also contain
+                             trx id and roll ptr fields. Non-updated columns
+                             that are moved offpage will be appended to this.
+@param[in]     cmpl_info     compiler info on secondary index updates
+@param[in]     thr           query thread, or NULL if flags &
+                             (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG |
+                              BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG)
+@param[in]     trx_id        transaction id
+@param[in]     undo_no       undo number of the transaction. This is needed
+                             for rollback to savepoint of partially updated LOB.
+@param[in,out] mtr           mini transaction; must be committed before latching
+                             any further pages
+@param[in]     pcur          the persistent cursor on the record to update.
+@return DB_SUCCESS or error code */
 dberr_t btr_cur_pessimistic_update(
-    ulint flags,       /*!< in: undo logging, locking, and rollback
-                       flags */
-    btr_cur_t *cursor, /*!< in/out: cursor on the record to update;
-                       cursor may become invalid if *big_rec == NULL
-                       || !(flags & BTR_KEEP_POS_FLAG) */
-    ulint **offsets,   /*!< out: offsets on cursor->page_cur.rec */
-    mem_heap_t **offsets_heap,
-    /*!< in/out: pointer to memory heap
-    that can be emptied, or NULL */
-    mem_heap_t *entry_heap,
-    /*!< in/out: memory heap for allocating
-    big_rec and the index tuple */
-    big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
-                         be stored externally by the caller, or NULL */
-    upd_t *update,       /*!< in/out: update vector; this is allowed to
-                         also contain trx id and roll ptr fields.
-                         Non-updated columns that are moved offpage will
-                         be appended to this. */
-    ulint cmpl_info,     /*!< in: compiler info on secondary index
-                       updates */
-    que_thr_t *thr,      /*!< in: query thread, or NULL if
-                         flags & (BTR_NO_UNDO_LOG_FLAG
-                         | BTR_NO_LOCKING_FLAG
-                         | BTR_CREATE_FLAG
-                         | BTR_KEEP_SYS_FLAG) */
-    trx_id_t trx_id,     /*!< in: transaction id */
-    undo_no_t undo_no,
-    /*!< in: undo number of the transaction. This
-    is needed for rollback to savepoint of
-    partially updated LOB.*/
-    mtr_t *mtr) /*!< in/out: mini-transaction; must be committed
-                before latching any further pages */
-    MY_ATTRIBUTE((warn_unused_result));
+    ulint flags, btr_cur_t *cursor, ulint **offsets, mem_heap_t **offsets_heap,
+    mem_heap_t *entry_heap, big_rec_t **big_rec, upd_t *update, ulint cmpl_info,
+    que_thr_t *thr, trx_id_t trx_id, undo_no_t undo_no, mtr_t *mtr,
+    btr_pcur_t *pcur = nullptr) MY_ATTRIBUTE((warn_unused_result));
+
 /** Marks a clustered index record deleted. Writes an undo log record to
  undo log on this delete marking. Writes in the trx id field the id
  of the deleting transaction, and in the roll ptr field pointer to the
@@ -496,37 +493,38 @@ ibool btr_cur_optimistic_delete_func(
 #define btr_cur_optimistic_delete(cursor, flags, mtr) \
   btr_cur_optimistic_delete_func(cursor, mtr)
 #endif /* UNIV_DEBUG */
+
 /** Removes the record on which the tree cursor is positioned. Tries
  to compress the page if its fillfactor drops below a threshold
  or if it is the only page on the level. It is assumed that mtr holds
  an x-latch on the tree and on the cursor page. To avoid deadlocks,
  mtr must also own x-latches to brothers of page, if those brothers
  exist.
- @return true if compression occurred */
-ibool btr_cur_pessimistic_delete(
-    dberr_t *err,               /*!< out: DB_SUCCESS or DB_OUT_OF_FILE_SPACE;
-                        the latter may occur because we may have
-                        to update node pointers on upper levels,
-                        and in the case of variable length keys
-                        these may actually grow in size */
-    ibool has_reserved_extents, /*!< in: TRUE if the
-                  caller has already reserved enough free
-                  extents so that he knows that the operation
-                  will succeed */
-    btr_cur_t *cursor,          /*!< in: cursor on the record to delete;
-                                if compression does not occur, the cursor
-                                stays valid: it points to successor of
-                                deleted record on function exit */
-    ulint flags,                /*!< in: BTR_CREATE_FLAG or 0 */
-    bool rollback,              /*!< in: performing rollback? */
-    trx_id_t trx_id,            /*!< in: the current transaction id. */
-    undo_no_t undo_no,
-    /*!< in: undo number of the transaction. This
-    is needed for rollback to savepoint of
-    partially updated LOB.*/
-    ulint rec_type,
-    /*!< in: undo record type. */
-    mtr_t *mtr); /*!< in: mtr */
+@param[out] err DB_SUCCESS or DB_OUT_OF_FILE_SPACE; the latter may occur
+                because we may have to update node pointers on upper
+                levels, and in the case of variable length keys these may
+                actually grow in size
+@param[in] has_reserved_extents TRUE if the caller has already reserved
+                                enough free extents so that he knows
+                                that the operation will succeed
+@param[in] cursor cursor on the record to delete; if compression does not
+                  occur, the cursor stays valid: it points to successor of
+                  deleted record on function exit
+@param[in] flags  BTR_CREATE_FLAG or 0
+@param[in] rollback true if performing rollback, false otherwise.
+@param[in] trx_id the current transaction id.
+@param[in] undo_no undo number of the transaction. This is needed for rollback
+                   to savepoint of partially updated LOB.
+@param[in] rec_type undo record type.
+@param[in] mtr the mini transaction
+@param[in] pcur   persistent cursor on the record to delete.
+@return true if compression occurred */
+ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
+                                 btr_cur_t *cursor, ulint flags, bool rollback,
+                                 trx_id_t trx_id, undo_no_t undo_no,
+                                 ulint rec_type, mtr_t *mtr,
+                                 btr_pcur_t *pcur = nullptr);
+
 /** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */
 byte *btr_cur_parse_update_in_place(

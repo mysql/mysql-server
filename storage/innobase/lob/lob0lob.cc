@@ -134,6 +134,36 @@ void BtrContext::check_redolog_normal() {
   ut_ad(validate());
 }
 
+void BtrContext::restart_mtr_normal() {
+  ut_ad(!is_bulk());
+  FlushObserver *observer = m_mtr->get_flush_observer();
+
+  if (m_pcur != nullptr) {
+    store_position();
+  }
+
+  commit_btr_mtr();
+  start_btr_mtr();
+  m_mtr->set_flush_observer(observer);
+
+  if (m_pcur != nullptr) {
+    restore_position();
+  }
+
+  ut_ad(m_pcur == nullptr || validate());
+}
+
+void BtrContext::restart_mtr_bulk() {
+  ut_ad(is_bulk());
+  FlushObserver *observer = m_mtr->get_flush_observer();
+  rec_block_fix();
+  commit_btr_mtr();
+  start_btr_mtr();
+  m_mtr->set_flush_observer(observer);
+  rec_block_unfix();
+  ut_ad(validate());
+}
+
 /** Print this blob directory into the given output stream.
 @param[in]	out	the output stream.
 @return the output stream. */

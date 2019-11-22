@@ -44,6 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "rem0types.h"
 #include "ut0byte.h"
 
+#include <random>
 #include "fsp0types.h"
 
 #ifdef UNIV_HOTBACKUP
@@ -924,4 +925,90 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
 
 /** Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace();
+
+/** A wrapper class to operate on a file segment inode pointer (fseg_inode_t*)
+ */
+class File_segment_inode {
+ public:
+  /** Constructor
+   @param[in]   space_id  table space identifier
+   @param[in]   inode     file segment inode pointer
+   @param[in]   mtr       mini transaction context. */
+  File_segment_inode(space_id_t space_id, const page_size_t &page_size,
+                     fseg_inode_t *inode, mtr_t *mtr)
+      : m_space_id(space_id),
+        m_page_size(page_size),
+        m_fseg_inode(inode),
+        m_mtr(mtr)
+#ifdef UNIV_DEBUG
+        ,
+        m_random_engine(m_rd()),
+        m_dist(1, 100)
+#endif /* UNIV_DEBUG */
+  {
+  }
+
+  /** Update the value of FSEG_NOT_FULL_N_USED.
+  @param[in]   n_used  the new value of FSEG_NOT_FULL_N_USED. */
+  void write_not_full_n_used(uint32_t n_used);
+
+  /** Get the current value of FSEG_NOT_FULL_N_USED.
+   @return the current value of FSEG_NOT_FULL_N_USED. */
+  uint32_t read_not_full_n_used() const;
+
+  /** Get the segment identifier value.
+   @return the segment identifier value. */
+  uint64_t get_seg_id() const {
+    return (mach_read_from_8(m_fseg_inode + FSEG_ID));
+  }
+
+  /** Print the current object into the given output stream.
+   @return the output stream. */
+  std::ostream &print(std::ostream &out) const;
+
+ private:
+  /** Unique tablespace identifier */
+  space_id_t m_space_id;
+
+  /** The page size used in this tablespace. */
+  const page_size_t &m_page_size;
+
+  /** file segment inode pointer that is being wrapped by this object. */
+  fseg_inode_t *m_fseg_inode;
+
+  /** The mini transaction operation context. */
+  mtr_t *m_mtr;
+
+#ifdef UNIV_DEBUG
+ private:
+  /** Verify the stored FSEG_NOT_FULL_N_USED value.
+  @return true if correct value, false if incorrect. */
+  bool verify_not_full_n_used();
+
+  /** Calculate the value of FSEG_NOT_FULL_N_USED by traversing
+  the FSEG_NOT_FULL list.
+  @return the calculated value of FSEG_NOT_FULL_N_USED. */
+  page_no_t calculate_not_full_n_used();
+
+  std::random_device m_rd;
+  std::default_random_engine m_random_engine;
+  std::uniform_int_distribution<int> m_dist;
+
+  /** To reduce the cost of verification of FSEG_NOT_FULL_N_USED, do it
+  only when this function returns true.
+  @return true for 10% of the time. */
+  bool do_verify() { return (m_dist(m_random_engine) > 90); }
+#endif /* UNIV_DEBUG */
+};
+
+/** The global output stream operator is overloaded to work with an object
+ of type File_segment_inode.
+@param[in]  out  the output stream.
+@param[in]  obj  an object of type File_segment_inode.
+@return  the output stream. */
+inline std::ostream &operator<<(std::ostream &out,
+                                const File_segment_inode &obj) {
+  return (obj.print(out));
+}
+
 #endif

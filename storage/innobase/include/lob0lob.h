@@ -918,8 +918,7 @@ class BtrContext {
   /** Restore the position of the persistent cursor. */
   void restore_position() {
     ut_ad(m_pcur->m_rel_pos == BTR_PCUR_ON);
-    bool ret = btr_pcur_restore_position(BTR_MODIFY_LEAF | BTR_MODIFY_EXTERNAL,
-                                         m_pcur, m_mtr);
+    bool ret = btr_pcur_restore_position(m_pcur->m_latch_mode, m_pcur, m_mtr);
 
     ut_a(ret);
 
@@ -963,6 +962,9 @@ class BtrContext {
   void check_redolog() {
     is_bulk() ? check_redolog_bulk() : check_redolog_normal();
   }
+
+  /** The btr mini transaction will be restarted. */
+  void restart_mtr() { is_bulk() ? restart_mtr_bulk() : restart_mtr_normal(); }
 
   /** Mark the nth field as externally stored.
   @param[in]	field_no	the field number. */
@@ -1011,6 +1013,12 @@ class BtrContext {
   /** When bulk load is being done, check if there is enough space in redo
   log file. */
   void check_redolog_bulk();
+
+  /** Commit and re-start the mini transaction. */
+  void restart_mtr_normal();
+
+  /** When bulk load is being done, Commit and re-start the mini transaction. */
+  void restart_mtr_bulk();
 
   /** Recalculate some of the members after restoring the persistent
   cursor. */
