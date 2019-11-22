@@ -95,6 +95,7 @@ static bool xdes_in_segment(const xdes_t *descr, ib_id_t seg_id, mtr_t *mtr);
 /** Marks a page used. The page must reside within the extents of the given
 segment.
 @param[in]   space_id   tablespace identifier
+@param[in]   page_size  Size of each page in the tablespace.
 @param[in]   seg_inode  the file segment inode pointer
 @param[in]   page       the page number to be marked as used.
 @param[in]   descr      extent descriptor containing information about page.
@@ -2357,7 +2358,8 @@ buf_block_t *fseg_create(
 
 /** Calculates the number of pages reserved by a segment, and how many
 pages are currently used.
-@param[in]     space_id  unique tablespace identifier
+@param[in]   space_id   unique tablespace identifier
+@param[in]   page_size  Size of each page in the tablespace.
 @param[in]     inode     file segment inode pointer
 @param[out]    used      number of pages used (not more than reserved)
 @param[in,out] mtr       the mini transaction
