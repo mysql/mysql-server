@@ -1,0 +1,74 @@
+#
+# Test pushing/not pushing of the LIMIT/ORDER BY clauses down into a
+# parenthesized query block.
+#
+CREATE TABLE t1 (k SERIAL, i INT) ENGINE=InnoDB;
+INSERT INTO t1 (i) VALUES (10), (2), (30), (4), (50);
+# push down -- standard compliant
+(SELECT * FROM t1) LIMIT 4;
+k	i
+1	10
+2	2
+3	30
+4	4
+# push down -- standard compliant
+(SELECT * FROM t1) ORDER BY i;
+k	i
+2	2
+4	4
+1	10
+3	30
+5	50
+# push down -- standard compliant
+(SELECT * FROM t1) ORDER BY i LIMIT 4;
+k	i
+2	2
+4	4
+1	10
+3	30
+# push down -- non-standard
+(SELECT * FROM t1 LIMIT 3) LIMIT 4;
+k	i
+1	10
+2	2
+3	30
+4	4
+# don't push down -- standard compliant
+(SELECT * FROM t1 LIMIT 3) ORDER BY i DESC;
+k	i
+3	30
+1	10
+2	2
+# don't push down -- standard compliant
+(SELECT * FROM t1 LIMIT 3) ORDER BY i DESC LIMIT 4;
+k	i
+3	30
+1	10
+2	2
+# push down -- non-standard
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) LIMIT 4;
+k	i
+5	50
+3	30
+1	10
+4	4
+# don't push down -- standard compliant
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) ORDER BY i;
+k	i
+1	10
+3	30
+5	50
+# don't push down -- standard compliant
+(SELECT * FROM t1 ORDER BY i DESC LIMIT 3) ORDER BY i LIMIT 4;
+k	i
+1	10
+3	30
+5	50
+# rejected syntax -- non-standard
+((SELECT * FROM t1 ORDER BY i) ORDER BY i) ORDER BY i;
+Got one of the listed errors
+# 8.0: push down -- non-standard
+#  or
+# 5.7: rejected syntax -- non-standard
+((SELECT * FROM t1 LIMIT 1) LIMIT 2) LIMIT 3;
+DROP TABLE t1;

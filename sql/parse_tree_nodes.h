@@ -779,8 +779,11 @@ class PT_query_expression_body : public Parse_tree_node {
     The same happens with `LIMIT`, obviously, but the optimizer is freeer to
     choose when to apply the limit, and there are name no resolution issues
     involved.
+
+    @param order  True if the outer query block has the ORDER BY clause.
+    @param limit  True if the outer query block has the LIMIT clause.
   */
-  virtual bool can_absorb_order_and_limit() const = 0;
+  virtual bool can_absorb_order_and_limit(bool order, bool limit) const = 0;
   virtual bool has_into_clause() const = 0;
 
   virtual bool is_table_value_constructor() const = 0;
@@ -1485,7 +1488,7 @@ class PT_query_specification : public PT_query_primary {
 
   bool is_union() const override { return false; }
 
-  bool can_absorb_order_and_limit() const override { return true; }
+  bool can_absorb_order_and_limit(bool, bool) const override { return true; }
 
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
@@ -1506,7 +1509,7 @@ class PT_table_value_constructor : public PT_query_primary {
 
   bool is_union() const override { return false; }
 
-  bool can_absorb_order_and_limit() const override { return false; }
+  bool can_absorb_order_and_limit(bool, bool) const override { return false; }
 
   bool is_table_value_constructor() const override { return true; }
 
@@ -1547,15 +1550,48 @@ class PT_query_expression final : public PT_query_primary {
 
   bool contextualize(Parse_context *pc) override;
 
-  /// Called by the Bison parser.
-  PT_query_expression_body *body() { return m_body; }
-
   bool is_union() const override { return m_body->is_union(); }
 
   bool has_into_clause() const override { return m_body->has_into_clause(); }
 
-  bool can_absorb_order_and_limit() const override {
-    return !m_body->is_union() && m_order == nullptr && m_limit == nullptr;
+  bool can_absorb_order_and_limit(bool order, bool limit) const override {
+    if (m_body->is_union()) {
+      return false;
+    }
+    if (m_order == nullptr && m_limit == nullptr) {
+      /*
+        It is safe to push ORDER and/or LIMIT down in:
+
+          (SELECT ...<no order or limit clauses>) ORDER BY ... LIMIT ...;
+          (SELECT ...<no order or limit clauses>) ORDER BY ...;
+          (SELECT ...<no order or limit clauses>)              LIMIT ...;
+      */
+      return true;
+    }
+    if (m_limit != nullptr && !order && limit) {
+      /*
+        In MySQL, it is ok(*) to push LIMIT down in:
+
+          (SELECT ... [ORDER BY ...] LIMIT a) LIMIT b;
+
+        *) MySQL doesn't follow the standard when overwriting `LIMIT a` with
+           `LIMIT b` if a < b.  Moreover, the result of:
+
+             (SELECT ... ORDER BY order1 LIMIT a) ORDER BY order1 LIMIT b; (1)
+
+           can diverge from:
+
+             (SELECT ... ORDER BY order1 LIMIT a) LIMIT b;                  (2)
+
+           since the example (1) never overwrites `LIMIT a` with `LIMIT b`,
+           while the example (2) does overwrite.
+
+           TODO: add a warning, deprecate and replace this behavior with the
+                 standard one.
+      */
+      return true;
+    }
+    return false;
   }
 
   bool is_table_value_constructor() const override {
@@ -1623,7 +1659,7 @@ class PT_union : public PT_query_expression_body {
     return m_lhs->has_into_clause() || m_rhs->has_into_clause();
   }
 
-  bool can_absorb_order_and_limit() const override { return false; }
+  bool can_absorb_order_and_limit(bool, bool) const override { return false; }
 
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }

@@ -1083,14 +1083,48 @@ bool PT_query_expression::contextualize_order_and_limit(Parse_context *pc) {
   */
   if (m_order == nullptr && m_limit == nullptr) return false;
 
-  if (m_body->can_absorb_order_and_limit()) {
+  if (m_body->can_absorb_order_and_limit(m_order != nullptr,
+                                         m_limit != nullptr)) {
     if (contextualize_safe(pc, m_order, m_limit)) return true;
   } else {
     auto lex = pc->thd->lex;
     DBUG_ASSERT(lex->sql_command != SQLCOM_ALTER_TABLE);
     auto unit = pc->select->master_unit();
-    if (unit->fake_select_lex == nullptr && unit->add_fake_select_lex(lex->thd))
+    if (unit->fake_select_lex == nullptr) {
+      if (unit->add_fake_select_lex(lex->thd)) {
+        return true;  // OOM
+      }
+    } else if (unit->fake_select_lex->has_explicit_limit_or_order()) {
+      /*
+        Make sure that we don't silently overwrite intermediate ORDER BY
+        and/or LIMIT clauses, but reject unsupported levels of nesting
+        instead.
+
+        We are here since we support syntax like this:
+
+          (SELECT ... ORDER BY ... LIMIT) ORDER BY ... LIMIT ...
+
+        where the second pair of ORDER BY and LIMIT goes to "global parameters"
+        A.K.A. fake_select_lex. I.e. this syntax works like a degenerate case
+        of unions: a union of one query block with no trailing clauses.
+
+        Such an implementation is unable to process more than one external
+        level of ORDER BY/LIMIT like this:
+
+          ( (SELECT ...
+              ORDER BY ... LIMIT)
+            ORDER BY ... LIMIT ...)
+          ORDER BY ... LIMIT ...
+
+        TODO: Don't use fake_select_lex code (that is designed for unions)
+              for parenthesized query blocks. Reimplement this syntax with
+              e.g. equivalent derived tables to support any level of nesting.
+      */
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "parenthesized query block with more than one external level "
+               "of ORDER/LIMIT operations");
       return true;
+    }
 
     auto orig_select_lex = pc->select;
     pc->select = unit->fake_select_lex;
