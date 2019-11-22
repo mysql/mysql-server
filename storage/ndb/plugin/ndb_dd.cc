@@ -38,8 +38,10 @@
 #include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
+#include "storage/ndb/plugin/ndb_dd_fk.h"
 #include "storage/ndb/plugin/ndb_dd_sdi.h"
 #include "storage/ndb/plugin/ndb_dd_table.h"
+#include "storage/ndb/plugin/ndb_fk_util.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 
@@ -232,5 +234,81 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
 
   // Commit the change into DD and return
   dd_client.commit();
+  return true;
+}
+
+/**
+  Extract all the foreign key constraint definitions on the given table from
+  NDB and install them in the DD table.
+
+  @param dd_table_def[out]    The DD table object on which the foreign keys
+                              are to be defined.
+  @param ndb                  The Ndb object.
+  @param ndb_table            The NDB table object from which the foreign key
+                              definitions are to be extracted.
+
+  @return true        On success.
+  @return false       On failure
+*/
+bool ndb_dd_upgrade_foreign_keys(dd::Table *dd_table_def, Ndb *ndb,
+                                 const NdbDictionary::Table *ndb_table) {
+  DBUG_TRACE;
+
+  // Retrieve the foreign key list
+  Ndb_fk_list fk_list;
+  if (!retrieve_foreign_key_list_from_ndb(ndb->getDictionary(), ndb_table,
+                                          &fk_list)) {
+    return false;
+  }
+
+  // Loop all foreign keys and add them to the dd table object
+  for (const NdbDictionary::ForeignKey &ndb_fk : fk_list) {
+    char child_schema_name[FN_REFLEN + 1];
+    const char *child_table_name =
+        fk_split_name(child_schema_name, ndb_fk.getChildTable());
+    if (strcmp(child_schema_name, ndb->getDatabaseName()) != 0 ||
+        strcmp(child_table_name, ndb_table->getName())) {
+      // The FK is just referencing the table. Skip it.
+      // It will be handled by the table on which it exists.
+      continue;
+    }
+
+    // Add the foreign key to the DD table
+    dd::Foreign_key *dd_fk_def = dd_table_def->add_foreign_key();
+
+    // Open the parent table from NDB
+    char parent_schema_name[FN_REFLEN + 1];
+    const char *parent_table_name =
+        fk_split_name(parent_schema_name, ndb_fk.getParentTable());
+    if (strcmp(child_schema_name, parent_schema_name) == 0 &&
+        strcmp(child_table_name, parent_table_name) == 0) {
+      // Self referencing foreign key.
+      // Use the child table as parent and update the foreign key information.
+      if (!ndb_dd_fk_set_values_from_ndb(dd_fk_def, dd_table_def, ndb_fk,
+                                         ndb_table, ndb_table,
+                                         parent_schema_name)) {
+        return false;
+      }
+    } else {
+      Ndb_table_guard ndb_parent_table_guard(ndb, parent_schema_name,
+                                             parent_table_name);
+      const NdbDictionary::Table *ndb_parent_table =
+          ndb_parent_table_guard.get_table();
+      if (ndb_parent_table == nullptr) {
+        DBUG_PRINT("error",
+                   ("Unable to load table '%s.%s' from ndb. Error : %s",
+                    parent_schema_name, parent_table_name,
+                    ndb->getDictionary()->getNdbError().message));
+        return false;
+      }
+
+      // Update the foreign key information
+      if (!ndb_dd_fk_set_values_from_ndb(dd_fk_def, dd_table_def, ndb_fk,
+                                         ndb_table, ndb_parent_table,
+                                         parent_schema_name)) {
+        return false;
+      }
+    }
+  }
   return true;
 }

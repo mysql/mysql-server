@@ -92,6 +92,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_record_layout.cc
   plugin/ndb_sql_metadata_table.cc
   plugin/ndb_stored_grants.cc
+  plugin/ndb_dd_fk.cc
 )
 
 # Include directories used when building ha_ndbcluster

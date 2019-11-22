@@ -17027,6 +17027,11 @@ bool ha_ndbcluster::upgrade_table(THD *thd, const char *,
   // from which the table is being upgraded
   ndb_dd_table_set_previous_mysql_version(dd_table, table->s->mysql_version);
 
+  // Set foreign key information in the table
+  if (!ndb_dd_upgrade_foreign_keys(dd_table, ndb, ndbtab)) {
+    return true;
+  }
+
   return false;
 }
 

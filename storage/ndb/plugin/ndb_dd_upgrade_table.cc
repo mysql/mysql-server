@@ -57,8 +57,7 @@
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/utils.h"  // execute_query
 #include "sql/dd/properties.h"
-#include "sql/dd/types/foreign_key.h"  // dd::Foreign_key
-#include "sql/dd/types/table.h"        // dd::Table
+#include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/upgrade_57/upgrade.h"
 #include "sql/field.h"
 #include "sql/handler.h"  // legacy_db_type
@@ -434,112 +433,6 @@ static bool set_se_data_for_user_tables(THD *thd,
   }
 
   if (thd->dd_client()->update<dd::Table>(table_def)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return false;
-  }
-
-  return !(trans_commit_stmt(thd) || trans_commit(thd));
-}
-
-/**
-  Set names of parent keys (unique constraint names matching FK
-  in parent tables) for the FKs in which table participates.
-
-  @param  thd         Thread context.
-  @param  schema_name Name of schema.
-  @param  table_name  Name of table.
-  @param  hton        Table's handlerton.
-
-  @retval true  - Success.
-  @retval false - Failure.
-*/
-
-static bool fix_fk_parent_key_names(THD *thd, const String_type &schema_name,
-                                    const String_type &table_name,
-                                    handlerton *hton) {
-  if (!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS)) {
-    // Shortcut. No need to process FKs for engines which don't support them.
-    return true;
-  }
-
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  dd::Table *table_def = nullptr;
-
-  if (thd->dd_client()->acquire_for_modification(
-          schema_name.c_str(), table_name.c_str(), &table_def)) {
-    // Error is reported by the dictionary subsystem.
-    return false;
-  }
-
-  if (!table_def) {
-    /*
-      Should never hit this case as the caller of this function stores
-      the information in dictionary.
-    */
-    get_thd_ndb(thd)->push_warning(
-        ER_DD_CANT_FETCH_TABLE_DATA,
-        "Error in fetching %s.%s table data from dictionary",
-        schema_name.c_str(), table_name.c_str());
-    ndb_log_error("Error in fetching %s.%s table data from dictionary",
-                  schema_name.c_str(), table_name.c_str());
-    return false;
-  }
-
-  for (dd::Foreign_key *fk : *(table_def->foreign_keys())) {
-    const dd::Table *parent_table_def = nullptr;
-
-    if (my_strcasecmp(table_alias_charset,
-                      fk->referenced_table_schema_name().c_str(),
-                      schema_name.c_str()) == 0 &&
-        my_strcasecmp(table_alias_charset, fk->referenced_table_name().c_str(),
-                      table_name.c_str()) == 0) {
-      // This FK references the same table as on which it is defined.
-      parent_table_def = table_def;
-    } else {
-      if (thd->dd_client()->acquire(fk->referenced_table_schema_name().c_str(),
-                                    fk->referenced_table_name().c_str(),
-                                    &parent_table_def))
-        return false;
-    }
-
-    if (parent_table_def == nullptr) {
-      /*
-        This is legal situaton. Parent table was not upgraded yet or
-        simply doesn't exist. In the former case our FKs will be
-        updated with the correct parent key names once parent table
-        is upgraded.
-      */
-    } else {
-      bool is_self_referencing_fk = (parent_table_def == table_def);
-      if (prepare_fk_parent_key(hton, parent_table_def, nullptr, nullptr,
-                                is_self_referencing_fk, fk))
-        return false;
-    }
-  }
-
-  /*
-    Adjust parent key names for FKs belonging to already upgraded tables,
-    which reference the table being upgraded here. Also adjust the
-    foreign key parent collection, both for this table and for other
-    tables being referenced by this one.
-  */
-  if (adjust_fk_children_after_parent_def_change(
-          thd,
-          true,  // Check charsets.
-          schema_name.c_str(), table_name.c_str(), hton, table_def, nullptr,
-          false) ||  // Don't invalidate
-                     // TDC we don't have
-                     // proper MDL.
-      adjust_fk_parents(thd, schema_name.c_str(), table_name.c_str(), true,
-                        nullptr)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return false;
-  }
-
-  if (thd->dd_client()->update(table_def)) {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     return false;
@@ -961,11 +854,6 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                           schema_name.c_str(), table_name.c_str());
     ndb_log_error("Failed to set SE specific data for table %s.%s",
                   schema_name.c_str(), table_name.c_str());
-    return false;
-  }
-
-  if (!fix_fk_parent_key_names(thd, schema_name, to_table_name,
-                               share.db_type())) {
     return false;
   }
 
