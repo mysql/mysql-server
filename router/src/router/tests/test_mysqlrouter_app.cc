@@ -91,7 +91,7 @@ class MockSysUserOperations : public SysUserOperationsBase {
   MOCK_METHOD3(chown, int(const char *, uid_t, gid_t));
 };
 
-#endif
+#endif  // #ifndef _WIN32
 
 using mysql_harness::Path;
 
@@ -340,7 +340,7 @@ TEST_F(AppTest, CmdLineUserShortBeforeBootstrap) {
         HasSubstr("One can only use the -u/--user switch if running as root"));
   }
 }
-#endif
+#endif  // #ifndef _WIN32
 
 TEST_F(AppTest, CmdLineVersion) {
   vector<string> argv = {"--version"};
@@ -440,7 +440,6 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   ASSERT_THROW(section.get("NotInTheSection"), mysql_harness::bad_option);
 }
 
-#ifndef _WIN32
 TEST_F(AppTest, CanStartTrue) {
   vector<string> argv = {"--config", config_dir.join("mysqlrouter.conf").str()};
   ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
@@ -595,7 +594,7 @@ TEST_F(AppTest, SetConfigUserBeforeInitializingLogger) {
   ASSERT_NO_THROW(r.start());
 }
 
-#endif
+#endif  // #ifndef _WIN32
 
 TEST_F(AppTest, ShowingInfoTrue) {
   vector<vector<string>> cases = {
@@ -633,6 +632,8 @@ TEST_F(AppTest, ShowingInfoFalse) {
     });
   }
 }
+
+#ifndef _WIN32
 
 TEST_F(AppTest, UserSetPermanentlyByName) {
   const char *USER = "mysqluser";

@@ -235,6 +235,7 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["group_replication_membership"].map(function(currentValue) {
+          var xport = currentValue[4] === undefined ? 0 : currentValue[4];
           return [
             options.innodb_cluster_replicaset_name,
             currentValue[0],
@@ -242,7 +243,7 @@ exports.get = function get(stmt_key, options) {
             null,
             null,
             currentValue[1] + ":" + currentValue[2],
-            currentValue[1] + ":" + currentValue[4]
+            currentValue[1] + ":" + xport
           ]
         }),
       }
@@ -268,10 +269,11 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["group_replication_membership"].map(function(currentValue) {
+          var xport = currentValue[4] === undefined ? 0 : currentValue[4];
           return [
             currentValue[0],
             currentValue[1] + ":" + currentValue[2],
-            currentValue[1] + ":" +  currentValue[4]
+            currentValue[1] + ":" + xport
           ]
         }),
       }
@@ -300,10 +302,11 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["group_replication_membership"].map(function(currentValue) {
+          var xport = currentValue[4] === undefined ? 0 : currentValue[4];
           return [
             currentValue[0],
             currentValue[1] + ":" + currentValue[2],
-            currentValue[1] + ":" + currentValue[4],
+            currentValue[1] + ":" + xport,
             currentValue[2] === options.primary_port ? "PRIMARY" : "SECONDARY"
           ]
         }),
@@ -464,6 +467,7 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["innodb_cluster_hosts"].map(function(currentValue) {
+          var xport = currentValue[2] === undefined ? 0 : currentValue[2];
           return [
              currentValue[0], currentValue[1], currentValue[2]
           ]
@@ -666,6 +670,7 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["group_replication_membership"].map(function(currentValue) {
+            var xport = currentValue[4] === undefined ? 0 : currentValue[4];
               return [
                 options.innodb_cluster_replicaset_name,
                 currentValue[0],
@@ -673,7 +678,7 @@ exports.get = function get(stmt_key, options) {
                 null,
                 null,
                 currentValue[1] + ":" + currentValue[2],
-                currentValue[1] + ":" +  currentValue[4]
+                currentValue[1] + ":" + xport
               ]
           }),
         }

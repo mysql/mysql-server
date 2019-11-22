@@ -541,6 +541,19 @@ int mkdir(const std::string &dir, perm_mode mode, bool recursive = false);
  */
 void HARNESS_EXPORT make_file_public(const std::string &file_name);
 
+#ifdef _WIN32
+/**
+ * Changes file access permissions to be readable by all users.
+ *
+ * On Windows, Everyone group is granted read access to the file.
+ *
+ * @param[in] file_name File name.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void make_file_readable_for_everyone(const std::string &file_name);
+#endif
+
 /**
  * Changes file access permissions to be accessible only by a limited set of
  * users.

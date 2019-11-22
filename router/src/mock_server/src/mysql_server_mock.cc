@@ -79,9 +79,11 @@ void non_blocking(socket_t handle_, bool mode) noexcept {
 
 MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
                                  const std::string &module_prefix,
+                                 const std::string &bind_address,
                                  unsigned bind_port,
                                  const std::string &protocol, bool debug_mode)
-    : bind_port_{bind_port},
+    : bind_address_(bind_address),
+      bind_port_{bind_port},
       debug_mode_{debug_mode},
       expected_queries_file_{expected_queries_file},
       module_prefix_{module_prefix},
@@ -119,12 +121,12 @@ void MySQLServerMock::setup_service() {
   struct addrinfo hints, *ainfo;
 
   std::memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
+  hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
 
-  err =
-      getaddrinfo(nullptr, std::to_string(bind_port_).c_str(), &hints, &ainfo);
+  err = getaddrinfo(bind_address_.c_str(), std::to_string(bind_port_).c_str(),
+                    &hints, &ainfo);
   if (err != 0) {
     throw std::runtime_error(std::string("getaddrinfo() failed: ") +
                              gai_strerror(err));
@@ -148,9 +150,9 @@ void MySQLServerMock::setup_service() {
 
   err = bind(listener_, ainfo->ai_addr, ainfo->ai_addrlen);
   if (err < 0) {
-    throw std::system_error(
-        get_last_socket_error_code(),
-        "bind('0.0.0.0', " + std::to_string(bind_port_) + ") failed");
+    throw std::system_error(get_last_socket_error_code(),
+                            "bind(" + bind_address_ + ":" +
+                                std::to_string(bind_port_) + ") failed");
   }
 
   err = listen(listener_, kListenQueueSize);
@@ -200,19 +202,32 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
       if (work.client_socket == mysql_harness::kInvalidSocket) break;
 
       try {
-        sockaddr_in addr;
+        sockaddr_storage addr;
         socklen_t addr_len = sizeof(addr);
         if (-1 == getsockname(work.client_socket,
                               reinterpret_cast<sockaddr *>(&addr), &addr_len)) {
           throw std::system_error(get_last_socket_error_code(),
                                   "getsockname() failed");
         }
+
+        uint16_t port{0};
+        if (addr.ss_family == AF_INET6) {
+          auto *sin6 = reinterpret_cast<const struct sockaddr_in6 *>(&addr);
+          port = sin6->sin6_port;
+        } else if (addr.ss_family == AF_INET) {
+          auto *sin4 = reinterpret_cast<const struct sockaddr_in *>(&addr);
+          port = sin4->sin_port;
+        } else {
+          throw std::runtime_error("unknown address family: " +
+                                   std::to_string(addr.ss_family));
+        }
+
         std::unique_ptr<StatementReaderBase> statement_reader{
             StatementReaderFactory::create(
                 work.expected_queries_file, work.module_prefix,
                 // expose session data json-encoded string
                 {
-                    {"port", std::to_string(ntohs(addr.sin_port))},
+                    {"port", std::to_string(ntohs(port))},
                 },
                 MySQLServerSharedGlobals::get())};
 

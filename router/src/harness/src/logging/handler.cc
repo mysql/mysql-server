@@ -204,6 +204,9 @@ void FileHandler::reopen() {
     fstream_.clear();
   }
 
+#ifdef _WIN32
+  const bool created = !file_path_.exists();
+#endif
   fstream_.open(file_path_.str(), ofstream::app);
   if (fstream_.fail()) {
     // get the last-error early as with VS2015 it has been seen
@@ -226,6 +229,16 @@ void FileHandler::reopen() {
           "Cannot create file in directory " + file_path_.dirname().str());
     }
   }
+
+#ifdef _WIN32
+  // If we are running in the context of the Windows service and we created the
+  // file it will be unaccessible by anyone else which makes it kind of
+  // pointless as this is a log file. Let's make sure this file is readable if
+  // we just created it.
+  if (created) {
+    make_file_readable_for_everyone(file_path_.str());
+  }
+#endif
 }  // namespace logging
 
 void FileHandler::do_log(const Record &record) {

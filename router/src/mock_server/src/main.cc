@@ -53,6 +53,7 @@ constexpr unsigned kHelpScreenIndent = 8;
 struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
+  std::string bind_address{"0.0.0.0"};
   unsigned port{3306};
   unsigned http_port{0};
   unsigned xport{0};
@@ -175,6 +176,7 @@ class MysqlServerMockFrontend {
 
     auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
+    mock_server_config.set("bind_address", config_.bind_address);
     mock_server_config.set("port", std::to_string(config_.port));
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
@@ -225,6 +227,15 @@ class MysqlServerMockFrontend {
                             "filename", [this](const std::string &filename) {
                               config_.queries_filename = filename;
                             });
+
+    arg_handler_.add_option(
+        CmdOption::OptionNames({"-B", "--bind-address"}),
+        "TCP address to bind to listen on for classic protocol connections.",
+        CmdOptionValueReq::required, "string",
+        [this](const std::string &bind_address) {
+          config_.bind_address = bind_address;
+        });
+
     arg_handler_.add_option(
         CmdOption::OptionNames({"-P", "--port"}),
         "TCP port to listen on for classic protocol connections.",

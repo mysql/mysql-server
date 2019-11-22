@@ -11,7 +11,9 @@
 var common_stmts = require("common_statements");
 var gr_memberships = require("gr_memberships");
 
-var gr_node_host = "127.0.0.1";
+if(mysqld.global.gr_node_host === undefined){
+    mysqld.global.gr_node_host = "127.0.0.1";
+}
 
 if(mysqld.global.gr_id === undefined){
     mysqld.global.gr_id = "00-000";
@@ -42,7 +44,7 @@ var nodes = function(host, port_and_state) {
 ({
   stmts: function (stmt) {
     var group_replication_membership_online =
-      nodes(gr_node_host, mysqld.global.gr_nodes);
+      nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
 
     var options = {
       metadata_schema_version: [1, 0, 2],

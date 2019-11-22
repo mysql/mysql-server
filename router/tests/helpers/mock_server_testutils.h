@@ -58,14 +58,15 @@ using JsonStringBuffer =
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
  * handling the metadata query
+ * @param gr_node_host address of the host with the nodes
  *
  * @return JSON object with the GR mock data.
  */
-JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
-                                   const std::vector<uint16_t> &gr_node_ports,
-                                   unsigned primary_id = 0,
-                                   unsigned view_id = 0,
-                                   bool error_on_md_query = false);
+JsonValue mock_GR_metadata_as_json(
+    const std::string &gr_id, const std::vector<uint16_t> &gr_node_ports,
+    unsigned primary_id = 0, unsigned view_id = 0,
+    bool error_on_md_query = false,
+    const std::string &gr_node_host = "127.0.0.1");
 
 /**
  * Sets the metadata returned by the mock server.
@@ -76,12 +77,14 @@ JsonValue mock_GR_metadata_as_json(const std::string &gr_id,
  * @param primary_id which node is the primary
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
+ * @param gr_node_host address of the host with the nodes
  * handling the metadata query
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
                        unsigned primary_id = 0, unsigned view_id = 0,
-                       bool error_on_md_query = false);
+                       bool error_on_md_query = false,
+                       const std::string &gr_node_host = "127.0.0.1");
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
