@@ -111,6 +111,7 @@ struct gr_modules {
     GCS_EVENTS_HANDLER,
     REMOTE_CLONE_HANDLER,
     MESSAGE_SERVICE_HANDLER,
+    BINLOG_DUMP_THREAD_KILL,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
