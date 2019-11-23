@@ -3572,7 +3572,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5199,7 +5199,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5235,7 +5235,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5271,7 +5271,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5487,7 +5487,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5667,7 +5667,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -5703,7 +5703,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -6093,7 +6093,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -9778,7 +9778,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11231,7 +11231,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11267,7 +11267,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11303,7 +11303,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -11339,7 +11339,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12631,7 +12631,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -12667,7 +12667,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -13392,7 +13392,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14113,7 +14113,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14149,7 +14149,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -14473,7 +14473,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -17178,7 +17178,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -35477,7 +35477,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -36032,7 +36032,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -36248,7 +36248,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -36536,7 +36536,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -36680,7 +36680,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
@@ -39146,7 +39146,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 1,
-                "column_type_utf8": "tinyint",
+                "column_type_utf8": "tinyint(1)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": false
