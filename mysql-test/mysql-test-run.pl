@@ -2784,6 +2784,9 @@ sub environment_setup {
 
     $ENV{'NDB_WAITER'} = $exe_ndb_waiter;
 
+    $ENV{'NDB_MGMD'} =
+      my_find_bin($bindir, [ "runtime_output_directory", "libexec", "sbin", "bin" ], "ndb_mgmd");
+
     $ENV{'NDB_CONFIG'} =
       my_find_bin($bindir, [ "runtime_output_directory", "bin" ], "ndb_config");
 

@@ -305,6 +305,36 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
 					 const char* fname,
 					 const char* value)
 {
+  if (native_strcasecmp(fname, "MaxNoOfConcurrentScans") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentIndexOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentOperations") == 0 ||
+      native_strcasecmp(fname, "MaxNoOfConcurrentTransactions") == 0)
+  {
+    if (ctx.m_currentSection->contains("TransactionMemory"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with TransactionMemory",
+          ctx.fname, fname);
+      return false;
+    }
+  }
+
+  if (native_strcasecmp(fname, "TransactionMemory") == 0)
+  {
+    if (ctx.m_currentSection->contains("MaxNoOfConcurrentScans") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentIndexOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentOperations") ||
+        ctx.m_currentSection->contains("MaxNoOfConcurrentTransactions"))
+    {
+      ctx.reportError(
+          "[%s] Parameter %s can not be set along with any of the below "
+          "deprecated parameter(s) MaxNoOfConcurrentScans, "
+          "MaxNoOfConcurrentIndexOperations, MaxNoOfConcurrentOperations "
+          "and MaxNoOfConcurrentTransactions",
+          ctx.fname, fname);
+      return false;
+    }
+  }
 
   if (ctx.m_currentSection->contains(fname))
   {

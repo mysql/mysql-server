@@ -1,0 +1,8 @@
+source include/have_ndb.inc;
+
+
+--let $assert_select= TransactionMemory calculated to
+--let $assert_text= TransactionMemory is auto-calculated and written to ndbd log
+--let $assert_file= $MYSQLTEST_VARDIR/mysql_cluster.1/ndbd.1/ndbd.log
+--let $assert_count= 1
+--source include/assert_grep.inc

@@ -1,0 +1,5 @@
+include/assert_grep.inc [deprecated warning for MaxNoOfConcurrentIndexOperations found]
+include/assert_grep.inc [deprecated warning for MaxNoOfFiredTriggers found]
+include/assert_grep.inc [deprecated warning for MaxNoOfLocalOperations found]
+include/assert_grep.inc [deprecated warning for MaxNoOfLocalScans found]
+include/assert_grep.inc [TransactionMemory is calculated from deprecated config and written to ndbd log]
