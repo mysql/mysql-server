@@ -1710,6 +1710,43 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       error = 1;
       goto err;
     }
+
+    if (clone_startup) {
+      char *channel_name =
+          (const_cast<Relay_log_info *>(mi->rli))->get_channel();
+      bool is_group_replication_applier_channel =
+          channel_map.is_group_replication_channel_name(channel_name);
+      if (is_group_replication_applier_channel) {
+        if (clear_info()) {
+          msg =
+              "Error cleaning relay log configuration for group replication "
+              "after clone";
+          error = 1;
+          goto err;
+        }
+        if (Rpl_info_factory::reset_workers(this)) {
+          msg =
+              "Error cleaning relay log worker configuration for group "
+              "replication after clone";
+          error = 1;
+          goto err;
+        }
+        check_return = REPOSITORY_CLEARED;
+      } else {
+        if (!is_relay_log_recovery) {
+          LogErr(WARNING_LEVEL, ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE,
+                 channel_name);
+          // After a clone if we detect information is present we always invoke
+          // relay log recovery. Not doing so would probably mean failure at
+          // initialization due to missing relay log files.
+          if (init_recovery(mi)) {
+            msg = "Error on the relay log recovery after a clone operation";
+            error = 1;
+            goto err;
+          }
+        }
+      }
+    }
   }
 
   if (check_return == REPOSITORY_DOES_NOT_EXIST ||  // Hasn't been initialized

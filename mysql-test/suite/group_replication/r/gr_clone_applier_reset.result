@@ -9,8 +9,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 
-# 2. Bootstrap server1 and add some data.
+# 2. Set PRIVILEGE_CHECKS_USER for GR applier channel and recovery channels.
+#    Bootstrap server1 and add some data.
 
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE MASTER TO MASTER_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
@@ -33,14 +39,8 @@ SET GLOBAL group_replication_clone_threshold= 1;
 START GROUP_REPLICATION;
 include/rpl_reconnect.inc
 
-# 6. Set PRIVILEGE_CHECKS_USER for GR applier channel and start GR.
-#    Confirm value of PRIVILEGE_CHECKS_USER is preserved post GR start.
+# 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
-CHANGE MASTER TO MASTER_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/assert.inc [PRIVILEGE_CHECKS_USER has correct value for channel group_replication_applier]
 include/start_group_replication.inc
 include/assert.inc [PRIVILEGE_CHECKS_USER has correct value for channel group_replication_applier and group_replication_recovery]

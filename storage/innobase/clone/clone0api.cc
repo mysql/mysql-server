@@ -1576,7 +1576,7 @@ class Fixup_data {
   bool fix_config_tables(THD *thd);
 
   /** Number of system configuration tables. */
-  static const size_t S_NUM_CONFIG_TABLES = 2;
+  static const size_t S_NUM_CONFIG_TABLES = 0;
 
   /** Array of configuration tables. */
   static const std::array<const char *, S_NUM_CONFIG_TABLES> s_config_tables;
@@ -1849,7 +1849,7 @@ class Fixup_data {
 /** All configuration tables for which data should not be cloned. From
 replication configurations only clone slave_master_info table needed by GR. */
 const std::array<const char *, Fixup_data::S_NUM_CONFIG_TABLES>
-    Fixup_data::s_config_tables = {"slave_relay_log_info", "slave_worker_info"};
+    Fixup_data::s_config_tables = {};
 
 bool Fixup_data::fix_config_tables(THD *thd) {
   /* No privilege check needed for individual tables. */

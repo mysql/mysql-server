@@ -5,14 +5,14 @@
 # Test:
 # 0. The test requires two servers: M1 and M2.
 # 1. Install clone plugin on server1.
-# 2. Bootstrap server1 and add some data.
+# 2. Set PRIVILEGE_CHECKS_USER for GR applier channel and recovery channels.
+#    Bootstrap server1 and add some data.
 # 3. Restart server 2 with a monitoring process (mysqld_safe) if needed.
 # 4. Setup the server so group replication starts on boot.
 #    Install the Clone plugin and set threshold to 1.
 # 5. Start GR and wait for server to reboot post clone.
 #    Joiner must fail to join the group.
-# 6. Set PRIVILEGE_CHECKS_USER for GR applier channel and start GR.
-#    Confirm value of PRIVILEGE_CHECKS_USER is preserved post GR start.
+# 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
 # 7. Cleanup.
 ###############################################################################
 --source include/have_mysqld_monitoring_process.inc
@@ -33,14 +33,17 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---let $server1_port= `SELECT @@GLOBAL.PORT`
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
 --echo
---echo # 2. Bootstrap server1 and add some data.
+--echo # 2. Set PRIVILEGE_CHECKS_USER for GR applier channel and recovery channels.
+--echo #    Bootstrap server1 and add some data.
 --echo
+
+CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE MASTER TO MASTER_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -92,12 +95,8 @@ START GROUP_REPLICATION;
 --source include/rpl_reconnect.inc
 
 --echo
---echo # 6. Set PRIVILEGE_CHECKS_USER for GR applier channel and start GR.
---echo #    Confirm value of PRIVILEGE_CHECKS_USER is preserved post GR start.
+--echo # 6. Confirm value of PRIVILEGE_CHECKS_USER is preserved pre and post GR start.
 --echo
-
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
-CHANGE MASTER TO MASTER_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
 
 --let $pcu_count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME= "group_replication_applier" AND PRIVILEGE_CHECKS_USER = "'root'@'localhost'"`
 --let $assert_text= PRIVILEGE_CHECKS_USER has correct value for channel group_replication_applier
