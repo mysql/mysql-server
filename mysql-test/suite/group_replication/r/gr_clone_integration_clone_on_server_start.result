@@ -63,7 +63,6 @@ RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS group_replication_clone_threshold;
 SET GLOBAL group_replication_clone_threshold= 9223372036854775807;
-SET GLOBAL group_replication_start_on_boot= 0;
 DROP TABLE t1;
 include/rpl_sync.inc
 set session sql_log_bin=0;
@@ -79,6 +78,7 @@ call mtr.add_suppression("Clone removing all user data for provisioning: Finishe
 set session sql_log_bin=1;
 UNINSTALL PLUGIN clone;
 include/clean_monitoring_process.inc
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 [connection server1]
 UNINSTALL PLUGIN clone;
 include/group_replication_end.inc
