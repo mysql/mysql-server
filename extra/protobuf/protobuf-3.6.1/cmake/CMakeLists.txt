@@ -198,6 +198,12 @@ if (protobuf_UNICODE)
   add_definitions(-DUNICODE -D_UNICODE)
 endif (protobuf_UNICODE)
 
+# Bug in std::call_once in optimized mode
+IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
+    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
+  ADD_COMPILE_OPTIONS("-O0")
+ENDIF()
+
 include(libprotobuf-lite.cmake)
 include(libprotobuf.cmake)
 if (protobuf_BUILD_PROTOC_BINARIES)

@@ -57,10 +57,15 @@ IF(SOLARIS)
 
   # Sun Studio 12.6 creates a bogus code when -x02 is used
   # that crashes whenever std::condition_variable::wait_for() is used
-  IF(SOLARIS_INTEL)
+  IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
     STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
+  ENDIF()
+
+  # MD5_Init() and others are deprecated.
+  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+    ADD_COMPILE_OPTIONS("-Wno-deprecated-declarations")
   ENDIF()
 ENDIF()
 

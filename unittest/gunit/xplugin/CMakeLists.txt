@@ -159,7 +159,7 @@ ENDIF()
 
 # assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
 # Segfault in the unit test, so lower optimization level there as well
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+IF(MY_COMPILER_IS_SUNPRO)
   ADD_COMPILE_FLAGS(
     ${CMAKE_CURRENT_SOURCE_DIR}/xpl/callback_command_delegate_t.cc
     COMPILE_FLAGS "-xO2")

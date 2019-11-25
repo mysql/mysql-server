@@ -240,6 +240,16 @@ IF(SOLARIS_INTEL)
   ENDIF()
 ENDIF()
 
+# On linux: /usr/include/stdio.h:#define BUFSIZ 8192
+# On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
+IF(SOLARIS AND MY_COMPILER_IS_GNU)
+  ADD_COMPILE_FLAGS(
+    row/row0import.cc
+    row/row0quiesce.cc
+    COMPILE_FLAGS "-Wno-format-truncation"
+    )
+ENDIF()
+
 # Generated code with logical-op warnings
 MY_CHECK_CXX_COMPILER_WARNING("-Wlogical-op" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)

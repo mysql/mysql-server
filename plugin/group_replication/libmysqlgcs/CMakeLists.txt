@@ -152,6 +152,13 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
+  IF(SOLARIS)
+    # rpcgen generates 'void bzero();'
+    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}
+      COMPILE_FLAGS
+      "-Wno-builtin-declaration-mismatch"
+      )
+  ENDIF()
 ENDIF()
 
 ADD_COMPILE_DEFINITIONS(

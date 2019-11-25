@@ -36,7 +36,7 @@ SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Compiler options
 IF(UNIX)  
 
-  IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT SOLARIS_SPARC)
     SET(SECTIONS_FLAG "-ffunction-sections -fdata-sections")
   ELSE()
     SET(SECTIONS_FLAG)
@@ -76,7 +76,7 @@ IF(UNIX)
     # Link mysqld with mtmalloc on Solaris 10 and later
     SET(WITH_MYSQLD_LDFLAGS "-lmtmalloc" CACHE STRING "")
 
-    IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    IF(MY_COMPILER_IS_SUNPRO)
       SET(SUNPRO_FLAGS     "")
       STRING_APPEND(SUNPRO_FLAGS     " -xbuiltin=%all")
       STRING_APPEND(SUNPRO_FLAGS     " -xlibmil")
