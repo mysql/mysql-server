@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@ class FsOpenReq {
   friend class Filename;
   friend class VoidFs;
   friend class AsyncIoThread;
+  friend class ndb_file;
 
   /**
    * Sender(s)
@@ -90,9 +91,10 @@ private:
   Uint32 file_size_lo;
   Uint32 auto_sync_size; // In bytes
   
-  STATIC_CONST( OM_READONLY  = 0 );
-  STATIC_CONST( OM_WRITEONLY = 1 );
-  STATIC_CONST( OM_READWRITE = 2 );
+  STATIC_CONST( OM_READONLY        = 0 );
+  STATIC_CONST( OM_WRITEONLY       = 1 );
+  STATIC_CONST( OM_READWRITE       = 2 );
+  STATIC_CONST( OM_READ_WRITE_MASK = 3 );
 
   STATIC_CONST( OM_APPEND    = 0x8   ); // Not Implemented on W2k
   STATIC_CONST( OM_SYNC      = 0x10  );
