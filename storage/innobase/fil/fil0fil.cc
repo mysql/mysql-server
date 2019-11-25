@@ -10671,37 +10671,46 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
     return dict_sys_t::s_invalid_space_id;
   }
 
-  auto bytes_read = fread(buf.get(), page_size, MAX_PAGES_TO_READ, fp);
+  auto pages_read = fread(buf.get(), page_size, MAX_PAGES_TO_READ, fp);
+
+  DBUG_EXECUTE_IF("invalid_header", pages_read = 0;);
+
+  /* Find the space id from the pages read if enough pages could be read.
+  Fall back to the more heavier method of finding the space id from
+  Datafile::find_space_id() if pages cannot be read properly. */
+  if (pages_read >= MAX_PAGES_TO_READ) {
+    auto bytes_read = pages_read * page_size;
 
 #ifdef POSIX_FADV_DONTNEED
-  posix_fadvise(fileno(fp), 0, bytes_read, POSIX_FADV_DONTNEED);
+    posix_fadvise(fileno(fp), 0, bytes_read, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
-  for (page_no_t i = 0; i < MAX_PAGES_TO_READ; ++i) {
-    const auto off = i * page_size + FIL_PAGE_SPACE_ID;
+    for (page_no_t i = 0; i < MAX_PAGES_TO_READ; ++i) {
+      const auto off = i * page_size + FIL_PAGE_SPACE_ID;
 
-    if (off == FIL_PAGE_SPACE_ID) {
-      /* Find out the page size of the tablespace from the first page.
-      In case of compressed pages, the subsequent pages can be of different
-      sizes. If MAX_PAGES_TO_READ is changed to a different value, then the
-      page size of subsequent pages is needed to find out the offset for
-      space ID. */
+      if (off == FIL_PAGE_SPACE_ID) {
+        /* Find out the page size of the tablespace from the first page.
+        In case of compressed pages, the subsequent pages can be of different
+        sizes. If MAX_PAGES_TO_READ is changed to a different value, then the
+        page size of subsequent pages is needed to find out the offset for
+        space ID. */
 
-      auto space_flags_offset = FSP_HEADER_OFFSET + FSP_SPACE_FLAGS;
+        auto space_flags_offset = FSP_HEADER_OFFSET + FSP_SPACE_FLAGS;
 
-      ut_a(space_flags_offset + 4 < n_bytes);
+        ut_a(space_flags_offset + 4 < n_bytes);
 
-      const auto flags = mach_read_from_4(buf.get() + space_flags_offset);
+        const auto flags = mach_read_from_4(buf.get() + space_flags_offset);
 
-      page_size_t space_page_size(flags);
+        page_size_t space_page_size(flags);
 
-      page_size = space_page_size.physical();
-    }
+        page_size = space_page_size.physical();
+      }
 
-    space_ids.push_back(mach_read_from_4(buf.get() + off));
+      space_ids.push_back(mach_read_from_4(buf.get() + off));
 
-    if ((i + 1) * page_size >= bytes_read) {
-      break;
+      if ((i + 1) * page_size >= bytes_read) {
+        break;
+      }
     }
   }
 
@@ -10725,11 +10734,9 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
 
   /* Try the more heavy duty method, as a last resort. */
   if (space_id == UINT32_UNDEFINED) {
-    /* The ifstream will work for all file formats compressed or
-    otherwise because the header of the page is not compressed.
-    Where it will fail is if the first page is corrupt. Then for
-    compressed tablespaces we don't know where the page boundary
-    starts because we don't know the page size. */
+    /* If the first page cannot be read properly, then for compressed
+    tablespaces we don't know where the page boundary starts because
+    we don't know the page size. */
 
     Datafile file;
 
@@ -10740,8 +10747,8 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
     ut_a(file.is_open());
     ut_a(err == DB_SUCCESS);
 
-    /* Read and validate the first page of the tablespace.
-    Assign a tablespace name based on the tablespace type. */
+    /* Use the heavier Datafile::find_space_id() method to
+    find the space id. */
     err = file.find_space_id();
 
     if (err == DB_SUCCESS) {
