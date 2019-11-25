@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -43,7 +43,7 @@ SQL statement\&. Most options to
 correspond directly to clauses of
 LOAD DATA
 syntax\&. See
-Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.7, \(lqLOAD DATA Statement\(rq\&.
 .PP
 Invoke
 \fBmysqlimport\fR
@@ -359,7 +359,7 @@ Section\ \&6.4.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 .sp
 These options have the same meaning as the corresponding clauses for
 LOAD DATA\&. See
-Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.7, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -401,7 +401,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -463,7 +463,7 @@ lines of the data file\&.
 This option has the same meaning as the corresponding clause for
 LOAD DATA\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
 \fB\-\-lines\-terminated\-by="\er\en"\fR\&. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter\&.) See
-Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
+Section\ \&13.2.7, \(lqLOAD DATA Statement\(rq\&.
 .RE
 .sp
 .RS 4
@@ -741,8 +741,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4

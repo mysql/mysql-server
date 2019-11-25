@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmyisamlog\fR
+.\"     Title: \fBmysqlrouter_keyring\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
 .\"      Date: 11/23/2019
-.\"    Manual: MySQL Database System
+.\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMLOG\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLROUTER_KEYRING\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,219 +28,188 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-myisamlog \- display MyISAM log file contents
+mysqlrouter_keyring \- MySQL Router Keyring Tool
 .SH "SYNOPSIS"
-.HP \w'\fBmyisamlog\ [\fR\fB\fIoptions\fR\fR\fB]\ [\fR\fB\fIlog_file\fR\fR\fB\ [\fR\fB\fItbl_name\fR\fR\fB]\ \&.\&.\&.]\fR\ 'u
-\fBmyisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIlog_file\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB] \&.\&.\&.]\fR
+.HP \w'\fBmysqlrouter_keyring\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
+\fBmysqlrouter_keyring [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
 .PP
-\fBmyisamlog\fR
-processes the contents of a
-MyISAM
-log file\&. To create such a file, start the server with a
-\fB\-\-log\-isam=\fR\fBlog_file\fR
-option\&.
+The
+\fBmysqlrouter_keyring\fR
+utility is a a command line application to manage MySQL Router key rings\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
 .PP
-Invoke
-\fBmyisamlog\fR
-like this:
+This feature was added in MySQL Router 8\&.0\&.18\&.
+.sp .5v
+.RE
+.PP
+Usage information:
+.PP
+Generic commands
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-help: usage information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-version: the tool\*(Aqs version\&.
+.RE
+.PP
+Keyring commands; all commands also accept \-\-master\-key\-reader and \-\-master\-key\-writer instead of \-\-master\-key\-file\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-init: Initialize keyring with a master\-key\-file\&.
+.sp
+Creates a keyring and master\-key\-file if they doo not exist; and adds keyring to master\-key\-file if it does not yet exist there\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-list: List usernames stored in the keyring; or list properties of a user stored in the keyring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-get: Get property of user from the keyring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-export: Export keyring as JSON\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-set: Set property in the keyring\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-delete\-: Delete user from the keyring\&.
+.RE
+.PP
+Master\-key commands
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-master\-key\-list: List keyring\-ids from master\-key\-file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-master\-key\-delete: Delete master\-ley from "keyring" from master\-key\-file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\-\-master\-key\-rename: Rename keyring\-id in a master\-key\-file\&.
+.RE
+.PP
+Examples:
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
-shell> \fBmyisamlog [\fR\fB\fIoptions\fR\fR\fB] [\fR\fB\fIfile_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB] \&.\&.\&.]\fR
+shell> mysqlrouter_keyring init \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+shell> mysqlrouter_keyring list \-\-master\-key\-file=mysqlrouter\&.key data/keyring user   
+shell> mysqlrouter_keyring get \-\-master\-key\-file=mysqlrouter\&.key data/keyring someuser key
+shell> mysqlrouter_keyring export \-\-master\-key\-file=mysqlrouter\&.key data/keyring
+shell> mysqlrouter_keyring set \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key value
+shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user
+shell> mysqlrouter_keyring delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring user key
+shell> mysqlrouter_keyring master\-key\-list \-\-master\-key\-file=mysqlrouter\&.key
+shell> mysqlrouter_keyring master\-key\-delete \-\-master\-key\-file=mysqlrouter\&.key data/keyring 
+shell> mysqlrouter_keyring master\-key\-rename \-\-master\-key\-file=mysqlrouter\&.key data/keyring other/data/keyring
 .fi
 .if n \{\
 .RE
 .\}
-.PP
-The default operation is update (\fB\-u\fR)\&. If a recovery is done (\fB\-r\fR), all writes and possibly updates and deletes are done and errors are only counted\&. The default log file name is
-myisam\&.log
-if no
-\fIlog_file\fR
-argument is given\&. If tables are named on the command line, only those tables are updated\&.
-.PP
-\fBmyisamlog\fR
-supports the following options:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-?\fR,
-\fB\-I\fR
-.sp
-Display a help message and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-c \fR\fB\fIN\fR\fR
-.sp
-Execute only
-\fIN\fR
-commands\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-f \fR\fB\fIN\fR\fR
-.sp
-Specify the maximum number of open files\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-F \fR\fB\fIfilepath/\fR\fR
-.sp
-Specify the file path with a trailing slash\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-i\fR
-.sp
-Display extra information before exiting\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-o \fR\fB\fIoffset\fR\fR
-.sp
-Specify the starting offset\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-p \fR\fB\fIN\fR\fR
-.sp
-Remove
-\fIN\fR
-components from path\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-r\fR
-.sp
-Perform a recovery operation\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-R \fR\fB\fIrecord_pos_file record_pos\fR\fR
-.sp
-Specify record position file and record position\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-u\fR
-.sp
-Perform an update operation\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-v\fR
-.sp
-Verbose mode\&. Print more output about what the program does\&. This option can be given multiple times to produce more and more output\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-w \fR\fB\fIwrite_file\fR\fR
-.sp
-Specify the write file\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-V\fR
-.sp
-Display version information\&.
-.RE
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -248,9 +217,5 @@ This documentation is distributed in the hope that it will be useful, but WITHOU
 .PP
 You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
 .sp
-.SH "SEE ALSO"
-For more information, please refer to the MySQL Reference Manual,
-which may already be installed locally and which is also available
-online at http://dev.mysql.com/doc/.
 .SH AUTHOR
 Oracle Corporation (http://dev.mysql.com/).

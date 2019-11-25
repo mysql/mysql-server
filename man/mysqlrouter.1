@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -103,7 +103,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 shell> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.16 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.19 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -689,6 +689,220 @@ master\-key\-writer=writer\&.sh
 .if n \{\
 .RE
 .\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-strict\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--strict
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.19
+T}
+T{
+\fBType\fR
+T}:T{
+String
+T}
+.TE
+.sp 1
+Enables strict mode, which for example causes the bootstrap
+\fB\-\-account\fR
+user verification check to stop the bootstrap process rather than only emit a warning and continue if the supplied user does not pass the check\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-account\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--account username
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.19
+T}
+T{
+\fBType\fR
+T}:T{
+String
+T}
+.TE
+.sp 1
+A bootstrap option to specify the MySQL user to use, which either reuses an existing MySQL user account or creates one; behavior controlled by the related
+\fB\-\-account\-create\fR
+option\&.
+.sp
+With
+\fB\-\-account\fR, usage favors ease of management over ease of deployment as multiple routers may share the same account, and the username and password are manually defined rather than auto\-generated\&.
+.sp
+Setting this option triggers a password prompt for this account regardless of whether the password is available in the keyring\&.
+.sp
+Bootstrapping without passing in
+\fB\-\-account\fR
+does not recreate an existing MySQL server account\&. Prior to MySQL Router 8\&.0\&.18, bootstrapping would DROP the existing user and reCREATE it\&.
+.sp
+Using this option assumes the user has sufficient access rights for Router because the bootstrap process does not attempt to add missing grants to existing accounts\&. The bootstrap process does verify the permissions and outputs information to the console of the failed check\&. The bootstrap process continues despite these failed checks unless the optional
+\fB\-\-strict\fR
+option is also used\&. Example required permissions:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+GRANT SELECT ON mysql_innodb_cluster_metadata\&.* TO `theuser`
+GRANT SELECT ON performance_schema\&.replication_group_members TO `theuser`
+GRANT SELECT ON performance_schema\&.replication_group_member_stats TO `theuser`
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+A password is not accepted from the command\-line\&. For example, passing in "foo:bar" assumes "foo:bar" is the desired username rather than user
+\fIfoo\fR
+with the password
+\fIbar\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-account\-create\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--account-create behavior
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.19
+T}
+T{
+\fBType\fR
+T}:T{
+String
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+if-not-exists
+T}
+T{
+\fBValid Values\fR
+T}:T{
+.PP
+if-not-exists
+.PP
+always
+.PP
+never
+T}
+.TE
+.sp 1
+Specify the account creation policy to help guard against accidentally bootstrapping with the wrong user account\&. Potential values are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+if\-not\-exists
+(default): Bootstrap either way; reuse the account if it exists, otherwise create it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+always: Only bootstrap if the account does not already exist; and create it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+never: Only bootstrap if the account already exists; and reuse it\&.
+.RE
+.sp
+This option requires that the
+\fB\-\-account\fR
+option is also used, and that
+\fB\-\-account\-host\fR
+is not used\&.
 .RE
 .sp
 .RS 4
