@@ -106,7 +106,8 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = NULL;
@@ -189,7 +190,7 @@ int PFS_account_allocator::alloc_array(PFS_account_array *array) {
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
-          &builtin_memory_account_errors);
+          &builtin_memory_account_errors, max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -237,7 +238,8 @@ void PFS_account_allocator::free_array(PFS_account_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_account, size, sizeof(PFS_account),
@@ -287,7 +289,8 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = NULL;
@@ -369,8 +372,8 @@ int PFS_host_allocator::alloc_array(PFS_host_array *array) {
     }
 
     for (index = 0; index < errors_sizing; index++)
-      array->m_instr_class_errors_array[index].init(
-          &builtin_memory_host_errors);
+      array->m_instr_class_errors_array[index].init(&builtin_memory_host_errors,
+                                                    max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -418,7 +421,8 @@ void PFS_host_allocator::free_array(PFS_host_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_host, size, sizeof(PFS_host), array->m_ptr);
@@ -470,7 +474,8 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   size_t waits_history_sizing = size * events_waits_history_per_thread;
@@ -583,7 +588,7 @@ int PFS_thread_allocator::alloc_array(PFS_thread_array *array) {
 
     for (index = 0; index < errors_sizing; index++)
       array->m_instr_class_errors_array[index].init(
-          &builtin_memory_thread_errors);
+          &builtin_memory_thread_errors, max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -763,7 +768,8 @@ void PFS_thread_allocator::free_array(PFS_thread_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   size_t waits_history_sizing = size * events_waits_history_per_thread;
@@ -876,7 +882,8 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   array->m_ptr = NULL;
@@ -958,8 +965,8 @@ int PFS_user_allocator::alloc_array(PFS_user_array *array) {
     }
 
     for (index = 0; index < errors_sizing; index++)
-      array->m_instr_class_errors_array[index].init(
-          &builtin_memory_user_errors);
+      array->m_instr_class_errors_array[index].init(&builtin_memory_user_errors,
+                                                    max_session_server_errors);
   }
 
   if (memory_sizing > 0) {
@@ -1007,7 +1014,8 @@ void PFS_user_allocator::free_array(PFS_user_array *array) {
   size_t stages_sizing = size * stage_class_max;
   size_t statements_sizing = size * statement_class_max;
   size_t transactions_sizing = size * transaction_class_max;
-  size_t errors_sizing = (max_server_errors != 0) ? size * error_class_max : 0;
+  size_t errors_sizing =
+      (max_session_server_errors != 0) ? size * error_class_max : 0;
   size_t memory_sizing = size * memory_class_max;
 
   PFS_FREE_ARRAY(&builtin_memory_user, size, sizeof(PFS_user), array->m_ptr);

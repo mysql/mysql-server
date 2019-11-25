@@ -7891,11 +7891,24 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation) {
     return;
   }
 
-  if (!max_server_errors) {
+  if (!max_global_server_errors) {
     return;
   }
 
-  if (flag_thread_instrumentation) {
+  /* Find the index of this particular error in array of error stats. */
+  error_stat_index = lookup_error_stat_index(error_num);
+
+  /*
+    If this error goes beyond max_global_server_errors, OR
+    If it's (RE)SIGNALED error with custom error number
+    collect its stats at NULL row.
+  */
+  if (error_stat_index >= max_global_server_errors) {
+    error_stat_index = 0;
+  }
+
+  if (flag_thread_instrumentation &&
+      (error_stat_index < max_session_server_errors)) {
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     if (unlikely(pfs_thread == NULL)) {
       return;
@@ -7909,18 +7922,6 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation) {
   } else {
     /* Aggregate to EVENTS_ERRORS_SUMMARY_GLOBAL_BY_ERROR */
     stat = &global_error_stat;
-  }
-
-  /* Find the index of this particular error in array of error stats. */
-  error_stat_index = lookup_error_stat_index(error_num);
-
-  /*
-     If this error goes beyond max_server_errors, OR
-     If it's (RE)SIGNALED error with custom error number
-     collect its stats at NULL row.
-   */
-  if (error_stat_index >= max_server_errors) {
-    error_stat_index = 0;
   }
 
   /* Aggregate to EVENTS_ERRORS_SUMMARY_..._BY_ERROR (counted) */

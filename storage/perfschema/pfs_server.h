@@ -84,8 +84,13 @@
 #define PFS_MAX_MEMORY_CLASS 450
 #endif
 
-#ifndef PFS_MAX_SERVER_ERRORS
-#define PFS_MAX_SERVER_ERRORS ((total_error_count - obsolete_error_count) + 1)
+#ifndef PFS_MAX_GLOBAL_SERVER_ERRORS
+#define PFS_MAX_GLOBAL_SERVER_ERRORS \
+  (1 + pfs_session_error_stat_count + pfs_global_error_stat_count)
+#endif
+
+#ifndef PFS_MAX_SESSION_SERVER_ERRORS
+#define PFS_MAX_SESSION_SERVER_ERRORS (1 + pfs_session_error_stat_count)
 #endif
 
 /** Sizing hints, from the server configuration. */

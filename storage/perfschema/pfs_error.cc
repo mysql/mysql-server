@@ -38,8 +38,9 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_user.h"
 
-uint max_server_errors;
-uint pfs_to_server_error_map[PFS_MAX_SERVER_ERRORS];
+uint max_global_server_errors;
+uint max_session_server_errors;
+uint pfs_to_server_error_map[PFS_MAX_GLOBAL_SERVER_ERRORS];
 
 static void fct_reset_events_errors_by_thread(PFS_thread *thread) {
   PFS_account *account = sanitize_account(thread->m_account);
@@ -48,6 +49,10 @@ static void fct_reset_events_errors_by_thread(PFS_thread *thread) {
   aggregate_thread_errors(thread, account, user, host);
 }
 
+/**
+  Names of all errors defined in err_msg.txt.
+  This includes all names, instrumented or not.
+*/
 server_error error_names_array[] = {
 #ifndef IN_DOXYGEN
     {0, 0, 0, 0, 0, 0},  // NULL ROW
@@ -59,10 +64,37 @@ server_error error_names_array[] = {
 
 int init_error(const PFS_global_param *param) {
   /* Set the number of errors to be instrumented */
-  max_server_errors = param->m_error_sizing;
+  if (param->m_error_sizing != 0) {
+    /*
+      For global statistics,
+      restrict the number of instrumented errors
+      to the errors actually defined in share/errmsg-utf8.txt
+      TODO: provide a way for plugin / components to provide global errors.
+    */
+    max_global_server_errors = param->m_error_sizing;
+    if (max_global_server_errors > PFS_MAX_GLOBAL_SERVER_ERRORS) {
+      max_global_server_errors = PFS_MAX_GLOBAL_SERVER_ERRORS;
+    }
+
+    /*
+      For sessions statistics,
+      restrict the number of instrumented errors
+      to the errors actually defined in share/errmsg-utf8.txt
+      TODO: provide a way for plugin / components to provide session errors.
+    */
+    max_session_server_errors = param->m_error_sizing;
+    if (max_session_server_errors > PFS_MAX_SESSION_SERVER_ERRORS) {
+      max_session_server_errors = PFS_MAX_SESSION_SERVER_ERRORS;
+    }
+  } else {
+    /* Instrumentation is disabled. */
+    max_global_server_errors = 0;
+    max_session_server_errors = 0;
+  }
 
   /* initialize global stats for errors */
-  global_error_stat.init(&builtin_memory_global_errors);
+  global_error_stat.init(&builtin_memory_global_errors,
+                         max_global_server_errors);
 
   /* Initialize error index mapping */
   for (int i = 0; i < total_error_count + 1; i++) {
@@ -132,7 +164,7 @@ uint lookup_error_stat_index(uint mysql_errno) {
     if (mysql_errno >= (uint)errmsg_section_start[i] &&
         mysql_errno <
             (uint)(errmsg_section_start[i] + errmsg_section_size[i])) {
-      /* Following +1 is to accomodate NULL row in error_names_array */
+      /* Following +1 is to accommodate NULL row in error_names_array */
       index = mysql_errno - errmsg_section_start[i] + offset + 1;
       break;
     }

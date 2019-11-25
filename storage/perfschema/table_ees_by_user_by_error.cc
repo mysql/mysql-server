@@ -110,7 +110,7 @@ int table_ees_by_user_by_error::delete_all_rows(void) {
 
 ha_rows table_ees_by_user_by_error::get_row_count(void) {
   return global_user_container.get_row_count() * error_class_max *
-         max_server_errors;
+         max_session_server_errors;
 }
 
 table_ees_by_user_by_error::table_ees_by_user_by_error()
@@ -228,9 +228,10 @@ int table_ees_by_user_by_error::read_row_values(TABLE *table,
   buf[0] = 0;
 
   if (m_row.m_stat.m_error_index > 0 &&
-      m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
+      m_row.m_stat.m_error_index < PFS_MAX_SESSION_SERVER_ERRORS) {
     temp_error =
         &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+  }
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {

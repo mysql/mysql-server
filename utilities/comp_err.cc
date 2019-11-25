@@ -114,6 +114,23 @@ char *default_language = nullptr;
 int er_offset;
 bool info_flag = false;
 
+/**
+  Performance schema metadata about an error code.
+  Depending on the kind of error,
+  the performance schema collects different statistics:
+  - errors listed in messages_to_clients.txt are per session
+  - errors listed in messages_to_error_log.txt are global.
+  - obsolete errors have no statistics.
+*/
+enum PFS_error_stat {
+  /** Generate no performance schema statistics. */
+  PFS_NO_STAT,
+  /** Generate performance schema session and global statistics. */
+  PFS_SESSION_STAT,
+  /** Generate performance schema global statistics. */
+  PFS_GLOBAL_STAT
+};
+
 bool isObsolete(const char *error_name) {
   return is_prefix(error_name, OBSOLETE_ER_PREFIX);
 }
@@ -146,6 +163,14 @@ struct errors {
   const char *sql_code2;             /* ODBC state */
   struct errors *next_error;         /* Pointer to next error */
   Prealloced_array<message, 10> msg; /* All language texts for this error */
+  /** Error is obsolete. */
+  bool m_is_obsolete;
+  /** The kind of performance schema statistics to instrument for this error. */
+  PFS_error_stat m_pfs_stat;
+  /**
+    Performance schema index for this error.
+  */
+  int m_pfs_error_index;
 
   errors() : msg(PSI_NOT_INSTRUMENTED) {}
 };
@@ -189,7 +214,8 @@ static struct my_option my_long_options[] = {
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static struct languages *parse_charset_string(char *str);
-static struct errors *parse_error_string(char *ptr, int er_count);
+static struct errors *parse_error_string(char *ptr, int er_count,
+                                         PFS_error_stat error_stat);
 static struct message *parse_message_string(struct message *new_message,
                                             char *str);
 static struct languages *find_language(struct languages *languages,
@@ -199,7 +225,7 @@ static struct message *find_message(struct errors *err, const char *lang,
 static int check_message_format(struct errors *err, const char *mess);
 static int parse_input_file(const char *file_name, struct errors ***last_error,
                             struct languages **top_language,
-                            int base_error_code);
+                            int base_error_code, PFS_error_stat error_stat);
 static int get_options(int *argc, char ***argv);
 static void usage(void);
 static bool get_one_option(int optid, const struct my_option *opt,
@@ -249,12 +275,13 @@ int my_main(int argc, char *argv[]) {
 
     if (!(num_msgs_to_client =
               parse_input_file(MSGS_TO_CLIENT, &error_tail, &lang_head,
-                               BASE_SERVER_TO_CLIENT))) {
+                               BASE_SERVER_TO_CLIENT, PFS_SESSION_STAT))) {
       fprintf(stderr, "Failed to parse input file %s\n", MSGS_TO_CLIENT);
       goto done;
     }
-    if (!(num_msgs_errlog = parse_input_file(MSGS_ERRLOG, &error_tail,
-                                             &lang_head, BASE_ERROR_LOG))) {
+    if (!(num_msgs_errlog =
+              parse_input_file(MSGS_ERRLOG, &error_tail, &lang_head,
+                               BASE_ERROR_LOG, PFS_GLOBAL_STAT))) {
       fprintf(stderr, "Failed to parse input file %s\n", MSGS_ERRLOG);
       goto done;
     }
@@ -415,27 +442,73 @@ static int create_header_files(struct errors *error_head) {
             total_error_count);
   }
 
-  int error_index = 1, temp_error_index;
+  /*
+    PASS 1:
+    - Check error name length.
+    - Assign error index to 0.
+    - Count obsolete errors.
+    - Count errors not instrumented for the performance schema
+  */
   int obsolete_error_count = 0;
+  int pfs_no_error_stat_count = 0;
   for (tmp_error = error_head; tmp_error; tmp_error = tmp_error->next_error) {
     if (strlen(tmp_error->er_name) > MAX_ERROR_NAME_LENGTH) {
       fprintf(stderr, "Error name [%s] too long.\n", tmp_error->er_name);
       return 1;
     }
+    tmp_error->m_pfs_error_index = 0;
+    if (tmp_error->m_is_obsolete) {
+      obsolete_error_count++;
+    } else if (tmp_error->m_pfs_stat == PFS_NO_STAT) {
+      pfs_no_error_stat_count++;
+    }
+  }
 
+  /*
+    PASS 2:
+    For errors instrumented per session in the performance schema,
+    assign an error index starting at 1.
+  */
+  int error_index = 1;
+  int pfs_session_error_stat_count = 0;
+  for (tmp_error = error_head; tmp_error; tmp_error = tmp_error->next_error) {
+    if (tmp_error->m_pfs_stat == PFS_SESSION_STAT) {
+      tmp_error->m_pfs_error_index = error_index;
+      error_index++;
+      pfs_session_error_stat_count++;
+    }
+  }
+
+  /*
+    PASS 3:
+    For errors instrumented globally in the performance schema,
+    assign an error index after the sessions indexes.
+  */
+  int pfs_global_error_stat_count = 0;
+  for (tmp_error = error_head; tmp_error; tmp_error = tmp_error->next_error) {
+    if (tmp_error->m_pfs_stat == PFS_GLOBAL_STAT) {
+      tmp_error->m_pfs_error_index = error_index;
+      error_index++;
+      pfs_global_error_stat_count++;
+    }
+  }
+
+  /*
+    PASS 4:
+    - generate the define file.
+    - generate the name file.
+  */
+  for (tmp_error = error_head; tmp_error; tmp_error = tmp_error->next_error) {
     /*
        generating mysqld_error.h
        fprintf() will automatically add \r on windows
     */
-    if (!isObsolete(tmp_error->er_name)) {
+    if (!tmp_error->m_is_obsolete) {
       fprintf(er_definef, "#define %s %d\n", tmp_error->er_name,
               tmp_error->d_code);
-      temp_error_index = error_index++;
     } else {
       fprintf(er_definef, "//#define %s %d\n", tmp_error->er_name,
               tmp_error->d_code);
-      temp_error_index = 0;
-      obsolete_error_count++;
     }
 
     /*generating er_name file */
@@ -450,12 +523,12 @@ static int create_header_files(struct errors *error_head) {
     else
       fprintf(er_namef, "\",\"HY000\", \"\""); /* General Error */
 
-    fprintf(er_namef, ", %d },\n", temp_error_index);
+    fprintf(er_namef, ", %d },\n", tmp_error->m_pfs_error_index);
 
     /*
        generating mysqld_errmsg.h
     */
-    if (!isObsolete(tmp_error->er_name)) {
+    if (!tmp_error->m_is_obsolete) {
       fprintf(er_errmsg, "#define %s_MSG \"", tmp_error->er_name);
       print_escaped_string(er_errmsg, er_text);
       fprintf(er_errmsg, "\"\n");
@@ -464,6 +537,12 @@ static int create_header_files(struct errors *error_head) {
 
   fprintf(er_definef, "static const int obsolete_error_count = %d;\n\n",
           obsolete_error_count);
+  fprintf(er_definef, "static const int pfs_no_error_stat_count = %d;\n\n",
+          pfs_no_error_stat_count);
+  fprintf(er_definef, "static const int pfs_session_error_stat_count = %d;\n\n",
+          pfs_session_error_stat_count);
+  fprintf(er_definef, "static const int pfs_global_error_stat_count = %d;\n\n",
+          pfs_global_error_stat_count);
   /* finishing off with mysqld_error.h */
   fprintf(er_definef, "#endif\n");
   fprintf(er_errmsg, "#endif\n");
@@ -596,7 +675,8 @@ static void clean_up(struct languages *lang_head, struct errors *error_head) {
 }
 
 static int parse_input_file(const char *file_name, struct errors ***last_error,
-                            struct languages **top_lang, int base_error_code) {
+                            struct languages **top_lang, int base_error_code,
+                            PFS_error_stat error_stat) {
   FILE *file;
   char *str, buff[1000];
   const char *fail = nullptr;
@@ -715,7 +795,7 @@ static int parse_input_file(const char *file_name, struct errors ***last_error,
     if (is_prefix(str, ER_PREFIX) || is_prefix(str, WARN_PREFIX) ||
         is_prefix(str, OBSOLETE_ER_PREFIX) ||
         is_prefix(str, OBSOLETE_WARN_PREFIX)) {
-      if (!(current_error = parse_error_string(str, rcount))) {
+      if (!(current_error = parse_error_string(str, rcount, error_stat))) {
         fail = "Failed to parse the error name string\n";
         goto done;
       }
@@ -1137,7 +1217,8 @@ static struct message *parse_message_string(struct message *new_message,
   the errors struct
 */
 
-static struct errors *parse_error_string(char *str, int er_count) {
+static struct errors *parse_error_string(char *str, int er_count,
+                                         PFS_error_stat error_stat) {
   struct errors *new_error;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("str: %s", str));
@@ -1152,6 +1233,8 @@ static struct errors *parse_error_string(char *str, int er_count) {
 
   if (!(new_error->er_name = get_word(&str))) return 0; /* OOM: Fatal error */
   DBUG_PRINT("info", ("er_name: %s", new_error->er_name));
+
+  new_error->m_is_obsolete = isObsolete(new_error->er_name);
 
   str = skip_delimiters(str);
 
@@ -1171,6 +1254,22 @@ static struct errors *parse_error_string(char *str, int er_count) {
 
   new_error->d_code = er_offset + er_count;
   DBUG_PRINT("info", ("d_code: %d", new_error->d_code));
+
+  if (new_error->m_is_obsolete) {
+    new_error->m_pfs_stat = PFS_NO_STAT;
+  } else if (strcmp(new_error->er_name, "ER_YES") == 0) {
+    /*
+      Historical, ER_YES is not a real error, only the error text is used.
+      Don't add special per error tags in the format for this,
+      hard code special cases instead.
+    */
+    new_error->m_pfs_stat = PFS_NO_STAT;
+  } else if (strcmp(new_error->er_name, "ER_NO") == 0) {
+    /* Same as ER_YES */
+    new_error->m_pfs_stat = PFS_NO_STAT;
+  } else {
+    new_error->m_pfs_stat = error_stat;
+  }
 
   str = skip_delimiters(str);
 

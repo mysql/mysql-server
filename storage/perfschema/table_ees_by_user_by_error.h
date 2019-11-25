@@ -93,7 +93,9 @@ struct pos_ees_by_user_by_error : public PFS_double_index {
     m_index_2 = 0;
   }
 
-  inline bool has_more_error(void) { return (m_index_2 < max_server_errors); }
+  inline bool has_more_error(void) {
+    return (m_index_2 < max_session_server_errors);
+  }
 
   inline void next_error(void) { m_index_2++; }
 };

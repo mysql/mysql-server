@@ -844,8 +844,8 @@ static Sys_var_long Sys_pfs_max_sql_text_length(
 static Sys_var_long Sys_pfs_error_size(
     "performance_schema_error_size", "Number of server errors instrumented.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_error_sizing), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 1024 * 1024), DEFAULT(PFS_MAX_SERVER_ERRORS), BLOCK_SIZE(1),
-    PFS_TRAILING_PROPERTIES);
+    VALID_RANGE(0, 1024 * 1024), DEFAULT(PFS_MAX_GLOBAL_SERVER_ERRORS),
+    BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
