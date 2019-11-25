@@ -5241,9 +5241,9 @@ dberr_t DDTableBuffer::replace(table_id_t id, uint64_t version,
 
     mtr.commit();
 
-    error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, m_index,
-                                          m_index->n_uniq, entry, 0, nullptr,
-                                          false);
+    error =
+        row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, m_index,
+                                      m_index->n_uniq, entry, nullptr, false);
     ut_a(error == DB_SUCCESS);
 
     mem_heap_empty(m_dynamic_heap);

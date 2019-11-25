@@ -262,7 +262,6 @@ dberr_t btr_cur_optimistic_insert(
     big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
                          be stored externally by the caller, or
                          NULL */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread or NULL */
     mtr_t *mtr)          /*!< in/out: mini-transaction;
                          if this function returns DB_SUCCESS on
@@ -294,7 +293,6 @@ dberr_t btr_cur_pessimistic_insert(
     big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
                          be stored externally by the caller, or
                          NULL */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread or NULL */
     mtr_t *mtr)          /*!< in/out: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));

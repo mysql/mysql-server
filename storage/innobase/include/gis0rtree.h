@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,7 +87,6 @@ rec_t *rtr_page_split_and_insert(
     ulint **offsets,       /*!< out: offsets on inserted record */
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
     const dtuple_t *tuple, /*!< in: tuple to insert */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr);           /*!< in: mtr */
 
 /** Sets the child node mbr in a node pointer.

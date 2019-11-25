@@ -1390,13 +1390,11 @@ rec_t *page_cur_insert_rec_low(
                                 the new record is inserted.
 @param[in]	index		record descriptor
 @param[in]	tuple		pointer to a data tuple
-@param[in]	n_ext		number of externally stored columns
 @param[in]	mtr		mini-transaction handle, or NULL
 
 @return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
-                                      const dtuple_t *tuple, ulint n_ext,
-                                      mtr_t *mtr) {
+                                      const dtuple_t *tuple, mtr_t *mtr) {
   byte *insert_buf;
   ulint rec_size;
   page_t *page;       /*!< the relevant page */
@@ -1473,7 +1471,7 @@ rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
   }
 
   /* 3. Create the record */
-  insert_rec = rec_convert_dtuple_to_rec(insert_buf, index, tuple, n_ext);
+  insert_rec = rec_convert_dtuple_to_rec(insert_buf, index, tuple);
 
   /* 4. Insert the record in the linked list of records */
   ut_ad(current_rec != insert_rec);

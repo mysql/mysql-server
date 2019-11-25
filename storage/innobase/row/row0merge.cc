@@ -178,9 +178,8 @@ class index_tuple_info_t {
                                     __LINE__, &mtr);
       }
 
-      error =
-          btr_cur_optimistic_insert(flag, &ins_cur, &ins_offsets, &row_heap,
-                                    dtuple, &rec, &big_rec, 0, nullptr, &mtr);
+      error = btr_cur_optimistic_insert(flag, &ins_cur, &ins_offsets, &row_heap,
+                                        dtuple, &rec, &big_rec, nullptr, &mtr);
 
       if (error == DB_FAIL) {
         ut_ad(!big_rec);
@@ -198,9 +197,9 @@ class index_tuple_info_t {
                                     BTR_MODIFY_TREE, &ins_cur, 0, __FILE__,
                                     __LINE__, &mtr);
 
-        error = btr_cur_pessimistic_insert(flag, &ins_cur, &ins_offsets,
-                                           &row_heap, dtuple, &rec, &big_rec, 0,
-                                           nullptr, &mtr);
+        error =
+            btr_cur_pessimistic_insert(flag, &ins_cur, &ins_offsets, &row_heap,
+                                       dtuple, &rec, &big_rec, nullptr, &mtr);
       }
 
       DBUG_EXECUTE_IF("row_merge_ins_spatial_fail", error = DB_FAIL;);
@@ -3058,7 +3057,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
 
   for (;;) {
     const mrec_t *mrec;
-    ulint n_ext;
     mtr_t mtr;
 
     if (stage != nullptr) {
@@ -3074,7 +3072,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
       row buffer to data tuple record */
       row_merge_mtuple_to_dtuple(index, dtuple, &row_buf->tuples[n_rows]);
 
-      n_ext = dtuple_get_n_ext(dtuple);
       n_rows++;
       /* BLOB pointers must be copied from dtuple */
       mrec = nullptr;
@@ -3088,8 +3085,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
         break;
       }
 
-      dtuple =
-          row_rec_to_index_entry_low(mrec, index, offsets, &n_ext, tuple_heap);
+      dtuple = row_rec_to_index_entry_low(mrec, index, offsets, tuple_heap);
     }
 
     const dict_index_t *old_index = old_table->first_index();
@@ -3101,9 +3097,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_merge_insert_index_tuples(
       }
     }
 
-    if (!n_ext) {
-      /* There are no externally stored columns. */
-    } else {
+    /* If there are externally stored columns. */
+    if (dtuple->has_ext()) {
       ut_ad(index->is_clustered());
       /* Off-page columns can be fetched safely
       when concurrent modifications to the table

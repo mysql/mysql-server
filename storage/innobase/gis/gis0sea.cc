@@ -1519,7 +1519,7 @@ bool rtr_cur_search_with_match(
   /* Check insert tuple size is larger than first rec, and try to
   avoid it if possible */
   if (mode == PAGE_CUR_RTREE_INSERT && !page_rec_is_supremum(rec)) {
-    ulint new_rec_size = rec_get_converted_size(index, tuple, 0);
+    ulint new_rec_size = rec_get_converted_size(index, tuple);
 
     offsets = rec_get_offsets(rec, index, offsets,
                               dtuple_get_n_fields_cmp(tuple), &heap);

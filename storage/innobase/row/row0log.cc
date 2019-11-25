@@ -1501,7 +1501,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   entry = row_build_index_entry(row, nullptr, index, heap);
 
   error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, index,
-                                        index->n_uniq, entry, 0, thr, false);
+                                        index->n_uniq, entry, thr, false);
 
   switch (error) {
     case DB_SUCCESS:
@@ -3281,7 +3281,7 @@ static void row_log_apply_op_low(
         *error = btr_cur_optimistic_insert(
             BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG,
             &cursor, &offsets, &offsets_heap, const_cast<dtuple_t *>(entry),
-            &rec, &big_rec, 0, nullptr, &mtr);
+            &rec, &big_rec, nullptr, &mtr);
         ut_ad(!big_rec);
         if (*error != DB_FAIL) {
           break;
@@ -3308,7 +3308,7 @@ static void row_log_apply_op_low(
         *error = btr_cur_pessimistic_insert(
             BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_CREATE_FLAG,
             &cursor, &offsets, &offsets_heap, const_cast<dtuple_t *>(entry),
-            &rec, &big_rec, 0, nullptr, &mtr);
+            &rec, &big_rec, nullptr, &mtr);
         ut_ad(!big_rec);
         break;
     }
@@ -3347,7 +3347,6 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
   enum row_op op;
   ulint extra_size;
   ulint data_size;
-  ulint n_ext;
   dtuple_t *entry;
   trx_id_t trx_id;
 
@@ -3423,11 +3422,10 @@ static MY_ATTRIBUTE((warn_unused_result)) const mrec_t *row_log_apply_op(
     return (nullptr);
   }
 
-  entry = row_rec_to_index_entry_low(mrec - data_size, index, offsets, &n_ext,
-                                     heap);
+  entry = row_rec_to_index_entry_low(mrec - data_size, index, offsets, heap);
   /* Online index creation is only implemented for secondary
   indexes, which never contain off-page columns. */
-  ut_ad(n_ext == 0);
+  ut_ad(!entry->has_ext());
 
   row_log_apply_op_low(index, dup, error, offsets_heap, has_index_lock, op,
                        trx_id, entry);

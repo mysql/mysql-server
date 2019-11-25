@@ -188,8 +188,6 @@ dtuple_t *row_rec_to_index_entry_low(
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
-    ulint *n_ext,              /*!< out: number of externally
-                               stored columns */
     mem_heap_t *heap)          /*!< in: memory heap from which
                                the memory needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));
@@ -200,8 +198,6 @@ dtuple_t *row_rec_to_index_entry(
     const rec_t *rec,          /*!< in: record in the index */
     const dict_index_t *index, /*!< in: index */
     const ulint *offsets,      /*!< in/out: rec_get_offsets(rec) */
-    ulint *n_ext,              /*!< out: number of externally
-                               stored columns */
     mem_heap_t *heap)          /*!< in: memory heap from which
                                the memory needed is allocated */
     MY_ATTRIBUTE((warn_unused_result));

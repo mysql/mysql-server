@@ -1443,7 +1443,7 @@ static dberr_t row_insert_for_mysql_using_cursor(const byte *mysql_rec,
     }
 
     if (index->is_clustered()) {
-      err = row_ins_clust_index_entry(node->index, node->entry, thr, 0, false);
+      err = row_ins_clust_index_entry(node->index, node->entry, thr, false);
     } else {
       err = row_ins_sec_index_entry(node->index, node->entry, thr, false);
     }
@@ -2101,8 +2101,7 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
 
     if (index->is_clustered()) {
       if (!dict_index_is_auto_gen_clust(index)) {
-        err = row_ins_clust_index_entry(
-            index, entry, thr, node->upd_ext ? node->upd_ext->n_ext : 0, true);
+        err = row_ins_clust_index_entry(index, entry, thr, true);
       }
     } else {
       err = row_ins_sec_index_entry(index, entry, thr, true);
@@ -2122,8 +2121,7 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
     entry = row_build_index_entry(node->upd_row, node->upd_ext, index, heap);
 
     if (index->is_clustered()) {
-      err = row_ins_clust_index_entry(
-          index, entry, thr, node->upd_ext ? node->upd_ext->n_ext : 0, false);
+      err = row_ins_clust_index_entry(index, entry, thr, false);
       /* Commit the open mtr as we are processing UPDATE. */
       if (index->last_ins_cur) {
         index->last_ins_cur->release();
@@ -4592,9 +4590,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
       prev_blocks[id] = block;
     }
 
-    ulint n_ext;
-
-    prev_tuples[id] = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+    prev_tuples[id] = row_rec_to_index_entry(rec, index, offsets, heap);
 
     return (DB_SUCCESS);
   });
@@ -4819,9 +4815,7 @@ loop:
 
     mem_heap_empty(heap);
 
-    ulint n_ext = 0;
-
-    prev_entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+    prev_entry = row_rec_to_index_entry(rec, index, offsets, heap);
 
     if (UNIV_LIKELY_NULL(tmp_heap)) {
       mem_heap_free(tmp_heap);

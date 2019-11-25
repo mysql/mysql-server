@@ -553,19 +553,17 @@ rec_t *rec_convert_dtuple_to_rec(
     byte *buf,                 /*!< in: start address of the
                                physical record */
     const dict_index_t *index, /*!< in: record descriptor */
-    const dtuple_t *dtuple,    /*!< in: data tuple */
-    ulint n_ext)               /*!< in: number of
-                               externally stored columns */
+    const dtuple_t *dtuple)    /*!< in: data tuple */
     MY_ATTRIBUTE((warn_unused_result));
 /** Returns the extra size of an old-style physical record if we know its
  data size and number of fields.
+ @param[in] data_size	data size
+ @param[in] n_fields	number of fields
+ @param[in] has_ext	true if tuple has ext fields
  @return extra size */
 UNIV_INLINE
-ulint rec_get_converted_extra_size(
-    ulint data_size, /*!< in: data size */
-    ulint n_fields,  /*!< in: number of fields */
-    ulint n_ext)     /*!< in: number of externally stored columns */
-    MY_ATTRIBUTE((const));
+ulint rec_get_converted_extra_size(ulint data_size, ulint n_fields,
+                                   bool has_ext) MY_ATTRIBUTE((const));
 /** Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
  @return total size */
 ulint rec_get_converted_size_comp_prefix(
@@ -587,12 +585,11 @@ ulint rec_get_converted_size_comp(
     ulint *extra);             /*!< out: extra size */
 /** The following function returns the size of a data tuple when converted to
  a physical record.
+ @param[in] index	record descriptor
+ @param[in] dtuple	data tuple
  @return size */
 UNIV_INLINE
-ulint rec_get_converted_size(
-    const dict_index_t *index, /*!< in: record descriptor */
-    const dtuple_t *dtuple,    /*!< in: data tuple */
-    ulint n_ext)               /*!< in: number of externally stored columns */
+ulint rec_get_converted_size(const dict_index_t *index, const dtuple_t *dtuple)
     MY_ATTRIBUTE((warn_unused_result));
 #ifndef UNIV_HOTBACKUP
 /** Copies the first n fields of a physical record to a data tuple.

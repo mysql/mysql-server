@@ -116,11 +116,9 @@ class PageBulk {
   @param[in]  tuple     tuple to insert
   @param[in]  big_rec   external record
   @param[in]  rec_size  record size
-  @param[in]  n_ext     number of externally stored columns
   @return error code */
   dberr_t insert(const dtuple_t *tuple, const big_rec_t *big_rec,
-                 ulint rec_size, ulint n_ext)
-      MY_ATTRIBUTE((warn_unused_result));
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
   /** Mark end of insertion to the page. Scan records to set page dirs,
   and set page header members. The scan is incremental (slots and records
@@ -381,11 +379,9 @@ class BtrBulk {
   @param[in]  big_rec     big record vector, maybe NULL if there is no
                           data to be stored externally.
   @param[in]  rec_size    record size
-  @param[in]  n_ext       number of externally stored columns
   @return error code */
   dberr_t insert(PageBulk *page_bulk, dtuple_t *tuple, big_rec_t *big_rec,
-                 ulint rec_size, ulint n_ext)
-      MY_ATTRIBUTE((warn_unused_result));
+                 ulint rec_size) MY_ATTRIBUTE((warn_unused_result));
 
   /** Log free check */
   void logFreeCheck();

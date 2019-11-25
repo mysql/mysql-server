@@ -405,9 +405,8 @@ void Parallel_reader::Scan_ctx::copy_row(const rec_t *rec, Iter *iter) const {
 
   iter->m_rec = copy_rec;
 
-  auto tuple =
-      row_rec_to_index_entry_low(iter->m_rec, m_config.m_index, iter->m_offsets,
-                                 &iter->m_n_ext, iter->m_heap);
+  auto tuple = row_rec_to_index_entry_low(iter->m_rec, m_config.m_index,
+                                          iter->m_offsets, iter->m_heap);
 
   ut_ad(dtuple_validate(tuple));
 

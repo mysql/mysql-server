@@ -1561,7 +1561,7 @@ static ulint ibuf_rec_get_volume_func(
 
     entry = ibuf_build_entry_from_ibuf_rec(mtr, ibuf_rec, heap, &dummy_index);
 
-    volume = rec_get_converted_size(dummy_index, entry, 0);
+    volume = rec_get_converted_size(dummy_index, entry);
 
     ibuf_dummy_index_free(dummy_index);
     mem_heap_free(heap);
@@ -2693,7 +2693,7 @@ get_volume_comp : {
 
   entry = ibuf_build_entry_from_ibuf_rec(mtr, rec, heap, &dummy_index);
 
-  volume = rec_get_converted_size(dummy_index, entry, 0);
+  volume = rec_get_converted_size(dummy_index, entry);
 
   ibuf_dummy_index_free(dummy_index);
   mem_heap_free(heap);
@@ -3262,7 +3262,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (mode == BTR_MODIFY_PREV) {
     err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor, &offsets,
                                     &offsets_heap, ibuf_entry, &ins_rec,
-                                    &dummy_big_rec, 0, thr, &mtr);
+                                    &dummy_big_rec, thr, &mtr);
     block = btr_cur_get_block(cursor);
     ut_ad(block->page.id.space() == IBUF_SPACE_ID);
 
@@ -3287,12 +3287,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
                                     cursor, &offsets, &offsets_heap, ibuf_entry,
-                                    &ins_rec, &dummy_big_rec, 0, thr, &mtr);
+                                    &ins_rec, &dummy_big_rec, thr, &mtr);
 
     if (err == DB_FAIL) {
       err = btr_cur_pessimistic_insert(
           BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG, cursor, &offsets,
-          &offsets_heap, ibuf_entry, &ins_rec, &dummy_big_rec, 0, thr, &mtr);
+          &offsets_heap, ibuf_entry, &ins_rec, &dummy_big_rec, thr, &mtr);
     }
 
     mutex_exit(&ibuf_pessimistic_insert_mutex);
@@ -3452,7 +3452,7 @@ check_watch:
   }
 
 skip_watch:
-  entry_size = rec_get_converted_size(index, entry, 0);
+  entry_size = rec_get_converted_size(index, entry);
 
   if (entry_size >=
       page_get_free_space_of_empty(dict_table_is_comp(index->table)) / 2) {
@@ -3503,7 +3503,7 @@ static rec_t *ibuf_insert_to_index_page_low(
   rec_t *rec;
   DBUG_TRACE;
 
-  rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, 0, mtr);
+  rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, mtr);
   if (rec != nullptr) {
     return rec;
   }
@@ -3520,7 +3520,7 @@ static rec_t *ibuf_insert_to_index_page_low(
 
   /* This time the record must fit */
 
-  rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, 0, mtr);
+  rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, mtr);
   if (rec != nullptr) {
     return rec;
   }
@@ -3530,7 +3530,7 @@ static rec_t *ibuf_insert_to_index_page_low(
   ib::error(ER_IB_MSG_608) << "Insert buffer insert fails; page free "
                            << page_get_max_insert_size(page, 1)
                            << ", dtuple size "
-                           << rec_get_converted_size(index, entry, 0);
+                           << rec_get_converted_size(index, entry);
 
   fputs("InnoDB: Cannot insert index record ", stderr);
   dtuple_print(stderr, entry);
@@ -4236,7 +4236,7 @@ loop:
         ibool success;
         case IBUF_OP_INSERT:
 #ifdef UNIV_IBUF_DEBUG
-          volume += rec_get_converted_size(dummy_index, entry, 0);
+          volume += rec_get_converted_size(dummy_index, entry);
 
           volume += page_dir_calc_reserved_space(1);
 

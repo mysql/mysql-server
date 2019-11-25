@@ -687,15 +687,14 @@ try_again:
       offsets = nullptr;
       offsets_heap = nullptr;
 
-      err =
-          btr_cur_optimistic_insert(flags, btr_cur, &offsets, &offsets_heap,
-                                    entry, &insert_rec, &big_rec, 0, thr, &mtr);
+      err = btr_cur_optimistic_insert(flags, btr_cur, &offsets, &offsets_heap,
+                                      entry, &insert_rec, &big_rec, thr, &mtr);
       ut_ad(!big_rec);
 
       if (err == DB_FAIL && mode == BTR_MODIFY_TREE) {
-        err = btr_cur_pessimistic_insert(flags, btr_cur, &offsets,
-                                         &offsets_heap, entry, &insert_rec,
-                                         &big_rec, 0, thr, &mtr);
+        err =
+            btr_cur_pessimistic_insert(flags, btr_cur, &offsets, &offsets_heap,
+                                       entry, &insert_rec, &big_rec, thr, &mtr);
         /* There are no off-page columns in
         secondary indexes. */
         ut_ad(!big_rec);

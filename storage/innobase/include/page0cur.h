@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -123,7 +123,6 @@ rec_t *page_cur_tuple_insert(
     dict_index_t *index,   /*!< in: record descriptor */
     ulint **offsets,       /*!< out: offsets on *rec */
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr,            /*!< in: mini-transaction handle, or NULL */
     bool use_cache = false)
     /*!< in: if true, then use record cache to
@@ -168,13 +167,11 @@ rec_t *page_cur_insert_rec_low(
                                 the new record is inserted.
 @param[in]	index		record descriptor
 @param[in]	tuple		pointer to a data tuple
-@param[in]	n_ext		number of externally stored columns
 @param[in]	mtr		mini-transaction handle, or NULL
 
 @return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
-                                      const dtuple_t *tuple, ulint n_ext,
-                                      mtr_t *mtr);
+                                      const dtuple_t *tuple, mtr_t *mtr);
 
 /** Inserts a record next to page cursor on a compressed and uncompressed
  page. Returns pointer to inserted record if succeed, i.e.,

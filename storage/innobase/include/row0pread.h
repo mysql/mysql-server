@@ -462,9 +462,6 @@ class Parallel_reader::Scan_ctx {
     m_tuple will be [first->m_tuple, second->m_tuple). */
     const dtuple_t *m_tuple{};
 
-    /** Number of externally stored columns. */
-    ulint m_n_ext{ULINT_UNDEFINED};
-
     /** Persistent cursor.*/
     btr_pcur_t *m_pcur{};
   };
