@@ -84,6 +84,8 @@ select sleep(2);
 
 --let $first_backup_id = $the_backup_id
 
+# select sleep(20); # Force second backup to run after all changes
+
 select sleep(2);
 
 --echo Run backup snapshotstart
@@ -185,7 +187,7 @@ while($backup_count)
 
   --disable_result_log
   select @log_rows:=count(1) from test.ticker;
-  select @log_max_val:=max(a) from test.ticker;
+  select @log_max_val:=ifnull(max(a),200) from test.ticker;
   --enable_result_log
 
   --echo Expect 200 when adding backup and log rows

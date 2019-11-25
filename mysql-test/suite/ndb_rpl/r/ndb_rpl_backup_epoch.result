@@ -81,7 +81,7 @@ truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 start slave;
 select @log_rows:=count(1) from test.ticker;
-select @log_max_val:=max(a) from test.ticker;
+select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows
 select @backup_rows + @log_rows;
 @backup_rows + @log_rows
@@ -112,7 +112,7 @@ truncate table test.ticker;
 delete from mysql.ndb_apply_status;
 start slave;
 select @log_rows:=count(1) from test.ticker;
-select @log_max_val:=max(a) from test.ticker;
+select @log_max_val:=ifnull(max(a),200) from test.ticker;
 Expect 200 when adding backup and log rows
 select @backup_rows + @log_rows;
 @backup_rows + @log_rows
