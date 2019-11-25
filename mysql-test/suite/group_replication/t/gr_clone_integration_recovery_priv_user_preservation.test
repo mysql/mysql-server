@@ -66,6 +66,7 @@ INSERT INTO db1.t1 VALUES (1);
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_start_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
 
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
@@ -179,5 +180,8 @@ call mtr.add_suppression("Clone removing all user data for provisioning: Finishe
 set session sql_log_bin=1;
 
 --source include/clean_monitoring_process.inc
+
+--replace_result $_group_replication_start_boot_save START_ON_BOOT_VALUE
+--eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_boot_save
 
 --source include/group_replication_end.inc

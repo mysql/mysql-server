@@ -69,4 +69,5 @@ call mtr.add_suppression("Clone removing all user data for provisioning: Started
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;
 include/clean_monitoring_process.inc
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 include/group_replication_end.inc
