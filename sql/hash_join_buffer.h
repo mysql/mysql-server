@@ -315,6 +315,13 @@ class HashJoinRowBuffer {
 
   hash_map_iterator end() const { return m_hash_map->end(); }
 
+  hash_map_iterator LastRowStored() const {
+    DBUG_ASSERT(Initialized());
+    return m_last_row_stored;
+  }
+
+  bool Initialized() const { return m_hash_map.get() != nullptr; }
+
  private:
   const std::vector<HashJoinCondition> m_join_conditions;
 
@@ -334,6 +341,14 @@ class HashJoinRowBuffer {
 
   // The maximum size of the buffer, given in bytes.
   const size_t m_max_mem_available;
+
+  // The last row that was stored in the hash table, or end() if the hash table
+  // is empty. We may have to put this row back into the tables' record buffers
+  // if we have a child iterator that expects the record buffers to contain the
+  // last row returned by the storage engine (the probe phase of hash join may
+  // put any row in the hash table in the tables' record buffer). See
+  // HashJoinIterator::BuildHashTable() for an example of this.
+  hash_map_iterator m_last_row_stored;
 };
 
 }  // namespace hash_join_buffer

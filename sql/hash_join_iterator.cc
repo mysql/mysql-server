@@ -383,6 +383,32 @@ bool HashJoinIterator::BuildHashTable() {
     return false;
   }
 
+  // Restore the last row that was inserted into the row buffer. This is
+  // necessary if the build input is a nested loop with a filter on the inner
+  // side, like this:
+  //
+  //        +---Hash join---+
+  //        |               |
+  //  Nested loop          t1
+  //  |         |
+  //  t3    Filter: (t3.i < t2.i)
+  //               |
+  //              t2
+  //
+  // If the hash join is not allowed to spill to disk, we may need to re-fill
+  // the hash table multiple times. If the nested loop happens to be in the
+  // state "reading inner rows" when a re-fill is triggered, the filter will
+  // look at the data in t3's record buffer in order to evaluate the filter. The
+  // row in t3's record buffer may be any of the rows that was stored in the
+  // hash table, and not the last row returned from t3. To ensure that the
+  // filter is looking at the correct data, restore the last row that was
+  // inserted into the hash table.
+  if (m_row_buffer.Initialized() &&
+      m_row_buffer.LastRowStored() != m_row_buffer.end()) {
+    hash_join_buffer::LoadIntoTableBuffers(
+        m_build_input_tables, m_row_buffer.LastRowStored()->second);
+  }
+
   if (InitRowBuffer()) {
     return true;
   }

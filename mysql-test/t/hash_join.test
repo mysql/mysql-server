@@ -1354,3 +1354,40 @@ let $query = SELECT * FROM t1 JOIN t2 ON t1.c = t2.c;
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30579922 INCORRECT RESULT IF HASH-JOIN ALGORITHM EXHAUST ITS
+--echo #              JOIN_BUFFER
+--echo #
+--echo # Set up a query where the build input is a nested loop, where the inner
+--echo # side of the nested loop also has a filter. We want to see that if the
+--echo # hash join is not allowed to spill to disk, it will restore the last row
+--echo # read from the build iterator before doing a re-fill of the hash table.
+CREATE TABLE t1 (i BIGINT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT i + POW(2, 0) FROM t1;
+INSERT INTO t1 SELECT i + POW(2, 1) FROM t1;
+INSERT INTO t1 SELECT i + POW(2, 2) FROM t1;
+INSERT INTO t1 SELECT i + POW(2, 3) FROM t1;
+INSERT INTO t1 SELECT i + POW(2, 4) FROM t1;
+INSERT INTO t1 SELECT i + POW(2, 5) FROM t1;
+CREATE TABLE t2 AS SELECT i FROM t1;
+CREATE TABLE t3 AS SELECT i + 60 AS i FROM t1;
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query =
+  SELECT /*+ NO_BNL(t2) JOIN_ORDER(t1, t2, t3) */ * FROM t1
+    JOIN t2 ON t1.i > t2.i
+    JOIN t3 ON t2.i = t3.i;
+
+SET join_buffer_size = 128;
+eval EXPLAIN FORMAT=tree $query;
+
+--sorted_result
+eval $query;
+
+--sorted_result
+eval $query LIMIT 1000;
+
+DROP TABLE t1, t2, t3;

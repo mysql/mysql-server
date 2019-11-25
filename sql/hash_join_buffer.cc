@@ -348,6 +348,12 @@ HashJoinRowBuffer::HashJoinRowBuffer(
 
 bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   if (m_hash_map.get() != nullptr) {
+    // Reset the iterator before clearing the data it may point to. Some
+    // platforms (Windows in particular) will access the old data the iterator
+    // pointed to in the assignment operator. So if we do not clear the
+    // iterator state, the assignment operator may access uninitialized data.
+    m_last_row_stored = hash_map_iterator();
+
     // Reset the unique_ptr, so that the hash map destructors are called before
     // clearing the MEM_ROOT.
     m_hash_map.reset(nullptr);
@@ -371,6 +377,8 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), sizeof(hash_map_type));
     return true;
   }
+
+  m_last_row_stored = m_hash_map->end();
   return false;
 }
 
@@ -415,8 +423,8 @@ StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd) {
     memcpy(row, m_buffer.ptr(), row_size);
   }
 
-  m_hash_map->emplace(Key(join_key_data, join_key_size),
-                      BufferRow(row, row_size));
+  m_last_row_stored = m_hash_map->emplace(Key(join_key_data, join_key_size),
+                                          BufferRow(row, row_size));
 
   if (m_mem_root.allocated_size() > m_max_mem_available) {
     return StoreRowResult::BUFFER_FULL;
