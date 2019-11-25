@@ -1541,7 +1541,6 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
   corresponding FTS index auxiliary tables */
   for (;;) {
     dtuple_t *dtuple;
-    ulint n_ext;
     int min_rec = 0;
 
     if (fts_sort_pll_degree <= 2) {
@@ -1578,7 +1577,7 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
     }
 
     dtuple = row_rec_to_index_entry_low(mrec[min_rec], index, offsets[min_rec],
-                                        &n_ext, tuple_heap);
+                                        tuple_heap);
 
     row_fts_insert_tuple(&ins_ctx, &new_word, positions, &last_doc_id, dtuple);
 

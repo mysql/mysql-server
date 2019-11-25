@@ -1009,15 +1009,11 @@ rec_t *rec_copy(void *buf, const rec_t *rec, const ulint *offsets) {
 }
 
 /** Returns the extra size of an old-style physical record if we know its
- data size and number of fields.
- @return extra size */
+ data size and number of fields. */
 UNIV_INLINE
-ulint rec_get_converted_extra_size(
-    ulint data_size, /*!< in: data size */
-    ulint n_fields,  /*!< in: number of fields */
-    ulint n_ext)     /*!< in: number of externally stored columns */
-{
-  if (!n_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
+ulint rec_get_converted_extra_size(ulint data_size, ulint n_fields,
+                                   bool has_ext) {
+  if (!has_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
     return (REC_N_OLD_EXTRA_BYTES + n_fields);
   }
 
@@ -1026,13 +1022,12 @@ ulint rec_get_converted_extra_size(
 
 /** The following function returns the size of a data tuple when converted to
  a physical record.
+ @param[in] index	record descriptor
+ @param[in] dtuple	data tuple
  @return size */
 UNIV_INLINE
-ulint rec_get_converted_size(
-    const dict_index_t *index, /*!< in: record descriptor */
-    const dtuple_t *dtuple,    /*!< in: data tuple */
-    ulint n_ext)               /*!< in: number of externally stored columns */
-{
+ulint rec_get_converted_size(const dict_index_t *index,
+                             const dtuple_t *dtuple) {
   ulint data_size;
   ulint extra_size;
 
@@ -1065,9 +1060,8 @@ ulint rec_get_converted_size(
 
   data_size = dtuple_get_data_size(dtuple, 0);
 
-  ut_ad(n_ext == dtuple->get_n_ext());
-  extra_size = rec_get_converted_extra_size(data_size,
-                                            dtuple_get_n_fields(dtuple), n_ext);
+  extra_size = rec_get_converted_extra_size(
+      data_size, dtuple_get_n_fields(dtuple), dtuple->has_ext());
 
 #if 0
 	/* This code is inactive since it may be the wrong place to add

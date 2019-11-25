@@ -2334,7 +2334,6 @@ dberr_t row_ins_clust_index_entry_low(
     dict_index_t *index, /*!< in: clustered index */
     ulint n_uniq,        /*!< in: 0 or index->n_uniq */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread, or NULL if
                          flags & (BTR_NO_LOCKING_FLAG
                          | BTR_NO_UNDO_LOG_FLAG) and a duplicate
@@ -2512,8 +2511,7 @@ and return. don't execute actual insert. */
     if (mode != BTR_MODIFY_TREE) {
       ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
-                                      entry, &insert_rec, &big_rec, n_ext, thr,
-                                      &mtr);
+                                      entry, &insert_rec, &big_rec, thr, &mtr);
     } else {
       if (buf_LRU_buf_pool_running_out()) {
         err = DB_LOCK_TABLE_FULL;
@@ -2523,13 +2521,12 @@ and return. don't execute actual insert. */
       DEBUG_SYNC_C("before_insert_pessimitic_row_ins_clust");
 
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
-                                      entry, &insert_rec, &big_rec, n_ext, thr,
-                                      &mtr);
+                                      entry, &insert_rec, &big_rec, thr, &mtr);
 
       if (err == DB_FAIL) {
-        err = btr_cur_pessimistic_insert(flags, cursor, &offsets, &offsets_heap,
-                                         entry, &insert_rec, &big_rec, n_ext,
-                                         thr, &mtr);
+        err =
+            btr_cur_pessimistic_insert(flags, cursor, &offsets, &offsets_heap,
+                                       entry, &insert_rec, &big_rec, thr, &mtr);
 
         if (index->table->is_intrinsic() && err == DB_SUCCESS) {
           row_ins_temp_prebuilt_tree_modified(index->table);
@@ -2585,11 +2582,10 @@ used when data is sorted.
                         descent down the index tree
 @param[in,out]	index	clustered index
 @param[in,out]	entry	index entry to insert
-@param[in]	n_ext	number of externally stored columns
 @param[in]	thr	query thread
 @return error code */
 static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
-                                                dtuple_t *entry, ulint n_ext,
+                                                dtuple_t *entry,
                                                 que_thr_t *thr) {
   dberr_t err;
   mtr_t *mtr;
@@ -2645,8 +2641,7 @@ static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
       ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
       err = btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
-                                      entry, &insert_rec, &big_rec, n_ext, thr,
-                                      mtr);
+                                      entry, &insert_rec, &big_rec, thr, mtr);
       if (err != DB_SUCCESS) {
         break;
       }
@@ -2658,13 +2653,12 @@ static dberr_t row_ins_sorted_clust_index_entry(ulint mode, dict_index_t *index,
       }
 
       err = btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
-                                      entry, &insert_rec, &big_rec, n_ext, thr,
-                                      mtr);
+                                      entry, &insert_rec, &big_rec, thr, mtr);
 
       if (err == DB_FAIL) {
-        err = btr_cur_pessimistic_insert(flags, &cursor, &offsets,
-                                         &offsets_heap, entry, &insert_rec,
-                                         &big_rec, n_ext, thr, mtr);
+        err =
+            btr_cur_pessimistic_insert(flags, &cursor, &offsets, &offsets_heap,
+                                       entry, &insert_rec, &big_rec, thr, mtr);
         if (index->table->is_intrinsic() && err == DB_SUCCESS) {
           row_ins_temp_prebuilt_tree_modified(index->table);
         }
@@ -3000,9 +2994,8 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
     big_rec_t *big_rec;
 
     if (mode == BTR_MODIFY_LEAF) {
-      err =
-          btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
-                                    entry, &insert_rec, &big_rec, 0, thr, &mtr);
+      err = btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
+                                      entry, &insert_rec, &big_rec, thr, &mtr);
       if (err == DB_SUCCESS && dict_index_is_spatial(index) &&
           rtr_info.mbr_adj) {
         err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
@@ -3014,13 +3007,12 @@ dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
         goto func_exit;
       }
 
-      err =
-          btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
-                                    entry, &insert_rec, &big_rec, 0, thr, &mtr);
+      err = btr_cur_optimistic_insert(flags, &cursor, &offsets, &offsets_heap,
+                                      entry, &insert_rec, &big_rec, thr, &mtr);
       if (err == DB_FAIL) {
-        err = btr_cur_pessimistic_insert(flags, &cursor, &offsets,
-                                         &offsets_heap, entry, &insert_rec,
-                                         &big_rec, 0, thr, &mtr);
+        err =
+            btr_cur_pessimistic_insert(flags, &cursor, &offsets, &offsets_heap,
+                                       entry, &insert_rec, &big_rec, thr, &mtr);
       }
       if (err == DB_SUCCESS && dict_index_is_spatial(index) &&
           rtr_info.mbr_adj) {
@@ -3054,7 +3046,6 @@ dberr_t row_ins_clust_index_entry(
     dict_index_t *index, /*!< in: clustered index */
     dtuple_t *entry,     /*!< in/out: index entry to insert */
     que_thr_t *thr,      /*!< in: query thread */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     bool dup_chk_only)
 /*!< in: if true, just do duplicate check
 and return. don't execute actual insert. */
@@ -3096,11 +3087,10 @@ and return. don't execute actual insert. */
     if (!index->last_ins_cur) {
       dict_allocate_mem_intrinsic_cache(index);
     }
-    err = row_ins_sorted_clust_index_entry(BTR_MODIFY_LEAF, index, entry, n_ext,
-                                           thr);
+    err = row_ins_sorted_clust_index_entry(BTR_MODIFY_LEAF, index, entry, thr);
   } else {
     err = row_ins_clust_index_entry_low(flags, BTR_MODIFY_LEAF, index, n_uniq,
-                                        entry, n_ext, thr, dup_chk_only);
+                                        entry, thr, dup_chk_only);
   }
 
   DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
@@ -3122,11 +3112,10 @@ and return. don't execute actual insert. */
   }
 
   if (index->table->is_intrinsic() && dict_index_is_auto_gen_clust(index)) {
-    err = row_ins_sorted_clust_index_entry(BTR_MODIFY_TREE, index, entry, n_ext,
-                                           thr);
+    err = row_ins_sorted_clust_index_entry(BTR_MODIFY_TREE, index, entry, thr);
   } else {
     err = row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, index, n_uniq,
-                                        entry, n_ext, thr, dup_chk_only);
+                                        entry, thr, dup_chk_only);
   }
 
   return err;
@@ -3292,7 +3281,7 @@ static dberr_t row_ins_index_entry(dict_index_t *index, dtuple_t *entry,
   });
 
   if (index->is_clustered()) {
-    return (row_ins_clust_index_entry(index, entry, thr, 0, false));
+    return (row_ins_clust_index_entry(index, entry, thr, false));
   } else if (index->is_multi_value()) {
     return (
         row_ins_sec_index_multi_value_entry(index, entry, multi_val_pos, thr));

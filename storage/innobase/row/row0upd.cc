@@ -192,7 +192,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   dtuple_t *entry;
   trx_t *trx;
   const rec_t *rec;
-  ulint n_ext;
   dberr_t err;
 
   DBUG_TRACE;
@@ -213,7 +212,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   heap = mem_heap_create(500);
 
-  entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
+  entry = row_rec_to_index_entry(rec, index, offsets, heap);
 
   mtr_commit(mtr);
 
@@ -2684,8 +2683,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec_by_insert(
 
   mtr_commit(mtr);
 
-  err = row_ins_clust_index_entry(
-      index, entry, thr, node->upd_ext ? node->upd_ext->n_ext : 0, false);
+  err = row_ins_clust_index_entry(index, entry, thr, false);
   node->state = UPD_NODE_INSERT_CLUSTERED;
 
   mem_heap_free(heap);

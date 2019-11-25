@@ -604,26 +604,6 @@ ulint dtuple_get_data_size(const dtuple_t *tuple, /*!< in: typed data tuple */
   return (sum);
 }
 
-/** Computes the number of externally stored fields in a data tuple.
- @return number of externally stored fields */
-UNIV_INLINE
-ulint dtuple_get_n_ext(const dtuple_t *tuple) /*!< in: tuple */
-{
-  ulint n_ext = 0;
-  ulint n_fields = tuple->n_fields;
-  ulint i;
-
-  ut_ad(tuple);
-  ut_ad(dtuple_check_typed(tuple));
-  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
-
-  for (i = 0; i < n_fields; i++) {
-    n_ext += dtuple_get_nth_field(tuple, i)->ext;
-  }
-
-  return (n_ext);
-}
-
 /** Sets types of fields binary in a tuple. */
 UNIV_INLINE
 void dtuple_set_types_binary(dtuple_t *tuple, /*!< in: data tuple */

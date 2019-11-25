@@ -315,10 +315,6 @@ occupied by the field structs or the tuple struct is not counted.
 @return sum of data lens */
 UNIV_INLINE
 ulint dtuple_get_data_size(const dtuple_t *tuple, ulint comp);
-/** Computes the number of externally stored fields in a data tuple.
- @return number of fields */
-UNIV_INLINE
-ulint dtuple_get_n_ext(const dtuple_t *tuple); /*!< in: tuple */
 /** Compare two data tuples.
 @param[in] tuple1 first data tuple
 @param[in] tuple2 second data tuple
@@ -397,12 +393,11 @@ to determine uniquely the insertion place of the tuple in the index.
 @param[in,out] index            Index that owns the record.
 @param[in,out] upd              Update vector.
 @param[in,out] entry            Index entry.
-@param[in,out] n_ext            Number of externally stored columns.
 @return own: created big record vector, NULL if we are not able to
 shorten the entry enough, i.e., if there are too many fixed-length or
 short fields in entry or the index is clustered */
 big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
-                                  dtuple_t *entry, ulint *n_ext)
+                                  dtuple_t *entry)
     MY_ATTRIBUTE((malloc, warn_unused_result));
 
 /** Puts back to entry the data stored in vector. Note that to ensure the
@@ -797,12 +792,23 @@ struct dtuple_t {
   @retval number of externally stored fields. */
   inline ulint get_n_ext() const {
     ulint n_ext = 0;
-    for (ulint i = 0; i < n_fields; ++i) {
+    for (size_t i = 0; i < n_fields; ++i) {
       if (dfield_is_ext(&fields[i])) {
         n_ext++;
       }
     }
     return (n_ext);
+  }
+
+  /** Does tuple has externally stored fields.
+  @retval true if there is externally stored fields. */
+  inline bool has_ext() const {
+    for (size_t i = 0; i < n_fields; ++i) {
+      if (dfield_is_ext(&fields[i])) {
+        return (true);
+      }
+    }
+    return (false);
   }
 };
 

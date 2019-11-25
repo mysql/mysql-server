@@ -419,7 +419,7 @@ void dtuple_print(std::ostream &o, const dtuple_t *tuple) {
 }
 
 big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
-                                  dtuple_t *entry, ulint *n_ext) {
+                                  dtuple_t *entry) {
   DBUG_TRACE;
 
   mem_heap_t *heap;
@@ -445,7 +445,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   ut_a(dtuple_check_typed_no_assert(entry));
 
-  size = rec_get_converted_size(index, entry, *n_ext);
+  size = rec_get_converted_size(index, entry);
 
   if (size > 1000000000) {
     ib::warn(ER_IB_MSG_159) << "Tuple size is very big: " << size;
@@ -465,10 +465,9 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
 
   n_fields = 0;
 
-  while (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, *n_ext),
-                                dict_table_is_comp(index->table),
-                                dict_index_get_n_fields(index),
-                                dict_table_page_size(index->table))) {
+  while (page_zip_rec_needs_ext(
+      rec_get_converted_size(index, entry), dict_table_is_comp(index->table),
+      dict_index_get_n_fields(index), dict_table_page_size(index->table))) {
     byte *data;
     ulint longest = 0;
     ulint longest_i = ULINT_MAX;
@@ -577,7 +576,6 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, upd_t *upd,
     dfield_set_ext(dfield);
 
     n_fields++;
-    (*n_ext)++;
     ut_ad(n_fields < dtuple_get_n_fields(entry));
 
     if (upd && !upd->is_modified(longest_i)) {

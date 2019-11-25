@@ -586,8 +586,7 @@ void rec_set_nth_field_sql_null(rec_t *rec, /*!< in: record */
  @return pointer to the origin of physical record */
 static rec_t *rec_convert_dtuple_to_rec_old(
     byte *buf,              /*!< in: start address of the physical record */
-    const dtuple_t *dtuple, /*!< in: data tuple */
-    ulint n_ext)            /*!< in: number of externally stored columns */
+    const dtuple_t *dtuple) /*!< in: data tuple */
 {
   const dfield_t *field;
   ulint n_fields;
@@ -608,8 +607,8 @@ static rec_t *rec_convert_dtuple_to_rec_old(
   ut_ad(n_fields > 0);
 
   /* Calculate the offset of the origin in the physical record */
-
-  rec = buf + rec_get_converted_extra_size(data_size, n_fields, n_ext);
+  const bool has_ext = dtuple->has_ext();
+  rec = buf + rec_get_converted_extra_size(data_size, n_fields, has_ext);
 #ifdef UNIV_DEBUG
   /* Suppress Valgrind warnings of ut_ad()
   in mach_write_to_1(), mach_write_to_2() et al. */
@@ -624,8 +623,7 @@ static rec_t *rec_convert_dtuple_to_rec_old(
   /* Store the data and the offsets */
 
   end_offset = 0;
-
-  if (!n_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
+  if (!has_ext && data_size <= REC_1BYTE_OFFS_LIMIT) {
     rec_set_1byte_offs_flag(rec, TRUE);
 
     for (i = 0; i < n_fields; i++) {
@@ -960,9 +958,7 @@ rec_t *rec_convert_dtuple_to_rec(
     byte *buf,                 /*!< in: start address of the
                                physical record */
     const dict_index_t *index, /*!< in: record descriptor */
-    const dtuple_t *dtuple,    /*!< in: data tuple */
-    ulint n_ext)               /*!< in: number of
-                               externally stored columns */
+    const dtuple_t *dtuple)    /*!< in: data tuple */
 {
   rec_t *rec;
 
@@ -975,7 +971,7 @@ rec_t *rec_convert_dtuple_to_rec(
   if (dict_table_is_comp(index->table)) {
     rec = rec_convert_dtuple_to_rec_new(buf, index, dtuple);
   } else {
-    rec = rec_convert_dtuple_to_rec_old(buf, dtuple, n_ext);
+    rec = rec_convert_dtuple_to_rec_old(buf, dtuple);
   }
 
 #ifdef UNIV_DEBUG

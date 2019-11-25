@@ -471,11 +471,11 @@ dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
   entry = row_build_index_entry(m_tuple, NULL, index, m_heap);
 
   error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_LEAF, index,
-                                        index->n_uniq, entry, 0, m_thr, false);
+                                        index->n_uniq, entry, m_thr, false);
 
   if (error == DB_FAIL) {
-    error = row_ins_clust_index_entry_low(
-        flags, BTR_MODIFY_TREE, index, index->n_uniq, entry, 0, m_thr, false);
+    error = row_ins_clust_index_entry_low(flags, BTR_MODIFY_TREE, index,
+                                          index->n_uniq, entry, m_thr, false);
     ut_ad(error == DB_SUCCESS);
   }
 

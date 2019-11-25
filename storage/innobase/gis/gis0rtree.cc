@@ -115,9 +115,9 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
       static_cast<byte *>(dfield_get_data(dtuple_get_nth_field(tuple, 0)));
   cur->coords = reserve_coords(buf_pos, SPDIMS);
   rec = (byte *)mem_heap_alloc(heap,
-                               rec_get_converted_size(cursor->index, tuple, 0));
+                               rec_get_converted_size(cursor->index, tuple));
 
-  rec = rec_convert_dtuple_to_rec(rec, cursor->index, tuple, 0);
+  rec = rec_convert_dtuple_to_rec(rec, cursor->index, tuple);
   cur->key = rec;
 
   memcpy(cur->coords, source_cur, DATA_MBR_LEN);
@@ -395,8 +395,8 @@ bool rtr_update_mbr_field(
     old_pos = page_rec_get_n_recs_before(rec);
 
     err = btr_cur_optimistic_insert(flags, cursor, &insert_offsets, &heap,
-                                    node_ptr, &insert_rec, &dummy_big_rec, 0,
-                                    NULL, mtr);
+                                    node_ptr, &insert_rec, &dummy_big_rec, NULL,
+                                    mtr);
 
     ut_ad(err == DB_SUCCESS);
 
@@ -456,8 +456,8 @@ bool rtr_update_mbr_field(
                                &low_match, btr_cur_get_page_cur(cursor), NULL);
 
     err = btr_cur_optimistic_insert(flags, cursor, &insert_offsets, &heap,
-                                    node_ptr, &insert_rec, &dummy_big_rec, 0,
-                                    NULL, mtr);
+                                    node_ptr, &insert_rec, &dummy_big_rec, NULL,
+                                    mtr);
 
     if (!ins_suc && err == DB_SUCCESS) {
       ins_suc = true;
@@ -469,7 +469,7 @@ bool rtr_update_mbr_field(
       btr_page_reorganize(btr_cur_get_page_cur(cursor), index, mtr);
 
       err = btr_cur_optimistic_insert(flags, cursor, &insert_offsets, &heap,
-                                      node_ptr, &insert_rec, &dummy_big_rec, 0,
+                                      node_ptr, &insert_rec, &dummy_big_rec,
                                       NULL, mtr);
 
       /* Will do pessimistic insert */
@@ -538,7 +538,7 @@ bool rtr_update_mbr_field(
 
       err = btr_cur_pessimistic_insert(flags, cursor, &insert_offsets,
                                        &new_heap, node_ptr, &insert_rec,
-                                       &dummy_big_rec, 0, NULL, mtr);
+                                       &dummy_big_rec, NULL, mtr);
 
       ut_ad(err == DB_SUCCESS);
 
@@ -655,7 +655,7 @@ static void rtr_adjust_upper_level(
 
   err = btr_cur_optimistic_insert(
       flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG | BTR_NO_UNDO_LOG_FLAG,
-      &cursor, &offsets, &heap, node_ptr_upper, &rec, &dummy_big_rec, 0, NULL,
+      &cursor, &offsets, &heap, node_ptr_upper, &rec, &dummy_big_rec, NULL,
       mtr);
 
   if (err == DB_FAIL) {
@@ -664,7 +664,7 @@ static void rtr_adjust_upper_level(
 
     err = btr_cur_pessimistic_insert(
         flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG | BTR_NO_UNDO_LOG_FLAG,
-        &cursor, &offsets, &heap, node_ptr_upper, &rec, &dummy_big_rec, 0, NULL,
+        &cursor, &offsets, &heap, node_ptr_upper, &rec, &dummy_big_rec, NULL,
         mtr);
     cursor.rtr_info = NULL;
     ut_a(err == DB_SUCCESS);
@@ -893,7 +893,6 @@ rec_t *rtr_page_split_and_insert(
     ulint **offsets,       /*!< out: offsets on inserted record */
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
     const dtuple_t *tuple, /*!< in: tuple to insert */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr)            /*!< in: mtr */
 {
   buf_block_t *block;
@@ -978,7 +977,7 @@ func_start:
   }
 #endif
 
-  insert_size = rec_get_converted_size(cursor->index, tuple, n_ext);
+  insert_size = rec_get_converted_size(cursor->index, tuple);
   total_data = page_get_data_size(page) + insert_size;
   first_rec_group = split_rtree_node(
       rtr_split_node_array, static_cast<int>(n_recs),
@@ -1120,7 +1119,7 @@ func_start:
       });
 
   rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets, heap,
-                              n_ext, mtr);
+                              mtr);
 
   /* If insert did not fit, try page reorganization.
   For compressed pages, page_cur_tuple_insert() will have
@@ -1129,7 +1128,7 @@ func_start:
     if (!page_cur_get_page_zip(page_cursor) &&
         btr_page_reorganize(page_cursor, cursor->index, mtr)) {
       rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets,
-                                  heap, n_ext, mtr);
+                                  heap, mtr);
     }
     /* If insert fail, we will try to split the insert_block
     again. */

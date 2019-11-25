@@ -2549,7 +2549,6 @@ static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
                            have been stored to tuple */
     ulint **offsets,       /*!< out: offsets on *rec */
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap, or NULL */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr)            /*!< in/out: mini-transaction */
 {
   page_cur_t *page_cursor;
@@ -2563,7 +2562,7 @@ static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
 
   /* Now, try the insert */
   rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets, heap,
-                              n_ext, mtr);
+                              mtr);
 
   /* If the record did not fit, reorganize.
   For compressed pages, page_cur_tuple_insert()
@@ -2571,7 +2570,7 @@ static MY_ATTRIBUTE((warn_unused_result)) rec_t *btr_cur_insert_if_possible(
   if (!rec && !page_cur_get_page_zip(page_cursor) &&
       btr_page_reorganize(page_cursor, cursor->index, mtr)) {
     rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets,
-                                heap, n_ext, mtr);
+                                heap, mtr);
   }
 
   ut_ad(!rec || rec_offs_validate(rec, cursor->index, *offsets));
@@ -2702,7 +2701,6 @@ dberr_t btr_cur_optimistic_insert(
     big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
                          be stored externally by the caller, or
                          NULL */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread or NULL */
     mtr_t *mtr)          /*!< in/out: mini-transaction;
                          if this function returns DB_SUCCESS on
@@ -2748,19 +2746,19 @@ dberr_t btr_cur_optimistic_insert(
   leaf = page_is_leaf(page);
 
   /* Calculate the record size when entry is converted to a record */
-  rec_size = rec_get_converted_size(index, entry, n_ext);
+  rec_size = rec_get_converted_size(index, entry);
 
   if (page_zip_rec_needs_ext(rec_size, page_is_comp(page),
                              dtuple_get_n_fields(entry), page_size)) {
     /* The record is so big that we have to store some fields
     externally on separate database pages */
-    big_rec_vec = dtuple_convert_big_rec(index, 0, entry, &n_ext);
+    big_rec_vec = dtuple_convert_big_rec(index, 0, entry);
 
     if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
       return (DB_TOO_BIG_RECORD);
     }
 
-    rec_size = rec_get_converted_size(index, entry, n_ext);
+    rec_size = rec_get_converted_size(index, entry);
   }
 
   if (page_size.is_compressed() && page_zip_is_too_big(index, entry)) {
@@ -2840,8 +2838,7 @@ dberr_t btr_cur_optimistic_insert(
     if (index->table->is_intrinsic()) {
       index->rec_cache.rec_size = rec_size;
 
-      *rec =
-          page_cur_tuple_direct_insert(page_cursor, entry, index, n_ext, mtr);
+      *rec = page_cur_tuple_direct_insert(page_cursor, entry, index, mtr);
     } else {
       /* Check locks and write to the undo log,
       if specified */
@@ -2867,8 +2864,8 @@ dberr_t btr_cur_optimistic_insert(
                                            "WAIT_FOR btr_ins_resume "
                                            "NO_CLEAR_EVENT"))););
 
-      *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap,
-                                   n_ext, mtr);
+      *rec =
+          page_cur_tuple_insert(page_cursor, entry, index, offsets, heap, mtr);
     }
 
     reorg = page_cursor_rec != page_cur_get_rec(page_cursor);
@@ -2904,8 +2901,7 @@ dberr_t btr_cur_optimistic_insert(
 
     reorg = TRUE;
 
-    *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap,
-                                 n_ext, mtr);
+    *rec = page_cur_tuple_insert(page_cursor, entry, index, offsets, heap, mtr);
 
     if (UNIV_UNLIKELY(!*rec)) {
       ib::fatal(ER_IB_MSG_44)
@@ -2981,7 +2977,6 @@ dberr_t btr_cur_pessimistic_insert(
     big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
                          be stored externally by the caller, or
                          NULL */
-    ulint n_ext,         /*!< in: number of externally stored columns */
     que_thr_t *thr,      /*!< in: query thread or NULL */
     mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
@@ -3029,7 +3024,7 @@ dberr_t btr_cur_pessimistic_insert(
     }
   }
 
-  if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry, n_ext),
+  if (page_zip_rec_needs_ext(rec_get_converted_size(index, entry),
                              dict_table_is_comp(index->table),
                              dtuple_get_n_fields(entry),
                              dict_table_page_size(index->table))) {
@@ -3043,7 +3038,7 @@ dberr_t btr_cur_pessimistic_insert(
       dtuple_convert_back_big_rec(entry, big_rec_vec);
     }
 
-    big_rec_vec = dtuple_convert_big_rec(index, 0, entry, &n_ext);
+    big_rec_vec = dtuple_convert_big_rec(index, 0, entry);
 
     if (big_rec_vec == NULL) {
       if (n_reserved > 0) {
@@ -3056,11 +3051,9 @@ dberr_t btr_cur_pessimistic_insert(
   if (dict_index_get_page(index) ==
       btr_cur_get_block(cursor)->page.id.page_no()) {
     /* The page is the root page */
-    *rec = btr_root_raise_and_insert(flags, cursor, offsets, heap, entry, n_ext,
-                                     mtr);
+    *rec = btr_root_raise_and_insert(flags, cursor, offsets, heap, entry, mtr);
   } else {
-    *rec = btr_page_split_and_insert(flags, cursor, offsets, heap, entry, n_ext,
-                                     mtr);
+    *rec = btr_page_split_and_insert(flags, cursor, offsets, heap, entry, mtr);
   }
 
   ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec ||
@@ -3556,7 +3549,6 @@ dberr_t btr_cur_optimistic_update(
   dtuple_t *new_entry;
   roll_ptr_t roll_ptr;
   ulint i;
-  ulint n_ext;
 
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
@@ -3627,9 +3619,9 @@ dberr_t btr_cur_optimistic_update(
                             DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
   }
 
-  new_entry = row_rec_to_index_entry(rec, index, *offsets, &n_ext, *heap);
+  new_entry = row_rec_to_index_entry(rec, index, *offsets, *heap);
   /* We checked above that there are no externally stored fields. */
-  ut_a(!n_ext);
+  ut_a(!new_entry->has_ext());
 
   /* The page containing the clustered index record
   corresponding to new_entry is latched in mtr.
@@ -3640,7 +3632,7 @@ dberr_t btr_cur_optimistic_update(
   new_entry->ignore_trailing_default(index);
 
   old_rec_size = rec_offs_size(*offsets);
-  new_rec_size = rec_get_converted_size(index, new_entry, 0);
+  new_rec_size = rec_get_converted_size(index, new_entry);
 
   page_zip = buf_block_get_page_zip(block);
 #ifdef UNIV_ZIP_DEBUG
@@ -3740,8 +3732,7 @@ dberr_t btr_cur_optimistic_update(
   }
 
   /* There are no externally stored columns in new_entry */
-  rec = btr_cur_insert_if_possible(cursor, new_entry, offsets, heap,
-                                   0 /*n_ext*/, mtr);
+  rec = btr_cur_insert_if_possible(cursor, new_entry, offsets, heap, mtr);
   ut_a(rec); /* <- We calculated above the insert would fit */
 
   /* Restore the old explicit lock state on the record */
@@ -3830,7 +3821,6 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   roll_ptr_t roll_ptr;
   ibool was_first;
   ulint n_reserved = 0;
-  ulint n_ext;
   ulint max_ins_size = 0;
   trx_t *const trx = (thr == nullptr) ? nullptr : thr_get_trx(thr);
 
@@ -3895,7 +3885,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
       rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
 
   dtuple_t *new_entry =
-      row_rec_to_index_entry(rec, index, *offsets, &n_ext, entry_heap);
+      row_rec_to_index_entry(rec, index, *offsets, entry_heap);
 
   /* The page containing the clustered index record
   corresponding to new_entry is latched in mtr.  If the
@@ -3914,13 +3904,10 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
   ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
   ut_ad(rec_offs_validate(rec, index, *offsets));
 
-  /* Get number of externally stored columns in updated record */
-  n_ext = new_entry->get_n_ext();
-
-  if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry, n_ext),
+  if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry),
                              page_is_comp(page), dict_index_get_n_fields(index),
                              block->page.size)) {
-    big_rec_vec = dtuple_convert_big_rec(index, update, new_entry, &n_ext);
+    big_rec_vec = dtuple_convert_big_rec(index, update, new_entry);
     if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
       /* We cannot goto return_after_reservations,
       because we may need to update the
@@ -4033,8 +4020,8 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
   page_cur_move_to_prev(page_cursor);
 
-  rec = btr_cur_insert_if_possible(cursor, new_entry, offsets, offsets_heap,
-                                   n_ext, mtr);
+  rec =
+      btr_cur_insert_if_possible(cursor, new_entry, offsets, offsets_heap, mtr);
 
   if (rec) {
     page_cursor->rec = rec;
@@ -4124,7 +4111,7 @@ dberr_t btr_cur_pessimistic_update(ulint flags, btr_cur_t *cursor,
 
   err = btr_cur_pessimistic_insert(
       BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG, cursor,
-      offsets, offsets_heap, new_entry, &rec, &dummy_big_rec, n_ext, NULL, mtr);
+      offsets, offsets_heap, new_entry, &rec, &dummy_big_rec, NULL, mtr);
   ut_a(rec);
   ut_a(err == DB_SUCCESS);
   ut_a(dummy_big_rec == NULL);

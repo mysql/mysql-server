@@ -327,7 +327,6 @@ rec_t *btr_root_raise_and_insert(
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap
                            that can be emptied, or NULL */
     const dtuple_t *tuple, /*!< in: tuple to insert */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr)            /*!< in: mtr */
     MY_ATTRIBUTE((warn_unused_result));
 /** Reorganizes an index page.
@@ -402,7 +401,6 @@ rec_t *btr_page_split_and_insert(
     mem_heap_t **heap,     /*!< in/out: pointer to memory heap
                            that can be emptied, or NULL */
     const dtuple_t *tuple, /*!< in: tuple to insert */
-    ulint n_ext,           /*!< in: number of externally stored columns */
     mtr_t *mtr)            /*!< in: mtr */
     MY_ATTRIBUTE((warn_unused_result));
 /** Inserts a data tuple to a tree on a non-leaf level. It is assumed
