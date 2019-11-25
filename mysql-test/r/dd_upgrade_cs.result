@@ -213,7 +213,7 @@ SUBPARTITIONS 2
  PARTITION p2 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 ALTER TABLE t1 ADD COLUMN col2 VARCHAR(15);
 Warnings:
-Warning	3960	Failed to delete sdi for test.t1 in test/t1#p#p0#sp#p0sp0 due to missing record.
+Warning	3958	Failed to delete sdi for test.t1 in test/t1#p#p0#sp#p0sp0 due to missing record.
 # Search log file for warning.
 Occurrences of 'sdi_delete failed' in the input file: 1
 # Stop the server and do cleanup.
