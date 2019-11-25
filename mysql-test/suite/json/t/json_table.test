@@ -57,8 +57,8 @@ let $query= select * from
     '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
     '$[*]' columns (id for ordinality,
              jpath varchar(100) path '$.a'
-                default '66' on error
-                default '33' on empty,
+                default '33' on empty
+                default '66' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,
              jexst int exists path '$.b')
   ) as tt;
@@ -1342,3 +1342,16 @@ CALL p();
 CALL p();
 DROP PROCEDURE p;
 DROP TABLE t;
+
+--echo #
+--echo # WL#13512: Deprecate ON ERROR before ON EMPTY in JSON_TABLE syntax
+--echo #
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                DEFAULT '"a"' ON ERROR DEFAULT '"b"' ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                NULL ON ERROR NULL ON EMPTY)) jt;
+SELECT * FROM
+  JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                       ERROR ON ERROR ERROR ON EMPTY)) jt;

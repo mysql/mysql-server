@@ -11280,6 +11280,9 @@ opt_on_empty_or_error:
           }
         | opt_on_error opt_on_empty
           {
+            push_warning(
+              YYTHD, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+              ER_THD(YYTHD, ER_WARN_DEPRECATED_JSON_TABLE_ON_ERROR_ON_EMPTY));
             $$.error = $1;
             $$.empty = $2;
           }

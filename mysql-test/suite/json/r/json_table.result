@@ -116,8 +116,8 @@ json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
 '$[*]' columns (id for ordinality,
 jpath varchar(100) path '$.a'
-                default '66' on error
-default '33' on empty,
+                default '33' on empty
+default '66' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
@@ -132,8 +132,8 @@ json_table(
 '[{"x":"3"},{"a":2},{"b":1},{"a":0},{"a":[1,2]}]',
 '$[*]' columns (id for ordinality,
 jpath varchar(100) path '$.a'
-                default '66' on error
-default '33' on empty,
+                default '33' on empty
+default '66' on error,
 jsn_path json path '$.a' default '{"x":33}' on empty,
 jexst int exists path '$.b')
 ) as tt;
@@ -2017,3 +2017,27 @@ id	j	x
 1	{"x": 1}	1
 DROP PROCEDURE p;
 DROP TABLE t;
+#
+# WL#13512: Deprecate ON ERROR before ON EMPTY in JSON_TABLE syntax
+#
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                DEFAULT '"a"' ON ERROR DEFAULT '"b"' ON EMPTY)) jt;
+x
+b
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                NULL ON ERROR NULL ON EMPTY)) jt;
+x
+NULL
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+SELECT * FROM
+JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
+                                       ERROR ON ERROR ERROR ON EMPTY)) jt;
+x
+c
+Warnings:
+Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.

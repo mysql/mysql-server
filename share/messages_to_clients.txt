@@ -9284,6 +9284,10 @@ ER_SDI_OPERATION_FAILED_MISSING_RECORD
 ER_DEPENDENT_BY_CHECK_CONSTRAINT
   eng "Check constraint '%-.192s' uses column '%-.192s', hence column cannot be dropped or renamed."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error code.
+ER_WARN_DEPRECATED_JSON_TABLE_ON_ERROR_ON_EMPTY
+  eng "Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
