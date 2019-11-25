@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -90,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.341.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&22.295.\ \&Command\-line options for the ndb_restore program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -622,12 +622,14 @@ requires at a minimum the
 (short form:
 \fB\-b\fR), and
 \fB\-\-backup_path\fR
-options\&. In addition, when
+options\&.
+.PP
+Prior to NDB 8\&.0\&.19, when
 \fBndb_restore\fR
-is used to restore any tables containing unique indexes, you must include
+was used to restore any tables containing unique indexes, it was necessary to include
 \fB\-\-disable\-indexes\fR
 or
-\fB\-\-rebuild\-indexes\fR\&. (Bug #57782, Bug #11764893)
+\fB\-\-rebuild\-indexes\fR\&. Beginning with NDB 8\&.0\&.19, when automatic metadata synchronization is enabled, this is no longer necessary\&.
 .PP
 The
 \fB\-c\fR
@@ -787,9 +789,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.16 to a cluster running NDB Cluster 7\&.4\&.26, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.17 to a cluster running NDB Cluster 7\&.4\&.27, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.16 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.17 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1195,7 +1197,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.342.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.296.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1565,6 +1567,58 @@ Comma\-delimited list of one or more databases to restore\&. Often used together
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-include\-stored\-grants\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--include-stored-grants
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.19-ndb-8.0.19
+T}
+T{
+\fBType\fR
+T}:T{
+Boolean
+T}
+T{
+\fBDefault Value\fR
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+In NDB 8\&.0\&.19 and later,
+\fBndb_restore\fR
+does not by default restore shared users and grants (see
+Section\ \&22.5.16, \(lqDistributed MySQL Privileges with NDB_STORED_USER\(rq) to the
+ndb_sql_metadata
+table\&. Specifying this option causes it to do so\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-include\-tables\fR=\fItable\-list\fR
 .TS
 allbox tab(:);
@@ -1613,7 +1667,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.343.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&22.297.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1809,7 +1863,7 @@ This option is intended to complement the
 option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
 .sp
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -2488,7 +2542,7 @@ column can be restored to a column of type
 INT
 or
 BIGINT\&. See
-Section\ \&17.4.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
 .sp
 Attribute promotion by
 \fBndb_restore\fR
@@ -2793,11 +2847,17 @@ T}
 .T&
 l l
 l l
+l l
 l l.
 T{
 \fBCommand-Line Format\fR
 T}:T{
 --restore-privilege-tables
+T}
+T{
+\fBDeprecated\fR
+T}:T{
+8.0.16-ndb-8.0.16
 T}
 T{
 \fBType\fR
@@ -3244,8 +3304,7 @@ file:
 .RS 4
 .\}
 .nf
-[ndbd]
-NodeId=2
+[ndbd]NodeId=2
 HostName=host2
 [ndbd]
 NodeId=4

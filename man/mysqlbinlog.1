@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -127,7 +127,16 @@ The output from
 \fBmysqlbinlog\fR
 can be re\-executed (for example, by using it as input to
 \fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and in
-Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
+Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&. To execute the internal\-use
+BINLOG
+statements used by
+\fBmysqlbinlog\fR, the user requires the
+BINLOG_ADMIN
+or
+SUPER
+privilege, or the
+REPLICATION_APPLIER
+privilege plus the appropriate privileges to execute each log event\&.
 .PP
 You can use
 \fBmysqlbinlog\fR
@@ -155,7 +164,7 @@ statement shows whether a particular binary log file is encrypted or unencrypted
 returns a suitable error if you attempt to read an encrypted binary log file directly, but older versions of
 \fBmysqlbinlog\fR
 do not recognise the file as a binary log file at all\&. For more information on binary log encryption, see
-Section\ \&17.3.10, \(lqEncrypting Binary Log Files and Relay Log Files\(rq\&.
+Section\ \&17.3.2, \(lqEncrypting Binary Log Files and Relay Log Files\(rq\&.
 .PP
 When running
 \fBmysqlbinlog\fR
@@ -819,7 +828,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1381,8 +1390,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4

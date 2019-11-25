@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/06/2019
+.\"      Date: 11/23/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/06/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -233,6 +233,26 @@ option\&.
 When this option is given,
 \fBmysql\fR
 displays binary data using hexadecimal notation (0x\fIvalue\fR)\&. This occurs whether the overall output dislay format is tabular, vertical, HTML, or XML\&.
+.sp
+As of MySQL 8\&.0\&.19, when
+\fBmysql\fR
+operates in interactive mode, this option is enabled by default\&. In addition, output from the
+status
+(or
+\es) command includes this line when the option is enabled implicitly or explicitly:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Binary data as: Hexadecimal
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To disable hexadecimal notation, use
+\fB\-\-skip\-binary\-as\-hex\fR
 .RE
 .sp
 .RS 4
@@ -704,7 +724,7 @@ is given and specifies a valid public key file, it takes precedence over
 For information about the
 caching_sha2_password
 plugin, see
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1377,8 +1397,8 @@ sha256_password
 and
 caching_sha2_password
 plugins, see
-Section\ \&6.4.1.2, \(lqSHA-256 Pluggable Authentication\(rq, and
-Section\ \&6.4.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
+Section\ \&6.4.1.3, \(lqSHA-256 Pluggable Authentication\(rq, and
+Section\ \&6.4.1.2, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1426,6 +1446,10 @@ Ignore
 SIGINT
 signals (typically the result of typing
 Control+C)\&.
+.sp
+Without this option, typing
+Control+C
+interrupts the current statement if there is one, or cancels any partial input line otherwise\&.
 .RE
 .sp
 .RS 4
@@ -2056,7 +2080,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&28.7.23, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&28.6.22, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2299,8 +2323,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&28.7.7.3, \(lqmysql_change_user()\(rq, and
-Section\ \&28.7.28, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&28.6.6.3, \(lqmysql_change_user()\(rq, and
+Section\ \&28.6.27, \(lqC API Automatic Reconnection Control\(rq\&.
 .sp
 This example shows how
 resetconnection
@@ -4151,7 +4175,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&28.7.28, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&28.6.27, \(lqC API Automatic Reconnection Control\(rq\&.
 mysql Client Parser Versus Server Parser.PP
 The
 \fBmysql\fR
