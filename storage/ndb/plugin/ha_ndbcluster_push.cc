@@ -739,7 +739,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     return false;
   }
 
-  if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS) {
+  const uint no_of_key_fields = table->get_no_of_key_fields();
+  if (unlikely(no_of_key_fields > ndb_pushed_join::MAX_LINKED_KEYS)) {
     EXPLAIN_NO_PUSH(
         "Can't push table '%s' as child, "
         "too many ref'ed parent fields",
@@ -773,13 +774,8 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   }
   m_internal_op_count += internal_ops_needed;
 
-  DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no,
-                      table->get_no_of_key_fields()));
-
-  // Grab nest structure relevant for this table, see comments in header file
-  const ndb_table_access_map this_nest(m_tables[tab_no].m_inner_nest);
-  const ndb_table_access_map embedding_nests(
-      m_tables[tab_no].embedding_nests());
+  DBUG_PRINT("info",
+             ("Table:%d, Checking %d REF keys", tab_no, no_of_key_fields));
 
   /**
    * Calculate the set of possible parents for each non-const_item KEY_PART
@@ -794,16 +790,15 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
    * This is used for checking whether table is pushable.
    */
   ndb_table_access_map all_parents;
-  ndb_table_access_map *key_parents;
-
-  const uint no_of_key_fields = table->get_no_of_key_fields();
-  key_parents = new (*THR_MALLOC) ndb_table_access_map[no_of_key_fields];
+  ndb_table_access_map *key_parents =
+      new (*THR_MALLOC) ndb_table_access_map[no_of_key_fields];
+  m_tables[tab_no].m_key_parents = key_parents;
 
   for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
     const Item *const key_item = table->get_key_field(key_part_no);
     const KEY_PART_INFO *key_part = table->get_key_part_info(key_part_no);
 
-    if (key_item->const_item())  // REF is a litteral or field from const-table
+    if (key_item->const_item())  // REF is a literal or field from const-table
     {
       DBUG_PRINT("info", (" Item type:%d is 'const_item'", key_item->type()));
       if (!is_const_item_pushable(key_item, key_part)) {
@@ -852,9 +847,9 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
    * pushability of tables, so we need to try to push conditions first.
    */
   const Item *pending_cond = table->get_condition();
-  if (current_thd->optimizer_switch_flag(
-          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-      pending_cond != nullptr) {
+  if (pending_cond != nullptr &&
+      current_thd->optimizer_switch_flag(
+          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     ha_ndbcluster *handler =
         down_cast<ha_ndbcluster *>(table->get_table()->file);
 
@@ -862,370 +857,422 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     handler->m_cond.prep_cond_push(pending_cond, other_tbls_ok);
     pending_cond = handler->m_cond.m_remainder_cond;
   }
+  if (pending_cond != nullptr) m_has_pending_cond.add(tab_no);
 
   if (!ndbcluster_is_lookup_operation(table->get_access_type())) {
-    /**
-     * There are limitations on when an outer joined index scan is pushable,
-     * which need to be checked. Consider the query:
-     *
-     * select * from t1 left join t2
-     *   on t1.attr=t2.ordered_index
-     *   where predicate(t1.row, t2. row);
-     *
-     * Where 'predicate' cannot be pushed to the ndb. (a 'pending_cond', above!)
-     * The ndb api may then return:
-     *
-     * +---------+---------+
-     * | t1.row1 | t2.row1 | (First batch)
-     * | t1.row2 | t2.row1 |
-     * ..... (NextReq).....
-     * | t1.row1 | t2.row2 | (Next batch)
-     * +---------+---------+
-     *
-     * Since we could not return all t2 rows matching 't1.row1' in the first
-     * batch, it is repeated for the nest batch of t2 rows. From mysqld POW it
-     * will appear as a different row, even if it is the same rows as returned
-     * in the first batch. This works just fine when the nest loop joiner
-     * create a plain INNER JOIN result; the different instances of 't1.row1'
-     * would just appear a bit out of order. However OUTER JOIN is a different
-     * matter:
-     *
-     * Assume that the rows [t1.row1, t2.row1] from the first batch does not
-     * satisfies 'predicate'. As there are no more 't1.row1's in this batch,
-     * mysqld will conclude it has seen all t1.row1's without any matching
-     * t2 rows, Thus it will create a NULL extended t2 row in the (outer joined)
-     * result set.
-     *
-     * As the same t1.row1 will be returned from the NDB API in the next batch,
-     * mysqld will create a result row also for this instance - Either with yet
-     * another NULL-extended t2 row, or possibly one or multiple matching rows.
-     * In either case resulting in an incorrect result set. Like:
-     * +---------+---------+
-     * | t1.row1 | NULL    | -> Error!
-     * | t1.row2 | t2.row1 |
-     * | t1.row1 | t2.row2 |
-     * +---------+---------+
-     *
-     * So in order to allow an outer joined index scan to be pushed, we need
-     * to check that a row returned from a pushed index-scan will not later
-     * be rejected by mysqld - i.e. the join has to be fully evaluated by SPJ
-     * (in companion with the SPJ API):
-     *
-     *  1a) There should be no 'pending_cond' (unpushed conditions) on the
-     *      table.
-     *  1b) Neither could any *other* tables within the same inner_join nest
-     *      have pending_cond's. (An inner join nest require matching rows
-     *      from all tables in the nest: A non-matching pending_cond on a row
-     *      from any table in the nest, will also eliminate the rows from the
-     *      other tables. (Possibly creating false NULL-extensions)
-     *  1c) Neither should any tables within the upper nests have
-     *      pending_cond's. Consider the nest structure t1, (t2, (t3)),
-     *      where t1 and 'this' table t3 are scans. If t2 has a pending
-     *      condition, that condition may eliminate rows from the embedded
-     *      (outer joined) t3 nest, and result in false NULL extended rows
-     *      when t3 rows are fetched in multiple batches.
-     *      (Note that this restriction does not apply to the uppermost nest
-     *      containing t1: A non-matching condition on that table will eliminate
-     *      the t1 row as well, thus there will be no extra NULL extended
-     *      rows in the result set.
-     *
-     * 2)   There should be no unpushed tables in:
-     * 2b)  In this inner_join nest.
-     * 2c)  In any upper nests of this table.
-     *
-     *      This case is similar as for pending_cond: A non-match when mysqld
-     *      joins in the rows from the unpushed table may eliminate rows
-     * returned from the pushed joins as well, resulting in extra NULL extended
-     * rows.
-     *
-     * 3)   In addition the join condition may explicit specify dependencies on
-     *      tables which are not in either of the upper_nests,
-     *      eg t1, (t2,t3), (t4), where t4 has a join condition on t3.
-     *      If either:
-     * 3a)  t2 or t3 has an unpushed condition, possibly eliminating returned
-     *      (t2,t3) rows, and the t4 rows depending on these being NOT NULL.
-     * 3b)  t2 or t3 are not pushed, mysqld doesn't matching rows from these
-     *      tables, which also eliminate the t4 rows, possibly resulting in
-     * extra NULL extended rows.
-     *
-     * Note that ::is_pushable_as_child() can only check these conditions for
-     * tables preceeding us in the query plan. ::validate_join_nest() will later
-     * do similar checks when we have completed a nest level. The later check
-     * would be sufficient, however we like to 'fail fast'.
-     */
-
-    if (m_tables[tab_no].isOuterJoined(m_tables[root_no])) {
-      /**
-       * Is an outer join relative to root. Even if tab_no is inner_joined with
-       * another parent than 'root', any restrictions on scan operations still
-       * apply.
-       */
-
-      /**
-       * TODO: Online upgrade:
-       *
-       * Need the 'ndbd_send_active_bitmask()' signal extensions in order
-       * to support outer joined scans. Else we reject pushing.
-       */
-      if (false) {  // TODO: if (!ndbd_send_active_bitmask())
-        EXPLAIN_NO_PUSH(
-            "Can't push table '%s' as child of '%s', "
-            "outer join of scan-child not implemented",
-            table->get_table()->alias, m_join_root->get_table()->alias);
-        return false;
-      }
-
-      /**
-       *
-       * Calculate the set of tables being outer joined relative to root.
-       * i.e. the tables which may be incorrectly NULL extended due to
-       * unpushed conditions and tables. These are the tables we check
-       * the above 'b' and 'c' cases against.
-       */
-      ndb_table_access_map outer_join_nests(this_nest);
-      int upper = m_tables[tab_no].m_first_upper;
-      while (upper > (int)root_no) {
-        outer_join_nests.add(m_tables[upper].m_inner_nest);
-        upper = m_tables[upper].m_first_upper;
-      }
-
-      /**
-       * 1) Check if outer joined table depends on 'unpushed condition'
-       */
-      if (pending_cond != nullptr) {  // 1a)
-        // Table has unpushed condition
-        EXPLAIN_NO_PUSH(
-            "Can't push outer joined table '%s' as child of '%s', "
-            "table condition can not be fully evaluated by pushed join",
-            table->get_table()->alias, m_join_root->get_table()->alias);
-        return false;
-      } else if (m_has_pending_cond.is_overlapping(
-                     outer_join_nests)) {  // 1b,1c
-        // Nest(s) has unpushed condition
-        ndb_table_access_map pending_conditions(m_has_pending_cond);
-        pending_conditions.intersect(outer_join_nests);
-        // Report the closest violating table, may be multiple.
-        const uint violating = pending_conditions.last_table(tab_no);
-        EXPLAIN_NO_PUSH(
-            "Can't push outer joined table '%s' as child of '%s', "
-            "condition on its dependant table '%s' is not pushed down",
-            table->get_table()->alias, m_join_root->get_table()->alias,
-            m_plan.get_table_access(violating)->get_table()->alias);
-        return false;
-      }
-
-      /**
-       * 2) Check if outer joined table depends on 'unpushed tables'
-       */
-      if (!m_join_scope.contain(outer_join_nests)) {  // 2b,2c
-        ndb_table_access_map unpushed_tables(outer_join_nests);
-        unpushed_tables.subtract(m_join_scope);
-        // Report the closest unpushed table, may be multiple.
-        const uint violating = unpushed_tables.last_table(tab_no);
-        EXPLAIN_NO_PUSH(
-            "Can't push outer joined table '%s' as child of '%s', "
-            "table '%s' in its dependant join-nest(s) is not part of the "
-            "pushed join",
-            table->get_table()->alias, m_join_root->get_table()->alias,
-            m_plan.get_table_access(violating)->get_table()->alias);
-        return false;
-      }
-
-      /**
-       * 3) Check if any tables outside of the embedding nest are referred.
-       */
-      if (!embedding_nests.contain(all_parents)) {           // 3)
-        if (!embedding_nests.contain(m_has_pending_cond)) {  // 3a)
-          EXPLAIN_NO_PUSH(
-              "Can't push outer joined table '%s' as child of '%s', "
-              "exists unpushed condition in join-nests it depends on",
-              table->get_table()->alias, m_join_root->get_table()->alias);
-          return false;
-        }
-
-        // Calculate all unpushed tables prior to this table.
-        ndb_table_access_map unpushed_tables;
-        unpushed_tables.set_prefix(tab_no);
-        unpushed_tables.subtract(m_const_scope);
-        unpushed_tables.subtract(m_join_scope);
-
-        /**
-         * Note that the check below is a bit too strict, we check:
-         *  'Are there any unpushed tables outside of our embedding nests',
-         *  instead of 'Do we refer tables from nests outside embedding nests,
-         *  having unpushed tables'. As we alread know 'all_parents' are not
-         *  contained in 'embedding', the outcome should be the same except if
-         * we have parent refs to multiple non-embedded nests. (very unlikely)
-         */
-        if (!embedding_nests.contain(unpushed_tables)) {  // 3b)
-          EXPLAIN_NO_PUSH(
-              "Can't push outer joined table '%s' as child of '%s', "
-              "table depends on join-nests with unpushed tables",
-              table->get_table()->alias, m_join_root->get_table()->alias);
-          return false;
-        }
-      }
-    }  // end 'outer joined scan'
-
-    /**
-     * As for outer joins, there are restrictions for semi joins:
-     *
-     * Scan-scan result may return the same ancestor-scan rowset
-     * multiple times when rowset from child scan has to be fetched
-     * in multiple batches (as above). This is fine for nested loop
-     * evaluations of pure loops, as it should just produce the total
-     * set of join combinations - in any order.
-     *
-     * However, the different semi join strategies (FirstMatch,
-     * Loosescan, Duplicate Weedout) requires that skipping
-     * a row (and its nested loop ancestors) is 'permanent' such
-     * that it will never reappear in later batches.
-     *
-     * So we do not (yet) allow an index-scan to be semi-joined.
-     *
-     * Note that it is the semi_join properties relative to the
-     * other tables we join with which matter - A table joining
-     * with another table withing the same semi_join nest is an
-     * INNER JOIN wrt. that other table. (Which is pushable)
-     */
-    if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
-      // This table is part of a semi_join
-      if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
-        // Semi-joined relative to some other tables in join_scope
-        EXPLAIN_NO_PUSH(
-            "Can't push table '%s' as child of '%s', "
-            "semi join of scan-child not implemented",
-            table->get_table()->alias, m_join_root->get_table()->alias);
-        return false;
-      }
-    } else if (!m_tables[root_no].m_sj_nest.is_clear_all()) {
-      // Root is part of a semi join, table is not
-      EXPLAIN_NO_PUSH(
-          "Can't push table '%s' as child of '%s', "
-          "not members of same semi join 'nest'",
-          table->get_table()->alias, m_join_root->get_table()->alias);
+    // Check extra limitations on when index scan is pushable,
+    if (!is_pushable_as_child_scan(table, all_parents)) {
       return false;
-    }
-    // end 'semi_join' handling
-
-    /**
-     * Note, for both 'outer join', and 'semi joins restriction above:
-     *
-     * The restriction could have been lifted if we could
-     * somehow ensure that all rows from a child scan are fetched
-     * before we move to the next ancestor row.
-     *
-     * Which is why we do not force the same restrictions on lookup.
-     */
-  }  // scan operation
-
-  /**
-   * In the (unlikely) case of parent references to tables not
-   * in our embedding join nests, we have to make sure that we do
-   * not cause extra dependencies to be added between the join nests.
-   * (Which would have changed the join semantic specified in query)
-   * Note that the header file defining the nest-bitmaps contains more
-   * extensive comments regarding this.
-   *
-   * If this table has multiple dependencies, it can only be added to
-   * the set of pushed tables if the dependent tables themself
-   * depends, or could be make dependent, on each other.
-   *
-   * Such new dependencies can only be added iff all 'depend_parents'
-   * are in the same 'inner join nest', i.e. we can not add *new*
-   * dependencies on outer joined tables (or nests).
-   *
-   * Algorithm:
-   * 1. Calculate the minimum set of 'dependencies' for the
-   *    key_parents[].
-   *
-   * 2. Iterate the 'dependencies' set, starting at the last (the
-   *    table closest to this table). Check that it either already
-   *    exists a dependency between each such table and the remaining
-   *    dependant tables, or that we are allowed to add the required
-   *    dependencies. The later is only allowed for tables in the
-   *    embedding nest
-   */
-  if (unlikely(!embedding_nests.contain(all_parents))) {
-    /**
-     * All tables in a nest depends on each other, even if there are no join
-     * conditions between them. Thus all tables in the nest are also dependant
-     * on any outer_nests being referred from other tables in the same nest.
-     * -> Include such outer_nest's in dependencies.
-     */
-    const uint first_inner = m_tables[tab_no].m_first_inner;
-    ndb_table_access_map dependencies(m_tables[first_inner].m_outer_nest);
-
-    /**
-     * Some key_parents[] will have dependencies outside of embedding_nests.
-     * Calculate the actual nest dependencies and check join pushability.
-     */
-    for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
-      const ndb_table_access_map field_parents(key_parents[key_part_no]);
-
-      if (!field_parents.is_clear_all()) {
-#ifndef DBUG_OFF
-        // Verify requirement that all field_parents are from within same nest
-        {
-          const uint last = field_parents.last_table(tab_no);
-          ndb_table_access_map nest(m_tables[last].m_inner_nest);
-          nest.add(last);
-          DBUG_ASSERT(nest.contain(field_parents));
-        }
-#endif
-        const uint first = field_parents.first_table(root_no);
-        dependencies.add(first);
-      }
-    }
-
-    /**
-     * Iterate all parent dependencies, check that all parents we depends on are
-     * available either from within embedding nests, or from existing
-     * 'outer-nest' dependencies already existing on the parent tables. If not
-     * fulfilled, new dependencies on outer joined tables would have been added
-     * if we pushed this table -> Query semantics would have been changed.
-     */
-    uint parent_no = tab_no;
-    DBUG_ASSERT(!embedding_nests.contain(dependencies));
-    while (!embedding_nests.contain(dependencies)) {
-      parent_no = dependencies.last_table(parent_no - 1);
-      dependencies.clear_bit(parent_no);
-
-      // If remaining dependencies are unavailable from parent, we can't push
-      if (!m_tables[parent_no].parent_nests().contain(dependencies)) {
-        const AQP::Table_access *const parent =
-            m_plan.get_table_access(parent_no);
-        EXPLAIN_NO_PUSH(
-            "Can't push table '%s' as child of '%s', "
-            "as it would make the parent table '%s' "
-            "depended on table(s) outside of its join-nest",
-            table->get_table()->alias, m_join_root->get_table()->alias,
-            parent->get_table()->alias);
-        return false;
-      }
-
-      if (!embedding_nests.contain(parent_no)) {
-        // The non-embedded parents becomes available as a later outer_nest
-        // reference
-        m_tables[tab_no].m_outer_nest.add(parent_no);
-        m_tables[tab_no].m_outer_nest.add(m_tables[parent_no].m_outer_nest);
-
-        // Aggregate all outer_nest references made by tables in this nest
-        // Remember: Need a common upper parent for all tables in the nest
-        m_tables[first_inner].m_outer_nest.add(parent_no);
-      }
     }
   }
 
   /**
-   * Register collected parent candidates - ::optimize() choose from these.
+   * In the (unlikely) case of parent references to tables not
+   * in our embedding join nests, we have to make sure that we do
+   * not cause extra dependencies to be added between the referred join nests.
    */
-  m_join_scope.add(tab_no);
-  m_tables[tab_no].m_key_parents = key_parents;
-  if (pending_cond != nullptr) m_has_pending_cond.add(tab_no);
+  const ndb_table_access_map embedding_nests(
+      m_tables[tab_no].embedding_nests());
+  if (unlikely(!embedding_nests.contain(all_parents))) {
+    if (!is_outer_nests_referable(table)) {
+      return false;
+    }
+  }
 
+  m_join_scope.add(tab_no);
   return true;
 }  // ndb_pushed_builder_ctx::is_pushable_as_child
+
+/***************************************************************
+ *  is_pushable_as_child_scan()
+ *
+ * There are additional limitation on when an index scan is pushable
+ * relative to a (single row) primary key or unique key lookup operation.
+ *
+ * Such limitations exists for index scan operation being outer- or
+ * semi-joined: Consider the query:
+ *
+ *
+ * select * from t1 left join t2
+ *   on t1.attr=t2.ordered_index
+ *   where predicate(t1.row, t2. row);
+ *
+ * Where 'predicate' cannot be pushed to the ndb. (a 'pending_cond', above!)
+ * The ndb api may then return:
+ *
+ * +---------+---------+
+ * | t1.row1 | t2.row1 | (First batch)
+ * | t1.row2 | t2.row1 |
+ * ..... (NextReq).....
+ * | t1.row1 | t2.row2 | (Next batch)
+ * +---------+---------+
+ *
+ * Since we could not return all t2 rows matching 't1.row1' in the first
+ * batch, it is repeated for the nest batch of t2 rows. From mysqld POW it
+ * will appear as a different row, even if it is the same rows as returned
+ * in the first batch. This works just fine when the nest loop joiner
+ * create a plain INNER JOIN result; the different instances of 't1.row1'
+ * would just appear a bit out of order. However OUTER JOIN is a different
+ * matter:
+ *
+ * Assume that the rows [t1.row1, t2.row1] from the first batch does not
+ * satisfies 'predicate'. As there are no more 't1.row1's in this batch,
+ * mysqld will conclude it has seen all t1.row1's without any matching
+ * t2 rows, Thus it will create a NULL extended t2 row in the (outer joined)
+ * result set.
+ *
+ * As the same t1.row1 will be returned from the NDB API in the next batch,
+ * mysqld will create a result row also for this instance - Either with yet
+ * another NULL-extended t2 row, or possibly one or multiple matching rows.
+ * In either case resulting in an incorrect result set. Like:
+ * +---------+---------+
+ * | t1.row1 | NULL    | -> Error!
+ * | t1.row2 | t2.row1 |
+ * | t1.row1 | t2.row2 |
+ * +---------+---------+
+ *
+ * So in order to allow an outer joined index scan to be pushed, we need
+ * to check that a row returned from a pushed index-scan will not later
+ * be rejected by mysqld - i.e. the join has to be fully evaluated by SPJ
+ * (in companion with the SPJ API):
+ *
+ *  1a) There should be no 'pending_cond' (unpushed conditions) on the
+ *      table.
+ *  1b) Neither could any *other* tables within the same inner_join nest
+ *      have pending_cond's. (An inner join nest require matching rows
+ *      from all tables in the nest: A non-matching pending_cond on a row
+ *      from any table in the nest, will also eliminate the rows from the
+ *      other tables. (Possibly creating false NULL-extensions)
+ *  1c) Neither should any tables within the upper nests have
+ *      pending_cond's. Consider the nest structure t1, (t2, (t3)),
+ *      where t1 and 'this' table t3 are scans. If t2 has a pending
+ *      condition, that condition may eliminate rows from the embedded
+ *      (outer joined) t3 nest, and result in false NULL extended rows
+ *      when t3 rows are fetched in multiple batches.
+ *      (Note that this restriction does not apply to the uppermost nest
+ *      containing t1: A non-matching condition on that table will eliminate
+ *      the t1 row as well, thus there will be no extra NULL extended
+ *      rows in the result set.
+ *
+ * 2)   There should be no unpushed tables in:
+ * 2b)  In this inner_join nest.
+ * 2c)  In any upper nests of this table.
+ *
+ *      This case is similar as for pending_cond: A non-match when mysqld
+ *      joins in the rows from the unpushed table may eliminate rows
+ *      returned from the pushed joins as well, resulting in extra
+ *      NULL extended rows.
+ *
+ * 3)   In addition the join condition may explicitly specify dependencies
+ *      on tables which are not in either of the upper_nests,
+ *      eg t1, (t2,t3), (t4), where t4 has a join condition on t3.
+ *      If either:
+ * 3a)  t2 or t3 has an unpushed condition, possibly eliminating returned
+ *      (t2,t3) rows, and the t4 rows depending on these being NOT NULL.
+ * 3b)  t2 or t3 are not pushed, mysqld doesn't matching rows from these
+ *      tables, which also eliminate the t4 rows, possibly resulting in
+ *      extra NULL extended rows.
+ *
+ * Note that ::is_pushable_as_child_scan() can only check these conditions for
+ * tables preceeding it in the query plan. ::validate_join_nest() will later
+ * do similar checks when we have completed a nest level. The later check
+ * would be sufficient, however we prefer to 'fail fast'.
+ *
+ ****************************************************************/
+bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
+    const AQP::Table_access *table, const ndb_table_access_map all_parents) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!ndbcluster_is_lookup_operation(table->get_access_type()));
+
+  const uint root_no = m_join_root->get_access_no();
+  const uint tab_no = table->get_access_no();
+
+  if (m_tables[tab_no].isOuterJoined(m_tables[root_no])) {
+    /**
+     * Is an outer join relative to root. Even if tab_no is inner_joined with
+     * another parent than 'root', any restrictions on scan operations still
+     * apply.
+     */
+
+    /**
+     * TODO: Online upgrade:
+     *
+     * Need the 'ndbd_send_active_bitmask()' signal extensions in order
+     * to support outer joined scans. Else we reject pushing.
+     */
+    if (false) {  // TODO: if (!ndbd_send_active_bitmask())
+      EXPLAIN_NO_PUSH(
+          "Can't push table '%s' as child of '%s', "
+          "outer join of scan-child not implemented",
+          table->get_table()->alias, m_join_root->get_table()->alias);
+      return false;
+    }
+
+    /**
+     * Calculate the set of tables being outer joined relative to root.
+     * i.e. the tables which may be incorrectly NULL extended due to
+     * unpushed conditions and tables. These are the tables we check
+     * the above 1b,1c,2b and 2c cases against.
+     */
+    ndb_table_access_map outer_join_nests(m_tables[tab_no].m_inner_nest);
+    int upper = m_tables[tab_no].m_first_upper;
+    while (upper > (int)root_no) {
+      outer_join_nests.add(m_tables[upper].m_inner_nest);
+      upper = m_tables[upper].m_first_upper;
+    }
+
+    /**
+     * 1) Check if outer joined table depends on 'unpushed condition'
+     */
+    if (unlikely(m_has_pending_cond.contain(tab_no))) {  // 1a)
+      // Table has unpushed condition
+      EXPLAIN_NO_PUSH(
+          "Can't push outer joined table '%s' as child of '%s', "
+          "table condition can not be fully evaluated by pushed join",
+          table->get_table()->alias, m_join_root->get_table()->alias);
+      return false;
+    } else if (unlikely(m_has_pending_cond.is_overlapping(  // 1b,1c
+                   outer_join_nests))) {
+      // Nest(s) has unpushed condition
+      ndb_table_access_map pending_conditions(m_has_pending_cond);
+      pending_conditions.intersect(outer_join_nests);
+      // Report the closest violating table, may be multiple.
+      const uint violating = pending_conditions.last_table(tab_no);
+      EXPLAIN_NO_PUSH(
+          "Can't push outer joined table '%s' as child of '%s', "
+          "condition on its dependant table '%s' is not pushed down",
+          table->get_table()->alias, m_join_root->get_table()->alias,
+          m_plan.get_table_access(violating)->get_table()->alias);
+      return false;
+    }
+
+    /**
+     * 2) Check if outer joined table depends on 'unpushed tables'
+     */
+    if (unlikely(!m_join_scope.contain(outer_join_nests))) {  // 2b,2c
+      ndb_table_access_map unpushed_tables(outer_join_nests);
+      unpushed_tables.subtract(m_join_scope);
+      // Report the closest unpushed table, may be multiple.
+      const uint violating = unpushed_tables.last_table(tab_no);
+      EXPLAIN_NO_PUSH(
+          "Can't push outer joined table '%s' as child of '%s', "
+          "table '%s' in its dependant join-nest(s) is not part of the "
+          "pushed join",
+          table->get_table()->alias, m_join_root->get_table()->alias,
+          m_plan.get_table_access(violating)->get_table()->alias);
+      return false;
+    }
+
+    /**
+     * 3) Check if any tables outside of the embedding nest are referred.
+     */
+    const ndb_table_access_map embedding_nests(
+        m_tables[tab_no].embedding_nests());
+    if (unlikely(!embedding_nests.contain(all_parents))) {           // 3)
+      if (unlikely(!embedding_nests.contain(m_has_pending_cond))) {  // 3a)
+        EXPLAIN_NO_PUSH(
+            "Can't push outer joined table '%s' as child of '%s', "
+            "exists unpushed condition in join-nests it depends on",
+            table->get_table()->alias, m_join_root->get_table()->alias);
+        return false;
+      }
+
+      // Calculate all unpushed tables prior to this table.
+      ndb_table_access_map unpushed_tables;
+      unpushed_tables.set_prefix(tab_no);
+      unpushed_tables.subtract(m_const_scope);
+      unpushed_tables.subtract(m_join_scope);
+
+      /**
+       * Note that the check below is a bit too strict, we check:
+       *  'Are there any unpushed tables outside of our embedding nests',
+       *  instead of 'Do we refer tables from nests outside embedding nests,
+       *  having unpushed tables'. As we alread know 'all_parents' are not
+       *  contained in 'embedding', the outcome should be the same except if
+       * we have parent refs to multiple non-embedded nests. (very unlikely)
+       */
+      if (unlikely(!embedding_nests.contain(unpushed_tables))) {  // 3b)
+        EXPLAIN_NO_PUSH(
+            "Can't push outer joined table '%s' as child of '%s', "
+            "table depends on join-nests with unpushed tables",
+            table->get_table()->alias, m_join_root->get_table()->alias);
+        return false;
+      }
+    }
+  }  // end 'outer joined scan'
+
+  /**
+   * As for outer joins, there are restrictions for semi joins:
+   *
+   * Scan-scan result may return the same ancestor-scan rowset
+   * multiple times when rowset from child scan has to be fetched
+   * in multiple batches (as above). This is fine for nested loop
+   * evaluations of pure loops, as it should just produce the total
+   * set of join combinations - in any order.
+   *
+   * However, the different semi join strategies (FirstMatch,
+   * Loosescan, Duplicate Weedout) requires that skipping
+   * a row (and its nested loop ancestors) is 'permanent' such
+   * that it will never reappear in later batches.
+   *
+   * So we do not (yet) allow an index-scan to be semi-joined.
+   *
+   * Note that it is the semi_join properties relative to the
+   * other tables we join with which matter - A table joining
+   * with another table within the same semi_join nest is an
+   * INNER JOIN wrt. that other table. (Which is pushable)
+   */
+  if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
+    // This table is part of a semi_join
+    if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
+      // Semi-joined relative to some other tables in join_scope
+      EXPLAIN_NO_PUSH(
+          "Can't push table '%s' as child of '%s', "
+          "semi join of scan-child not implemented",
+          table->get_table()->alias, m_join_root->get_table()->alias);
+      return false;
+    }
+  } else if (!m_tables[root_no].m_sj_nest.is_clear_all()) {
+    // Root is part of a semi join, table is not
+    EXPLAIN_NO_PUSH(
+        "Can't push table '%s' as child of '%s', "
+        "not members of same semi join 'nest'",
+        table->get_table()->alias, m_join_root->get_table()->alias);
+    return false;
+  }
+  // end 'semi_join' handling
+
+  /**
+   * Note, for both 'outer join', and 'semi joins restriction above:
+   *
+   * The restriction could have been lifted if we could
+   * somehow ensure that all rows from a child scan are fetched
+   * before we move to the next ancestor row.
+   *
+   * Which is why we do not force the same restrictions on lookup.
+   */
+
+  return true;
+}  // ndb_pushed_builder_ctx::is_pushable_as_child_scan
+
+/***************************************************************
+ *
+ * is_outer_nests_referable()
+ *
+ * In the (unlikely) case of parent references to tables not
+ * in our embedding join nests, we have to make sure that we do
+ * not cause extra dependencies to be added between the join nests.
+ * (Which would have changed the join semantic specified in query)
+ *
+ * If this table has multiple dependencies, it can only be added to
+ * the set of pushed tables if the dependent tables themself
+ * depends, or could be make dependent, on each other.
+ *
+ * Such new dependencies can only be added iff all 'depend_parents'
+ * are in the same 'inner join nest', i.e. we can not add *new*
+ * dependencies on outer joined tables (or nests).
+ *
+ * A typical example is t1 oj (t2) oj (t3) oj (t4), where t4.join_cond
+ * refers *both* the non_embedding tables t2 and t3. In such cases t4 can not
+ * be pushed unless t3 already has a join condition depending on t2.
+ * Note that the header file ha_ndbcluster_push.h contains more
+ * extensive comments regarding this.
+ *
+ * Algorithm:
+ * 1. Calculate the minimum set of 'dependencies' for the
+ *    key_parents[].
+ *
+ * 2. Iterate the 'dependencies' set, starting at the last (the
+ *    table closest to this table). Check that it either already
+ *    exists a dependency between each such table and the remaining
+ *    dependant tables, or that we are allowed to add the required
+ *    dependencies. The later is only allowed for tables in the
+ *    embedding nest
+ ***************************************************************/
+
+bool ndb_pushed_builder_ctx::is_outer_nests_referable(
+    const AQP::Table_access *table) {
+  DBUG_TRACE;
+
+  const uint root_no = m_join_root->get_access_no();
+  const uint tab_no = table->get_access_no();
+  const ndb_table_access_map embedding_nests(
+      m_tables[tab_no].embedding_nests());
+  const uint no_of_key_fields = table->get_no_of_key_fields();
+
+  const ndb_table_access_map *key_parents = m_tables[tab_no].m_key_parents;
+
+  /**
+   * All tables in a nest depends on each other, even if there are no join
+   * conditions between them. Thus all tables in the nest are also dependent
+   * on any outer_nests being referred from other tables in the same nest.
+   * -> Include such outer_nest's in dependencies.
+   */
+  const uint first_inner = m_tables[tab_no].m_first_inner;
+  ndb_table_access_map dependencies(m_tables[first_inner].m_outer_nest);
+
+  /**
+   * Some key_parents[] could have dependencies outside of embedding_nests.
+   * Calculate the actual nest dependencies and check join pushability.
+   */
+  for (uint key_part_no = 0; key_part_no < no_of_key_fields; key_part_no++) {
+    const ndb_table_access_map field_parents(key_parents[key_part_no]);
+
+    if (!field_parents.is_clear_all()) {
+#ifndef DBUG_OFF
+      // Verify requirement that all field_parents are from within same nest
+      {
+        const uint last = field_parents.last_table(tab_no);
+        ndb_table_access_map nest(m_tables[last].m_inner_nest);
+        nest.add(last);
+        DBUG_ASSERT(nest.contain(field_parents));
+      }
+#endif
+      const uint first = field_parents.first_table(root_no);
+      dependencies.add(first);
+    }
+  }
+
+  /**
+   * Iterate all parent dependencies, check that all parents we depend on are
+   * available either from within embedding nests, or from existing
+   * 'outer-nest' dependencies already existing on the parent tables. If not
+   * fulfilled, new dependencies on outer joined tables would have been added
+   * if we pushed this table -> Query semantics would have been changed.
+   */
+  uint parent_no = tab_no;
+  DBUG_ASSERT(!embedding_nests.contain(dependencies));
+  while (!embedding_nests.contain(dependencies)) {
+    parent_no = dependencies.last_table(parent_no - 1);
+    dependencies.clear_bit(parent_no);
+
+    // If remaining dependencies are unavailable from parent, we can't push
+    if (!m_tables[parent_no].parent_nests().contain(dependencies)) {
+      const AQP::Table_access *const parent =
+          m_plan.get_table_access(parent_no);
+      EXPLAIN_NO_PUSH(
+          "Can't push table '%s' as child of '%s', "
+          "as it would make the parent table '%s' "
+          "depend on table(s) outside of its join-nest",
+          table->get_table()->alias, m_join_root->get_table()->alias,
+          parent->get_table()->alias);
+      return false;
+    }
+
+    if (!embedding_nests.contain(parent_no)) {
+      // The non-embedded parents becomes available as a later outer_nest
+      // reference
+      m_tables[tab_no].m_outer_nest.add(parent_no);
+      m_tables[tab_no].m_outer_nest.add(m_tables[parent_no].m_outer_nest);
+
+      // Aggregate all outer_nest references made by tables in this nest
+      // Remember: Need a common upper parent for all tables in the nest
+      m_tables[first_inner].m_outer_nest.add(parent_no);
+    }
+  }
+
+  return true;
+}
 
 /*****************************************************************************
  * validate_join_nest()
@@ -1613,7 +1660,7 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
   }
   if (field->is_real_null()) {
     DBUG_PRINT("info", ("NULL constValues in key -> not pushable"));
-    return false;  // TODO, handle gracefull -> continue?
+    return false;  // TODO, handle graceful -> continue?
   }
   return true;
 }  // ndb_pushed_builder_ctx::is_const_item_pushable()

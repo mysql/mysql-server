@@ -209,6 +209,11 @@ class ndb_pushed_builder_ctx {
 
   bool is_pushable_as_child(AQP::Table_access *table);
 
+  bool is_pushable_as_child_scan(const AQP::Table_access *table,
+                                 ndb_table_access_map all_key_parents);
+
+  bool is_outer_nests_referable(const AQP::Table_access *table);
+
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
 
@@ -280,7 +285,7 @@ class ndb_pushed_builder_ctx {
      * structure is collected for the tables. The 'map' represent the id
      * of each table in the 'nests':
      *
-     * - The inner-nest contain the set of all *preceding* table which
+     * - The inner-nest contain the set of all *preceding* tables which
      *   this table has some INNER JOIN relation with. Either by the table(s)
      *   being directly referred by a inner-join condition on this table,
      *   or indirectly by being inner joined with one of the referred table(s).
@@ -296,8 +301,9 @@ class ndb_pushed_builder_ctx {
      *   of upper nesting (or outer joining), where m_upper_nests contain the
      *   aggregate of these nests as seen from this table.
      *
-     * In the optimizer code, and this SPJ handler integration code, we may use
-     * a parentized form to express the nest structures, like:
+     * In the comments for the optimizer code, and this SPJ handler integration
+     * code, we may use nested pairs of parentheses to express the nest
+     * structures, like:
      * t1, (t2,t3,(t4)), which means:
      *
      * - t2 & t3 has the upper nest [t1], thus t2,t3 are outer joined with t1
@@ -346,8 +352,8 @@ class ndb_pushed_builder_ctx {
      * We have two mechanisms for helping us in making such queries pushable:
      *  1) SPJ allows us to refer values from any ancestor tables.
      *     (grand-(grand-...)parents).
-     *  2) A table is implicit dependend on any table in the embedding nests,
-     *     even if no join condition is refering that table.
+     *  2) A table is implicitly dependending on any table in the embedding
+     *     nests, even if no join condition is refering that table.
      *
      * For the query above we may use this to add an extra dependency from
      * t3 on t2. Furthermore t3's join condition on t1 is made a grand-parent
@@ -378,10 +384,12 @@ class ndb_pushed_builder_ctx {
      * may be dependencies on tables outside of the embedding nests.
      * Such dependencies are caused by explicit references to non-embedded
      * tables from the join conditions.
-     * One such case is the nest structure:  t1,(t2),(t3),(t4), where t4 has the
-     * same t2,t3 depending join condition as above: 't4.a = t2.x and t4.b =
-     * t3.y'. (Referring the outer joined t2 and t3, which are not in the
-     * embedding_nests() of t4.)
+     *
+     * One such case is the nest structure: t1,(t2),(t3),(t4), where t4 has the
+     * same join condition as above: 't4.a = t2.x and t4.b = t3.y'.
+     * (Join condition is referring both the outer joined t2 and t3, while the
+     * 't4.embedding_nest' contains only t1. Thus neither of t2 and t3 referred
+     * in the t4's join condition is in its embedding_nests())
      *
      * Note that this is a perfectly legal join condition, possibly a bit
      * unusual though.
@@ -399,11 +407,11 @@ class ndb_pushed_builder_ctx {
      *                (t4)
      *
      * An exception exists to the above: What if t3 already has a join
-     * dependency on (the outer joined) t2?, like the join condition:
-     * 'on t3.a = t1.x and t3.b = t2.y'. That would introduce an explicit
-     * dependency between t2 and t3, similar to the one we added in an
-     * example further up. For t3 it also implies ''t2 IS NOT NULL'.
-     *   -> Query becomes pushable.
+     * condition making it dependent on (the outer joined) t2?
+     * Like the join condition: 'on t3.a = t1.x and t3.b = t2.y'.
+     * That would introduce an explicit dependency between t2 and t3,
+     * similar to the one we added in an example further up. For t3 it also
+     * implies ''t2 IS NOT NULL'.  -> Query becomes pushable.
      *
      * The outer_nest map for each table is used to keep track of known
      * dependencies to tables outside of the embedding nests.
