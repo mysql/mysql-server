@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -4752,7 +4752,7 @@ loop:
 		now. Will enhanced in special R-Tree index validation scheme */
 		if (!dict_index_is_spatial(index)
 		    && cmp_rec_rec(rec, right_rec,
-				   offsets, offsets2, index) >= 0) {
+				   offsets, offsets2, index, false) >= 0) {
 
 			btr_validate_report2(index, level, block, right_block);
 

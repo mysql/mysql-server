@@ -600,6 +600,23 @@ a
 SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-OK
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="51";;'
+                                          'MYSQL_AUDIT_TABLE_ACCESS_READ;db="super_test" table="test_table";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="51";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                          'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";';
+ANALYZE TABLE test_table;
+Table	Op	Msg_type	Msg_text
+super_test.test_table	analyze	status	OK
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
 ###########################
 ## TABLE_ACCESS - INSERT ##
 ###########################

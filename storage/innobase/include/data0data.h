@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -623,6 +623,20 @@ struct dtuple_t {
 /** Value of dtuple_t::magic_n */
 # define		DATA_TUPLE_MAGIC_N	65478679
 #endif /* UNIV_DEBUG */
+
+
+	/** Get number of externally stored fields.
+	@retval number of externally stored fields. */
+	inline ulint get_n_ext() const
+	{
+		ulint n_ext = 0;
+		for (ulint i = 0; i < n_fields; ++i) {
+			if (dfield_is_ext(&fields[i])) {
+				n_ext++;
+			}
+		}
+		return (n_ext);
+	}
 };
 
 

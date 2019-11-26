@@ -706,13 +706,21 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+    char tname[NAME_LEN + 1];
     /* Don't show tables where we don't have any privileges */
     if (db && !(col_access & TABLE_ACLS))
     {
       table_list.db= (char*) db;
       table_list.db_length= strlen(db);
-      table_list.table_name= uname;
       table_list.table_name_length= file_name_len;
+      if (lower_case_table_names == 2)
+      {
+        strcpy(tname, uname);
+        my_casedn_str(files_charset_info, tname);
+        table_list.table_name= tname;
+      }
+      else
+        table_list.table_name= uname;
       table_list.grant.privilege=col_access;
       if (check_grant(thd, TABLE_ACLS, &table_list, TRUE, 1, TRUE))
         continue;

@@ -106,3 +106,34 @@ DROP TABLE Product_Order;
 DROP TABLE Product;
 DROP TABLE Customer;
 
+--echo #
+--echo # Bug#29957361: TABLE NOT IN THE SHOW TABLES WITH LOWER_CASE_TABLE_NAMES=2
+--echo #
+
+CREATE DATABASE my_db;
+USE my_db;
+CREATE TABLE UPPERCASE_MYISAM (a INT) ENGINE=MYISAM;
+CREATE TABLE lowercase_myisam (a INT) ENGINE=MYISAM;
+CREATE TABLE UPPERCASE_INNODB (a INT) ENGINE=InnoDB;
+CREATE TABLE lowercase_innodb (a INT) ENGINE=InnoDB;
+SHOW TABLES;
+
+# Create a new user and assign SELECT privileges on the above tables.
+CREATE USER 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_MYISAM TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_myisam TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.UPPERCASE_INNODB TO 'test_user'@'localhost';
+GRANT SELECT ON my_db.lowercase_innodb TO 'test_user'@'localhost';
+
+# Connect using the new user
+--connect(con1, localhost, test_user,,)
+
+USE my_db;
+--echo # Without the patch, tables with uppercase table names were not displayed.
+SHOW TABLES;
+
+--connection default
+--disconnect con1
+DROP USER 'test_user'@'localhost';
+DROP DATABASE my_db;
+USE test;

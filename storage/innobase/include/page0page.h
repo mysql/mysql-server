@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -714,6 +714,22 @@ page_rec_is_last(
 	MY_ATTRIBUTE((warn_unused_result));
 
 /************************************************************//**
+true if distance between the records (measured in number of times we have to
+move to the next record) is at most the specified value
+@param[in]	left_rec	lefter record
+@param[in]	right_rec	righter record
+@param[in]	val		specified value to compare
+@return true if the distance is smaller than the value */
+UNIV_INLINE
+bool
+page_rec_distance_is_at_most(
+/*=========================*/
+	const rec_t*	left_rec,
+	const rec_t*	right_rec,
+	ulint		val)
+	MY_ATTRIBUTE((warn_unused_result));
+
+/************************************************************//**
 true if the record is the second last user record on a page.
 @return true if the second last user record */
 UNIV_INLINE
@@ -1155,6 +1171,16 @@ page_warn_strict_checksum(
 	srv_checksum_algorithm_t	curr_algo,
 	srv_checksum_algorithm_t	page_checksum,
 	const page_id_t&		page_id);
+
+/** This function checks if the page in which record is present is a
+non-leaf node of a spatial index.
+param[in]       rec     Btree record
+param[in]       index   index
+@return TRUE if ok */
+bool page_is_spatial_non_leaf(
+/*==========================*/
+	const rec_t* rec,/*!< in: Btree record */
+	dict_index_t* index);/*!< in: index */
 
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE

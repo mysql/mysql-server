@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8137,7 +8137,14 @@ key_and(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2, uint clone_flag)
     }
     // key1->part < key2->part
     key1->use_count--;
-    if (key1->use_count > 0)
+
+   /*
+     Clone key1 if the use_count is greater than 0 otherwise use the
+     "clone_flag" to determine if a key needs to be cloned.
+     "clone_flag" is set to true if the conditions which need to be
+     ANDed (in tree_and) are not simple (has many OR conditions within).
+   */
+    if (key1->use_count > 0 || (clone_flag & CLONE_KEY2_MAYBE))
       if (!(key1= key1->clone_tree(param)))
 	return 0;				// OOM
     return and_all_keys(param, key1, key2, clone_flag);
