@@ -29,7 +29,6 @@
 #include <unordered_set>
 
 #include "sql/auth/acl_change_notification.h"
-#include "sql/auth/sql_auth_cache.h"  // Acl_cache_lock_guard
 #include "sql/mem_root_array.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_prepare.h"
@@ -89,6 +88,7 @@ class ThreadContext : public Ndb_local_connection {
   bool cache_was_rebuilt() const { return m_rebuilt_cache; }
   void serialize_snapshot_user_list(std::string *out_str);
   void consider_all_local_users_for_drop();
+  void handle_dropped_users();
 
   /* NDB Transactions */
   bool read_snapshot();
@@ -663,14 +663,10 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
   run_acl_statement(revoke_all + name);
 }
 
-/* Apply the snapshot in m_current_rows.
-   Users applied from the snapshot will be removed from m_users_in_snapshot.
-   Any user then left remaining in m_users_in_snapshot will be dropped.
-   Hold an exculsive lock on the ACL cache for the duration of the operation.
+/* Apply the snapshot in m_current_rows,
+   removing each applied user from m_users_in_snapshot.
  */
 void ThreadContext::apply_current_snapshot() {
-  Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::WRITE_MODE);
-  acl_cache_lock.lock();
   for (const char *row : m_current_rows) {
     unsigned int note;
     size_t str_length;
@@ -713,8 +709,12 @@ void ThreadContext::apply_current_snapshot() {
 
   /* Extra DEFAULT ROLE statements added by create_user() */
   for (std::string grant : m_extra_grants) run_acl_statement(grant);
+}
 
-  /* Any users remaining in the snapshot list must be dropped */
+/* After apply_current_snapshot() has iteratively removed users from
+   m_users_in_snapshot, any user remaining there must be dropped.
+*/
+void ThreadContext::handle_dropped_users() {
   const std::string drop("DROP USER IF EXISTS ");
 
   for (std::string user : m_users_in_snapshot) {
@@ -924,6 +924,7 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
   context.consider_all_local_users_for_drop();
   context.apply_current_snapshot();
   context.write_status_message_to_server_log();
+  context.handle_dropped_users();
   return true;  // success
 }
 
@@ -976,5 +977,6 @@ bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
 
   (void)context.build_cache_of_ndb_users();
   context.apply_current_snapshot();
+  context.handle_dropped_users();
   return true;  // success
 }
