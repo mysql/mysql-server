@@ -1127,19 +1127,25 @@ static inline uint int_token(const char *str, uint length) {
 */
 static bool consume_comment(Lex_input_stream *lip,
                             int remaining_recursions_permitted) {
+  // only one level of nested comments are allowed
+  DBUG_ASSERT(remaining_recursions_permitted == 0 ||
+              remaining_recursions_permitted == 1);
   uchar c;
   while (!lip->eof()) {
     c = lip->yyGet();
 
-    if (remaining_recursions_permitted > 0) {
+    if (remaining_recursions_permitted == 1) {
       if ((c == '/') && (lip->yyPeek() == '*')) {
         push_warning(
             lip->m_thd, Sql_condition::SL_WARNING,
             ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
             ER_THD(lip->m_thd, ER_WARN_DEPRECATED_NESTED_COMMENT_SYNTAX));
-
-        lip->yySkip(); /* Eat asterisk */
-        consume_comment(lip, remaining_recursions_permitted - 1);
+        lip->yyUnput('(');  // Replace nested "/*..." with "(*..."
+        lip->yySkip();      // and skip "("
+        lip->yySkip();      /* Eat asterisk */
+        if (consume_comment(lip, 0)) return true;
+        lip->yyUnput(')');  // Replace "...*/" with "...*)"
+        lip->yySkip();      // and skip ")"
         continue;
       }
     }
