@@ -1,0 +1,78 @@
+From 738969d28a9da62234c71711a7cf0957dfbb9188 Mon Sep 17 00:00:00 2001
+From: Thayumanavar S <thayumanavar.x.sachithanantha@oracle.com>
+Date: Thu, 17 Oct 2019 13:00:56 +0530
+Subject: [PATCH] BUG#30301356 - SOME EVENTS ARE DELAYED AFTER DROPPING EVENT
+
+Scheduling of the events based on timeline is not honored
+when some event is removed. This is because when we remove an
+event from any position in the priority queue, we need to adjust
+heap both upward and downward depending on new value at the
+deleted node and the value of the parent node. If value of parent
+node is less than the current value of deleted node, the heap needs
+to be adjusted upwards (until heap property is satisfied) else
+downwards (in comparison with it's children and exchanging if heap
+property is violated). In the current code, heapify() adjusts the
+heap downwards only. The update() function adjusts the heap downward
+as  well as upward (based on comparison of the replaced (deleted) node
+and the parent node).
+
+Thus the patch fixes the issue by calling update() method after element
+is removed, which ensures the heap property.
+
+Change-Id: Id449f0de4c59c8f6994bcd21708d4c8038d154e4
+---
+ include/priority_queue.h           |  4 ++--
+ unittest/gunit/priority_queue-t.cc | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/include/priority_queue.h b/include/priority_queue.h
+index 3b13468d6ef..d4ddd8c93f6 100644
+--- a/include/priority_queue.h
++++ b/include/priority_queue.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
++/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ 
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+@@ -243,7 +243,7 @@ class Priority_queue : public Less {
+ 
+     m_container[i] = m_container[m_container.size() - 1];
+     m_container.pop_back();
+-    heapify(i);
++    update(i);
+   }
+ 
+   /**
+diff --git a/unittest/gunit/priority_queue-t.cc b/unittest/gunit/priority_queue-t.cc
+index eada6420d52..aa3597a0288 100644
+--- a/unittest/gunit/priority_queue-t.cc
++++ b/unittest/gunit/priority_queue-t.cc
+@@ -852,4 +852,24 @@ TEST_F(PriorityQueueTest, RandomIntegerGenerator) {
+   test_min_k_elements(many_keys.begin(), many_keys.end(), 20);
+ }
+ 
++/**
++  Bug#30301356 - SOME EVENTS ARE DELAYED AFTER DROPPING EVENT
++
++  Test that ensures heap property is not violated if we remove an
++  element from an interior node. In the below test, we remove the
++  element 90 at index 6 in the array. After 90 is removed, the
++  parent node's of the deleted node violates the heap property.
++  In order to restore the heap property, we need to move up the
++  heap until we reach a node which satisfies the heap property or
++  the root. Without the fix, we adjust the heap downwards.
++*/
++
++TEST_F(PriorityQueueTest, TestElementRemove) {
++  Priority_queue<int, std::vector<int>, My_greater> pq;
++
++  int keys[11] = {60, 65, 84, 75, 80, 85, 90, 95, 100, 105, 82};
++  pq = Priority_queue<int, std::vector<int>, My_greater>(keys, keys + 11);
++  pq.remove(6);
++  EXPECT_TRUE(pq.is_valid());
++}
+ }  // namespace priority_queue_unittest
+-- 
+2.17.1
+
