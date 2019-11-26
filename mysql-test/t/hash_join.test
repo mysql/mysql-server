@@ -1390,4 +1390,41 @@ eval $query;
 --sorted_result
 eval $query LIMIT 1000;
 
+SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo #  Bug#30282693 SIG6 IN TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
+--echo #
+--echo # Create a query where we get a confluent weedout as the right side of an
+--echo # antijoin. Since a confluent weedout returns at most one row, the
+--echo # iterator executor will replace it with a LIMIT 1. Note that the test
+--echo # case is not easy to understand, but it is the smallest test case I
+--echo # could make that reproduces the bug.
+CREATE TABLE t1 (
+  col1 INTEGER,
+  KEY idx (col1)
+);
+
+CREATE TABLE t2 (
+  col1 INTEGER,
+  KEY idx (col1)
+);
+
+INSERT INTO t2 VALUES
+  (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17);
+
+ANALYZE TABLE t1, t2;
+
+let $query = SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+  RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+  WHERE NOT EXISTS (
+    SELECT t1.col1 FROM t1
+    INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+    WHERE t1.col1 <> t2.col1
+  ) AND t2.col1 < 49;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2;

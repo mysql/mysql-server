@@ -1618,14 +1618,22 @@ static Substructure FindSubstructure(
     is_weedout = false;
   }
 
+  *add_limit_1 = false;
   if (is_outer_join && is_weedout) {
     if (outer_join_end > weedout_end) {
       // Weedout will be handled at a lower recursion level.
       is_weedout = false;
     } else {
-      // See comment above.
-      MarkUnhandledDuplicates(qep_tab->flush_weedout_table, this_idx,
-                              weedout_end, unhandled_duplicates);
+      if (qep_tab->flush_weedout_table->is_confluent) {
+        // We have the case where the right side of an outer join is a confluent
+        // weedout. The weedout will return at most one row, so replace the
+        // weedout with LIMIT 1.
+        *add_limit_1 = true;
+      } else {
+        // See comment above.
+        MarkUnhandledDuplicates(qep_tab->flush_weedout_table, this_idx,
+                                weedout_end, unhandled_duplicates);
+      }
       is_weedout = false;
     }
   }
@@ -1652,7 +1660,6 @@ static Substructure FindSubstructure(
   // Nominally, these tables should be optimized away, but this is not the
   // right place for that, so we solve it by adding a LIMIT 1 and then
   // treating the slice as a normal outer join.
-  *add_limit_1 = false;
   if (is_semijoin && is_outer_join) {
     if (semijoin_end == outer_join_end) {
       *add_limit_1 = true;

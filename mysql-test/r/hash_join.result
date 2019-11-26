@@ -1943,4 +1943,94 @@ i	i	i
 64	61	61
 64	62	62
 64	63	63
+SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2, t3;
+#
+#  Bug#30282693 SIG6 IN TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
+#
+# Create a query where we get a confluent weedout as the right side of an
+# antijoin. Since a confluent weedout returns at most one row, the
+# iterator executor will replace it with a LIMIT 1. Note that the test
+# case is not easy to understand, but it is the smallest test case I
+# could make that reproduces the bug.
+CREATE TABLE t1 (
+col1 INTEGER,
+KEY idx (col1)
+);
+CREATE TABLE t2 (
+col1 INTEGER,
+KEY idx (col1)
+);
+INSERT INTO t2 VALUES
+(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+EXPLAIN
+-> Nested loop anti-join
+    -> Inner hash join
+        -> Filter: (t2.col1 < 49)  (cost=0.98 rows=17)
+            -> Index scan on t2 using idx  (cost=0.98 rows=17)
+        -> Hash
+            -> Table scan on const_table
+                -> Materialize
+                    -> Rows fetched before execution
+    -> Limit: 1 row(s)
+        -> Nested loop inner join  (cost=8.61 rows=1)
+            -> Filter: (t1.col1 <> t2.col1)  (cost=0.01 rows=1)
+                -> Index scan on t1 using idx  (cost=0.01 rows=1)
+            -> Index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.25 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1
+SELECT /*+ JOIN_ORDER(const_table, t2, t1, t1_2) */ 1 FROM t2
+RIGHT OUTER JOIN (VALUES ROW(4), ROW(5)) AS const_table ON TRUE
+WHERE NOT EXISTS (
+SELECT t1.col1 FROM t1
+INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
+WHERE t1.col1 <> t2.col1
+) AND t2.col1 < 49;
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+DROP TABLE t1, t2;
