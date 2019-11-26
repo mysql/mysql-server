@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -868,7 +868,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool time_for_hb_event= false;
   int error= 0;
   const char *errmsg = "Unknown error";
-  char error_text[MAX_SLAVE_ERRMSG]; // to be send to slave via my_message()
+  char error_text[MAX_SLAVE_ERRMSG]= {0}; // to be send to slave via my_message()
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
@@ -1013,7 +1013,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       */
       if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
       {
-        errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
+        mysql_bin_log.report_missing_purged_gtids(slave_gtid_executed, &errmsg);
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
         global_sid_lock->unlock();
         GOTO_ERR;
