@@ -802,7 +802,7 @@ ulint fsp_header_get_encryption_offset(const page_size_t &page_size) {
   left_size =
       page_size.physical() - FSP_HEADER_OFFSET - offset - FIL_PAGE_DATA_END;
 
-  ut_ad(left_size >= ENCRYPTION_INFO_SIZE);
+  ut_ad(left_size >= Encryption::INFO_SIZE);
 #endif
 
   return offset;
@@ -845,7 +845,7 @@ bool fsp_header_write_encryption_progress(
     mlog_write_ulint(page + offset, operation_type, MLOG_1BYTE, mtr);
   }
 
-  mlog_write_ulint(page + offset + ENCRYPTION_OPERATION_INFO_SIZE,
+  mlog_write_ulint(page + offset + Encryption::OPERATION_INFO_SIZE,
                    progress_info, MLOG_4BYTES, mtr);
   return (true);
 }
@@ -866,11 +866,11 @@ encryption_op_type fsp_header_encryption_op_type_in_progress(
   /* Read operation type (1 byte) */
   byte operation = mach_read_from_1(page + offset);
   switch (operation) {
-    case ENCRYPTION_IN_PROGRESS:
+    case Encryption::ENCRYPT_IN_PROGRESS:
       op = ENCRYPTION;
       break;
-    case UNENCRYPTION_IN_PROGRESS:
-      op = UNENCRYPTION;
+    case Encryption::DECRYPT_IN_PROGRESS:
+      op = DECRYPTION;
       break;
     default:
       op = NONE;
@@ -921,20 +921,21 @@ bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
   if (rotate_encryption) {
     /* If called during recovery, skip all tablespaces which have updated
     master_key_id. */
-    master_key_id = mach_read_from_4(page + offset + ENCRYPTION_MAGIC_SIZE);
-    if (srv_is_being_started && master_key_id == Encryption::s_master_key_id) {
-      ut_ad(memcmp(page + offset, ENCRYPTION_KEY_MAGIC_V1,
-                   ENCRYPTION_MAGIC_SIZE) == 0 ||
-            memcmp(page + offset, ENCRYPTION_KEY_MAGIC_V2,
-                   ENCRYPTION_MAGIC_SIZE) == 0 ||
-            memcmp(page + offset, ENCRYPTION_KEY_MAGIC_V3,
-                   ENCRYPTION_MAGIC_SIZE) == 0);
+    master_key_id = mach_read_from_4(page + offset + Encryption::MAGIC_SIZE);
+    if (srv_is_being_started &&
+        master_key_id == Encryption::get_master_key_id()) {
+      ut_ad(memcmp(page + offset, Encryption::KEY_MAGIC_V1,
+                   Encryption::MAGIC_SIZE) == 0 ||
+            memcmp(page + offset, Encryption::KEY_MAGIC_V2,
+                   Encryption::MAGIC_SIZE) == 0 ||
+            memcmp(page + offset, Encryption::KEY_MAGIC_V3,
+                   Encryption::MAGIC_SIZE) == 0);
       return (true);
     }
   }
 
   /* Write encryption info passed */
-  mlog_write_string(page + offset, encrypt_info, ENCRYPTION_INFO_SIZE, mtr);
+  mlog_write_string(page + offset, encrypt_info, Encryption::INFO_SIZE, mtr);
 
   return (true);
 }
@@ -1059,7 +1060,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   info to the page 0. */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
     ulint offset = fsp_header_get_encryption_offset(page_size);
-    byte encryption_info[ENCRYPTION_INFO_SIZE];
+    byte encryption_info[Encryption::INFO_SIZE];
 
     if (offset == 0) return (false);
 
@@ -1067,12 +1068,12 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
                                           space->encryption_iv, encryption_info,
                                           is_boot, true)) {
       space->encryption_type = Encryption::NONE;
-      memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
-      memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
+      memset(space->encryption_key, 0, Encryption::KEY_LEN);
+      memset(space->encryption_iv, 0, Encryption::KEY_LEN);
       return (false);
     }
 
-    mlog_write_string(page + offset, encryption_info, ENCRYPTION_INFO_SIZE,
+    mlog_write_string(page + offset, encryption_info, Encryption::INFO_SIZE,
                       mtr);
   }
   space->encryption_op_in_progress = NONE;
@@ -4103,8 +4104,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
   page_no_t total_pages = 0;
   dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
   byte operation_type = 0;
-  byte encryption_info[ENCRYPTION_INFO_SIZE];
-  memset(encryption_info, 0, ENCRYPTION_INFO_SIZE);
+  byte encryption_info[Encryption::INFO_SIZE];
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
   mtr_t mtr;
 
   DBUG_TRACE;
@@ -4112,8 +4113,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
   /* Page 0 is never encrypted */
   ut_ad(from_page != 0);
 
-  operation_type |=
-      (to_encrypt) ? ENCRYPTION_IN_PROGRESS : UNENCRYPTION_IN_PROGRESS;
+  operation_type |= (to_encrypt) ? Encryption::ENCRYPT_IN_PROGRESS
+                                 : Encryption::DECRYPT_IN_PROGRESS;
 
   if (!in_recovery) { /* NOT IN RECOVERY */
     ut_ad(space->encryption_op_in_progress == NONE);
@@ -4122,8 +4123,8 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
       /* Fill key, iv and prepare encryption_info to be written in page 0 */
-      byte key[ENCRYPTION_KEY_LEN];
-      byte iv[ENCRYPTION_KEY_LEN];
+      byte key[Encryption::KEY_LEN];
+      byte iv[Encryption::KEY_LEN];
 
       Encryption::random_value(key);
       Encryption::random_value(iv);
@@ -4189,7 +4190,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                     false);
 
       /* Set encryption operation in progress flag */
-      space->encryption_op_in_progress = UNENCRYPTION;
+      space->encryption_op_in_progress = DECRYPTION;
 
       /* Update Encryption flag for tablespace */
       fsp_flags_unset_encryption(space->flags);
@@ -4233,7 +4234,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
       /* It should have already been set */
-      ut_ad(space->encryption_op_in_progress == UNENCRYPTION);
+      ut_ad(space->encryption_op_in_progress == DECRYPTION);
 
       /* Update Encryption flag for tablespace */
       fsp_flags_unset_encryption(space->flags);
@@ -4272,9 +4273,9 @@ all_done:
 
     ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
 #ifdef UNIV_DEBUG
-    byte buf[ENCRYPTION_INFO_SIZE];
-    memset(buf, 0, ENCRYPTION_INFO_SIZE);
-    ut_ad(memcmp(encryption_info, buf, ENCRYPTION_INFO_SIZE) == 0);
+    byte buf[Encryption::INFO_SIZE];
+    memset(buf, 0, Encryption::INFO_SIZE);
+    ut_ad(memcmp(encryption_info, buf, Encryption::INFO_SIZE) == 0);
 #endif
     /* Now on page 0
             - erase Encryption information
@@ -4334,17 +4335,17 @@ all_done:
 #ifdef UNIV_DEBUG
 /** Validate tablespace encryption settings. */
 static void validate_tablespace_encryption(fil_space_t *space) {
-  byte buf[ENCRYPTION_KEY_LEN];
-  memset(buf, 0, ENCRYPTION_KEY_LEN);
+  byte buf[Encryption::KEY_LEN];
+  memset(buf, 0, Encryption::KEY_LEN);
 
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ut_ad(memcmp(space->encryption_key, buf, ENCRYPTION_KEY_LEN) != 0);
-    ut_ad(memcmp(space->encryption_iv, buf, ENCRYPTION_KEY_LEN) != 0);
+    ut_ad(memcmp(space->encryption_key, buf, Encryption::KEY_LEN) != 0);
+    ut_ad(memcmp(space->encryption_iv, buf, Encryption::KEY_LEN) != 0);
     ut_ad(space->encryption_klen != 0);
     ut_ad(space->encryption_type == Encryption::AES);
   } else {
-    ut_ad(memcmp(space->encryption_key, buf, ENCRYPTION_KEY_LEN) == 0);
-    ut_ad(memcmp(space->encryption_iv, buf, ENCRYPTION_KEY_LEN) == 0);
+    ut_ad(memcmp(space->encryption_key, buf, Encryption::KEY_LEN) == 0);
+    ut_ad(memcmp(space->encryption_iv, buf, Encryption::KEY_LEN) == 0);
     ut_ad(space->encryption_klen == 0);
     ut_ad(space->encryption_type == Encryption::NONE);
   }
@@ -4359,7 +4360,7 @@ post an error for that space and keep going.
 static void resume_alter_encrypt_tablespace(THD *thd) {
   dberr_t err = DB_SUCCESS;
   mtr_t mtr;
-  char operation_name[3][20] = {"NONE", "ENCRYPTION", "UNENCRYPTION"};
+  char operation_name[3][20] = {"NONE", "ENCRYPTION", "DECRYPTION"};
   /* List of MDLs taken. One for each tablespace. */
   std::list<MDL_ticket *> shared_mdl_list;
 
@@ -4425,11 +4426,11 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
     /* Read maximum pages (4 byte) */
     uint progress =
-        mach_read_from_4(page + offset + ENCRYPTION_OPERATION_INFO_SIZE);
+        mach_read_from_4(page + offset + Encryption::OPERATION_INFO_SIZE);
     mtr_commit(&mtr);
 
-    if (!(operation & ENCRYPTION_IN_PROGRESS) &&
-        !(operation & UNENCRYPTION_IN_PROGRESS)) {
+    if (!(operation & Encryption::ENCRYPT_IN_PROGRESS) &&
+        !(operation & Encryption::DECRYPT_IN_PROGRESS)) {
       /* There are two possibilities:
       1. Crash happened even before operation/progress
          was written to page 0. Nothing to do.
@@ -4449,7 +4450,7 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     /* Resume (Un)Encryption operation next page onwards */
     err = fsp_alter_encrypt_tablespace(
         thd, space_id, progress + 1,
-        (operation & ENCRYPTION_IN_PROGRESS) ? true : false, true,
+        (operation & Encryption::ENCRYPT_IN_PROGRESS) ? true : false, true,
         recv_dd_space);
 
     if (err != DB_SUCCESS) {

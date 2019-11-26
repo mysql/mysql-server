@@ -212,7 +212,7 @@ struct fil_node_t {
 };
 
 /* Type of (un)encryption operation in progress for Tablespace. */
-enum encryption_op_type { ENCRYPTION = 1, UNENCRYPTION = 2, NONE };
+enum encryption_op_type { ENCRYPTION = 1, DECRYPTION = 2, NONE };
 
 /** Tablespace or log data space */
 struct fil_space_t {
@@ -301,13 +301,13 @@ struct fil_space_t {
   Encryption::Type encryption_type;
 
   /** Encrypt key */
-  byte encryption_key[ENCRYPTION_KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
 
   /** Encrypt key length*/
   ulint encryption_klen;
 
   /** Encrypt initial vector */
-  byte encryption_iv[ENCRYPTION_KEY_LEN];
+  byte encryption_iv[Encryption::KEY_LEN];
 
   /** Encryption is in progress */
   encryption_op_type encryption_op_in_progress;

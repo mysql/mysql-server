@@ -187,6 +187,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "json_dom.h"
 
 #include "log0log.h"
+#include "os0enc.h"
 #include "os0file.h"
 
 #include <mutex>
@@ -2356,10 +2357,7 @@ dberr_t Compression::validate(const char *algorithm) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Check if the string is "" or "n".
-@param[in]      algorithm       Encryption algorithm to check
-@return true if no algorithm requested */
-bool Encryption::is_none(const char *algorithm) {
+bool Encryption::is_none(const char *algorithm) noexcept {
   /* NULL is the same as NONE */
   if (algorithm == nullptr || innobase_strcasecmp(algorithm, "n") == 0) {
     return (true);
@@ -2368,11 +2366,8 @@ bool Encryption::is_none(const char *algorithm) {
   return (false);
 }
 
-/** Check the encryption option and set it
-@param[in]	option		encryption option
-@param[in,out]	encryption	The encryption algorithm
-@return DB_SUCCESS or DB_UNSUPPORTED */
-dberr_t Encryption::set_algorithm(const char *option, Encryption *encryption) {
+dberr_t Encryption::set_algorithm(const char *option,
+                                  Encryption *encryption) noexcept {
   if (is_none(option)) {
     encryption->m_type = NONE;
 
@@ -2386,10 +2381,7 @@ dberr_t Encryption::set_algorithm(const char *option, Encryption *encryption) {
   return (DB_SUCCESS);
 }
 
-/** Check for supported ENCRYPT := (Y | N) supported values
-@param[in]	option		Encryption option
-@return DB_SUCCESS or DB_UNSUPPORTED */
-dberr_t Encryption::validate(const char *option) {
+dberr_t Encryption::validate(const char *option) noexcept {
   Encryption encryption;
 
   return (encryption.set_algorithm(option, &encryption));
@@ -3902,7 +3894,7 @@ bool innobase_encryption_key_rotation() {
 
   /* Check if keyring loaded and the currently master key
   can be fetched. */
-  if (Encryption::s_master_key_id != 0) {
+  if (Encryption::get_master_key_id() != 0) {
     ulint master_key_id;
 
     Encryption::get_master_key(&master_key_id, &master_key);

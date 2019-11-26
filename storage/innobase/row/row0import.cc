@@ -3329,9 +3329,9 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
                                                THD *thd) {
   byte row[sizeof(ib_uint32_t)];
   ulint key_size;
-  byte transfer_key[ENCRYPTION_KEY_LEN];
-  byte encryption_key[ENCRYPTION_KEY_LEN];
-  byte encryption_iv[ENCRYPTION_KEY_LEN];
+  byte transfer_key[Encryption::KEY_LEN];
+  byte encryption_key[Encryption::KEY_LEN];
+  byte encryption_iv[Encryption::KEY_LEN];
   lint elen;
 
   if (fread(&row, 1, sizeof(row), file) != sizeof(row)) {
@@ -3342,7 +3342,7 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   }
 
   key_size = mach_read_from_4(row);
-  if (key_size != ENCRYPTION_KEY_LEN) {
+  if (key_size != Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                 strerror(errno), "while parsing encryption key size.");
 
@@ -3350,7 +3350,8 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   }
 
   /* Read the transfer key. */
-  if (fread(transfer_key, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fread(transfer_key, 1, Encryption::KEY_LEN, file) !=
+      Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while reading tranfer key.");
 
@@ -3358,8 +3359,8 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   }
 
   /* Read the encrypted key. */
-  if (fread(encryption_key, 1, ENCRYPTION_KEY_LEN, file) !=
-      ENCRYPTION_KEY_LEN) {
+  if (fread(encryption_key, 1, Encryption::KEY_LEN, file) !=
+      Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while reading encryption key.");
 
@@ -3367,7 +3368,8 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   }
 
   /* Read the encrypted iv. */
-  if (fread(encryption_iv, 1, ENCRYPTION_KEY_LEN, file) != ENCRYPTION_KEY_LEN) {
+  if (fread(encryption_iv, 1, Encryption::KEY_LEN, file) !=
+      Encryption::KEY_LEN) {
     ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
                 strerror(errno), "while reading encryption iv.");
 
@@ -3377,18 +3379,18 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
   lint old_size = mem_heap_get_size(table->heap);
 
   table->encryption_key =
-      static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+      static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
   table->encryption_iv =
-      static_cast<byte *>(mem_heap_alloc(table->heap, ENCRYPTION_KEY_LEN));
+      static_cast<byte *>(mem_heap_alloc(table->heap, Encryption::KEY_LEN));
 
   lint new_size = mem_heap_get_size(table->heap);
   dict_sys->size += new_size - old_size;
 
   /* Decrypt tablespace key and iv. */
-  elen = my_aes_decrypt(encryption_key, ENCRYPTION_KEY_LEN,
-                        table->encryption_key, transfer_key, ENCRYPTION_KEY_LEN,
-                        my_aes_256_ecb, nullptr, false);
+  elen = my_aes_decrypt(encryption_key, Encryption::KEY_LEN,
+                        table->encryption_key, transfer_key,
+                        Encryption::KEY_LEN, my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
@@ -3397,9 +3399,9 @@ static dberr_t row_import_read_encryption_data(dict_table_t *table, FILE *file,
     return (DB_IO_ERROR);
   }
 
-  elen = my_aes_decrypt(encryption_iv, ENCRYPTION_KEY_LEN, table->encryption_iv,
-                        transfer_key, ENCRYPTION_KEY_LEN, my_aes_256_ecb,
-                        nullptr, false);
+  elen = my_aes_decrypt(encryption_iv, Encryption::KEY_LEN,
+                        table->encryption_iv, transfer_key, Encryption::KEY_LEN,
+                        my_aes_256_ecb, nullptr, false);
 
   if (elen == MY_AES_BAD_DATA) {
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
@@ -3902,7 +3904,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   if (dd_is_table_in_encrypted_tablespace(table)) {
     mtr_t mtr;
-    byte encrypt_info[ENCRYPTION_INFO_SIZE];
+    byte encrypt_info[Encryption::INFO_SIZE];
 
     fil_space_t *space = fil_space_get(table->space);
 
@@ -3910,7 +3912,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
     mtr_x_lock_space(space, &mtr);
 
-    memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
       mtr_commit(&mtr);
