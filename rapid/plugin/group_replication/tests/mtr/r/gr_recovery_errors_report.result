@@ -1,0 +1,45 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group on server1 and create table t1 on it.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+############################################################
+# 2. Create the same table t1 on server1 and then join it to
+#    the group, recovery will fail.
+#    Assert that error is visible on
+#    performance_schema.replication_applier_status_by_worker
+#    and SHOW SLAVE STATUS between retry attempts.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET SESSION sql_log_bin= 1;
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+SET GLOBAL group_replication_recovery_reconnect_interval= 3600;
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+# Wait until the error is reported on performance_schema.replication_applier_status_by_worker table
+include/assert.inc [Recovery channel error is reported on Last_Errno]
+include/assert.inc [Recovery channel error is reported on Last_SQL_Errno]
+include/assert.inc [MEMBER_STATE is RECOVERING]
+include/stop_group_replication.inc
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
+
+############################################################
+# 3. Clean up.
+[connection server2]
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+[connection server1]
+DROP TABLE t1;
+include/group_replication_end.inc

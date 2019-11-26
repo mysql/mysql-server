@@ -1,0 +1,90 @@
+################################################################################
+# Validate that recovery errors are properly reported between attempts on
+# performance_schema.replication_applier_status_by_worker and SHOW SLAVE STATUS.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap group on server1 and create table t1 on it.
+# 2. Create the same table t1 on server1 and then join it to
+#    the group, recovery will fail.
+#    Assert that error is visible on
+#    performance_schema.replication_applier_status_by_worker
+#    and SHOW SLAVE STATUS between retry attempts.
+# 3. Clean up.
+################################################################################
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap group on server1 and create table t1 on it.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source ../inc/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+
+
+--echo
+--echo ############################################################
+--echo # 2. Create the same table t1 on server1 and then join it to
+--echo #    the group, recovery will fail.
+--echo #    Assert that error is visible on
+--echo #    performance_schema.replication_applier_status_by_worker
+--echo #    and SHOW SLAVE STATUS between retry attempts.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Worker [0-9] failed executing transaction .*; Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Slave SQL for channel 'group_replication_recovery': Error 'Table 't1' already exists' on query.*");
+call mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+SET SESSION sql_log_bin= 1;
+
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+# Increase the reconnect interval to avoid reconnects on slow machines.
+SET GLOBAL group_replication_recovery_reconnect_interval= 3600;
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+START GROUP_REPLICATION;
+
+--echo # Wait until the error is reported on performance_schema.replication_applier_status_by_worker table
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_applier_status_by_worker WHERE channel_name='group_replication_recovery' AND last_error_number=1050;
+--source include/wait_condition.inc
+
+--let $last_errno = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Last_Errno, 1)
+--let $assert_text= Recovery channel error is reported on Last_Errno
+--let $assert_cond= $last_errno = 1050
+--source include/assert.inc
+
+--let $last_sql_errno = query_get_value(SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery', Last_SQL_Errno, 1)
+--let $assert_text= Recovery channel error is reported on Last_SQL_Errno
+--let $assert_cond= $last_sql_errno = 1050
+--source include/assert.inc
+
+--let $server2_uuid= `SELECT @@server_uuid`
+--let $assert_text= MEMBER_STATE is RECOVERING
+--let $assert_cond= "[SELECT MEMBER_STATE FROM performance_schema.replication_group_members WHERE MEMBER_ID=\'$server2_uuid\', MEMBER_STATE, 1]" = "RECOVERING"
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+DROP TABLE t1;
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+
+--source ../inc/group_replication_end.inc

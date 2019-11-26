@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@ Purge obsolete records
 
 Created 3/14/1997 Heikki Tuuri
 *******************************************************/
+
+#include <debug_sync.h>
 
 #include "row0purge.h"
 
@@ -178,6 +180,16 @@ row_purge_remove_clust_if_poss_low(
 	} else {
 		dberr_t	err;
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
+
+		DBUG_EXECUTE_IF("pessimistic_row_purge_clust", {
+			const char act[] =
+				"now SIGNAL pessimistic_row_purge_clust_pause "
+				"WAIT_FOR pessimistic_row_purge_clust_continue";
+			DBUG_ASSERT(opt_debug_sync_timeout > 0);
+			DBUG_ASSERT(!debug_sync_set_action(
+					current_thd, STRING_WITH_LEN(act)));
+		});
+
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
 			false, &mtr);

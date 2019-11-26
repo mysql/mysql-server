@@ -3051,6 +3051,14 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     DBUG_RETURN(true);
   }
 
+  /*
+    P_S table access should be allowed while in LTM, the ignore flush flag is
+    set to avoid the infinite reopening of the table due to version number
+    mismatch.
+  */
+  if (BELONGS_TO_P_S_UNDER_LTM(thd, table_list))
+    flags|= MYSQL_OPEN_IGNORE_FLUSH;
+
   key_length= get_table_def_key(table_list, &key);
 
   /*
@@ -3231,6 +3239,12 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 
       bool result= thd->mdl_context.acquire_lock(&protection_request,
                                                  ot_ctx->get_timeout());
+
+      /*
+        Unlike in other places where we acquire protection against global read
+        lock, the read_only state is not checked here since we check its state
+        later in mysql_lock_tables()
+      */
 
       thd->mdl_context.set_force_dml_deadlock_weight(false);
       thd->pop_internal_handler();
@@ -5604,6 +5618,20 @@ lock_table_names(THD *thd,
 
   // Phase 3: Acquire the locks which have been requested so far.
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
+    return true;
+
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+    Skip the check for FLUSH TABLES ... WITH READ LOCK and
+    FLUSH TABLES ... FOR EXPORT as they are not supposed to be affected
+    by read_only modes.
+  */
+  if (need_global_read_lock_protection &&
+      !(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+      !(flags & MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY) &&
+      check_readonly(thd, true))
     return true;
 
   /*

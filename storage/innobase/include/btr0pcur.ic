@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -409,6 +409,7 @@ btr_pcur_init(
 	pcur->old_rec = NULL;
 
 	pcur->btr_cur.rtr_info = NULL;
+	pcur->import_ctx = NULL;
 }
 
 /** Free old_rec_buf.

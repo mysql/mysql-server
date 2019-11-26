@@ -363,6 +363,147 @@ DROP TABLE t1;
 
 set sql_mode= @orig_sql_mode;
 
+
+--echo #
+--echo # BUG#28438114: SET READ_ONLY=1 SOMETIMES DOESN'T BLOCK CONCURRENT DDL.
+--echo #
+
+--echo # Prepare the sql file for testing DDLS.
+
+SET @save_read_only= @@global.read_only;
+
+CREATE USER test@localhost;
+GRANT CREATE, DROP, INSERT, CREATE TABLESPACE, ALTER ROUTINE, RELOAD ON *.* TO test@localhost;
+
+--echo connect (con1,localhost,test,,test);
+connect (con1,localhost,test,,test);
+
+--echo connect (con2,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+--echo # Test CREATE DATABASE statement.
+let $query= CREATE DATABASE new;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER DATABASE statement
+--let query= ALTER DATABASE test CHARACTER SET utf8;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP DATABASE statement.
+CREATE DATABASE new;
+let $query= DROP DATABASE new;
+--source include/read_only_bug28438114.inc
+DROP DATABASE new;
+
+--echo # Test CREATE TABLE statement.
+let $query= CREATE TABLE t1(fld1 INT);
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER TABLE statement.
+CREATE TABLE t1(fld1 INT);
+let $query= ALTER TABLE t1 ADD fld2 INT;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP TABLE statement.
+let $query= DROP TABLE t1;
+--source include/read_only_bug28438114.inc
+--echo # Test CREATE INDEX statement.
+let $query= CREATE INDEX idx1 ON t1 (fld1) USING BTREE;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP INDEX statement.
+CREATE INDEX idx1 ON t1 (fld1) USING BTREE;
+let $query= DROP INDEX idx1 ON t1;
+--source include/read_only_bug28438114.inc
+DROP INDEX idx1 ON t1;
+
+--echo # Test CREATE TRIGGER statement.
+let $query= CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW BEGIN END;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP TRIGGER statement.
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW BEGIN END;
+let $query= DROP TRIGGER trg1;
+--source include/read_only_bug28438114.inc
+DROP TRIGGER trg1;
+
+--echo # Test TRUNCATE TABLE statement.
+let $query= TRUNCATE TABLE t1;
+--source include/read_only_bug28438114.inc
+
+--echo # Test CREATE VIEW statement.
+let $query= CREATE VIEW v1 AS SELECT * FROM t1;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER VIEW statement.
+CREATE VIEW v1 AS SELECT * FROM t1;
+let $query= ALTER VIEW v1 AS SELECT 1;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP VIEW statement.
+let $query= DROP VIEW v1;
+--source include/read_only_bug28438114.inc
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo # Test CREATE TABLESPACE statement
+let $query= CREATE TABLESPACE ts1
+            ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+--source include/read_only_bug28438114.inc
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=INNODB;
+--echo # Test DROP TABLESPACE statement
+let $query= DROP TABLESPACE ts1;
+--source include/read_only_bug28438114.inc
+DROP TABLESPACE ts1;
+
+--echo # Test CREATE FUNCTION statement.
+let $query= CREATE FUNCTION f1() RETURNS INT RETURN 5;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER FUNCTION statement.
+CREATE FUNCTION f1() RETURNS INT RETURN 5;
+let $query= ALTER FUNCTION f1 COMMENT 'test';
+--source include/read_only_bug28438114.inc
+--echo # Test DROP FUNCTION statement.
+let $query= DROP FUNCTION f1;
+--source include/read_only_bug28438114.inc
+DROP FUNCTION f1;
+
+--echo # Test CREATE PROCEDURE statement
+let $query= CREATE PROCEDURE p1() select 1;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER PROCEDURE statement.
+CREATE PROCEDURE p1() select 1;
+let $query= ALTER PROCEDURE p1 comment 'test';
+--source include/read_only_bug28438114.inc
+--echo # Test DROP PROCEDURE statement.
+let $query= DROP PROCEDURE p1;
+--source include/read_only_bug28438114.inc
+DROP PROCEDURE p1;
+
+--echo # Test CREATE EVENT statement
+let $query= CREATE EVENT event1 ON SCHEDULE
+EVERY 10 HOUR DO SELECT 1;
+--source include/read_only_bug28438114.inc
+--echo # Test ALTER EVENT statement
+CREATE EVENT event1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+let $query= ALTER EVENT event1 DISABLE;
+--source include/read_only_bug28438114.inc
+--echo # Test DROP EVENT statement.
+let $query= DROP EVENT event1;
+--source include/read_only_bug28438114.inc
+DROP EVENT event1;
+
+--echo # Test case added for coverage.
+CREATE TABLE t1(fld1 INT);
+connection con1;
+--echo # FTWRL and FLUSH TABLE..FOR EXPORT is not blocked
+--echo # in read_only/super_read_only mode.
+FLUSH TABLES t1 WITH READ LOCK;
+UNLOCK TABLES;
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+--echo # Clean up.
+connection default;
+DROP TABLE t1;
+DROP USER test@localhost;
+SET GLOBAL read_only= @save_read_only;
+--disconnect con1
+--disconnect con2
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

@@ -143,8 +143,8 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 
 --echo # Verify that the show slave status shows specific IO_error
 let $show_statement= SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
-let $field= Last_IO_Error;
-let $condition= 'Fatal error: Invalid (empty) username when attempting to connect to the master server. Connection attempt terminated.';
+let $field= Last_IO_Errno;
+let $condition= = '1045';
 --source include/wait_show_condition.inc
 
 --source include/stop_group_replication.inc
@@ -166,7 +166,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo # Verify that show slave status shows specific IO_ERROR
 let $show_statement= SHOW SLAVE STATUS FOR CHANNEL 'group_replication_recovery';
 let $field= Last_IO_Errno;
-let $condition= '1045';
+let $condition= = '1045';
 --source include/wait_show_condition.inc
 
 --source include/stop_group_replication.inc

@@ -42,6 +42,10 @@
 
 --source ../inc/start_and_bootstrap_group_replication.inc
 
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression("Cannot replicate to server with server_uuid*");
+SET SESSION sql_log_bin= 1;
+
 # Insert some data
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
