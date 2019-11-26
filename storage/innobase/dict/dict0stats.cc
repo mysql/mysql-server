@@ -1139,7 +1139,8 @@ dict_stats_analyze_index_level(
 					       rec_offsets,
 					       prev_rec_offsets,
 					       index,
-					       FALSE,
+					       false,
+					       false,
 					       &matched_fields);
 
 			for (i = matched_fields; i < n_uniq; i++) {
@@ -1379,7 +1380,7 @@ dict_stats_scan_page(
 		the first n_prefix fields */
 		cmp_rec_rec_with_match(rec, next_rec,
 				       offsets_rec, offsets_next_rec,
-				       index, FALSE, &matched_fields);
+				       index, false, false, &matched_fields);
 
 		if (matched_fields < n_prefix) {
 			/* rec != next_rec, => rec is non-boring */

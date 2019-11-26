@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -665,7 +665,7 @@ int Recovery_state_transfer::start_recovery_donor_threads()
   DBUG_RETURN(error);
 }
 
-int Recovery_state_transfer::terminate_recovery_slave_threads()
+int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs)
 {
   DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
 
@@ -684,8 +684,11 @@ int Recovery_state_transfer::terminate_recovery_slave_threads()
   }
   else
   {
-    //If there is no repository in place nothing happens
-    error= purge_recovery_slave_threads_repos();
+    if (purge_logs)
+    {
+      //If there is no repository in place nothing happens
+      error= purge_recovery_slave_threads_repos();
+    }
   }
 
   DBUG_RETURN(error);
@@ -732,14 +735,21 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
 
   while (!donor_transfer_finished && !recovery_aborted)
   {
-    //If an applier error happened: stop the receiver thread and purge the logs
+    /*
+      If an applier error happened: stop the slave threads.
+      We do not purge logs or reset channel configuration to
+      preserve the error information on performance schema
+      tables until the next recovery attempt.
+      Recovery_state_transfer::initialize_donor_connection() will
+      take care of that.
+    */
     if (donor_channel_thread_error)
     {
       //Unsubscribe the listener until it connects again.
       channel_observation_manager
           ->unregister_channel_observer(recovery_channel_observer);
 
-      if ((error= terminate_recovery_slave_threads()))
+      if ((error= terminate_recovery_slave_threads(false)))
       {
         /* purecov: begin inspected */
         log_message(MY_ERROR_LEVEL,
@@ -813,7 +823,8 @@ int Recovery_state_transfer::state_transfer(THD *recovery_thd)
 
   channel_observation_manager
       ->unregister_channel_observer(recovery_channel_observer);
-  terminate_recovery_slave_threads();
+  // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
+  terminate_recovery_slave_threads(!error);
   connected_to_donor= false;
 
   DBUG_RETURN(error);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,10 +53,6 @@
 
 using std::min;
 using std::max;
-
-/* max size of log messages (error log, plugins' logging, general log) */
-static const uint MAX_LOG_BUFFER_SIZE= 1024;
-
 
 #ifndef _WIN32
 static int   log_syslog_facility= 0;

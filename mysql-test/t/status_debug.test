@@ -78,5 +78,32 @@ DROP TABLE t1;
 
 --disable_connect_log
 
+
+--echo #
+--echo # Bug#29836204:  P_S TABLE ACCESS HANGS WHILE IN LOCK TABLES MODE
+--echo #
+
+SET @saved_show_compatibility_56= @@global.show_compatibility_56;
+--echo # Ensures that the P_S is used for the SHOW command.
+SET GLOBAL show_compatibility_56= OFF;
+CREATE TABLE t1(fld1 int) ENGINE=MYISAM;
+LOCK TABLE t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+
+--echo # Without patch, the SHOW command hangs.
+SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
+
+--echo # Wihout patch, the SELECT from P_S hangs.
+SELECT * FROM performance_schema.global_variables WHERE variable_name="read_only";
+
+--echo # Test added for coverage (Querying from I_S)
+SET GLOBAL show_compatibility_56= @saved_show_compatibility_56;
+SHOW SESSION VARIABLES LIKE 'FOREIGN_KEY_CHECKS';
+
+--echo # Clean up.
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1478,7 +1478,9 @@ rtr_page_copy_rec_list_end_no_locks(
 						   ULINT_UNDEFINED, &heap);
 			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
 						     offsets1, offsets2,
-						     index, FALSE,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
 						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);
@@ -1597,7 +1599,9 @@ rtr_page_copy_rec_list_start_no_locks(
 						   ULINT_UNDEFINED, &heap);
 			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
 						     offsets1, offsets2,
-						     index, FALSE,
+						     index,
+						     page_is_spatial_non_leaf(cur1_rec, index),
+						     false,
 						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);
