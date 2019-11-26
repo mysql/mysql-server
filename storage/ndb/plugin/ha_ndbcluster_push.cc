@@ -1328,6 +1328,41 @@ void ndb_pushed_builder_ctx::validate_join_nest(
      * trigger condition.
      * So we collect the aggregated map of tables possibly affected by
      * these MATCH-filters in 'filter_cond'
+     *
+     * Example: select straight_join *
+     *          from
+     *            t1 left join
+     *              (t1 as t2 join t1 as t3 on t3.a = t2.b)
+     *            on t2.a = t1.b
+     *          where (t2.c > t1.c or t1.c < 0);
+     *
+     * or: 't1 oj (t2,t3) where t2.c > t1.c or t1.c < 0'
+     *
+     * The where condition refers columns from the outer joined nest (t2,t3)
+     * which are possibly NULL extended. Thus, the where cond is encapsulated in
+     * a FOUND_MATCH(t2,t3), effectively forcing the cond. to be evaluated only
+     * when we have a non-NULL extended match for t2,t3. For some (legacy?)
+     * reason the optimizer will attach the where condition to table t2
+     * in the query plan 't1,t2,t3', as all referred tables(t1,t2) are available
+     * at this point.
+     * However, this ignores the encapsulating FOUND_MATCH(t2,t3) trigger,
+     * which require the condition to also have a matching t3 row. The
+     * WalkItem below will identify such triggers and calculate the real table
+     * coverage of them.
+     *
+     * Note that 'explain format=tree' will represent such filters in a more
+     * sensible way: (We don't use the Iterators here (yet) though)
+     *
+     * -> Filter: ((t2.c > t1.c) or (t1.c < 0))
+     *   -> Nested loop left join
+     *     -> Table scan on t1
+     *     -> Nested loop inner join
+     *       -> Index lookup on t2 using PRIMARY (a=t1.b),
+     *       -> Index lookup on t3 using PRIMARY (a=t2.b)
+     *
+     * The Iterators place the filter on 'top of' the t1..t3 evaluation.
+     * The FOUND_MATCH(t2,t3) has also been eliminated, as we know there is
+     * a (t2,t3) match at this point of execution.
      */
     for (uint tab_no = first_inner; tab_no <= last_inner; tab_no++) {
       AQP::Table_access *table = m_plan.get_table_access(tab_no);
@@ -1382,7 +1417,7 @@ void ndb_pushed_builder_ctx::validate_join_nest(
 
         /**
          * Could have checked all 3 reject conditions at once, but would
-         * like to provide seperate EXPLAIN_NO_PUSH's for each of them.
+         * like to provide separate EXPLAIN_NO_PUSH's for each of them.
          */
         if (nest_has_unpushed) {
           EXPLAIN_NO_PUSH(
@@ -1410,6 +1445,13 @@ void ndb_pushed_builder_ctx::validate_join_nest(
   inner_nest.intersect(m_join_scope);
   if (inner_nest.is_clear_all()) return;
 
+  /**
+   * Calculate the 'nest dependency', which is the ancestor dependencies
+   * to tables not being part of this inner_nest themself.
+   * These ancestor dependencies are set as the required 'm_ancestors'
+   * on the 'first_inner' table in each nest, and later used to enforce
+   * ::optimize_query_plan() to use these tables as (grand-)parents
+   */
   ndb_table_access_map depend_parents;
   const uint last_inner = m_tables[first_inner].m_last_inner;
 
@@ -1426,6 +1468,8 @@ void ndb_pushed_builder_ctx::validate_join_nest(
       }
     }
   }
+
+  // Only interested in non-inner_nest dependencies
   depend_parents.subtract(inner_nest);
   m_tables[first_inner].m_ancestors.add(depend_parents);
   DBUG_ASSERT(!m_tables[first_inner].m_ancestors.contain(first_inner));
@@ -1678,7 +1722,7 @@ bool ndb_pushed_builder_ctx::is_const_item_pushable(
  * When multiple parent candidates are available, we choose the one
  * closest to the root, which will result in the most 'bushy' tree
  * structure and the highest possible parallelism. Note that SPJ block
- * will build its own execution plan (based on whats beeing set up here)
+ * will build its own execution plan (based on whats being set up here)
  * which possible sequentialize the execution of these parallel branches.
  * (See WL#11164)
  */
@@ -2082,7 +2126,7 @@ int ndb_pushed_builder_ctx::build_query() {
        * Example: t1 outer join (t2 inner join t3), where t3s join condition
        * does not refer t2. Thus, t3 will likely become an outer joined
        * child of t1 in the QueryTree. From the parent-child POW, t2,t3
-       * will look like two seperate outer joined tables, like:
+       * will look like two separate outer joined tables, like:
        * 't1, outer join (t2), outer join (t3)'.
        *
        * Such queries need to set the join nest dependencies, such that
