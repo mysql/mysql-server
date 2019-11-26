@@ -5885,7 +5885,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
       field= down_cast<Item_ref *>(field)->ref[0];
     }
     if (field->type() == Item::FIELD_ITEM)
-      table_name= down_cast<Item_field *>(field)->table_name;
+      table_name= thd->mem_strdup(down_cast<Item_field *>(field)->table_name);
     else
       table_name= "";
   }

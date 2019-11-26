@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -829,6 +829,13 @@ bool lock_schema_name(THD *thd, const char *db)
                                      thd->variables.lock_wait_timeout))
     return TRUE;
 
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true))
+    return TRUE;
+
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
   return FALSE;
 }
@@ -880,6 +887,13 @@ bool lock_tablespace_name(THD *thd, const char *tablespace)
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
     return true;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true))
+    return TRUE;
 
   DEBUG_SYNC(thd, "after_wait_locked_tablespace_name");
   return false;
@@ -996,6 +1010,13 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
+    return TRUE;
+
+  /*
+    Now when we have protection against concurrent change of read_only
+    option we can safely re-check its value.
+  */
+  if (check_readonly(thd, true))
     return TRUE;
 
   DEBUG_SYNC(thd, "after_wait_locked_pname");

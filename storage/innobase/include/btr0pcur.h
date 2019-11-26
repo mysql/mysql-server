@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -501,6 +501,12 @@ enum pcur_pos_t {
 	BTR_PCUR_IS_POSITIONED
 };
 
+/* Import tablespace context for persistent B-tree cursor. */
+struct import_ctx_t{
+	/* true if cursor fails to move to the next page during import. */
+	bool	is_error;
+};
+
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
@@ -550,6 +556,10 @@ struct btr_pcur_t{
 	byte*		old_rec_buf;
 	/** old_rec_buf size if old_rec_buf is not NULL */
 	ulint		buf_size;
+
+	/* NOTE that the following field is initialized only during import
+	tablespace, otherwise undefined */
+	import_ctx_t*	import_ctx;
 
 	/** Return the index of this persistent cursor */
 	dict_index_t*	index() const { return(btr_cur.index); }

@@ -159,5 +159,62 @@ SHOW VARIABLES LIKE "relay_log_info_repository";
 # Cleanup
 --remove_file $SEARCH_FILE
 
+--echo #
+--echo # Bug #27096081: MYSQLPUMP VALIDATES ALL DATABASE OBJECTS BY
+--echo #                IGNORING --INCLUDE_DATABASES OPTION
+--echo #
+
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 SELECT 1;
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t2(id INT);
+INSERT INTO t2 SELECT 1;
+
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+GRANT ALL ON *.* TO 'u1'@'%';
+FLUSH PRIVILEGES;
+
+--connect(conn1, localhost, u1, abc)
+
+USE db2;
+CREATE VIEW v2 AS SELECT * FROM t2;
+SHOW CREATE VIEW v2;
+
+DROP USER 'u1'@'%';
+FLUSH PRIVILEGES;
+
+--connection default
+--disconnect conn1
+
+--exec $MYSQL_PUMP --include-databases=db1 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
+--let SEARCH_PATTERN= \[NOTE\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--error 23, 42, 169, 1449
+--exec $MYSQL_PUMP --include-databases=db2 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
+
+--let SEARCH_FILE= $MYSQLTEST_VARDIR/log/bug27096081.log
+--let SEARCH_PATTERN= \[ERROR\] \(1449\) The user specified as a definer \('u1'@'%'\) does not exist
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+CREATE USER 'u1'@'%' IDENTIFIED BY 'abc';
+
+--exec $MYSQL_PUMP --include-databases=db2 --log-error-file=$MYSQLTEST_VARDIR/log/bug27096081.log > $MYSQLTEST_VARDIR/tmp/bug27096081.sql
+
+# Cleanup
+DROP USER 'u1'@'%';
+DROP DATABASE db1;
+DROP DATABASE db2;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug27096081.sql
+--remove_file $MYSQLTEST_VARDIR/log/bug27096081.log
 
 # END OF TEST

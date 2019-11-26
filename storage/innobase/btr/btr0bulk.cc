@@ -189,7 +189,8 @@ PageBulk::insert(
 		ulint*	old_offsets = rec_get_offsets(
 			old_rec, m_index, NULL,	ULINT_UNDEFINED, &m_heap);
 
-		ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index)
+		ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index,
+				  page_is_spatial_non_leaf(old_rec, m_index))
 		      > 0);
 	}
 
