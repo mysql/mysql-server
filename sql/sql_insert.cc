@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1765,6 +1765,12 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           an error is returned
         */
 	DBUG_ASSERT(table->insert_values != NULL);
+        /*
+          The insert has failed, store the insert_id generated for
+          this row to be re-used for the next insert.
+        */
+        if (insert_id_for_cur_row > 0) prev_insert_id = insert_id_for_cur_row;
+
         store_record(table,insert_values);
         restore_record(table,record[1]);
         DBUG_ASSERT(update->get_changed_columns()->elements ==
