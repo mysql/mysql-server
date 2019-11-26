@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3895,8 +3895,21 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     {
       scramble_data_len= pkt_scramble_len;
       scramble_plugin= scramble_data + scramble_data_len;
+      /*
+       There is a possibility that we did not get a correct plugin name
+       for some reason. For example, the packet was malformed and some
+       of the fields had incorrect values. In such cases, we keep the
+       plugin name empty so that the default authentication plugin
+       gets used later on. Since we don't really know the plugin for which
+       the scramble_data was prepared, we can discard it and set it's length
+       to 0.
+      */
       if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len= pkt_end - scramble_data;
+      {
+        scramble_plugin= (char*)"";
+        scramble_data= 0;
+        scramble_data_len= 0;
+      }
     }
     else
     {
