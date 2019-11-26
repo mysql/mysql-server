@@ -97,7 +97,6 @@ SET(NDBCLUSTER_SOURCES
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
-INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 IF(SOLARIS_INTEL)
   # Sun Studio 12.6 on x86 machines creates a bogus code
