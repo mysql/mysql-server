@@ -204,6 +204,14 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Warning: set address range perms: large range"),
  /* valgrind-3.5.0 dumps this */
  ("==[0-9]*== Command: "),
+ /* Messages from valgrind tools */
+ ("==[0-9]*== Callgrind"),
+ ("==[0-9]*== For interactive control, run 'callgrind_control -h'"),
+ ("==[0-9]*== Events    :"),
+ ("==[0-9]*== Collected : [0-9]+"),
+ ("==[0-9]*== I   refs:      [0-9]+"),
+ ("==[0-9]*== Massif"),
+ ("==[0-9]*== Helgrind"),
 
  /* valgrind warnings: invalid file descriptor -1 in syscall
     write()/read(). Bug #50414 */
