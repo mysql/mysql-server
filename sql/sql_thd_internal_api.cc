@@ -111,6 +111,11 @@ THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
 
 void destroy_thd(THD *thd) {
   thd->release_resources();
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_thread)(thd->get_psi());
+  thd->set_psi(nullptr);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
   // TODO: Purge threads currently terminate too late for them to be added.
   if (thd->system_thread != SYSTEM_THREAD_BACKGROUND) {
     Global_THD_manager *thd_manager = Global_THD_manager::get_instance();

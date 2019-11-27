@@ -87,6 +87,7 @@ DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd)) {
   DBUG_ASSERT(thd->m_statement_psi == nullptr);
 
   my_thread_end();
+  thd->set_psi(nullptr);
   destroy_thd(thd);
 }
 

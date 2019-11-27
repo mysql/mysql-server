@@ -701,6 +701,8 @@ PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe) {
 void destroy_thread(PFS_thread *pfs) {
   DBUG_ASSERT(pfs != nullptr);
   pfs->reset_session_connect_attrs();
+  pfs->m_thd = nullptr;
+
   if (pfs->m_account != nullptr) {
     pfs->m_account->release();
     pfs->m_account = nullptr;
