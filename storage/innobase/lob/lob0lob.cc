@@ -1376,8 +1376,12 @@ dberr_t mark_not_partially_updatable(trx_t *trx, dict_index_t *index,
       const dfield_t *old_field = &ufield->old_val;
       byte *field_ref = old_field->blobref();
       ref_t ref(field_ref);
-      ref.mark_not_partially_updatable(trx, mtr, index,
-                                       dict_table_page_size(index->table));
+
+      if (!ref.is_null_relaxed()) {
+        ut_ad(ref.space_id() == index->space_id());
+        ref.mark_not_partially_updatable(trx, mtr, index,
+                                         index->get_page_size());
+      }
     }
   }
 
