@@ -140,6 +140,11 @@ std::chrono::milliseconds MetadataCacheAPI::ttl() const {
   return g_metadata_cache->ttl();
 }
 
+mysqlrouter::ClusterType MetadataCacheAPI::cluster_type() const {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  return g_metadata_cache->cluster_type();
+}
+
 /**
  * Start the metadata cache
  */

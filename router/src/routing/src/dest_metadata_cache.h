@@ -143,15 +143,21 @@ class DestMetadataCacheGroup final
    *
    * This method gets the destinations using Metadata Cache information. It uses
    * the `metadata_cache::lookup_replicaset()` function to get a list of current
-   * managed servers.
+   * managed servers. Bool in the returned pair indicates if (in case of the
+   * round-robin-with-fallback routing strategy) the returned nodes are the
+   * primaries after the fallback (true) or secondaries (false).
    *
    */
-  AvailableDestinations get_available(
+  std::pair<AvailableDestinations, bool> get_available(
       const metadata_cache::LookupResult &managed_servers,
       bool for_new_connections = true) const;
 
+  AvailableDestinations get_available_primaries(
+      const metadata_cache::LookupResult &managed_servers) const;
+
   size_t get_next_server(
-      const DestMetadataCacheGroup::AvailableDestinations &available);
+      const DestMetadataCacheGroup::AvailableDestinations &available,
+      size_t first_available = 0);
 
   routing::RoutingStrategy routing_strategy_;
 
@@ -173,6 +179,14 @@ class DestMetadataCacheGroup final
   void notify(const metadata_cache::LookupResult &instances,
               const bool md_servers_reachable,
               const unsigned /*view_id*/) noexcept override;
+
+  int get_server_socket_gr(
+      std::chrono::milliseconds connect_timeout, int *error,
+      mysql_harness::TCPAddress *address = nullptr) noexcept;
+
+  int get_server_socket_rs(
+      std::chrono::milliseconds connect_timeout, int *error,
+      mysql_harness::TCPAddress *address = nullptr) noexcept;
 };
 
 #endif  // ROUTING_DEST_METADATA_CACHE_INCLUDED

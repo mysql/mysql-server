@@ -53,6 +53,10 @@ class METADATA_API ARMetadataCache : public MetadataCache {
                       false) {}
 
   bool refresh() override;
+
+  mysqlrouter::ClusterType cluster_type() const noexcept override {
+    return mysqlrouter::ClusterType::RS_V2;
+  }
 };
 
 #endif  // METADATA_CACHE_METADATA_CACHE_AR_INCLUDED
