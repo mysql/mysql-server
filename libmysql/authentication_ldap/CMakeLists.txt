@@ -42,6 +42,8 @@ IF(APPLE)
   STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-declarations")
 ENDIF()
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 IF(NOT WIN32)
   IF(DEFINED WITH_SASL)
     MESSAGE(STATUS ${ARGV} "Currently LDAP SASL client authentication plug-in is build with only system installed cyrus SASL library.")

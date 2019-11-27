@@ -381,6 +381,14 @@ IF(MY_COMPILER_IS_GNU)
     )
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS ${HAS_WARN_FLAG}
+    )
+ENDIF()
+
 # Verify that libmysql_api_test runs OK
 ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
   COMMAND libmysql_api_test

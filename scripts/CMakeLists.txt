@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+DISABLE_MISSING_PROFILE_WARNING()
+
 ADD_SUBDIRECTORY(sys_schema)
 
 MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.cc SKIP_INSTALL)
