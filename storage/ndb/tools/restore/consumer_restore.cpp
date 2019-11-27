@@ -2614,8 +2614,8 @@ BackupRestore::table_compatible_check(TableS & tableS)
   {
     // fully qualified name, dissected at createTable()
     BaseString& stagingName = tableS.m_stagingName;
-    stagingName.assfmt("%s%s%d", tableS.getTableName(),
-                       NDB_RESTORE_STAGING_SUFFIX, m_backup_nodeid);
+    stagingName.assfmt("%s%s%s", tableS.getTableName(),
+                       NDB_RESTORE_STAGING_SUFFIX, m_restore_id.c_str());
 
     NdbDictionary::Table* stagingTable = new NdbDictionary::Table;
 

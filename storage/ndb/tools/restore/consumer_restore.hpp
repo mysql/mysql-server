@@ -70,7 +70,7 @@ public:
                 int ndb_nodeid,
                 NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
-                int backup_nodeid,
+                const char *restore_id,
                 Uint32 parallelism,
                 int ndb_connect_retry_delay,
                 int ndb_connect_retries
@@ -80,7 +80,8 @@ public:
     m_ndb_connectstring(ndb_connectstring),
     m_ndb_connect_retry_delay(ndb_connect_retry_delay),
     m_ndb_connect_retries(ndb_connect_retries),
-    m_ndb_nodeid(ndb_nodeid)
+    m_ndb_nodeid(ndb_nodeid),
+    m_restore_id(restore_id)
   {
     m_nodegroup_map = ng_map;
     m_nodegroup_map_len = ng_map_len;
@@ -95,7 +96,6 @@ public:
     m_restore_meta = false;
     m_no_restore_disk = false;
     m_restore_epoch = false;
-    m_backup_nodeid = backup_nodeid;
     m_parallelism = parallelism;
     m_callback = 0;
     m_free_callback = 0;
@@ -254,7 +254,6 @@ public:
   Uint32 m_logCount;
   Uint32 m_dataCount;
 
-  int m_backup_nodeid;
   Uint32 m_parallelism;
   volatile Uint32 m_transactions;
 
@@ -272,6 +271,9 @@ public:
     const NdbDictionary::Table* m_old_table;
     const NdbDictionary::Table* m_new_table;
   } m_cache;
+
+  BaseString m_restore_id;
+
   const NdbDictionary::Table* get_table(const TableS &);
 
   Vector<Uint64> m_auto_values;
