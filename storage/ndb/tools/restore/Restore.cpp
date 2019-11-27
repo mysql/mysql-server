@@ -803,6 +803,7 @@ RestoreMetaData::readFragmentInfo()
       (((Uint64)ntohl(fragInfo.NoOfRecordsHigh)) << 32);
     tmp->filePosLow = ntohl(fragInfo.FilePosLow);
     tmp->filePosHigh = ntohl(fragInfo.FilePosHigh);
+    tmp->sliceSkip = false; /* Init, set later */
 
     table->m_fragmentInfo.push_back(tmp);
     table->m_noOfRecords += tmp->noOfRecords;
@@ -823,6 +824,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_broken = false;
   m_main_table = NULL;
   m_main_column_id = ~(Uint32)0;
+  m_has_blobs = false;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -1048,7 +1050,7 @@ charpad:
 }
 
 const TupleS *
-RestoreDataIterator::getNextTuple(int  & res)
+RestoreDataIterator::getNextTuple(int  & res, const bool skipFragment)
 {
   if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
   {
@@ -1065,52 +1067,65 @@ RestoreDataIterator::getNextTuple(int  & res)
     }
   }
   
-  Uint32  dataLength = 0;
-  // Read record length
-  if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
-    restoreLogger.log_error("getNextTuple:Error reading length of data part");
-    res = -1;
-    return NULL;
-  } // if
+  while (true)
+  {
+    Uint32  dataLength = 0;
+    // Read record length
+    if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
+      restoreLogger.log_error("getNextTuple:Error reading length of data part");
+      res = -1;
+      return NULL;
+    } // if
   
-  // Convert length from network byte order
-  dataLength = ntohl(dataLength);
-  const Uint32 dataLenBytes = 4 * dataLength;
+    // Convert length from network byte order
+    dataLength = ntohl(dataLength);
+    const Uint32 dataLenBytes = 4 * dataLength;
   
-  if (dataLength == 0) {
-    // Zero length for last tuple
-    // End of this data fragment
-    restoreLogger.log_debug("End of fragment");
+    if (dataLength == 0) {
+      // Zero length for last tuple
+      // End of this data fragment
+      restoreLogger.log_debug("End of fragment");
+      res = 0;
+      return NULL;
+    } // if
+
+    // Read tuple data
+    void *_buf_ptr;
+    if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
+      restoreLogger.log_error("getNextTuple:Read error: ");
+      res = -1;
+      return NULL;
+    }
+
+    m_count++;
+
+    if (skipFragment)
+    {
+      /**
+       * Skip unpacking work, we just want to read all the tuples up
+       * to the end of this fragment
+       */
+      continue;
+    }
+
+    Uint32 *buf_ptr = (Uint32*)_buf_ptr;
+    if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
+    {
+      res = readTupleData_packed(buf_ptr, dataLength);
+    }
+    else
+    {
+      res = readTupleData_old(buf_ptr, dataLength);
+    }
+
+    if (res)
+    {
+      return NULL;
+    }
+
     res = 0;
-    return NULL;
-  } // if
-
-  // Read tuple data
-  void *_buf_ptr;
-  if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
-    restoreLogger.log_error("getNextTuple:Read error: ");
-    res = -1;
-    return NULL;
+    return &m_tuple;
   }
-
-  Uint32 *buf_ptr = (Uint32*)_buf_ptr;
-  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
-  {
-    res = readTupleData_packed(buf_ptr, dataLength);
-  }
-  else
-  {
-    res = readTupleData_old(buf_ptr, dataLength);
-  }
-  
-  if (res)
-  {
-    return NULL;
-  }
-
-  m_count ++;  
-  res = 0;
-  return &m_tuple;
 } // RestoreDataIterator::getNextTuple
 
 TableS *
@@ -1984,6 +1999,14 @@ void TableS::createAttr(NdbDictionary::Column *column)
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
     m_nullBitmaskSize = (m_noOfNullable + 31) / 32;
+  }
+  if ((d->m_column->getType() == NdbDictionary::Column::Blob) ||
+      (d->m_column->getType() == NdbDictionary::Column::Text))
+  {
+    if (d->m_column->getPartSize() > 0)
+    {
+      m_has_blobs = true;
+    }
   }
   m_variableAttribs.push_back(d);
 } // TableS::createAttr
