@@ -592,7 +592,7 @@ static const char *create_tmp_table_field_tmp_name(THD *thd, Item *item) {
       thd, &field_name,
       enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
   thd->variables.option_bits = save_bits;
-  return thd->mem_strdup(field_name.c_ptr());
+  return thd->mem_strdup(field_name.c_ptr_safe());
 }
 
 /**
