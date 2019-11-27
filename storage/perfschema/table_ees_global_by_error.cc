@@ -101,7 +101,7 @@ int table_ees_global_by_error::delete_all_rows(void) {
 }
 
 ha_rows table_ees_global_by_error::get_row_count(void) {
-  return error_class_max * max_server_errors;
+  return error_class_max * max_global_server_errors;
 }
 
 table_ees_global_by_error::table_ees_global_by_error()
@@ -164,16 +164,28 @@ int table_ees_global_by_error::index_next(void) {
   return HA_ERR_END_OF_FILE;
 }
 
-int table_ees_global_by_error::make_row(int error_index) {
+int table_ees_global_by_error::make_row(uint error_index) {
   PFS_error_class *klass = &global_error_class;
 
   PFS_connection_error_visitor visitor(klass, error_index);
-  PFS_connection_iterator::visit_global(true,  /* hosts */
-                                        false, /* users */
-                                        true,  /* accounts */
-                                        true,  /* threads */
-                                        false, /* THDs */
-                                        &visitor);
+
+  if (error_index < max_session_server_errors) {
+    /* Adding per session stats. */
+    PFS_connection_iterator::visit_global(true,  /* hosts */
+                                          false, /* users */
+                                          true,  /* accounts */
+                                          true,  /* threads */
+                                          false, /* THDs */
+                                          &visitor);
+  } else {
+    /* Global statistics only. */
+    PFS_connection_iterator::visit_global(false, /* hosts */
+                                          false, /* users */
+                                          false, /* accounts */
+                                          false, /* threads */
+                                          false, /* THDs */
+                                          &visitor);
+  }
 
   m_row.m_stat.set(&visitor.m_stat, error_index);
 
@@ -190,9 +202,10 @@ int table_ees_global_by_error::read_row_values(TABLE *table, unsigned char *buf,
   buf[0] = 0;
 
   if (m_row.m_stat.m_error_index > 0 &&
-      m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
+      m_row.m_stat.m_error_index < PFS_MAX_GLOBAL_SERVER_ERRORS) {
     temp_error =
         &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+  }
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {

@@ -79,7 +79,9 @@ struct pos_ees_global_by_error : public PFS_simple_index {
 
   inline void next(void) { m_index++; }
 
-  inline bool has_more_error(void) { return (m_index < max_server_errors); }
+  inline bool has_more_error(void) {
+    return (m_index < max_global_server_errors);
+  }
 
   inline void next_error(void) { m_index++; }
 };
@@ -112,7 +114,7 @@ class table_ees_global_by_error : public PFS_engine_table {
   ~table_ees_global_by_error() {}
 
  protected:
-  int make_row(int error_index);
+  int make_row(uint error_index);
 
  private:
   /** Table share lock. */

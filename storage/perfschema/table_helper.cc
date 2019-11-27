@@ -1769,7 +1769,7 @@ bool PFS_key_port::match(const PFS_socket *pfs) {
 }
 
 bool PFS_key_error_number::match_error_index(uint error_index) {
-  DBUG_ASSERT(error_index < PFS_MAX_SERVER_ERRORS);
+  DBUG_ASSERT(error_index < PFS_MAX_GLOBAL_SERVER_ERRORS);
 
   server_error *temp_error;
   temp_error = &error_names_array[pfs_to_server_error_map[error_index]];

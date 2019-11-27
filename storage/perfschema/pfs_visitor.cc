@@ -1033,7 +1033,7 @@ void PFS_connection_transaction_visitor::visit_thread(PFS_thread *pfs) {
 }
 
 PFS_connection_error_visitor::PFS_connection_error_visitor(
-    PFS_error_class *klass, int error_index)
+    PFS_error_class *klass, uint error_index)
     : m_error_index(error_index) {
   m_index = klass->m_event_name_index;
   m_stat.reset();

@@ -38,7 +38,8 @@
 static const int NUM_SECTIONS =
     sizeof(errmsg_section_start) / sizeof(errmsg_section_start[0]);
 
-extern uint max_server_errors;
+extern uint max_global_server_errors;
+extern uint max_session_server_errors;
 extern uint pfs_to_server_error_map[];
 
 struct PFS_thread;

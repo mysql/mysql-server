@@ -565,11 +565,13 @@ struct PFS_error_single_stat {
   }
 };
 
-/* Statistics for all server errors. */
+/** Statistics for all server errors. */
 struct PFS_error_stat {
+  /** The number of errors, including +1 for the NULL row. */
+  size_t m_max_errors;
   PFS_error_single_stat *m_stat;
 
-  PFS_error_stat() { m_stat = nullptr; }
+  PFS_error_stat() : m_max_errors(0), m_stat(nullptr) {}
 
   const PFS_error_single_stat *get_stat(uint error_index) const {
     return &m_stat[error_index];
@@ -577,7 +579,7 @@ struct PFS_error_stat {
 
   ulonglong count(void) {
     ulonglong total = 0;
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    for (uint i = 0; i < m_max_errors; i++) {
       total += m_stat[i].count();
     }
     return total;
@@ -585,13 +587,14 @@ struct PFS_error_stat {
 
   ulonglong count(uint error_index) { return m_stat[error_index].count(); }
 
-  inline void init(PFS_builtin_memory_class *memory_class) {
-    if (max_server_errors == 0) {
+  inline void init(PFS_builtin_memory_class *memory_class, size_t max_errors) {
+    if (max_errors == 0) {
       return;
     }
 
-    /* allocate memory for errors' stats. +1 is for NULL row */
-    m_stat = PFS_MALLOC_ARRAY(memory_class, max_server_errors + 1,
+    m_max_errors = max_errors;
+    /* Allocate memory for errors' stats. The NULL row is already included. */
+    m_stat = PFS_MALLOC_ARRAY(memory_class, m_max_errors,
                               sizeof(PFS_error_single_stat),
                               PFS_error_single_stat, MYF(MY_ZEROFILL));
     reset();
@@ -602,8 +605,8 @@ struct PFS_error_stat {
       return;
     }
 
-    PFS_FREE_ARRAY(memory_class, max_server_errors + 1,
-                   sizeof(PFS_error_single_stat), m_stat);
+    PFS_FREE_ARRAY(memory_class, m_max_errors, sizeof(PFS_error_single_stat),
+                   m_stat);
     m_stat = nullptr;
   }
 
@@ -612,7 +615,7 @@ struct PFS_error_stat {
       return;
     }
 
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    for (uint i = 0; i < m_max_errors; i++) {
       m_stat[i].reset();
     }
   }
@@ -631,7 +634,7 @@ struct PFS_error_stat {
       return;
     }
 
-    DBUG_ASSERT(error_index <= max_server_errors);
+    DBUG_ASSERT(error_index < m_max_errors);
     m_stat[error_index].aggregate(stat);
   }
 
@@ -640,7 +643,12 @@ struct PFS_error_stat {
       return;
     }
 
-    for (uint i = 0; i < max_server_errors + 1; i++) {
+    /*
+      Sizes can be different, for example when aggregating
+      per session statistics into global statistics.
+    */
+    size_t common_max = std::min(m_max_errors, stat->m_max_errors);
+    for (uint i = 0; i < common_max; i++) {
       m_stat[i].aggregate(&stat->m_stat[i]);
     }
   }
