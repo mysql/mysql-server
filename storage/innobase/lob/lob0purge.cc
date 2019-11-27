@@ -41,15 +41,14 @@ namespace lob {
 /** Rollback from undo log information.
 @param[in]	ctx	the delete operation context.
 @param[in]	index	the clustered index to which LOB belongs.
-@param[in]	ref	the LOB reference object.
 @param[in]	uf	the update vector of concerned field. */
 static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
-                                  ref_t &ref, const upd_field_t *uf) {
+                                  const upd_field_t *uf) {
   DBUG_TRACE;
 
   trx_t *trx = nullptr;
 
-  dberr_t err = apply_undolog(ctx->get_mtr(), trx, index, ref, uf);
+  dberr_t err = apply_undolog(ctx->get_mtr(), trx, index, ctx->m_blobref, uf);
   ut_a(err == DB_SUCCESS);
 }
 
@@ -59,13 +58,13 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
 @param[in]	trxid		the transaction that is being rolled back.
 @param[in]	undo_no		during rollback to savepoint, rollback only
                                 upto this undo number.
-@param[in]	ref		reference to LOB that is being rolled back.
 @param[in]	rec_type	undo record type.
 @param[in]	uf		update vector of the concerned field. */
 static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-                     undo_no_t undo_no, ref_t &ref, ulint rec_type,
-                     const upd_field_t *uf) {
+                     undo_no_t undo_no, ulint rec_type, const upd_field_t *uf) {
   DBUG_TRACE;
+
+  ref_t &ref = ctx->m_blobref;
 
   ut_ad(ctx->m_rollback);
 
@@ -73,7 +72,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     /* Undo log contains changes done to the LOB.  This must have
     been a small change done to LOB.  Apply the undo log on the
     LOB.*/
-    rollback_from_undolog(ctx, index, ref, uf);
+    rollback_from_undolog(ctx, index, uf);
     return;
   }
 
@@ -181,11 +180,12 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 @param[in]	trxid		the transaction that is being rolled back.
 @param[in]	undo_no		during rollback to savepoint, rollback only
                                 upto this undo number.
-@param[in]	ref		reference to LOB that is purged.
 @param[in]	rec_type	undo record type. */
 static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-                       undo_no_t undo_no, ref_t &ref, ulint rec_type) {
+                       undo_no_t undo_no, ulint rec_type) {
   ut_ad(ctx->m_rollback);
+
+  ref_t &ref = ctx->m_blobref;
 
   mtr_t local_mtr;
   mtr_start(&local_mtr);
@@ -196,7 +196,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   data should not be read. OTOH we do not ref.set_page_no(FIL_NULL, 0)
   until we delete all the pages, so that the recovery can use the reference to
   find the remaining parts of the LOB. */
-  ref.set_length(0, 0);
+  ref.set_length(0, nullptr);
   ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
 
   page_no_t first_page_no = ref.page_no();
@@ -256,7 +256,7 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ut_ad(ctx->get_page_zip() != nullptr);
   /* We are done with cleaning up index entries for the given version, so now we
   can modify the reference, so that it is no longer reachable. */
-  ref.set_page_no(FIL_NULL, 0);
+  ref.set_page_no(FIL_NULL, nullptr);
   ut_ad(ref.length() == 0);
   ctx->x_latch_rec_page(&local_mtr);
   ctx->zblob_write_blobref(ctx->m_field_no, &local_mtr);
@@ -272,14 +272,14 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 @param[in]	trxid		the transaction that is being purged.
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
-@param[in]	ref		reference to LOB that is purged.
 @param[in]	rec_type	undo record type. */
 static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-                    undo_no_t undo_no, ref_t &ref, ulint rec_type) {
+                    undo_no_t undo_no, ulint rec_type) {
   const bool is_rollback = ctx->m_rollback;
+  ref_t &ref = ctx->m_blobref;
 
   if (is_rollback) {
-    z_rollback(ctx, index, trxid, undo_no, ref, rec_type);
+    z_rollback(ctx, index, trxid, undo_no, rec_type);
     return;
   }
 
@@ -366,21 +366,12 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 }
 
-/** Purge an uncompressed LOB.
-@param[in]	ctx		the delete operation context information.
-@param[in]	index		clustered index in which LOB is present
-@param[in]	trxid		the transaction that is being purged.
-@param[in]	undo_no		during rollback to savepoint, purge only upto
-                                this undo number.
-@param[in]	ref		reference to LOB that is purged.
-@param[in]	rec_type	undo record type.
-@param[in]	uf		the update vector for the field. */
 void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, ref_t ref, ulint rec_type,
-           const upd_field_t *uf) {
+           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf) {
   DBUG_TRACE;
   mtr_t lob_mtr;
 
+  ref_t &ref = ctx->m_blobref;
   mtr_t *mtr = ctx->get_mtr();
   const mtr_log_t log_mode = mtr->get_log_mode();
   const bool is_rollback = ctx->m_rollback;
@@ -409,29 +400,46 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     return;
   }
 
-  /* Below we will restart the btr_mtr.  Between the cursor store and restore,
-  it is possible that the position of the record changes and hence the lob
-  reference could become invalid.  To avoid this take the latches before
-  restarting the btr_mtr. */
-
-  mtr_start(&lob_mtr);
-  mtr_sx_lock(dict_index_get_lock(index), &lob_mtr);
-
+  /* The purpose of the following block is to ensure that the parent mtr does
+  not hold any redo log while creating child mtrs. */
   if (ctx->m_pcur != nullptr) {
+    /* Below we will restart the btr_mtr.  Between the cursor store and restore,
+    it is possible that the position of the record changes and hence the lob
+    reference could become invalid.  Reset it to correct value. */
     ctx->restart_mtr();
+    byte *field_ref = ctx->get_field_ref(ctx->m_field_no);
+    ref.set_ref(field_ref);
   } else {
+    /* Since pcur is not available, take latches to ensure that the record
+    position does not change.  We imitate the purge thread for the latches
+    taken and the order in which they are taken.  Kindly refer to the
+    function row_purge_upd_exist_or_extern_func(). */
+    mtr_start(&lob_mtr);
+    mtr_sx_lock(dict_index_get_lock(index), &lob_mtr);
+    btr_root_get(index, &lob_mtr);
     ctx->x_latch_rec_page(&lob_mtr);
     ctx->restart_mtr();
     mtr_sx_lock(dict_index_get_lock(index), mtr);
+    btr_root_get(index, mtr);
     ctx->x_latch_rec_page(mtr);
+    mtr_commit(&lob_mtr);
   }
-  mtr_commit(&lob_mtr);
+
+  /* If rec_type is 0, it is not the purge operation. */
+  if (!is_rollback && rec_type != 0 && !ctx->is_delete_marked()) {
+    /* This is the purge operation. The delete marked clustered record has been
+    reused. Purge shouldn't proceed. */
+    return;
+  }
+
+  ut_ad(ctx->is_ref_valid());
 
   space_id_t space_id = ref.space_id();
-
+  ut_ad(space_id == index->space_id());
   page_no_t first_page_no = ref.page_no();
   page_id_t page_id(space_id, first_page_no);
   page_size_t page_size(dict_table_page_size(index->table));
+
   page_type_t page_type =
       first_page_t::get_page_type(index, page_id, page_size);
 
@@ -445,14 +453,14 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   }
 
   if (page_type == FIL_PAGE_TYPE_ZLOB_FIRST) {
-    z_purge(ctx, index, trxid, undo_no, ref, rec_type);
+    z_purge(ctx, index, trxid, undo_no, rec_type);
     return;
   }
 
   ut_a(page_type == FIL_PAGE_TYPE_LOB_FIRST);
 
   if (is_rollback) {
-    rollback(ctx, index, trxid, undo_no, ref, rec_type, uf);
+    rollback(ctx, index, trxid, undo_no, rec_type, uf);
     return;
   }
 
