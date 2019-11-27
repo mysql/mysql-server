@@ -171,6 +171,8 @@ class METADATA_API MetadataCache
   std::chrono::milliseconds ttl() const { return ttl_; }
   std::string cluster_name() const { return cluster_name_; }
 
+  virtual mysqlrouter::ClusterType cluster_type() const noexcept = 0;
+
   std::vector<mysql_harness::TCPAddress> metadata_servers();
 
  protected:
