@@ -1350,11 +1350,6 @@ struct Reader {
 /** The context information when the delete operation on LOB is
 taking place. */
 struct DeleteContext : public BtrContext {
-  DeleteContext(byte *field_ref)
-      : m_blobref(field_ref),
-        m_page_size(table() == nullptr ? get_page_size()
-                                       : dict_table_page_size(table())) {}
-
   /** Constructor. */
   DeleteContext(const BtrContext &btr, byte *field_ref, ulint field_no,
                 bool rollback)
@@ -1363,7 +1358,13 @@ struct DeleteContext : public BtrContext {
         m_field_no(field_no),
         m_rollback(rollback),
         m_page_size(table() == nullptr ? get_page_size()
-                                       : dict_table_page_size(table())) {}
+                                       : dict_table_page_size(table())) {
+    m_blobref.parse(m_blobref_mem);
+  }
+
+  bool is_ref_valid() const {
+    return (m_blobref_mem.m_page_no == m_blobref.page_no());
+  }
 
   /** Determine if it is compressed page format.
   @return true if compressed. */
@@ -1375,6 +1376,14 @@ struct DeleteContext : public BtrContext {
     space_id_t space_id = m_blobref.space_id();
     uint32_t flags = fil_space_get_flags(space_id);
     return (DICT_TF_HAS_ATOMIC_BLOBS(flags));
+  }
+
+  bool is_delete_marked() const {
+    rec_t *clust_rec = rec();
+    if (clust_rec == nullptr) {
+      return (true);
+    }
+    return (rec_get_deleted_flag(clust_rec, page_rec_is_comp(clust_rec)));
   }
 
 #ifdef UNIV_DEBUG
@@ -1390,7 +1399,6 @@ struct DeleteContext : public BtrContext {
     }
     return (true);
   }
-
 #endif /* UNIV_DEBUG */
 
   /** Acquire an x-latch on the index page containing the clustered
@@ -1410,6 +1418,9 @@ struct DeleteContext : public BtrContext {
   page_size_t m_page_size;
 
  private:
+  /** Memory copy of the original LOB reference. */
+  ref_mem_t m_blobref_mem;
+
   /** Obtain the page size from the tablespace flags.
   @return the page size. */
   page_size_t get_page_size() const {
@@ -1523,11 +1534,10 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
 @param[in]	trxid		the transaction that is being purged.
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
-@param[in]	ref		reference to LOB that is purged.
-@param[in]	rec_type	undo record type.*/
+@param[in]	rec_type	undo record type.
+@param[in]	uf		the update vector for the field. */
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, lob::ref_t ref, ulint rec_type,
-           const upd_field_t *uf);
+           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf);
 
 /** Update a portion of the given LOB.
 @param[in]	ctx		update operation context information.

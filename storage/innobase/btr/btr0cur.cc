@@ -4707,10 +4707,32 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
   if (rec_offs_any_extern(offsets)) {
     lob::BtrContext btr_ctx(mtr, pcur, index, rec, offsets, block);
 
+    /* The following call will restart the btr_mtr, which could change the
+    cursor position. */
     btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
 #ifdef UNIV_ZIP_DEBUG
     ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
+
+    /* The cursor position could have changed now. */
+    if (pcur != nullptr) {
+      cursor = pcur->get_btr_cur();
+      block = btr_cur_get_block(cursor);
+      page = buf_block_get_frame(block);
+      rec = btr_cur_get_rec(cursor);
+      rec_offs_make_valid(rec, index, offsets);
+    }
+
+    /* While purging LOBs, there are intermediate mtr commits which releases
+    the latches.  In that duration, it is possible that the clust_rec is reused.
+    In such situation, don't proceed further. */
+    if (!rollback && rec_type != 0 &&
+        !rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+      /* This is the purge thread.  For the purge thread, rec_type will have a
+       * valid value. */
+      ret = TRUE;
+      goto return_after_reservations;
+    }
   }
 
   if (UNIV_UNLIKELY(page_get_n_recs(page) < 2) &&

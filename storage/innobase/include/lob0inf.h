@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -77,19 +77,6 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf);
 @return the amount of data (in bytes) that was actually read. */
 ulint z_read(lob::ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
              byte *buf);
-
-/** Purge an LOB (either of compressed or uncompressed).
-@param[in]	ctx		the delete operation context information.
-@param[in]	index		clustered index in which LOB is present
-@param[in]	trxid		the transaction that is being purged.
-@param[in]	undo_no		during rollback to savepoint, purge only upto
-                                this undo number.
-@param[in]	ref		reference to LOB that is purged.
-@param[in]	rec_type	undo record type.
-@param[in]	uf		update done on the field. */
-void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, lob::ref_t ref, ulint rec_type,
-           const upd_field_t *uf);
 
 /** Print information about the given LOB.
 @param[in]  trx  the current transaction.
