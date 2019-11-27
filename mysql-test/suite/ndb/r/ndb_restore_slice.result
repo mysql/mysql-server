@@ -1,0 +1,87 @@
+use test;
+create table test.t1 (a varchar(20) not null,
+b varchar(20) not null,
+c varchar(20),
+d varchar(20),
+e text,
+primary key(a,b)) engine=ndb;
+insert into test.t1 values
+("1a","1b",NULL,"1d", repeat('01WIFUA',1000)),
+("2a","2b",NULL,"2d", repeat('02WIFUA',1000)),
+("3a","3b",NULL,"3d", repeat('03WIFUA',1000)),
+("4a","4b",NULL,"4d", repeat('04WIFUA',1000)),
+("5a","5b",NULL,"5d", repeat('05WIFUA',1000)),
+("6a","6b",NULL,"6d", repeat('06WIFUA',1000)),
+("7a","7b",NULL,"7d", repeat('07WIFUA',1000)),
+("8a","8b",NULL,"8d", repeat('08WIFUA',1000)),
+("9a","9b",NULL,"9d", repeat('09WIFUA',1000)),
+("10a","10b",NULL,"10d", repeat('10WIFUA',1000)),
+("11a","11b",NULL,"11d", repeat('11WIFUA',1000)),
+("12a","12b",NULL,"12d", repeat('12WIFUA',1000)),
+("13a","13b",NULL,"13d", repeat('13WIFUA',1000)),
+("14a","14b",NULL,"14d", repeat('14WIFUA',1000)),
+("15a","15b",NULL,"15d", repeat('15WIFUA',1000)),
+("16a","16b",NULL,"16d", repeat('16WIFUA',1000));
+Stall backup completion
+Run backup
+Starting backup
+Backup started
+Make some changes which will be logged...
+insert into test.t1 values
+("17a","17b",NULL,"17d", repeat('17WIFUA',1000)),
+("18a","18b",NULL,"18d", repeat('18WIFUA',1000)),
+("19a","19b",NULL,"19d", repeat('19WIFUA',1000));
+update test.t1 set d=concat(d, "-modified");
+delete from test.t1 where a in ("5a","18a");
+Allow backup to complete...
+Waiting for backup to complete
+Backup completed
+delete from test.t1;
+# Normal restore using slices
+select a,b,c,d,length(e), right(e, 7)  from test.t1 order by a,b;
+a	b	c	d	length(e)	right(e, 7)
+10a	10b	NULL	10d-modified	7000	10WIFUA
+11a	11b	NULL	11d-modified	7000	11WIFUA
+12a	12b	NULL	12d-modified	7000	12WIFUA
+13a	13b	NULL	13d-modified	7000	13WIFUA
+14a	14b	NULL	14d-modified	7000	14WIFUA
+15a	15b	NULL	15d-modified	7000	15WIFUA
+16a	16b	NULL	16d-modified	7000	16WIFUA
+17a	17b	NULL	17d-modified	7000	17WIFUA
+19a	19b	NULL	19d-modified	7000	19WIFUA
+1a	1b	NULL	1d-modified	7000	01WIFUA
+2a	2b	NULL	2d-modified	7000	02WIFUA
+3a	3b	NULL	3d-modified	7000	03WIFUA
+4a	4b	NULL	4d-modified	7000	04WIFUA
+6a	6b	NULL	6d-modified	7000	06WIFUA
+7a	7b	NULL	7d-modified	7000	07WIFUA
+8a	8b	NULL	8d-modified	7000	08WIFUA
+9a	9b	NULL	9d-modified	7000	09WIFUA
+drop table test.t1;
+# Restore with staging conversions + slices
+create table test.t1 (a varchar(20) not null,
+b varchar(20) not null,
+c text,
+d text,
+e text,
+primary key(a,b)) engine=ndb;
+select a,b,c,d,length(e), right(e, 7)  from test.t1 order by a,b;
+a	b	c	d	length(e)	right(e, 7)
+10a	10b	NULL	10d-modified	7000	10WIFUA
+11a	11b	NULL	11d-modified	7000	11WIFUA
+12a	12b	NULL	12d-modified	7000	12WIFUA
+13a	13b	NULL	13d-modified	7000	13WIFUA
+14a	14b	NULL	14d-modified	7000	14WIFUA
+15a	15b	NULL	15d-modified	7000	15WIFUA
+16a	16b	NULL	16d-modified	7000	16WIFUA
+17a	17b	NULL	17d-modified	7000	17WIFUA
+19a	19b	NULL	19d-modified	7000	19WIFUA
+1a	1b	NULL	1d-modified	7000	01WIFUA
+2a	2b	NULL	2d-modified	7000	02WIFUA
+3a	3b	NULL	3d-modified	7000	03WIFUA
+4a	4b	NULL	4d-modified	7000	04WIFUA
+6a	6b	NULL	6d-modified	7000	06WIFUA
+7a	7b	NULL	7d-modified	7000	07WIFUA
+8a	8b	NULL	8d-modified	7000	08WIFUA
+9a	9b	NULL	9d-modified	7000	09WIFUA
+drop table test.t1;

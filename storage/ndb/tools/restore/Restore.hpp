@@ -161,6 +161,7 @@ struct FragmentInfo
   Uint64 noOfRecords;
   Uint32 filePosLow;
   Uint32 filePosHigh;
+  bool   sliceSkip;
 };
 
 class TableS {
@@ -190,6 +191,7 @@ class TableS {
   TableS *m_main_table;
   Uint32 m_main_column_id;
   Uint32 m_local_id;
+  bool m_has_blobs;
 
   Uint64 m_noOfRecords;
   Vector<FragmentInfo *> m_fragmentInfo;
@@ -277,10 +279,53 @@ public:
     return m_isSYSTAB_0;
   } 
 
+  /**
+   * isBlobRelated
+   * Returns true if a table contains blobs, or is
+   * a Blob parts table
+   */
+  bool isBlobRelated() const
+  {
+    return (m_has_blobs || m_main_table != NULL);
+  }
+
   inline
   bool isBroken() const {
     return m_broken || (m_main_table && m_main_table->isBroken());
   }
+
+  void setSliceSkipFlag(int fragmentId, bool value)
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32) fragmentId)
+      {
+        m_fragmentInfo[i]->sliceSkip = value;
+        return;
+      }
+    }
+    ndbout_c("setSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+  }
+
+  bool getSliceSkipFlag(int fragmentId) const
+  {
+    for (Uint32 i=0; i<m_fragmentInfo.size(); i++)
+    {
+      if (m_fragmentInfo[i]->fragmentNo == (Uint32)fragmentId)
+      {
+        return m_fragmentInfo[i]->sliceSkip;
+      }
+    }
+    ndbout_c("getSkipFlag() Error looking up info for fragment %u on table %s",
+             fragmentId,
+             m_dictTable->getName());
+    abort();
+    return false;
+  }
+
 
   bool m_staging;
   BaseString m_stagingName;
@@ -438,7 +483,7 @@ public:
   bool validateFragmentFooter();
   bool validateRestoreDataIterator();
 
-  const TupleS *getNextTuple(int & res);
+  const TupleS *getNextTuple(int & res, const bool skipFragment);
   TableS *getCurrentTable();
 
 private:

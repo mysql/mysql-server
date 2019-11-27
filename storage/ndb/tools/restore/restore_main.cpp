@@ -140,6 +140,8 @@ static bool ga_rebuild_indexes = false;
 bool ga_skip_unknown_objects = false;
 bool ga_skip_broken_objects = false;
 BaseString g_options("ndb_restore");
+static int ga_num_slices = 1;
+static int ga_slice_id = 0;
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
@@ -362,6 +364,32 @@ static struct my_option my_long_options[] =
     (uchar **)&_error_insert, (uchar **)&_error_insert, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
 #endif
+  { "num_slices", NDB_OPT_NOSHORT,
+    "How many slices are being applied",
+    (uchar**) &ga_num_slices,
+    (uchar**) &ga_num_slices,
+    0,
+    GET_UINT,
+    REQUIRED_ARG,
+    1, /* default */
+    1, /* min */
+    1024, /* max */
+    0,
+    0,
+    0 },
+  { "slice_id", NDB_OPT_NOSHORT,
+    "My slice id",
+    (uchar**) &ga_slice_id,
+    (uchar**) &ga_slice_id,
+    0,
+    GET_INT,
+    REQUIRED_ARG,
+    0, /* default */
+    0, /* min */
+    1023, /* max */
+    0,
+    0,
+    0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -850,7 +878,10 @@ bool create_consumers(RestoreThreadData *data)
     ga_nParallelism /= ga_part_count;
 
   char threadname[20];
-  BaseString::snprintf(threadname, sizeof(threadname), "%d-%u", ga_nodeId, data->m_part_id);
+  BaseString::snprintf(threadname, sizeof(threadname), "%d-%u-%u",
+                       ga_nodeId,
+                       data->m_part_id,
+                       ga_slice_id);
   BackupRestore* restore = new BackupRestore(g_cluster_connection,
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
@@ -1385,6 +1416,85 @@ check_data_truncations(const TableS * table)
   }
 }
 
+
+/**
+ * Determine whether we should skip this table fragment due to
+ * operating in slice mode
+ */
+static bool
+determine_slice_skip_fragment(TableS * table, Uint32 fragmentId, Uint32& fragmentCount)
+{
+  if (ga_num_slices == 1)
+  {
+    /* No slicing */
+    return false;
+  }
+
+  /* Should we restore this fragment? */
+  int fragmentRestoreSlice = 0;
+  if (table->isBlobRelated())
+  {
+    /**
+     * v2 blobs + staging tables
+     * Staging tables need complete blobs restored
+     * at end of slice restore
+     * That requires that we restore matching main and
+     * parts table fragments
+     * So we must ensure that we slice deterministically
+     * across main and parts tables for Blobs tables.
+     * The id of the 'main' table is used to give some
+     * offsetting
+     */
+    const Uint32 mainId = table->getMainTable() ?
+      table->getMainTable()->getTableId() :  // Parts table
+      table->getTableId();                   // Main table
+
+    fragmentRestoreSlice = (mainId + fragmentId) % ga_num_slices;
+  }
+  else
+  {
+    /* For non-Blob tables we use round-robin so
+     * that we can balance across a number of slices
+     * different to the number of fragments
+     */
+    fragmentRestoreSlice = fragmentCount ++ % ga_num_slices;
+  }
+
+  restoreLogger.log_debug("Table : %s blobRelated : %u frag id : %u "
+                          "slice id : %u fragmentRestoreSlice : %u "
+                          "apply : %u",
+                          table->m_dictTable->getName(),
+                          table->isBlobRelated(),
+                          fragmentId,
+                          ga_slice_id,
+                          fragmentRestoreSlice,
+                          (fragmentRestoreSlice == ga_slice_id));
+
+  /* If it's not for this slice, skip it */
+  const bool skip_fragment = (fragmentRestoreSlice != ga_slice_id);
+
+  /* Remember for later lookup */
+  table->setSliceSkipFlag(fragmentId, skip_fragment);
+
+  return skip_fragment;
+}
+
+/**
+ * Check result of previous determination about whether
+ * to skip this fragment in slice mode
+ */
+static
+bool check_slice_skip_fragment(const TableS* table, Uint32 fragmentId)
+{
+  if (ga_num_slices == 1)
+  {
+    /* No slicing */
+    return false;
+  }
+
+  return table->getSliceSkipFlag(fragmentId);
+}
+
 int do_restore(RestoreThreadData *thrdata)
 {
   init_progress();
@@ -1742,6 +1852,8 @@ int do_restore(RestoreThreadData *thrdata)
   restoreLogger.log_info("%s [restore_data] Start restoring table data", timestamp);
   if (ga_restore || ga_print) 
   {
+    Uint32 fragmentsTotal = 0;
+    Uint32 fragmentsRestored = 0;
     if(_restore_data || _print_data)
     {
       // Check table compatibility
@@ -1820,16 +1932,45 @@ int do_restore(RestoreThreadData *thrdata)
       Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
       restoreLogger.log_info("%s [restore_data] Restore fragments", timestamp);
 
+      Uint32 fragmentCount = 0;
       Uint32 fragmentId; 
       while (dataIter.readFragmentHeader(res= 0, &fragmentId))
       {
-	const TupleS* tuple;
-	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
-	{
-          const TableS* table = tuple->getTable();
-          OutputStream *output = table_output[table->getLocalId()];
-          if (!output)
-            continue;
+        TableS* table = dataIter.getCurrentTable();
+        OutputStream *output = table_output[table->getLocalId()];
+
+        /**
+         * Check whether we should skip the entire fragment
+         */
+        bool skipFragment = true;
+        if (output == NULL)
+        {
+          restoreLogger.log_info("  Skipping fragment");
+        }
+        else
+        {
+          fragmentsTotal++;
+          skipFragment = determine_slice_skip_fragment(table,
+                                                       fragmentId,
+                                                       fragmentCount);
+          if (skipFragment)
+          {
+            restoreLogger.log_info("  Skipping fragment on this slice");
+          }
+          else
+          {
+            fragmentsRestored++;
+          }
+        }
+
+        /**
+         * Iterate over all rows stored in the data file for
+         * this fragment
+         */
+        const TupleS* tuple;
+	while ((tuple = dataIter.getNextTuple(res= 1, skipFragment)) != 0)
+        {
+          assert(output && !skipFragment);
           OutputStream *tmp = ndbout.m_out;
           ndbout.m_out = output;
           for(Uint32 j= 0; j < g_consumers.size(); j++) 
@@ -1899,6 +2040,8 @@ int do_restore(RestoreThreadData *thrdata)
         OutputStream *output = table_output[table->getLocalId()];
         if (!output)
           continue;
+        if (check_slice_skip_fragment(table, logEntry->m_frag_id))
+          continue;
         for(Uint32 j= 0; j < g_consumers.size(); j++)
           g_consumers[j]->logEntry(* logEntry);
 
@@ -1967,6 +2110,14 @@ int do_restore(RestoreThreadData *thrdata)
           }
         }
       }
+      if (ga_num_slices != 1)
+      {
+        restoreLogger.log_info("Restore: Slice id %u/%u restored %u/%u fragments.",
+                               ga_slice_id,
+                               ga_num_slices,
+                               fragmentsRestored,
+                               fragmentsTotal);
+      };
     }
   }
 
@@ -2159,6 +2310,7 @@ static void* start_restore_worker(void *data)
   return 0;
 }
 
+
 int
 main(int argc, char** argv)
 {
@@ -2205,6 +2357,12 @@ main(int argc, char** argv)
     g_options.append(" --skip-unknown-objects");
   if (ga_skip_broken_objects)
     g_options.append(" --skip-broken-objects");
+  if (ga_num_slices > 1)
+  {
+    g_options.appfmt(" --num-slices=%u --slice-id=%u",
+                     ga_num_slices,
+                     ga_slice_id);
+  }
 
   // determine backup format: simple or multi-part, and count parts
   int result = detect_backup_format();
@@ -2215,6 +2373,32 @@ main(int argc, char** argv)
   }
 
   init_restore();
+
+  /* Slices */
+  if (ga_num_slices < 1)
+  {
+    err << "Too few slices" << endl;
+    exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+  }
+  if ((ga_slice_id < 0) ||
+      (ga_slice_id >= ga_num_slices))
+  {
+    err << "Slice id "
+        << ga_slice_id
+        << " out of range (0-"
+        << ga_num_slices
+        << ")" << endl;
+    exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+  }
+  else
+  {
+    if (ga_num_slices > 1)
+    {
+      printf("ndb_restore slice %d/%d\n",
+             ga_slice_id,
+             ga_num_slices);
+    }
+  }
 
   g_restoring_in_parallel = true;
   // check if single-threaded restore is necessary
