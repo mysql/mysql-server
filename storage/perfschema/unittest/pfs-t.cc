@@ -2486,6 +2486,8 @@ static void test_file_operations() {
   rc = my_delete(temp_filename1, true); /* successful delete */
   file_service->end_file_close_wait(locker_A, rc);
 
+  thread_service->delete_thread(thread_A);
+  thread_service->delete_thread(thread_B);
   shutdown_performance_schema();
 }
 
