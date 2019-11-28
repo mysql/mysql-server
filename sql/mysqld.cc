@@ -6057,6 +6057,63 @@ static void set_super_read_only_post_init() {
   opt_super_readonly = super_read_only;
 }
 
+static void calculate_mysql_home_from_my_progname() {
+  const std::string runtime_output_directory_addon{
+      "/runtime_output_directory/"};
+#if defined(_WIN32) || defined(APPLE_XCODE)
+  /* Allow Win32 users to move MySQL anywhere */
+  char prg_dev[LIBLEN];
+  my_path(prg_dev, my_progname, nullptr);
+
+  // On windows or Xcode the basedir will always be one level up from where
+  // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
+  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
+  // for a sandbox build.
+  strcat(prg_dev, "/../");  // Remove containing directory to get base dir
+  cleanup_dirname(mysql_home, prg_dev);
+
+  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
+  char cmake_binary_dir[FN_REFLEN];
+  size_t dlen = 0;
+  dirname_part(cmake_binary_dir, mysql_home, &dlen);
+  if (dlen > runtime_output_directory_addon.length() &&
+      (!strcmp(
+           cmake_binary_dir + (dlen - runtime_output_directory_addon.length()),
+           runtime_output_directory_addon.c_str()) ||
+       !strcmp(
+           cmake_binary_dir + (dlen - runtime_output_directory_addon.length()),
+           "\\runtime_output_directory\\"))) {
+    mysql_home[strlen(mysql_home) - 1] = '\0';  // remove trailing
+    dirname_part(cmake_binary_dir, mysql_home, &dlen);
+    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
+  }
+  // The sql_print_information below outputs nothing ??
+  // fprintf(stderr, "mysql_home %s\n", mysql_home);
+  // fflush(stderr);
+#else
+  const char *tmpenv = getenv("MY_BASEDIR_VERSION");
+  if (tmpenv != nullptr) {
+    strmake(mysql_home, tmpenv, sizeof(mysql_home) - 1);
+  } else {
+    char progdir[FN_REFLEN];
+    size_t dlen = 0;
+    dirname_part(progdir, my_progname, &dlen);
+    if (dlen > runtime_output_directory_addon.length() &&
+        !strcmp(progdir + (dlen - runtime_output_directory_addon.length()),
+                runtime_output_directory_addon.c_str())) {
+      char cmake_binary_dir[FN_REFLEN];
+      progdir[strlen(progdir) - 1] = '\0';  // remove trailing "/"
+      dirname_part(cmake_binary_dir, progdir, &dlen);
+      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
+    } else {
+      strcat(progdir, "/../");
+      cleanup_dirname(mysql_home, progdir);
+    }
+  }
+#endif
+  mysql_home_ptr = mysql_home;
+}
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -6073,6 +6130,7 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname = argv[0];
+  calculate_mysql_home_from_my_progname();
 
 #ifndef _WIN32
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -8939,7 +8997,7 @@ To see what values a running MySQL server is using, type\n\
 static int mysql_init_variables() {
   /* Things reset to zero */
   opt_skip_slave_start = false;
-  mysql_home[0] = pidfile_name[0] = 0;
+  pidfile_name[0] = 0;
   myisam_test_invalid_symlink = test_if_data_home_dir;
   opt_general_log = opt_slow_log = false;
   opt_disable_networking = opt_skip_show_db = false;
@@ -8983,7 +9041,6 @@ static int mysql_init_variables() {
   character_set_filesystem = &my_charset_bin;
 
   opt_specialflag = 0;
-  mysql_home_ptr = mysql_home;
   pidfile_name_ptr = pidfile_name;
   lc_messages_dir_ptr = lc_messages_dir;
   protocol_version = PROTOCOL_VERSION;
@@ -9044,54 +9101,6 @@ static int mysql_init_variables() {
   have_compress = SHOW_OPTION_YES;
 #if defined(_WIN32)
   shared_memory_base_name = default_shared_memory_base_name;
-#endif
-
-#if defined(_WIN32) || defined(APPLE_XCODE)
-  /* Allow Win32 users to move MySQL anywhere */
-  char prg_dev[LIBLEN];
-  my_path(prg_dev, my_progname, nullptr);
-
-  // On windows or Xcode the basedir will always be one level up from where
-  // the executable is located. E.g. <basedir>/bin/mysqld.exe in a
-  // package, or <basedir>/runtime_output_directory/<buildconfig>/mysqld.exe
-  // for a sandbox build.
-  strcat(prg_dev, "/../");  // Remove containing directory to get base dir
-  cleanup_dirname(mysql_home, prg_dev);
-
-  // New layout: <cmake_binary_dir>/runtime_output_directory/<buildconfig>/
-  char cmake_binary_dir[FN_REFLEN];
-  size_t dlen = 0;
-  dirname_part(cmake_binary_dir, mysql_home, &dlen);
-  if (dlen > 26U &&
-      (!strcmp(cmake_binary_dir + (dlen - 26), "/runtime_output_directory/") ||
-       !strcmp(cmake_binary_dir + (dlen - 26),
-               "\\runtime_output_directory\\"))) {
-    mysql_home[strlen(mysql_home) - 1] = '\0';  // remove trailing
-    dirname_part(cmake_binary_dir, mysql_home, &dlen);
-    strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-  }
-  // The sql_print_information below outputs nothing ??
-  // fprintf(stderr, "mysql_home %s\n", mysql_home);
-  // fflush(stderr);
-#else
-  const char *tmpenv = getenv("MY_BASEDIR_VERSION");
-  if (tmpenv != nullptr) {
-    strmake(mysql_home, tmpenv, sizeof(mysql_home) - 1);
-  } else {
-    char progdir[FN_REFLEN];
-    size_t dlen = 0;
-    dirname_part(progdir, my_progname, &dlen);
-    if (dlen > 26U &&
-        !strcmp(progdir + (dlen - 26), "/runtime_output_directory/")) {
-      char cmake_binary_dir[FN_REFLEN];
-      progdir[strlen(progdir) - 1] = '\0';  // remove trailing "/"
-      dirname_part(cmake_binary_dir, progdir, &dlen);
-      strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
-    } else {
-      strcat(progdir, "/../");
-      cleanup_dirname(mysql_home, progdir);
-    }
-  }
 #endif
 
   return 0;
