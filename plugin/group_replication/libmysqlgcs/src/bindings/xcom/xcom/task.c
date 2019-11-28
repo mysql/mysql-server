@@ -41,7 +41,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -899,7 +899,7 @@ static uint64_t receive_count;
 static uint64_t send_bytes;
 static uint64_t receive_bytes;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 result con_read(connection_descriptor const *rfd, void *buf, int n) {
   result ret = {0, 0};
 
@@ -966,7 +966,7 @@ int task_read(connection_descriptor const *con, void *buf, int n,
   TASK_END;
 }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 result con_write(connection_descriptor const *wfd, void *buf, int n) {
   result ret = {0, 0};
 

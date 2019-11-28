@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
 

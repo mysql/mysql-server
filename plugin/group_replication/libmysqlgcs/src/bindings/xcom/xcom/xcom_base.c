@@ -277,7 +277,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
@@ -299,7 +299,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 #ifdef WIN32
 // In OpenSSL before 1.1.0, we need this first.
 #include <winsock2.h>
@@ -1093,7 +1093,7 @@ void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
 
 static connection_descriptor *input_signal_connection = NULL;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 static bool xcom_input_signal_connection_shutdown_ssl_wait_for_peer() {
   int ssl_error_code = 0;
   do {
@@ -1145,7 +1145,7 @@ bool xcom_input_new_signal_connection(char const *address, xcom_port port) {
     G_TRACE(
         "Converted the signalling connection handler into a local_server "
         "task on the client side.");
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     /* No more SSL in this connection. */
     {
       bool const using_ssl = (input_signal_connection->ssl_fd != NULL);
@@ -1187,7 +1187,7 @@ void xcom_input_free_signal_connection() {
   }
 }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 static int local_server_shutdown_ssl(connection_descriptor *con, void *buf,
                                      int n, int *ret) {
   DECL_ENV
@@ -1246,7 +1246,7 @@ int local_server(task_arg arg) {
   link_init(&ep->internal_reply_queue, type_hash("msg_link"));
   ep->internal_reply = NULL;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   /* No more SSL in this connection. */
   if (ep->rfd.ssl_fd) {
     TASK_CALL(local_server_shutdown_ssl(&ep->rfd, ep->buf, 1024,
@@ -1370,7 +1370,7 @@ int xcom_taskmain2(xcom_port listen_port) {
 
   task_loop();
 
-#if defined(XCOM_HAVE_OPENSSL)
+#ifndef XCOM_WITHOUT_OPENSSL
   xcom_cleanup_ssl();
 #endif
 
@@ -4812,7 +4812,7 @@ int acceptor_learner_task(task_arg arg) {
   ep->in_buf = calloc(1, sizeof(srv_buf));
 
   ep->rfd.fd = get_int_arg(arg);
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   ep->rfd.ssl_fd = 0;
 #endif
   ep->p = NULL;
@@ -4828,7 +4828,7 @@ int acceptor_learner_task(task_arg arg) {
   wait_io(stack, ep->rfd.fd, 'r');
   TASK_YIELD;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   if (xcom_use_ssl()) {
     ep->rfd.ssl_fd = SSL_new(server_ctx);
     SSL_set_fd(ep->rfd.ssl_fd, ep->rfd.fd);
@@ -6024,7 +6024,7 @@ end:
 }
 
 /* Connect to server on given port */
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
 static connection_descriptor *connect_xcom(const char *server, xcom_port port,
                                            bool use_ssl) {
 #else
@@ -6132,7 +6132,7 @@ static connection_descriptor *connect_xcom(const char *server, xcom_port port) {
       goto end;
     }
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
     if (use_ssl && xcom_use_ssl()) {
       SSL *ssl = SSL_new(client_ctx);
       G_DEBUG("Trying to connect using SSL.")
@@ -6193,7 +6193,7 @@ end:
 
 connection_descriptor *xcom_open_client_connection(const char *server,
                                                    xcom_port port) {
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   return connect_xcom(server, port, true);
 #else
   return connect_xcom(server, port);
@@ -6560,7 +6560,7 @@ static pax_msg *socket_read_msg(connection_descriptor *rfd, pax_msg *p)
 int xcom_close_client_connection(connection_descriptor *connection) {
   int retval = 0;
 
-#ifdef XCOM_HAVE_OPENSSL
+#ifndef XCOM_WITHOUT_OPENSSL
   if (connection->ssl_fd) {
     SSL_shutdown(connection->ssl_fd);
     ssl_free_con(connection);
