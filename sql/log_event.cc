@@ -7807,6 +7807,24 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
     return error;
   }
 
+  /*
+    Re-evaluating stored and virtual generated columns since their values must
+    be recalculated prior to change.
+  */
+  if (!only_seek && m_table->has_gcol()) {
+    for (Field **vfield_ptr = m_table->vfield; *vfield_ptr; ++vfield_ptr) {
+      Field *vfield = *vfield_ptr;
+      if (((vfield->is_virtual_gcol() && vfield->m_indexed) ||
+           bitmap_is_overlapping(m_table->write_set,
+                                 &vfield->gcol_info->base_columns_map)) &&
+          !vfield->is_field_for_functional_index()) {
+        if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol())
+          (down_cast<Field_blob *>(vfield))->keep_old_value();
+        vfield->gcol_info->expr_item->save_in_field(vfield, false);
+      }
+    }
+  }
+
   // After the row is unpacked, we need to update all hidden generated columns
   // for functional indexes since those values are not included in the binlog
   // in any mode of binlog_row_image.
@@ -9759,8 +9777,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           cases.
         */
         /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
-        if (m_table->vfield) m_table->mark_generated_columns(false);
         bitmap_intersect(table->write_set, &this->m_local_cols);
+        if (m_table->vfield) m_table->mark_generated_columns(false);
         stage = &stage_rpl_apply_row_evt_write;
         break;
       default:
