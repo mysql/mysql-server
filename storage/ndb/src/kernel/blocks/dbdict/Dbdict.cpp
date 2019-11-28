@@ -14800,11 +14800,31 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
 
   indexPtr.p->indexStatFragId = fragId;
   bzero(indexPtr.p->indexStatNodes, sizeof(indexPtr.p->indexStatNodes));
+
+  /**
+   * Use the bitmask for sorting, the order of node IDs in frag_data is
+   * not the same in all the data nodes.
+   */
+  NdbNodeBitmask sortedNodes;
   for (Uint32 i = 0; i < noOfReplicas; i++)
   {
-    Uint32 idx = fragIndex + 1 + (nodeIndex + i) % noOfReplicas;
-    indexPtr.p->indexStatNodes[i] = frag_data[idx];
+    Uint32 idx = fragIndex + 1 + i;
+    sortedNodes.set(frag_data[idx]);
   }
+
+  // clear list
+  memset(indexPtr.p->indexStatNodes, 0, sizeof(indexPtr.p->indexStatNodes) / sizeof(Uint16));
+
+  // rotate the sorted nodes into the list
+  for (Uint32 nodeId = sortedNodes.find_first(), i = 0;
+       nodeId != BitmaskImpl::NotFound;
+       nodeId = sortedNodes.find_next(nodeId + 1), i++)
+  {
+    ndbrequire(i < noOfReplicas);
+    Uint32 idx = (nodeIndex + i) % noOfReplicas;
+    indexPtr.p->indexStatNodes[idx] = nodeId;
+  }
+
   D("set_index_stat_frag" << V(indexId) << V(fragId)
     << V(indexPtr.p->indexStatNodes[0]));
 }
