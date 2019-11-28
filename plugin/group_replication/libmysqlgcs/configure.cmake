@@ -67,10 +67,6 @@ ENDIF()
 
 #All the code below needs to be here because CMake is dumb and generates code
 # with unused vars
-CHECK_STRUCT_HAS_MEMBER("struct sockaddr" sa_len sys/socket.h
-                        HAVE_STRUCT_SOCKADDR_SA_LEN)
-CHECK_STRUCT_HAS_MEMBER("struct ifreq" ifr_name net/if.h
-                        HAVE_STRUCT_IFREQ_IFR_NAME)
 
 CHECK_STRUCT_HAS_MEMBER("struct xdr_ops" x_putint32 rpc/xdr.h
                         HAVE_XDR_OPS_X_PUTINT32)

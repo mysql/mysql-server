@@ -47,7 +47,6 @@
 #cmakedefine HAVE_GRP_H 1
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_LANGINFO_H 1
-#cmakedefine HAVE_LSAN_INTERFACE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_POLL_H 1
@@ -106,7 +105,6 @@
 #cmakedefine HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK 1
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_MALLOC_INFO 1
-#cmakedefine HAVE_MEMRCHR 1
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP64 1
@@ -125,7 +123,6 @@
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_STRSIGNAL 1
-#cmakedefine HAVE_FGETLN 1
 #cmakedefine HAVE_STRSEP 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
@@ -154,8 +151,6 @@
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 #cmakedefine HAVE_MADV_DONTDUMP 1
 #cmakedefine HAVE_O_TMPFILE
-
-#cmakedefine HAVE_ISINF 1
 
 #cmakedefine HAVE_KQUEUE 1
 #cmakedefine HAVE_SETNS 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,9 @@
 
 #include <config.h>
 
-/*Definitions*/
-#cmakedefine HAVE_STRUCT_SOCKADDR_SA_LEN 1
-#cmakedefine HAVE_STRUCT_IFREQ_IFR_NAME 1
-
 /* Headers we may use */
 #cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
+
 /* Symbols we may use */
 #cmakedefine HAVE_LE64TOH @HAVE_LE64TOH@
 #cmakedefine HAVE_LE32TOH @HAVE_LE32TOH@
