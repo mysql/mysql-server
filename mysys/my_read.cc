@@ -58,7 +58,7 @@ ssize_t (*mock_read)(int fd, void *buf, size_t count) = nullptr;
    Read a chunk of bytes from a file with retry's if needed
    If flag MY_FULL_IO is set then keep reading until EOF is found.
 
-   @param       Filedes  the context to reset
+   @param       fd       File descriptor to read from
    @param[out]  Buffer   Buffer to hold at least Count bytes
    @param       Count    Bytes to read
    @param       MyFlags  Flags on what to do on error
@@ -69,7 +69,7 @@ ssize_t (*mock_read)(int fd, void *buf, size_t count) = nullptr;
      @retval   N  number of bytes read
 */
 
-size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
+size_t my_read(File fd, uchar *Buffer, size_t Count, myf MyFlags) {
   int64_t savedbytes = 0;
   DBUG_TRACE;
 
@@ -77,10 +77,14 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
     errno = 0; /* Linux, Windows don't reset this on EOF/success */
     int64_t readbytes =
 #ifdef _WIN32
-        my_win_read(Filedes, Buffer, Count);
+        // Using my_win_pread() with offset -1 which will cause
+        // ReadFile() to be called with nullptr for the OVERLAPPED
+        // argument. This way we avoid having both my_win_read()
+        // my_win_pread() which were identical except for the OVERLAPPED
+        // arg passed to ReadFile().
+        my_win_pread(fd, Buffer, Count, -1);
 #else
-        (mock_read ? mock_read(Filedes, Buffer, Count)
-                   : read(Filedes, Buffer, Count));
+        (mock_read ? mock_read(fd, Buffer, Count) : read(fd, Buffer, Count));
 #endif
     DBUG_EXECUTE_IF("simulate_file_read_error", {
       errno = ENOSPC;
@@ -99,13 +103,10 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
       }
 
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
-        char errbuf[MYSYS_STRERROR_SIZE];
         if (readbytes == -1)
-          my_error(EE_READ, MYF(0), my_filename(Filedes), my_errno(),
-                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
+          MyOsError(my_errno(), EE_READ, MYF(0), my_filename(fd));
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(0), my_filename(Filedes), my_errno(),
-                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
+          MyOsError(my_errno(), EE_EOFERR, MYF(0), my_filename(fd));
       }
       if (readbytes == -1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))

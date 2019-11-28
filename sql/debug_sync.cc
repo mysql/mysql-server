@@ -468,7 +468,7 @@ static st_debug_sync_globals debug_sync_global; /* All globals in one object */
 /**
   Callback pointer for C files.
 */
-extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
+extern DebugSyncCallbackFp debug_sync_C_callback_ptr;
 
 /**
   Callbacks from C files.

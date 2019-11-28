@@ -42,46 +42,48 @@
 #include "my_io.h"
 #include "my_thread_local.h"
 #include "mysys_err.h"
+#include "mysys_priv.h"  // FILE_BY_CREATE
 #if defined(_WIN32)
 #include "mysys/mysys_priv.h"
 #endif
 
-/*
-** Create a new file
-** Arguments:
-** Path-name of file
-** Read | write on file (umask value)
-** Read & Write on open file
-** Special flags
+/**
+   Create a new file.
+
+   @param FileName     Path-name of file
+   @param CreateFlags  Read | write on file (umask value)
+   @param AccessFlags  Read & Write on open file
+   @param MyFlags      Special flags
+
+   @retval File descriptor on Posix
+   @retval FileInfo index on Windows.
+   @retval -1 in case of errors.
 */
 
-File my_create(const char *FileName, int CreateFlags, int access_flags,
+File my_create(const char *FileName, int CreateFlags, int AccessFlags,
                myf MyFlags) {
-  int fd, rc;
   DBUG_TRACE;
-  DBUG_PRINT("my", ("Name: '%s' CreateFlags: %d  AccessFlags: %d  MyFlags: %d",
-                    FileName, CreateFlags, access_flags, MyFlags));
-#if defined(_WIN32)
-  fd = my_win_open(FileName, access_flags | O_CREAT);
-#else
-  fd = open(FileName, access_flags | O_CREAT,
-            CreateFlags ? CreateFlags : my_umask);
-#endif
 
-  rc = my_register_filename(fd, FileName, FILE_BY_CREATE, EE_CANTCREATEFILE,
-                            MyFlags);
-  /*
-    my_register_filename() may fail on some platforms even if the call to
-    *open() above succeeds. In this case, don't leave the stale file because
-    callers assume the file to not exist if my_create() fails, so they don't
-    do any cleanups.
-  */
-  if (unlikely(fd >= 0 && rc < 0)) {
-    int tmp = my_errno();
-    my_close(fd, MyFlags);
-    my_delete(FileName, MyFlags);
-    set_my_errno(tmp);
+  File fd = -1;
+#if defined(_WIN32)
+  fd = my_win_open(FileName, AccessFlags | O_CREAT);
+#else
+  fd = mysys_priv::RetryOnEintr(
+      [&]() {
+        return open(FileName, AccessFlags | O_CREAT,
+                    CreateFlags ? CreateFlags : my_umask);
+      },
+      -1);
+#endif
+  if (fd < 0) {
+    set_my_errno(errno);
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_CANTCREATEFILE, MYF(0), FileName);
+    }
+    return -1;
   }
 
-  return rc;
-} /* my_create */
+  file_info::RegisterFilename(fd, FileName,
+                              file_info::OpenType::FILE_BY_CREATE);
+  return fd;
+}

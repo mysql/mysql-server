@@ -97,7 +97,6 @@
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
 #cmakedefine HAVE_GETPWUID 1
-#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine HAVE_GETRUSAGE 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
@@ -316,6 +315,7 @@
 /*
  * NDB
  */
+#cmakedefine HAVE_GETRLIMIT 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 

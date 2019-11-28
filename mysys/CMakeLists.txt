@@ -71,7 +71,6 @@ SET(MYSYS_SOURCES
   my_copy.cc
   my_create.cc
   my_delete.cc
-  my_div.cc
   my_error.cc
   my_fallocator.cc
   my_file.cc

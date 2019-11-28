@@ -54,10 +54,8 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
     set_my_errno(errno);
     DBUG_PRINT("error",
                ("error %d when creating direcory %s", my_errno(), dir));
-    if (MyFlags & (MY_FFNF | MY_FAE | MY_WME)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_CANT_MKDIR, MYF(0), dir, my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_CANT_MKDIR, MYF(0), dir);
     }
     return -1;
   }

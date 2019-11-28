@@ -85,7 +85,7 @@ MY_MODE get_file_perm(ulong perm_flags) {
     @retval false : File permission changed successfully
 */
 
-bool my_chmod(const char *filename, ulong perm_flags, myf my_flags) {
+bool my_chmod(const char *filename, ulong perm_flags, myf MyFlags) {
   int ret_val;
   MY_MODE file_perm;
   DBUG_TRACE;
@@ -98,11 +98,9 @@ bool my_chmod(const char *filename, ulong perm_flags, myf my_flags) {
   ret_val = chmod(filename, file_perm);
 #endif
 
-  if (ret_val && (my_flags & (MY_FAE + MY_WME))) {
-    char errbuf[MYSYS_STRERROR_SIZE];
+  if (ret_val && (MyFlags & (MY_FAE | MY_WME))) {
     set_my_errno(errno);
-    my_error(EE_CHANGE_PERMISSIONS, MYF(0), filename, errno,
-             my_strerror(errbuf, sizeof(errbuf), errno));
+    MyOsError(my_errno(), EE_CHANGE_PERMISSIONS, MYF(0), filename);
   }
 
   return ret_val ? true : false;
