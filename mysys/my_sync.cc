@@ -114,12 +114,10 @@ int my_sync(File fd, myf my_flags) {
       DBUG_PRINT("info", ("ignoring errno %d", er));
       res = 0;
     } else if (my_flags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_SYNC, MYF(0), my_filename(fd), my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      MyOsError(my_errno(), EE_SYNC, MYF(0), my_filename(fd));
     }
   } else {
     if (after_sync_wait) (*after_sync_wait)();
   }
   return res;
-} /* my_sync */
+}

@@ -7674,7 +7674,7 @@ void str_to_file2(const char *fname, char *str, size_t size, bool append) {
   fn_format(buff, fname, "", "", MY_UNPACK_FILENAME);
 
   if (!append) flags |= O_TRUNC;
-  if ((fd = my_open(buff, flags, MYF(MY_WME | MY_FFNF))) < 0)
+  if ((fd = my_open(buff, flags, MYF(MY_WME))) < 0)
     die("Could not open '%s' for writing, errno: %d", buff, errno);
   if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
     die("Could not find end of file '%s', errno: %d", buff, errno);

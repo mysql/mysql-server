@@ -86,7 +86,8 @@
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
                       int mode MY_ATTRIBUTE((unused)),
-                      UnlinkOrKeepFile unlink_or_keep, myf MyFlags) {
+                      UnlinkOrKeepFile unlink_or_keep,
+                      myf MyFlags MY_ATTRIBUTE((unused))) {
   File file = -1;
 #ifdef _WIN32
   TCHAR path_buf[MAX_PATH - 14];
@@ -149,11 +150,17 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     /* Explicitly don't use O_EXCL here as it has a different
        meaning with O_TMPFILE.
     */
-    file = open(dirname_buf, O_RDWR | O_TMPFILE | O_CLOEXEC, S_IRUSR | S_IWUSR);
+    file = mysys_priv::RetryOnEintr(
+        [&]() {
+          return open(dirname_buf, O_RDWR | O_TMPFILE | O_CLOEXEC,
+                      S_IRUSR | S_IWUSR);
+        },
+        -1);
+
     if (file >= 0) {
       sprintf(to, "%s%.20sfd=%d", dirname_buf, prefix ? prefix : "tmp.", file);
-      file = my_register_filename(file, to, FILE_BY_O_TMPFILE,
-                                  EE_CANTCREATEFILE, MyFlags);
+      file_info::RegisterFilename(file, to,
+                                  file_info::OpenType::FILE_BY_O_TMPFILE);
     }
   }
   // Fall through, in case open() failed above (or we have KEEP_FILE).
@@ -161,7 +168,6 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   if (file == -1) {
     char prefix_buff[30];
     uint pfx_len;
-    File org_file;
 
     pfx_len = (uint)(my_stpcpy(my_stpnmov(prefix_buff, prefix ? prefix : "tmp.",
                                           sizeof(prefix_buff) - 7),
@@ -174,22 +180,13 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       return file;
     }
     my_stpcpy(convert_dirname(to, dir, NullS), prefix_buff);
-    org_file = mkstemp(to);
-    file = my_register_filename(org_file, to, FILE_BY_MKSTEMP,
-                                EE_CANTCREATEFILE, MyFlags);
-    /* If we didn't manage to register the name, remove the temp file */
-    if (org_file >= 0 && file < 0) {
-      int tmp = my_errno();
-      close(org_file);
-      (void)my_delete(to, MYF(MY_WME));
-      set_my_errno(tmp);
-      return file;
-    }
+    file = mkstemp(to);
+    file_info::RegisterFilename(file, to, file_info::OpenType::FILE_BY_MKSTEMP);
     if (unlink_or_keep == UNLINK_FILE) {
       unlink(to);
     }
   }
-#endif
+#endif /* _WIN32 */
   if (file >= 0) {
     mysql_mutex_lock(&THR_LOCK_open);
     my_tmp_file_created++;

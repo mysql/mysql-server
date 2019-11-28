@@ -116,9 +116,7 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
 
 err:
   if (MyFlags & MY_WME) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    MyOsError(my_errno(), EE_CANT_CHSIZE, MYF(0));
   }
   return 1;
 }

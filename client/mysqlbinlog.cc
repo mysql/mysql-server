@@ -2868,7 +2868,6 @@ int main(int argc, char **argv) {
   if (result_file && (result_file != stdout)) my_fclose(result_file, MYF(0));
   cleanup();
 
-  my_free_open_file_info();
   load_processor.destroy();
   /* We cannot free DBUG, it is used in global destructors after exit(). */
   my_end(my_end_arg | MY_DONT_FREE_DBUG);

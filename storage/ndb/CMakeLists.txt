@@ -223,6 +223,9 @@ IF(ndb_flags_env)
   STRING_APPEND(CMAKE_CXX_FLAGS " ${ndb_flags_env}")
 ENDIF()
 
+# Moved here from configure.cmake
+CHECK_FUNCTION_EXISTS (getrlimit HAVE_GETRLIMIT)
+
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
 SET(WITH_NDB_JAVA_DEFAULT ON)

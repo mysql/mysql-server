@@ -98,13 +98,10 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
       }
 
       if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
-        char errbuf[MYSYS_STRERROR_SIZE];
         if (readbytes == -1)
-          my_error(EE_READ, MYF(0), my_filename(Filedes), my_errno(),
-                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
+          MyOsError(my_errno(), EE_READ, MYF(0), my_filename(Filedes));
         else if (MyFlags & (MY_NABP | MY_FNABP))
-          my_error(EE_EOFERR, MYF(0), my_filename(Filedes), my_errno(),
-                   my_strerror(errbuf, sizeof(errbuf), my_errno()));
+          MyOsError(my_errno(), EE_EOFERR, MYF(0), my_filename(Filedes));
       }
       if (readbytes == -1 || (MyFlags & (MY_FNABP | MY_NABP)))
         return MY_FILE_ERROR;
@@ -196,9 +193,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
     if (sum_written == static_cast<int64_t>(initial_count))
       return 0; /* Want only errors, not bytes written */
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_WRITE, MYF(0), my_filename(Filedes), my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      MyOsError(my_errno(), EE_WRITE, MYF(0), my_filename(Filedes));
     }
     return MY_FILE_ERROR;
   }

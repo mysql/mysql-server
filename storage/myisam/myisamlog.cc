@@ -139,7 +139,6 @@ int main(int argc, char **argv) {
     printf("Had to do %d re-open because of too few possibly open files\n",
            re_open_count);
   (void)mi_panic(HA_PANIC_CLOSE);
-  my_free_open_file_info();
   my_end(test_info ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   mysql_cond_destroy(&main_thread_keycache_var.suspend);
   exit(error);
