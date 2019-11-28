@@ -177,7 +177,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
-  if (table->all_partitions_pruned_away) {
+  if (table->all_partitions_pruned_away || m_empty_query) {
     /*
       All partitions were pruned away during preparation. Shortcut further
       processing by "no rows". If explaining, report the plan and bail out.
