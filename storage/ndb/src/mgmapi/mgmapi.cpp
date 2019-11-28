@@ -661,6 +661,40 @@ int ndb_mgm_number_of_mgmd_in_connect_string(NdbMgmHandle handle)
   return count;
 }
 
+static
+int ndb_mgm_set_version(NdbMgmHandle handle)
+{
+  DBUG_ENTER("ndb_mgm_set_version");
+  CHECK_HANDLE(handle, -1);
+  CHECK_CONNECTED(handle, -1);
+
+  Properties args;
+  args.put("major", Uint32(NDB_VERSION_MAJOR));
+  args.put("minor", Uint32(NDB_VERSION_MINOR));
+  args.put("build", Uint32(NDB_VERSION_BUILD));
+
+  const ParserRow<ParserDummy> set_clientversion_reply[] = {
+    MGM_CMD("set clientversion reply", NULL, ""),
+    MGM_ARG("result", String, Mandatory, "Error message"),
+    MGM_END()
+  };
+
+  const Properties* reply =
+    ndb_mgm_call(handle, set_clientversion_reply, "set clientversion", &args);
+
+  CHECK_REPLY(handle, reply, -1);
+
+  BaseString result;
+  reply->get("result", result);
+  delete reply;
+
+  if(result != "Ok") {
+    SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, result.c_str());
+    DBUG_RETURN(-1);
+  }
+
+  DBUG_RETURN(0);
+}
 
 static inline
 bool get_mgmd_version(NdbMgmHandle handle)
@@ -677,6 +711,18 @@ bool get_mgmd_version(NdbMgmHandle handle)
                            &(handle->mgmd_version_build),
                            sizeof(buf), buf))
     return false;
+
+  /* If MGMD supports it, tell it our version */
+  if (NDB_MAKE_VERSION(handle->mgmd_version_major,
+                       handle->mgmd_version_minor,
+                       handle->mgmd_version_build) >=
+      NDB_MAKE_VERSION(8,0,20))
+  {
+    //Inform MGMD of our version
+    //MGMD gained support for set version command in 8.0.20
+    if (ndb_mgm_set_version(handle) != 0)
+      return false;
+  }
   return true;
 }
 
@@ -1067,6 +1113,9 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_status");
   CHECK_CONNECTED(handle, NULL);
 
+  if (!get_mgmd_version(handle))
+    DBUG_RETURN(NULL);
+
   char typestring[1024];
   typestring[0] = 0;
   if (types != 0)
@@ -1174,6 +1223,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   int i;
   for (i= 0; i < noOfNodes; i++) {
     state->node_states[i].connect_address[0]= 0;
+    state->node_states[i].is_single_user = 0;
   }
   i = -1; ptr--;
   for(; i<noOfNodes; ){

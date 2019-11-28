@@ -60,6 +60,11 @@ private:
   const char *get_error_text(int err_no)
   { return m_mgmsrv.getErrorText(err_no, m_err_str, sizeof(m_err_str)); }
 
+  /* Client version info, m_vMajor != 0 if known */
+  unsigned int m_vMajor;
+  unsigned int m_vMinor;
+  unsigned int m_vBuild;
+
 public:
   MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 session_id);
   virtual ~MgmApiSession();
@@ -78,6 +83,7 @@ public:
 
   void get_nodeid(Parser_t::Context &ctx, const class Properties &args);
   void getVersion(Parser_t::Context &ctx, const class Properties &args);
+  void setClientVersion(Parser_t::Context &ctx, const class Properties &args);
   void getStatus(Parser_t::Context &ctx, const class Properties &args);
   void getInfoClusterLog(Parser_t::Context &ctx, const class Properties &args);
   void restart(const class Properties &args, int version);
