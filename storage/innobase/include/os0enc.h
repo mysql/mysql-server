@@ -159,7 +159,7 @@ class Encryption {
 
   /** Check the encryption option and set it
   @param[in]      option      encryption option
-  @param[in,out]  encryption  The encryption type
+  @param[in,out]  type        The encryption type
   @return DB_SUCCESS or DB_UNSUPPORTED */
   dberr_t set_algorithm(
       const char *option,
@@ -306,7 +306,7 @@ class Encryption {
   Type get_type() const;
 
   /** Set encryption type
-  @param[in] encryption type **/
+  @param[in]  type  encryption type **/
   void set_type(Type type);
 
   /** Get encryption key
@@ -314,15 +314,15 @@ class Encryption {
   byte *get_key() const;
 
   /** Set encryption key
-  @param[in] encryption key **/
+  @param[in]  key  encryption key **/
   void set_key(byte *key);
 
   /** Get key length
-  @return key length **/
+  @return  key length **/
   ulint get_key_length() const;
 
   /** Set key length
-  @param[in] key length **/
+  @param[in]  klen  key length **/
   void set_key_length(ulint klen);
 
   /** Get initial vector
@@ -330,7 +330,7 @@ class Encryption {
   byte *get_initial_vector() const;
 
   /** Set initial vector
-  @param[in] initial_vector **/
+  @param[in]  iv  initial_vector **/
   void set_initial_vector(byte *iv);
 
   /** Get master key id
