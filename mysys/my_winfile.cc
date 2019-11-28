@@ -52,7 +52,9 @@
   here are useful only in scenarios that use low-level IO with my_win_fileno()
 */
 
-#ifdef _WIN32
+#include <algorithm>
+#include <iostream>
+#include <vector>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -60,54 +62,156 @@
 #include <share.h>
 #include <sys/stat.h>
 
+#include "mutex_lock.h"  // MUTEX_LOCK
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysys_priv.h"
+#include "scope_guard.h"
+#include "sql/malloc_allocator.h"
+
+namespace {
 
 /**
-   Associates a file descriptor with an existing operating-system file handle.
-  */
-File my_open_osfhandle(HANDLE handle, int oflag) {
-  int offset = -1;
-  uint i;
-  DBUG_TRACE;
-
-  mysql_mutex_lock(&THR_LOCK_open);
-  for (i = MY_FILE_MIN; i < my_file_limit; i++) {
-    if (my_file_info[i].fhandle == 0) {
-      struct st_my_file_info *finfo = &(my_file_info[i]);
-      finfo->type = FILE_BY_OPEN;
-      finfo->fhandle = handle;
-      finfo->oflag = oflag;
-      offset = i;
-      break;
-    }
+  RAII guard which ensures that:
+  - GetLastError() is mapped to its errno equivalent if set
+    (unless errno is also set).
+  - errno is copied to my_errno if set.
+ */
+class WindowsErrorGuard {
+ public:
+  WindowsErrorGuard() {
+    errno = 0;
+    SetLastError(ERROR_SUCCESS);
   }
-  mysql_mutex_unlock(&THR_LOCK_open);
-  if (offset == -1) errno = EMFILE; /* to many file handles open */
-  return offset;
+  ~WindowsErrorGuard() {
+    auto le = GetLastError();
+
+    // If neither errno or LastError has been set, there is nothing
+    // for us to do
+    if (le == ERROR_SUCCESS && errno == 0) return;
+
+    // The posix api compatibility functions, e.g. _stati64, appears
+    // to set both errno and LastError. Here we use our own mapping
+    // function and check that errno does not change.
+    if (errno != 0 && le != ERROR_SUCCESS) {
+      auto orig_errno = errno;
+      my_osmaperr(le);
+
+      if (orig_errno != errno) {
+        dbug("handleinfo", [&]() {
+          char orig_message[512];
+          strerror_s(orig_message, orig_errno);
+
+          char curr_message[512];
+          strerror_s(curr_message, errno);
+          std::cerr << "orig_errno: " << orig_message << " (" << orig_errno
+                    << ") errno: " << curr_message << " (" << errno
+                    << ") le: " << le << std::endl;
+        });
+
+        errno = orig_errno;  // Report the original errno
+      }
+    }  // if (errno != 0 && le != ERROR_SUCCESS
+
+    // We only set errno from GetLastError() if errno was not
+    // already set. Rationale is that errno may have been set
+    // explicitly, and then we do not want to overwrite errno with
+    // success.
+    if (errno == 0) {
+      DBUG_ASSERT(le != ERROR_SUCCESS);
+      my_osmaperr(le);
+    }
+
+    DBUG_ASSERT(errno != 0);
+    set_my_errno(errno);
+  }  // ~WindowsErrorGuard()
+};
+
+struct HandleInfo {
+  HANDLE handle = INVALID_HANDLE_VALUE; /* win32 file handle */
+  int oflag = 0;                        /* open flags, e.g O_APPEND */
+};
+
+using HandleInfoAllocator = Malloc_allocator<HandleInfo>;
+using HandleInfoVector = std::vector<HandleInfo, HandleInfoAllocator>;
+HandleInfoVector *hivp = nullptr;
+
+size_t ToIndex(File fd) {
+  DBUG_ASSERT(fd >= MY_FILE_MIN);
+  return fd - MY_FILE_MIN;
+}
+int ToDescr(size_t hi) { return hi + MY_FILE_MIN; }
+
+bool IsValidIndex(size_t hi) {
+  const HandleInfoVector &hiv = *hivp;
+  mysql_mutex_assert_owner(&THR_LOCK_open);
+  return (hi >= 0 && hi < hiv.size());
 }
 
-static void invalidate_fd(File fd) {
-  DBUG_TRACE;
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
-  my_file_info[fd].fhandle = 0;
+bool IsValidDescr(File fd) { return IsValidIndex(ToIndex(fd)); }
+
+HandleInfo GetHandleInfo(File fd) {
+  HandleInfoVector &hiv = *hivp;
+  size_t hi = ToIndex(fd);
+  MUTEX_LOCK(g, &THR_LOCK_open);
+  if (!IsValidIndex(hi) || hiv[hi].handle == INVALID_HANDLE_VALUE) {
+    SetLastError(ERROR_INVALID_HANDLE);
+    return {};
+  }
+  return hiv[hi];
 }
 
-/* Get Windows handle for a file descriptor */
-HANDLE my_get_osfhandle(File fd) {
-  DBUG_TRACE;
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
-  return my_file_info[fd].fhandle;
+File RegisterHandle(HANDLE handle, int oflag) {
+  DBUG_ASSERT(handle != 0);
+  HandleInfoVector &hiv = *hivp;
+
+  MUTEX_LOCK(g, &THR_LOCK_open);
+  HandleInfo hi{handle, oflag};
+  auto it = std::find_if(hiv.begin(), hiv.end(), [](const HandleInfo &hi) {
+    return (hi.handle == INVALID_HANDLE_VALUE);
+  });
+
+  if (it != hiv.end()) {
+    *it = hi;
+    return ToDescr(it - hiv.begin());
+  }
+  hiv.push_back(hi);
+  return ToDescr(hiv.size() - 1);
 }
 
-static int my_get_open_flags(File fd) {
-  DBUG_TRACE;
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
-  return my_file_info[fd].oflag;
+HandleInfo UnregisterHandle(File fd) {
+  HandleInfoVector &hiv = *hivp;
+  size_t hi = ToIndex(fd);
+  MUTEX_LOCK(g, &THR_LOCK_open);
+  DBUG_ASSERT(IsValidIndex(hi));
+  HandleInfo unreg = hiv[hi];
+  hiv[hi] = {};
+  return unreg;
+}
+
+File FileIndex(HANDLE handle) {
+  const HandleInfoVector &hiv = *hivp;
+  MUTEX_LOCK(g, &THR_LOCK_open);
+  auto it = std::find_if(hiv.begin(), hiv.end(), [&](const HandleInfo &hi) {
+    return (hi.handle == handle);
+  });
+  return (it == hiv.end() ? -1 : ToDescr(it - hiv.begin()));
+}
+
+LARGE_INTEGER MakeLargeInteger(int64_t src) {
+  LARGE_INTEGER li;
+  li.QuadPart = src;
+  return li;
+}
+
+OVERLAPPED MakeOverlapped(DWORD l, DWORD h) { return {0, 0, {l, h}, 0}; }
+
+OVERLAPPED MakeOverlapped(int64_t src) {
+  LARGE_INTEGER li = MakeLargeInteger(src);
+  return MakeOverlapped(li.LowPart, li.HighPart);
 }
 
 /**
@@ -120,30 +224,25 @@ static int my_get_open_flags(File fd) {
   @param pmode   permission flags
 
   @retval File descriptor of opened file if success
-  @retval -1 and sets errno if fails.
+  @retval -1 and sets errno and/or LastError if fails.
 */
 
 File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
-  int fh; /* handle of opened file */
-  int mask;
-  HANDLE osfh;      /* OS handle of opened file */
-  DWORD fileaccess; /* OS file access (requested) */
-  DWORD fileshare;  /* OS file sharing mode */
-  DWORD filecreate; /* OS method of opening/creating */
-  DWORD fileattrib; /* OS file attribute flags */
-  SECURITY_ATTRIBUTES SecurityAttributes;
-
   DBUG_TRACE;
-
+  WindowsErrorGuard weg;
   if (check_if_legal_filename(path)) {
+    DBUG_ASSERT(GetLastError() == ERROR_SUCCESS);
     errno = EACCES;
     return -1;
   }
+
+  SECURITY_ATTRIBUTES SecurityAttributes;
   SecurityAttributes.nLength = sizeof(SecurityAttributes);
-  SecurityAttributes.lpSecurityDescriptor = NULL;
+  SecurityAttributes.lpSecurityDescriptor = nullptr;
   SecurityAttributes.bInheritHandle = !(oflag & _O_NOINHERIT);
 
-  /* decode the access flags  */
+  // Decode the (requested) OS file access flags
+  DWORD fileaccess;
   switch (oflag & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
     case _O_RDONLY: /* read access */
       fileaccess = GENERIC_READ;
@@ -159,7 +258,8 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
       return -1;
   }
 
-  /* decode sharing flags */
+  // Decode OS file sharing flags
+  DWORD fileshare;
   switch (shflag) {
     case _SH_DENYRW: /* exclusive access except delete */
       fileshare = FILE_SHARE_DELETE;
@@ -190,7 +290,8 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
       return -1;
   }
 
-  /* decode open/create method flags  */
+  // Decode OS method of opening/creating
+  DWORD filecreate;
   switch (oflag & (_O_CREAT | _O_EXCL | _O_TRUNC)) {
     case 0:
     case _O_EXCL: /* ignore EXCL w/o CREAT */
@@ -221,11 +322,14 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
       return -1;
   }
 
-  /* decode file attribute flags if _O_CREAT was specified */
+  // Decode OS file attribute flags if _O_CREAT was specified
+  DWORD fileattrib;
   fileattrib = FILE_ATTRIBUTE_NORMAL; /* default */
+
+  int mask;
   if (oflag & _O_CREAT) {
     _umask((mask = _umask(0)));
-
+    DBUG_ASSERT(errno == 0);
     if (!((pmode & ~mask) & _S_IWRITE)) fileattrib = FILE_ATTRIBUTE_READONLY;
   }
 
@@ -245,232 +349,317 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
     fileattrib |= FILE_FLAG_RANDOM_ACCESS;
 
   /* try to open/create the file  */
-  if ((osfh = CreateFile(path, fileaccess, fileshare, &SecurityAttributes,
-                         filecreate, fileattrib, NULL)) ==
-      INVALID_HANDLE_VALUE) {
+  HANDLE osfh = CreateFile(path, fileaccess, fileshare, &SecurityAttributes,
+                           filecreate, fileattrib, nullptr);
+
+  if (osfh == INVALID_HANDLE_VALUE) {
     /*
-       OS call to open/create file failed! map the error, release
-       the lock, and return -1. note that it's not necessary to
+       Note that it's not necessary to
        call _free_osfhnd (it hasn't been used yet).
     */
-    my_osmaperr(GetLastError()); /* map error */
-    return -1;                   /* return error to caller */
+    return -1;
   }
 
-  if ((fh = my_open_osfhandle(
-           osfh, oflag & (_O_APPEND | _O_RDONLY | _O_TEXT))) == -1) {
+  int fh = RegisterHandle(osfh, oflag & (_O_APPEND | _O_RDONLY | _O_TEXT));
+  if (fh == -1) {
+    // No scope_guard for this since we only close in one place.
     CloseHandle(osfh);
-  }
-
-  return fh; /* return handle */
-}
-
-File my_win_open(const char *path, int flags) {
-  DBUG_TRACE;
-  return my_win_sopen((char *)path, flags | _O_BINARY, _SH_DENYNO,
-                      _S_IREAD | S_IWRITE);
-}
-
-int my_win_close(File fd) {
-  DBUG_TRACE;
-  if (CloseHandle(my_get_osfhandle(fd))) {
-    invalidate_fd(fd);
-    return 0;
-  }
-  my_osmaperr(GetLastError());
-  return -1;
-}
-
-int64_t my_win_pread(File Filedes, uchar *Buffer, size_t Count,
-                     int64_t offset) {
-  DWORD nBytesRead;
-  HANDLE hFile;
-  OVERLAPPED ov = {0};
-  LARGE_INTEGER li;
-
-  DBUG_TRACE;
-
-  if (!Count) return 0;
-  if (Count > UINT_MAX) Count = UINT_MAX;
-
-  hFile = (HANDLE)my_get_osfhandle(Filedes);
-  li.QuadPart = offset;
-  ov.Offset = li.LowPart;
-  ov.OffsetHigh = li.HighPart;
-
-  if (!ReadFile(hFile, Buffer, (DWORD)Count, &nBytesRead, &ov)) {
-    DWORD lastError = GetLastError();
-    /*
-      ERROR_BROKEN_PIPE is returned when no more data coming
-      through e.g. a command pipe in windows : see MSDN on ReadFile.
-    */
-    if (lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
-      return 0; /*return 0 at EOF*/
-    my_osmaperr(lastError);
     return -1;
   }
-  return nBytesRead;
-}
-
-int64_t my_win_read(File Filedes, uchar *Buffer, size_t Count) {
-  DWORD nBytesRead;
-  HANDLE hFile;
-
-  DBUG_TRACE;
-  if (!Count) return 0;
-  if (Count > UINT_MAX) Count = UINT_MAX;
-
-  hFile = (HANDLE)my_get_osfhandle(Filedes);
-
-  if (!ReadFile(hFile, Buffer, (DWORD)Count, &nBytesRead, NULL)) {
-    DWORD lastError = GetLastError();
-    /*
-      ERROR_BROKEN_PIPE is returned when no more data coming
-      through e.g. a command pipe in windows : see MSDN on ReadFile.
-    */
-    if (lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
-      return 0; /*return 0 at EOF*/
-    my_osmaperr(lastError);
-    return -1;
-  }
-  return nBytesRead;
-}
-
-int64_t my_win_pwrite(File Filedes, const uchar *Buffer, size_t Count,
-                      int64_t offset) {
-  DWORD nBytesWritten;
-  HANDLE hFile;
-  OVERLAPPED ov = {0};
-  LARGE_INTEGER li;
-
-  DBUG_TRACE;
-
-  if (!Count) return 0;
-
-  if (Count > UINT_MAX) Count = UINT_MAX;
-
-  hFile = (HANDLE)my_get_osfhandle(Filedes);
-  li.QuadPart = offset;
-  ov.Offset = li.LowPart;
-  ov.OffsetHigh = li.HighPart;
-
-  if (!WriteFile(hFile, Buffer, (DWORD)Count, &nBytesWritten, &ov)) {
-    my_osmaperr(GetLastError());
-    return -1;
-  } else
-    return nBytesWritten;
-}
-
-int64_t my_win_lseek(File fd, int64_t pos, int whence) {
-  LARGE_INTEGER offset;
-  LARGE_INTEGER newpos;
-
-  DBUG_TRACE;
-
-  static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR &&
-                    FILE_END == SEEK_END,
-                "Windows and POSIX seek constants must be compatible.");
-
-  offset.QuadPart = pos;
-  if (!SetFilePointerEx(my_get_osfhandle(fd), offset, &newpos, whence)) {
-    my_osmaperr(GetLastError());
-    newpos.QuadPart = -1;
-  }
-  return newpos.QuadPart;
-}
-
-#ifndef FILE_WRITE_TO_END_OF_FILE
-#define FILE_WRITE_TO_END_OF_FILE 0xffffffff
-#endif
-int64_t my_win_write(File fd, const uchar *Buffer, size_t Count) {
-  DWORD nWritten;
-  OVERLAPPED ov;
-  OVERLAPPED *pov = NULL;
-  HANDLE hFile;
-
-  DBUG_TRACE;
-
-  if (!Count) return 0;
-
-  if (Count > UINT_MAX) Count = UINT_MAX;
-
-  if (my_get_open_flags(fd) & _O_APPEND) {
-    /*
-       Atomic append to the end of file is is done by special initialization of
-       the OVERLAPPED structure. See MSDN WriteFile documentation for more info.
-    */
-    memset(&ov, 0, sizeof(ov));
-    ov.Offset = FILE_WRITE_TO_END_OF_FILE;
-    ov.OffsetHigh = -1;
-    pov = &ov;
-  }
-
-  hFile = my_get_osfhandle(fd);
-  if (!WriteFile(hFile, Buffer, (DWORD)Count, &nWritten, pov)) {
-    my_osmaperr(GetLastError());
-    return -1;
-  }
-  return nWritten;
-}
-
-int my_win_chsize(File fd, int64_t newlength) {
-  HANDLE hFile;
-  LARGE_INTEGER length;
-  DBUG_TRACE;
-
-  hFile = (HANDLE)my_get_osfhandle(fd);
-  length.QuadPart = newlength;
-  if (!SetFilePointerEx(hFile, length, NULL, FILE_BEGIN)) goto err;
-  if (!SetEndOfFile(hFile)) goto err;
-  return 0;
-err:
-  my_osmaperr(GetLastError());
-  set_my_errno(errno);
-  return -1;
+  return fh;
 }
 
 /* Get the file descriptor for stdin,stdout or stderr */
-static File my_get_stdfile_descriptor(FILE *stream) {
-  HANDLE hFile;
-  DWORD nStdHandle;
+File my_get_stdfile_descriptor(FILE *stream) {
   DBUG_TRACE;
+  // no Windows Error Guard in static function. Error conversion is
+  // handled at api level
 
+  DWORD nStdHandle;
   if (stream == stdin)
     nStdHandle = STD_INPUT_HANDLE;
   else if (stream == stdout)
     nStdHandle = STD_OUTPUT_HANDLE;
   else if (stream == stderr)
     nStdHandle = STD_ERROR_HANDLE;
-  else
+  else {
+    errno = EINVAL;
     return -1;
+  }
 
-  hFile = GetStdHandle(nStdHandle);
-  if (hFile != INVALID_HANDLE_VALUE) return my_open_osfhandle(hFile, 0);
-  return -1;
+  HANDLE hFile = GetStdHandle(nStdHandle);
+  if (hFile == INVALID_HANDLE_VALUE) return -1;
+
+  return RegisterHandle(hFile, 0);
 }
+}  // namespace
 
-File my_win_fileno(FILE *file) {
-  HANDLE hFile = (HANDLE)_get_osfhandle(fileno(file));
-  int retval = -1;
-  uint i;
+/**
+   Return the Windows HANDLE for a file descriptor obtained from
+   RegisterHandle().
 
+   @param fd "file descriptor" index into HandleInfoVector.
+
+   @retval handle corresponding to fd, if found
+   @retval INVALID_HANDLE_VALUE, if fd is not valid (illegal index
+           into HandleInfoVector). In this case
+   SetLastError(ERROR_INVALID_HANDLE) will have been called.
+ */
+HANDLE my_get_osfhandle(File fd) {
   DBUG_TRACE;
 
-  for (i = MY_FILE_MIN; i < my_file_limit; i++) {
-    if (my_file_info[i].fhandle == hFile) {
-      retval = i;
-      break;
-    }
+  return GetHandleInfo(fd).handle;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param path  File name.
+   @param mode  File access mode string.
+
+   @retval valid "file descriptor" (actually index into mapping
+   vector) if successful.
+
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+File my_win_open(const char *path, int mode) {
+  DBUG_TRACE;
+  return my_win_sopen(path, mode | _O_BINARY, _SH_DENYNO, _S_IREAD | S_IWRITE);
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd     "File descriptor" (index into mapping vector).
+
+   @retval 0 if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int my_win_close(File fd) {
+  DBUG_TRACE;
+
+  WindowsErrorGuard weg;
+  HandleInfo unreg = UnregisterHandle(fd);
+  if (unreg.handle == INVALID_HANDLE_VALUE) return -1;
+
+  if (!CloseHandle(unreg.handle)) return -1;
+
+  return 0;
+}
+
+/**
+   Homegrown posix emulation for Windows. Implements BOTH posix read()
+   and posix pread(). To read from the current file position (like
+   posix read() supply an offset argument that is -1.
+
+   @param fd     "File descriptor" (index into mapping vector).
+   @param buffer Destination buffer.
+   @param count  Number of bytes to read.
+   @param offset Offset where read starts. -1 to read from the current file
+                 position.
+
+   @note ERROR_HANDLE_EOF and ERROR_BROKEN_PIPE are treated as success
+         (returns 0, but with LastError set).
+
+   @retval Number of bytes read, if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int64_t my_win_pread(File fd, uchar *buffer, size_t count, int64_t offset) {
+  DBUG_TRACE;
+
+  if (!count) return 0;
+  if (count > UINT_MAX) count = UINT_MAX;
+
+  WindowsErrorGuard weg;
+  HANDLE hFile = my_get_osfhandle(fd);
+  if (hFile == INVALID_HANDLE_VALUE) return -1;
+
+  OVERLAPPED ov = MakeOverlapped(offset);
+
+  DWORD nBytesRead;
+  if (!ReadFile(hFile, buffer, count, &nBytesRead,
+                (offset == -1 ? nullptr : &ov))) {
+    DWORD lastError = GetLastError();
+    /*
+      ERROR_BROKEN_PIPE is returned when no more data coming
+      through e.g. a command pipe in windows : see MSDN on ReadFile.
+    */
+    if (lastError == ERROR_HANDLE_EOF || lastError == ERROR_BROKEN_PIPE)
+      return 0; /*return 0 at EOF*/
+    return -1;
   }
+  return nBytesRead;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd     "File descriptor" (index into mapping vector).
+   @param buffer Source buffer.
+   @param count  Number of bytes to write.
+   @param offset Where to start the write.
+
+   @retval Number of bytes written, if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int64_t my_win_pwrite(File fd, const uchar *buffer, size_t count,
+                      int64_t offset) {
+  DBUG_TRACE;
+
+  if (!count) return 0;
+  if (count > UINT_MAX) count = UINT_MAX;
+
+  WindowsErrorGuard weg;
+  HandleInfo hi = GetHandleInfo(fd);
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+
+  OVERLAPPED ov = MakeOverlapped(offset);
+
+  DWORD nBytesWritten;
+  if (!WriteFile(hi.handle, buffer, count, &nBytesWritten, &ov)) return -1;
+
+  return nBytesWritten;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd     "File descriptor" (index into mapping vector).
+   @param pos    Offset to seek.
+   @param whence Where to seek from.
+
+   @retval New offset into file, if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int64_t my_win_lseek(File fd, int64_t pos, int whence) {
+  DBUG_TRACE;
+  WindowsErrorGuard weg;
+
+  static_assert(FILE_BEGIN == SEEK_SET && FILE_CURRENT == SEEK_CUR &&
+                    FILE_END == SEEK_END,
+                "Windows and POSIX seek constants must be compatible.");
+
+  HandleInfo hi = GetHandleInfo(fd);
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+
+  LARGE_INTEGER newpos;
+  if (!SetFilePointerEx(hi.handle, MakeLargeInteger(pos), &newpos, whence))
+    return -1;
+
+  return newpos.QuadPart;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd     "File descriptor" (index into mapping vector).
+   @param Buffer Source Bytes.
+   @param Count  Number of bytes to write.
+
+   @retval Number of bytes written, if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int64_t my_win_write(File fd, const uchar *Buffer, size_t Count) {
+  DBUG_TRACE;
+
+  if (!Count) return 0;
+  if (Count > UINT_MAX) Count = UINT_MAX;
+
+  WindowsErrorGuard weg;
+
+  HandleInfo hi = GetHandleInfo(fd);
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+
+  // The msdn docs state: "To write to the end of file, specify
+  // both the Offset and OffsetHigh members of the OVERLAPPED structure
+  // as 0xFFFFFFFF."
+  OVERLAPPED ov_append = MakeOverlapped(0xFFFFFFFF, 0xFFFFFFFF);
+
+  DWORD nWritten;
+  if (!WriteFile(hi.handle, Buffer, Count, &nWritten,
+                 (hi.oflag & _O_APPEND) ? &ov_append : nullptr))
+    return -1;
+
+  return nWritten;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd "File descriptor" (index into mapping vector).
+   @param newlength new desired length.
+
+   @retval 0 if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int my_win_chsize(File fd, int64_t newlength) {
+  DBUG_TRACE;
+  WindowsErrorGuard weg;
+
+  HandleInfo hi = GetHandleInfo(fd);
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+
+  if (!SetFilePointerEx(hi.handle, MakeLargeInteger(newlength), nullptr,
+                        FILE_BEGIN))
+    return -1;
+  if (!SetEndOfFile(hi.handle)) return -1;
+
+  return 0;
+}
+
+// Emulation of posix functions for streams that are not part of the C standard.
+
+/**
+   Homegrown posix emulation for Windows.
+
+   @param stream FILE stream to get fd for.
+
+   @note Returned fd can either be a CRT standard fd (stdin stdout or
+         stderr), or a pseudo fd which is an index into the mapping
+         vector).
+
+   @retval Valid "file descriptor" if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+
+File my_win_fileno(FILE *stream) {
+  DBUG_TRACE;
+  WindowsErrorGuard weg;
+
+  File stream_fd = _fileno(stream);
+  if (stream_fd < 0)
+    return -1;  // Only EINVAL if stream == nullptr, according to msdn
+
+  HANDLE hFile = reinterpret_cast<HANDLE>(_get_osfhandle(stream_fd));
+  if (hFile == INVALID_HANDLE_VALUE) return -1;
+
+  File retval = FileIndex(hFile);
   if (retval == -1) /* try std stream */
-    return my_get_stdfile_descriptor(file);
+    return my_get_stdfile_descriptor(stream);
   return retval;
 }
 
-FILE *my_win_fopen(const char *filename, const char *type) {
-  FILE *file;
-  int flags = 0;
+/**
+   Homegrown posix emulation for Windows.
+
+   @param filename File name.
+   @param mode     File access mode string.
+
+   @retval FILE stream associated with given file name, if successful.
+   @retval nullptr in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+FILE *my_win_fopen(const char *filename, const char *mode) {
   DBUG_TRACE;
+  WindowsErrorGuard weg;
 
   /*
     If we are not creating, then we need to use my_access to make sure
@@ -479,116 +668,227 @@ FILE *my_win_fopen(const char *filename, const char *type) {
   */
   if (check_if_legal_filename(filename)) {
     errno = EACCES;
-    return NULL;
+    return nullptr;
   }
 
-  file = fopen(filename, type);
-  if (!file) return NULL;
+  FILE *stream = fopen(filename, mode);
+  if (!stream) return nullptr;
+  auto sg = create_scope_guard([stream]() { fclose(stream); });
 
-  if (strchr(type, 'a') != NULL) flags = O_APPEND;
+  int flags = (strchr(mode, 'a') != nullptr) ? O_APPEND : 0;
 
   /*
      Register file handle in my_table_info.
      Necessary for my_fileno()
    */
-  if (my_open_osfhandle((HANDLE)_get_osfhandle(fileno(file)), flags) < 0) {
-    fclose(file);
-    return NULL;
-  }
-  return file;
+  if (RegisterHandle(reinterpret_cast<HANDLE>(_get_osfhandle(fileno(stream))),
+                     flags) < 0)
+    return nullptr;
+
+  sg.commit();  // Do not close the stream we are about to return
+  return stream;
 }
 
-FILE *my_win_fdopen(File fd, const char *type) {
-  FILE *file;
-  int crt_fd;
-  int flags = 0;
+/**
+   Homegrown posix emulation for Windows.
 
+   @param fd  "File descriptor" (index into mapping vector).
+   @param mode File access mode string.
+
+   @note Currently only used in ibd2sdi to bind the fd for a temporary
+   file to a file stream. Could possibly be replaced with tmpfile_s.
+
+   @retval FILE stream associated with given file descriptor, if successful.
+   @retval nullptr in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+FILE *my_win_fdopen(File fd, const char *mode) {
   DBUG_TRACE;
+  WindowsErrorGuard weg;
 
-  if (strchr(type, 'a') != NULL) flags = O_APPEND;
+  int flags = (strchr(mode, 'a') != nullptr) ? O_APPEND : 0;
+
+  HANDLE hFile = my_get_osfhandle(fd);
+  if (hFile == INVALID_HANDLE_VALUE) return nullptr;
+
   /* Convert OS file handle to CRT file descriptor and then call fdopen*/
-  crt_fd = _open_osfhandle((intptr_t)my_get_osfhandle(fd), flags);
-  if (crt_fd < 0)
-    file = NULL;
-  else
-    file = fdopen(crt_fd, type);
-  return file;
+  int crt_fd = _open_osfhandle((intptr_t)hFile, flags);
+  if (crt_fd < 0) return nullptr;
+
+  return fdopen(crt_fd, mode);
 }
 
-int my_win_fclose(FILE *file) {
-  File fd;
+/**
+   Homegrown posix emulation for Windows.
 
+   @param stream FILE stream to close.
+
+   @note Calls to my_fileno() and UnregsterHandle() would not be
+   necessary if pseudo fds were not allocated for streams.
+
+   @retval 0 if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+int my_win_fclose(FILE *stream) {
   DBUG_TRACE;
-  fd = my_fileno(file);
+  WindowsErrorGuard weg;
+  File fd = my_fileno(stream);
   if (fd < 0) return -1;
-  if (fclose(file) < 0) return -1;
-  invalidate_fd(fd);
+  if (fd >= MY_FILE_MIN) UnregisterHandle(fd);
+  if (fclose(stream) < 0) return -1;
   return 0;
 }
 
 /**
-  Quick and dirty my_fstat() implementation for Windows.
-  Use CRT fstat on temporarily allocated file descriptor.
-  Patch file size, because size that fstat returns is not
-  reliable (may be outdated).
+   Homegrown posix emulation for Windows.
+
+   @param path    File name.
+   @param mode    File access mode string
+   @param stream  Existing stream to reopen
+
+   @note C11 includes freopen_s. If pseudo fds did not have to be
+   created for streams it would probably be sufficient to just forward
+   to freopen_s.
+
+   @retval valid FILE stream if successful.
+   @retval nullptr in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
+FILE *my_win_freopen(const char *path, const char *mode, FILE *stream) {
+  DBUG_TRACE;
+  DBUG_ASSERT(path && stream);
+  WindowsErrorGuard weg;
+
+  /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
+  File fd = _fileno(stream);
+  if (fd < 0) {
+    if (!freopen(path, mode, stream)) return nullptr;
+
+    fd = _fileno(stream);
+    if (fd < 0) return nullptr;
+  }
+  auto cfdg = create_scope_guard([fd]() { _close(fd); });
+
+  HANDLE osfh =
+      CreateFile(path, GENERIC_READ | GENERIC_WRITE,
+                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                 nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (osfh == INVALID_HANDLE_VALUE) return nullptr;
+
+  auto chg = create_scope_guard([osfh]() { CloseHandle(osfh); });
+  int handle_fd = _open_osfhandle((intptr_t)osfh, _O_APPEND | _O_TEXT);
+
+  if (handle_fd == -1) return nullptr;
+  auto chfdg = create_scope_guard([handle_fd]() { _close(handle_fd); });
+
+  if (_dup2(handle_fd, fd) < 0) return nullptr;
+
+  // Leave the handle and fd open, but close handle_fd
+  chg.commit();
+  cfdg.commit();
+
+  return stream;
+}
+
+/**
+   Homegrown posix emulation for Windows.
+
+   Quick and dirty implementation for Windows. Use CRT fstat on
+   temporarily allocated file descriptor.  Patch file size, because
+   size that fstat returns is not reliable (may be outdated).
+
+   @param      fd   "File descriptor" (index into mapping vector).
+   @param[out] buf  Area to store stat information in.
+
+   @retval 0 if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
 */
 int my_win_fstat(File fd, struct _stati64 *buf) {
-  int crt_fd;
-  int retval;
-  HANDLE hFile, hDup;
-
   DBUG_TRACE;
+  WindowsErrorGuard weg;
 
-  hFile = my_get_osfhandle(fd);
-  if (!DuplicateHandle(GetCurrentProcess(), hFile, GetCurrentProcess(), &hDup,
-                       0, false, DUPLICATE_SAME_ACCESS)) {
-    my_osmaperr(GetLastError());
+  HandleInfo hi = GetHandleInfo(fd);
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+
+  HANDLE hDup;
+  if (!DuplicateHandle(GetCurrentProcess(), hi.handle, GetCurrentProcess(),
+                       &hDup, 0, false, DUPLICATE_SAME_ACCESS))
     return -1;
-  }
-  if ((crt_fd = _open_osfhandle((intptr_t)hDup, 0)) < 0) return -1;
 
-  retval = _fstati64(crt_fd, buf);
-  if (retval == 0) {
-    /* File size returned by stat is not accurate (may be outdated), fix it*/
-    GetFileSizeEx(hDup, (PLARGE_INTEGER)(&(buf->st_size)));
-  }
-  _close(crt_fd);
-  return retval;
+  int crt_fd = _open_osfhandle((intptr_t)hDup, 0);
+  if (crt_fd < 0) return -1;
+  auto cg = create_scope_guard([crt_fd]() { _close(crt_fd); });
+
+  if (_fstati64(crt_fd, buf) < 0) return -1;
+
+  /* File size returned by stat is not accurate (may be outdated), fix it*/
+  if (!GetFileSizeEx(hDup, (PLARGE_INTEGER)(&(buf->st_size)))) return -1;
+
+  // crt_fd is only used to call _fstati64() so we do not commit the
+  // scope guard here
+  return 0;
 }
 
+/**
+   Homegrown posix emulation for Windows.
+
+   @param      path File name to obtain information about.
+   @param[out] buf  Area to store stat information in.
+
+   @retval Valid "file descriptor" (actually index into mapping
+           vector) if successful.
+
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
 int my_win_stat(const char *path, struct _stati64 *buf) {
   DBUG_TRACE;
-  if (_stati64(path, buf) == 0) {
-    /* File size returned by stat is not accurate (may be outdated), fix it*/
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    if (GetFileAttributesEx(path, GetFileExInfoStandard, &data)) {
-      LARGE_INTEGER li;
-      li.LowPart = data.nFileSizeLow;
-      li.HighPart = data.nFileSizeHigh;
-      buf->st_size = li.QuadPart;
-    }
-    return 0;
+  WindowsErrorGuard weg;
+  if (_stati64(path, buf) < 0) {
+    return -1;
   }
-  return -1;
+
+  /* File size returned by stat is not accurate (may be outdated), fix
+     it */
+  WIN32_FILE_ATTRIBUTE_DATA data;
+  if (!GetFileAttributesEx(path, GetFileExInfoStandard, &data)) return -1;
+
+  buf->st_size =
+      LARGE_INTEGER{data.nFileSizeLow, (LONG)data.nFileSizeHigh}.QuadPart;
+
+  return 0;
 }
 
+/**
+   Homegrown posix emulation for Windows.
+
+   @param fd "File descriptor" (index into mapping vector).
+
+   @retval 0 if successful.
+   @retval -1 in case of errors. errno and/or LastError set to
+           indicate the error.
+*/
 int my_win_fsync(File fd) {
   DBUG_TRACE;
-  if (FlushFileBuffers(my_get_osfhandle(fd))) return 0;
-  my_osmaperr(GetLastError());
-  return -1;
+  WindowsErrorGuard weg;
+  HandleInfo hi = GetHandleInfo(fd);
+
+  if (hi.handle == INVALID_HANDLE_VALUE) return -1;
+  if (!FlushFileBuffers(hi.handle)) return -1;
+
+  return 0;
 }
 
-int my_win_dup(File fd) {
-  HANDLE hDup;
-  DBUG_TRACE;
-  if (DuplicateHandle(GetCurrentProcess(), my_get_osfhandle(fd),
-                      GetCurrentProcess(), &hDup, 0, false,
-                      DUPLICATE_SAME_ACCESS)) {
-    return my_open_osfhandle(hDup, my_get_open_flags(fd));
-  }
-  my_osmaperr(GetLastError());
-  return -1;
+/**
+   Constructs static objects.
+ */
+void MyWinfileInit() {
+  hivp = new HandleInfoVector(HandleInfoAllocator(key_memory_win_handle_info));
 }
 
-#endif /*_WIN32*/
+/**
+   Destroys static objects.
+*/
+void MyWinfileEnd() { delete hivp; }

@@ -57,11 +57,9 @@ int my_rename(const char *from, const char *to, myf MyFlags) {
 #endif
     set_my_errno(errno);
     error = -1;
-    if (MyFlags & (MY_FAE + MY_WME)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_LINK, MYF(0), from, to, my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_LINK, MYF(0), from, to);
     }
   }
   return error;
-} /* my_rename */
+}

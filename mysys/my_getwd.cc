@@ -84,10 +84,8 @@ int my_getwd(char *buf, size_t size, myf MyFlags) {
   else {
     if (size < 2) return -1;
     if (!getcwd(buf, (uint)(size - 2)) && MyFlags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
       set_my_errno(errno);
-      my_error(EE_GETWD, MYF(0), errno,
-               my_strerror(errbuf, sizeof(errbuf), errno));
+      MyOsError(my_errno(), EE_GETWD, MYF(0));
       return -1;
     }
     if (*((pos = strend(buf)) - 1) != FN_LIBCHAR) /* End with FN_LIBCHAR */
@@ -114,9 +112,7 @@ int my_setwd(const char *dir, myf MyFlags) {
   if ((res = chdir(dir)) != 0) {
     set_my_errno(errno);
     if (MyFlags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_SETWD, MYF(0), start, errno,
-               my_strerror(errbuf, sizeof(errbuf), errno));
+      MyOsError(my_errno(), EE_SETWD, MYF(0), start);
     }
   } else {
     if (test_if_hard_path(start)) { /* Hard pathname */
@@ -130,7 +126,7 @@ int my_setwd(const char *dir, myf MyFlags) {
       curr_dir[0] = '\0'; /* Don't save name */
   }
   return res;
-} /* my_setwd */
+}
 
 /* Test if hard pathname */
 /* Returns 1 if dirname is a hard path */

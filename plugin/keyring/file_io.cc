@@ -171,10 +171,10 @@ bool File_io::truncate(File file, myf myFlags) {
 #ifdef _WIN32
   LARGE_INTEGER length;
   length.QuadPart = 0;
-  HANDLE hFile;
-  hFile = (HANDLE)my_get_osfhandle(file);
+  HANDLE hFile = my_get_osfhandle(file);
 
-  if ((!SetFilePointerEx(hFile, length, NULL, FILE_BEGIN) ||
+  if ((hFile == INVALID_HANDLE_VALUE ||
+       !SetFilePointerEx(hFile, length, NULL, FILE_BEGIN) ||
        !SetEndOfFile(hFile)) &&
       (myFlags & MY_WME)) {
     my_osmaperr(GetLastError());

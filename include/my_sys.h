@@ -109,7 +109,7 @@ struct MEM_ROOT;
 #define MY_FILE_ERROR ((size_t)-1)
 
 /* General bitmaps for my_func's */
-#define MY_FFNF 1          /* Fatal if file not found */
+// 1 used to be MY_FFNF which has been removed
 #define MY_FNABP 2         /* Fatal if not all bytes read/writen */
 #define MY_NABP 4          /* Error if not all bytes read/writen */
 #define MY_FAE 8           /* Fatal if any error */
@@ -189,7 +189,9 @@ extern PSI_memory_key key_memory_max_alloca;
   if (size > max_alloca_sz) my_free(ptr)
 
 #if defined(ENABLED_DEBUG_SYNC)
-extern "C" void (*debug_sync_C_callback_ptr)(const char *, size_t);
+using DebugSyncCallbackFp = void (*)(const char *, size_t);
+extern DebugSyncCallbackFp debug_sync_C_callback_ptr;
+
 #define DEBUG_SYNC_C(_sync_point_name_)                                 \
   do {                                                                  \
     if (debug_sync_C_callback_ptr != NULL)                              \
@@ -219,7 +221,7 @@ extern void (*error_handler_hook)(uint my_err, const char *str, myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
                                         myf MyFlags);
 extern void (*local_message_hook)(enum loglevel ll, uint ecode, va_list args);
-extern uint my_file_limit;
+
 extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
 
 /*
@@ -260,7 +262,9 @@ extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE];
 extern CHARSET_INFO compiled_charsets[];
 
 /* statistics */
-extern ulong my_file_opened, my_stream_opened, my_tmp_file_created;
+extern ulong my_tmp_file_created;
+extern ulong my_file_opened;
+extern ulong my_stream_opened;
 extern ulong my_file_total_opened;
 extern bool my_init_done;
 
@@ -292,31 +296,6 @@ enum flush_type {
   */
   FLUSH_FORCE_WRITE
 };
-
-/*
- How was this file opened (for debugging purposes).
- The important part is whether it is UNOPEN or not.
- */
-enum file_type {
-  UNOPEN = 0,
-  FILE_BY_OPEN,
-  FILE_BY_CREATE,
-  STREAM_BY_FOPEN,
-  STREAM_BY_FDOPEN,
-  FILE_BY_MKSTEMP,
-  FILE_BY_O_TMPFILE
-};
-
-struct st_my_file_info {
-  char *name;
-#ifdef _WIN32
-  HANDLE fhandle; /* win32 file handle */
-  int oflag;      /* open flags, e.g O_APPEND */
-#endif
-  enum file_type type;
-};
-
-extern struct st_my_file_info *my_file_info;
 
 struct DYNAMIC_ARRAY {
   uchar *buffer{nullptr};
@@ -584,13 +563,11 @@ extern void *my_once_alloc(size_t Size, myf MyFlags);
 extern void my_once_free(void);
 extern char *my_once_strdup(const char *src, myf myflags);
 extern void *my_once_memdup(const void *src, size_t len, myf myflags);
-extern File my_open(const char *FileName, int Flags, myf MyFlags);
-extern File my_register_filename(File fd, const char *FileName,
-                                 enum file_type type_of_file,
-                                 uint error_message_number, myf MyFlags);
+extern File my_open(const char *filename, int Flags, myf MyFlags);
+
 extern File my_create(const char *FileName, int CreateFlags, int AccessFlags,
                       myf MyFlags);
-extern int my_close(File Filedes, myf MyFlags);
+extern int my_close(File fd, myf MyFlags);
 extern int my_mkdir(const char *dir, int Flags, myf MyFlags);
 extern int my_readlink(char *to, const char *filename, myf MyFlags);
 extern int my_is_symlink(const char *filename, ST_FILE_ID *file_id);
@@ -665,11 +642,11 @@ extern void my_osmaperr(unsigned long last_error);
 
 extern const char *get_global_errmsg(int nr);
 extern void wait_for_free_space(const char *filename, int errors);
-extern FILE *my_fopen(const char *FileName, int Flags, myf MyFlags);
-extern FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags);
-extern FILE *my_freopen(const char *path, const char *mode, FILE *stream);
-extern int my_fclose(FILE *fd, myf MyFlags);
-extern File my_fileno(FILE *fd);
+extern FILE *my_fopen(const char *filename, int Flags, myf MyFlags);
+extern FILE *my_fdopen(File fd, const char *filename, int Flags, myf MyFlags);
+extern FILE *my_freopen(const char *filename, const char *mode, FILE *stream);
+extern int my_fclose(FILE *stream, myf MyFlags);
+extern File my_fileno(FILE *stream);
 extern int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags);
 extern int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags);
 extern void thr_set_sync_wait_callback(void (*before_sync)(void),
@@ -689,17 +666,30 @@ extern void my_message(uint my_err, const char *str, myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
 void my_message_local_stderr(enum loglevel, uint ecode, va_list args);
 extern void my_message_local(enum loglevel ll, uint ecode, ...);
+
+/**
+  Convenience wrapper for OS error messages which report
+  errno/my_errno with %d followed by strerror as %s, as the last
+  conversions in the error message.
+
+  The OS error message (my_errno) is formatted in a stack buffer and
+  the errno value and a pointer to the buffer is added to the end of
+  the parameter pack passed to my_error().
+
+  @param errno_val errno/my_errno number.
+  @param ppck parameter pack of additional arguments to pass to my_error().
+ */
+template <class... Ts>
+inline void MyOsError(int errno_val, Ts... ppck) {
+  char errbuf[MYSYS_STRERROR_SIZE];
+  my_error(ppck..., errno_val, my_strerror(errbuf, sizeof(errbuf), errno_val));
+}
+
 extern bool my_init(void);
 extern void my_end(int infoflag);
 extern const char *my_filename(File fd);
 extern MY_MODE get_file_perm(ulong perm_flags);
 extern bool my_chmod(const char *filename, ulong perm_flags, myf my_flags);
-
-#ifdef EXTRA_DEBUG
-void my_print_open_files(void);
-#else
-#define my_print_open_files()
-#endif
 
 extern bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
@@ -817,7 +807,6 @@ extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
 extern uint my_set_max_open_files(uint files);
-void my_free_open_file_info(void);
 
 extern bool my_gethwaddr(uchar *to);
 

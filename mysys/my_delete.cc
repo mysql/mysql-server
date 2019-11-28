@@ -49,14 +49,12 @@ int my_delete(const char *name, myf MyFlags) {
 
   if ((err = unlink(name)) == -1) {
     set_my_errno(errno);
-    if (MyFlags & (MY_FAE + MY_WME)) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_DELETE, MYF(0), name, errno,
-               my_strerror(errbuf, sizeof(errbuf), errno));
+    if (MyFlags & (MY_FAE | MY_WME)) {
+      MyOsError(my_errno(), EE_DELETE, MYF(0), name);
     }
   }
   return err;
-} /* my_delete */
+}
 
 #if defined(_WIN32)
 /**
@@ -130,9 +128,7 @@ int nt_share_delete(const char *name, myf MyFlags) {
     set_my_errno(errno);
 
   if (MyFlags & (MY_FAE + MY_WME)) {
-    char errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_DELETE, MYF(0), name, my_errno(),
-             my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    MyOsError(my_errno(), EE_DELETE, MYF(0), name);
   }
   return -1;
 }

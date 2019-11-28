@@ -78,9 +78,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags) {
       my_stpcpy(to, filename);
     } else {
       if (MyFlags & MY_WME) {
-        char errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_CANT_READLINK, MYF(0), filename, errno,
-                 my_strerror(errbuf, sizeof(errbuf), errno));
+        MyOsError(errno, EE_CANT_READLINK, MYF(0), filename);
       }
       result = -1;
     }
@@ -104,9 +102,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags) {
     result = -1;
     set_my_errno(errno);
     if (MyFlags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_CANT_SYMLINK, MYF(0), linkname, content, errno,
-               my_strerror(errbuf, sizeof(errbuf), errno));
+      MyOsError(errno, EE_CANT_SYMLINK, MYF(0), linkname, content);
     }
   }
   return result;
@@ -153,9 +149,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags) {
     DBUG_PRINT("error", ("realpath failed with errno: %d", errno));
     set_my_errno(errno);
     if (MyFlags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_REALPATH, MYF(0), filename, my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      MyOsError(my_errno(), EE_REALPATH, MYF(0), filename);
     }
     my_load_path(to, filename, NullS);
     result = -1;
@@ -166,9 +160,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags) {
   if (ret == 0 || ret > FN_REFLEN) {
     set_my_errno((ret > FN_REFLEN) ? ENAMETOOLONG : GetLastError());
     if (MyFlags & MY_WME) {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_REALPATH, MYF(0), filename, my_errno(),
-               my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      MyOsError(my_errno(), EE_REALPATH, MYF(0), filename);
     }
     /*
       GetFullPathName didn't work : use my_load_path() which is a poor

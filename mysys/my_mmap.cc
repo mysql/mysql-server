@@ -61,7 +61,7 @@ void *my_mmap(void *addr, size_t len, int prot, int flags, File fd,
               my_off_t offset) {
   HANDLE hFileMap;
   LPVOID ptr;
-  HANDLE hFile = (HANDLE)my_get_osfhandle(fd);
+  HANDLE hFile = my_get_osfhandle(fd);
   DBUG_TRACE;
   DBUG_PRINT("mysys", ("map fd: %d", fd));
 

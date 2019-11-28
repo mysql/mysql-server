@@ -2272,7 +2272,6 @@ static void clean_up(bool print_message) {
   key_caches.delete_elements();
   multi_keycache_free();
   query_logger.cleanup();
-  my_free_open_file_info();
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
@@ -8666,8 +8665,9 @@ SHOW_VAR status_vars[] = {
     {"Open_table_definitions", (char *)&show_table_definitions, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Open_tables", (char *)&show_open_tables, SHOW_FUNC, SHOW_SCOPE_ALL},
-    {"Opened_files", (char *)&my_file_total_opened, SHOW_LONG_NOFLUSH,
-     SHOW_SCOPE_GLOBAL},
+    {"Opened_files",
+     const_cast<char *>(reinterpret_cast<const char *>(&my_file_total_opened)),
+     SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
     {"Opened_tables", (char *)offsetof(System_status_var, opened_tables),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Opened_table_definitions",

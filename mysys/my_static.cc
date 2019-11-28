@@ -75,19 +75,88 @@ PSI_thread_key key_thread_timer_notifier;
 PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
 PSI_memory_key key_memory_win_PACL;
 PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
+PSI_memory_key key_memory_win_handle_info;
 #endif /* _WIN32 */
 
 /* from my_init */
 char *home_dir = nullptr;
 const char *my_progname = nullptr;
 char curr_dir[FN_REFLEN] = {0}, home_dir_buff[FN_REFLEN] = {0};
-ulong my_stream_opened = 0, my_file_opened = 0, my_tmp_file_created = 0;
-ulong my_file_total_opened = 0;
-int my_umask = 0664, my_umask_dir = 0777;
 
-struct st_my_file_info my_file_info_default[MY_NFILE];
-uint my_file_limit = MY_NFILE;
-struct st_my_file_info *my_file_info = my_file_info_default;
+ulong my_tmp_file_created = 0;
+
+ulong my_stream_opened = 0;
+ulong my_file_opened = 0;
+ulong my_file_total_opened = 0;
+
+namespace file_info {
+/**
+   Increment status variables.
+   @relates file_info::CountFileOpen
+
+   @param pt previous file_type (only relevant when assigning an fd to a stream
+   in my_fdopen):
+   @param ct current file type (to differentiate betweeen streams and files).
+ */
+void CountFileOpen(OpenType pt, OpenType ct) {
+  mysql_mutex_assert_owner(&THR_LOCK_open);
+  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+  DBUG_ASSERT(pt == OpenType::UNOPEN || ct == OpenType::STREAM_BY_FDOPEN);
+  switch (ct) {
+    case OpenType::UNOPEN:
+      DBUG_ASSERT(false);
+      return;
+
+    case OpenType::STREAM_BY_FDOPEN:
+      if (pt != OpenType::UNOPEN) {
+        // If fd was opened through mysys, we have already counted
+        // it in my_file_opened_. Since we will now increment
+        // my_file_stream_opened_ for it, we decrement my_file_opened_
+        // so that it is not counted twice.
+        DBUG_ASSERT(pt != OpenType::STREAM_BY_FOPEN &&
+                    pt != OpenType::STREAM_BY_FDOPEN);
+        --my_file_opened;
+        ++my_stream_opened;
+        DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+        return;
+      }
+      // Fallthrough
+    case OpenType::STREAM_BY_FOPEN:
+      ++my_stream_opened;
+      break;
+
+    default:
+      ++my_file_opened;
+  }
+  ++my_file_total_opened;
+  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+}
+
+/**
+   Decrement status variables.
+   @relates file_info::CountFileClose
+
+   @param ft file type (to differentiate betweeen streams and files).
+ */
+void CountFileClose(OpenType ft) {
+  mysql_mutex_assert_owner(&THR_LOCK_open);
+  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+  switch (ft) {
+    case OpenType::UNOPEN:
+      return;
+    case OpenType::STREAM_BY_FOPEN:
+    case OpenType::STREAM_BY_FDOPEN:
+      --my_stream_opened;
+      break;
+    default:
+      --my_file_opened;
+  };
+  --my_file_total_opened;
+  DBUG_ASSERT(my_file_opened + my_stream_opened == my_file_total_opened);
+}
+}  // namespace file_info
+
+int my_umask = 0664, my_umask_dir = 0777;
 
 /* from mf_reccache.c */
 ulong my_default_record_cache_size = RECORD_CACHE_SIZE;
@@ -153,10 +222,10 @@ int (*is_killed_hook)(const void *) = is_killed_dummy;
 
 #if defined(ENABLED_DEBUG_SYNC)
 /**
-  Global pointer to be set if callback function is defined
-  (e.g. in mysqld). See sql/debug_sync.cc.
-*/
-void (*debug_sync_C_callback_ptr)(const char *, size_t);
+   Global pointer to be set if callback function is defined
+   (e.g. in mysqld). See sql/debug_sync.cc.
+ */
+DebugSyncCallbackFp debug_sync_C_callback_ptr;
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
 /* How to disable options */
