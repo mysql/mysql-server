@@ -51,6 +51,7 @@
 #define QRY_MULTIPLE_SCAN_SORTED 4824
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
+#define QRY_OJ_NOT_SUPPORTED 4827
 
 #include <Vector.hpp>
 #include <Bitmask.hpp>

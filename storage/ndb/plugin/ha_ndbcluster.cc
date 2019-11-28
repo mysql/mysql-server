@@ -14000,7 +14000,7 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
     const ndb_pushed_join *pushed_join = nullptr;
 
     // Try to build a ndb_pushed_join starting from 'table_aqp'
-    ndb_pushed_builder_ctx pushed_builder(table_aqp);
+    ndb_pushed_builder_ctx pushed_builder(m_thd_ndb, table_aqp);
     int error = pushed_builder.make_pushed_join(pushed_join);
     if (unlikely(error)) {
       if (error < 0)  // getNdbError() gives us the error code

@@ -968,6 +968,8 @@ ErrorBundle ErrorCodes[] = {
     "Batch size for sub scan cannot be smaller than number of fragments." },
   { QRY_EMPTY_PROJECTION, DMEC, AE,
     "Query has operation with empty projection." },
+  { QRY_OJ_NOT_SUPPORTED, DMEC, AE,
+    "Outer joined scans not supported by data nodes." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

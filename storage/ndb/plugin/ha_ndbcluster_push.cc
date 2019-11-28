@@ -306,8 +306,10 @@ NdbQuery *ndb_pushed_join::make_query_instance(
 
 /////////////////////////////////////////
 
-ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(AQP::Table_access *root)
-    : m_plan(*root->get_join_plan()),
+ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb,
+                                               AQP::Table_access *root)
+    : m_thd_ndb(thd_ndb),
+      m_plan(*root->get_join_plan()),
       m_join_root(root),
       m_join_scope(),
       m_const_scope(),
@@ -473,8 +475,7 @@ int ndb_pushed_builder_ctx::make_pushed_join(
     error = build_query();
     if (unlikely(error)) return error;
 
-    const NdbQueryDef *const query_def =
-        m_builder->prepare(get_thd_ndb(current_thd)->ndb);
+    const NdbQueryDef *const query_def = m_builder->prepare(m_thd_ndb->ndb);
     if (unlikely(query_def == NULL))
       return -1;  // Get error with ::getNdbError()
 
@@ -995,12 +996,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      */
 
     /**
-     * TODO: Online upgrade:
-     *
-     * Need the 'ndbd_send_active_bitmask()' signal extensions in order
-     * to support outer joined scans. Else we reject pushing.
+     * Online upgrade, check of we are connected to a 'ndb' allowing us to push
+     * outer joined scan operation (ver >= 8.0.20), Else we reject pushing.
      */
-    if (false) {  // TODO: if (!ndbd_send_active_bitmask())
+    if (!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
       EXPLAIN_NO_PUSH(
           "Can't push table '%s' as child of '%s', "
           "outer join of scan-child not implemented",
@@ -1189,7 +1188,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
  *    dependencies. The later is only allowed for tables in the
  *    embedding nest
  ***************************************************************/
-
 bool ndb_pushed_builder_ctx::is_outer_nests_referable(
     const AQP::Table_access *table) {
   DBUG_TRACE;

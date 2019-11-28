@@ -738,6 +738,18 @@ void NdbQueryBuilder::destroy()
   delete &m_impl;
 }
 
+// Static method.
+bool NdbQueryBuilder::outerJoinedScanSupported(const Ndb *ndb)
+{
+  /**
+   * Online upgrade:
+   *
+   * Need the 'ndbd_send_active_bitmask()' signal extensions in order
+   * to support outer joined scans. Else we reject pushing.
+   */
+  return ndbd_send_active_bitmask(ndb->getMinDbNodeVersion());
+}
+
 NdbQueryBuilder::NdbQueryBuilder(NdbQueryBuilderImpl& impl)
 : m_impl(impl)
 {}
@@ -2788,8 +2800,8 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
                                         const NdbTableImpl& tableOrIndex)
 {
   const bool isRoot = (getOpNo()==0);
-  const bool useNewScanFrag = 
-    ndb && (ndbd_spj_multifrag_scan(ndb->getMinDbNodeVersion()));
+  const Uint32 minDbNodeVer = (ndb != nullptr) ? ndb->getMinDbNodeVersion() : 0;
+  const bool useNewScanFrag = (ndbd_spj_multifrag_scan(minDbNodeVer));
 
   // This method should only be invoked once.
   assert (!m_isPrepared);
@@ -2799,6 +2811,14 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
+
+  if (!isRoot &&
+      getMatchType() != NdbQueryOptions::MatchNonNull)
+  {
+    // Outer-joined child tables need updated CONF-protocol to be supported
+    if (unlikely(!ndbd_send_active_bitmask(minDbNodeVer)))
+      return QRY_OJ_NOT_SUPPORTED;
+  }
 
   if (getMatchType() == NdbQueryOptions::MatchNonNull)
   {

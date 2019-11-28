@@ -420,6 +420,8 @@ public:
    */
   void destroy();
 
+  static bool outerJoinedScanSupported(const Ndb *ndb);
+
   /**
    * Complete building a queryTree from 'this' NdbQueryBuilder
    */

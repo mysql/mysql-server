@@ -176,7 +176,7 @@ class ndb_pushed_builder_ctx {
       const ndb_pushed_builder_ctx &builder_ctx, const NdbQueryDef *query_def);
 
  public:
-  ndb_pushed_builder_ctx(AQP::Table_access *table);
+  ndb_pushed_builder_ctx(const Thd_ndb *thd_ndb, AQP::Table_access *table);
   ~ndb_pushed_builder_ctx();
 
   /**
@@ -240,8 +240,10 @@ class ndb_pushed_builder_ctx {
   ndb_table_access_map get_table_map(table_map external_map) const;
 
  private:
+  const Thd_ndb *const m_thd_ndb;
+
   const AQP::Join_plan &m_plan;
-  AQP::Table_access *m_join_root;
+  AQP::Table_access *const m_join_root;
 
   // Scope of tables covered by this pushed join
   ndb_table_access_map m_join_scope;
