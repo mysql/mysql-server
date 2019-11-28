@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include "binlog_config.h"
 #include "my_compiler.h"
+#include "my_config.h"
 #ifndef STANDALONE_BINLOG
 #define HAVE_MYSYS 1
 #endif
@@ -58,7 +59,7 @@
   @return  16-bit integer in host byte order
 */
 uint16_t inline le16toh(uint16_t x) {
-#ifndef IS_BIG_ENDIAN
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return ((x >> 8) | (x << 8));
@@ -74,7 +75,7 @@ uint16_t inline le16toh(uint16_t x) {
   @return  32-bit integer in host byte order
 */
 uint32_t inline le32toh(uint32_t x) {
-#ifndef IS_BIG_ENDIAN
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   return (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) |
@@ -91,7 +92,7 @@ uint32_t inline le32toh(uint32_t x) {
   @return  32-bit integer in host byte order
 */
 uint32_t inline be32toh(uint32_t x) {
-#ifndef IS_BIG_ENDIAN
+#ifndef WORDS_BIGENDIAN
   return (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) |
           ((x << 24) & 0xff000000));
 #else
@@ -108,7 +109,7 @@ uint32_t inline be32toh(uint32_t x) {
   @return  64-bit integer in host byte order
 */
 uint64_t inline le64toh(uint64_t x) {
-#ifndef IS_BIG_ENDIAN
+#ifndef WORDS_BIGENDIAN
   return x;
 #else
   x = ((x << 8) & 0xff00ff00ff00ff00ULL) | ((x >> 8) & 0x00ff00ff00ff00ffULL);

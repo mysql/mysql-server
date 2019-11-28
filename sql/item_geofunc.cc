@@ -41,11 +41,11 @@
 #include <string>
 #include <utility>
 
-#include "binlog_config.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_byteorder.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "nullable.h"
 #include "sql/current_thd.h"

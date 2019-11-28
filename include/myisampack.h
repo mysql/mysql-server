@@ -33,9 +33,6 @@
 
 #include "my_config.h"
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#endif
 #include <sys/types.h>
 
 #include "my_inttypes.h"

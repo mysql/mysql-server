@@ -20,29 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#TODO If deemed necessary, these checks must go to config.h of the server
-# which we must include
-
-INCLUDE(CheckSymbolExists)
-
-# Depending on the platform, we may or may not have this file
-CHECK_INCLUDE_FILES(endian.h HAVE_ENDIAN_H)
-
-# The header for glibc versions less than 2.9 will not
-# have the endian conversion macros defined
-IF(HAVE_ENDIAN_H)
-  CHECK_SYMBOL_EXISTS(le64toh endian.h HAVE_LE64TOH)
-  CHECK_SYMBOL_EXISTS(le32toh endian.h HAVE_LE32TOH)
-  CHECK_SYMBOL_EXISTS(le16toh endian.h HAVE_LE16TOH)
-  CHECK_SYMBOL_EXISTS(htole64 endian.h HAVE_HTOLE64)
-  CHECK_SYMBOL_EXISTS(htole32 endian.h HAVE_HTOLE32)
-  CHECK_SYMBOL_EXISTS(htole16 endian.h HAVE_HTOLE16)
-  IF(HAVE_LE32TOH AND HAVE_LE16TOH AND HAVE_LE64TOH AND
-     HAVE_HTOLE64 AND HAVE_HTOLE32 AND HAVE_HTOLE16)
-    SET(HAVE_ENDIAN_CONVERSION_MACROS 1)
-  ENDIF()
-ENDIF()
-
 #
 # XDR related checks
 #

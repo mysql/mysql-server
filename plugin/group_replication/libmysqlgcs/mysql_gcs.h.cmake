@@ -25,17 +25,5 @@
 
 #include <config.h>
 
-/* Headers we may use */
-#cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
-
-/* Symbols we may use */
-#cmakedefine HAVE_LE64TOH @HAVE_LE64TOH@
-#cmakedefine HAVE_LE32TOH @HAVE_LE32TOH@
-#cmakedefine HAVE_LE16TOH @HAVE_LE16TOH@
-#cmakedefine HAVE_HTOLE64 @HAVE_HTOLE64@
-#cmakedefine HAVE_HTOLE32 @HAVE_HTOLE32@
-#cmakedefine HAVE_HTOLE16 @HAVE_HTOLE16@
-#cmakedefine HAVE_ENDIAN_CONVERSION_MACROS @HAVE_ENDIAN_CONVERSION_MACROS@
-
 #endif
 

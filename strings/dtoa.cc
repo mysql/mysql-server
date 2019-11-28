@@ -55,12 +55,8 @@
 
 #include "decimal.h"
 #include "my_inttypes.h"
-#include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 
-#ifdef HAVE_ENDIAN_H
-#include <endian.h>
-#endif
 #include <errno.h>
 #include <float.h>
 #include <stdlib.h>
@@ -607,8 +603,7 @@ typedef union {
   ULong L[2];
 } U;
 
-#if defined(WORDS_BIGENDIAN) || \
-    (defined(__FLOAT_WORD_ORDER) && (__FLOAT_WORD_ORDER == __BIG_ENDIAN))
+#if defined(WORDS_BIGENDIAN)
 #define word0(x) (x)->L[0]
 #define word1(x) (x)->L[1]
 #else

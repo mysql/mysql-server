@@ -48,7 +48,6 @@
 #include <vector>
 
 #include "add_with_saturate.h"
-#include "binlog_config.h"
 #include "decimal.h"
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
@@ -57,6 +56,7 @@
 #include "my_bitmap.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
+#include "my_config.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"

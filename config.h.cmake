@@ -142,6 +142,7 @@
 
 /* Endianess */
 #cmakedefine WORDS_BIGENDIAN 1
+#cmakedefine HAVE_ENDIAN_CONVERSION_MACROS 1
 
 /* Type sizes */
 #cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
