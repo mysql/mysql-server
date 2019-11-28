@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,9 @@
   Comments) 1950 to 1952 in the files http://www.ietf.org/rfc/rfc1950.txt
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
+
+#ifndef NDB_UTIL_NDBZIO_H
+#define NDB_UTIL_NDBZIO_H
 
 #include <zlib.h>
 
@@ -223,4 +226,6 @@ extern int ndbz_file_size(ndbzio_stream *file, size_t *size);
 
 #ifdef	__cplusplus
 }
+#endif
+
 #endif
