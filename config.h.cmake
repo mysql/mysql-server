@@ -69,12 +69,6 @@
 #cmakedefine HAVE_SYS_UN_H 1
 #cmakedefine HAVE_SASL_SASL_H 1
 
-/* Libevent */
-#cmakedefine HAVE_DEVPOLL 1
-#cmakedefine HAVE_SYS_DEVPOLL_H 1
-#cmakedefine HAVE_SYS_EPOLL_H 1
-#cmakedefine HAVE_TAILQFOREACH 1
-
 /* Functions */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
 #cmakedefine HAVE_BACKTRACE 1
@@ -90,7 +84,6 @@
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FSYNC 1
 #cmakedefine HAVE_GETHRTIME 1
-#cmakedefine HAVE_GETNAMEINFO 1
 #cmakedefine HAVE_GETPASS 1
 #cmakedefine HAVE_GETPASSPHRASE 1
 #cmakedefine HAVE_GETPWNAM 1
@@ -115,28 +108,18 @@
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_GETAFFINITY_NP 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_STRSIGNAL 1
-#cmakedefine HAVE_STRSEP 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_MEMALIGN 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_HTONLL 1
 #cmakedefine HAVE_EPOLL 1
-/* #cmakedefine HAVE_EVENT_PORTS 1 */
-#cmakedefine HAVE_INET_NTOP 1
-#cmakedefine HAVE_WORKING_KQUEUE 1
-#cmakedefine HAVE_TIMERADD 1
-#cmakedefine HAVE_TIMERCLEAR 1
-#cmakedefine HAVE_TIMERCMP 1
-#cmakedefine HAVE_TIMERISSET 1
 
 /* WL2373 */
 #cmakedefine HAVE_SYS_TIME_H 1
