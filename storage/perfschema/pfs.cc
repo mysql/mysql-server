@@ -6348,8 +6348,6 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     stat = &event_name_array[index];
   }
 
-  stat->mark_used();
-
   if (flags & STATE_FLAG_TIMED) {
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_..._BY_EVENT_NAME (timed) */
     stat->aggregate_value(wait_time);
@@ -6377,8 +6375,6 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
 
   if (digest_stat != nullptr) {
     bool new_max_wait = false;
-
-    digest_stat->m_stat.mark_used();
 
     if (flags & STATE_FLAG_TIMED) {
       digest_stat->m_stat.aggregate_value(wait_time);
@@ -6470,8 +6466,6 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     PFS_statement_stat *sub_stmt_stat = nullptr;
     sub_stmt_stat = &pfs_program->m_stmt_stat;
     if (sub_stmt_stat != nullptr) {
-      sub_stmt_stat->mark_used();
-
       if (flags & STATE_FLAG_TIMED) {
         sub_stmt_stat->aggregate_value(wait_time);
       } else {

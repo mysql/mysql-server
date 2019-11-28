@@ -371,77 +371,39 @@ struct PFS_prepared_stmt_stat {
 
 /**
   Statistics for statement usage.
-  This structure uses lazy initialization,
-  controlled by member @c m_timer1_stat.m_count.
 */
 struct PFS_statement_stat {
   PFS_single_stat m_timer1_stat;
-  ulonglong m_error_count;
-  ulonglong m_warning_count;
-  ulonglong m_rows_affected;
-  ulonglong m_lock_time;
-  ulonglong m_rows_sent;
-  ulonglong m_rows_examined;
-  ulonglong m_created_tmp_disk_tables;
-  ulonglong m_created_tmp_tables;
-  ulonglong m_select_full_join;
-  ulonglong m_select_full_range_join;
-  ulonglong m_select_range;
-  ulonglong m_select_range_check;
-  ulonglong m_select_scan;
-  ulonglong m_sort_merge_passes;
-  ulonglong m_sort_range;
-  ulonglong m_sort_rows;
-  ulonglong m_sort_scan;
-  ulonglong m_no_index_used;
-  ulonglong m_no_good_index_used;
+  ulonglong m_error_count{0};
+  ulonglong m_warning_count{0};
+  ulonglong m_rows_affected{0};
+  ulonglong m_lock_time{0};
+  ulonglong m_rows_sent{0};
+  ulonglong m_rows_examined{0};
+  ulonglong m_created_tmp_disk_tables{0};
+  ulonglong m_created_tmp_tables{0};
+  ulonglong m_select_full_join{0};
+  ulonglong m_select_full_range_join{0};
+  ulonglong m_select_range{0};
+  ulonglong m_select_range_check{0};
+  ulonglong m_select_scan{0};
+  ulonglong m_sort_merge_passes{0};
+  ulonglong m_sort_range{0};
+  ulonglong m_sort_rows{0};
+  ulonglong m_sort_scan{0};
+  ulonglong m_no_index_used{0};
+  ulonglong m_no_good_index_used{0};
 
-  PFS_statement_stat() { reset(); }
+  void reset() { new (this) PFS_statement_stat(); }
 
-  inline void reset() { m_timer1_stat.m_count = 0; }
+  void aggregate_counted() { m_timer1_stat.aggregate_counted(); }
 
-  inline void mark_used() { delayed_reset(); }
-
- private:
-  inline void delayed_reset(void) {
-    if (m_timer1_stat.m_count == 0) {
-      m_timer1_stat.reset();
-      m_error_count = 0;
-      m_warning_count = 0;
-      m_rows_affected = 0;
-      m_lock_time = 0;
-      m_rows_sent = 0;
-      m_rows_examined = 0;
-      m_created_tmp_disk_tables = 0;
-      m_created_tmp_tables = 0;
-      m_select_full_join = 0;
-      m_select_full_range_join = 0;
-      m_select_range = 0;
-      m_select_range_check = 0;
-      m_select_scan = 0;
-      m_sort_merge_passes = 0;
-      m_sort_range = 0;
-      m_sort_rows = 0;
-      m_sort_scan = 0;
-      m_no_index_used = 0;
-      m_no_good_index_used = 0;
-    }
-  }
-
- public:
-  inline void aggregate_counted() {
-    delayed_reset();
-    m_timer1_stat.aggregate_counted();
-  }
-
-  inline void aggregate_value(ulonglong value) {
-    delayed_reset();
+  void aggregate_value(ulonglong value) {
     m_timer1_stat.aggregate_value(value);
   }
 
-  inline void aggregate(const PFS_statement_stat *stat) {
+  void aggregate(const PFS_statement_stat *stat) {
     if (stat->m_timer1_stat.m_count != 0) {
-      delayed_reset();
       m_timer1_stat.aggregate_no_check(&stat->m_timer1_stat);
 
       m_error_count += stat->m_error_count;
