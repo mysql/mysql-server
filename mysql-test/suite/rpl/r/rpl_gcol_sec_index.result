@@ -1,0 +1,72 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# Create a table without generated columns.
+CREATE TABLE t1 (id INT) ENGINE=InnoDB;
+
+# Create a table with a VGC and a SGC with secondary indexes defined on
+# them.
+CREATE TABLE t2(
+id INT,
+v_gcol INT GENERATED ALWAYS AS (id + 1) VIRTUAL NOT NULL,
+s_gcol INT GENERATED ALWAYS AS (id + 1) STORED NOT NULL,
+KEY v_idx (v_gcol), KEY s_idx (s_gcol)
+) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+
+# Add a VGC and also define secondary indexes on the VGC and SGC on the
+# Slave.
+ALTER TABLE t1
+ADD v_gcol INT GENERATED ALWAYS AS (id + 1) VIRTUAL NOT NULL,
+ADD s_gcol INT GENERATED ALWAYS AS (id + 1) STORED NOT NULL,
+ADD KEY v_idx (v_gcol), ADD KEY s_idx (s_gcol);
+
+# Modify the generated expression for the VGC and SGC on the Slave.
+ALTER TABLE t2
+MODIFY v_gcol INT GENERATED ALWAYS AS (id + 2) VIRTUAL NOT NULL,
+MODIFY s_gcol INT GENERATED ALWAYS AS (id + 2) STORED NOT NULL;
+[connection master]
+
+# INSERT values into the tables on the master.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2(id) VALUES (1);
+include/sync_slave_sql_with_master.inc
+
+# Validate the table data.
+include/diff_tables.inc [master:t1, slave:t1]
+include/assert.inc [Verified that table t1 has 1 rows]
+include/diff_tables.inc [master:t2, slave:t2]
+include/assert.inc [Verified that table t2 has 1 rows]
+
+# UPDATE a record in the tables on the master.
+[connection master]
+UPDATE t1 SET id= 2 WHERE id= 1;
+UPDATE t2 SET id= 2 WHERE id= 1;
+include/sync_slave_sql_with_master.inc
+
+# Validate the table data.
+include/diff_tables.inc [master:t1, slave:t1]
+include/assert.inc [Verified that table t1 has 1 rows]
+include/diff_tables.inc [master:t2, slave:t2]
+include/assert.inc [Verified that table t2 has 1 rows]
+
+# DELETE a record in the tables on the master.
+[connection master]
+DELETE FROM t1 WHERE id= 2;
+DELETE FROM t2 WHERE id= 2;
+include/sync_slave_sql_with_master.inc
+
+# Validate the table data.
+include/diff_tables.inc [master:t1, slave:t1]
+include/assert.inc [Verified that table t1 has 0 rows]
+include/diff_tables.inc [master:t2, slave:t2]
+include/assert.inc [Verified that table t2 has 0 rows]
+
+# Cleanup
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl_end.inc
