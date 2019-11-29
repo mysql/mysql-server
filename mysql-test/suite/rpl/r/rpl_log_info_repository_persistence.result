@@ -95,7 +95,7 @@ l@calhost
 Occurrences of 'l@calhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
-	0	<INVALID>	YES
+	0	<INVALID>	NO
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
@@ -131,7 +131,7 @@ localhost
 Occurrences of 'localhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
 CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT
-	0	<INVALID>	YES
+	0	<INVALID>	NO
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
