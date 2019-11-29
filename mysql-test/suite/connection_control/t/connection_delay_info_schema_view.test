@@ -15,6 +15,13 @@
 --echo # Install connection_control plugin
 --source ../inc/install_connection_control_plugin.inc
 
+--echo # Performance schema
+--echo # Verify the instrumentation provided
+
+SELECT * FROM performance_schema.setup_instruments
+  WHERE NAME LIKE "%/conn_delay/%"
+  ORDER BY NAME;
+
 --echo # Create user accounts for testing
 CREATE USER u1@localhost IDENTIFIED BY 'abcd';
 CREATE USER u2@localhost IDENTIFIED BY 'abcd';

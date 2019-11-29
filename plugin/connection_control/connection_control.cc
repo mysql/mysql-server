@@ -63,6 +63,49 @@ Connection_control_variables g_variables;
 Connection_event_coordinator *g_connection_event_coordinator = nullptr;
 MYSQL_PLUGIN connection_control_plugin_info = nullptr;
 
+/* Performance Schema instrumentation */
+
+PSI_mutex_key key_connection_delay_mutex = PSI_NOT_INSTRUMENTED;
+
+static PSI_mutex_info all_connection_delay_mutex_info[] = {
+    {&key_connection_delay_mutex, "connection_delay_mutex", 0, 0,
+     PSI_DOCUMENT_ME}};
+
+PSI_rwlock_key key_connection_event_delay_lock;
+
+static PSI_rwlock_info all_connection_delay_rwlock_info[] = {
+    {&key_connection_event_delay_lock, "connection_event_delay_lock",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
+
+PSI_cond_key key_connection_delay_wait = PSI_NOT_INSTRUMENTED;
+
+static PSI_cond_info all_connection_delay_cond_info[] = {
+    {&key_connection_delay_wait, "connection_delay_wait_condition", 0, 0,
+     PSI_DOCUMENT_ME}};
+
+PSI_stage_info stage_waiting_in_connection_control_plugin = {
+    0, "Waiting in connection_control plugin", 0, PSI_DOCUMENT_ME};
+
+static PSI_stage_info *all_connection_delay_stage_info[] = {
+    &stage_waiting_in_connection_control_plugin};
+
+static void init_performance_schema() {
+  const char *category = "conn_delay";
+
+  int count_mutex = array_elements(all_connection_delay_mutex_info);
+  mysql_mutex_register(category, all_connection_delay_mutex_info, count_mutex);
+
+  int count_rwlock = array_elements(all_connection_delay_rwlock_info);
+  mysql_rwlock_register(category, all_connection_delay_rwlock_info,
+                        count_rwlock);
+
+  int count_cond = array_elements(all_connection_delay_cond_info);
+  mysql_cond_register(category, all_connection_delay_cond_info, count_cond);
+
+  int count_stage = array_elements(all_connection_delay_stage_info);
+  mysql_stage_register(category, all_connection_delay_stage_info, count_stage);
+}
+
 /**
   event_notify() implementation for connection_control
 
@@ -106,6 +149,12 @@ static int connection_control_notify(MYSQL_THD thd,
 */
 
 static int connection_control_init(MYSQL_PLUGIN plugin_info) {
+  /*
+    Declare all performance schema instrumentation up front,
+    so it is discoverable.
+  */
+  init_performance_schema();
+
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
