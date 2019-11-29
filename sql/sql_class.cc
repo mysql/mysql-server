@@ -52,6 +52,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
+#include "rpl_master.h"  // unregister_slave
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -1123,6 +1124,13 @@ THD::~THD() {
 #endif
   }
   if (rli_slave) rli_slave->cleanup_after_session();
+
+  /*
+    As slaves can be added in one mysql command like COM_REGISTER_SLAVE
+    but then need to be removed on error scenarios, we call this method
+    here
+  */
+  unregister_slave(this, true, true);
 
   free_root(&main_mem_root, MYF(0));
 

@@ -33,6 +33,7 @@
 #include "m_ctype.h"
 #include "m_string.h"  // strmake
 #include "map_helpers.h"
+#include "mutex_lock.h"  // Mutex_lock
 #include "my_byteorder.h"
 #include "my_command.h"
 #include "my_dbug.h"
@@ -1022,16 +1023,13 @@ String *get_slave_uuid(THD *thd, String *value) {
   if (value == nullptr) return nullptr;
 
   /* Protects thd->user_vars. */
-  mysql_mutex_lock(&thd->LOCK_thd_data);
+  MUTEX_LOCK(lock_guard, &thd->LOCK_thd_data);
 
   const auto it = thd->user_vars.find("slave_uuid");
   if (it != thd->user_vars.end() && it->second->length() > 0) {
     value->copy(it->second->ptr(), it->second->length(), nullptr);
-    mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
   return nullptr;
 }
 
