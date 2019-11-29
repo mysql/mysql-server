@@ -3532,6 +3532,10 @@ int register_slave_on_master(MYSQL* mysql, Master_info *mi,
     }
     DBUG_RETURN(1);
   }
+  DBUG_EXECUTE_IF("simulate_register_slave_killed", {
+    mi->abort_slave = 1;
+    DBUG_RETURN(1);
+  };);
   DBUG_RETURN(0);
 }
 
