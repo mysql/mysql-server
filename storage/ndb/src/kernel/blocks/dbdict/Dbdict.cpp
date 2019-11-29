@@ -14799,7 +14799,6 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
   const Uint32 nodeIndex = value % noOfReplicas;
 
   indexPtr.p->indexStatFragId = fragId;
-  bzero(indexPtr.p->indexStatNodes, sizeof(indexPtr.p->indexStatNodes));
 
   /**
    * Use the bitmask for sorting, the order of node IDs in frag_data is
@@ -14813,7 +14812,7 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
   }
 
   // clear list
-  memset(indexPtr.p->indexStatNodes, 0, sizeof(indexPtr.p->indexStatNodes) / sizeof(Uint16));
+  memset(indexPtr.p->indexStatNodes, 0, sizeof(indexPtr.p->indexStatNodes));
 
   // rotate the sorted nodes into the list
   for (Uint32 nodeId = sortedNodes.find_first(), i = 0;
