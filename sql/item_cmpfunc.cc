@@ -634,8 +634,12 @@ bool Item_bool_func2::resolve_type(THD *thd) {
   /*
     See agg_item_charsets() in item.cc for comments
     on character set and collation aggregation.
+    Charset comparison is skipped for SHOW CREATE VIEW
+    statements since the join fields are not resolved
+    during SHOW CREATE VIEW.
   */
-  if (args[0]->result_type() == STRING_RESULT &&
+  if (thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
+      args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
       agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
     return true;
@@ -664,7 +668,7 @@ bool Item_bool_func2::resolve_type(THD *thd) {
       return true;
     if (cvt1 || cvt2) return false;
   }
-  return set_cmp_func();
+  return (thd->lex->sql_command != SQLCOM_SHOW_CREATE) ? set_cmp_func() : false;
 }
 
 bool Item_func_like::resolve_type(THD *) {
