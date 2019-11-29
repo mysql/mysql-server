@@ -2135,8 +2135,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_ROW_FORMAT) {
     if (!!from->get_info(&temp_require_row_format, 0)) return true;
   } else {
-    if (username != nullptr ||
-        channel_map.is_group_replication_channel_name(channel))
+    if (channel_map.is_group_replication_channel_name(channel))
       temp_require_row_format = 1;
   }
   m_require_row_format = temp_require_row_format;
