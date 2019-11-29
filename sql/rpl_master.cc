@@ -25,6 +25,7 @@
 #include "unireg.h"
 #include "sql_parse.h"                          // check_access
 #include "global_threads.h"
+#include "mutex_lock.h"                         // Mutex_lock
 #ifdef HAVE_REPLICATION
 
 #include "sql_acl.h"                            // SUPER_ACL
@@ -2096,6 +2097,7 @@ String *get_slave_uuid(THD *thd, String *value)
 
   if (value == NULL)
     return NULL;
+  Mutex_lock lock_guard(&thd->LOCK_thd_data);
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
   if (entry && entry->length() > 0)
@@ -2103,8 +2105,8 @@ String *get_slave_uuid(THD *thd, String *value)
     value->copy(entry->ptr(), entry->length(), NULL);
     return value;
   }
-  else
-    return NULL;
+
+  return NULL;
 }
 
 /*
