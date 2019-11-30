@@ -772,22 +772,24 @@ static void trx_roll_try_truncate(
 }
 
 /** Pops the topmost undo log record in a single undo log and updates the info
- about the topmost record in the undo log memory struct.
- @return undo log record, the page s-latched */
-static trx_undo_rec_t *trx_roll_pop_top_rec(
-    trx_t *trx,       /*!< in: transaction */
-    trx_undo_t *undo, /*!< in: undo log */
-    mtr_t *mtr)       /*!< in: mtr */
-{
+about the topmost record in the undo log memory struct.
+@param[in]	trx		transaction
+@param[in[	undo		undo log
+@param[in]	mtr		mtr
+@param[out]	undo_offset	offset of undo record in the page
+@return Undo page where undo log record resides, the page s-latched */
+static const page_t *trx_roll_pop_top_rec(trx_t *trx, trx_undo_t *undo,
+                                          mtr_t *mtr, uint32_t *undo_offset) {
   ut_ad(mutex_own(&trx->undo_mutex));
 
-  page_t *undo_page = trx_undo_page_get_s_latched(
+  const page_t *undo_page = trx_undo_page_get_s_latched(
       page_id_t(undo->space, undo->top_page_no), undo->page_size, mtr);
 
-  ulint offset = undo->top_offset;
+  *undo_offset = static_cast<uint32_t>(undo->top_offset);
 
-  trx_undo_rec_t *prev_rec = trx_undo_get_prev_rec(
-      undo_page + offset, undo->hdr_page_no, undo->hdr_offset, true, mtr);
+  trx_undo_rec_t *prev_rec =
+      trx_undo_get_prev_rec((trx_undo_rec_t *)(undo_page + *undo_offset),
+                            undo->hdr_page_no, undo->hdr_offset, true, mtr);
 
   if (prev_rec == NULL) {
     undo->empty = TRUE;
@@ -803,7 +805,7 @@ static trx_undo_rec_t *trx_roll_pop_top_rec(
     undo->top_undo_no = trx_undo_rec_get_undo_no(prev_rec);
   }
 
-  return (undo_page + offset);
+  return (undo_page);
 }
 
 /** Pops the topmost record when the two undo logs of a transaction are seen
@@ -821,10 +823,11 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   trx_undo_t *undo;
   trx_undo_t *ins_undo;
   trx_undo_t *upd_undo;
-  trx_undo_rec_t *undo_rec;
   trx_undo_rec_t *undo_rec_copy;
+  const page_t *undo_page;
   undo_no_t undo_no;
   ibool is_insert;
+  uint32_t undo_offset;
   trx_rseg_t *rseg;
   mtr_t mtr;
 
@@ -868,9 +871,9 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
 
   mtr_start(&mtr);
 
-  undo_rec = trx_roll_pop_top_rec(trx, undo, &mtr);
+  undo_page = trx_roll_pop_top_rec(trx, undo, &mtr, &undo_offset);
 
-  undo_no = trx_undo_rec_get_undo_no(undo_rec);
+  undo_no = trx_undo_rec_get_undo_no(undo_page + undo_offset);
 
   ut_ad(trx_roll_check_undo_rec_ordering(undo_no, undo->rseg->space_id, trx));
 
@@ -896,7 +899,8 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   trx->undo_no = undo_no;
   trx->undo_rseg_space = undo->rseg->space_id;
 
-  undo_rec_copy = trx_undo_rec_copy(undo_rec, heap);
+  undo_rec_copy =
+      trx_undo_rec_copy(undo_page, static_cast<uint32_t>(undo_offset), heap);
 
   mutex_exit(&trx->undo_mutex);
 

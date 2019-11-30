@@ -2406,7 +2406,7 @@ static MY_ATTRIBUTE((warn_unused_result))
   undo_page = trx_undo_page_get_s_latched(page_id_t(space_id, page_no),
                                           page_size, &mtr);
 
-  undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
+  undo_rec = trx_undo_rec_copy(undo_page, static_cast<uint32_t>(offset), heap);
 
   mtr_commit(&mtr);
 
