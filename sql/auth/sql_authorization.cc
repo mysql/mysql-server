@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1470,17 +1470,21 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
   else
   {
-    if (!revoke_grant)
-    {
-      String *rlb= &thd->rewritten_query;
-      rlb->mem_free();
-      mysql_rewrite_grant(thd, rlb);
+    /*
+      Rewrite (table) GRANT statements to use password hashes
+      instead of <secret> style obfuscation so it can be used
+      in binlog.
+    */
+    if (!revoke_grant) {
+      String rlb;
+      mysql_rewrite_grant(thd, &rlb);
+      thd->swap_rewritten_query(rlb);
     }
-    if (thd->rewritten_query.length())
+
+    if (thd->rewritten_query().length() > 0)
       result= result |
-          write_bin_log(thd, FALSE,
-                        thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length(),
+          write_bin_log(thd, FALSE, thd->rewritten_query().ptr(),
+                        thd->rewritten_query().length(),
                         transactional_tables);
     else
       result= result |
@@ -1727,17 +1731,22 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
     else
     {
-      if (!revoke_grant)
-      {
-        String *rlb= &thd->rewritten_query;
-        rlb->mem_free();
-        mysql_rewrite_grant(thd, rlb);
+      /*
+        Rewrite (routine) GRANT statements to use password hashes
+        instead of <secret> style obfuscation so it can be used
+        in binlog.
+      */
+      if (!revoke_grant) {
+        String rlb;
+        mysql_rewrite_grant(thd, &rlb);
+        thd->swap_rewritten_query(rlb);
       }
+
       /*
         For performance reasons, we don't rewrite the query if we don't have to.
         If that was the case, write the original query.
       */
-      if (!thd->rewritten_query.length())
+      if (thd->rewritten_query().length() == 0)
       {
         if (write_bin_log(thd, false, thd->query().str, thd->query().length,
                           transactional_tables))
@@ -1745,9 +1754,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       }
       else
       {
-        if (write_bin_log(thd, false,
-                          thd->rewritten_query.c_ptr_safe(),
-                          thd->rewritten_query.length(),
+        if (write_bin_log(thd, false, thd->rewritten_query().ptr(),
+                          thd->rewritten_query().length(),
                           transactional_tables))
           result= TRUE;
       }
@@ -1993,18 +2001,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   }
   else
   {
-    if (!revoke_grant)
-    {
-      String *rlb= &thd->rewritten_query;
-      rlb->mem_free();
-      mysql_rewrite_grant(thd, rlb);
+    /*
+      Rewrite GRANT statements to use password hashes instead of
+      <secret> style obfuscation so it can be used in binlog.
+    */
+    if (!revoke_grant) {
+      String rlb;
+      mysql_rewrite_grant(thd, &rlb);
+      thd->swap_rewritten_query(rlb);
     }
-    if (thd->rewritten_query.length())
+
+    if (thd->rewritten_query().length() > 0) {
       result= result |
-          write_bin_log(thd, FALSE,
-                        thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length(),
+          write_bin_log(thd, FALSE, thd->rewritten_query().ptr(),
+                        thd->rewritten_query().length(),
                         transactional_tables);
+    }
     else
       result= result |
         write_bin_log(thd, FALSE, thd->query().str, thd->query().length,

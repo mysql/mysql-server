@@ -4372,6 +4372,37 @@ void THD::set_query(const LEX_CSTRING& query_arg)
 
 
 /**
+  Set the rewritten query (with passwords obfuscated etc.) on the THD.
+  Wraps this in the LOCK_thd_query mutex to protect against race conditions
+  with SHOW PROCESSLIST inspecting that string.
+
+  This uses swap() and therefore "steals" the argument from the caller;
+  the caller MUST take care not to try to use its own string after calling
+  this function! This is an optimization for mysql_rewrite_query() so we
+  don't copy its temporary string (which may get very long, up to
+  @@max_allowed_packet).
+
+  Using this outside of mysql_rewrite_query() is almost certainly wrong;
+  please check with the runtime team!
+
+  @param query_arg  The rewritten query to use for slow/bin/general logging.
+                    The value will be released in the caller and MUST NOT
+                    be used there after calling this function.
+*/
+void THD::swap_rewritten_query(String& query_arg)
+{
+  DBUG_ASSERT(this == current_thd);
+
+  mysql_mutex_lock(&LOCK_thd_query);
+  m_rewritten_query.mem_free();
+  m_rewritten_query.swap(query_arg);
+  // The rewritten query should always be a valid C string, just in case.
+  (void) m_rewritten_query.c_ptr_safe();
+  mysql_mutex_unlock(&LOCK_thd_query);
+}
+
+
+/**
   Leave explicit LOCK TABLES or prelocked mode and restore value of
   transaction sentinel in MDL subsystem.
 */
