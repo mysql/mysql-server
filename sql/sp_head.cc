@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -790,8 +790,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
       likely to change in the future, so we'll do it right from the
       start.
     */
-    if (thd->rewritten_query.length())
-      thd->rewritten_query.mem_free();
+    if (thd->rewritten_query().length())
+      thd->reset_rewritten_query();
 
     err_status= i->execute(thd, &ip);
 

@@ -1481,22 +1481,32 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
 
   if (some_users_created || (if_not_exists && !thd->is_error()))
   {
-    String *rlb= &thd->rewritten_query;
-    rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb, &extra_users);
+    /*
+      Rewrite CREATE USER statements to use password hashes instead
+      of <secret> style obfuscation so it can be used in binlog. We
+      are rewriting to a private string rather than the public one on
+      the THD (thd->m_rewritten_query). This will save us from having
+      to acquire the lock to update the string on the THD. As
+      slow-logging (if enabled) will happen later and use the string
+      on the THD, the slow log will not contain the local rewrite
+      we're doing here, but the original one.
+    */
+    String rlb;
+
+    mysql_rewrite_create_alter_user(thd, &rlb, &extra_users);
 
     int ret= commit_owned_gtid_by_partial_command(thd);
 
     if (ret == 1)
     {
-      if (!thd->rewritten_query.length())
+      if (!rlb.length())
         result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
                                transactional_tables);
-      else
-        result|= write_bin_log(thd, false,
-                               thd->rewritten_query.c_ptr_safe(),
-                               thd->rewritten_query.length(),
+      else {
+        result|= write_bin_log(thd, false, rlb.c_ptr_safe(), rlb.length(),
                                transactional_tables);
+        thd->swap_rewritten_query(rlb); // must come last!
+      }
     }
     else if (ret == -1)
       result|= -1;
@@ -1965,20 +1975,29 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if (some_user_altered || (if_exists && !thd->is_error()))
   {
-    /* do query rewrite for ALTER USER */
-    String *rlb= &thd->rewritten_query;
-    rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb, &extra_users);
+    /*
+      Rewrite ALTER USER statements to use password hashes instead
+      of <secret> style obfuscation so it can be used in binlog. We
+      are rewriting to a private string rather than the public one on
+      the THD (thd->m_rewritten_query). This will save us from having
+      to acquire the lock to update the string on the THD. As
+      slow-logging (if enabled) will happen later and use the string
+      on the THD, the slow log will not contain the local rewrite
+      we're doing here, but the original one.
+    */
+    String rlb;
+
+    mysql_rewrite_create_alter_user(thd, &rlb, &extra_users);
 
     int ret= commit_owned_gtid_by_partial_command(thd);
     if (ret == 1)
-      result|= (write_bin_log(thd, false,
-                              thd->rewritten_query.c_ptr_safe(),
-                              thd->rewritten_query.length(),
+      result|= (write_bin_log(thd, false, rlb.c_ptr_safe(), rlb.length(),
                               table->file->has_transactions()) != 0);
 
     else if (ret == -1)
       result|= -1;
+
+    thd->swap_rewritten_query(rlb); // must come last!
   }
 
   lock.unlock();
@@ -2000,5 +2019,3 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
 
 #endif
-
-

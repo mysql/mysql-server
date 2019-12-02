@@ -1716,10 +1716,10 @@ void log_slow_do(THD *thd)
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
-  if (thd->rewritten_query.length())
+  if (thd->rewritten_query().length())
     query_logger.slow_log_write(thd,
-                                thd->rewritten_query.c_ptr_safe(),
-                                thd->rewritten_query.length());
+                                thd->rewritten_query().ptr(),
+                                thd->rewritten_query().length());
   else
     query_logger.slow_log_write(thd, thd->query().str, thd->query().length);
 }
