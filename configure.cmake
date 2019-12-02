@@ -541,33 +541,6 @@ CHECK_CXX_SOURCE_COMPILES("
   {
     int foo= -10; int bar= 10;
     long long int foo64= -10; long long int bar64= 10;
-    if (!__atomic_fetch_add(&foo, bar, __ATOMIC_SEQ_CST) || foo)
-      return -1;
-    bar= __atomic_exchange_n(&foo, bar, __ATOMIC_SEQ_CST);
-    if (bar || foo != 10)
-      return -1;
-    bar= __atomic_compare_exchange_n(&bar, &foo, 15, 0,
-                                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    if (bar)
-      return -1;
-    if (!__atomic_fetch_add(&foo64, bar64, __ATOMIC_SEQ_CST) || foo64)
-      return -1;
-    bar64= __atomic_exchange_n(&foo64, bar64, __ATOMIC_SEQ_CST);
-    if (bar64 || foo64 != 10)
-      return -1;
-    bar64= __atomic_compare_exchange_n(&bar64, &foo64, 15, 0,
-                                       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-    if (bar64)
-      return -1;
-    return 0;
-  }"
-  HAVE_GCC_ATOMIC_BUILTINS)
-
-CHECK_CXX_SOURCE_COMPILES("
-  int main()
-  {
-    int foo= -10; int bar= 10;
-    long long int foo64= -10; long long int bar64= 10;
     if (!__sync_fetch_and_add(&foo, bar) || foo)
       return -1;
     bar= __sync_lock_test_and_set(&foo, bar);
