@@ -163,6 +163,13 @@ static inline char *my_stpnmov(char *dst, const char *src, size_t n) {
 */
 static inline char *my_stpcpy(char *dst, const char *src) {
 #if defined(HAVE_BUILTIN_STPCPY)
+  /*
+    If __builtin_stpcpy() is available, use it instead of stpcpy(), since GCC in
+    some situations is able to transform __builtin_stpcpy() into more efficient
+    strcpy() or memcpy() calls. It does not perform these transformations for a
+    plain call to stpcpy() when the compiler runs in strict mode. See GCC bug
+    82429.
+  */
   return __builtin_stpcpy(dst, src);
 #elif defined(HAVE_STPCPY)
   return stpcpy(dst, src);

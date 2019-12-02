@@ -529,16 +529,11 @@ int main()
   return 0;
 }" HAVE_BUILTIN_EXPECT)
 
-# GCC has __builtin_stpcpy but still calls stpcpy
-IF(NOT SOLARIS OR NOT MY_COMPILER_IS_GNU)
-  CHECK_C_SOURCE_COMPILES("
-  int main()
-  {
-    char foo1[1];
-    char foo2[1];
-    __builtin_stpcpy(foo1, foo2);
-    return 0;
-  }" HAVE_BUILTIN_STPCPY)
+# Only check for __builtin_stpcpy() if stpcpy() is available.
+# Oracle Developer Studio requires <string.h> to be included in order
+# to use __builtin_stpcpy.
+IF(HAVE_STPCPY)
+  CHECK_SYMBOL_EXISTS(__builtin_stpcpy "string.h" HAVE_BUILTIN_STPCPY)
 ENDIF()
 
 CHECK_CXX_SOURCE_COMPILES("
