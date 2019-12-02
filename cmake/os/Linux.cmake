@@ -44,6 +44,14 @@ IF(EXISTS "/etc/fedora-release")
   ENDIF()
 ENDIF()
 
+IF(EXISTS "/etc/os-release")
+  FILE(READ "/etc/os-release" MY_OS_RELEASE)
+  IF(MY_OS_RELEASE MATCHES "Ubuntu" AND
+      MY_OS_RELEASE MATCHES "16.04")
+    SET(LINUX_UBUNTU_16_04 1)
+  ENDIF()
+ENDIF()
+
 # We require at least GCC 5.3 or Clang 3.4.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
