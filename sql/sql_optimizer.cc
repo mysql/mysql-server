@@ -9183,8 +9183,14 @@ static bool make_join_select(JOIN *join, Item *cond) {
     trace_const_cond.add("condition_on_constant_tables", const_cond)
         .add("condition_value", const_cond_result);
     if (const_cond_result) {
+      /*
+        If all the tables referred by the condition are const tables and
+        if the condition is not expensive, we can remove the where condition
+        as it will always evaluate to "true".
+      */
       if (join->plan_is_const() &&
-          !(cond->used_tables() & ~join->const_table_map)) {
+          !(cond->used_tables() & ~join->const_table_map) &&
+          !cond->is_expensive()) {
         DBUG_PRINT("info", ("Found always true WHERE condition"));
         join->where_cond = nullptr;
       }
