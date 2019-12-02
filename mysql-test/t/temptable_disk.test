@@ -69,7 +69,7 @@ SELECT @@global.temptable_use_mmap;
 # Test TempTable overflow to disk
 #
 
-CREATE TABLE t (c VARCHAR(128));
+CREATE TABLE t (c LONGBLOB);  # Forces use of temporary table in filesort.
 
 INSERT INTO t VALUES
 (REPEAT('a', 128)),
@@ -81,10 +81,7 @@ ANALYZE TABLE t;
 
 SET GLOBAL temptable_max_ram = 2097152;
 -- disable_result_log
---echo # Disable hash join, since that will trigger the new execution engine,
---echo # which in turn won't do the temporary materialization needed to trigger
---echo # overflow to disk.
-SELECT /*+ NO_HASH_JOIN(t1, t2, t3, t4, t5, t6) */ * FROM
+SELECT * FROM
 t AS t1,
 t AS t2,
 t AS t3,

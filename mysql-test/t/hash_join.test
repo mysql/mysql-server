@@ -649,24 +649,6 @@ eval $query;
 DROP TABLE t1, t2;
 SET join_buffer_size = DEFAULT;
 
---echo # See that the hints for hash join works as expected.
-CREATE TABLE t1 (col1 INTEGER);
-CREATE TABLE t2 (col1 INTEGER);
-
---echo # By default, hash join should be used.
-EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
-
---echo # Try disabling hash join using the hint.
-EXPLAIN FORMAT=tree SELECT /*+ NO_HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
-
---echo # Turn off hash join using the optimizer switch, and then enable it again
---echo # using the hint.
-SET optimizer_switch="hash_join=off";
-EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
-EXPLAIN FORMAT=tree SELECT /*+ HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
-SET optimizer_switch=DEFAULT;
-DROP TABLE t1, t2;
-
 --echo #
 --echo # Bug#29964536 WL#2241: ASSERTION FAILURE IN
 --echo #              TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
