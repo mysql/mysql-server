@@ -898,6 +898,13 @@
 }
 
 {
+   OpenSSL conditional jump in RAND_DRBG_generate
+   Memcheck:Cond
+   ...
+   fun:RAND_DRBG_generate
+}
+
+{
    OpenSSL uninitialised value of size 8 in new_VioSSLFd
    Memcheck:Value8
    fun:BN_num_bits_word
@@ -990,12 +997,18 @@
 
 # supress uninitialized because some SSL libraries do random like that
 {
-   OpenSSL conditional jump in generate_user_salt due to randomness
+   OpenSSL conditional jump in generate_user_salt due to randomness 1
    Memcheck:Cond
    fun:generate_user_salt
    fun:native_password_authenticate
 }
 
+{
+   OpenSSL conditional jump in generate_user_salt due to randomness 2
+   Memcheck:Cond
+   fun:_Z18generate_user_saltPci
+   fun:_ZL34caching_sha2_password_authenticateP16MYSQL_PLUGIN_VIOP22MYSQL_SERVER_AUTH_INFO
+}
 
 # Remove the NUMA ones below when https://github.com/numactl/numactl/issues/3
 # is resolved.
@@ -2457,6 +2470,7 @@
    Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
    Memcheck:Param
    socketcall.sendto(msg)
+   ...
    fun:send
    fun:*
    ...
