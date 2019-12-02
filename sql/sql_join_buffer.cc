@@ -674,12 +674,6 @@ int JOIN_CACHE_BNL::init() {
 }
 
 bool JOIN_CACHE_BNL::can_be_replaced_with_hash_join() const {
-  if (!hint_table_state(join->thd, qep_tab->table_ref, HASH_JOIN_HINT_ENUM,
-                        OPTIMIZER_SWITCH_HASH_JOIN)) {
-    // Disabled by optimizer switch.
-    return false;
-  }
-
   if (qep_tab->last_inner() != NO_PLAN_IDX) {
     // Outer join.
     return false;

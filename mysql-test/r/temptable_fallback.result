@@ -1,7 +1,7 @@
-# Disable hash join for this test, as it will trigger the new executor.
-# The new executor will enable the StreamingIterator in many of the test
-# cases, resulting in fewer materializations.
-SET optimizer_switch="hash_join=off";
+# Disable sorting by addon fields, as that will enable the
+# StreamingIterator in many of the test cases, resulting in
+# fewer materializations.
+SET debug = '+d,filesort_force_sort_row_ids';
 CREATE TABLE t (c VARCHAR(128));
 INSERT INTO t VALUES
 (REPEAT('a', 128)),

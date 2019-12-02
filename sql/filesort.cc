@@ -167,6 +167,11 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
     return;
   }
 
+  DBUG_EXECUTE_IF("filesort_force_sort_row_ids", {
+    m_addon_fields_status = Addon_fields_status::keep_rowid;
+    return;
+  });
+
   // Generally, prefer using addon fields (ie., sorting rows instead of just
   // row IDs) if we can.
   //
