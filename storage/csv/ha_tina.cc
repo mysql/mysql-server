@@ -97,10 +97,8 @@ extern "C" bool tina_check_status(void *param);
 
 /* Stuff for shares */
 mysql_mutex_t tina_mutex;
-static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>>
-    tina_open_tables;
-static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table,
-                                    bool partitioned, MEM_ROOT *mem_root);
+static unique_ptr<collation_unordered_multimap<string, TINA_SHARE *>> tina_open_tables;
+static handler *tina_create_handler(handlerton *hton, TABLE_SHARE *table, bool partitioned, MEM_ROOT *mem_root);
 
 /*****************************************************************************
  ** TINA tables

@@ -1212,7 +1212,7 @@ bool do_command(THD *thd) {
     See init_net_server_extension()
   */
   thd->m_server_idle = true;
-  rc = thd->get_protocol()->get_command(&com_data, &command);
+  rc = thd->get_protocol()->get_command(&com_data, &command);  // ?? ここでcommandの取得
   thd->m_server_idle = false;
 
   if (rc) {
@@ -1743,7 +1743,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
 
-      mysql_parse(thd, &parser_state);
+      mysql_parse(thd, &parser_state);  // ?? parse
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.
@@ -5191,7 +5191,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
           bool switched = mgr_ptr->switch_resource_group_if_needed(
               thd, &src_res_grp, &dest_res_grp, &ticket, &cur_ticket);
 
-          error = mysql_execute_command(thd, true);
+          error = mysql_execute_command(thd, true);  // ??!! ここで実行
 
           if (switched)
             mgr_ptr->restore_original_resource_group(thd, src_res_grp,

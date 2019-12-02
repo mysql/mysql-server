@@ -21,3 +21,8 @@ extra/wolfssl-*
 
 # Configuration files for Visual Studio Code
 .vscode/
+bld
+myboost
+
+cmake-build-debug
+.idea
