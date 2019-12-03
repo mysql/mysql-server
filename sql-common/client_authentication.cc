@@ -34,7 +34,6 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 
-#if defined(HAVE_OPENSSL)
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
@@ -851,5 +850,3 @@ void STDCALL mysql_reset_server_public_key(void) {
   g_public_key = nullptr;
   mysql_mutex_unlock(&g_public_key_mutex);
 }
-
-#endif

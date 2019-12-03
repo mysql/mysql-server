@@ -180,7 +180,6 @@ static void my_crypt(char *to, const uchar *s1, const uchar *s2, uint len) {
   while (s1 < s1_end) *to++ = *s1++ ^ *s2++;
 }
 
-#if defined(HAVE_OPENSSL)
 extern "C" void my_make_scrambled_password(char *to, const char *password,
                                            size_t pass_len) {
   char salt[CRYPT_SALT_LENGTH + 1];
@@ -189,7 +188,7 @@ extern "C" void my_make_scrambled_password(char *to, const char *password,
   my_crypt_genhash(to, CRYPT_MAX_PASSWORD_SIZE, password, pass_len, salt,
                    nullptr);
 }
-#endif
+
 /**
   Compute two stage SHA1 hash of the password :
 

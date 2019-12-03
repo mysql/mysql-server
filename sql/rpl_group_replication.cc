@@ -58,7 +58,6 @@ extern ulong opt_rli_repository_id;
   Struct to share server ssl variables
 */
 void st_server_ssl_variables::init() {
-  have_ssl_opt = false;
   ssl_ca = nullptr;
   ssl_capath = nullptr;
   tls_version = nullptr;
@@ -348,11 +347,6 @@ void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
   SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
                                       &ciphersuites, &key, &crl, &crlpath);
 
-#ifdef HAVE_OPENSSL
-  server_ssl_variables->have_ssl_opt = true;
-#else
-  server_ssl_variables->have_ssl_opt = false;
-#endif
   server_ssl_variables->ssl_ca = my_strdup_nullable(ca);
   server_ssl_variables->ssl_capath = my_strdup_nullable(capath);
   server_ssl_variables->tls_version = my_strdup_nullable(version);

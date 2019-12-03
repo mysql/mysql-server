@@ -115,9 +115,7 @@
 #define SOCKET_ERROR -1
 #endif
 
-#ifdef HAVE_OPENSSL
 #include <openssl/x509v3.h>
-#endif
 
 #include <mysql/client_plugin.h>
 #include <new>
@@ -2026,7 +2024,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd) {
             : NULL;                                                   \
   } while (0)
 
-#if defined(HAVE_OPENSSL)
 #define SET_OPTION(opt_var, arg)                                            \
   do {                                                                      \
     if (mysql->options.opt_var) my_free(mysql->options.opt_var);            \
@@ -2039,12 +2036,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd) {
     EXTENSION_SET_STRING(OPTS, X, static_cast<const char *>(STR)); \
     if ((OPTS)->extension->X) (OPTS)->extension->ssl_mode = mode;  \
   } while (0)
-#else
-#define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode) \
-  do {                                               \
-    ;                                                \
-  } while (0)
-#endif
 
 static char *set_ssl_option_unpack_path(const char *arg) {
   char *opt_var = nullptr;
@@ -2156,7 +2147,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
           case OPT_return_found_rows:
             options->client_flag |= CLIENT_FOUND_ROWS;
             break;
-#if defined(HAVE_OPENSSL)
           case OPT_ssl_key:
             my_free(options->ssl_key);
             options->ssl_key =
@@ -2197,18 +2187,6 @@ void mysql_read_default_options(struct st_mysql_options *options,
             EXTENSION_SET_SSL_STRING(options, ssl_crlpath, opt_arg,
                                      SSL_MODE_PREFERRED);
             break;
-#else
-          case OPT_ssl_key:
-          case OPT_ssl_cert:
-          case OPT_ssl_ca:
-          case OPT_ssl_capath:
-          case OPT_ssl_cipher:
-          case OPT_tls_ciphersuites:
-          case OPT_ssl_crl:
-          case OPT_ssl_crlpath:
-          case OPT_tls_version:
-            break;
-#endif /* HAVE_OPENSSL */
           case OPT_character_sets_dir:
             my_free(options->charset_dir);
             options->charset_dir =
@@ -3206,7 +3184,7 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect = false;
-#if defined(HAVE_OPENSSL) && !defined(MYSQL_SERVER)
+#if !defined(MYSQL_SERVER)
   ENSURE_EXTENSIONS_PRESENT(&mysql->options);
   mysql->options.extension->ssl_mode = SSL_MODE_PREFERRED;
 #endif
@@ -3264,7 +3242,6 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
                            const char *cipher MY_ATTRIBUTE((unused))) {
   bool result = false;
   DBUG_TRACE;
-#if defined(HAVE_OPENSSL)
   result = mysql_options(mysql, MYSQL_OPT_SSL_KEY, key) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CERT, cert) +
                    mysql_options(mysql, MYSQL_OPT_SSL_CA, ca) +
@@ -3272,7 +3249,6 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
                    mysql_options(mysql, MYSQL_OPT_SSL_CIPHER, cipher)
                ? true
                : false;
-#endif
   return result;
 }
 
@@ -3280,8 +3256,6 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
   Free strings in the SSL structure and clear 'use_ssl' flag.
   NB! Errors are not reported until you do mysql_real_connect.
 */
-
-#if defined(HAVE_OPENSSL)
 
 static void mysql_ssl_free(MYSQL *mysql) {
   DBUG_TRACE;
@@ -3314,8 +3288,6 @@ static void mysql_ssl_free(MYSQL *mysql) {
   mysql->connector_fd = nullptr;
 }
 
-#endif /* HAVE_OPENSSL */
-
 /*
   Return the SSL cipher (if any) used for current
   connection to the server.
@@ -3328,10 +3300,8 @@ static void mysql_ssl_free(MYSQL *mysql) {
 
 const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
-#if defined(HAVE_OPENSSL)
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
     return SSL_get_cipher_name((SSL *)mysql->net.vio->ssl_arg);
-#endif /* HAVE_OPENSSL */
   return nullptr;
 }
 
@@ -3351,8 +3321,6 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
    1 Failed to validate server
 
  */
-
-#if defined(HAVE_OPENSSL)
 
 static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
@@ -3460,8 +3428,6 @@ error:
   if (server_cert != nullptr) X509_free(server_cert);
   return ret_validation;
 }
-
-#endif /* HAVE_OPENSSL */
 
 /*
   Note that the mysql argument must be initialized with mysql_init()
@@ -3801,7 +3767,6 @@ static auth_plugin_t clear_password_client_plugin = {
     clear_password_auth_client,
     nullptr};
 
-#if defined(HAVE_OPENSSL)
 static auth_plugin_t sha256_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
@@ -3831,7 +3796,6 @@ static auth_plugin_t caching_sha2_password_client_plugin = {
     nullptr,
     caching_sha2_password_auth_client,
     caching_sha2_password_auth_client_nonblocking};
-#endif
 #ifdef AUTHENTICATION_WIN
 extern "C" auth_plugin_t win_auth_client_plugin;
 #endif
@@ -3850,10 +3814,8 @@ extern auth_plugin_t test_trace_plugin;
 struct st_mysql_client_plugin *mysql_client_builtins[] = {
     (struct st_mysql_client_plugin *)&native_password_client_plugin,
     (struct st_mysql_client_plugin *)&clear_password_client_plugin,
-#if defined(HAVE_OPENSSL)
     (struct st_mysql_client_plugin *)&sha256_password_client_plugin,
     (struct st_mysql_client_plugin *)&caching_sha2_password_client_plugin,
-#endif
 #ifdef AUTHENTICATION_WIN
     (struct st_mysql_client_plugin *)&win_auth_client_plugin,
 #endif
@@ -4107,11 +4069,9 @@ static void cli_calculate_client_flag(MYSQL *mysql, const char *db,
   if (mysql->client_flag & CLIENT_MULTI_STATEMENTS)
     mysql->client_flag |= CLIENT_MULTI_RESULTS;
 
-#if defined(HAVE_OPENSSL)
   if (mysql->options.extension &&
       mysql->options.extension->ssl_mode != SSL_MODE_DISABLED)
     mysql->client_flag |= CLIENT_SSL;
-#endif /* HAVE_OPENSSL */
 
   if (db)
     mysql->client_flag |= CLIENT_CONNECT_WITH_DB;
@@ -4140,7 +4100,6 @@ Establishes SSL if requested and supported.
 @retval 1       failure
 */
 static int cli_establish_ssl(MYSQL *mysql) {
-#ifdef HAVE_OPENSSL
   NET *net = &mysql->net;
 
   /* Don't fallback on unencrypted connection if SSL required. */
@@ -4255,11 +4214,6 @@ static int cli_establish_ssl(MYSQL *mysql) {
 
 error:
   return 1;
-
-#else
-  (void)mysql; /* avoid warning */
-  return 0;
-#endif /* HAVE_OPENSSL */
 }
 
 /**
@@ -4284,7 +4238,6 @@ error:
 */
 static net_async_status cli_establish_ssl_nonblocking(MYSQL *mysql, int *res) {
   DBUG_TRACE;
-#ifdef HAVE_OPENSSL
   NET *net = &mysql->net;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   mysql_async_connect *ctx = ASYNC_DATA(mysql)->connect_context;
@@ -4441,13 +4394,6 @@ error:
   *res = 1;
   ctx->ssl_state = SSL_COMPLETE;
   return NET_ASYNC_COMPLETE;
-
-#else
-  (void)mysql; /* avoid warning */
-  *res = 0;
-  ctx->ssl_state = SSL_COMPLETE;
-  return NET_ASYNC_COMPLETE;
-#endif /* HAVE_OPENSSL */
 }
 
 /**
@@ -6806,9 +6752,7 @@ void mysql_close_free_options(MYSQL *mysql) {
     mysql->options.init_commands->~Init_commands_array();
     my_free(mysql->options.init_commands);
   }
-#if defined(HAVE_OPENSSL)
   mysql_ssl_free(mysql);
-#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   if (mysql->options.shared_memory_base_name != def_shared_memory_base_name)
     my_free(mysql->options.shared_memory_base_name);
@@ -6842,12 +6786,10 @@ void mysql_close_free(MYSQL *mysql) {
 
   my_free(mysql->field_alloc);
 
-#if defined(HAVE_OPENSSL)
   if (mysql->connector_fd)
     free_vio_ssl_acceptor_fd(
         reinterpret_cast<st_VioSSLFd *>(mysql->connector_fd));
   mysql->connector_fd = nullptr;
-#endif /* HAVE_OPENSSL */
 
   mysql->field_alloc = nullptr;
 
@@ -7702,16 +7644,13 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
           set_ssl_option_unpack_path(static_cast<const char *>(arg));
       break;
     case MYSQL_OPT_TLS_VERSION:
-#if defined(HAVE_OPENSSL)
       EXTENSION_SET_STRING(&mysql->options, tls_version,
                            static_cast<const char *>(arg));
       if ((mysql->options.extension->ssl_ctx_flags = process_tls_version(
                mysql->options.extension->tls_version)) == -1)
         return 1;
-#endif
       break;
     case MYSQL_OPT_SSL_FIPS_MODE: {
-#if defined(HAVE_OPENSSL)
       char ssl_err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_fips_mode = *static_cast<const uint *>(arg);
@@ -7723,17 +7662,14 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
             "Set Fips mode ON/STRICT failed, detail: '%s'.", ssl_err_string);
         return 1;
       }
-#endif  // defined(HAVE_OPENSSL)
     } break;
     case MYSQL_OPT_SSL_MODE:
-#if defined(HAVE_OPENSSL)
       ENSURE_EXTENSIONS_PRESENT(&mysql->options);
       mysql->options.extension->ssl_mode = *static_cast<const uint *>(arg);
       if (mysql->options.extension->ssl_mode == SSL_MODE_VERIFY_IDENTITY)
         mysql->options.client_flag |= CLIENT_SSL_VERIFY_SERVER_CERT;
       else
         mysql->options.client_flag &= ~CLIENT_SSL_VERIFY_SERVER_CERT;
-#endif
       break;
     case MYSQL_SERVER_PUBLIC_KEY:
       EXTENSION_SET_STRING(&mysql->options, server_public_key_path,

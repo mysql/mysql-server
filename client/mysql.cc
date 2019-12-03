@@ -4706,11 +4706,9 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   }
 
-#if defined(HAVE_OPENSSL)
   if ((status_str = mysql_get_ssl_cipher(&mysql)))
     tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n", status_str);
   else
-#endif /* HAVE_OPENSSL */
     tee_puts("SSL:\t\t\tNot in use", stdout);
 
   if (skip_updates) {

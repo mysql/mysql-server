@@ -2008,52 +2008,40 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
     std::string ssl_fips_mode(ov.ssl_fips_mode_values[sv.ssl_fips_mode]);
 
     // SSL support on server.
-    if (sv.have_ssl_opt) {
-      gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
-      gcs_module_parameters.add_parameter("server_key_file", ssl_key);
-      gcs_module_parameters.add_parameter("server_cert_file", ssl_cert);
-      gcs_module_parameters.add_parameter("client_key_file", ssl_key);
-      gcs_module_parameters.add_parameter("client_cert_file", ssl_cert);
-      gcs_module_parameters.add_parameter("ca_file", ssl_ca);
-      if (!ssl_capath.empty())
-        gcs_module_parameters.add_parameter(
-            "ca_path", ssl_capath); /* purecov: inspected */
-      gcs_module_parameters.add_parameter("cipher", ssl_cipher);
-      gcs_module_parameters.add_parameter("tls_version", tls_version);
-      if (sv.tls_ciphersuites != nullptr) {
-        /* Not specifying the ciphersuites means "use the OpenSSL default."
-           Specifying an empty string means "disallow all ciphersuites." */
-        gcs_module_parameters.add_parameter("tls_ciphersuites",
-                                            sv.tls_ciphersuites);
-      }
-
-      if (!ssl_crl.empty())
-        gcs_module_parameters.add_parameter("crl_file",
-                                            ssl_crl); /* purecov: inspected */
-      if (!ssl_crlpath.empty())
-        gcs_module_parameters.add_parameter(
-            "crl_path", ssl_crlpath); /* purecov: inspected */
-      if (!ssl_fips_mode.empty())
-        gcs_module_parameters.add_parameter(
-            "ssl_fips_mode", ssl_fips_mode); /* purecov: inspected */
-
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO,
-                   ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
-                   ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
-                   ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
-                   sv.tls_ciphersuites ? sv.tls_ciphersuites : "NOT_SET",
-                   ssl_crl.c_str(), ssl_crlpath.c_str(), ssl_fips_mode.c_str());
+    gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
+    gcs_module_parameters.add_parameter("server_key_file", ssl_key);
+    gcs_module_parameters.add_parameter("server_cert_file", ssl_cert);
+    gcs_module_parameters.add_parameter("client_key_file", ssl_key);
+    gcs_module_parameters.add_parameter("client_cert_file", ssl_cert);
+    gcs_module_parameters.add_parameter("ca_file", ssl_ca);
+    if (!ssl_capath.empty())
+      gcs_module_parameters.add_parameter("ca_path",
+                                          ssl_capath); /* purecov: inspected */
+    gcs_module_parameters.add_parameter("cipher", ssl_cipher);
+    gcs_module_parameters.add_parameter("tls_version", tls_version);
+    if (sv.tls_ciphersuites != nullptr) {
+      /* Not specifying the ciphersuites means "use the OpenSSL default."
+         Specifying an empty string means "disallow all ciphersuites." */
+      gcs_module_parameters.add_parameter("tls_ciphersuites",
+                                          sv.tls_ciphersuites);
     }
-    // No SSL support on server.
-    else {
-      /* purecov: begin inspected */
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_ABORTS_AS_SSL_NOT_SUPPORTED_BY_MYSQLD,
-                   ssl_mode.c_str());
-      result = GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
-      goto end;
-      /* purecov: end */
-    }
+
+    if (!ssl_crl.empty())
+      gcs_module_parameters.add_parameter("crl_file",
+                                          ssl_crl); /* purecov: inspected */
+    if (!ssl_crlpath.empty())
+      gcs_module_parameters.add_parameter("crl_path",
+                                          ssl_crlpath); /* purecov: inspected */
+    if (!ssl_fips_mode.empty())
+      gcs_module_parameters.add_parameter(
+          "ssl_fips_mode", ssl_fips_mode); /* purecov: inspected */
+
+    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_COMMUNICATION_SSL_CONF_INFO,
+                 ssl_mode.c_str(), ssl_key.c_str(), ssl_cert.c_str(),
+                 ssl_key.c_str(), ssl_cert.c_str(), ssl_ca.c_str(),
+                 ssl_capath.c_str(), ssl_cipher.c_str(), tls_version.c_str(),
+                 sv.tls_ciphersuites ? sv.tls_ciphersuites : "NOT_SET",
+                 ssl_crl.c_str(), ssl_crlpath.c_str(), ssl_fips_mode.c_str());
   }
   // GCS SSL disabled.
   else {
@@ -2089,7 +2077,6 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   gcs_module_parameters.add_parameter("communication_debug_path",
                                       mysql_real_data_home);
 
-end:
   sv.deinit();
   return result;
 }

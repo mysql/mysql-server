@@ -322,7 +322,6 @@ bool Item_func_sha::resolve_type(THD *) {
 */
 String *Item_func_sha2::val_str_ascii(String *str) {
   DBUG_ASSERT(fixed == 1);
-#if defined(HAVE_OPENSSL)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length = 0;
 
@@ -393,20 +392,10 @@ String *Item_func_sha2::val_str_ascii(String *str) {
 
   null_value = false;
   return str;
-
-#else
-  push_warning_printf(
-      current_thd, Sql_condition::SL_WARNING, ER_FEATURE_DISABLED,
-      ER_THD(current_thd, ER_FEATURE_DISABLED), "sha2", "--with-ssl");
-  null_value = true;
-  return (String *)NULL;
-#endif /* defined(HAVE_OPENSSL) */
 }
 
 bool Item_func_sha2::resolve_type(THD *thd) {
   maybe_null = true;
-
-#if defined(HAVE_OPENSSL)
   longlong sha_variant;
   if (args[1]->const_item()) {
     sha_variant = args[1]->val_int();
@@ -443,12 +432,6 @@ bool Item_func_sha2::resolve_type(THD *thd) {
 
   CHARSET_INFO *cs = get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
-
-#else
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_FEATURE_DISABLED,
-                      ER_THD(thd, ER_FEATURE_DISABLED), "sha2", "--with-ssl");
-#endif /* defined(HAVE_OPENSSL) */
-
   return false;
 }
 

@@ -45,7 +45,6 @@ extern "C" {
   Struct to share server ssl variables
 */
 struct st_server_ssl_variables {
-  bool have_ssl_opt;
   char *ssl_ca;
   char *ssl_capath;
   char *tls_version;

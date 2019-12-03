@@ -36,7 +36,6 @@
 #include "mysys_err.h"
 #include "vio/vio_priv.h"
 
-#ifdef HAVE_OPENSSL
 #include <openssl/dh.h>
 
 #define TLS_VERSION_OPTION_SIZE 256
@@ -748,4 +747,3 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd) {
   SSL_CTX_free(fd->ssl_context);
   my_free(fd);
 }
-#endif /* HAVE_OPENSSL */

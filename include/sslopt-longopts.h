@@ -24,7 +24,6 @@
   @file include/sslopt-longopts.h
 */
 
-#if defined(HAVE_OPENSSL)
 #ifndef MYSQL_SERVER
 {"ssl-mode",
  OPT_SSL_MODE,
@@ -200,4 +199,3 @@
      nullptr,
      0,
      nullptr},
-#endif /* HAVE_OPENSSL */

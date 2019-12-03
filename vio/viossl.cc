@@ -118,8 +118,6 @@
 */
 /* clang-format on */
 
-#ifdef HAVE_OPENSSL
-
 #ifndef DBUG_OFF
 
 static void report_errors(SSL *ssl) {
@@ -733,5 +731,3 @@ int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 bool vio_ssl_has_data(Vio *vio) {
   return SSL_pending(static_cast<SSL *>(vio->ssl_arg)) > 0 ? true : false;
 }
-
-#endif /* HAVE_OPENSSL */

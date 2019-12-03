@@ -33,10 +33,8 @@
 #include "my_inttypes.h"
 #include "sha1.h"
 
-#if defined(HAVE_OPENSSL)
 #include <openssl/evp.h>
 #include <openssl/sha.h>
-#endif /* HAVE_OPENSSL */
 
 /**
   Wrapper function to compute SHA1 message digest.
@@ -46,14 +44,12 @@
   @param [in] len      Length of the message
 */
 void compute_sha1_hash(uint8 *digest, const char *buf, size_t len) {
-#if defined(HAVE_OPENSSL)
   EVP_MD_CTX *sha1_context = EVP_MD_CTX_create();
   EVP_DigestInit_ex(sha1_context, EVP_sha1(), nullptr);
   EVP_DigestUpdate(sha1_context, buf, len);
   EVP_DigestFinal_ex(sha1_context, digest, nullptr);
   EVP_MD_CTX_destroy(sha1_context);
   sha1_context = nullptr;
-#endif /* HAVE_OPENSSL */
 }
 
 /**
@@ -68,7 +64,6 @@ void compute_sha1_hash(uint8 *digest, const char *buf, size_t len) {
 */
 void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
                              const char *buf2, int len2) {
-#if defined(HAVE_OPENSSL)
   EVP_MD_CTX *sha1_context = EVP_MD_CTX_create();
   EVP_DigestInit_ex(sha1_context, EVP_sha1(), nullptr);
   EVP_DigestUpdate(sha1_context, buf1, len1);
@@ -76,5 +71,4 @@ void compute_sha1_hash_multi(uint8 *digest, const char *buf1, int len1,
   EVP_DigestFinal_ex(sha1_context, digest, nullptr);
   EVP_MD_CTX_destroy(sha1_context);
   sha1_context = nullptr;
-#endif /* HAVE_OPENSSL */
 }

@@ -601,10 +601,6 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   auto_position = temp_auto_position;
   get_public_key = (bool)temp_get_public_key;
 
-#ifndef HAVE_OPENSSL
-  if (ssl) LogErr(WARNING_LEVEL, ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED);
-#endif /* HAVE_OPENSSL */
-
   if (lines >= LINE_FOR_MASTER_COMPRESSION_ALGORITHM) {
     char algorithm_name[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
     if (!!from->get_info(algorithm_name, sizeof(algorithm_name), nullptr))

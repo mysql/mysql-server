@@ -31,9 +31,7 @@
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif  // HAVE_NETINET_IN_H
-#ifdef HAVE_OPENSSL
 #include <openssl/x509v3.h>
-#endif  // HAVE_OPENSSL
 #include <cassert>
 #include <chrono>  // NOLINT(build/c++11)
 #include <future>  // NOLINT(build/c++11)
@@ -60,12 +58,6 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif  // HAVE_SYS_UN_H
-
-#ifdef HAVE_OPENSSL
-#define HAVE_SSL(Y, N) Y
-#else
-#define HAVE_SSL(Y, N) N
-#endif  // HAVE_OPENSSL
 
 #ifdef WIN32
 #define SHUT_RD SD_RECEIVE
@@ -112,15 +104,13 @@ class Connection_state : public XConnection::State {
   std::string get_ssl_version() const override {
     if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(SSL_get_version(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
-                    "");
+    return SSL_get_version(reinterpret_cast<SSL *>(m_vio->ssl_arg));
   }
 
   std::string get_ssl_cipher() const override {
     if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(SSL_get_cipher(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
-                    "");
+    return SSL_get_cipher(reinterpret_cast<SSL *>(m_vio->ssl_arg));
   }
 
   Connection_type get_connection_type() const override {

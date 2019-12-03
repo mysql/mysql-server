@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef HAVE_OPENSSL
 #include <m_ctype.h>
 #include <m_string.h>
 #include <my_dir.h>
@@ -142,7 +141,3 @@ int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
   my_free(ssl_acceptor);
   return 0;
 }
-#else  /* HAVE_OPENSSL */
-
-int main() { return 0; }
-#endif /* HAVE_OPENSSL */

@@ -34,8 +34,6 @@
 
 #include <sys/types.h>
 
-#ifdef HAVE_OPENSSL
-
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
@@ -444,5 +442,3 @@ void xor_string(char *to, int to_len, char *pattern, int pattern_len) {
     ++loop;
   }
 }
-
-#endif  // HAVE_OPENSSL

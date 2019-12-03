@@ -1146,11 +1146,9 @@ bool vio_is_connected(Vio *vio) {
     if (socket_errno != SOCKET_EINTR) return false;
   }
 
-#ifdef HAVE_OPENSSL
   /* There might be buffered data at the SSL layer. */
   if (!bytes && vio->type == VIO_TYPE_SSL)
     bytes = SSL_pending((SSL *)vio->ssl_arg);
-#endif
 
   return bytes ? true : false;
 }

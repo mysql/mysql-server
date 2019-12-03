@@ -38,7 +38,6 @@ void Mysql_connection_options::Ssl_options::create_options() {
   std::function<void(char *)> callback(std::bind(
       &Mysql_connection_options::Ssl_options::mode_option_callback, this, _1));
 
-#if defined(HAVE_OPENSSL)
   this->create_new_option(&this->m_ssl_mode_string, "ssl-mode",
                           "SSL connection mode.")
       ->add_callback(new std::function<void(char *)>(std::bind(
@@ -70,7 +69,6 @@ void Mysql_connection_options::Ssl_options::create_options() {
       ->add_callback(new std::function<void(char *)>(std::bind(
           &Mysql_connection_options::Ssl_options::fips_mode_option_callback,
           this, _1)));
-#endif /* HAVE_OPENSSL */
 }
 
 void Mysql_connection_options::Ssl_options::ca_option_callback(

@@ -248,11 +248,7 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
     m_row.auto_position = PS_RPL_NO;
   }
 
-#ifdef HAVE_OPENSSL
   m_row.ssl_allowed = mi->ssl ? PS_SSL_ALLOWED_YES : PS_SSL_ALLOWED_NO;
-#else
-  m_row.ssl_allowed = mi->ssl ? PS_SSL_ALLOWED_IGNORED : PS_SSL_ALLOWED_NO;
-#endif
 
   temp_store = mi->ssl_ca;
   m_row.ssl_ca_file_length = strlen(temp_store);

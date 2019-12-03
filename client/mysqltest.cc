@@ -6337,9 +6337,7 @@ static void do_connect(struct st_command *command) {
   bool con_ssl = false, con_compress = false;
   bool con_pipe = false, con_shm = false, con_cleartext_enable = false;
   struct st_connection *con_slot;
-#if defined(HAVE_OPENSSL)
   uint save_opt_ssl_mode = opt_ssl_mode;
-#endif
 
   static DYNAMIC_STRING ds_connection_name;
   static DYNAMIC_STRING ds_host;
@@ -6482,7 +6480,6 @@ static void do_connect(struct st_command *command) {
   mysql_options(&con_slot->mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
                 &opt_zstd_compress_level);
 
-#if defined(HAVE_OPENSSL)
   /*
     If mysqltest --ssl-mode option is set to DISABLED
     and connect(.., SSL) command used, set proper opt_ssl_mode.
@@ -6495,14 +6492,8 @@ static void do_connect(struct st_command *command) {
     opt_ssl_mode =
         (opt_ssl_ca || opt_ssl_capath) ? SSL_MODE_VERIFY_CA : SSL_MODE_REQUIRED;
   }
-#else
-  /* keep the compiler happy about con_ssl */
-  con_ssl = con_ssl ? true : false;
-#endif
   if (SSL_SET_OPTIONS(&con_slot->mysql)) die("%s", SSL_SET_OPTIONS_ERROR);
-#if defined(HAVE_OPENSSL)
   opt_ssl_mode = save_opt_ssl_mode;
-#endif
 
   if (con_pipe && !con_ssl) {
     opt_protocol = MYSQL_PROTOCOL_PIPE;
@@ -9229,13 +9220,12 @@ int main(int argc, char **argv) {
   if (opt_protocol)
     mysql_options(&con->mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
 
-#if defined(HAVE_OPENSSL)
   /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
   if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY) {
     if (!opt_host || std::strcmp(opt_host, "localhost"))
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
-#endif
+
   if (opt_compress) {
     enable_async_client = false;
   }

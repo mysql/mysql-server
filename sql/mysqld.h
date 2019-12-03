@@ -619,9 +619,7 @@ extern PSI_statement_info com_statement_info[(uint)COM_END + 1];
 extern PSI_statement_info stmt_info_rpl;
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
-#ifdef HAVE_OPENSSL
 extern struct st_VioSSLFd *ssl_acceptor_fd;
-#endif /* HAVE_OPENSSL */
 
 extern bool opt_large_pages;
 extern uint opt_large_page_size;

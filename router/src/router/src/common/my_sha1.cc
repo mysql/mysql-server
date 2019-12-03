@@ -32,8 +32,6 @@
 
 namespace my_sha1 {
 
-#if defined(HAVE_OPENSSL)
-
 namespace {
 int mysql_sha1_reset(SHA_CTX *context) { return SHA1_Init(context); }
 
@@ -62,7 +60,5 @@ void compute_sha1_hash(uint8_t *digest, const char *buf, size_t len) {
   mysql_sha1_input(&sha1_context, (const uint8_t *)buf, len);
   mysql_sha1_result(&sha1_context, digest);
 }
-
-#endif
 
 }  // namespace my_sha1

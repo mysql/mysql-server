@@ -4814,7 +4814,7 @@ static int init_thread_environment() {
   return 0;
 }
 
-#if defined(HAVE_OPENSSL) && !defined(__sun)
+#if !defined(__sun)
 /* TODO: remove the !defined(__sun) when bug 23285559 is out of the picture */
 
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
@@ -4832,10 +4832,9 @@ static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
   return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 }
 static void my_openssl_free(void *ptr FILE_LINE_ARGS) { return my_free(ptr); }
-#endif /* defined(HAVE_OPENSSL) */
+#endif /* !defined(__sun) */
 
 static void init_ssl() {
-#ifdef HAVE_OPENSSL
 #if !defined(__sun)
 #if defined(HAVE_PSI_MEMORY_INTERFACE)
   static PSI_memory_info all_openssl_memory[] = {
@@ -4851,7 +4850,6 @@ static void init_ssl() {
            "CRYPTO_set_mem_functions");
 #endif /* !defined(__sun) */
   ssl_start();
-#endif /* HAVE_OPENSSL */
 }
 
 static int init_ssl_communication() {
@@ -8725,7 +8723,6 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Sort_scan", (char *)offsetof(System_status_var, filesort_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-#ifdef HAVE_OPENSSL
     {"Ssl_accept_renegotiates",
      (char *)&SslAcceptorContext::show_ssl_ctx_sess_accept_renegotiate,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -8814,7 +8811,6 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Rsa_public_key", (char *)&show_rsa_public_key, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#endif /* HAVE_OPENSSL */
     {"Table_locks_immediate", (char *)&locks_immediate, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"Table_locks_waited", (char *)&locks_waited, SHOW_LONG, SHOW_SCOPE_GLOBAL},

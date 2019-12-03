@@ -826,12 +826,10 @@ typedef enum ssl_artifacts_status {
 } ssl_artifacts_status;
 
 ulong get_global_acl_cache_size();
-#if defined(HAVE_OPENSSL)
 extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
                              const char **ssl_ca, const char **ssl_key,
                              const char **ssl_cert);
-#endif /* HAVE_OPENSSL */
 
 #define DEFAULT_SSL_CA_CERT "ca.pem"
 #define DEFAULT_SSL_CA_KEY "ca-key.pem"

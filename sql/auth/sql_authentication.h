@@ -23,13 +23,9 @@
 #ifndef SQL_AUTHENTICATION_INCLUDED
 #define SQL_AUTHENTICATION_INCLUDED
 
+#include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>
-
-#if defined(HAVE_OPENSSL)
-#include <openssl/rsa.h>
-#endif
-
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id
@@ -96,7 +92,6 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   bool can_authenticate();
 };
 
-#if defined(HAVE_OPENSSL)
 class String;
 
 bool init_rsa_keys(void);
@@ -136,8 +131,6 @@ class Rsa_authentication_keys {
   bool read_rsa_keys();
   const char *get_public_key_as_pem(void) { return m_pem_public_key; }
 };
-
-#endif /* HAVE_OPENSSL */
 
 /* Data Structures */
 

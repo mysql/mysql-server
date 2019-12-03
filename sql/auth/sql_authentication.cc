@@ -99,12 +99,10 @@
 
 struct MEM_ROOT;
 
-#if defined(HAVE_OPENSSL)
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
-#endif /* HAVE_OPENSSL */
 
 /**
    @file sql_authentication.cc
@@ -904,7 +902,6 @@ extern bool initialized;
 #define AUTH_PACKET_HEADER_SIZE_PROTO_41 32
 #define AUTH_PACKET_HEADER_SIZE_PROTO_40 5
 
-#if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
@@ -922,7 +919,6 @@ static bool do_auto_rsa_keys_generation();
 char *auth_rsa_private_key_path;
 char *auth_rsa_public_key_path;
 Rsa_authentication_keys *g_sha256_rsa_keys = nullptr;
-#endif /* HAVE_OPENSSL */
 
 bool Thd_charset_adapter::init_client_charset(uint cs_number) {
   if (thd_init_client_charset(thd, cs_number)) return true;
@@ -931,8 +927,6 @@ bool Thd_charset_adapter::init_client_charset(uint cs_number) {
 }
 
 const CHARSET_INFO *Thd_charset_adapter::charset() { return thd->charset(); }
-
-#if defined(HAVE_OPENSSL)
 
 /**
   @brief Set key file path
@@ -1120,8 +1114,6 @@ bool Rsa_authentication_keys::read_rsa_keys() {
   }
   return false;
 }
-
-#endif /* HAVE_OPENSSL */
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
   Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
@@ -1926,11 +1918,9 @@ static bool read_client_connect_attrs(THD *thd, char **ptr,
 }
 
 static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
-#if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
   SSL *ssl = (SSL *)vio->ssl_arg;
   X509 *cert;
-#endif /* HAVE_OPENSSL */
 
   /*
     At this point we know that user is allowed to connect
@@ -1942,7 +1932,6 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
     case SSL_TYPE_NOT_SPECIFIED:  // Impossible
     case SSL_TYPE_NONE:           // SSL is not required
       return false;
-#if defined(HAVE_OPENSSL)
     case SSL_TYPE_ANY:  // Any kind of SSL is ok
       return vio_type(vio) != VIO_TYPE_SSL;
     case SSL_TYPE_X509: /* Client should have any valid certificate. */
@@ -2007,14 +1996,6 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
       }
       X509_free(cert);
       return false;
-#else  /* HAVE_OPENSSL */
-    default:
-      /*
-        If we don't have SSL but SSL is required for this user the
-        authentication should fail.
-      */
-      return 1;
-#endif /* HAVE_OPENSSL */
   }
   return true;
 }
@@ -2029,12 +2010,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
     @retval true RSA support is not available
 */
 bool sha256_rsa_auth_status() {
-#if !defined(HAVE_OPENSSL)
-  return false;
-#else
   return (!g_sha256_rsa_keys->get_private_key() ||
           !g_sha256_rsa_keys->get_public_key());
-#endif /* !HAVE_OPENSSL */
 }
 
 /* clang-format off */
@@ -2506,7 +2483,6 @@ static size_t parse_client_handshake_packet(THD *thd, MPVIO_EXT *mpvio,
   }
 
 skip_to_ssl:
-#if defined(HAVE_OPENSSL)
   DBUG_PRINT("info",
              ("client capabilities: %lu", protocol->get_client_capabilities()));
 
@@ -2582,7 +2558,6 @@ skip_to_ssl:
     DBUG_ASSERT(charset_code == ssl_charset_code);
     if (!packet_has_required_size) return packet_error;
   }
-#endif /* HAVE_OPENSSL */
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
   if (mpvio->charset_adapter->init_client_charset(charset_code))
@@ -3039,12 +3014,10 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
   mpvio->auth_info.password_used = PASSWORD_USED_NO;
 
-#if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
   if (vio->ssl_arg)
     mpvio->vio_is_encrypted = 1;
   else
-#endif /* HAVE_OPENSSL */
     mpvio->vio_is_encrypted = 0;
   mpvio->status = MPVIO_EXT::FAILURE;
   mpvio->mem_root = thd->mem_root;
@@ -3751,7 +3724,6 @@ static int set_native_salt(const char *password, unsigned int password_len,
   return 0;
 }
 
-#if defined(HAVE_OPENSSL)
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen) {
   /*
@@ -3806,8 +3778,6 @@ static int set_sha256_salt(const char *password MY_ATTRIBUTE((unused)),
   *salt_len = 0;
   return 0;
 }
-
-#endif
 
 /**
   Compare a clear text password with a stored hash for
@@ -4013,8 +3983,6 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   my_error(ER_HANDSHAKE_ERROR, MYF(0));
   return CR_AUTH_HANDSHAKE;
 }
-
-#if defined(HAVE_OPENSSL)
 
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
@@ -5302,7 +5270,6 @@ static bool do_auto_rsa_keys_generation() {
                             caching_sha2_rsa_public_key_path,
                             "--caching_sha2_password_auto_generate_rsa_keys"));
 }
-#endif /* HAVE_OPENSSL */
 
 bool MPVIO_EXT::can_authenticate() {
   return (acl_user && acl_user->can_authenticate);
@@ -5319,7 +5286,6 @@ static struct st_mysql_auth native_password_handler = {
     AUTH_FLAG_USES_INTERNAL_STORAGE,
     compare_native_password_with_hash};
 
-#if defined(HAVE_OPENSSL)
 static struct st_mysql_auth sha256_password_handler = {
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
     Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
@@ -5330,42 +5296,37 @@ static struct st_mysql_auth sha256_password_handler = {
     AUTH_FLAG_USES_INTERNAL_STORAGE,
     compare_sha256_password_with_hash};
 
-#endif /* HAVE_OPENSSL */
-
-mysql_declare_plugin(mysql_password) {
-  MYSQL_AUTHENTICATION_PLUGIN,  /* type constant    */
-      &native_password_handler, /* type descriptor  */
-      Cached_authentication_plugins::get_plugin_name(
-          PLUGIN_MYSQL_NATIVE_PASSWORD), /* Name           */
-      "R.J.Silk, Sergei Golubchik",      /* Author           */
-      "Native MySQL authentication",     /* Description      */
-      PLUGIN_LICENSE_GPL,                /* License          */
-      nullptr,                           /* Init function    */
-      nullptr,                           /* Check uninstall  */
-      nullptr,                           /* Deinit function  */
-      0x0101,                            /* Version (1.0)    */
-      nullptr,                           /* status variables */
-      nullptr,                           /* system variables */
-      nullptr,                           /* config options   */
-      0,                                 /* flags            */
-}
-#if defined(HAVE_OPENSSL)
-, {
-  MYSQL_AUTHENTICATION_PLUGIN,  /* type constant    */
-      &sha256_password_handler, /* type descriptor  */
-      Cached_authentication_plugins::get_plugin_name(
-          PLUGIN_SHA256_PASSWORD),      /* Name             */
-      "Oracle",                         /* Author           */
-      "SHA256 password authentication", /* Description      */
-      PLUGIN_LICENSE_GPL,               /* License          */
-      &init_sha256_password_handler,    /* Init function    */
-      nullptr,                          /* Check uninstall  */
-      nullptr,                          /* Deinit function  */
-      0x0101,                           /* Version (1.0)    */
-      nullptr,                          /* status variables */
-      sha256_password_sysvars,          /* system variables */
-      nullptr,                          /* config options   */
-      0                                 /* flags            */
-}
-#endif /* HAVE_OPENSSL */
-mysql_declare_plugin_end;
+mysql_declare_plugin(mysql_password){
+    MYSQL_AUTHENTICATION_PLUGIN, /* type constant    */
+    &native_password_handler,    /* type descriptor  */
+    Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD), /* Name           */
+    "R.J.Silk, Sergei Golubchik",      /* Author           */
+    "Native MySQL authentication",     /* Description      */
+    PLUGIN_LICENSE_GPL,                /* License          */
+    nullptr,                           /* Init function    */
+    nullptr,                           /* Check uninstall  */
+    nullptr,                           /* Deinit function  */
+    0x0101,                            /* Version (1.0)    */
+    nullptr,                           /* status variables */
+    nullptr,                           /* system variables */
+    nullptr,                           /* config options   */
+    0,                                 /* flags            */
+},
+    {
+        MYSQL_AUTHENTICATION_PLUGIN, /* type constant    */
+        &sha256_password_handler,    /* type descriptor  */
+        Cached_authentication_plugins::get_plugin_name(
+            PLUGIN_SHA256_PASSWORD),      /* Name             */
+        "Oracle",                         /* Author           */
+        "SHA256 password authentication", /* Description      */
+        PLUGIN_LICENSE_GPL,               /* License          */
+        &init_sha256_password_handler,    /* Init function    */
+        nullptr,                          /* Check uninstall  */
+        nullptr,                          /* Deinit function  */
+        0x0101,                           /* Version (1.0)    */
+        nullptr,                          /* status variables */
+        sha256_password_sysvars,          /* system variables */
+        nullptr,                          /* config options   */
+        0                                 /* flags            */
+    } mysql_declare_plugin_end;

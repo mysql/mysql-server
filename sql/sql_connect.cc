@@ -98,10 +98,7 @@
 using std::max;
 using std::min;
 
-#if defined(HAVE_OPENSSL)
 /*
-  Without SSL the handshake consists of one packet. This packet
-  has both client capabilites and scrambled password.
   With SSL the handshake might consist of two packets. If the first
   packet (client capabilities) has CLIENT_SSL flag set, we have to
   switch to SSL and read the second packet. The scrambled password
@@ -112,9 +109,6 @@ using std::min;
 #define SSL_HANDSHAKE_SIZE 2
 #define NORMAL_HANDSHAKE_SIZE 6
 #define MIN_HANDSHAKE_SIZE 2
-#else
-#define MIN_HANDSHAKE_SIZE 6
-#endif /* HAVE_OPENSSL */
 
 /*
   Get structure for logging connection data for the current user

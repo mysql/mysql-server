@@ -211,7 +211,6 @@ int vio_getnameinfo(const struct sockaddr *sa, char *hostname,
                     size_t hostname_size, char *port, size_t port_size,
                     int flags);
 
-#if defined(HAVE_OPENSSL)
 extern "C" {
 #include <openssl/opensslv.h>
 }
@@ -278,8 +277,6 @@ struct st_VioSSLFd *new_VioSSLAcceptorFd(
 void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 
 void vio_ssl_end();
-
-#endif /* HAVE_OPENSSL */
 
 void ssl_start(void);
 void vio_end(void);
@@ -404,13 +401,11 @@ struct Vio {
 #endif
   HANDLE hPipe{nullptr};
 #endif
-#ifdef HAVE_OPENSSL
   void *ssl_arg = {nullptr};
   struct PSI_socket_locker *m_psi_read_locker = {nullptr};
   PSI_socket_locker_state m_psi_read_state;
   struct PSI_socket_locker *m_psi_write_locker = {nullptr};
   PSI_socket_locker_state m_psi_write_state;
-#endif /* HAVE_OPENSSL */
 #if defined(_WIN32)
   HANDLE handle_file_map = {nullptr};
   char *handle_map = {nullptr};
@@ -444,10 +439,6 @@ struct Vio {
   Vio &operator=(Vio &&vio);
 };
 
-#ifdef HAVE_OPENSSL
 #define SSL_handle SSL *
-#else
-#define SSL_handle void *
-#endif
 
 #endif /* vio_violite_h_ */

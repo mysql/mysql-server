@@ -1048,7 +1048,6 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
         }
 
         /* Warn about password being set in non ssl connection */
-#if defined(HAVE_OPENSSL)
         {
           uint ssl_mode = 0;
           if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
@@ -1059,7 +1058,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
                 "plain text, use ssl connection to ensure password safety.\n");
           }
         }
-#endif
+
         memset(buff, 0, sizeof(buff));
         sprintf(buff, "ALTER USER USER() IDENTIFIED BY '%s'", typed_password);
 

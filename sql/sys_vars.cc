@@ -4447,7 +4447,6 @@ static Sys_var_enum Sys_ssl_fips_mode(
     ssl_fips_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(update_fips_mode), nullptr);
 
-#if defined(HAVE_OPENSSL)
 static Sys_var_bool Sys_auto_generate_certs(
     "auto_generate_certs",
     "Auto generate SSL certificates at server startup if --ssl is set to "
@@ -4456,7 +4455,6 @@ static Sys_var_bool Sys_auto_generate_certs(
     READ_ONLY NON_PERSIST GLOBAL_VAR(opt_auto_generate_certs),
     CMD_LINE(OPT_ARG), DEFAULT(true), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(nullptr), ON_UPDATE(nullptr), nullptr);
-#endif /* HAVE_OPENSSL */
 
 // why ENUM and not BOOL ?
 static const char *updatable_views_with_limit_names[] = {"NO", "YES", nullptr};

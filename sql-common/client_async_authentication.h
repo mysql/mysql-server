@@ -20,12 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <openssl/ossl_typ.h>
 #include "mysql/plugin_auth_common.h"
 #include "mysql_async.h"
-
-#ifdef HAVE_OPENSSL
-#include <openssl/ossl_typ.h>
-#endif
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
 struct MCPVIO_EXT {
@@ -163,9 +160,7 @@ struct mysql_async_connect {
   char **current_init_command;
 
   ssl_exchange_state ssl_state;
-#if defined(HAVE_OPENSSL)
   SSL *ssl;
-#endif
   /* state function that will be called next */
   csm_function state_function;
 };

@@ -3400,11 +3400,7 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->rli->get_until_log_name(), &my_charset_bin);
   protocol->store((ulonglong)mi->rli->get_until_log_pos());
 
-#ifdef HAVE_OPENSSL
   protocol->store(mi->ssl ? "Yes" : "No", &my_charset_bin);
-#else
-  protocol->store(mi->ssl ? "Ignored" : "No", &my_charset_bin);
-#endif
   protocol->store(mi->ssl_ca, &my_charset_bin);
   protocol->store(mi->ssl_capath, &my_charset_bin);
   protocol->store(mi->ssl_cert, &my_charset_bin);
@@ -7966,7 +7962,6 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
     mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
   }
 
-#ifdef HAVE_OPENSSL
   /* By default the channel is not configured to use SSL */
   enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
   if (mi->ssl) {
@@ -7994,7 +7989,7 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
       ssl_mode = SSL_MODE_REQUIRED;
   }
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
-#endif
+
   mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
                 opt_slave_compressed_protocol ? COMPRESSION_ALGORITHM_ZLIB
                                               : mi->compression_algorithm);
@@ -9283,14 +9278,6 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
     strmake(mi->ssl_crl, lex_mi->ssl_crl, sizeof(mi->ssl_crl) - 1);
   if (lex_mi->ssl_crlpath)
     strmake(mi->ssl_crlpath, lex_mi->ssl_crlpath, sizeof(mi->ssl_crlpath) - 1);
-#ifndef HAVE_OPENSSL
-  if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath || lex_mi->ssl_cert ||
-      lex_mi->ssl_cipher || lex_mi->ssl_key || lex_mi->ssl_verify_server_cert ||
-      lex_mi->ssl_crl || lex_mi->ssl_crlpath || lex_mi->tls_version ||
-      lex_mi->tls_ciphersuites_null || lex_mi->tls_ciphersuites)
-    push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_IGNORED_SSL_PARAMS,
-                 ER_THD(thd, ER_SLAVE_IGNORED_SSL_PARAMS));
-#endif
 
   ret = change_master_set_compression(thd, lex_mi, mi);
   if (ret) goto err;

@@ -35,8 +35,6 @@
 #include "template_utils.h"
 #include "typelib.h"
 
-#if defined(HAVE_OPENSSL)
-
 #ifdef MYSQL_SERVER
 #error This header is supposed to be used only in the client
 #endif
@@ -105,11 +103,6 @@ static inline int set_client_ssl_options(MYSQL *mysql) {
 }
 
 #define SSL_SET_OPTIONS(mysql) set_client_ssl_options(mysql)
-#else
-#define SSL_SET_OPTIONS(mysql) \
-  do {                         \
-  } while (0)
-#endif
 
 const char *SSL_SET_OPTIONS_ERROR = "Failed to set ssl related options.\n";
 
