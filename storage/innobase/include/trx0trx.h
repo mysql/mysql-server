@@ -749,6 +749,14 @@ and sometimes by trx->mutex.
 
 /** Represents an instance of rollback segment along with its state variables.*/
 struct trx_undo_ptr_t {
+  /** @return true iff no undo segment is allocated yet. */
+  bool is_empty() { return (insert_undo == nullptr && update_undo == nullptr); }
+
+  /** @return true iff only insert undo segment is allocated. */
+  bool is_insert_only() {
+    return (insert_undo != nullptr && update_undo == nullptr);
+  }
+
   trx_rseg_t *rseg;        /*!< rollback segment assigned to the
                            transaction, or NULL if not assigned
                            yet */
