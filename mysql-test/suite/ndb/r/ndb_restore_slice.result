@@ -85,12 +85,3 @@ a	b	c	d	length(e)	right(e, 7)
 8a	8b	NULL	8d-modified	7000	08WIFUA
 9a	9b	NULL	9d-modified	7000	09WIFUA
 drop table test.t1;
-# Error out during restore to examine staging table names
-create table test.t1 (a varchar(20) not null,
-b varchar(20) not null,
-c text not null,
-d text not null,
-e text,
-primary key(a,b)) engine=ndb;
-# Dropping staging tables
-drop table test.t1;
