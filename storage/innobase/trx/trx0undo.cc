@@ -602,10 +602,13 @@ dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback) {
     return (DB_SUCCESS);
   }
 
-  /* For GTID persistence we need update undo segment. */
+  /* For GTID persistence we need update undo segment. Allocate update
+  undo segment here if it is insert only transaction. If no undo segment
+  is allocated yet, then transaction didn't do any modification and
+  no GTID would be allotted to it. */
   auto undo_ptr = &trx->rsegs.m_redo;
   dberr_t db_err = DB_SUCCESS;
-  if (!undo_ptr->update_undo) {
+  if (undo_ptr->is_insert_only()) {
     ut_ad(!rollback);
     mutex_enter(&trx->undo_mutex);
     db_err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
@@ -1636,8 +1639,7 @@ dberr_t trx_undo_assign_undo(
 
   /* If none of the undo pointers are assigned then this is
   first time transaction is allocating undo segment. */
-  bool is_first =
-      (undo_ptr->insert_undo == nullptr && undo_ptr->update_undo == nullptr);
+  bool is_first = undo_ptr->is_empty();
 
   /* If any undo segment is assigned it is guaranteed that
   Innodb would persist GTID. Call it before any undo segment
