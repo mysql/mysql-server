@@ -774,7 +774,7 @@ static void trx_roll_try_truncate(
 /** Pops the topmost undo log record in a single undo log and updates the info
 about the topmost record in the undo log memory struct.
 @param[in]	trx		transaction
-@param[in[	undo		undo log
+@param[in]	undo		undo log
 @param[in]	mtr		mtr
 @param[out]	undo_offset	offset of undo record in the page
 @return Undo page where undo log record resides, the page s-latched */
