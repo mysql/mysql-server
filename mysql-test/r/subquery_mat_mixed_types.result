@@ -4914,7 +4914,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t8	NULL	index	c1	c1	4	NULL	3	33.33	Using where; Using index
 SELECT * FROM t9 WHERE c1 IN (SELECT c1 FROM t8);
 c1
-set optimizer_switch='semijoin=on,firstmatch=off,loosescan=off,duplicateweedout=off,materialization=on,subquery_materialization_cost_based=on';
+set optimizer_switch='semijoin=on,firstmatch=off,loosescan=off,duplicateweedout=off,materialization=on,subquery_materialization_cost_based=off';
 SET TIMESTAMP=UNIX_TIMESTAMP(20150413000000);
 EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 WHERE t1.c1=t2.c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4936,7 +4936,7 @@ c1
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 3
@@ -4970,7 +4970,7 @@ c1
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 3
@@ -5002,7 +5002,7 @@ c1
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -5033,7 +5033,7 @@ c1
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -5301,7 +5301,7 @@ c1
 EXPLAIN SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t1 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -5334,7 +5334,7 @@ c1
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 3
@@ -5367,7 +5367,7 @@ c1
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 3
@@ -5398,7 +5398,7 @@ c1
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -5428,7 +5428,7 @@ c1
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -5658,7 +5658,7 @@ c1
 EXPLAIN SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t2 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -5690,7 +5690,7 @@ c1
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 3.00
@@ -5723,7 +5723,7 @@ c1
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 3.00
@@ -5754,7 +5754,7 @@ c1
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64.00
@@ -5786,7 +5786,7 @@ c1
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64.00
@@ -6026,7 +6026,7 @@ c1
 EXPLAIN SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t3 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64.00
@@ -6056,7 +6056,7 @@ c1
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 64
@@ -6086,7 +6086,7 @@ c1
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 64
@@ -6116,7 +6116,7 @@ c1
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 64
@@ -6146,7 +6146,7 @@ c1
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -6367,7 +6367,7 @@ c1
 EXPLAIN SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t4 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -6397,7 +6397,7 @@ c1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 64
@@ -6427,7 +6427,7 @@ c1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 64
@@ -6459,7 +6459,7 @@ c1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 64
@@ -6490,7 +6490,7 @@ c1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -6720,7 +6720,7 @@ c1
 EXPLAIN SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t5 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -6752,7 +6752,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 3
@@ -6791,7 +6791,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 3
@@ -6827,7 +6827,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 3
@@ -6860,7 +6860,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -6893,7 +6893,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -6933,7 +6933,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t7	NULL	index_subquery	c1	c1	243	func	1	100.00	Using where; Using index
+2	SUBQUERY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t7);
 c1
 11
@@ -7138,7 +7138,7 @@ c1
 EXPLAIN SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t6 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -7171,7 +7171,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 3
@@ -7210,7 +7210,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 3
@@ -7246,7 +7246,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 3
@@ -7279,7 +7279,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -7312,7 +7312,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -7352,7 +7352,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t6	NULL	index_subquery	c1	c1	241	func	1	100.00	Using where; Using index
+2	SUBQUERY	t6	NULL	index	c1	c1	241	NULL	5	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t6);
 c1
 11
@@ -7557,7 +7557,7 @@ c1
 EXPLAIN SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t7	NULL	index	c1	c1	243	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t7 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -7586,7 +7586,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7613,7 +7613,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7640,7 +7640,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7667,7 +7667,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7694,7 +7694,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7775,9 +7775,10 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t9	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 c1
+10:22:33
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t9 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7802,7 +7803,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t10	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7833,9 +7834,11 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t11	NULL	index_subquery	c1	c1	6	func	1	100.00	Using where; Using index
+2	SUBQUERY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 c1
+10:22:33
+33:22:33
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
 (SELECT 1 FROM t11 WHERE ASCII(c1) = 50);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -7886,7 +7889,7 @@ c1
 EXPLAIN SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	NULL	index	c1	c1	4	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t8 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 EXPLAIN SELECT 1 FROM t8 WHERE (SELECT 1 FROM t8 WHERE ASCII(c1) = 50) IN
@@ -7913,7 +7916,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -7943,7 +7946,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -7971,7 +7974,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -7999,7 +8002,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -8027,7 +8030,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -8143,7 +8146,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t10	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -8175,7 +8178,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t11	NULL	index_subquery	c1	c1	6	func	1	100.00	Using where; Using index
+2	SUBQUERY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 c1
 2015-04-13 10:22:33
@@ -8233,7 +8236,7 @@ c1
 EXPLAIN SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t9 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 EXPLAIN SELECT 1 FROM t9 WHERE (SELECT 1 FROM t9 WHERE ASCII(c1) = 50) IN
@@ -8261,7 +8264,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8291,7 +8294,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8319,7 +8322,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8347,7 +8350,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8375,7 +8378,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8488,7 +8491,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t9	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8518,7 +8521,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t11	NULL	index_subquery	c1	c1	6	func	1	100.00	Using where; Using index
+2	SUBQUERY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t11);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8575,7 +8578,7 @@ c1
 EXPLAIN SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t10 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 EXPLAIN SELECT 1 FROM t10 WHERE (SELECT 1 FROM t10 WHERE ASCII(c1) = 50) IN
@@ -8603,7 +8606,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -8641,7 +8644,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -8677,7 +8680,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -8713,7 +8716,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -8749,7 +8752,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -8902,7 +8905,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t9	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t9	NULL	index	c1	c1	5	NULL	2	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t9);
 c1
 2015-04-13 10:22:33
@@ -8941,7 +8944,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t10	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t10	NULL	index	c1	c1	4	NULL	2	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t10);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -9014,7 +9017,7 @@ c1
 EXPLAIN SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t11	NULL	index	c1	c1	6	NULL	3	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t11 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 DELETE FROM t11 WHERE c1='2015-04-14 09:22:33';
@@ -9054,7 +9057,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 3
@@ -9087,7 +9090,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 3
@@ -9122,7 +9125,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 3
@@ -9154,7 +9157,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -9186,7 +9189,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
@@ -9403,7 +9406,7 @@ c1
 EXPLAIN SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t12	NULL	index	c1	c1	21	NULL	5	100.00	Using index
-2	DEPENDENT SUBQUERY	t13	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
 SELECT * FROM t12 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t13);
 c1
 64
@@ -9433,7 +9436,7 @@ c1
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	index	c1	c1	5	NULL	6	100.00	Using index
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t1);
 c1
 64
@@ -9463,7 +9466,7 @@ c1
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t2	NULL	index	c1	c1	9	NULL	5	100.00	Using index
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t2);
 c1
 64
@@ -9493,7 +9496,7 @@ c1
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t3	NULL	index_subquery	c1	c1	4	func	1	100.00	Using where; Using index
+2	SUBQUERY	t3	NULL	index	c1	c1	4	NULL	4	100.00	Using index
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t3);
 c1
 64
@@ -9523,7 +9526,7 @@ c1
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t4	NULL	index_subquery	c1	c1	5	func	1	100.00	Using where; Using index
+2	SUBQUERY	t4	NULL	index	c1	c1	5	NULL	4	100.00	Using index
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t4);
 c1
 64
@@ -9553,7 +9556,7 @@ c1
 EXPLAIN SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t13	NULL	index	c1	c1	9	NULL	2	100.00	Using index
-2	DEPENDENT SUBQUERY	t5	NULL	index_subquery	c1	c1	9	func	1	100.00	Using where; Using index
+2	SUBQUERY	t5	NULL	index	c1	c1	9	NULL	4	100.00	Using index
 SELECT * FROM t13 GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t5);
 c1
 64
