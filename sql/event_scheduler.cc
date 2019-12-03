@@ -539,11 +539,12 @@ bool Event_scheduler::run(THD *thd) {
   queue->recalculate_activation_times(thd);
 
   while (is_running()) {
-    Event_queue_element_for_exec *event_name;
+    Event_queue_element_for_exec *event_name = nullptr;
 
     /* Gets a minimized version */
     if (queue->get_top_for_execution_if_time(thd, &event_name)) {
       LogErr(INFORMATION_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_GET_EVENT);
+      if (event_name != nullptr) delete event_name;
       break;
     }
 
