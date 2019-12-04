@@ -26,6 +26,9 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
+# Pass --define 'with_cluster 1' to build with cluster support
+%{?with_cluster: %global cluster 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
@@ -35,7 +38,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
 %{!?compilation_comment_server_release: %global compilation_comment_server_release MySQL Community Server - GPL}
 %{!?compilation_comment_server_debug:   %global compilation_comment_server_debug MySQL Community Server - GPL - Debug}
-%{!?src_base:                    %global src_base mysql}
+%{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %global src_dir               %{src_base}-@VERSION_SRC@
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
@@ -48,7 +51,7 @@
 
 %global min                   8.0.11
 
-Name:           mysql-%{product_suffix}
+Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Version:        @MYSQL_NO_DASH_VERSION@
 Release:        10@MYSQL_VERSION_EXTRA_DOT@%{?dist}
@@ -108,6 +111,9 @@ BuildRequires:  sed
 BuildRequires:  systemd
 BuildRequires:  time
 BuildRequires:  zlib-devel
+%if 0%{?cluster}
+BuildRequires: /usr/bin/pathfix.py
+%endif
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
 %global _privatelibs libprotobuf.*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
@@ -204,6 +210,7 @@ to run and administer a MySQL server.
 Summary:        The debug version of MySQL server
 %if 0%{?commercial}
 Requires:       mysql-commercial-server = %{version}-%{release}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
 %else
 Requires:       mysql-community-server = %{version}-%{release}
 %endif
@@ -244,7 +251,6 @@ Provides:       mysql-common%{?_isa} = %{version}-%{release}
 This packages contains common files needed by MySQL client library and
 MySQL database server.
 
-
 %package        test
 Summary:        Test suite for the MySQL database server
 Requires:       gzip
@@ -280,6 +286,10 @@ Requires:       perl(Sys::Hostname)
 Requires:       perl(Time::HiRes)
 Requires:       perl(Time::localtime)
 Requires:       procps
+%if 0%{?cluster}
+Requires:       %{name}-data-node%{?_isa} >= %{min}
+Requires:       %{name}-management-server%{?_isa} >= %{min}
+%endif
 %if 0%{?commercial}
 Requires:       mysql-commercial-server%{?_isa} >= %{min}
 Obsoletes:      mysql-community-test < %{version}-%{release}
@@ -375,6 +385,79 @@ Requires:       mysql-router-community = %{version}-%{release}
 This package contains the development header files and libraries
 necessary to develop MySQL Router applications.
 
+%if 0%{?cluster}
+%package        management-server
+Summary:        MySQL Cluster Management Server Daemon
+%description    management-server
+This package contains the MySQL Cluster Management Server Daemon,
+which reads the cluster configuration file and distributes this
+information to all nodes in the cluster.
+
+%package        data-node
+Summary:        MySQL Cluster Data Node Daemon
+%description    data-node
+This package contains MySQL Cluster Data Node Daemon, it is the process
+that is used to handle all the data in tables using the NDB Cluster
+storage engine. It comes in two variants: ndbd and ndbmtd, the former
+is single threaded while the latter is multi-threaded.
+
+%package        auto-installer
+Summary:        Web-based graphical configuration installer for MySQL Cluster
+Requires:       %{name}-server%{?_isa} = %{version}-%{release}
+Requires:       python-paramiko
+%description    auto-installer
+This package contains the MySQL Cluster web-based graphical
+configuration installer, which can be used to set up and start or stop
+a MySQL Cluster on one or more host computers.
+
+%package        ndbclient
+Summary:        Shared libraries for MySQL NDB storage engine client applications
+%description    ndbclient
+This package contains the shared libraries for MySQL MySQL NDB storage
+engine client applications.
+
+%package        ndbclient-devel
+Summary:        Development files for MySQL NDB storage engine client applications
+Requires:       %{name}-devel%{?_isa} = %{version}-%{release}
+Requires:       %{name}-ndbclient%{?_isa} = %{version}-%{release}
+%description    ndbclient-devel
+This package contains the development header files and libraries
+necessary to develop client applications for MySQL NDB storage engine.
+
+%if 0%{?ndb_nodejs_extras_path:1}
+%package        nodejs
+Summary:        Set of Node.js adapters for MySQL Cluster
+%description    nodejs
+This package contains MySQL NoSQL Connector for JavaScript, a set of
+Node.js adapters for MySQL Cluster and MySQL Server, which make it
+possible to write JavaScript applications for Node.js using MySQL
+data.
+%endif
+
+%package        java
+Summary:        MySQL Cluster Connector for Java
+%description    java
+This package contains MySQL Cluster Connector for Java, which includes
+ClusterJ and ClusterJPA, a plugin for use with OpenJPA.
+
+ClusterJ is a high level database API that is similar in style and
+concept to object-relational mapping persistence frameworks such as
+Hibernate and JPA.
+
+ClusterJPA is an OpenJPA implementation for MySQL Cluster that
+attempts to offer the best possible performance by leveraging the
+strengths of both ClusterJ and JDBC.
+
+%package        memcached
+Summary:        Memcached API for MySQL Cluster implemented as a loadable storage engine for memcached
+Requires:       %{name}-server%{?_isa} = %{version}-%{release}
+%description    memcached
+This package contains the standard memcached server and a loadable
+storage engine for memcached using the Memcache API for MySQL Cluster
+to provide a persistent MySQL Cluster data store.
+
+%endif # cluster
+
 %prep
 %setup -q -T -a 0 -a 1 -c -n %{src_dir}
 
@@ -406,7 +489,7 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
-%if 0%{?with_cluster:1}
+%if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
@@ -444,7 +527,7 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \
-%if 0%{?with_cluster:1}
+%if 0%{?cluster:1}
            -DWITH_NDBCLUSTER=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
@@ -509,6 +592,11 @@ if %multilib_capable ; then
     install -p -m 0755 $MBD/release/packaging/rpm-common/mysql_config.sh %{buildroot}%{_bindir}/mysql_config
     echo "%{_bindir}/mysql_config-%{__isa_bits}" >> devel.list
 fi
+
+# Fix a cluster script
+%if 0%{?cluster}
+/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py
+%endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
@@ -750,11 +838,74 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_mandir}/man1/mysqlslap.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config_editor.1*
 
+%if 0%{?cluster}
+%attr(755, root, root) %{_bindir}/ndb_blob_tool
+%attr(755, root, root) %{_bindir}/ndb_config
+%attr(755, root, root) %{_bindir}/ndb_delete_all
+%attr(755, root, root) %{_bindir}/ndb_desc
+%attr(755, root, root) %{_bindir}/ndb_drop_index
+%attr(755, root, root) %{_bindir}/ndb_drop_table
+%attr(755, root, root) %{_bindir}/ndb_error_reporter
+%attr(755, root, root) %{_bindir}/ndb_index_stat
+%attr(755, root, root) %{_bindir}/ndb_import
+%attr(755, root, root) %{_bindir}/ndb_mgm
+%attr(755, root, root) %{_bindir}/ndb_move_data
+%attr(755, root, root) %{_bindir}/ndb_perror
+%attr(755, root, root) %{_bindir}/ndb_print_backup_file
+%attr(755, root, root) %{_bindir}/ndb_print_file
+%attr(755, root, root) %{_bindir}/ndb_print_frag_file
+%attr(755, root, root) %{_bindir}/ndb_print_schema_file
+%attr(755, root, root) %{_bindir}/ndb_print_sys_file
+%attr(755, root, root) %{_bindir}/ndb_redo_log_reader
+%attr(755, root, root) %{_bindir}/ndb_restore
+%attr(755, root, root) %{_bindir}/ndb_select_all
+%attr(755, root, root) %{_bindir}/ndb_select_count
+%attr(755, root, root) %{_bindir}/ndb_setup.py
+%attr(755, root, root) %{_bindir}/ndb_show_tables
+%attr(755, root, root) %{_bindir}/ndb_size.pl
+%attr(755, root, root) %{_bindir}/ndb_top
+%attr(755, root, root) %{_bindir}/ndb_waiter
+%attr(755, root, root) %{_bindir}/ndbinfo_select_all
+
+%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_config.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_delete_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_desc.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_index.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_drop_table.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_error_reporter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_import.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_index_stat.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_mgm.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_move_data.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_perror.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_backup_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_frag_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_schema_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_print_sys_file.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_top.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_waiter.1*
+%attr(644, root, root) %{_mandir}/man1/ndb_redo_log_reader.1*
+%attr(644, root, root) %{_mandir}/man1/ndbinfo_select_all.1*
+%endif #cluster
+
 %files -f devel.list devel
 %doc %{?license_files_server}
 %attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %{_includedir}/mysql
+%if 0%{?cluster}
+%exclude %{_includedir}/mysql/storage
+%endif #cluster
 %{_datadir}/aclocal/mysql.m4
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlservices.a
@@ -928,6 +1079,56 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_services_host_application_signal.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlx_global_reset.so
 
+%if 0%{?cluster}
+%files management-server
+%doc %{?license_files_server}
+%attr(755, root, root) %{_sbindir}/ndb_mgmd
+%attr(644, root, root) %{_mandir}/man8/ndb_mgmd.8*
+
+%files data-node
+%doc %{?license_files_server}
+%attr(755, root, root) %{_sbindir}/ndbd
+%attr(755, root, root) %{_sbindir}/ndbmtd
+%attr(644, root, root) %{_mandir}/man8/ndbd.8*
+%attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
+
+%files auto-installer
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_bindir}/mcc_config.py
+%{_datadir}/mysql-*/mcc/
+%exclude %{_datadir}/mysql-*/mcc/tst/
+
+%files memcached
+%doc %{?license_files_server}
+%attr(755, root, root) %{_bindir}/memclient
+%attr(755, root, root) %{_sbindir}/memcached
+%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
+%{_datadir}/mysql-*/memcache-api/
+
+%files ndbclient
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%attr(755, root, root) %{_libdir}/mysql/libndbclient.so.6.1.0
+
+%files ndbclient-devel
+%doc %{?license_files_server}
+%attr(644, root, root) %{_libdir}/mysql/libndbclient_static.a
+%{_libdir}/mysql/libndbclient.so
+%{_includedir}/mysql/storage
+
+%if 0%{?ndb_nodejs_extras_path:1}
+%files nodejs
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%{_datadir}/mysql-*/nodejs/
+%endif
+
+%files java
+%doc %{?license_files_server}
+%{_datadir}/mysql-*/java/
+%endif # cluster
+
 %files -n mysql-router-%{product_suffix}
 %doc %{src_dir}/router/README.router  %{src_dir}/router/LICENSE.router
 %dir %{_sysconfdir}/mysqlrouter
@@ -952,6 +1153,7 @@ rm -r $(readlink var) var
 %changelog
 * Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
 - Added component_test_udf_services test component
+- Added back support for cluster
 
 * Wed Jun 26 2019 Maheedhar PV <maheedhar.panchalamarri.venka@oracle.com> - 8.0.18-1
 - Add component_mysqlbackup component
