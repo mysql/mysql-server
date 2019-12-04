@@ -2748,6 +2748,9 @@ sub environment_setup {
   $ENV{'LC_COLLATE'} = "C";
   $ENV{'LC_CTYPE'}   = "C";
 
+  # This might be set; remove to avoid warnings in error log and test failure
+  delete $ENV{'NOTIFY_SOCKET'};
+
   $ENV{'DEFAULT_MASTER_PORT'} = $mysqld_variables{'port'};
   $ENV{'MYSQL_BINDIR'}        = "$bindir";
   $ENV{'MYSQL_CHARSETSDIR'}   = $path_charsetsdir;
