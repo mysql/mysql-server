@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -49,10 +49,5 @@ FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource)
   TARGET_LINK_LIBRARIES(${test}-t gunit_small)
-  # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
-  IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
-    TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
-  ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
-
