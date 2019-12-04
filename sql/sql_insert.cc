@@ -3653,6 +3653,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= (table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
 
+  /* Decide the logging format prior to preparing table/record metadata */
+  res= res || thd->decide_logging_format(table_list);
+
   if (!res)
      prepare_triggers_for_insert_stmt(table);
 
