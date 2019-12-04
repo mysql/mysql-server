@@ -57,7 +57,6 @@ static constexpr int IDENTIFIER_LENGTH = 255;
 static constexpr int LEGACY_IDENTIFIER_LENGTH = 63;
 
 static const char *SCHEMA_UUID_KEY = "schema_uuid";
-static const uint16 SCHEMA_UUID_VALUE_LENGTH = UUID_LENGTH;
 
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb *thd_ndb)
     : Ndb_util_table(thd_ndb, DB_NAME, TABLE_NAME, true) {}
@@ -481,7 +480,7 @@ bool Ndb_schema_dist_table::get_schema_uuid(std::string *schema_uuid) const {
   // pair of form "schema_uuid=<UUID>;". Extract the value and return.
   schema_uuid->assign(
       key_value_str_get_value(query_col_value, SCHEMA_UUID_KEY));
-  DBUG_ASSERT(schema_uuid->size() == SCHEMA_UUID_VALUE_LENGTH);
+  DBUG_ASSERT(schema_uuid->size() == UUID_LENGTH);
   ndb_log_verbose(19, "Schema UUID read from NDB : %s", schema_uuid->c_str());
   return true;
 }
