@@ -53,9 +53,6 @@ SET(WITH_SSL_DOC
   "${WITH_SSL_DOC}, \n</path/to/custom/openssl/installation>")
 
 STRING(REPLACE "\n" "| " WITH_SSL_DOC_STRING "${WITH_SSL_DOC}")
-MACRO (CHANGE_SSL_SETTINGS string)
-  SET(WITH_SSL ${string} CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
-ENDMACRO()
 
 MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   MESSAGE(STATUS "\n${string}"
@@ -99,7 +96,7 @@ ENDMACRO()
 # WITH_SSL=[yes|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-    CHANGE_SSL_SETTINGS("system")
+    SET(WITH_SSL "system" CACHE STRING ${WITH_SSL_DOC_STRING} FORCE)
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
@@ -152,7 +149,7 @@ MACRO (MYSQL_CHECK_SSL)
     ENDIF()
 
     # On mac this list is <.dylib;.so;.a>
-    # We prefer static libraries, so we revert it here.
+    # We prefer static libraries, so we reverse it here.
     IF (WITH_SSL_PATH)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
       MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
@@ -224,6 +221,9 @@ MACRO (MYSQL_CHECK_SSL)
         SET(MY_OPENSSL_LIBRARY imported_openssl)
         ADD_IMPORTED_LIBRARY(imported_openssl "${OPENSSL_LIBRARY}")
       ENDIF()
+      IF(CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".a")
+        SET(STATIC_SSL_LIBRARY 1)
+      ENDIF()
     ENDIF()
 
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
@@ -234,9 +234,13 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
 
     INCLUDE(CheckSymbolExists)
+
+    CMAKE_PUSH_CHECK_STATE()
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
     CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
                         HAVE_SHA512_DIGEST_LENGTH)
+    CMAKE_POP_CHECK_STATE()
+
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
       SET(SSL_LIBRARIES ${MY_OPENSSL_LIBRARY} ${MY_CRYPTO_LIBRARY})
