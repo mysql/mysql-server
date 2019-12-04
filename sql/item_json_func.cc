@@ -36,7 +36,6 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
-#include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
@@ -293,6 +292,19 @@ static bool is_convertible_to_json(const Item *item) {
 }
 
 /**
+  Checks if an Item is of a type that is convertible to JSON. An error is raised
+  if it is not convertible.
+*/
+static bool check_convertible_to_json(const Item *item, int argument_number,
+                                      const char *function_name) {
+  if (!is_convertible_to_json(item)) {
+    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), argument_number, function_name);
+    return true;
+  }
+  return false;
+}
+
+/**
   Helper method for Item_func_json_* methods. Check if a JSON item or
   JSON text is valid and, for the latter, optionally construct a DOM
   tree (i.e. only if valid).
@@ -543,13 +555,9 @@ static bool evaluate_constant_json_schema(
     unique_ptr_destroy_only<const Json_schema_validator>
         *cached_schema_validator,
     Item **ref) {
+  DBUG_ASSERT(is_convertible_to_json(json_schema));
   const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
   if (json_schema->const_item()) {
-    if (!is_convertible_to_json(json_schema)) {
-      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name);
-      return true;
-    }
-
     String schema_buffer;
     String *schema_string = json_schema->val_str(&schema_buffer);
     if (thd->is_error()) return true;
@@ -571,8 +579,13 @@ static bool evaluate_constant_json_schema(
 }
 
 bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
-  return Item_bool_func::fix_fields(thd, ref) ||
-         evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
+  if (Item_bool_func::fix_fields(thd, ref)) return true;
+
+  // Both arguments must have types that are convertible to JSON.
+  for (uint i = 0; i < arg_count; ++i)
+    if (check_convertible_to_json(args[i], i + 1, func_name())) return true;
+
+  return evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
                                        ref);
 }
 
@@ -591,10 +604,7 @@ static bool do_json_schema_validation(
     Item *json_schema, Item *json_document, const char *func_name,
     const Json_schema_validator *cached_schema_validator, bool *null_value,
     bool *validation_result, Json_schema_validation_report *validation_report) {
-  if (!is_convertible_to_json(json_document)) {
-    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 2, func_name);
-    return true;
-  }
+  DBUG_ASSERT(is_convertible_to_json(json_document));
 
   String document_buffer;
   String *document_string = json_document->val_str(&document_buffer);
@@ -621,10 +631,7 @@ static bool do_json_schema_validation(
                  down_cast<const Item_field *>(json_schema->real_item())
                      ->table_ref->table->const_table));
 
-    if (!is_convertible_to_json(json_schema)) {
-      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name);
-      return true;
-    }
+    DBUG_ASSERT(is_convertible_to_json(json_schema));
 
     String schema_buffer;
     String *schema_string = json_schema->val_str(&schema_buffer);
@@ -673,8 +680,13 @@ bool Item_func_json_schema_valid::val_bool() {
 }
 
 bool Item_func_json_schema_validation_report::fix_fields(THD *thd, Item **ref) {
-  return Item_json_func::fix_fields(thd, ref) ||
-         evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
+  if (Item_json_func::fix_fields(thd, ref)) return true;
+
+  // Both arguments must have types that are convertible to JSON.
+  for (uint i = 0; i < arg_count; ++i)
+    if (check_convertible_to_json(args[i], i + 1, func_name())) return true;
+
+  return evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
                                        ref);
 }
 

@@ -536,3 +536,13 @@ Level	Code	Message
 Error	1235	This version of MySQL doesn't yet support 'references in JSON Schema'
 Error	3819	Check constraint 't1_chk_3' is violated.
 DROP TABLE t1;
+#
+# Bug#30622327: JSON SCHEMA FUNCTIONS SHOULD CHECK ARGUMENT TYPES
+#               AT RESOLVE TIME
+#
+CREATE TABLE t(j JSON, g GEOMETRY);
+PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALID(j, g)';
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_valid; a JSON string or JSON type is required.
+PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALID(g, j)';
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_valid; a JSON string or JSON type is required.
+DROP TABLE t;
