@@ -61,6 +61,8 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Commercial")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
   SET (DEB_LICENSENAME "Advanced")
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_LDAP=${WITH_LDAP}")
+  SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_SASL=${WITH_SASL}")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
