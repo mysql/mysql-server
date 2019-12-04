@@ -806,13 +806,10 @@ skip_secondaries:
 
       lob::BtrContext btr_ctx(&mtr, nullptr, index, nullptr, nullptr, block);
 
-      lob::DeleteContext ctx(btr_ctx, field_ref, 0, false);
-
-      lob::ref_t lobref(field_ref);
+      lob::DeleteContext ctx(btr_ctx, field_ref, ufield->field_no, false);
 
       lob::purge(&ctx, index, node->modifier_trx_id,
-                 trx_undo_rec_get_undo_no(undo_rec), lobref, node->rec_type,
-                 ufield);
+                 trx_undo_rec_get_undo_no(undo_rec), node->rec_type, ufield);
 
       mtr_commit(&mtr);
     }

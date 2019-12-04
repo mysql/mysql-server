@@ -244,7 +244,7 @@ dberr_t zReader::fetch() {
         if (m_rctx.m_page_no == FIL_NULL) {
           goto end_of_blob;
         }
-        /* fall through */
+      /* fall through */
       default:
         err = DB_FAIL;
         ib::error(ER_IB_MSG_630)
@@ -1060,9 +1060,7 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
       byte *field_ref = data + len - BTR_EXTERN_FIELD_REF_SIZE;
 
       DeleteContext ctx(*this, field_ref, ufield->field_no, rollback);
-
-      ref_t lobref(field_ref);
-      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, 0, ufield);
+      lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield);
     }
   }
 }
@@ -1160,10 +1158,9 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
       byte *field_ref = btr_rec_get_field_ref(m_rec, m_offsets, i);
 
       DeleteContext ctx(*this, field_ref, i, rollback);
-      ref_t lobref(field_ref);
 
       upd_field_t *uf = nullptr;
-      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, rec_type, uf);
+      lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf);
     }
   }
 }
