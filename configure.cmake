@@ -41,19 +41,6 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
-# Check to see if we are using LLVM's libc++ rather than e.g. libstd++
-# Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
-CHECK_CXX_SOURCE_RUNS("
-#include <ciso646>
-int main()
-{
-#ifdef _LIBCPP_VERSION
-  return 0;
-#else
-  return 1;
-#endif
-}" HAVE_LLVM_LIBCPP)
-
 # Same for structs, setting HAVE_STRUCT_<name> instead
 FUNCTION(MY_CHECK_STRUCT_SIZE type defbase)
   CHECK_TYPE_SIZE("struct ${type}" SIZEOF_${defbase})
@@ -211,7 +198,6 @@ CHECK_INCLUDE_FILES (endian.h HAVE_ENDIAN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
 CHECK_INCLUDE_FILES (fpu_control.h HAVE_FPU_CONTROL_H)
 CHECK_INCLUDE_FILES (grp.h HAVE_GRP_H)
-CHECK_INCLUDE_FILES (ieeefp.h HAVE_IEEEFP_H)
 CHECK_INCLUDE_FILES (langinfo.h HAVE_LANGINFO_H)
 CHECK_INCLUDE_FILES (malloc.h HAVE_MALLOC_H)
 CHECK_INCLUDE_FILES (netinet/in.h HAVE_NETINET_IN_H)
@@ -415,12 +401,6 @@ MY_CHECK_TYPE_SIZE(ulong ULONG)
 MY_CHECK_TYPE_SIZE(u_int32_t U_INT32_T)
 SET(CMAKE_EXTRA_INCLUDE_FILES sys/socket.h)
 MY_CHECK_TYPE_SIZE(socklen_t SOCKLEN_T) # needed for libevent
-
-IF(HAVE_IEEEFP_H)
-  SET(CMAKE_EXTRA_INCLUDE_FILES ieeefp.h)
-  MY_CHECK_TYPE_SIZE(fp_except FP_EXCEPT)
-ENDIF()
-
 SET(CMAKE_EXTRA_INCLUDE_FILES)
 
 # Support for tagging symbols with __attribute__((visibility("hidden")))

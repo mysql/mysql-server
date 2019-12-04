@@ -26,7 +26,6 @@
 /*
  * From configure.cmake, in order of appearance
  */
-#cmakedefine HAVE_LLVM_LIBCPP 1
 
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
@@ -45,7 +44,6 @@
 #cmakedefine HAVE_EXECINFO_H 1
 #cmakedefine HAVE_FPU_CONTROL_H 1
 #cmakedefine HAVE_GRP_H 1
-#cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_LANGINFO_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_NETINET_IN_H 1

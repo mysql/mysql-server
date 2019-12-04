@@ -20,29 +20,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <math.h>
+#include <float.h>
+#include <string.h>
 #include <sys/types.h>
+#include <cmath>
 
+#include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "myisam.h"
 #include "storage/myisam/myisamdef.h"
 #include "storage/myisam/rt_index.h"
-#include "storage/myisam/rt_key.h"
 #include "storage/myisam/rt_mbr.h"
-
-/* Our ifdef trickery for my_isfinite does not work with gcc/solaris unless we:
- */
-#ifdef HAVE_IEEEFP_H
-#include <ieeefp.h>
-#endif
-
-#if defined _WIN32
-#define my_isfinite(X) _finite(X)
-#elif defined HAVE_LLVM_LIBCPP
-#define my_isfinite(X) isfinite(X)
-#else
-#define my_isfinite(X) finite(X)
-#endif
 
 typedef struct {
   double square;
@@ -83,7 +73,7 @@ static double mbr_join_square(const double *a, const double *b, int n_dim) {
   } while (a != end);
 
   /* Check for infinity or NaN */
-  if (!my_isfinite(square)) square = DBL_MAX;
+  if (!std::isfinite(square)) square = DBL_MAX;
 
   return square;
 }
@@ -152,7 +142,7 @@ static void pick_next(SplitStruct *node, int n_entries, double *g1, double *g2,
     diff = mbr_join_square(g1, cur->coords, n_dim) -
            mbr_join_square(g2, cur->coords, n_dim);
 
-    abs_diff = fabs(diff);
+    abs_diff = std::fabs(diff);
     if (abs_diff > max_diff) {
       max_diff = abs_diff;
       *n_group = 1 + (diff > 0);
