@@ -189,7 +189,7 @@ err:
 }
 
 void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
-  if (thd->server_id) {
+  if (thd->server_id && slave_list_inited) {
     if (need_lock_slave_list)
       mysql_mutex_lock(&LOCK_slave_list);
     else
