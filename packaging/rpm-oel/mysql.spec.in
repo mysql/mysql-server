@@ -42,6 +42,14 @@
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
 
+# Pass path to LDAP lib
+%{?with_ldap: %global ldap_option -DWITH_LDAP=%{with_ldap}}
+%{?with_ldap: %global ldap 1}
+
+# Pass path to SASL lib
+%{?with_sasl: %global sasl_option -DWITH_SASL=%{with_sasl}}
+%{?with_sasl: %global sasl 1}
+
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
@@ -177,6 +185,12 @@ BuildRequires:  pkgconfig(systemd)
 %endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap-devel
+%if 0%{?commercial}
+BuildRequires:  openldap-clients
+%if 0%{?rhel} > 6
+BuildRequires:  cyrus-sasl-scram
+%endif
+%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -774,6 +788,8 @@ mkdir debug
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
@@ -809,6 +825,8 @@ mkdir release
 %endif
            %{?ssl_option} \
            %{?mecab_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
