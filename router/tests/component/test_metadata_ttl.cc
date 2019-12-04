@@ -126,28 +126,41 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return get_int_field_value(json_string, "update_last_check_in_count");
   }
 
-  bool wait_for_refresh_thread_started(const ProcessWrapper &router,
-                                       std::chrono::milliseconds timeout) {
+  bool wait_log_contains(const ProcessWrapper &router,
+                         const std::string &needle,
+                         std::chrono::milliseconds timeout) {
     if (getenv("WITH_VALGRIND")) {
       timeout *= 10;
     }
 
-    const auto MSEC_STEP = 10ms;
-    bool thread_started = false;
+    const auto MSEC_STEP = 50ms;
+    bool found = false;
     const auto started = std::chrono::steady_clock::now();
     do {
       const std::string log_content = router.get_full_logfile();
-      const std::string needle = "Starting metadata cache refresh thread";
-      thread_started = (log_content.find(needle) != log_content.npos);
-      if (!thread_started) {
+      found = (log_content.find(needle) != log_content.npos);
+      if (!found) {
         auto step = std::min(timeout, MSEC_STEP);
         std::this_thread::sleep_for(std::chrono::milliseconds(step));
         timeout -= step;
       }
-    } while (!thread_started &&
-             timeout > std::chrono::steady_clock::now() - started);
+    } while (!found && timeout > std::chrono::steady_clock::now() - started);
 
-    return thread_started;
+    return found;
+  }
+
+  bool wait_for_refresh_thread_started(
+      const ProcessWrapper &router, const std::chrono::milliseconds timeout) {
+    const std::string needle = "Starting metadata cache refresh thread";
+
+    return wait_log_contains(router, needle, timeout);
+  }
+
+  bool wait_metadata_read(const ProcessWrapper &router,
+                          const std::chrono::milliseconds timeout) {
+    const std::string needle = "Potential changes detected in cluster";
+
+    return wait_log_contains(router, needle, timeout);
   }
 
   auto &launch_router(const std::string &temp_test_dir,
@@ -479,6 +492,73 @@ INSTANTIATE_TEST_CASE_P(
                               ClusterType::GR_V2, "0.1"),
         MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
                               "unordered_ar_v2", ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
+class MetadataChacheTTLTestInvalidMysqlXPort
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+/**
+ * @test Check that invalid mysqlx port in the metadata does not cause the node
+ * to be discarded for the classic protocol connections (Bug#30617645)
+ */
+TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
+
+  const std::string json_metadata =
+      get_data_dir().join(GetParam().tracefile).str();
+
+  SCOPED_TRACE("// single node cluster is fine for this test");
+  const uint16_t node_classic_port{port_pool_.get_next_available()};
+  const uint16_t node_http_port{port_pool_.get_next_available()};
+  const uint32_t kInvalidPort{76000};
+
+  auto &cluster_node = launch_mysql_server_mock(
+      json_metadata, node_classic_port, EXIT_SUCCESS, false, node_http_port);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(cluster_node, node_classic_port));
+
+  ASSERT_TRUE(
+      MockServerRestClient(node_http_port).wait_for_rest_endpoint_ready())
+      << cluster_node.get_full_output();
+
+  SCOPED_TRACE(
+      "// let the metadata for our single node report invalid mysqlx port");
+  set_mock_metadata(node_http_port, "", {node_classic_port}, 0, 0, false,
+                    "127.0.0.1", {kInvalidPort});
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const auto router_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section = get_metadata_cache_section(
+      {node_classic_port}, GetParam().cluster_type, GetParam().ttl);
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router = launch_router(temp_test_dir.name(), conf_dir.name(),
+                               metadata_cache_section, routing_section,
+                               EXIT_SUCCESS, true);
+
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+  ASSERT_TRUE(wait_metadata_read(router, 5000ms)) << router.get_full_output();
+
+  SCOPED_TRACE(
+      "// Even though the metadata contains invalid mysqlx port we still "
+      "should be able to connect on the classic port");
+  MySQLSession client;
+  try {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  } catch (...) {
+    FAIL() << router.get_full_logfile();
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    InvalidMysqlXPort, MetadataChacheTTLTestInvalidMysqlXPort,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "gr_v2", ClusterType::GR_V1, "5"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes.js", "gr",
+                                            ClusterType::GR_V2, "5"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "ar_v2", ClusterType::RS_V2, "5")),
     get_test_description);
 
 /**

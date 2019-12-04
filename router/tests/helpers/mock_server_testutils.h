@@ -53,12 +53,15 @@ using JsonStringBuffer =
  * Converts the GR mock data to the JSON object.
  *
  * @param gr_id replication group id to set
- * @param gr_node_ports vector with the ports of the nodes that mock server
+ * @param gr_node_ports vector with the classic protocol ports of the cluster
+ * nodes
  * @param primary_id which node is the primary
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
  * handling the metadata query
  * @param gr_node_host address of the host with the nodes
+ * @param gr_node_xports vector with the X protocol ports of the cluster nodes
+ * reported by the metadata
  *
  * @return JSON object with the GR mock data.
  */
@@ -66,25 +69,30 @@ JsonValue mock_GR_metadata_as_json(
     const std::string &gr_id, const std::vector<uint16_t> &gr_node_ports,
     unsigned primary_id = 0, unsigned view_id = 0,
     bool error_on_md_query = false,
-    const std::string &gr_node_host = "127.0.0.1");
+    const std::string &gr_node_host = "127.0.0.1",
+    const std::vector<uint32_t> &gr_node_xports = {});
 
 /**
  * Sets the metadata returned by the mock server.
  *
  * @param http_port mock server's http port where it services the http requests
  * @param gr_id replication group id to set
- * @param gr_node_ports vector with the ports of the nodes that mock server
+ * @param gr_node_ports vector with the classic protocol ports of the cluster
+ * nodes
  * @param primary_id which node is the primary
  * @param view_id metadata view id (for AR cluster)
  * @param error_on_md_query if true the mock should return an error when
- * @param gr_node_host address of the host with the nodes
- * handling the metadata query
+ * @param gr_node_host address of the host with the nodes handling the metadata
+ * query
+ * @param gr_node_xports vector with the X protocol ports of the cluster nodes
+ * reported by the metadata
  */
 void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                        const std::vector<uint16_t> &gr_node_ports,
                        unsigned primary_id = 0, unsigned view_id = 0,
                        bool error_on_md_query = false,
-                       const std::string &gr_node_host = "127.0.0.1");
+                       const std::string &gr_node_host = "127.0.0.1",
+                       const std::vector<uint32_t> &gr_node_xports = {});
 
 void set_mock_bootstrap_data(
     uint16_t http_port, const std::string &cluster_name,
