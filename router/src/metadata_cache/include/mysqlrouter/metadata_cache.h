@@ -305,6 +305,8 @@ class METADATA_API MetadataCacheAPIBase
 
   virtual bool is_initialized() noexcept = 0;
 
+  virtual mysqlrouter::ClusterType cluster_type() const = 0;
+
   /**
    * @brief Start the metadata cache
    */
@@ -408,6 +410,8 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
       const std::string &cluster_name, int connect_timeout, int read_timeout,
       size_t thread_stack_size, bool use_cluster_notifications,
       unsigned view_id) override;
+
+  mysqlrouter::ClusterType cluster_type() const override;
 
   void instance_name(const std::string &inst_name) override;
   std::string instance_name() const override;

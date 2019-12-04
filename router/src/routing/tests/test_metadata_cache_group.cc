@@ -89,6 +89,10 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       bool /*use_gr_notifications*/ = false,
       unsigned /*cluster_id*/ = 0) override {}
 
+  mysqlrouter::ClusterType cluster_type() const override {
+    return mysqlrouter::ClusterType::GR_V1;
+  }
+
   MOCK_METHOD0(cache_start, void());
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method

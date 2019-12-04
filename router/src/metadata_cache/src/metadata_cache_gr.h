@@ -58,6 +58,10 @@ class METADATA_API GRMetadataCache : public MetadataCache {
 
   bool refresh() override;
 
+  mysqlrouter::ClusterType cluster_type() const noexcept override {
+    return meta_data_->get_cluster_type();
+  }
+
   /**
    * Fetches metadata from the metadata server we are currently connected to.
    *

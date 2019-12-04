@@ -190,10 +190,17 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
       const auto addr_port = mysqlrouter::split_addr_port(x_port);
       instance.xport = addr_port.second != 0 ? addr_port.second : 33060;
     } catch (const std::runtime_error &e) {
-      log_warning(
-          "Error parsing host:xport in metadata for instance %s: '%s': %s",
-          instance.mysql_server_uuid.c_str(), row[x_port_column], e.what());
-      return false;
+      // There is a Shell bug (#27677227) that can cause the mysqlx port be
+      // invalid in the metadata (>65535). For the backward compatibility we
+      // need to tolerate this and still let the node be used for classic
+      // connections (as the older Router versions did).
+
+      // log_warning(
+      //   "Error parsing host:xport in metadata for instance %s:"
+      //   "'%s': %s",
+      //   instance.mysql_server_uuid.c_str(), row[x_port_column],
+      //   e.what());
+      instance.xport = 0;
     }
   } else {
     instance.xport = instance.port * 10;

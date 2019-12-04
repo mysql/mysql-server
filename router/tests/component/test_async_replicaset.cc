@@ -1540,6 +1540,190 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                                      "password", "", ""));
 }
 
+class NodeUnavailableTest : public AsyncReplicasetTest,
+                            public ::testing::WithParamInterface<std::string> {
+};
+
+/**
+ * @test Veriify that when one of the nodes is not available despite being
+ * present in the metadata, the Router redirects the connection to another
+ * node(s), when they are available for the given routing.
+ */
+TEST_P(NodeUnavailableTest, NodeUnavailable) {
+  const std::string routing_strategy = GetParam();
+
+  const unsigned CLUSTER_NODES = 4;
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    cluster_nodes_ports.push_back(port_pool_.get_next_available());
+    cluster_http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE("// The cluster has 4 nodes but the first SECONDARY is down");
+  const auto trace_file =
+      get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
+  for (unsigned i = 0, nodes = 0; i < CLUSTER_NODES; ++i) {
+    if (i == 1) continue;
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[nodes], cluster_nodes_ports[i]));
+    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
+                    .wait_for_rest_endpoint_ready())
+        << cluster_nodes[nodes]->get_full_output();
+
+    SCOPED_TRACE("// All 4 nodes are in the metadata");
+    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
+                      /*primary_id=*/0, view_id);
+    nodes++;
+  }
+
+  const std::string state_file = create_state_file(
+      temp_test_dir.name(),
+      create_state_file_content(cluster_id, cluster_nodes_ports, view_id));
+
+  SCOPED_TRACE("// Create a configuration file.");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(0, kTTL);
+  const uint16_t router_port_rw = port_pool_.get_next_available();
+  const std::string routing_section_rw = get_metadata_cache_routing_section(
+      router_port_rw, "PRIMARY", "first-available");
+  const uint16_t router_port_ro = port_pool_.get_next_available();
+  const std::string routing_section_ro = get_metadata_cache_routing_section(
+      router_port_ro, "SECONDARY", routing_strategy);
+
+  const std::string routing_section =
+      routing_section_rw + "\n" + routing_section_ro;
+
+  SCOPED_TRACE("// Launch the router with the initial state file");
+  /*auto &router =*/launch_router(temp_test_dir.name(), metadata_cache_section,
+                                  routing_section, state_file);
+
+  SCOPED_TRACE("// Wait until the router at least once queried the metadata");
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+
+  SCOPED_TRACE(
+      "// Check our state file content, it should contain the initial members");
+  check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
+
+  SCOPED_TRACE(
+      "// Make 3 RO connections, even though one of the secondaries is down "
+      "each of them should be successfull");
+  for (size_t i = 0; i < 3; ++i) {
+    MySQLSession client_ro;
+    ASSERT_NO_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
+                                      "password", "", ""));
+    auto result{client_ro.query_one("select @@port")};
+    const auto port =
+        static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
+    if (routing_strategy == "round-robin" ||
+        routing_strategy == "round-robin-with-fallback") {
+      // for round-robin we should round-robin on nodes with id 2 and 3
+      // (0-based)
+      EXPECT_EQ(port, cluster_nodes_ports[2 + i % 2]);
+    } else {
+      ASSERT_STREQ(routing_strategy.c_str(), "first-available");
+      // for fiirst-available we should go with the node id = 2 each time as the
+      // node id = 1 is not available
+      EXPECT_EQ(port, cluster_nodes_ports[2]);
+    }
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(NodeUnavailable, NodeUnavailableTest,
+                        ::testing::Values("first-available", "round-robin",
+                                          "round-robin-with-fallback"));
+
+class NodeUnavailableAllNodesDownTest
+    : public AsyncReplicasetTest,
+      public ::testing::WithParamInterface<std::string> {};
+
+/**
+ * @test Veriify that when all of the nodes for given routing are not available
+ * the client connection fails or in case of round-robin-with-fallback we
+ * fallback to the primary node.
+ */
+TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
+  const std::string routing_strategy = GetParam();
+
+  const unsigned CLUSTER_NODES = 3;
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    cluster_nodes_ports.push_back(port_pool_.get_next_available());
+    cluster_http_ports.push_back(port_pool_.get_next_available());
+  }
+
+  SCOPED_TRACE("// The cluster has 3 nodes all SECONDARIES are down");
+  const auto trace_file =
+      get_data_dir().join("metadata_dynamic_nodes_v2_ar.js").str();
+  for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
+    if (i > 0) continue;
+    cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
+        trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
+        cluster_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
+    ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
+                    .wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+
+    SCOPED_TRACE("// All 3 nodes are in the metadata");
+    set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
+                      /*primary_id=*/0, view_id);
+  }
+
+  const std::string state_file = create_state_file(
+      temp_test_dir.name(),
+      create_state_file_content(cluster_id, cluster_nodes_ports, view_id));
+
+  SCOPED_TRACE("// Create a configuration file.");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(0, kTTL);
+  const uint16_t router_port_rw = port_pool_.get_next_available();
+  const std::string routing_section_rw = get_metadata_cache_routing_section(
+      router_port_rw, "PRIMARY", "first-available");
+  const uint16_t router_port_ro = port_pool_.get_next_available();
+  const std::string routing_section_ro = get_metadata_cache_routing_section(
+      router_port_ro, "SECONDARY", routing_strategy);
+
+  const std::string routing_section =
+      routing_section_rw + "\n" + routing_section_ro;
+
+  SCOPED_TRACE("// Launch the router with the initial state file");
+  /*auto &router = */ launch_router(temp_test_dir.name(),
+                                    metadata_cache_section, routing_section,
+                                    state_file);
+
+  SCOPED_TRACE("// Wait until the router at least once queried the metadata");
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+
+  SCOPED_TRACE(
+      "// Check our state file content, it should contain the initial members");
+  check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
+
+  SCOPED_TRACE(
+      "// Attempt 2 RO connections, each should fail unless we fallback to the "
+      "PRIMARY");
+  for (size_t i = 0; i < 2; ++i) {
+    MySQLSession client_ro;
+    if (routing_strategy != "round-robin-with-fallback") {
+      ASSERT_ANY_THROW(client_ro.connect("127.0.0.1", router_port_ro,
+                                         "username", "password", "", ""));
+    } else {
+      ASSERT_NO_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
+                                        "password", "", ""));
+      auto result{client_ro.query_one("select @@port")};
+      const auto port =
+          static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
+      EXPECT_EQ(cluster_nodes_ports[0], port);
+    }
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(NodeUnavailableAllNodesDown,
+                        NodeUnavailableAllNodesDownTest,
+                        ::testing::Values("first-available", "round-robin",
+                                          "round-robin-with-fallback"));
+
 struct ClusterTypeMismatchTestParams {
   std::string cluster_type_str;
   std::string tracefile;
