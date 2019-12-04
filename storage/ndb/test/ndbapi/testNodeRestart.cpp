@@ -4808,6 +4808,12 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter res;
   
+  if (res.getNumNodeGroups() < 2)
+  {
+    g_err << "[SKIPPED] Need at least 2 node groups to run the test" << endl;
+    return NDBT_OK;
+  }
+
   if (res.getMaxConcurrentNodeFailures() < 2)
   {
     g_err << "[SKIPPED] Configuration cannot handle 2 node failures." << endl;
@@ -4821,8 +4827,14 @@ runBug42422(NDBT_Context* ctx, NDBT_Step* step)
     ndbout_c("master: %u", master);
     int nodeId = res.getRandomNodeSameNodeGroup(master, rand()); 
     ndbout_c("target: %u", nodeId);
-    int node2 = res.getRandomNodePreferOtherNodeGroup(nodeId, rand());
+    int node2 = res.getRandomNodeOtherNodeGroup(nodeId, rand());
     ndbout_c("node 2: %u", node2);
+
+    if (node2 == -1)
+    {
+      g_err << "Could not get node from other node group" << endl;
+      return NDBT_FAILED;
+    }
     
     res.restartOneDbNode(nodeId,
                          /** initial */ false, 
