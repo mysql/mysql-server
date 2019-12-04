@@ -187,7 +187,7 @@ err2:
 
 void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list)
 {
-  if (thd->server_id)
+  if (thd->server_id && my_hash_inited(&slave_list))
   {
     if (need_lock_slave_list)
       mysql_mutex_lock(&LOCK_slave_list);
