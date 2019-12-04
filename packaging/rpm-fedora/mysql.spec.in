@@ -31,6 +31,14 @@
 # By default, a build will include the system SSL library.
 %{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
+# Pass path to LDAP lib
+%{?with_ldap: %global ldap_option -DWITH_LDAP=%{with_ldap}}
+%{?with_ldap: %global ldap 1}
+
+# Pass path to SASL lib
+%{?with_sasl: %global sasl_option -DWITH_SASL=%{with_sasl}}
+%{?with_sasl: %global sasl 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 1}
 
@@ -470,6 +478,8 @@ fi
            -DWITH_EMBEDDED_SERVER=1 \
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            %{?ssl_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -504,6 +514,8 @@ mkdir debug
            -DWITH_EMBEDDED_SHARED_LIBRARY=1 \
            -DWITH_NUMA=ON \
            %{?ssl_option} \
+           %{?ldap_option} \
+           %{?sasl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
