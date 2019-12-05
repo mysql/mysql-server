@@ -251,6 +251,8 @@ static std::thread wait_for_stacktrace_request_event_thread;
 #endif
 
 Logfile log_file;
+// File to store the progress
+Logfile progress_file;
 
 /// Info on properties that can be set with '--disable_X' and
 /// '--disable_X' commands.
@@ -8825,7 +8827,7 @@ static void get_command_type(struct st_command *command) {
 /// @param progress_file Logfile object to store the progress information
 /// @param line          Line number of the progress file where the progress
 ///                      information should be recorded.
-static void mark_progress(Logfile progress_file, int line) {
+static void mark_progress(Logfile *progress_file, int line) {
   static unsigned long long int progress_start = 0;
   unsigned long long int timer = timer_now();
 
@@ -8853,8 +8855,8 @@ static void mark_progress(Logfile progress_file, int line) {
   str_progress.append(str_line);
   str_progress.append("\n");
 
-  if (progress_file.write(str_progress.c_str(), str_progress.length()) ||
-      progress_file.flush()) {
+  if (progress_file->write(str_progress.c_str(), str_progress.length()) ||
+      progress_file->flush()) {
     cleanup_and_exit(1);
   }
 }
@@ -9169,9 +9171,6 @@ int main(int argc, char **argv) {
       if (log_file.open(opt_logdir, "stdin", ".log")) cleanup_and_exit(1);
     }
   }
-
-  // File to store the progress
-  Logfile progress_file;
 
   if (opt_mark_progress) {
     if (result_file_name) {
@@ -9816,7 +9815,7 @@ int main(int argc, char **argv) {
     last_command_executed = command_executed;
 
     parser.current_line += current_line_inc;
-    if (opt_mark_progress) mark_progress(progress_file, parser.current_line);
+    if (opt_mark_progress) mark_progress(&progress_file, parser.current_line);
 
     // Write result from command to log file immediately.
     if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
@@ -9829,10 +9828,6 @@ int main(int argc, char **argv) {
 
     dynstr_set(&ds_res, nullptr);
   }
-
-  log_file.close();
-
-  if (opt_mark_progress) progress_file.close();
 
   start_lineno = 0;
   verbose_msg("... Done processing test commands.");
