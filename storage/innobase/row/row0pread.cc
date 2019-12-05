@@ -681,7 +681,9 @@ void Parallel_reader::worker(size_t thread_id) {
     if (!is_error_set()) {
       set_error_state(err);
     }
+  }
 
+  if (is_error_set()) {
     /* Wake up any sleeping threads. */
     os_event_set(m_event);
   }
@@ -1073,6 +1075,11 @@ void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
     while (read_ahead_queue_empty() && is_active() && !is_error_set()) {
       os_thread_sleep(20);
     }
+  }
+
+  /* Wake up any sleeping threads. */
+  if (is_error_set()) {
+    os_event_set(m_event);
   }
 }
 
