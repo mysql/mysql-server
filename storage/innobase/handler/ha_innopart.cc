@@ -3192,6 +3192,7 @@ int ha_innopart::records(ha_rows *num_rows) {
       if (dict_table_is_discarded(m_prebuilt->table)) {
         ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                     m_prebuilt->table->name.m_name);
+        *num_rows = HA_POS_ERROR;
         return (HA_ERR_NO_SUCH_TABLE);
       }
 
