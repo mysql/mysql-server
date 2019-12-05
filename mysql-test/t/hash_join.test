@@ -1410,3 +1410,43 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30626264 ASSERTS IN BASIC_ROW_ITERATORS.H:345:
+--echo #              FAKESINGLEROWITERATOR::SETNULLROWFLAG
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER
+);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (9);
+
+CREATE TABLE t3 (
+  pk INTEGER
+);
+
+ANALYZE TABLE t1, t2, t3;
+
+# Set up a hash join where we get the const tables on the right-hand side,
+# and that is run multiple times (so that the hash table is built twice).
+# We don't really need to join in t3 twice, except the optimizer doesn't
+# select a hash join otherwise.
+let $query =
+  SELECT (
+    SELECT t1.pk
+    FROM t2
+      LEFT JOIN t3 USING (pk)
+      JOIN t3 AS t4 USING (pk)
+      WHERE t2.pk = 9
+  ) FROM t1;
+eval explain format=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;

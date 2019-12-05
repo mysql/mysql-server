@@ -2002,3 +2002,62 @@ WHERE t1.col1 <> t2.col1
 1
 1
 DROP TABLE t1, t2;
+#
+# Bug#30626264 ASSERTS IN BASIC_ROW_ITERATORS.H:345:
+#              FAKESINGLEROWITERATOR::SETNULLROWFLAG
+#
+CREATE TABLE t1 (
+pk INTEGER
+);
+INSERT INTO t1 VALUES (1), (2);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t2 VALUES (9);
+CREATE TABLE t3 (
+pk INTEGER
+);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+explain format=tree SELECT (
+SELECT t1.pk
+FROM t2
+LEFT JOIN t3 USING (pk)
+JOIN t3 AS t4 USING (pk)
+WHERE t2.pk = 9
+) FROM t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.45 rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Inner hash join
+        -> Filter: (t4.pk = 9)  (cost=0.35 rows=1)
+            -> Table scan on t4  (cost=0.35 rows=1)
+        -> Hash
+            -> Nested loop left join
+                -> Rows fetched before execution
+                -> Filter: (t3.pk = 9)  (cost=0.35 rows=1)
+                    -> Table scan on t3  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
+SELECT (
+SELECT t1.pk
+FROM t2
+LEFT JOIN t3 USING (pk)
+JOIN t3 AS t4 USING (pk)
+WHERE t2.pk = 9
+) FROM t1;
+(
+SELECT t1.pk
+FROM t2
+LEFT JOIN t3 USING (pk)
+JOIN t3 AS t4 USING (pk)
+WHERE t2.pk = 9
+)
+NULL
+NULL
+DROP TABLE t1, t2, t3;
