@@ -558,13 +558,10 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 */
 Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
-    const List<LEX_CSTRING> *dynamic_privs)
-    : operation(op), db(thd->db().str, thd->db().length) {
-  if (thd->rewritten_query().length()) {
-    query.assign(thd->rewritten_query().ptr(), thd->rewritten_query().length());
-  } else {
-    query.assign(thd->query().str, thd->query().length);
-  }
+    Rewrite_params *rewrite, const List<LEX_CSTRING> *dynamic_privs)
+    : operation(op),
+      db(thd->db().str, thd->db().length),
+      rewrite_params(rewrite) {
   if (users) {
     /* Copy data out of List<LEX_USER> */
     user_list.reserve(users->size());
@@ -581,11 +578,12 @@ Acl_change_notification::Acl_change_notification(
   }
 }
 
-void acl_notify_htons(THD *thd MY_ATTRIBUTE((unused)),
-                      enum_sql_command operation MY_ATTRIBUTE((unused)),
-                      const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
-                      const List<LEX_CSTRING> *dynamic_privs
-                          MY_ATTRIBUTE((unused))) {
+void acl_notify_htons(
+    THD *thd MY_ATTRIBUTE((unused)),
+    enum_sql_command operation MY_ATTRIBUTE((unused)),
+    const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
+    std::set<LEX_USER *> *rewrite_users MY_ATTRIBUTE((unused)),
+    const List<LEX_CSTRING> *dynamic_privs MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -594,7 +592,9 @@ void acl_notify_htons(THD *thd MY_ATTRIBUTE((unused)),
     So, instantiate it and send a notification only if the Server is
     built with ndbcluster SE.
   */
-  Acl_change_notification notice(thd, operation, users, dynamic_privs);
+  User_params rewrite_user_params(rewrite_users);
+  User_params *rewrite = rewrite_users ? &rewrite_user_params : nullptr;
+  Acl_change_notification notice(thd, operation, users, rewrite, dynamic_privs);
   ha_acl_notify(thd, &notice);
 #endif
 }

@@ -3592,7 +3592,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     my_ok(thd);
     /* Notify storage engines */
     acl_notify_htons(thd, revoke_grant ? SQLCOM_REVOKE : SQLCOM_GRANT, &list,
-                     granted_dynamic_privs);
+                     nullptr, granted_dynamic_privs);
   }
 
   return error;
