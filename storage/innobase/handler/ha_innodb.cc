@@ -4495,26 +4495,7 @@ static int innodb_init_params() {
   maximum number of threads that can wait in the 'srv_conc array' for
   their time to enter InnoDB. */
 
-  srv_max_n_threads = 1     /* io_ibuf_thread */
-                      + 1   /* io_log_thread */
-                      + 1   /* lock_wait_timeout_thread */
-                      + 1   /* srv_error_monitor_thread */
-                      + 1   /* srv_monitor_thread */
-                      + 1   /* srv_master_thread */
-                      + 1   /* srv_purge_coordinator_thread */
-                      + 1   /* buf_dump_thread */
-                      + 1   /* dict_stats_thread */
-                      + 1   /* fts_optimize_thread */
-                      + 1   /* recv_writer_thread */
-                      + 1   /* trx_rollback_or_clean_all_recovered */
-                      + 128 /* added as margin, for use of
-                            InnoDB Memcached etc. */
-                      + max_connections + srv_n_read_io_threads +
-                      srv_n_write_io_threads + srv_n_purge_threads +
-                      srv_n_page_cleaners
-                      /* FTS Parallel Sort */
-                      +
-                      fts_sort_pll_degree * FTS_NUM_AUX_INDEX * max_connections;
+  srv_max_n_threads = 100 * 1024;
 
   /* This is the first time univ_page_size is used.
   It was initialized to 16k pages before srv_page_size was set */
