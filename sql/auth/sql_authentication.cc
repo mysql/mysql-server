@@ -4485,7 +4485,6 @@ class File_IO {
 /**
   Read an open file.
 
-  @param [in,out] op  Handle to FILE_IO
   @param [out] s String buffer
 
   Assumption : Caller will free string buffer
