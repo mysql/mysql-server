@@ -10662,6 +10662,9 @@ ER_MIGRATE_TABLE_TO_DD_OOM
 ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE
   eng "Relay log information for channel '%s' was found after a clone operation. Relay log recovery will be executed to adjust positions and file information for this new server. Should that automatic procedure fail please adjust the positions through 'CHANGE MASTER TO'"
 
+ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
+  eng "Failed to delete 5.7 undo tablespace: %s during upgrade"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
