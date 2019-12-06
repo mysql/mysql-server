@@ -245,7 +245,12 @@ public abstract class AbstractClusterJTest extends TestCase {
     protected void verifyException(String message, Exception ex, String exceptionPattern) {
         if(ex == null) {
             error(message + ", didn't fail.");
-        } else if(!ex.getMessage().matches(exceptionPattern)) {
+            return;
+        }
+        // Some exception messages have multiple lines.
+        // Enable single line mode in the expectedPattern regex to get a proper match.
+        exceptionPattern = "(?s)" + exceptionPattern;
+        if(!ex.getMessage().matches(exceptionPattern)) {
             error(message + ", failed with wrong exception :");
             error(ex.getMessage());
         }
