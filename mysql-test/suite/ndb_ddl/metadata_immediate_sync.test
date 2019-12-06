@@ -2,7 +2,7 @@
 --source suite/ndb/include/backup_restore_setup.inc
 
 #
-# Basic schema detection + synchronization test using
+# Case 1: Basic schema detection + synchronization test using
 # the ndb_metadata_sync option. This is a duplicate of
 # case 1 in the metadata_sync test.
 # - Cause mismatch between NDB Dictionary and DD
@@ -171,5 +171,116 @@ ALTER TABLESPACE ts2
 DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg1
   ENGINE NDB;
+
+#
+# Case 2: Automatic synchronization of schemata.
+# This is a duplicate of case 2 in the metadata_sync test
+# - Cause mismatch in terms of schema between NDB Dictionary and DD
+# - Check if the schema mismatch is detected
+# - Check if the schema mismatch is synchronized
+#
+
+# db1 - Only NDB tables
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# db2 - Only NDB tables
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+
+# db3 - Only InnoDB tables
+CREATE DATABASE db3;
+USE db3;
+CREATE TABLE t1_innodb (
+  a INT PRIMARY KEY,
+  b INT
+);
+CREATE TABLE t2_innodb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+);
+
+# db4 - Both NDB and InnoDB tables
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE t1_ndb (
+  a INT PRIMARY KEY,
+  b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB;
+CREATE TABLE t1_innodb (
+  a INT PRIMARY KEY,
+  b INT
+);
+CREATE TABLE t2_innodb (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+);
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+# Cause mismatch by dropping db1 and db4 and restoring metadata
+DROP DATABASE db1;
+DROP DATABASE db4;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m --exclude-databases=db2 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+#
+# At this point the state of the schemata is as follows:
+# - db1: Used in NDB Dictionary, non-existent in DD
+# - db2: Used in NDB Dictionary, exists in DD
+# - db3: Not used in NDB Dictionary, exists in DD
+# - db4: Used in NDB Dictionary, non-existent in DD
+#
+# The auto sync mechanism will create db1 and db4 in the DD.
+# It will also synchronize all NDB tables contained in db1 and db4
+#
+
+# Wait until the changes have been synced
+--let $max_wait = 60
+--source wait_immediate_metadata_sync.inc
+
+# Check if the objects have been synchronized as expected
+SHOW DATABASES LIKE 'db%';
+USE db1;
+SHOW TABLES;
+SHOW CREATE TABLE t1_ndb;
+SHOW CREATE TABLE t2_ndb;
+USE db2;
+SHOW TABLES;
+USE db3;
+SHOW TABLES;
+USE db4;
+SHOW TABLES;
+SHOW CREATE TABLE t1_ndb;
+SHOW CREATE TABLE t2_ndb;
+
+# Clean up
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
