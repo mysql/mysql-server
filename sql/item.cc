@@ -2080,6 +2080,13 @@ static bool left_is_superset(DTCollation *left, DTCollation *right) {
               latin1_german1_ci_column,
               expr COLLATE latin1_german2_ci)
   @endcode
+
+  @retval true If the two collations are incompatible and cannot be aggregated.
+
+  @retval false If the two collations can be aggregated, possibly with
+  DERIVATION_NONE to indicate that they need a third explicit collation as a
+  tiebreaker.
+
 */
 
 bool DTCollation::aggregate(DTCollation &dt, uint flags) {
@@ -2131,6 +2138,21 @@ bool DTCollation::aggregate(DTCollation &dt, uint flags) {
         set(nullptr, DERIVATION_NONE, 0);
         return true;
       }
+
+      // If we have two different binary collations for the same character set,
+      // and none of them is explicit, we don't know which to choose. For
+      // example: utf8mb4_bin is a binary padding collation, utf8mb4_0900_bin is
+      // a binary non-padding collation. Cannot determine if the resulting
+      // collation should be padding or non-padding, unless they are also
+      // aggregated with a third explicit collation.
+      if ((collation->state & MY_CS_BINSORT) &&
+          (dt.collation->state & MY_CS_BINSORT)) {
+        set(DERIVATION_NONE);
+        return false;
+      }
+
+      // When aggregating a binary and a non-binary collation for the same
+      // character set, the binary collation is preferred.
       if (collation->state & MY_CS_BINSORT) return false;
       if (dt.collation->state & MY_CS_BINSORT) {
         set(dt);
