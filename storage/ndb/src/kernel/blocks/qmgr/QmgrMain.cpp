@@ -2442,7 +2442,8 @@ start_report:
 missing_nodegroup:
   jam();
   {
-    char buf[NdbNodeBitmask::TextLength + 1];
+    const Uint32 extra = 100;
+    char buf[2 * (NdbNodeBitmask::TextLength + 1) + extra];
     char mask1[NdbNodeBitmask::TextLength + 1];
     char mask2[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
@@ -2461,7 +2462,8 @@ missing_nodegroup:
 incomplete_log:
   jam();
   {
-    char buf[NdbNodeBitmask::TextLength + 1];
+    const Uint32 extra = 100;
+    char buf[NdbNodeBitmask::TextLength + 1 + extra];
     char mask1[NdbNodeBitmask::TextLength + 1];
     c_start.m_starting_nodes.getText(mask1);
     BaseString::snprintf(buf, sizeof(buf),
