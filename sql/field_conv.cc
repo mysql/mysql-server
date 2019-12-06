@@ -597,23 +597,24 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
      Set up the record buffer and change result_field to point at
      the saved value.
   */
-  Field *from = item->field->new_field(mem_root, item->field->table, true);
-  if (from == nullptr) return;
+  m_from_field = item->field->new_field(mem_root, item->field->table);
+  if (m_from_field == nullptr) return;
 
-  // Clone the from field as it will be modified and used as to field.
-  m_from_field = from->clone(mem_root);
-  if (from->is_nullable()) {
+  if (m_from_field->is_nullable()) {
     // We need to allocate one extra byte for null handling.
-    uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length() + 1);
-    from->move_field(ptr + 1, ptr, 1);
-    from->set_null();  // Null as default value
+    uchar *ptr = mem_root->ArrayAlloc<uchar>(m_from_field->pack_length() + 1);
+    m_to_field =
+        item->field->new_field(mem_root, item->field->table, ptr + 1, ptr, 1);
+    if (m_to_field == nullptr) return;
+    m_to_field->set_null();  // Null as default value
     m_do_copy = do_field_to_null_str;
   } else {
-    uchar *ptr = mem_root->ArrayAlloc<uchar>(from->pack_length());
-    from->move_field(ptr, nullptr, 1);
+    uchar *ptr = mem_root->ArrayAlloc<uchar>(m_from_field->pack_length());
+    m_to_field =
+        item->field->new_field(mem_root, item->field->table, ptr, nullptr, 1);
+    if (m_to_field == nullptr) return;
     m_do_copy = do_field_eq;
   }
-  m_to_field = from;
 
   /*
     We have created a new Item_field; its field points into the
@@ -622,8 +623,8 @@ Copy_field::Copy_field(MEM_ROOT *mem_root, Item_field *item) : Copy_field() {
     from where aggregates' values can be read. So does 'field'. A
     Copy_field manages copying from 'field' to the memory area.
   */
-  item->field = from;
-  item->set_result_field(from);
+  item->field = m_to_field;
+  item->set_result_field(m_to_field);
 }
 
 void Copy_field::set(Field *to, Field *from, bool save) {

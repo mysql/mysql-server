@@ -296,12 +296,7 @@ bool Table_trigger_dispatcher::prepare_record1_accessors() {
 
   for (fld = m_subject_table->field, old_fld = m_record1_field; *fld;
        fld++, old_fld++) {
-    /*
-      QQ: it is supposed that it is ok to use this function for field
-      cloning...
-    */
-    *old_fld = (*fld)->new_field(&m_subject_table->mem_root, m_subject_table,
-                                 m_subject_table == (*fld)->table);
+    *old_fld = (*fld)->new_field(&m_subject_table->mem_root, m_subject_table);
 
     if (!(*old_fld)) return true;
 

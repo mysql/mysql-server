@@ -1922,9 +1922,9 @@ sp_head::~sp_head() {
   sp_head::destroy(m_next_cached_sp);
 }
 
-Field *sp_head::create_result_field(size_t field_max_length,
+Field *sp_head::create_result_field(THD *thd, size_t field_max_length,
                                     const char *field_name_or_null,
-                                    TABLE *table) {
+                                    TABLE *table) const {
   DBUG_ASSERT(!m_return_field_def.is_array);
   size_t field_length = !m_return_field_def.max_display_width_in_bytes()
                             ? field_max_length
@@ -1933,17 +1933,51 @@ Field *sp_head::create_result_field(size_t field_max_length,
   auto field_name =
       field_name_or_null != nullptr ? field_name_or_null : m_name.str;
 
+  // Add 1 for null byte.
+  table->record[0] =
+      thd->mem_root->ArrayAlloc<uchar>(m_return_field_def.pack_length() + 1);
+  if (table->record[0] == nullptr) return nullptr;
+
   DBUG_ASSERT(m_return_field_def.auto_flags == Field::NONE);
   Field *field =
       make_field(m_return_field_def, table->s, field_name, field_length,
-                 pointer_cast<uchar *>(const_cast<char *>("")));
+                 table->record[0] + 1, table->record[0], 0);
 
   field->gcol_info = m_return_field_def.gcol_info;
   field->m_default_val_expr = m_return_field_def.m_default_val_expr;
   field->stored_in_db = m_return_field_def.stored_in_db;
   if (field) field->init(table);
 
+  DBUG_ASSERT(field->pack_length() == m_return_field_def.pack_length());
+
   return field;
+}
+
+void sp_head::returns_type(THD *thd, String *result) const {
+  DBUG_ASSERT(!m_return_field_def.is_array);
+  DBUG_ASSERT(m_return_field_def.auto_flags == Field::NONE);
+
+  TABLE table;
+  TABLE_SHARE share;
+  table.in_use = thd;
+  table.s = &share;
+
+  Field *field = make_field(m_return_field_def, &share, m_name.str,
+                            m_return_field_def.max_display_width_in_bytes(),
+                            nullptr, nullptr, 0);
+  field->init(&table);  // Field::sql_type() uses Field::table::in_use
+  field->sql_type(*result);
+
+  if (field->has_charset()) {
+    result->append(STRING_WITH_LEN(" CHARSET "));
+    result->append(m_return_field_def.charset->csname);
+    if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
+      result->append(STRING_WITH_LEN(" COLLATE "));
+      result->append(m_return_field_def.charset->name);
+    }
+  }
+
+  ::destroy(field);
 }
 
 bool sp_head::execute(THD *thd, bool merge_da_on_success) {

@@ -696,6 +696,7 @@ class sp_head {
     Create Field-object corresponding to the RETURN field of a stored function.
     This operation makes sense for stored functions only.
 
+    @param thd              thread context.
     @param field_max_length the max length (in the sense of Item classes).
     @param field_name       the field name (item name).
     @param table            the field's table.
@@ -703,8 +704,10 @@ class sp_head {
     @return newly created and initialized Field-instance,
     or NULL in case of error.
   */
-  Field *create_result_field(size_t field_max_length, const char *field_name,
-                             TABLE *table);
+  Field *create_result_field(THD *thd, size_t field_max_length,
+                             const char *field_name, TABLE *table) const;
+
+  void returns_type(THD *thd, String *result) const;
 
   void set_info(longlong created, longlong modified, st_sp_chistics *chistics,
                 sql_mode_t sql_mode);

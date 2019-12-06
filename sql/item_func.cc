@@ -7432,10 +7432,7 @@ longlong Item_func_row_count::val_int() {
 Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
                            const LEX_STRING &fn_name, bool use_explicit_name,
                            PT_item_list *opt_list)
-    : Item_func(pos, opt_list),
-      m_sp(nullptr),
-      dummy_table(nullptr),
-      sp_result_field(nullptr) {
+    : Item_func(pos, opt_list), m_sp(nullptr), sp_result_field(nullptr) {
   /*
     Set to false here, which is the default according to SQL standard.
     RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
@@ -7469,10 +7466,6 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res) {
   m_name->init_qname(thd);
   sp_add_own_used_routine(lex, thd, Sroutine_hash_entry::FUNCTION, m_name);
 
-  dummy_table = (TABLE *)sql_calloc(sizeof(TABLE) + sizeof(TABLE_SHARE));
-  if (dummy_table == nullptr) return true;
-  dummy_table->s = (TABLE_SHARE *)(dummy_table + 1);
-
   return false;
 }
 
@@ -7482,7 +7475,6 @@ void Item_func_sp::cleanup() {
     sp_result_field = nullptr;
   }
   m_sp = nullptr;
-  if (dummy_table != nullptr) dummy_table->alias = nullptr;
   Item_func::cleanup();
   set_stored_program();
 }
@@ -7531,7 +7523,7 @@ static void my_missing_function_error(const LEX_STRING &token,
   @brief Initialize the result field by creating a temporary dummy table
     and assign it to a newly created field object. Meta data used to
     create the field is fetched from the sp_head belonging to the stored
-    proceedure found in the stored procedure functon cache.
+    procedure found in the stored procedure function cache.
 
   @note This function should be called from fix_fields to init the result
     field. It is some what related to Item_field.
@@ -7547,7 +7539,6 @@ static void my_missing_function_error(const LEX_STRING &token,
 
 bool Item_func_sp::init_result_field(THD *thd) {
   LEX_CSTRING empty_name = {STRING_WITH_LEN("")};
-  TABLE_SHARE *share;
   DBUG_TRACE;
 
   DBUG_ASSERT(m_sp == nullptr);
@@ -7566,29 +7557,23 @@ bool Item_func_sp::init_result_field(THD *thd) {
      Below we "create" a dummy table by initializing
      the needed pointers.
    */
+  TABLE *dummy_table = new (thd->mem_root) TABLE;
+  if (dummy_table == nullptr) return true;
+  TABLE_SHARE *share = new (thd->mem_root) TABLE_SHARE;
+  if (share == nullptr) return true;
 
-  share = dummy_table->s;
+  dummy_table->s = share;
   dummy_table->alias = "";
   if (maybe_null) dummy_table->set_nullable();
   dummy_table->in_use = thd;
   dummy_table->copy_blobs = true;
   share->table_cache_key = empty_name;
+  share->db = empty_name;
   share->table_name = empty_name;
 
-  if (!(sp_result_field = m_sp->create_result_field(max_length, item_name.ptr(),
-                                                    dummy_table))) {
-    return true;
-  }
-
-  // Add 1 for null byte.
-  dummy_table->record[0] =
-      thd->mem_root->ArrayAlloc<uchar>(sp_result_field->pack_length() + 1);
-  if (dummy_table->record[0] == nullptr) return true;
-
-  sp_result_field->move_field(dummy_table->record[0] + 1,
-                              dummy_table->record[0], 1);
-
-  return false;
+  sp_result_field =
+      m_sp->create_result_field(thd, max_length, item_name.ptr(), dummy_table);
+  return sp_result_field == nullptr;
 }
 
 /**

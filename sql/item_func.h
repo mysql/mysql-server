@@ -3671,8 +3671,7 @@ class Item_func_sp final : public Item_func {
  private:
   Name_resolution_context *context;
   sp_name *m_name;
-  mutable sp_head *m_sp;
-  TABLE *dummy_table;
+  sp_head *m_sp;
   /*
      The result field of the concrete stored function.
   */

@@ -1393,8 +1393,14 @@ class Field {
   virtual bool can_be_compared_as_longlong() const { return false; }
   virtual void mem_free() {}
 
-  virtual Field *new_field(MEM_ROOT *root, TABLE *new_table,
-                           bool keep_type) const;
+  virtual Field *new_field(MEM_ROOT *root, TABLE *new_table) const;
+
+  Field *new_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
+                   uchar *new_null_ptr, uint new_null_bit) const {
+    Field *field = new_field(root, new_table);
+    field->move_field(new_ptr, new_null_ptr, new_null_bit);
+    return field;
+  }
 
   virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                                uchar *new_null_ptr, uint new_null_bit) const;
@@ -1420,8 +1426,6 @@ class Field {
     m_null_ptr = null_ptr_arg;
     null_bit = null_bit_arg;
   }
-
-  void move_field(uchar *ptr_arg) { ptr = ptr_arg; }
 
   virtual void move_field_offset(ptrdiff_t ptr_diff) {
     ptr += ptr_diff;
@@ -3608,8 +3612,7 @@ class Field_varstring : public Field_longstr {
   bool has_charset() const final override {
     return charset() == &my_charset_bin ? false : true;
   }
-  Field *new_field(MEM_ROOT *root, TABLE *new_table,
-                   bool keep_type) const final override;
+  Field *new_field(MEM_ROOT *root, TABLE *new_table) const final override;
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                        uchar *new_null_ptr,
                        uint new_null_bit) const final override;
@@ -4401,8 +4404,7 @@ class Field_enum : public Field_str {
       : Field_enum(nullptr, len_arg,
                    is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE,
                    field_name_arg, packlength_arg, typelib_arg, charset_arg) {}
-  Field *new_field(MEM_ROOT *root, TABLE *new_table,
-                   bool keep_type) const final override;
+  Field *new_field(MEM_ROOT *root, TABLE *new_table) const final override;
   enum_field_types type() const final override { return MYSQL_TYPE_STRING; }
   bool match_collation_to_optimize_range() const final override {
     return false;
@@ -4652,6 +4654,7 @@ Field *make_field(MEM_ROOT *mem_root_arg, TABLE_SHARE *share, uchar *ptr,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
                   Nullable<gis::srid_t> srid, bool is_array);
+
 /**
   Instantiates a Field object with the given name and record buffer values.
   @param create_field The column meta data.
@@ -4659,14 +4662,17 @@ Field *make_field(MEM_ROOT *mem_root_arg, TABLE_SHARE *share, uchar *ptr,
 
   @param field_name Create_field::field_name is overridden with this value
   when instantiating the Field object.
-
   @param field_length Create_field::length is overridden with this value
   when instantiating the Field object.
 
+  @param ptr      The address of the data bytes.
   @param null_pos The address of the null bytes.
+  @param null_bit The position of the column's null bit within the row's null
+  bytes.
 */
 Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
-                  const char *field_name, size_t field_length, uchar *null_pos);
+                  const char *field_name, size_t field_length, uchar *ptr,
+                  uchar *null_pos, size_t null_bit);
 
 /**
   Instantiates a Field object with the given record buffer values.

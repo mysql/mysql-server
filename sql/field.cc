@@ -2158,8 +2158,7 @@ bool Field::optimize_range(uint idx, uint part) const {
   return table->file->index_flags(idx, part, true) & HA_READ_RANGE;
 }
 
-Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
-                        bool keep_type MY_ATTRIBUTE((unused))) const {
+Field *Field::new_field(MEM_ROOT *root, TABLE *new_table) const {
   Field *tmp = clone(root);
   if (tmp == nullptr) return nullptr;
 
@@ -2185,8 +2184,8 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
 
 Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
                             uchar *new_null_ptr, uint new_null_bit) const {
-  Field *tmp;
-  if ((tmp = new_field(root, new_table, table == new_table))) {
+  Field *tmp = new_field(root, new_table);
+  if (tmp != nullptr) {
     tmp->ptr = new_ptr;
     tmp->m_null_ptr = new_null_ptr;
     tmp->null_bit = new_null_bit;
@@ -6844,10 +6843,9 @@ int Field_varstring::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
   return memcmp(a_ptr + length_bytes, b_ptr + length_bytes, a_length);
 }
 
-Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table,
-                                  bool keep_type) const {
+Field *Field_varstring::new_field(MEM_ROOT *root, TABLE *new_table) const {
   Field_varstring *res =
-      (Field_varstring *)Field::new_field(root, new_table, keep_type);
+      down_cast<Field_varstring *>(Field::new_field(root, new_table));
   if (res) res->length_bytes = length_bytes;
   return res;
 }
@@ -8227,9 +8225,8 @@ void Field_enum::sql_type(String &res) const {
   res.append(')');
 }
 
-Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table,
-                             bool keep_type) const {
-  Field_enum *res = (Field_enum *)Field::new_field(root, new_table, keep_type);
+Field *Field_enum::new_field(MEM_ROOT *root, TABLE *new_table) const {
+  Field_enum *res = down_cast<Field_enum *>(Field::new_field(root, new_table));
   if (res) res->typelib = copy_typelib(root, typelib);
   return res;
 }
@@ -9165,7 +9162,7 @@ size_t calc_pack_length(enum_field_types type, size_t length) {
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_NEWDECIMAL:
-      abort();
+      DBUG_ASSERT(false);
       return 0;  // This shouldn't happen
     case MYSQL_TYPE_BIT:
       return length / 8;
@@ -9445,9 +9442,9 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
   return nullptr;
 }
 
-static Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
-                         const char *field_name, size_t field_length,
-                         uchar *ptr, uchar *null_pos, size_t null_bit) {
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                  const char *field_name, size_t field_length, uchar *ptr,
+                  uchar *null_pos, size_t null_bit) {
   return make_field(*THR_MALLOC, share, ptr, field_length, null_pos, null_bit,
                     create_field.sql_type, create_field.charset,
                     create_field.geom_type, create_field.auto_flags,
@@ -9456,13 +9453,6 @@ static Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
                     create_field.decimals, create_field.treat_bit_as_char,
                     create_field.pack_length_override, create_field.m_srid,
                     create_field.is_array);
-}
-
-Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
-                  const char *field_name, size_t field_length,
-                  uchar *null_pos) {
-  return make_field(create_field, share, field_name, field_length, nullptr,
-                    null_pos, size_t{0});
 }
 
 Field *make_field(const Create_field &create_field, TABLE_SHARE *share,

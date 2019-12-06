@@ -589,27 +589,6 @@ end:
   return ret;
 }
 
-static void sp_returns_type(THD *thd, String &result, sp_head *sp) {
-  TABLE table;
-  TABLE_SHARE share;
-  Field *field;
-  table.in_use = thd;
-  table.s = &share;
-  field = sp->create_result_field(0, nullptr, &table);
-  field->sql_type(result);
-
-  if (field->has_charset()) {
-    result.append(STRING_WITH_LEN(" CHARSET "));
-    result.append(field->charset()->csname);
-    if (!(field->charset()->state & MY_CS_PRIMARY)) {
-      result.append(STRING_WITH_LEN(" COLLATE "));
-      result.append(field->charset()->name);
-    }
-  }
-
-  destroy(field);
-}
-
 /**
   Precheck for create routine statement.
 
@@ -787,7 +766,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
 
     String retstr(64);
     retstr.set_charset(system_charset_info);
-    if (sp->m_type == enum_sp_type::FUNCTION) sp_returns_type(thd, retstr, sp);
+    if (sp->m_type == enum_sp_type::FUNCTION) sp->returns_type(thd, &retstr);
 
     if (!create_string(thd, &log_query, sp->m_type,
                        (sp->m_explicit_name ? sp->m_db.str : nullptr),
@@ -1518,7 +1497,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   String retstr(64);
   retstr.set_charset(sp->get_creation_ctx()->get_client_cs());
   if (type == enum_sp_type::FUNCTION) {
-    sp_returns_type(thd, retstr, sp);
+    sp->returns_type(thd, &retstr);
     returns = retstr.ptr();
   }
 

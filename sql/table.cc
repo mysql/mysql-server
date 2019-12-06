@@ -2821,7 +2821,7 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
           We are using only a prefix of the column as a key:
           Create a new field for the key part that matches the index
         */
-        field = key_part->field = field->new_field(root, table, false);
+        field = key_part->field = field->new_field(root, table);
         field->set_field_length(key_part->length);
       }
     }

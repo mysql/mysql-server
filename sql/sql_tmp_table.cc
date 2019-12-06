@@ -118,8 +118,7 @@ static bool alloc_record_buffers(TABLE *table);
 Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
                                    const char *name, TABLE *table,
                                    Item_field *item) {
-  Field *new_field =
-      org_field->new_field(thd->mem_root, table, table == org_field->table);
+  Field *new_field = org_field->new_field(thd->mem_root, table);
   if (new_field == nullptr) return nullptr;
 
   new_field->init(table);

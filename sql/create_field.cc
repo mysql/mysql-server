@@ -726,7 +726,11 @@ size_t Create_field::pack_length(bool dont_override) const {
                                                       : interval->count);
     }
     case MYSQL_TYPE_NEWDECIMAL: {
-      return max_display_width_in_bytes();
+      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
+      uint precision = my_decimal_length_to_precision(
+          max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
+      precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
+      return my_decimal_get_binary_size(precision, decimals);
     }
     case MYSQL_TYPE_BIT: {
       if (treat_bit_as_char) {
@@ -764,13 +768,6 @@ size_t Create_field::key_length() const {
         return pack_length();
       }
       return pack_length() + (max_display_width_in_bytes() & 7 ? 1 : 0);
-    }
-    case MYSQL_TYPE_NEWDECIMAL: {
-      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
-      uint precision = my_decimal_length_to_precision(
-          max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
-      precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
-      return my_decimal_get_binary_size(precision, decimals);
     }
     default: {
       return pack_length(is_array);
