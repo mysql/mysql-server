@@ -46,7 +46,7 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"               // Thd_ndb
 
 Ndb_metadata_change_monitor::Ndb_metadata_change_monitor()
-    : Ndb_component("Metadata") {}
+    : Ndb_component("Metadata"), m_mark_sync_complete{false} {}
 
 Ndb_metadata_change_monitor::~Ndb_metadata_change_monitor() {}
 
@@ -612,7 +612,6 @@ void Ndb_metadata_change_monitor::do_run() {
       log_verbose(10, "Metadata check completed");
 
       if (controller.get_metadata_sync() && controller.all_changes_detected()) {
-        log_info("Metadata detection complete");
         // All changes at this point in time have been detected. Since the
         // ndb_metadata_sync option has been set, we don't expect more changes.
         // Stall the thread and prevent it from checking for further mismatches
@@ -620,10 +619,29 @@ void Ndb_metadata_change_monitor::do_run() {
         mysql_mutex_lock(&m_sync_done_mutex);
         mysql_cond_wait(&m_sync_done_cond, &m_sync_done_mutex);
         mysql_mutex_unlock(&m_sync_done_mutex);
-        log_info("Metadata synchronization complete");
-        // Set ndb_metadata_sync to false to denote that all changes have been
-        // detected and synchronized
-        opt_ndb_metadata_sync = false;
+        if (!m_mark_sync_complete) {
+          // This is the first instance of the binlog thread having synchronized
+          // all changes submitted to it. However, the change monitor thread
+          // has been stalled for a while so we opt for at least one more
+          // detection and sync cycle to ensure that all changes are synced.
+          // This is particularly relevant to synchronization of schema objects
+          // since they have to be installed in DD for their tables to be
+          // detected. This synchronization is dependent on the load on the
+          // binlog thread so an additional detection and sync run after we know
+          // for a fact that such schemata have been installed could be useful.
+          //
+          // The below flag denotes that the we've already detected an instance
+          // of all objects having been synchronized and that ndb_metadata_sync
+          // can be flipped the next time we detect the same condition
+          m_mark_sync_complete = true;
+        } else {
+          log_info("Metadata synchronization complete");
+          // Set ndb_metadata_sync to false to denote that all changes have been
+          // detected and synchronized
+          opt_ndb_metadata_sync = false;
+          // Reset the flag to its default value
+          m_mark_sync_complete = false;
+        }
       }
     }
   }

@@ -156,3 +156,112 @@ DROP DATAFILE 'ts2_datafile.dat';
 DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg1
 ENGINE NDB;
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE db2;
+USE db2;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE DATABASE db3;
+USE db3;
+CREATE TABLE t1_innodb (
+a INT PRIMARY KEY,
+b INT
+);
+CREATE TABLE t2_innodb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+);
+CREATE DATABASE db4;
+USE db4;
+CREATE TABLE t1_ndb (
+a INT PRIMARY KEY,
+b INT
+) ENGINE NDB;
+CREATE TABLE t2_ndb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+) ENGINE NDB;
+CREATE TABLE t1_innodb (
+a INT PRIMARY KEY,
+b INT
+);
+CREATE TABLE t2_innodb (
+a INT PRIMARY KEY,
+b VARCHAR(255)
+);
+DROP DATABASE db1;
+DROP DATABASE db4;
+SET GLOBAL ndb_metadata_sync = true;
+SHOW DATABASES LIKE 'db%';
+Database (db%)
+db1
+db2
+db3
+db4
+USE db1;
+SHOW TABLES;
+Tables_in_db1
+t1_ndb
+t2_ndb
+SHOW CREATE TABLE t1_ndb;
+Table	Create Table
+t1_ndb	CREATE TABLE `t1_ndb` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+SHOW CREATE TABLE t2_ndb;
+Table	Create Table
+t2_ndb	CREATE TABLE `t2_ndb` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+USE db2;
+SHOW TABLES;
+Tables_in_db2
+t1_ndb
+t2_ndb
+USE db3;
+SHOW TABLES;
+Tables_in_db3
+t1_innodb
+t2_innodb
+USE db4;
+SHOW TABLES;
+Tables_in_db4
+t1_ndb
+t2_ndb
+SHOW CREATE TABLE t1_ndb;
+Table	Create Table
+t1_ndb	CREATE TABLE `t1_ndb` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+SHOW CREATE TABLE t2_ndb;
+Table	Create Table
+t2_ndb	CREATE TABLE `t2_ndb` (
+  `a` int NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
