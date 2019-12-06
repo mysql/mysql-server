@@ -2126,6 +2126,7 @@ Lgman::Logfile_group::Logfile_group(const CreateFilegroupImplReq* req)
   m_tail_pos[1].m_idx= ~0;
   
   m_tail_pos[0] = m_tail_pos[1];
+  m_ndb_version = g_v2 ? NDB_DISK_V2 : 0;
 }
 
 bool
