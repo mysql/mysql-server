@@ -43,6 +43,7 @@ class Ndb_metadata_change_monitor : public Ndb_component {
   mysql_cond_t m_wait_cond;
   static mysql_mutex_t m_sync_done_mutex;  // protects m_sync_done_cond
   static mysql_cond_t m_sync_done_cond;
+  bool m_mark_sync_complete;
 
  public:
   Ndb_metadata_change_monitor();
