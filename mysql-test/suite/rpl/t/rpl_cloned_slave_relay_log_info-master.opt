@@ -1,1 +1,2 @@
 $CLONE_PLUGIN_OPT
+--skip-slave-start=1
