@@ -249,8 +249,11 @@ UNINSTALL PLUGIN clone;
 
 --source include/clean_monitoring_process.inc
 
+# mysqld_safe restarts but does not start slave channels
+--disable_warnings
 --let $rpl_channel_name=
 --source include/stop_slave.inc
+--enable_warnings
 
 RESET SLAVE ALL;
 
