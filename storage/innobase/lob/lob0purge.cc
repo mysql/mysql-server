@@ -425,14 +425,17 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     mtr_commit(&lob_mtr);
   }
 
+  if (!ctx->is_ref_valid()) {
+    /* The LOB reference has changed.  Don't proceed. */
+    return;
+  }
+
   /* If rec_type is 0, it is not the purge operation. */
   if (!is_rollback && rec_type != 0 && !ctx->is_delete_marked()) {
     /* This is the purge operation. The delete marked clustered record has been
     reused. Purge shouldn't proceed. */
     return;
   }
-
-  ut_ad(ctx->is_ref_valid());
 
   space_id_t space_id = ref.space_id();
   ut_ad(space_id == index->space_id());
