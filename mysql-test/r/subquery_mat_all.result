@@ -1327,9 +1327,9 @@ HAVING COUNT(*) > 0
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	innr	NULL	index	col_int_key	col_int_key	5	NULL	2	50.00	Using where
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr` where (`test`.`innr`.`col_int_nokey` > `test`.`innr`.`col_int_nokey`) group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
+Note	1003	/* select#1 */ select '1' AS `pk`,NULL AS `pk` from <constant table> left join `test`.`t2` `table2` on((<in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where false group by `test`.`innr`.`col_int_key` having ((count(0) > 0) and (<cache>(NULL) = <ref_null_helper>(`test`.`innr`.`col_int_key`))))) and multiple equal('1', NULL)))
 FLUSH STATUS;
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2

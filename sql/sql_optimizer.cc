@@ -10073,10 +10073,30 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
     if (left_item->eq(right_item, true)) {
-      if (!left_item->maybe_null ||
+      /*
+       Two identical items are being compared:
+       1) If the items are not nullable, return result from eq_cmp_result(),
+          that is, we can short circuit because result is statically always
+          known to be true or false, depending on which operator we are
+          dealing with. If the operator allows equality, *cond_value is
+          Item::COND_TRUE (a non-null value is always equal to itself), else
+          Item::COND_FALSE (a non-null value is never unequal to itself).
+       2) If the items are nullable and the result from eq_cmp_result() is
+          false, result is always false, that is, the operator doesn't
+          allow for equality, the result is always false: Any non-null
+          value cannot obviously be unequal to itself, and any NULL value
+          would yield an undefined result (e.g. NULL < NULL
+          is undefined), and hence Item::COND_FALSE in this context is the
+          effective result.
+          (Call order ensures test is not applied to conditions with explicit
+          truth value test)
+       3) If the <=> operator is used, result is always true because
+          NULL = NULL is true for this operator
+      */
+      if (!left_item->maybe_null || *cond_value == Item::COND_FALSE ||
           down_cast<Item_func *>(cond)->functype() == Item_func::EQUAL_FUNC) {
         *retcond = nullptr;
-        return false;  // Compare of identical items
+        return false;
       }
     }
   }

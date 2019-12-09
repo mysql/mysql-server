@@ -786,16 +786,4 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          ]
          }
 QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
-STATUS:NOT_EQUAL
-SYNC_POINT:before_reset_query_plan
-Diff: EXPLAIN NORMAL vs OTHER
-@@ -27,2 +27,3 @@
-               "filtered": "100.00",
-+              "using_where": true,
-               "cost_info": {
-@@ -37,4 +38,3 @@
-                 "col_varchar_key"
--              ],
--              "attached_condition": "((`test`.`alias1`.`col_int` > `test`.`alias1`.`col_int`) and (`test`.`alias1`.`col_varchar_key` is not null))"
-+              ]
-             }
+STATUS: EQUAL
