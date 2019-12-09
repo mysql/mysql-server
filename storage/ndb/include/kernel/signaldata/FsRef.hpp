@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,7 @@ struct FsRef {
     fsErrFileExists = FS_ERR_BIT |  12,
     fsErrInvalidFileSize = FS_ERR_BIT |  13,
     fsErrOutOfMemory = FS_ERR_BIT |  14,
+    fsErrSync = FS_ERR_BIT | 15,
     fsErrMax
   };
   /**
