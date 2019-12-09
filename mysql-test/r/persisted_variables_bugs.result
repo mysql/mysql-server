@@ -424,4 +424,11 @@ VARIABLE_NAME	VARIABLE_VALUE
 skip_name_resolve	OFF
 RESET PERSIST;
 DROP USER 'bug28749668'@'%';
+#
+# Bug #30169731: MYSQL SERVER DOESN'T START AND NO ERROR IN THE LOG
+#
+# config file is in wrong json format
+# server should fail to start
+# start server with all defaults
+# restart:
 # End of the 8.0 tests
