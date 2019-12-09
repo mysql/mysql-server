@@ -6108,8 +6108,10 @@ int mysqld_main(int argc, char **argv)
   */
   if (persisted_variables_cache.init(&argc, &argv) ||
       persisted_variables_cache.load_persist_file() ||
-      persisted_variables_cache.append_read_only_variables(&argc, &argv))
+      persisted_variables_cache.append_read_only_variables(&argc, &argv)) {
+    flush_error_log_messages();
     return 1;
+  }
   my_getopt_use_args_separator = false;
   remaining_argc = argc;
   remaining_argv = argv;

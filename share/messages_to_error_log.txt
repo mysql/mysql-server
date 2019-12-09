@@ -699,7 +699,7 @@ ER_CANT_SET_PERSISTED
   eng "Failed to set persisted options."
 
 ER_JSON_PARSE_ERROR
-  eng "JSON parsing error"
+  eng "Persisted config file is corrupt. Please ensure mysqld-auto.cnf file is valid JSON."
 
 ER_CONFIG_OPTION_WITHOUT_GROUP
   eng "Found option without preceding group in config file"
