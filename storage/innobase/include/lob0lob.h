@@ -178,6 +178,12 @@ struct ref_mem_t {
 
   /** Whether the blob is being modified. */
   bool m_being_modified;
+
+  /** Check if the LOB has already been purged.
+  @return true if LOB has been purged, false otherwise. */
+  bool is_purged() const {
+    return ((m_page_no == FIL_NULL) && (m_length == 0));
+  }
 };
 
 extern const byte field_ref_almost_zero[FIELD_REF_SIZE];

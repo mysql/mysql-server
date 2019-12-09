@@ -1220,6 +1220,11 @@ void ref_t::mark_not_partially_updatable(trx_t *trx, mtr_t *mtr,
 
   parse(ref_mem);
 
+  /* If LOB has already been purged, ignore it. */
+  if (ref_mem.is_purged()) {
+    return;
+  }
+
   block = buf_page_get(page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
                        page_size, RW_X_LATCH, mtr);
 
