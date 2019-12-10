@@ -39,6 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0sea.h"
 #include "clone0clone.h"
+#include "current_thd.h"
 #include "dict0dd.h"
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
@@ -2526,6 +2527,10 @@ void trx_print(FILE *f,             /*!< in: output stream */
 }
 
 #ifdef UNIV_DEBUG
+bool trx_can_be_handled_by_current_thread(const trx_t *trx) {
+  return (trx->mysql_thd == nullptr || trx->mysql_thd == current_thd);
+}
+
 /** Asserts that a transaction has been started.
  The caller must hold trx_sys->mutex.
  @return true if started */

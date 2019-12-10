@@ -344,6 +344,7 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
                     lock_mode in_mode) {
   ut_ad(!trx_mutex_own(trx));
   trx_mutex_enter(trx);
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
 
   if (trx->lock.table_locks.empty()) {
     trx_mutex_exit(trx);

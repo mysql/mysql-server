@@ -165,16 +165,16 @@ static ENGINE_ERROR_CODE innodb_arithmetic(
     uint16_t vbucket);        /*!< in: bucket, used by default
                               engine only */
 
-/*******************************************************************/ /**
- Callback functions used by Memcached's process_command() function
+/**
+ Callback function used by Memcached's process_command() function
  to get the result key/value information
- @return TRUE if info fetched */
-static bool innodb_get_item_info(
-    /*=================*/
-    ENGINE_HANDLE *handle, /*!< in: Engine Handle */
-    const void *cookie,    /*!< in: connection cookie */
-    const item *item,      /*!< in: item in question */
-    item_info *item_info); /*!< out: item info got */
+@param[in]   handle     Engine Handle
+@param[in]   cookie     connection cookie
+@param[in]   item       item in question
+@param[out]  item_info  item info got
+@return true if info fetched */
+static bool innodb_get_item_info(ENGINE_HANDLE *handle, const void *cookie,
+                                 const item *item, item_info *item_info);
 
 /*******************************************************************/ /**
  Get default Memcached engine handle
@@ -961,12 +961,20 @@ static innodb_conn_data_t *innodb_conn_init(
 
     /* FIX_ME: to make this dynamic extensible */
     conn_data->row_buf = (void **)malloc(NUM_MAX_MEM_SLOT * sizeof(void *));
+    if (conn_data->row_buf == NULL) {
+      UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+      free(conn_data->result);
+      free(conn_data);
+      conn_data = NULL;
+      return (NULL);
+    }
     memset(conn_data->row_buf, 0, NUM_MAX_MEM_SLOT * sizeof(void *));
 
     conn_data->row_buf[0] = (void *)malloc(16384);
 
     if (conn_data->row_buf[0] == NULL) {
       UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+      free(conn_data->row_buf);
       free(conn_data->result);
       free(conn_data);
       conn_data = NULL;
@@ -978,6 +986,7 @@ static innodb_conn_data_t *innodb_conn_init(
     conn_data->cmd_buf = malloc(1024);
     if (!conn_data->cmd_buf) {
       UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
+      free(conn_data->row_buf[0]);
       free(conn_data->row_buf);
       free(conn_data->result);
       free(conn_data);
@@ -1011,6 +1020,9 @@ have_conn:
   meta_index = &meta_info->index_info;
 
   assert(engine->conn_data.count > 0);
+
+  assert(conn_data->thd);
+  handler_thd_attach(conn_data->thd, nullptr);
 
   if (conn_option == CONN_MODE_NONE) {
     return (conn_data);
@@ -1551,6 +1563,9 @@ static ENGINE_ERROR_CODE innodb_switch_mapping(
 
   conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_NONE,
                                ib_lck_mode_t(0), false, new_meta_info);
+  if (conn_data == nullptr) {
+    return (ENGINE_TMPFAIL);
+  }
 
   assert(conn_data->conn_meta == new_meta_info);
 
@@ -1635,16 +1650,13 @@ static void innodb_clean_engine(
   UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
 }
 
-/*******************************************************************/ /**
- Release the connection, free resource allocated in innodb_allocate */
-static void innodb_release(
-    /*===========*/
-    ENGINE_HANDLE *handle, /*!< in: Engine handle */
-    const void *cookie __attribute__((unused)),
-    /*!< in: connection cookie */
-    item *item __attribute__((unused)))
-/*!< in: item to free */
-{
+/** Release the resources used to store query response item
+@param[in]  handle  Engine handle
+@param[in]  cookie  connection cookie
+@param[in]  item    item to free
+*/
+static void innodb_release(ENGINE_HANDLE *handle, const void *cookie,
+                           item *item) {
   struct innodb_engine *innodb_eng = innodb_handle(handle);
   innodb_conn_data_t *conn_data;
   mem_buf_t *mem_buf;
@@ -1737,6 +1749,9 @@ static int convert_to_char(
       int8_t int_val = *(int8_t *)value;
       snprintf(buf, buf_len, "%" PRIi8, int_val);
     }
+  } else {
+    assert(!"invalid byte length of integer");
+    return 0;
   }
 
   return (strlen(buf));
@@ -2007,6 +2022,8 @@ search_done:
         ((char *)conn_data->row_buf[conn_data->row_buf_slot]) +
         conn_data->row_buf_used;
     result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
+    result->col_value[MCI_COL_VALUE].is_str = true;
+    result->col_value[MCI_COL_VALUE].is_valid = true;
   }
 
   if (!conn_data->range) {
@@ -2033,8 +2050,6 @@ search_done:
     char *value_end MY_ATTRIBUTE((unused));
     unsigned int total_len = 0;
     char int_buf[MAX_INT_CHAR_LEN];
-    ib_ulint_t new_len;
-
     GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter, option_length);
 
     assert(option_length > 0 && option_delimiter);
@@ -2063,9 +2078,8 @@ search_done:
 
     /* No need to add the last separator */
     total_len -= option_length;
-    new_len = total_len + conn_data->mul_col_buf_used;
 
-    if (new_len >= conn_data->mul_col_buf_len) {
+    if (conn_data->mul_col_buf_len < total_len + conn_data->mul_col_buf_used) {
       /* Need to keep the old result buffer, since its
       point is already registered with memcached output
       buffer. These result buffers will be release
@@ -2076,13 +2090,15 @@ search_done:
         UT_LIST_ADD_LAST(mem_list, conn_data->mul_used_buf, new_temp);
       }
 
-      conn_data->mul_col_buf = (char *)malloc(new_len + 1);
-      conn_data->mul_col_buf_len = new_len + 1;
+      conn_data->mul_col_buf = (char *)malloc(total_len);
+      conn_data->mul_col_buf_len = total_len;
       conn_data->mul_col_buf_used = 0;
     }
 
     c_value = &conn_data->mul_col_buf[conn_data->mul_col_buf_used];
-    value_end = &conn_data->mul_col_buf[new_len];
+    assert(conn_data->mul_col_buf_used + total_len <=
+           conn_data->mul_col_buf_len);
+    value_end = c_value + total_len;
 
     for (i = 0; i < result->n_extra_col; i++) {
       mci_column_t *col_value;
@@ -2099,6 +2115,7 @@ search_done:
                               col_value->value_len, col_value->is_unsigned);
 
           assert(int_len <= conn_data->mul_col_buf_len);
+          assert(c_value + int_len <= value_end);
 
           memcpy(c_value, int_buf, int_len);
           c_value += int_len;
@@ -2117,39 +2134,53 @@ search_done:
 
       if (col_value->allocated) {
         free(col_value->value_str);
+        col_value->value_str = nullptr;
+        col_value->allocated = false;
+        col_value->value_len = 0;
+        col_value->is_str = false;
+        col_value->is_valid = false;
       }
     }
+    assert(c_value == value_end);
 
     result->col_value[MCI_COL_VALUE].value_str =
         &conn_data->mul_col_buf[conn_data->mul_col_buf_used];
     result->col_value[MCI_COL_VALUE].value_len = total_len;
+    result->col_value[MCI_COL_VALUE].is_str = true;
+    result->col_value[MCI_COL_VALUE].is_valid = true;
     conn_data->mul_col_buf_used += total_len;
-    ((char *)result->col_value[MCI_COL_VALUE].value_str)[total_len] = 0;
 
     free(result->extra_col_value);
+    result->extra_col_value = nullptr;
   } else if (!result->col_value[MCI_COL_VALUE].is_str &&
              result->col_value[MCI_COL_VALUE].value_len != 0) {
     unsigned int int_len;
-    char int_buf[MAX_INT_CHAR_LEN];
+    char int_buf[MAX_INT_CHAR_LEN] = {};
 
     int_len = convert_to_char(int_buf, sizeof int_buf,
                               &result->col_value[MCI_COL_VALUE].value_int,
                               result->col_value[MCI_COL_VALUE].value_len,
                               result->col_value[MCI_COL_VALUE].is_unsigned);
 
+    assert(conn_data->mul_col_buf_used == 0);
     if (int_len > conn_data->mul_col_buf_len) {
       if (conn_data->mul_col_buf) {
         free(conn_data->mul_col_buf);
       }
 
-      conn_data->mul_col_buf = (char *)malloc(int_len + 1);
+      conn_data->mul_col_buf = (char *)malloc(int_len);
       conn_data->mul_col_buf_len = int_len;
     }
 
-    if (int_len > 0) memcpy(conn_data->mul_col_buf, int_buf, int_len);
+    if (int_len > 0) {
+      memcpy(conn_data->mul_col_buf, int_buf, int_len);
+      conn_data->mul_col_buf_used += int_len;
+    }
     result->col_value[MCI_COL_VALUE].value_str = conn_data->mul_col_buf;
 
     result->col_value[MCI_COL_VALUE].value_len = int_len;
+    result->col_value[MCI_COL_VALUE].is_str = true;
+    result->col_value[MCI_COL_VALUE].is_valid = true;
   }
 
   *item = result;
@@ -2498,19 +2529,8 @@ static ENGINE_ERROR_CODE innodb_unknown_command(
                                           request, response));
 }
 
-/*******************************************************************/ /**
- Callback functions used by Memcached's process_command() function
- to get the result key/value information
- @return true if info fetched */
-static bool innodb_get_item_info(
-    /*=================*/
-    ENGINE_HANDLE *handle __attribute__((unused)),
-    /*!< in: Engine Handle */
-    const void *cookie __attribute__((unused)),
-    /*!< in: connection cookie */
-    const item *item,     /*!< in: item in question */
-    item_info *item_info) /*!< out: item info got */
-{
+static bool innodb_get_item_info(ENGINE_HANDLE *handle, const void *cookie,
+                                 const item *item, item_info *item_info) {
   struct innodb_engine *innodb_eng = innodb_handle(handle);
   innodb_conn_data_t *conn_data;
 

@@ -2222,6 +2222,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     log_free_check();
   }
 
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_upd_sec_index_entry");
 
   mtr_start(&mtr);
@@ -2967,8 +2968,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_del_mark_clust_rec(
  @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
  in case of a lock wait, else error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_upd_clust_step(upd_node_t *node, /*!< in: row update node */
-                       que_thr_t *thr)   /*!< in: query thread */
+    row_upd_clust_step(upd_node_t *node,     /*!< in: row update node */
+                       que_thr_t *const thr) /*!< in: query thread */
 {
   dict_index_t *index;
   btr_pcur_t *pcur;
@@ -2981,7 +2982,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ulint *offsets;
   ibool referenced;
   ulint flags = 0;
-  trx_t *trx = thr_get_trx(thr);
+  trx_t *const trx = thr_get_trx(thr);
   rec_offs_init(offsets_);
 
   index = node->table->first_index();
@@ -3019,8 +3020,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   ulint mode;
 
-  DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-                      "innodb_row_upd_clust_step_enter");
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
+  DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "innodb_row_upd_clust_step_enter");
 
   if (dict_index_is_online_ddl(index)) {
     ut_ad(node->table->id != DICT_INDEXES_ID);
@@ -3174,6 +3175,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       }
   }
 
+  ut_ad(trx_can_be_handled_by_current_thread(thr_get_trx(thr)));
   DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd, "after_row_upd_clust");
 
   if (node->index == NULL ||

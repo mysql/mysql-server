@@ -298,6 +298,13 @@ bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
                   trx_state_t state) /*!< in: state */
     MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
+/** Determines if trx can be handled by current thread, which is when
+trx->mysql_thd is nullptr (a "background" trx) or equals current_thd.
+@param[in]    trx   The transaction to check
+@return true iff current thread can handle the transaction
+*/
+bool trx_can_be_handled_by_current_thread(const trx_t *trx);
+
 /** Asserts that a transaction has been started.
  The caller must hold trx_sys->mutex.
  @return true if started */
