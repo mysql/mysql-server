@@ -2124,7 +2124,7 @@ runReadVersions(NDBT_Context* ctx, NDBT_Step* step)
 /**
  * runSkipIfCannotKeepFS
  *
- * Check whether we can perform an upgrade while keeping the
+ * Check whether we can perform a test while keeping the
  * FS with the versions being tested.
  * If not, skip
  */
@@ -2137,13 +2137,36 @@ runSkipIfCannotKeepFS(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_OK;
   }
 
-  const Uint32 problemBoundary = NDB_MAKE_VERSION(7,6,3);  // NDBD_LOCAL_SYSFILE_VERSION
-
-  if (versionsSpanBoundary(preVersion, postVersion, problemBoundary))
+  /**
+   * Crossing the boundary of 7.6 is problematic for
+   * both upgrades and downgrades due to WL#8069 Partial LCP
+   */
   {
-    ndbout_c("Cannot run with these versions as they do not support "
-                  "non initial upgrades.");
-    return NDBT_SKIPPED;
+    const Uint32 problemBoundary = NDB_MAKE_VERSION(7,6,3);  // NDBD_LOCAL_SYSFILE_VERSION
+
+    if (versionsSpanBoundary(preVersion, postVersion, problemBoundary))
+    {
+      ndbout_c("Cannot run with these versions as they do not support "
+               "non initial upgrades or downgrades (WL#8069).");
+      return NDBT_SKIPPED;
+    }
+  }
+
+  /**
+   * Can upgrade across the boundary of 8.0.18, but cannot downgrade
+   * due to WL#12876 SYSFILE format version 2
+   */
+  {
+    const bool isDowngrade = postVersion < preVersion;
+    const Uint32 problemBoundary = NDB_MAKE_VERSION(8,0,18);
+
+    if (isDowngrade &&
+        versionsSpanBoundary(preVersion, postVersion, problemBoundary))
+    {
+      ndbout_c("Cannot run with these versions as they do not support "
+               "non initial downgrades (WL#12876)");
+      return NDBT_SKIPPED;
+    }
   }
   return NDBT_OK;
 }
