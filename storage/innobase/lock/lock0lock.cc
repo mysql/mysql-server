@@ -1412,12 +1412,6 @@ void RecLock::set_wait_state(lock_t *lock) {
   ut_a(stopped);
 }
 
-#ifdef UNIV_DEBUG
-UNIV_INLINE bool lock_current_thread_handles_trx(const trx_t *trx) {
-  return (!trx->mysql_thd || trx->mysql_thd == current_thd);
-}
-#endif
-
 dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
   ut_ad(lock_mutex_own());
   ut_ad(m_trx == thr_get_trx(m_thr));
@@ -2016,7 +2010,7 @@ bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock) {
 void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
   trx_mutex_enter(hp_trx);
   const trx_id_t hp_trx_id = hp_trx->id;
-  ut_ad(lock_current_thread_handles_trx(hp_trx));
+  ut_ad(trx_can_be_handled_by_current_thread(hp_trx));
   ut_ad(trx_is_high_priority(hp_trx));
   const lock_t *lock = hp_trx->lock.wait_lock;
   bool waits_for_record = (nullptr != lock && lock->is_record_lock());
@@ -3519,6 +3513,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
   ut_ad(table && trx);
   ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
 
   check_trx_state(trx);
   ++table->count_by_mode[type_mode & LOCK_MODE_MASK];
@@ -4256,7 +4251,7 @@ void lock_trx_release_read_locks(trx_t *trx, bool only_gap) {
   intention lock, B-tree modification related operations always first create
   a copy of old lock before removing old lock, and removal of wait lock can not
   happen since we are not waiting. */
-  ut_ad(lock_current_thread_handles_trx(trx));
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   ut_ad(trx->lock.wait_lock == nullptr);
   if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
     return;

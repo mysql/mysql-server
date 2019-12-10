@@ -4920,6 +4920,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   }
 
 rec_loop:
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   DEBUG_SYNC_C("row_search_rec_loop");
 
   prebuilt->lob_undo_reset();
