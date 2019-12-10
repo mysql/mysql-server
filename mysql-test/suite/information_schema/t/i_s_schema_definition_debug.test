@@ -242,16 +242,16 @@ INSERT INTO I_S_published_schema
   VALUES ('80018', 1,
     'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
 INSERT INTO I_S_published_schema
-  VALUES ('80019', 0,
-    'a58799a398f1f9ebd0e278b62e459da00c55e54ec80beadf4cab462518f2ff2d');
-INSERT INTO I_S_published_schema
-  VALUES ('80019', 1,
-    '533df73f91818d8e866b63f335c7733418bcd87d3abfbd98a05b29494eed2e8c');
-INSERT INTO I_S_published_schema
   VALUES ('80020', 0,
     'e74c98084d3f83870cd69ec351542ac2bdfe18275fcee10ad4e4f27c35d2c150');
 INSERT INTO I_S_published_schema
-  VALUES (80020, 1,
+  VALUES ('80020', 1,
+    '1223657a2f27ecdbea64f024eba5799275acd91fd23ef6696696ecf9f64161ec');
+INSERT INTO I_S_published_schema
+  VALUES ('800201', 0,
+    'e74c98084d3f83870cd69ec351542ac2bdfe18275fcee10ad4e4f27c35d2c150');
+INSERT INTO I_S_published_schema
+  VALUES ('800201', 1,
     '1223657a2f27ecdbea64f024eba5799275acd91fd23ef6696696ecf9f64161ec');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
@@ -269,7 +269,7 @@ let $assert_cond = "[SELECT COUNT(version)
                        FROM I_S_published_schema, whole_schema
                        WHERE I_S_published_schema.checksum =
                              whole_schema.checksum
-                       AND lctn = @@global.lower_case_file_system]" = 1;
+                       AND lctn = @@global.lower_case_file_system]" >= 1;
 --let $assert_text = The schema checksum corresponds to a known I_S version.
 --source include/assert.inc
 

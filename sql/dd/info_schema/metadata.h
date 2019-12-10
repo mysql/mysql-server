@@ -25,6 +25,7 @@
 
 #include <mysql/plugin.h>  // st_plugin_int
 
+#include "mysql_version.h"       // MYSQL_VERSION_ID
 #include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
@@ -143,7 +144,7 @@ namespace info_schema {
                   STATS FOR PARTITIONED TABLES
     This bug changes definition of I_S.STATISTICS.
 
-  80019: Current
+  80019: Not published (see below)
   ------------------------------------
   Changes from version 80018:
 
@@ -156,20 +157,29 @@ namespace info_schema {
        INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS;
        INFORMATION_SCHEMA.ROLE_ROUTINE_GRANTS;
 
-  80020: Current
+  80020: Published by mistake in server version 8.0.19. To correct this,
+  we set the IS version number to 800201 in mysql server version 8.0.20.
+  Then, in server version 8.0.21, we're back on track with IS_version 80021.
   ------------------------------------
-  Changes from version 80019:
+  Changes from version 80018:
 
   - Bug#29871530: MYSQL 8.0 INFORMATION_SCHEMA.EVENTS NOT
                   OBSERVING CUSTOM TIMEZONE
     This bug updates LAST_EXECUTED to include time zones in
     I_S.EVENTS.
 
+  800201: Current
+  ------------------------------------
+
+
   80021: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80020;
+static const uint IS_DD_VERSION = 800201;
+static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
+                  ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
+              "This release can not use a version number from the future");
 
 /**
   Initialize INFORMATION_SCHEMA system views.
