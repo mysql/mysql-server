@@ -1776,3 +1776,259 @@ SHOW STATUS LIKE 'Handler_read_key';
 Variable_name	Value
 Handler_read_key	1
 DROP TABLE t;
+set global default_storage_engine=innodb;
+set session default_storage_engine=innodb;
+#
+# Bug#30350696 REFERENCE FROM DERIVED TABLE JOIN CONDITION TO PRECEDING TABLE COLUMN FAILS
+# Bug#11748138 ERROR 1054 (42S22): UNKNOWN COLUMN 'T2.I2' IN 'ON CLAUSE'
+#
+create table t(a int, b int);
+insert into t values(1,10),(2,20);
+set optimizer_switch="block_nested_loop=off";
+explain format=tree select t1.*, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+from t t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.45 rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: count(0)
+        -> Nested loop left join  (cost=1.35 rows=4)
+            -> Table scan on t2  (cost=0.45 rows=2)
+            -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+select t1.*, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+from t t1;
+a	b	(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+1	10	3
+2	20	4
+explain format=tree select t1.a, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+from t t1
+group by t1.a;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Table scan on t1  (cost=0.45 rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: count(0)
+        -> Nested loop left join  (cost=1.35 rows=4)
+            -> Table scan on t2  (cost=0.45 rows=2)
+            -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+select t1.a, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+from t t1
+group by t1.a;
+a	(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a)
+1	3
+2	4
+create view v1 as select * from t;
+explain format=tree select v1.*, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-v1.a)
+from v1;
+EXPLAIN
+-> Table scan on t  (cost=0.45 rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: count(0)
+        -> Nested loop left join  (cost=1.35 rows=4)
+            -> Table scan on t2  (cost=0.45 rows=2)
+            -> Filter: (t3.a > (t2.a - t.a))  (cost=0.35 rows=2)
+                -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'v1.a' of SELECT #2 was resolved in SELECT #1
+select v1.*, (select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-v1.a)
+from v1;
+a	b	(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-v1.a)
+1	10	3
+2	20	4
+drop view v1;
+explain format=tree select t1.*, (select * from
+(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt)
+from t t1;
+EXPLAIN
+-> Table scan on t1  (cost=0.45 rows=2)
+-> Select #2 (subquery in projection; dependent)
+    -> Table scan on dt
+        -> Materialize
+            -> Aggregate: count(0)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+select t1.*, (select * from
+(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt)
+from t t1;
+a	b	(select * from
+(select count(*)
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt)
+1	10	3
+2	20	4
+explain format=tree select t1.*, dt.c
+from t t1,
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt;
+ERROR 42S22: Unknown column 't1.a' in 'on clause'
+explain format=tree select t1.*, dt.c
+from t t1,
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt;
+EXPLAIN
+-> Nested loop inner join
+    -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Table scan on dt
+        -> Materialize (invalidate on row from t1)
+            -> Aggregate: count(0)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+select t1.*, dt.c
+from t t1,
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt;
+a	b	c
+1	10	3
+2	20	4
+explain format=tree select t1.*, dt.c
+from t t1 cross join
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt;
+EXPLAIN
+-> Nested loop inner join
+    -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Table scan on dt
+        -> Materialize (invalidate on row from t1)
+            -> Aggregate: count(0)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+select t1.*, dt.c
+from t t1 cross join
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt;
+a	b	c
+1	10	3
+2	20	4
+explain format=tree select t1.*, dt.c
+from t t1 join
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt
+on true;
+EXPLAIN
+-> Nested loop inner join
+    -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Table scan on dt
+        -> Materialize (invalidate on row from t1)
+            -> Aggregate: count(0)
+                -> Nested loop left join  (cost=1.35 rows=4)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Filter: (t3.a > (t2.a - t1.a))  (cost=0.35 rows=2)
+                        -> Table scan on t3  (cost=0.35 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+select t1.*, dt.c
+from t t1 join
+lateral
+(select count(*) as c
+from t t2
+left join t t3 on t3.a>t2.a-t1.a) as dt
+on true;
+a	b	c
+1	10	3
+2	20	4
+select t1.* from t t0 cross join (t t1 join t t2 on 100=t0.a);
+ERROR 42S22: Unknown column 't0.a' in 'on clause'
+select t1.* from t t0 cross join (t t1 join t t2
+on 100=(select count(*)
+from t t3
+left join t t4
+on t4.a>t3.a-t0.a));
+ERROR 42S22: Unknown column 't0.a' in 'on clause'
+select t1.* from t t0 cross join t t1 join t t2
+on 100=(select count(*)
+from t t3
+left join t t4
+on t4.a>t3.a-t0.a);
+a	b
+set optimizer_switch=default;
+drop table t;
+create table t(a int);
+insert into t values(1),(2);
+set optimizer_switch="firstmatch=off,block_nested_loop=off";
+explain format=tree select * from t t1
+where t1.a in (select dt.a
+from t t2
+left join (select * from t t3 where t3.a>t1.a) dt
+on true);
+EXPLAIN
+-> Nested loop inner join  (cost=1.75 rows=4)
+    -> Filter: (t1.a > t1.a)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Limit: 1 row(s)  (cost=1.00 rows=2)
+        -> Nested loop inner join  (cost=1.00 rows=2)
+            -> Filter: (t3.a = t1.a)  (cost=0.30 rows=1)
+                -> Table scan on t3  (cost=0.30 rows=2)
+            -> Table scan on t2  (cost=0.70 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+select * from t t1
+where t1.a in (select dt.a
+from t t2
+left join (select * from t t3 where t3.a>t1.a) dt
+on true);
+a
+drop table t;
+set optimizer_switch=default;
+set global default_storage_engine=myisam;

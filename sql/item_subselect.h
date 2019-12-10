@@ -163,8 +163,6 @@ class Item_subselect : public Item_result_field {
   /// Accumulate properties from a condition or GROUP/ORDER within a query
   /// block.
   void accumulate_condition(Item *item);
-  /// Accumulate properties from a join condition within a query block.
-  void accumulate_join_condition(mem_root_deque<TABLE_LIST *> *tables);
 
  public:
   /// Accumulate used tables

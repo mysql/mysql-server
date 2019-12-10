@@ -1888,8 +1888,6 @@ class SELECT_LEX {
                      SELECT_LEX *subq_select, table_map outer_tables_map,
                      Item **sj_cond);
   bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
-  bool decorrelate_join_conds(TABLE_LIST *sj_nest,
-                              mem_root_deque<TABLE_LIST *> *join_list);
 
  private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
@@ -2029,6 +2027,9 @@ class Disable_semijoin_flattening {
   SELECT_LEX *select;
   bool saved_value;
 };
+
+bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
+                    std::function<bool(TABLE_LIST *)> action);
 
 /**
   Base class for secondary engine execution context objects. Secondary

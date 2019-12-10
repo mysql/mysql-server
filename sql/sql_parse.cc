@@ -6369,9 +6369,6 @@ bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd) {
   @param left_op   left  operand of the JOIN
   @param right_op  rigth operand of the JOIN
 
-  @todo Research if we should set the "outer_context" member of the new ON
-  context.
-
   @retval
     false  if all is OK
   @retval
@@ -6389,6 +6386,8 @@ bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
   on_context->last_name_resolution_table =
       right_op->last_leaf_for_name_resolution();
   on_context->select_lex = pc->select;
+  // Other tables in FROM clause of this JOIN are not visible:
+  on_context->outer_context = thd->lex->current_context()->outer_context;
   on_context->next_context = pc->select->first_context;
   pc->select->first_context = on_context;
 
