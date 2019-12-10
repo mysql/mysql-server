@@ -120,9 +120,5 @@ args: -n Downgrade_Api_NDBD_MGMD_WithMGMDInitialStart T1
 max-time: 1200
 
 cmd: testDowngrade
-args: -n Downgrade_Mixed_MGMD_API_NDBD_WithMGMDInitialStart T2
-max-time: 1200
-
-cmd: testDowngrade
 args: -n Downgrade_SR_ManyTablesMaxFrag_WithMGMDInitialStart T1
 max-time: 6000
