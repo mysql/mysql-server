@@ -91,9 +91,6 @@ id	jpath_i	jpath_r	jsn_path	jexst
 3	33	33.3	{"x": 33}	1
 4	0	0.33	0.33	0
 5	66	77.7	"asd"	0
-Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column jpath_i at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column jpath_r at row 1
 explain select * from
 json_table(
 '[{"a":"3"},{"a":2},{"b":1},{"a":0.33},{"a":"asd"}]',
@@ -601,8 +598,6 @@ SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
 '$' COLUMNS (dt DATE PATH '$')) as tt;
 dt
 NULL
-Warnings:
-Warning	1292	Incorrect date value: '11:22:33.000000' for column 'dt' at row 1
 SELECT * FROM JSON_TABLE(CAST(CAST("11:22:33" AS TIME) AS JSON),
 '$' COLUMNS (dt TIME PATH '$')) as tt;
 dt
@@ -644,8 +639,6 @@ SELECT * FROM
 JSON_TABLE('123.456', '$' COLUMNS (a DECIMAL(2,1) PATH '$')) AS jt;
 a
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
 SELECT * FROM
 JSON_TABLE('{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{"a":1,"b":{}}}}}}}}}}}}}}}}}}}',
 '$' COLUMNS (i0 INT PATH '$.a',
@@ -800,12 +793,6 @@ f FLOAT PATH '$',
 d DECIMAL PATH '$')) AS jt;
 tm	dt	i	f	d
 NULL	NULL	NULL	NULL	NULL
-Warnings:
-Warning	1292	Incorrect time value: 'asdf' for column 'tm' at row 1
-Warning	1292	Incorrect date value: 'asdf' for column 'dt' at row 1
-Warning	3156	Invalid JSON value for CAST to INTEGER from column i at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column f at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column d at row 1
 #
 # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 #
@@ -1061,7 +1048,7 @@ SELECT *
 FROM JSON_TABLE('{"a":"1993-01-01"}',
 '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
 AS jt;
-ERROR 42000: Invalid default value for 'jp'
+ERROR 22003: Value is out of range for JSON_TABLE's column 'jp'
 #
 # Bug#25532429: INVALID JSON ERROR NOT THROWN WITH EMPTY TABLES JOIN
 #
@@ -1102,8 +1089,6 @@ JSON_TABLE ('["3.14159"]',
 ) AS alias2;
 col18
 NULL
-Warnings:
-Warning	1406	Data too long for column 'col18' at row 1
 #Truncated space doesn't trigger ON ERROR
 EXPLAIN SELECT * FROM
 JSON_TABLE ('["3.14159 "]',
@@ -1203,8 +1188,6 @@ JSON_TABLE ('[3.14159]',
 ) AS alias2;
 col18
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'col18' at row 1
 SELECT * FROM
 JSON_TABLE ('[3.14159]',
 '$[*]' COLUMNS (col18 DECIMAL(3,3) PATH '$' ERROR ON ERROR)
@@ -1234,8 +1217,6 @@ col18
 3.142
 Warnings:
 Note	1265	Data truncated for column 'col18' at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
 CREATE TABLE t1(jd JSON);
 INSERT INTO t1 VALUES('["asdf"]'),('["ghjk"]');
 SELECT * FROM t1,
@@ -1248,8 +1229,6 @@ jd	col18
 ["ghjk"]	3.142
 Warnings:
 Note	1265	Data truncated for column 'col18' at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 1
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column col18 at row 2
 DROP TABLE t1;
 #
 # Bug#25540027: SIG 11 IN FIND_FIELD_IN_TABLE | SQL/SQL_BASE.CC
@@ -1457,8 +1436,6 @@ JSON_TABLE ( 'null', '$' COLUMNS (c1 DECIMAL PATH '$' ) ) AS jt;
 SELECT * FROM v1;
 c1
 NULL
-Warnings:
-Warning	3156	Invalid JSON value for CAST to DECIMAL from column c1 at row 1
 EXPLAIN SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary
@@ -1814,8 +1791,6 @@ SELECT id FROM JSON_TABLE('[{"id":9223372036854775808}]', '$[*]' COLUMNS
 (id BIGINT PATH '$.id')) AS json;
 id
 NULL
-Warnings:
-Warning	1264	Out of range value for column 'id' at row 1
 # If we tell the JSON table column to be unsigned, we get to store the
 # full value correctly.
 SELECT id FROM JSON_TABLE('[{"id":"9223372036854775808"}]', '$[*]' COLUMNS
@@ -2041,3 +2016,26 @@ x
 c
 Warnings:
 Warning	1287	Specifying an ON EMPTY clause after the ON ERROR clause in a JSON_TABLE column definition is deprecated syntax and will be removed in a future release. Specify ON EMPTY before ON ERROR instead.
+#
+# Bug#30628330: INSERT WITH JSON_TABLE FAILS DUE TO WARNING INVOKED
+#               WITH ON ERROR CLAUSE
+#
+CREATE TABLE t(id INT, a TINYINT, b VARCHAR(3), c DATE, d DECIMAL);
+INSERT INTO t SELECT * FROM
+JSON_TABLE(JSON_ARRAY(JSON_OBJECT('a', 1, 'b', 'abc'),
+JSON_OBJECT('a', 2, 'b', 'abcd'),
+JSON_OBJECT('a', 1000, 'b', 'xyz'),
+JSON_OBJECT('c', TIME'12:00:00', 'd', 1e308)),
+'$[*]' COLUMNS (id FOR ORDINALITY,
+a TINYINT PATH '$.a' DEFAULT '111' ON ERROR,
+b VARCHAR(3) PATH '$.b' DEFAULT '"ERR"' ON ERROR,
+c DATE PATH '$.c' DEFAULT '"2001-01-01"' ON ERROR,
+d DECIMAL PATH '$.c' DEFAULT '999' ON ERROR)
+) AS jt;
+SELECT * FROM t ORDER BY id;
+id	a	b	c	d
+1	1	abc	NULL	NULL
+2	2	ERR	NULL	NULL
+3	111	xyz	NULL	NULL
+4	NULL	NULL	2001-01-01	999
+DROP TABLE t;

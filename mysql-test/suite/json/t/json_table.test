@@ -632,7 +632,7 @@ AS alias1;
 --echo #
 --echo # Bug# #25472875: ERROR SHOULD BE THROWN FOR INCORRECT VALUES
 --echo #
---error ER_INVALID_DEFAULT
+--error ER_JT_VALUE_OUT_OF_RANGE
 SELECT *
   FROM JSON_TABLE('{"a":"1993-01-01"}',
                   '$' COLUMNS (jp DATE PATH '$.b' DEFAULT '1000' ON EMPTY))
@@ -1355,3 +1355,22 @@ SELECT * FROM
 SELECT * FROM
   JSON_TABLE('{"x":"c"}', '$' COLUMNS (x VARCHAR(10) PATH '$.x'
                                        ERROR ON ERROR ERROR ON EMPTY)) jt;
+--echo #
+--echo # Bug#30628330: INSERT WITH JSON_TABLE FAILS DUE TO WARNING INVOKED
+--echo #               WITH ON ERROR CLAUSE
+--echo #
+CREATE TABLE t(id INT, a TINYINT, b VARCHAR(3), c DATE, d DECIMAL);
+# This statement used to fail with "data too long".
+INSERT INTO t SELECT * FROM
+  JSON_TABLE(JSON_ARRAY(JSON_OBJECT('a', 1, 'b', 'abc'),
+                        JSON_OBJECT('a', 2, 'b', 'abcd'),
+                        JSON_OBJECT('a', 1000, 'b', 'xyz'),
+                        JSON_OBJECT('c', TIME'12:00:00', 'd', 1e308)),
+             '$[*]' COLUMNS (id FOR ORDINALITY,
+                             a TINYINT PATH '$.a' DEFAULT '111' ON ERROR,
+                             b VARCHAR(3) PATH '$.b' DEFAULT '"ERR"' ON ERROR,
+                             c DATE PATH '$.c' DEFAULT '"2001-01-01"' ON ERROR,
+                             d DECIMAL PATH '$.c' DEFAULT '999' ON ERROR)
+            ) AS jt;
+SELECT * FROM t ORDER BY id;
+DROP TABLE t;

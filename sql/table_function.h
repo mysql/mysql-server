@@ -26,7 +26,6 @@
 #include <sys/types.h>
 #include <array>  // std::array
 
-#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
@@ -43,6 +42,7 @@
 class Field;
 class Item;
 class String;
+class Table_function_json;
 class THD;
 
 /**
@@ -287,14 +287,14 @@ class Json_table_column : public Create_field {
   /**
     Process JSON_TABLE's column
 
-    @param fld        field to save data to, if applicable, NULL otherwise
+    @param table_function the JSON table function
     @param[out] skip  whether current NESTED PATH column should be
                       completely skipped
     @returns
       true  on error
       false on success
   */
-  bool fill_column(Field *fld, jt_skip_reason *skip);
+  bool fill_column(Table_function_json *table_function, jt_skip_reason *skip);
 };
 
 #define MAX_NESTED_PATH 16

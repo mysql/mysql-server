@@ -9970,12 +9970,10 @@ size_t Field_typed_array::make_sort_key(Json_wrapper *wr, uchar *to,
 #endif
   THD *thd = table->in_use;
   // Force error on bad data
-  enum_jtc_on on_error = enum_jtc_on::JTO_ERROR;
-  enum_check_fields warn = CHECK_FIELD_ERROR_FOR_NULL;
 #ifndef DBUG_OFF
   bool res =
 #endif
-      save_json_to_field(thd, m_conv_item->field, on_error, wr, warn, true);
+      save_json_to_field(thd, m_conv_item->field, wr, true);
   // Data should be already properly converted so no error is expected here
   DBUG_ASSERT(!res && !thd->is_error());
 

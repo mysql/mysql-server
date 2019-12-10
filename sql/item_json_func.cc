@@ -40,7 +40,8 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
-#include "sql/current_thd.h"   // current_thd
+#include "scope_guard.h"
+#include "sql/current_thd.h"  // current_thd
 #include "sql/field.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_create.h"
@@ -60,7 +61,6 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
-#include "table_function.h"  // save_json_to_field
 #include "template_utils.h"  // down_cast
 
 class PT_item_list;
@@ -3777,16 +3777,7 @@ bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
     the value is coercible at all. In such case don't throw an error, just
     return 'true' when value isn't coercible.
   */
-  enum_jtc_on on_error;
-  enum_check_fields warn;
-  if (!no_error) {
-    on_error = enum_jtc_on::JTO_ERROR;
-    warn = CHECK_FIELD_ERROR_FOR_NULL;
-  } else {
-    on_error = enum_jtc_on::JTO_IMPLICIT;
-    warn = CHECK_FIELD_IGNORE;
-  }
-  if (save_json_to_field(thd, m_conv_item->field, on_error, wr, warn, true) ||
+  if (save_json_to_field(thd, m_conv_item->field, wr, no_error) ||
       // The calling_function arg below isn't needed as it's used only for
       // geometry and geometry arrays aren't supported
       val_json_func_field_subselect(m_conv_item, "<typed array>", &value, &tmp,
@@ -3955,8 +3946,31 @@ void Item_func_member_of::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool can_store_json_value_unencoded(const Field *field_to_store_in,
-                                    const Json_wrapper *json_data);
+/**
+  Check if a JSON value is a JSON OPAQUE, and if it can be printed in the field
+  as a non base64 value.
+
+  This is currently used by JSON_TABLE to see if we can print the JSON value in
+  a field without having to encode it in base64.
+
+  @param field_to_store_in The field we want to store the JSON value in
+  @param json_data The JSON value we want to store.
+
+  @returns
+    true The JSON value can be stored without encoding it in base64
+    false The JSON value can not be stored without encoding it, or it is not a
+          JSON OPAQUE value.
+*/
+static bool can_store_json_value_unencoded(const Field *field_to_store_in,
+                                           const Json_wrapper *json_data) {
+  return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
+          field_to_store_in->type() == MYSQL_TYPE_BLOB ||
+          field_to_store_in->type() == MYSQL_TYPE_STRING) &&
+         json_data->type() == enum_json_type::J_OPAQUE &&
+         (json_data->field_type() == MYSQL_TYPE_STRING ||
+          json_data->field_type() == MYSQL_TYPE_VARCHAR);
+}
+
 /**
   Save JSON to a given field
 
@@ -3967,35 +3981,40 @@ bool can_store_json_value_unencoded(const Field *field_to_store_in,
 
   @param  thd        Thread handler
   @param  field      Field to save data to
-  @param  m_on_error How to handle coercion errors
   @param  w          JSON data to save
-  @param  warn       level of warning for truncation handling
-  @param  set_field_null When true, the field is set to [not-]null after saving
-                         the value, depending or coercion result
+  @param  no_error   If true, don't raise an error when the value cannot be
+                     converted to the target type
 
   @returns
     false ok
     true  coercion error occur
 */
 
-bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
-                        const Json_wrapper *w, enum_check_fields warn,
-                        bool set_field_null) {
-  bool err = false;
+bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
+                        bool no_error) {
+  field->set_notnull();
+
   if (field->type() == MYSQL_TYPE_JSON) {
     Field_json *fld = down_cast<Field_json *>(field);
     return (fld->store_json(w) != TYPE_OK);
   }
 
-  const enum_coercion_error cr_error =
-      (warn == CHECK_FIELD_ERROR_FOR_NULL) ? CE_ERROR : CE_WARNING;
+  const enum_coercion_error cr_error = no_error ? CE_WARNING : CE_ERROR;
   if (w->type() == enum_json_type::J_ARRAY ||
       w->type() == enum_json_type::J_OBJECT) {
-    if (m_on_error == enum_jtc_on::JTO_ERROR)
+    if (!no_error)
       my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), field->field_name);
     return true;
   }
-  thd->check_for_truncated_fields = warn;
+
+  auto truncated_fields_guard =
+      create_scope_guard([thd, saved = thd->check_for_truncated_fields]() {
+        thd->check_for_truncated_fields = saved;
+      });
+  thd->check_for_truncated_fields =
+      no_error ? CHECK_FIELD_IGNORE : CHECK_FIELD_ERROR_FOR_NULL;
+
+  bool err = false;
   switch (field->result_type()) {
     case INT_RESULT: {
       longlong value = w->coerce_int(field->field_name, &err, cr_error);
@@ -4012,12 +4031,8 @@ bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
         value_unsigned = field->unsigned_flag;
       }
 
-      if (!err &&
-          (field->store(value, value_unsigned) >= TYPE_WARN_OUT_OF_RANGE)) {
-        field->set_null();
-        err = true;
-      } else
-        field->set_notnull();
+      if (!err)
+        err = field->store(value, value_unsigned) >= TYPE_WARN_OUT_OF_RANGE;
       break;
     }
     case STRING_RESULT: {
@@ -4080,12 +4095,8 @@ bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
       // Shouldn't happen
       DBUG_ASSERT(0);
   }
-  if (err) {
-    if (cr_error == CE_ERROR)
-      my_error(ER_JT_VALUE_OUT_OF_RANGE, MYF(0), field->field_name);
-    if (set_field_null) field->set_null();
-  } else if (set_field_null)
-    field->set_notnull();
 
+  if (err && !no_error)
+    my_error(ER_JT_VALUE_OUT_OF_RANGE, MYF(0), field->field_name);
   return err;
 }

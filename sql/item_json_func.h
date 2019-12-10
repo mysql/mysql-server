@@ -1006,7 +1006,6 @@ typedef Prealloced_array<size_t, 16> Sorted_index_array;
 bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
 
 enum class enum_jtc_on : uint16;
-bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
-                        const Json_wrapper *w, enum_check_fields warn,
-                        bool set_field_null = false);
+bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
+                        bool no_error);
 #endif /* ITEM_JSON_FUNC_INCLUDED */

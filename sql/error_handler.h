@@ -421,4 +421,14 @@ class Foreign_key_error_handler : public Internal_error_handler {
                                 const char *message);
 };
 
+/// An error handler that silences all warnings.
+class Ignore_warnings_error_handler final : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, unsigned, const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *) override {
+    return *level == Sql_condition::SL_WARNING;
+  }
+};
+
 #endif  // ERROR_HANDLER_INCLUDED

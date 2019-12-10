@@ -34,6 +34,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -48,7 +49,6 @@
 #include "sql/sql_show.h"
 #include "sql/sql_table.h"      // create_typelib
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql_string.h"
@@ -111,31 +111,6 @@ bool Table_function_json::walk(Item_processor processor, enum_walk walk,
 List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);
-}
-
-/**
-  Check if a JSON value is a JSON OPAQUE, and if it can be printed in the field
-  as a non base64 value.
-
-  This is currently used by JSON_TABLE to see if we can print the JSON value in
-  a field without having to encode it in base64.
-
-  @param field_to_store_in The field we want to store the JSON value in
-  @param json_data The JSON value we want to store.
-
-  @returns
-    true The JSON value can be stored without encoding it in base64
-    false The JSON value can not be stored without encoding it, or it is not a
-          JSON OPAQUE value.
-*/
-bool can_store_json_value_unencoded(const Field *field_to_store_in,
-                                    const Json_wrapper *json_data) {
-  return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
-          field_to_store_in->type() == MYSQL_TYPE_BLOB ||
-          field_to_store_in->type() == MYSQL_TYPE_STRING) &&
-         json_data->type() == enum_json_type::J_OPAQUE &&
-         (json_data->field_type() == MYSQL_TYPE_STRING ||
-          json_data->field_type() == MYSQL_TYPE_VARCHAR);
 }
 
 /**
@@ -301,22 +276,19 @@ bool Table_function_json::do_init_args() {
     /* purecov: end */
   }
 
-  Json_table_column *col;
-  for (uint i = 0; i < m_all_columns.size(); i++) {
-    col = m_all_columns[i];
+  // Validate that all the DEFAULT values are convertible to the target type.
+  for (const Json_table_column *col : m_all_columns) {
     if (col->m_jtc_type != enum_jt_column::JTC_PATH) continue;
     DBUG_ASSERT(col->m_field_idx >= 0);
     if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
-                             &col->m_default_empty_json, CHECK_FIELD_WARN)) {
-        my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
+      if (save_json_to_field(thd, get_field(col->m_field_idx),
+                             &col->m_default_empty_json, false)) {
         return true;
       }
     }
     if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
-                             &col->m_default_error_json, CHECK_FIELD_WARN)) {
-        my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
+      if (save_json_to_field(thd, get_field(col->m_field_idx),
+                             &col->m_default_error_json, false)) {
         return true;
       }
     }
@@ -393,7 +365,7 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
                matches, this function sets NESTED PATH's iterator over those
                matches and resets ordinality counter.
 
-  @param[in]   fld   Column's field to save data to
+  @param[in]   table_function the JSON table function
   @param[out]  skip  true <=> it's a NESTED PATH node and its path
                      expression didn't return any matches or a
                      previous sibling NESTED PATH clause still producing
@@ -405,17 +377,20 @@ void Table_function_json::set_subtree_to_null(Json_table_column *root,
     true  an error occurred, execution should be stopped
 */
 
-bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
+bool Json_table_column::fill_column(Table_function_json *table_function,
+                                    jt_skip_reason *skip) {
   *skip = JTS_NONE;
 
-  if (m_jtc_type != enum_jt_column::JTC_NESTED_PATH) {
-    fld->set_notnull();
-    DBUG_ASSERT(m_field_idx == fld->field_index);
-  }
+  Field *const fld = m_jtc_type == enum_jt_column::JTC_NESTED_PATH
+                         ? nullptr
+                         : table_function->get_field(m_field_idx);
+  DBUG_ASSERT(m_jtc_type == enum_jt_column::JTC_NESTED_PATH ||
+              (fld != nullptr && fld->field_index == m_field_idx));
 
   switch (m_jtc_type) {
     case enum_jt_column::JTC_ORDINALITY: {
       if (fld->store(m_jds_elt->m_rowid, true)) return true;
+      fld->set_notnull();
       break;
     }
     case enum_jt_column::JTC_PATH: {
@@ -427,13 +402,6 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
       if (data_v.size() > 0) {
         Json_wrapper buf;
         bool is_error = false;
-        enum_check_fields warn;
-        // Always issue at least a warning on truncation
-        if (m_on_error == enum_jtc_on::JTO_ERROR) {
-          // Issue an error when data is truncated on saving into field
-          warn = CHECK_FIELD_ERROR_FOR_NULL;
-        } else
-          warn = CHECK_FIELD_WARN;
         if (data_v.size() > 1) {
           // Make result array
           if (fld->type() == MYSQL_TYPE_JSON) {
@@ -454,16 +422,27 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
           }
         } else
           buf = std::move(data_v[0]);
-        is_error =
-            is_error || save_json_to_field(thd, fld, m_on_error, &buf, warn);
-        if (is_error) switch (m_on_error) {
+        if (!is_error) {
+          // Save the extracted value to the field in JSON_TABLE. Make sure an
+          // error is raised for conversion errors if ERROR ON ERROR is
+          // specified. Don't raise any warnings when DEFAULT/NULL ON ERROR is
+          // specified, as they may be promoted to errors by
+          // Strict_error_handler and prevent the ON ERROR clause from being
+          // respected.
+          Ignore_warnings_error_handler ignore_warnings;
+          const bool no_error = m_on_error != enum_jtc_on::JTO_ERROR;
+          if (no_error) thd->push_internal_handler(&ignore_warnings);
+          is_error = save_json_to_field(thd, fld, &buf, no_error);
+          if (no_error) thd->pop_internal_handler();
+        }
+        if (is_error) {
+          switch (m_on_error) {
             case enum_jtc_on::JTO_ERROR: {
               return true;
               break;
             }
             case enum_jtc_on::JTO_DEFAULT: {
-              save_json_to_field(thd, fld, m_on_error, &m_default_error_json,
-                                 CHECK_FIELD_IGNORE);
+              save_json_to_field(thd, fld, &m_default_error_json, true);
               break;
             }
             case enum_jtc_on::JTO_NULL:
@@ -472,6 +451,7 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
               break;
             }
           }
+        }
       } else {
         switch (m_on_empty) {
           case enum_jtc_on::JTO_ERROR: {
@@ -479,8 +459,7 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
             return true;
           }
           case enum_jtc_on::JTO_DEFAULT: {
-            save_json_to_field(thd, fld, m_on_error, &m_default_empty_json,
-                               CHECK_FIELD_IGNORE);
+            save_json_to_field(thd, fld, &m_default_empty_json, true);
             break;
           }
           case enum_jtc_on::JTO_NULL:
@@ -501,6 +480,7 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
         fld->store(1, true);
       else
         fld->store(0, true);
+      fld->set_notnull();
       break;
     }
     case enum_jt_column::JTC_NESTED_PATH: {
@@ -632,10 +612,7 @@ bool Table_function_json::fill_json_table() {
         columns to nullptr.
       */
       Json_table_column *col = m_all_columns[col_idx];
-      if (col->fill_column(
-              (col->m_field_idx >= 0 ? get_field(col->m_field_idx) : nullptr),
-              &skip_subtree))
-        return true;
+      if (col->fill_column(this, &skip_subtree)) return true;
       if (skip_subtree) {
         set_subtree_to_null(col, &col);
         // Position iterator to the last element of subtree

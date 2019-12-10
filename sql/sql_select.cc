@@ -2307,8 +2307,7 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
     // function that can use this function
     if (get_json_atom_wrapper(&item, 0, "MEMBER OF", &str_val, &buf, &wr,
                               nullptr, true) ||
-        save_json_to_field(table->in_use, to_field, enum_jtc_on::JTO_ERROR, &wr,
-                           CHECK_FIELD_WARN, true))
+        save_json_to_field(table->in_use, to_field, &wr, false))
       return STORE_KEY_FATAL;
     // Copy constant key only once
     if (m_const_key) m_inited = true;
