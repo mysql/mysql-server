@@ -2299,9 +2299,9 @@ dberr_t trx_undo_report_row_operation(
           mtr.set_log_mode(MTR_LOG_NO_REDO);
         }
 
-        mutex_enter(&undo_ptr->rseg->mutex);
+        undo_ptr->rseg->latch();
         trx_undo_free_last_page(trx, undo, &mtr);
-        mutex_exit(&undo_ptr->rseg->mutex);
+        undo_ptr->rseg->unlatch();
 
         err = DB_UNDO_RECORD_TOO_BIG;
         goto err_exit;
@@ -2346,9 +2346,9 @@ dberr_t trx_undo_report_row_operation(
     a pessimistic insert in a B-tree, and we must reserve the
     counterpart of the tree latch, which is the rseg mutex. */
 
-    mutex_enter(&undo_ptr->rseg->mutex);
+    undo_ptr->rseg->latch();
     undo_block = trx_undo_add_page(trx, undo, undo_ptr, &mtr);
-    mutex_exit(&undo_ptr->rseg->mutex);
+    undo_ptr->rseg->unlatch();
 
     page_no = undo->last_page_no;
 

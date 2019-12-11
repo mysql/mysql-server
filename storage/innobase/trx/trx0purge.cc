@@ -152,7 +152,7 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
 
   ut_a(m_purge_sys->rseg != nullptr);
 
-  mutex_enter(&m_purge_sys->rseg->mutex);
+  m_purge_sys->rseg->latch();
 
   ut_a(m_purge_sys->rseg->last_page_no != FIL_NULL);
   ut_ad(m_purge_sys->rseg->last_trx_no == m_trx_undo_rsegs.get_trx_no());
@@ -170,7 +170,7 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
   m_purge_sys->hdr_offset = m_purge_sys->rseg->last_offset;
   m_purge_sys->hdr_page_no = m_purge_sys->rseg->last_page_no;
 
-  mutex_exit(&m_purge_sys->rseg->mutex);
+  m_purge_sys->rseg->unlatch();
 
   return (page_size);
 }
@@ -411,7 +411,7 @@ static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
       mtr.set_log_mode(MTR_LOG_NO_REDO);
     }
 
-    mutex_enter(&rseg->mutex);
+    rseg->latch();
 
     rseg_hdr =
         trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
@@ -438,7 +438,7 @@ static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
       break;
     }
 
-    mutex_exit(&rseg->mutex);
+    rseg->unlatch();
 
     mtr_commit(&mtr);
   }
@@ -471,12 +471,8 @@ static void trx_purge_free_segment(trx_rseg_t *rseg, fil_addr_t hdr_addr,
   mlog_write_ulint(rseg_hdr + TRX_RSEG_HISTORY_SIZE, hist_size - seg_size,
                    MLOG_4BYTES, &mtr);
 
-  ut_ad(rseg->curr_size >= seg_size);
-
-  rseg->curr_size -= seg_size;
-
-  mutex_exit(&(rseg->mutex));
-
+  rseg->decr_curr_size(seg_size);
+  rseg->unlatch();
   mtr_commit(&mtr);
 }
 
@@ -501,7 +497,7 @@ static void trx_purge_truncate_rseg_history(
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
-  mutex_enter(&(rseg->mutex));
+  rseg->latch();
 
   rseg_hdr =
       trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
@@ -510,8 +506,7 @@ static void trx_purge_truncate_rseg_history(
       flst_get_last(rseg_hdr + TRX_RSEG_HISTORY, &mtr));
 loop:
   if (hdr_addr.page == FIL_NULL) {
-    mutex_exit(&(rseg->mutex));
-
+    rseg->unlatch();
     mtr_commit(&mtr);
 
     return;
@@ -534,7 +529,7 @@ loop:
                               limit->undo_no);
     }
 
-    mutex_exit(&(rseg->mutex));
+    rseg->unlatch();
     mtr_commit(&mtr);
 
     return;
@@ -549,7 +544,7 @@ loop:
       (mach_read_from_2(log_hdr + TRX_UNDO_NEXT_LOG) == 0)) {
     /* We can free the whole log segment */
 
-    mutex_exit(&(rseg->mutex));
+    rseg->unlatch();
     mtr_commit(&mtr);
 
     /* calls the trx_purge_remove_log_hdr()
@@ -561,7 +556,7 @@ loop:
 
     trx_purge_remove_log_hdr(rseg_hdr, log_hdr, &mtr);
 
-    mutex_exit(&(rseg->mutex));
+    rseg->unlatch();
     mtr_commit(&mtr);
   }
 
@@ -571,7 +566,7 @@ loop:
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
-  mutex_enter(&(rseg->mutex));
+  rseg->latch();
 
   rseg_hdr =
       trx_rsegf_get(rseg->space_id, rseg->page_no, rseg->page_size, &mtr);
@@ -1229,7 +1224,7 @@ static bool trx_purge_check_if_marked_undo_is_empty(purge_iter_t *limit) {
   marked_rsegs->x_lock();
 
   for (auto rseg : *marked_rsegs) {
-    mutex_enter(&rseg->mutex);
+    rseg->latch();
 
     if (rseg->trx_ref_count > 0) {
       /* This rseg is still being held by an active transaction. */
@@ -1239,7 +1234,7 @@ static bool trx_purge_check_if_marked_undo_is_empty(purge_iter_t *limit) {
       all_free = false;
     }
 
-    mutex_exit(&rseg->mutex);
+    rseg->unlatch();
 
     if (!all_free) {
       break;
@@ -1531,8 +1526,17 @@ static void trx_purge_truncate_history(
   mutex_enter(&(undo::ddl_mutex));
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
+    /* Skip undo tablespace that is already empty and marked for truncation. */
+    undo::Truncate &ut = purge_sys->undo_trunc;
+
+    if (ut.is_equal(undo_space->id()) && ut.is_marked() &&
+        ut.is_marked_space_empty()) {
+      continue;
+    }
+
     /* Purge rollback segments in this undo tablespace. */
     undo_space->rsegs()->s_lock();
+
     for (auto rseg : *undo_space->rsegs()) {
       trx_purge_truncate_rseg_history(rseg, limit);
     }
@@ -1623,7 +1627,7 @@ static void trx_purge_rseg_get_next_history_log(
   ibool del_marks;
   mtr_t mtr;
 
-  mutex_enter(&(rseg->mutex));
+  rseg->latch();
 
   ut_a(rseg->last_page_no != FIL_NULL);
 
@@ -1651,8 +1655,8 @@ static void trx_purge_rseg_get_next_history_log(
 
     rseg->last_page_no = FIL_NULL;
 
-    mutex_exit(&(rseg->mutex));
     mtr_commit(&mtr);
+    rseg->unlatch();
 
 #ifdef UNIV_DEBUG
     trx_sys_mutex_enter();
@@ -1685,9 +1689,8 @@ static void trx_purge_rseg_get_next_history_log(
     return;
   }
 
-  mutex_exit(&rseg->mutex);
-
   mtr_commit(&mtr);
+  rseg->unlatch();
 
   /* Read the trx number and del marks from the previous log header */
   mtr_start(&mtr);
@@ -1703,7 +1706,7 @@ static void trx_purge_rseg_get_next_history_log(
 
   mtr_commit(&mtr);
 
-  mutex_enter(&(rseg->mutex));
+  rseg->latch();
 
   rseg->last_page_no = prev_log_addr.page;
   rseg->last_offset = prev_log_addr.boffset;
@@ -1724,7 +1727,7 @@ static void trx_purge_rseg_get_next_history_log(
 
   mutex_exit(&purge_sys->pq_mutex);
 
-  mutex_exit(&rseg->mutex);
+  rseg->unlatch();
 }
 
 /** Position the purge sys "iterator" on the undo record to use for purging.

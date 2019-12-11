@@ -1445,14 +1445,14 @@ static bool trx_write_serialisation_history(
 
   /* Get rollback segment mutex. */
   if (trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx)) {
-    mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
+    trx->rsegs.m_redo.rseg->latch();
     own_redo_rseg_mutex = true;
   }
 
   mtr_t temp_mtr;
 
   if (trx->rsegs.m_noredo.rseg != nullptr && trx_is_temp_rseg_updated(trx)) {
-    mutex_enter(&trx->rsegs.m_noredo.rseg->mutex);
+    trx->rsegs.m_noredo.rseg->latch();
     own_temp_rseg_mutex = true;
     mtr_start(&temp_mtr);
     temp_mtr.set_log_mode(MTR_LOG_NO_REDO);
@@ -1528,12 +1528,12 @@ static bool trx_write_serialisation_history(
   }
 
   if (own_redo_rseg_mutex) {
-    mutex_exit(&trx->rsegs.m_redo.rseg->mutex);
+    trx->rsegs.m_redo.rseg->unlatch();
     own_redo_rseg_mutex = false;
   }
 
   if (own_temp_rseg_mutex) {
-    mutex_exit(&trx->rsegs.m_noredo.rseg->mutex);
+    trx->rsegs.m_noredo.rseg->unlatch();
     own_temp_rseg_mutex = false;
     mtr_commit(&temp_mtr);
   }
@@ -2619,7 +2619,7 @@ static lsn_t trx_prepare_low(
     structure define the transaction as prepared in the file-based
     world, at the serialization point of lsn. */
 
-    mutex_enter(&rseg->mutex);
+    rseg->latch();
 
     if (undo_ptr->insert_undo != nullptr) {
       /* It is not necessary to obtain trx->undo_mutex here
@@ -2635,7 +2635,7 @@ static lsn_t trx_prepare_low(
       trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, false, &mtr);
     }
 
-    mutex_exit(&rseg->mutex);
+    rseg->unlatch();
 
     /*--------------*/
     /* This mtr commit makes the transaction prepared in

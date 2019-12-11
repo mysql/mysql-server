@@ -251,9 +251,9 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
 
   auto sum_of_undo_sizes = trx_undo_lists_init(rseg);
 
-  rseg->curr_size =
+  rseg->set_curr_size(
       mtr_read_ulint(rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, mtr) +
-      1 + sum_of_undo_sizes;
+      1 + sum_of_undo_sizes);
 
   auto len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
 
@@ -888,3 +888,58 @@ void trx_rseg_array_create(space_id_t space_id, mtr_t *mtr) {
   mlog_log_string(rsegs_header,
                   UNIV_PAGE_SIZE - RSEG_ARRAY_HEADER - FIL_PAGE_DATA_END, mtr);
 }
+
+#ifdef UNIV_DEBUG
+bool trx_rseg_t::validate_curr_size(bool take_mutex) {
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  if (take_mutex) {
+    mutex_enter(&mutex);
+  } else {
+    ut_ad(mutex_own(&mutex));
+  }
+
+  /* Obtain the rollback segment header. */
+  trx_rsegf_t *rseg_hdr = trx_rsegf_get(space_id, page_no, page_size, &mtr);
+
+  /* Number of file pages occupied by the logs in the history list */
+  ulint hist_size =
+      mtr_read_ulint(rseg_hdr + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr);
+
+  ulint sum_undo_size = 0;
+
+  for (ulint i = 0; i < TRX_RSEG_N_SLOTS; i++) {
+    /* Get the file page number of the nth undo log slot. */
+    page_no_t undo_page_no = trx_rsegf_get_nth_undo(rseg_hdr, i, &mtr);
+
+    if (undo_page_no == FIL_NULL) {
+      /* Skip the empty slot. */
+      continue;
+    }
+
+    /* Get the undo log page. */
+    page_t *undo_page =
+        trx_undo_page_get(page_id_t(space_id, undo_page_no), page_size, &mtr);
+
+    /* Obtain the undo log segment header. */
+    trx_usegf_t *seg_header = undo_page + TRX_UNDO_SEG_HDR;
+
+    /* Get the number of pages in the undo log segment. */
+    ulint undo_size = flst_get_len(seg_header + TRX_UNDO_PAGE_LIST);
+
+    sum_undo_size += undo_size;
+  }
+
+  if (take_mutex) {
+    mutex_exit(&mutex);
+  }
+  mtr_commit(&mtr);
+
+  ulint total_size = sum_undo_size + hist_size + 1;
+
+  ut_ad(total_size == curr_size);
+
+  return (total_size == curr_size);
+}
+#endif /* UNIV_DEBUG */
