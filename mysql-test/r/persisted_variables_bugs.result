@@ -429,6 +429,7 @@ DROP USER 'bug28749668'@'%';
 #
 # config file is in wrong json format
 # server should fail to start
+include/assert_grep.inc [Server should fail to start as mysqld-auto.cnf file is with wrong JSON format.]
 # start server with all defaults
 # restart:
 # End of the 8.0 tests
