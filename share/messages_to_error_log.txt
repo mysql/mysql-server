@@ -10776,6 +10776,9 @@ ER_IB_MSG_DBLWR_1325
 ER_IB_MSG_DBLWR_1326
   eng "%s"
 
+ER_IB_MSG_DBLWR_1327
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

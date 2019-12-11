@@ -1170,11 +1170,10 @@ bool Double_write::init_v1(page_no_t &page_no1, page_no_t &page_no2) noexcept {
     page_no1 = mach_read_from_4(doublewrite + DBLWR_V1_BLOCK1);
     page_no2 = mach_read_from_4(doublewrite + DBLWR_V1_BLOCK2);
 
-    ib::info() << "DBLWR_V1: " << page_no1 << ", " << page_no2;
-
     init = true;
   } else {
-    ib::warn() << "Legacy double write doesn't exist in the system tablespace!";
+    ib::warn(ER_IB_MSG_DBLWR_1327)
+        << "Legacy double write doesn't exist in the system tablespace!";
     init = false;
   }
 
