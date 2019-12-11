@@ -44,6 +44,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "log0log.h"
 #include "my_dbug.h"
 #include "my_io.h"
+
+#include "fil0fil.h"
+#include "ha_prototypes.h"
+#include "os0file.h"
 #include "sql_const.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -270,6 +274,7 @@ the completed IO request and calls completion routine on it.
 mysql_pfs_key_t innodb_log_file_key;
 mysql_pfs_key_t innodb_data_file_key;
 mysql_pfs_key_t innodb_temp_file_key;
+mysql_pfs_key_t innodb_dblwr_file_key;
 mysql_pfs_key_t innodb_arch_file_key;
 mysql_pfs_key_t innodb_clone_file_key;
 #endif /* UNIV_PFS_IO */
@@ -277,6 +282,8 @@ mysql_pfs_key_t innodb_clone_file_key;
 #endif /* !UNIV_HOTBACKUP */
 /** The asynchronous I/O context */
 struct Slot {
+  /** Default constructor/assignment etc. are OK */
+
   /** index of the slot in the aio array */
   uint16_t pos{0};
 
@@ -427,7 +434,9 @@ class AIO {
 
   /** Non const version */
   Slot *at(ulint i) MY_ATTRIBUTE((warn_unused_result)) {
-    ut_a(i < m_slots.size());
+    if (i >= m_slots.size()) {
+      ib::fatal() << "i: " << i << " slots: " << m_slots.size();
+    }
 
     return (&m_slots[i]);
   }
@@ -547,9 +556,7 @@ class AIO {
 
   /** The non asynchronous IO array.
   @return the synchronous AIO array instance. */
-  static AIO *sync_array() MY_ATTRIBUTE((warn_unused_result)) {
-    return (s_sync);
-  }
+  static AIO *sync_array() MY_ATTRIBUTE((warn_unused_result)) { return s_sync; }
 
   /**
   Get the AIO handles for a segment.
@@ -603,7 +610,7 @@ class AIO {
   @param[out]	array		AIO wait array
   @param[in]	segment		global segment number
   @return local segment number within the aio array */
-  static ulint get_array_and_local_segment(AIO **array, ulint segment)
+  static ulint get_array_and_local_segment(AIO *&array, ulint segment)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Select the IO slot array
@@ -1501,38 +1508,40 @@ static int os_file_lock(int fd, const char *name) {
 @param[out]	array		aio wait array
 @param[in]	segment		global segment number
 @return local segment number within the aio array */
-ulint AIO::get_array_and_local_segment(AIO **array, ulint segment) {
-  ulint local_segment;
-  ulint n_extra_segs = (srv_read_only_mode) ? 0 : 2;
+ulint AIO::get_array_and_local_segment(AIO *&array, ulint segment) {
+  ulint limit = srv_read_only_mode ? 0 : 2;
 
   ut_a(segment < os_aio_n_segments);
 
-  if (!srv_read_only_mode && segment < n_extra_segs) {
+  if (!srv_read_only_mode && segment < limit) {
     /* We don't support ibuf/log IO during read only mode. */
 
     if (segment == IO_IBUF_SEGMENT) {
-      *array = s_ibuf;
+      array = s_ibuf;
 
     } else if (segment == IO_LOG_SEGMENT) {
-      *array = s_log;
+      array = s_log;
 
     } else {
-      *array = NULL;
+      array = nullptr;
     }
 
-    local_segment = 0;
-
-  } else if (segment < s_reads->m_n_segments + n_extra_segs) {
-    *array = s_reads;
-    local_segment = segment - n_extra_segs;
-
-  } else {
-    *array = s_writes;
-
-    local_segment = segment - (s_reads->m_n_segments + n_extra_segs);
+    return 0;
   }
 
-  return (local_segment);
+  if (segment < s_reads->m_n_segments + limit) {
+    array = s_reads;
+
+    return segment - limit;
+  }
+
+  limit += s_reads->m_n_segments;
+
+  ut_a(segment < s_writes->m_n_segments + limit);
+
+  array = s_writes;
+
+  return segment - limit;
 }
 
 /** Frees a slot in the aio array. Assumes caller owns the mutex.
@@ -1659,9 +1668,9 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
     Encryption encryption(type.encryption_algorithm());
 
     ret = encryption.decrypt(type, buf, src_len, scratch, len);
+
     if (ret == DB_SUCCESS) {
-      return (
-          os_file_decompress_page(type.is_dblwr_recover(), buf, scratch, len));
+      return (os_file_decompress_page(type.is_dblwr(), buf, scratch, len));
     } else {
       return (ret);
     }
@@ -2086,7 +2095,7 @@ class LinuxAIOHandler {
 
     /* Find the array and the local segment. */
 
-    m_segment = AIO::get_array_and_local_segment(&m_array, m_global_segment);
+    m_segment = AIO::get_array_and_local_segment(m_array, m_global_segment);
 
     m_n_slots = m_array->slots_per_segment();
   }
@@ -2283,7 +2292,6 @@ The io-thread also exits in this function. It checks server status at
 each wakeup and that is why we use timed wait in io_getevents(). */
 void LinuxAIOHandler::collect() {
   ut_ad(m_n_slots > 0);
-  ut_ad(m_array != NULL);
   ut_ad(m_segment < m_array->get_n_segments());
 
   /* Which io_context we are going to use. */
@@ -2311,17 +2319,13 @@ void LinuxAIOHandler::collect() {
     timeout.tv_sec = 0;
     timeout.tv_nsec = OS_AIO_REAP_TIMEOUT;
 
-    int ret;
-
-    ret = io_getevents(io_ctx, 1, m_n_slots, events, &timeout);
+    auto ret = io_getevents(io_ctx, 1, m_n_slots, events, &timeout);
 
     for (int i = 0; i < ret; ++i) {
-      struct iocb *iocb;
+      auto iocb = reinterpret_cast<struct iocb *>(events[i].obj);
+      ut_a(iocb != nullptr);
 
-      iocb = reinterpret_cast<struct iocb *>(events[i].obj);
-      ut_a(iocb != NULL);
-
-      Slot *slot = reinterpret_cast<Slot *>(iocb->data);
+      auto slot = reinterpret_cast<Slot *>(iocb->data);
 
       /* Some sanity checks. */
       ut_a(slot != NULL);
@@ -2333,12 +2337,10 @@ void LinuxAIOHandler::collect() {
       /* We have not overstepped to next segment. */
       ut_a(slot->pos < end_pos);
 
-      /* We never compress/decompress the first page */
-
       if (slot->offset > 0 && !slot->skip_punch_hole &&
           slot->type.is_compression_enabled() && !slot->type.is_log() &&
           slot->type.is_write() && slot->type.is_compressed() &&
-          slot->type.punch_hole()) {
+          slot->type.punch_hole() && !slot->type.is_dblwr()) {
         slot->err = AIOHandler::io_complete(slot);
       } else {
         slot->err = DB_SUCCESS;
@@ -2352,7 +2354,7 @@ void LinuxAIOHandler::collect() {
       ut_ad(events[i].res2 == 0);
       slot->io_already_done = true;
 
-      /*Even though events[i].res is an unsigned number in libaio, it is
+      /* Even though events[i].res is an unsigned number in libaio, it is
       used to return a negative value (negated errno value) to indicate
       error and a positive value to indicate number of bytes read or
       written. */
@@ -2510,8 +2512,10 @@ static dberr_t os_aio_linux_handler(ulint global_segment, fil_node_t **m1,
   dberr_t err = handler.poll(m1, m2, request);
 
   if (err == DB_IO_NO_PUNCH_HOLE) {
-    fil_no_punch_hole(*m1);
-    err = DB_SUCCESS;
+    if (!request->is_dblwr()) {
+      fil_no_punch_hole(*m1);
+      err = DB_SUCCESS;
+    }
   }
 
   return (err);
@@ -3111,23 +3115,6 @@ bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_create(), not directly
-this function!
-Opens an existing file or creates a new.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use async
-                                I/O or unbuffered I/O: look in the function
-                                source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
-@param[in]	read_only	true, if read only checks should be enforcedm
-@param[in]	success		true if succeeded
-@return handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
 pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
                                   ulint purpose, ulint type, bool read_only,
                                   bool *success) {
@@ -3191,7 +3178,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     return (file);
   }
 
-  ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE ||
+  ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE || type == OS_DBLWR_FILE ||
        type == OS_CLONE_DATA_FILE || type == OS_CLONE_LOG_FILE ||
        type == OS_BUFFERED_FILE || type == OS_REDO_LOG_ARCHIVE_FILE);
 
@@ -3237,7 +3224,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   need to set O_DIRECT even for read_only mode. */
 
   if ((!read_only || type == OS_CLONE_DATA_FILE) && *success &&
-      (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE) &&
+      (type == OS_DATA_FILE || type == OS_CLONE_DATA_FILE ||
+       type == OS_DBLWR_FILE) &&
       (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT ||
        srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
     os_file_set_nocache(file.m_file, name, mode_str);
@@ -3703,6 +3691,9 @@ ssize_t SyncFileIO::execute(const IORequest &request) {
     ret = WriteFile(m_fh, m_buf, static_cast<DWORD>(m_n), &n_bytes, &seek);
   }
 
+  /* Sync IO can't be done on a file opened in AIO mode. */
+  // ut_a(GetLastError() != ERROR_IO_PENDING);
+
   return (ret ? static_cast<ssize_t>(n_bytes) : -1);
 }
 
@@ -3720,6 +3711,9 @@ ssize_t SyncFileIO::execute(Slot *slot) {
     ret = WriteFile(slot->file.m_file, slot->ptr, slot->len, &slot->n_bytes,
                     &slot->control);
   }
+
+  /* Sync IO can't be done on a file opened in AIO mode. */
+  // ut_a(GetLastError() != ERROR_IO_PENDING);
 
   return (ret ? static_cast<ssize_t>(slot->n_bytes) : -1);
 }
@@ -4138,22 +4132,6 @@ bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
   return (true);
 }
 
-/** NOTE! Use the corresponding macro os_file_create(), not directly
-this function!
-Opens an existing file or creates a new.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	create_mode	create mode
-@param[in]	purpose		OS_FILE_AIO, if asynchronous, non-buffered I/O
-                                is desired, OS_FILE_NORMAL, if any normal file;
-                                NOTE that it also depends on type, os_aio_..
-                                and srv_.. variables whether we really use async
-                                I/O or unbuffered I/O: look in the function
-                                source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
-@param[in]	success		true if succeeded
-@return handle to the file, not defined if error, error number
-        can be retrieved with os_file_get_last_error */
 pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
                                   ulint purpose, ulint type, bool read_only,
                                   bool *success) {
@@ -4230,8 +4208,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 #ifdef UNIV_HOTBACKUP
   attributes |= FILE_FLAG_NO_BUFFERING;
 #else /* UNIV_HOTBACKUP */
-  if (purpose == OS_FILE_AIO) {
 
+  if (purpose == OS_FILE_AIO) {
 #ifdef WIN_ASYNC_IO
     /* If specified, use asynchronous (overlapped) io and no
     buffering of writes in the OS */
@@ -4255,8 +4233,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 #ifdef UNIV_NON_BUFFERED_IO
   // TODO: Create a bug, this looks wrong. The flush log
   // parameter is dynamic.
-  if ((type == OS_BUFFERED_FILE) || (type == OS_CLONE_LOG_FILE) ||
-      (type == OS_LOG_FILE)) {
+  if (type == OS_BUFFERED_FILE || type == OS_CLONE_LOG_FILE ||
+      type == OS_LOG_FILE) {
     /* Do not use unbuffered i/o for the log files because
     we write really a lot and we have log flusher for fsyncs. */
 
@@ -4811,9 +4789,9 @@ void AIO::simulated_put_read_threads_to_sleep() {
   os_aio_recommend_sleep_for_read_threads = true;
 
   for (ulint i = 0; i < os_aio_n_segments; i++) {
-    AIO *array;
+    AIO *array{};
 
-    get_array_and_local_segment(&array, i);
+    get_array_and_local_segment(array, i);
 
     if (array == s_reads) {
       os_event_reset(os_aio_segment_wait_events[i]);
@@ -5914,7 +5892,57 @@ dberr_t os_file_get_status(const char *path, os_file_stat_t *stat_info,
   return (ret);
 }
 
-/** Waits for an AIO operation to complete. This function is used to wait
+/** Fill the pages with NULs
+@param[in] file		File handle
+@param[in] name		File name
+@param[in] page_size	physical page size
+@param[in] start	Offset from the start of the file in bytes
+@param[in] len		Length in bytes
+@param[in] read_only_mode
+                        if true, then read only mode checks are enforced.
+@return DB_SUCCESS or error code */
+dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
+                            ulint page_size, os_offset_t start, ulint len,
+                            bool read_only_mode) {
+  ut_a(len > 0);
+
+  /* Extend at most 1M at a time */
+  ulint n_bytes = ut_min(static_cast<ulint>(1024 * 1024), len);
+
+  byte *ptr = reinterpret_cast<byte *>(ut_zalloc_nokey(n_bytes + page_size));
+
+  byte *buf = reinterpret_cast<byte *>(ut_align(ptr, page_size));
+
+  os_offset_t offset = start;
+  dberr_t err = DB_SUCCESS;
+  const os_offset_t end = start + len;
+  IORequest request(IORequest::WRITE);
+
+  while (offset < end) {
+#ifdef UNIV_HOTBACKUP
+    err = os_file_write(request, name, file, buf, offset, n_bytes);
+#else
+    err = os_aio(request, AIO_mode::SYNC, name, file, buf, offset, n_bytes,
+                 read_only_mode, NULL, NULL);
+#endif /* UNIV_HOTBACKUP */
+
+    if (err != DB_SUCCESS) {
+      break;
+    }
+
+    offset += n_bytes;
+
+    n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
+
+    DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
+  }
+
+  ut_free(ptr);
+
+  return (err);
+}
+
+/** Waits for an AIO operation to complete. This function is used to wait the
 for completed requests. The aio array of pending requests is divided
 into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
@@ -5948,7 +5976,6 @@ dberr_t os_aio_handler(ulint segment, fil_node_t **m1, void **m2,
 #elif defined(LINUX_NATIVE_AIO)
 
     err = os_aio_linux_handler(segment, m1, m2, request);
-
 #else
     ut_error;
 
@@ -6097,6 +6124,8 @@ failure will result in server refusing to start up.
 @param[in]	n_segments	number of segments in the AIO array
 @return own: AIO array, NULL on failure */
 AIO *AIO::create(latch_id_t id, ulint n, ulint n_segments) {
+  ut_a(n_segments > 0);
+
   if ((n % n_segments)) {
     ib::error(ER_IB_MSG_828) << "Maximum number of AIO operations must be "
                              << "divisible by number of segments";
@@ -6170,8 +6199,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   s_reads =
       create(LATCH_ID_OS_AIO_READ_MUTEX, n_readers * n_per_seg, n_readers);
 
-  if (s_reads == NULL) {
-    return (false);
+  if (s_reads == nullptr) {
+    return false;
   }
 
   ulint start = srv_read_only_mode ? 0 : 2;
@@ -6190,8 +6219,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   if (!srv_read_only_mode) {
     s_ibuf = create(LATCH_ID_OS_AIO_IBUF_MUTEX, n_per_seg, 1);
 
-    if (s_ibuf == NULL) {
-      return (false);
+    if (s_ibuf == nullptr) {
+      return false;
     }
 
     ++n_segments;
@@ -6202,8 +6231,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
     s_log = create(LATCH_ID_OS_AIO_LOG_MUTEX, n_per_seg, 1);
 
-    if (s_log == NULL) {
-      return (false);
+    if (s_log == nullptr) {
+      return false;
     }
 
     ++n_segments;
@@ -6219,8 +6248,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   s_writes =
       create(LATCH_ID_OS_AIO_WRITE_MUTEX, n_writers * n_per_seg, n_writers);
 
-  if (s_writes == NULL) {
-    return (false);
+  if (s_writes == nullptr) {
+    return false;
   }
 
   n_segments += n_writers;
@@ -6236,8 +6265,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
   s_sync = create(LATCH_ID_OS_AIO_SYNC_MUTEX, n_slots_sync, 1);
 
-  if (s_sync == NULL) {
-    return (false);
+  if (s_sync == nullptr) {
+    return false;
   }
 
   os_aio_n_segments = n_segments;
@@ -6247,8 +6276,8 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
   os_aio_segment_wait_events = static_cast<os_event_t *>(
       ut_zalloc_nokey(n_segments * sizeof *os_aio_segment_wait_events));
 
-  if (os_aio_segment_wait_events == NULL) {
-    return (false);
+  if (os_aio_segment_wait_events == nullptr) {
+    return false;
   }
 
   for (ulint i = 0; i < n_segments; ++i) {
@@ -6257,7 +6286,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 
   os_last_printout = ut_time_monotonic();
 
-  return (true);
+  return true;
 }
 
 /** Free the AIO arrays */
@@ -6418,7 +6447,8 @@ segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of slots in the sync aio array */
+@param[in]	n_slots_sync	number of slots in the sync aio array
+@param[in]	n_slots_sync	number of dblwr slots in the sync aio array */
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
   /* Maximum number of pending aio operations allowed per segment */
   ulint limit = 8 * OS_AIO_N_PENDING_IOS_PER_THREAD;
@@ -6528,7 +6558,6 @@ ulint AIO::get_segment_no_from_slot(const AIO *array, const Slot *slot) {
     segment = s_reads->m_n_segments + (srv_read_only_mode ? 0 : 2) +
               slot->pos / seg_len;
   }
-
   return (segment);
 }
 
@@ -6555,18 +6584,14 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 #endif /* WIN_ASYNC_IO */
 
   /* No need of a mutex. Only reading constant fields */
-  ulint slots_per_seg;
-
   ut_ad(type.validate());
 
-  slots_per_seg = slots_per_segment();
+  const auto slots_per_seg = slots_per_segment();
 
   /* We attempt to keep adjacent blocks in the same local
   segment. This can help in merging IO requests when we are
   doing simulated AIO */
-  ulint local_seg;
-
-  local_seg = (offset >> (UNIV_PAGE_SIZE_SHIFT + 6)) % m_n_segments;
+  ulint local_seg = (offset >> (UNIV_PAGE_SIZE_SHIFT + 6)) % m_n_segments;
 
   for (;;) {
     acquire();
@@ -6739,7 +6764,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
     ut_a(sizeof(aio_offset) >= sizeof(offset) ||
          ((os_offset_t)aio_offset) == offset);
 
-    struct iocb *iocb = &slot->control;
+    auto iocb = &slot->control;
 
     if (type.is_read()) {
       io_prep_pread(iocb, file.m_file, slot->ptr, slot->len, aio_offset);
@@ -6765,8 +6790,9 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
 void AIO::wake_simulated_handler_thread(ulint global_segment) {
   ut_ad(!srv_use_native_aio);
 
-  AIO *array;
-  ulint segment = get_array_and_local_segment(&array, global_segment);
+  AIO *array{};
+
+  auto segment = get_array_and_local_segment(array, global_segment);
 
   array->wake_simulated_handler_thread(global_segment, segment);
 }
@@ -6793,11 +6819,7 @@ void AIO::wake_simulated_handler_thread(ulint global_segment, ulint segment) {
 
       release();
 
-      os_event_t event;
-
-      event = os_aio_segment_wait_events[global_segment];
-
-      os_event_set(event);
+      os_event_set(os_aio_segment_wait_events[global_segment]);
 
       return;
     }
@@ -6816,7 +6838,7 @@ void os_aio_simulated_wake_handler_threads() {
 
   os_aio_recommend_sleep_for_read_threads = false;
 
-  for (ulint i = 0; i < os_aio_n_segments; i++) {
+  for (ulint i = 0; i < os_aio_n_segments; ++i) {
     AIO::wake_simulated_handler_thread(i);
   }
 }
@@ -6834,7 +6856,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
   switch (aio_mode) {
     case AIO_mode::NORMAL:
-
       array = type.is_read() ? AIO::s_reads : AIO::s_writes;
       break;
 
@@ -6850,7 +6871,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
       break;
 
     case AIO_mode::LOG:
-
       array = read_only ? AIO::s_reads : AIO::s_log;
       break;
 
@@ -6898,14 +6918,14 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
                                       void **m2, IORequest *type) {
   Slot *slot;
   dberr_t err;
-  AIO *array;
+  AIO *array{};
   ulint orig_seg = segment;
 
   if (segment == ULINT_UNDEFINED) {
     segment = 0;
     array = AIO::sync_array();
   } else {
-    segment = AIO::get_array_and_local_segment(&array, segment);
+    segment = AIO::get_array_and_local_segment(array, segment);
   }
 
   /* NOTE! We only access constant fields in os_aio_array. Therefore
@@ -7031,25 +7051,6 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 }
 #endif /* WIN_ASYNC_IO */
 
-/**
-NOTE! Use the corresponding macro os_aio(), not directly this function!
-Requests an asynchronous i/o operation.
-@param[in]	type		IO request context
-@param[in]	aio_mode	IO mode
-@param[in]	name		Name of the file or path as NUL terminated
-                                string
-@param[in]	file		Open file handle
-@param[out]	buf		buffer where to read
-@param[in]	offset		file offset where to read
-@param[in]	n		number of bytes to read
-@param[in]	read_only	if true read only mode checks are enforced
-@param[in,out]	m1		Message for the AIO handler, (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is AIO_mode::SYNC
-@param[in,out]	m2		message for the AIO handler (can be used to
-                                identify a completed AIO operation); ignored
-                                if mode is AIO_mode::SYNC
-@return DB_SUCCESS or error code */
 dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
                     pfs_os_file_t file, void *buf, os_offset_t offset, ulint n,
                     bool read_only, fil_node_t *m1, void *m2) {
@@ -7096,13 +7097,9 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
 
 try_again:
 
-  AIO *array;
+  auto array = AIO::select_slot_array(type, read_only, aio_mode);
 
-  array = AIO::select_slot_array(type, read_only, aio_mode);
-
-  Slot *slot;
-
-  slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
+  auto slot = array->reserve_slot(type, m1, m2, file, name, buf, offset, n);
 
   if (type.is_read()) {
     if (srv_use_native_aio) {
@@ -7149,9 +7146,9 @@ try_again:
       /* AIO was queued successfully! */
 
       if (aio_mode == AIO_mode::SYNC) {
-        IORequest dummy_type;
         void *dummy_mess2;
-        struct fil_node_t *dummy_mess1;
+        IORequest dummy_type;
+        fil_node_t *dummy_mess1;
 
         /* We want a synchronous i/o operation on a
         file where we also use async i/o: in Windows
@@ -7554,11 +7551,10 @@ thread.
 static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
                                         void **m2, IORequest *type) {
   Slot *slot;
-  AIO *array;
-  ulint segment;
+  AIO *array{};
   os_event_t event = os_aio_segment_wait_events[global_segment];
 
-  segment = AIO::get_array_and_local_segment(&array, global_segment);
+  auto segment = AIO::get_array_and_local_segment(array, global_segment);
 
   SimulatedAIOHandler handler(array, segment);
 

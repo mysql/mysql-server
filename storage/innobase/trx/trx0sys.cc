@@ -562,9 +562,6 @@ void trx_sys_close(void) {
 
   trx_purge_sys_close();
 
-  /* Free the double write data structures. */
-  buf_dblwr_free();
-
   /* Only prepared transactions may be left in the system. Free them. */
   ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
 

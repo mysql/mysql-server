@@ -1,0 +1,1 @@
+ --innodb_doublewrite_dir=$MYSQLTEST_VARDIR/mysqld.2/data/"##%DBWL-DIR"

@@ -10662,6 +10662,120 @@ ER_RPL_RELAY_LOG_RECOVERY_INFO_AFTER_CLONE
 ER_IB_MSG_57_UNDO_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 undo tablespace: %s during upgrade"
 
+ER_IB_MSG_DBLWR_1285
+  eng "Empty doublewrite file: %s"
+
+ER_IB_MSG_DBLWR_1286
+  eng "Using '%s' for doublewrite"
+
+ER_IB_MSG_DBLWR_1287
+  eng  "Error reading doublewrite buffer from the system tablespace"
+
+ER_IB_MSG_DBLWR_1288
+  eng "Cannot create doublewrite buffer: you must increase your buffer pool size. Cannot continue operation."
+
+ER_IB_MSG_DBLWR_1290
+  eng "The page in the doublewrite file is corrupt. Cannot continue operation. You can try to recover the database with innodb_force_recovery=6"
+
+ER_IB_MSG_DBLWR_1291
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1292
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1293
+  eng "Doublewrite file create failed: %s"
+
+ER_IB_MSG_DBLWR_1294
+  eng "DBLWRThread: pthread_setaffinity() failed!"
+
+ER_IB_MSG_DBLWR_1295
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1296
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1297
+  eng "Doublewrite file read failed: %s"
+
+ER_IB_MSG_DBLWR_1298
+  eng "Dump of the data file page:"
+
+ER_IB_MSG_DBLWR_1300
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1301
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1304
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1305
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1306
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1307
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1308
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1309
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1310
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1311
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1312
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1313
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1314
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1315
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1316
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1317
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1318
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1319
+  eng "Doublewrite load file %s size %lu is not a multiple of the configured page size %lu""
+
+ER_IB_MSG_DBLWR_1320
+  eng "Doublewrite file %s truncate failed"
+
+ER_IB_MSG_DBLWR_1321
+  eng "Doublewrite file %s failed to writ zeros"
+
+ER_IB_MSG_DBLWR_1322
+  eng "Doublewrite create file %s size %lu is not a multiple of the configured page size %lu""
+
+ER_IB_MSG_DBLWR_1323
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1324
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1325
+  eng "%s"
+
+ER_IB_MSG_DBLWR_1326
+  eng "%s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

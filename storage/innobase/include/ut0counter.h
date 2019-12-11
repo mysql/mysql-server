@@ -248,29 +248,53 @@ using Shards = std::array<Shard, COUNT>;
 
 using Function = std::function<void(const Type)>;
 
-/** Increment the counter of a shard by 1.
-@param[in,out]  shards          Sharded counter to increment.
-@param[in] id                   Shard key. */
-template <size_t COUNT>
-inline void inc(Shards<COUNT> &shards, size_t id) {
-  shards[id % shards.size()].m_n.fetch_add(1, std::memory_order_relaxed);
-}
+constexpr auto Memory_order = std::memory_order_relaxed;
 
 /** Increment the counter for a shard by n.
 @param[in,out]  shards          Sharded counter to increment.
 @param[in] id                   Shard key.
-@param[in] n                    Number to add. */
+@param[in] n                    Number to add.
+@return previous value. */
 template <size_t COUNT>
-inline void add(Shards<COUNT> &shards, size_t id, size_t n) {
-  shards[id % shards.size()].m_n.fetch_add(n, std::memory_order_relaxed);
+inline Type add(Shards<COUNT> &shards, size_t id, size_t n) {
+  return (shards[id % shards.size()].m_n.fetch_add(n, Memory_order));
+}
+
+/** Decrement the counter for a shard by n.
+@param[in,out]  shards          Sharded counter to increment.
+@param[in] id                   Shard key.
+@param[in] n                    Number to add.
+@return previous value. */
+template <size_t COUNT>
+inline Type sub(Shards<COUNT> &shards, size_t id, size_t n) {
+  return (shards[id % shards.size()].m_n.fetch_sub(n, Memory_order));
+}
+
+/** Increment the counter of a shard by 1.
+@param[in,out]  shards          Sharded counter to increment.
+@param[in] id                   Shard key.
+@return previous value. */
+template <size_t COUNT>
+inline Type inc(Shards<COUNT> &shards, size_t id) {
+  return (add(shards, id, 1));
+}
+
+/** Decrement the counter of a shard by 1.
+@param[in,out]  shards          Sharded counter to decrement.
+@param[in] id                   Shard key.
+@return previous value. */
+template <size_t COUNT>
+inline Type dec(Shards<COUNT> &shards, size_t id) {
+  return (sub(shards, id, 1));
 }
 
 /** Get the counter value for a shard.
 @param[in,out]  shards          Sharded counter to increment.
-@param[in] id                   Shard key. */
+@param[in] id                   Shard key.
+@return current value. */
 template <size_t COUNT>
 inline Type get(const Shards<COUNT> &shards, size_t id) {
-  return (shards[id % shards.size()].m_n.load(std::memory_order_relaxed));
+  return (shards[id % shards.size()].m_n.load(Memory_order));
 }
 
 /** Iterate over the shards.
@@ -301,7 +325,7 @@ inline Type total(const Shards<COUNT> &shards) {
 template <size_t COUNT>
 inline void clear(Shards<COUNT> &shards) {
   for (auto &shard : shards) {
-    shard.m_n.store(0, std::memory_order_relaxed);
+    shard.m_n.store(0, Memory_order);
   }
 }
 

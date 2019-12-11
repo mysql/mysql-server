@@ -276,3 +276,7 @@ let SEARCH_PATTERN= mysqld.*: Error while setting value '$other_page_size_ncaram
 #-----------------------------------------
 --remove_file $error_log
 --source include/start_mysqld.inc
+
+call mtr.add_suppression("Ignoring ib_4096_0.dblwr - page size doesn't match");
+
+

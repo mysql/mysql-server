@@ -485,6 +485,20 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
+    case DB_V1_DBLWR_INIT_FAILED:
+      return (
+          "Failed to initialize the doublewrite extents "
+          "in the system tablespace");
+    case DB_V1_DBLWR_CREATE_FAILED:
+      return (
+          "Failed to create the doublewrite extents "
+          "in the system tablespace");
+    case DB_DBLWR_INIT_FAILED:
+      return ("Failed to create a doublewrite instance");
+    case DB_DBLWR_NOT_EXISTS:
+      return (
+          "Failed to find a doublewrite buffer "
+          "in the system tablespace");
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
     case DB_ABORT_INCOMPLETE_CLONE:

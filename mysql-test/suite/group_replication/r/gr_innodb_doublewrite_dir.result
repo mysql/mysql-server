@@ -1,0 +1,92 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+[connection server2]
+include/start_group_replication.inc
+include/rpl_gr_wait_for_number_of_members.inc
+
+[connection server3]
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_DOUBELWRITE";
+[connection server1]
+CREATE TABLE test.tab ( c1 int primary key, c2 TEXT);
+INSERT INTO test.tab VALUES(1, 'Test wl#5655');
+SELECT @@innodb_doublewrite_dir;
+@@innodb_doublewrite_dir
+NULL
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+1
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+1
+SELECT @@innodb_doublewrite_batch_size;
+@@innodb_doublewrite_batch_size
+1
+include/rpl_sync.inc
+
+[connection server3]
+START GROUP_REPLICATION;
+
+[connection server2]
+SELECT @@innodb_doublewrite_dir;
+@@innodb_doublewrite_dir
+NULL
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+2
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+2
+SELECT @@innodb_doublewrite_batch_size;
+@@innodb_doublewrite_batch_size
+10
+
+#Validating the records in server3#
+[connection server3]
+SELECT * FROM test.tab;
+c1	c2
+1	Test wl#5655
+SELECT @@innodb_doublewrite_dir;
+@@innodb_doublewrite_dir
+NULL
+SELECT @@innodb_doublewrite_files;
+@@innodb_doublewrite_files
+0
+SELECT @@innodb_doublewrite_pages;
+@@innodb_doublewrite_pages
+0
+SELECT @@innodb_doublewrite_batch_size;
+@@innodb_doublewrite_batch_size
+0
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+ERROR HY000: Variable 'innodb_doublewrite_dir' is a read only variable
+SET GLOBAL innodb_doublewrite_files=1;
+ERROR HY000: Variable 'innodb_doublewrite_files' is a read only variable
+SET GLOBAL innodb_doublewrite_pages=10;
+ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
+SET GLOBAL innodb_doublewrite_batch_size=1;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+include/rpl_sync.inc
+
+#Validating the records in server2#
+[connection server2]
+SELECT * FROM test.tab;
+c1	c2
+1	Test wl#5655
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+ERROR HY000: Variable 'innodb_doublewrite_dir' is a read only variable
+SET GLOBAL innodb_doublewrite_files=1;
+ERROR HY000: Variable 'innodb_doublewrite_files' is a read only variable
+SET GLOBAL innodb_doublewrite_pages=10;
+ERROR HY000: Variable 'innodb_doublewrite_pages' is a read only variable
+SET GLOBAL innodb_doublewrite_batch_size=1;
+ERROR HY000: Variable 'innodb_doublewrite_batch_size' is a read only variable
+
+DROP TABLE test.tab;
+include/group_replication_end.inc

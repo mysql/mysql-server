@@ -1159,7 +1159,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     }
 
     default:
-      if (!type.is_dblwr_recover()) {
+      if (!type.is_dblwr()) {
         ib::error(ER_IB_MSG_849)
             << "Encryption algorithm support missing: " << to_string(m_type);
       }

@@ -1,5 +1,6 @@
 --disable_query_log
 call mtr.add_suppression('Error in Log_event::read_log_event()');
+call mtr.add_suppression("Ignoring ib_.*_0.dblwr - page size doesn't match");
 --enable_query_log
 
 # setup db and table

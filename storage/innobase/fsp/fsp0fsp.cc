@@ -35,9 +35,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 #include "ha_prototypes.h"
 #include "mtr0log.h"
-#include "my_compiler.h"
+
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #include "page0page.h"
 #include "page0zip.h"
 #include "ut0byte.h"
@@ -699,6 +699,7 @@ updating an allocation bitmap page.
 @param[in]	id	tablespace identifier
 @param[in]	mtr	mini-transaction */
 static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
+  ut_ad(mtr);
   switch (mtr->get_log_mode()) {
     case MTR_LOG_SHORT_INSERTS:
     case MTR_LOG_NONE:
@@ -2229,7 +2230,6 @@ buf_block_t *fseg_create_general(
 
   DBUG_TRACE;
 
-  ut_ad(mtr);
   ut_ad(byte_offset + FSEG_HEADER_SIZE <= UNIV_PAGE_SIZE - FIL_PAGE_DATA_END);
   ut_d(fsp_space_modify_check(space_id, mtr));
 

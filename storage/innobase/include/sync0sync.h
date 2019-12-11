@@ -150,7 +150,6 @@ extern mysql_pfs_key_t srv_monitor_file_mutex_key;
 #ifdef UNIV_DEBUG
 extern mysql_pfs_key_t sync_thread_mutex_key;
 #endif /* UNIV_DEBUG */
-extern mysql_pfs_key_t buf_dblwr_mutex_key;
 extern mysql_pfs_key_t trx_undo_mutex_key;
 extern mysql_pfs_key_t trx_mutex_key;
 extern mysql_pfs_key_t trx_pool_mutex_key;
@@ -174,6 +173,7 @@ extern mysql_pfs_key_t clone_sys_mutex_key;
 extern mysql_pfs_key_t clone_task_mutex_key;
 extern mysql_pfs_key_t clone_snapshot_mutex_key;
 extern mysql_pfs_key_t parallel_read_mutex_key;
+extern mysql_pfs_key_t dblwr_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK

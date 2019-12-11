@@ -44,7 +44,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0recv.h"
 #include "mtr0mtr.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
 #include "os0file.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -67,9 +67,10 @@ ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   *err = DB_SUCCESS;
 
   if (page_id.space() == TRX_SYS_SPACE &&
-      buf_dblwr_page_inside(page_id.page_no())) {
+      dblwr::v1::is_inside(page_id.page_no())) {
     ib::error(ER_IB_MSG_139)
-        << "Trying to read doublewrite buffer page " << page_id;
+        << "Trying to read legacy doublewrite buffer page " << page_id;
+
     return (0);
   }
 

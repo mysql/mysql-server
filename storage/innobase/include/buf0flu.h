@@ -96,7 +96,7 @@ buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
 @return true if the page was flushed and the mutex released */
-ibool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
+bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /** Do flushing batch of a given type.
@@ -140,11 +140,10 @@ is not fast enough to keep pace with the workload.
 @return true if success. */
 bool buf_flush_single_page_from_LRU(buf_pool_t *buf_pool);
 
-/** Waits until a flush batch of the given type ends */
-void buf_flush_wait_batch_end(
-    buf_pool_t *buf_pool, /*!< in: buffer pool instance */
-    buf_flush_t type);    /*!< in: BUF_FLUSH_LRU
-                          or BUF_FLUSH_LIST */
+/** Waits until a flush batch of the given type ends.
+@param[in] buf_pool             Buffer pool instance.
+@param[in] flush_type           Flush type. */
+void buf_flush_wait_batch_end(buf_pool_t *buf_pool, buf_flush_t flush_type);
 
 /** Waits until a flush batch of the given type ends. This is called by a
 thread that only wants to wait for a flush to end but doesn't do any flushing
@@ -204,7 +203,7 @@ void buf_flush_wait_LRU_batch_end();
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Validates the flush list.
  @return true if ok */
-ibool buf_flush_validate(buf_pool_t *buf_pool);
+bool buf_flush_validate(buf_pool_t *buf_pool);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /** Initialize the red-black tree to speed up insertions into the flush_list

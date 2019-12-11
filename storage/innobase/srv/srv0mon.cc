@@ -1411,6 +1411,22 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START,
      MONITOR_PAGE_TRACK_CHECKPOINT_PARTIAL_FLUSH_REQUEST},
 
+    /* ========== Double write ========== */
+    {"module_dblwr", "dblwr", "Counters related to double writes", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_MODULE_DBLWR},
+
+    {"dblwr_async_requests", "dblwr", "Total async requests", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_DBLWR_ASYNC_REQUESTS},
+
+    {"dblwr_sync_requests", "dblwr", "Total sync enqueue requests",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_DBLWR_SYNC_REQUESTS},
+
+    {"dblwr_flush_requests", "dblwr", "Total flush requests", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_DBLWR_FLUSH_REQUESTS},
+
+    {"dblwr_flush_wait_events", "dblwr", "Total flush wait events",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_DBLWR_FLUSH_WAIT_EVENTS},
+
     /* ========== To turn on/off reset all counters ========== */
     {"all", "All Counters", "Turn on/off and reset all counters",
      MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER},

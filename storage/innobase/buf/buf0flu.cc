@@ -202,6 +202,21 @@ in thrashing. */
 
 /* @} */
 
+/** Flush a batch of writes to the datafiles that have already been
+written to the dblwr buffer on disk. */
+static void buf_flush_sync_datafiles() {
+  /* Wake possible simulated AIO thread to actually post the
+  writes to the operating system */
+  os_aio_simulated_wake_handler_threads();
+
+  /* Wait that all async writes to tablespaces have been posted to
+  the OS */
+  os_aio_wait_until_no_pending_writes();
+
+  /* Now we flush the data to disk (for example, with fsync) */
+  fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+}
+
 /** Thread tasked with flushing dirty pages from the buffer pools.
 As of now we'll have only one coordinator.
 @param[in]	n_page_cleaners	Number of page cleaner threads to create */
@@ -223,10 +238,10 @@ static inline void incr_flush_list_size_in_bytes(
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-/** Validates the flush list.
- @return true if ok */
-static ibool buf_flush_validate_low(
-    buf_pool_t *buf_pool); /*!< in: Buffer pool instance */
+/** Validate a buffer pool instance flush list.
+@param[in] buf_pool Instance to validate
+@return true on success. */
+static bool buf_flush_validate_low(const buf_pool_t *buf_pool);
 
 /** Validates the flush list some of the time.
  @return true if ok or the check was skipped */
@@ -877,7 +892,9 @@ void buf_flush_write_complete(buf_page_t *bpage) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  buf_dblwr_update(bpage, flush_type);
+  if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::enabled) {
+    dblwr::write_complete(bpage, flush_type);
+  }
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1098,9 +1115,7 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Does an asynchronous write of a buffer page. NOTE: in simulated aio and
-also when the doublewrite buffer is used, we must call
-buf_dblwr_flush_buffered_writes after we have posted a batch of writes!
+/** Does an asynchronous write of a buffer page.
 @param[in]	bpage		buffer block to write
 @param[in]	flush_type	type of flush
 @param[in]	sync		true if sync IO request */
@@ -1194,42 +1209,9 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
       break;
   }
 
-  /* Disable use of double-write buffer for temporary tablespace.
-  Given the nature and load of temporary tablespace doublewrite buffer
-  adds an overhead during flushing. */
+  dberr_t err = dblwr::write(flush_type, bpage, sync);
 
-  if (!srv_use_doublewrite_buf || buf_dblwr == NULL || srv_read_only_mode ||
-      fsp_is_system_temporary(bpage->id.space())) {
-    ut_ad(!srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()));
-
-    ulint type = IORequest::WRITE | IORequest::DO_NOT_WAKE;
-
-    dberr_t err;
-    IORequest request(type);
-
-    err = fil_io(request, sync, bpage->id, bpage->size, 0,
-                 bpage->size.physical(), frame, bpage);
-
-    ut_a(err == DB_SUCCESS);
-
-  } else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
-    buf_dblwr_write_single_page(bpage, sync);
-  } else {
-    ut_ad(!sync);
-    buf_dblwr_add_to_batch(bpage);
-  }
-
-  /* When doing single page flushing the IO is done synchronously
-  and we flush the changes to disk only for the tablespace we
-  are working on. */
-  if (sync) {
-    ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
-    fil_flush(bpage->id.space());
-
-    /* true means we want to evict this page from the
-    LRU list as well. */
-    buf_page_io_complete(bpage, true);
-  }
+  ut_a(err == DB_SUCCESS);
 
   /* Increment the counter of I/O operations used
   for selecting LRU policy. */
@@ -1345,20 +1327,17 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
 
     if (flush_type == BUF_FLUSH_LIST && is_uncompressed &&
         !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE)) {
-      if (!fsp_is_system_temporary(bpage->id.space())) {
-        /* avoiding deadlock possibility involves
-        doublewrite buffer, should flush it, because
-        it might hold the another block->lock. */
-        buf_dblwr_flush_buffered_writes();
+      if (!fsp_is_system_temporary(bpage->id.space()) && dblwr::enabled) {
+        dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
       } else {
-        buf_dblwr_sync_datafiles();
+        buf_flush_sync_datafiles();
       }
 
       rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
     }
 
-    /* If there is an observer that want to know if the asynchronous
-    flushing was sent then notify it.
+    /* If there is an observer that wants to know if the
+    asynchronous flushing was sent then notify it.
     Note: we set flush observer to a page with x-latch, so we can
     guarantee that notify_flush and notify_remove are called in pair
     with s-latch on a uncompressed page. */
@@ -1385,7 +1364,7 @@ buf_flush_batch() and buf_flush_page().
 @param[in,out]	buf_pool	buffer pool instance
 @param[in,out]	block		buffer control block
 @return true if the page was flushed and the mutex released */
-ibool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block) {
+bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block) {
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
@@ -2010,36 +1989,30 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  if (!srv_read_only_mode) {
-    buf_dblwr_flush_buffered_writes();
+  if (!srv_read_only_mode && dblwr::enabled) {
+    dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
   } else {
     os_aio_simulated_wake_handler_threads();
   }
 }
 
-/** Waits until a flush batch of the given type ends */
-void buf_flush_wait_batch_end(buf_pool_t *buf_pool, /*!< buffer pool instance */
-                              buf_flush_t type)     /*!< in: BUF_FLUSH_LRU
-                                                    or BUF_FLUSH_LIST */
-{
-  ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
+void buf_flush_wait_batch_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
+  ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
   if (buf_pool == NULL) {
     ulint i;
 
     for (i = 0; i < srv_buf_pool_instances; ++i) {
-      buf_pool_t *buf_pool;
+      auto buf_pool = buf_pool_from_array(i);
 
-      buf_pool = buf_pool_from_array(i);
-
-      thd_wait_begin(NULL, THD_WAIT_DISKIO);
-      os_event_wait(buf_pool->no_flush[type]);
-      thd_wait_end(NULL);
+      thd_wait_begin(nullptr, THD_WAIT_DISKIO);
+      os_event_wait(buf_pool->no_flush[flush_type]);
+      thd_wait_end(nullptr);
     }
   } else {
-    thd_wait_begin(NULL, THD_WAIT_DISKIO);
-    os_event_wait(buf_pool->no_flush[type]);
-    thd_wait_end(NULL);
+    thd_wait_begin(nullptr, THD_WAIT_DISKIO);
+    os_event_wait(buf_pool->no_flush[flush_type]);
+    thd_wait_end(nullptr);
   }
 }
 
@@ -3411,11 +3384,7 @@ struct Check {
   void operator()(const buf_page_t *elem) { ut_a(elem->in_flush_list); }
 };
 
-/** Validates the flush list.
- @return true if ok */
-static ibool buf_flush_validate_low(
-    buf_pool_t *buf_pool) /*!< in: Buffer pool instance */
-{
+static bool buf_flush_validate_low(const buf_pool_t *buf_pool) {
   buf_page_t *bpage;
   const ib_rbt_node_t *rnode = NULL;
   Check check;
@@ -3474,15 +3443,10 @@ static ibool buf_flush_validate_low(
   return (TRUE);
 }
 
-/** Validates the flush list.
- @return true if ok */
-ibool buf_flush_validate(buf_pool_t *buf_pool) /*!< buffer pool instance */
-{
-  ibool ret;
-
+bool buf_flush_validate(buf_pool_t *buf_pool) {
   buf_flush_list_mutex_enter(buf_pool);
 
-  ret = buf_flush_validate_low(buf_pool);
+  auto ret = buf_flush_validate_low(buf_pool);
 
   buf_flush_list_mutex_exit(buf_pool);
 

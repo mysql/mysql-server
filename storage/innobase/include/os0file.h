@@ -217,6 +217,10 @@ static const ulint OS_BUFFERED_FILE = 102;
 static const ulint OS_CLONE_DATA_FILE = 103;
 static const ulint OS_CLONE_LOG_FILE = 104;
 
+/** Doublewrite files. */
+static const ulint OS_DBLWR_FILE = 105;
+
+/** Redo log archive file. */
 static const ulint OS_REDO_LOG_ARCHIVE_FILE = 105;
 /* @} */
 
@@ -257,8 +261,8 @@ class IORequest {
     READ = 1,
     WRITE = 2,
 
-    /** Double write buffer recovery. */
-    DBLWR_RECOVER = 4,
+    /** Request for a doublewrite page IO */
+    DBLWR = 4,
 
     /** Enumerations below can be ORed to READ/WRITE above*/
 
@@ -477,12 +481,12 @@ class IORequest {
     m_encryption.set_type(Encryption::NONE);
   }
 
-  /** Note that the IO is for double write recovery. */
-  void dblwr_recover() { m_type |= DBLWR_RECOVER; }
+  /** Note that the IO is for double write buffer page write. */
+  void dblwr() { m_type |= DBLWR; }
 
-  /** @return true if the request is from the dblwr recovery */
-  bool is_dblwr_recover() const MY_ATTRIBUTE((warn_unused_result)) {
-    return ((m_type & DBLWR_RECOVER) == DBLWR_RECOVER);
+  /** @return true if the request is for a dblwr page. */
+  bool is_dblwr() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & DBLWR) == DBLWR);
   }
 
   /** @return true if punch hole is supported */
@@ -497,6 +501,53 @@ class IORequest {
 #else
     return (false);
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE || _WIN32 */
+  }
+
+  /** @return string representation. */
+  std::string to_string() const {
+    std::ostringstream os;
+
+    os << "bs: " << m_block_size << " flags:";
+
+    if (m_type & READ) {
+      os << " READ";
+    } else if (m_type & WRITE) {
+      os << " WRITE";
+    } else if (m_type & DBLWR) {
+      os << " DBLWR";
+    }
+
+    /** Enumerations below can be ORed to READ/WRITE above*/
+
+    /** Data file */
+    if (m_type & DATA_FILE) {
+      os << " | DATA_FILE";
+    }
+
+    if (m_type & LOG) {
+      os << " | LOG";
+    }
+
+    if (m_type & DISABLE_PARTIAL_IO_WARNINGS) {
+      os << " | DISABLE_PARTIAL_IO_WARNINGS";
+    }
+
+    if (m_type & DO_NOT_WAKE) {
+      os << " | IGNORE_MISSING";
+    }
+
+    if (m_type | PUNCH_HOLE) {
+      os << " | PUNCH_HOLE";
+    }
+
+    if (m_type & NO_COMPRESSION) {
+      os << " | NO_COMPRESSION";
+    }
+
+    os << ", comp: " << m_compression.to_string();
+    os << ", enc: " << m_encryption.to_string(m_encryption.get_type());
+
+    return (os.str());
   }
 
  private:
@@ -700,7 +751,7 @@ Opens an existing file or creates a new.
                                 and srv_.. variables whether we really use
                                 async I/O or unbuffered I/O: look in the
                                 function source code for the exact rules
-@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
+@param[in]	type		OS_DATA_FILE, OS_LOG_FILE etc.
 @param[in]	read_only	if true read only mode checks are enforced
 @param[in]	success		true if succeeded
 @return own: handle to the file, not defined if error, error number
@@ -743,6 +794,7 @@ bool os_file_close_func(os_file_t file);
 /* Keys to register InnoDB I/O with performance schema */
 extern mysql_pfs_key_t innodb_log_file_key;
 extern mysql_pfs_key_t innodb_temp_file_key;
+extern mysql_pfs_key_t innodb_dblwr_file_key;
 extern mysql_pfs_key_t innodb_arch_file_key;
 extern mysql_pfs_key_t innodb_clone_file_key;
 extern mysql_pfs_key_t innodb_data_file_key;
@@ -1511,7 +1563,8 @@ segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of slots in the sync aio array */
+@param[in]	n_slots_sync	number of slots in the sync aio array
+@param[in]	n_slots_sync	number of slots in the dblwr aio array */
 
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync);
 
@@ -1674,13 +1727,13 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh)
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
+@param[in]	dblwr_read	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
-dberr_t os_file_decompress_page(bool dblwr_recover, byte *src, byte *dst,
+dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
                                 ulint dst_len)
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -1701,6 +1754,21 @@ byte *os_file_compress_page(Compression compression, ulint block_size,
 @retval	false	if O_DIRECT is not supported. */
 bool os_is_o_direct_supported() MY_ATTRIBUTE((warn_unused_result));
 
+/** Fill the pages with NULs
+@param[in] file		File handle
+@param[in] name		File name
+@param[in] page_size	physical page size
+@param[in] start	Offset from the start of the file in bytes
+@param[in] len		Length in bytes
+@param[in] read_only_mode
+                        if true, then read only mode checks are enforced.
+@return DB_SUCCESS or error code */
+dberr_t os_file_write_zeros(pfs_os_file_t file, const char *name,
+                            ulint page_size, os_offset_t start, ulint len,
+                            bool read_only_mode)
+    MY_ATTRIBUTE((warn_unused_result));
+
+#ifndef UNIV_NONINL
 /** Class to scan the directory heirarchy using a depth first scan. */
 class Dir_Walker {
  public:
@@ -1764,5 +1832,6 @@ file::Block *os_alloc_block() noexcept;
 void os_free_block(file::Block *block) noexcept;
 
 #include "os0file.ic"
+#endif /* UNIV_NONINL */
 
 #endif /* os0file_h */
