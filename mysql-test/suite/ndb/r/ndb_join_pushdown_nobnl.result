@@ -4451,13 +4451,13 @@ CONST_PRUNED_RANGE_SCANS_RECEIVED	0
 LOCAL_RANGE_SCANS_SENT	8
 LOCAL_TABLE_SCANS_SENT	8
 PRUNED_RANGE_SCANS_RECEIVED	0
-RANGE_SCANS_RECEIVED	1
+RANGE_SCANS_RECEIVED	2
 READS_NOT_FOUND	2
 READS_RECEIVED	1
 REMOTE_RANGE_SCANS_SENT	0
-SCAN_BATCHES_RETURNED	2
+SCAN_BATCHES_RETURNED	4
 SCAN_ROWS_RETURNED	8
-TABLE_SCANS_RECEIVED	1
+TABLE_SCANS_RECEIVED	2
 select 'READS_SENT', sum(new_count.val - old_count.val) 
 from new_count, old_count 
 where new_count.counter_name = old_count.counter_name
@@ -5607,9 +5607,9 @@ d	e	f	a	b	c	d	e	f	a	b	c
 1	2	NULL	9	9	0	1	2	3	1	2	3
 1	2	NULL	9	9	0	1	2	3	1	2	4
 pruned
-7
+14
 const_pruned
-3
+6
 drop table t1;
 create table t1 (pk int primary key, a int, b int) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
