@@ -71,12 +71,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
-#include "my_compiler.h"
+
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"
+
 #include "os0file.h"
 #include "os0thread-create.h"
 #include "os0thread.h"
@@ -89,6 +89,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "ut0mem.h"
+
+#include <zlib.h>
 
 #include "arch0arch.h"
 #include "arch0recv.h"
@@ -911,7 +913,7 @@ static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 
   /* Check if this file supports atomic write. */
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  if (!srv_use_doublewrite_buf) {
+  if (!dblwr::enabled) {
     atomic_write = fil_fusionio_enable_atomic_write(fh);
   } else {
     atomic_write = false;
@@ -1870,9 +1872,6 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
   return (flushed_lsn);
 }
 
-/** Start InnoDB.
-@param[in]	create_new_db		Whether to create a new database
-@return DB_SUCCESS or error code */
 dberr_t srv_start(bool create_new_db) {
   lsn_t flushed_lsn;
 
@@ -2359,6 +2358,10 @@ dberr_t srv_start(bool create_new_db) {
 
 files_checked:
 
+  if (dblwr::enabled && ((err = dblwr::open(create_new_db)) != DB_SUCCESS)) {
+    return (srv_init_abort(err));
+  }
+
   arch_init();
 
   if (create_new_db) {
@@ -2430,7 +2433,26 @@ files_checked:
 
     ut_a(buf_are_flush_lists_empty_validate());
 
+    /* We always create the legacy double write buffer to preserve the
+    expected page ordering of the system tablespace.
+    FIXME: Try and remove this requirement. */
+    err = dblwr::v1::create();
+
+    if (err != DB_SUCCESS) {
+      return srv_init_abort(err);
+    }
+
   } else {
+    /* Load the reserved boundaries of the legacy dblwr buffer, this is
+    requird to check for stray reads and writes trying to access this
+    reserved region in the sys tablespace.
+    FIXME: Try and remove this requirement. */
+    err = dblwr::v1::init();
+
+    if (err != DB_SUCCESS) {
+      return srv_init_abort(err);
+    }
+
     /* Invalidate the buffer pool to ensure that we reread
     the page that we read above, during recovery.
     Note that this is not as heavy weight as it seems. At
@@ -2444,8 +2466,6 @@ files_checked:
     err = recv_recovery_from_checkpoint_start(*log_sys, flushed_lsn);
 
     arch_page_sys->post_recovery_init();
-
-    recv_sys->dblwr.pages.clear();
 
     if (err == DB_SUCCESS) {
       /* Initialize the change buffer. */
@@ -2701,11 +2721,6 @@ files_checked:
   err = ibt::open_or_create(create_new_db);
   if (err != DB_SUCCESS) {
     return (srv_init_abort(err));
-  }
-
-  /* Create the doublewrite buffer to a new tablespace */
-  if (buf_dblwr == nullptr && !buf_dblwr_create()) {
-    return (srv_init_abort(DB_ERROR));
   }
 
   /* Here the double write buffer has already been created and so
@@ -3304,6 +3319,8 @@ static void srv_shutdown_page_cleaners() {
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
 
+  srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
+
   for (uint32_t count = 0; buf_flush_page_cleaner_is_active(); ++count) {
     if (count >= SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1251);
@@ -3582,9 +3599,11 @@ void srv_shutdown() {
   pars_lexer_close();
   buf_pool_free_all();
 
+  /* 6. Free the thread management resoruces. */
   clone_free();
   arch_free();
 
+  dblwr::close();
   os_thread_close();
 
   /* 6. Free the synchronisation infrastructure. */

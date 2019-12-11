@@ -45,8 +45,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <string>
 #include <vector>
 
-#include "my_inttypes.h"
-
 #include "sync0rw.h"
 #include "ut0mutex.h"
 
@@ -406,7 +404,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_MONITOR_MUTEX);
   LEVEL_MAP_INSERT(SYNC_ANY_LATCH);
   LEVEL_MAP_INSERT(SYNC_FIL_SHARD);
-  LEVEL_MAP_INSERT(SYNC_DOUBLEWRITE);
+  LEVEL_MAP_INSERT(SYNC_DBLWR);
   LEVEL_MAP_INSERT(SYNC_BUF_CHUNKS);
   LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_LIST);
   LEVEL_MAP_INSERT(SYNC_BUF_FLUSH_STATE);
@@ -426,6 +424,7 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
   LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
   LEVEL_MAP_INSERT(SYNC_RECV);
+  LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
   LEVEL_MAP_INSERT(SYNC_LOG_SN);
   LEVEL_MAP_INSERT(SYNC_LOG_LIMITS);
   LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
@@ -487,7 +486,6 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_DICT_OPERATION);
   LEVEL_MAP_INSERT(SYNC_TRX_I_S_LAST_READ);
   LEVEL_MAP_INSERT(SYNC_TRX_I_S_RWLOCK);
-  LEVEL_MAP_INSERT(SYNC_RECV_WRITER);
   LEVEL_MAP_INSERT(SYNC_LEVEL_VARYING);
   LEVEL_MAP_INSERT(SYNC_NO_ORDER_CHECK);
 
@@ -682,6 +680,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_LOCK_FREE_HASH:
     case SYNC_MONITOR_MUTEX:
     case SYNC_RECV:
+    case SYNC_RECV_WRITER:
     case SYNC_FTS_BG_THREADS:
     case SYNC_WORK_QUEUE:
     case SYNC_FTS_TOKENIZE:
@@ -700,7 +699,6 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_PAGE_ARCH:
     case SYNC_PAGE_ARCH_OPER:
     case SYNC_PAGE_ARCH_CLIENT:
-    case SYNC_DOUBLEWRITE:
     case SYNC_SEARCH_SYS:
     case SYNC_THREADS:
     case SYNC_LOCK_SYS:
@@ -728,7 +726,6 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_POOL:
     case SYNC_POOL_MANAGER:
     case SYNC_TEMP_POOL_MANAGER:
-    case SYNC_RECV_WRITER:
     case SYNC_PARSER:
     case SYNC_DICT:
 
@@ -767,6 +764,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       break;
 
     case SYNC_FIL_SHARD:
+    case SYNC_DBLWR:
     case SYNC_BUF_CHUNKS:
     case SYNC_BUF_FLUSH_LIST:
     case SYNC_BUF_LRU_LIST:
@@ -1364,8 +1362,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(SYNC_THREAD, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 #endif /* UNIV_DEBUG */
 
-  LATCH_ADD_MUTEX(BUF_DBLWR, SYNC_DOUBLEWRITE, buf_dblwr_mutex_key);
-
   LATCH_ADD_MUTEX(TRX_UNDO, SYNC_TRX_UNDO, trx_undo_mutex_key);
 
   LATCH_ADD_MUTEX(TRX_POOL, SYNC_POOL, trx_pool_mutex_key);
@@ -1488,6 +1484,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(REDO_LOG_ARCHIVE_QUEUE_MUTEX, SYNC_NO_ORDER_CHECK,
                   PFS_NOT_INSTRUMENTED);
+
+  LATCH_ADD_MUTEX(DBLWR, SYNC_DBLWR, dblwr_mutex_key);
 
   LATCH_ADD_MUTEX(TEST_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 

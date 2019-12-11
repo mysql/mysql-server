@@ -259,6 +259,7 @@ static char *innobase_enable_monitor_counter = nullptr;
 static char *innobase_disable_monitor_counter = nullptr;
 static char *innobase_reset_monitor_counter = nullptr;
 static char *innobase_reset_all_monitor_counter = nullptr;
+static char *innobase_doublewrite_dir = nullptr;
 
 static ulong innodb_flush_method;
 
@@ -269,7 +270,6 @@ static char *innobase_server_stopword_table = nullptr;
 /* Below we have boolean-valued start-up parameters, and their default
 values */
 
-static bool innobase_use_doublewrite = TRUE;
 static bool innobase_rollback_on_timeout = FALSE;
 static bool innobase_create_status_file = FALSE;
 bool innobase_stats_on_metadata = TRUE;
@@ -639,6 +639,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_cleaner_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(parallel_read_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(recv_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -656,7 +657,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #ifdef UNIV_DEBUG
     PSI_MUTEX_KEY(sync_thread_mutex, 0, 0, PSI_DOCUMENT_ME),
 #endif /* UNIV_DEBUG */
-    PSI_MUTEX_KEY(buf_dblwr_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_undo_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_pool_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -755,6 +755,7 @@ static PSI_thread_info all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info all_innodb_files[] = {
+    PSI_KEY(innodb_dblwr_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_tablespace_open_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_data_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_log_file, 0, 0, PSI_DOCUMENT_ME),
@@ -2954,7 +2955,8 @@ static int innodb_init_abort() {
 @param[in,out]	tablespaces	predefined tablespaces created by the DDSE
 @return 0 on success, 1 on failure */
 static int innobase_init_files(dict_init_mode_t dict_init_mode,
-                               List<const Plugin_tablespace> *tablespaces);
+                               List<const Plugin_tablespace> *tablespaces)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -4382,15 +4384,13 @@ static int innodb_init_params() {
 
   srv_buf_pool_size = srv_buf_pool_curr_size;
 
-  srv_use_doublewrite_buf = (ibool)innobase_use_doublewrite;
-
   innodb_log_checksums_func_update(srv_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
   if ((os_use_large_pages = opt_large_pages)) {
     os_large_page_size = opt_large_page_size;
   }
-#endif
+#endif /* HAVE_LINUX_LARGE_PAGES */
 
   row_rollback_on_timeout = (ibool)innobase_rollback_on_timeout;
 
@@ -4439,7 +4439,7 @@ static int innodb_init_params() {
 
     /* There is no write except to intrinsic table and so turn-off
     doublewrite mechanism completely. */
-    srv_use_doublewrite_buf = FALSE;
+    dblwr::enabled = false;
   }
 
 #ifdef LINUX_NATIVE_AIO
@@ -4447,10 +4447,10 @@ static int innodb_init_params() {
     ib::info(ER_IB_MSG_541) << "Using Linux native AIO";
   }
 #elif !defined _WIN32
-  /* Currently native AIO is supported only on windows and linux
+  /* Currently native AIO is supported only on Windows and Linux
   and that also when the support is compiled in. In all other
   cases, we ignore the setting of innodb_use_native_aio. */
-  srv_use_native_aio = FALSE;
+  srv_use_native_aio = false;
 #endif
 
 #ifndef _WIN32
@@ -4484,7 +4484,10 @@ static int innodb_init_params() {
 #else
   srv_win_file_flush_method = static_cast<srv_win_flush_t>(innodb_flush_method);
   ut_ad(innodb_flush_method <= SRV_WIN_IO_NORMAL);
-#endif
+  if (srv_use_native_aio) {
+    ib::info(ER_IB_MSG_541) << "Using Windows native AIO";
+  }
+#endif /* !_WIN32 */
 
   /* Set the maximum number of threads which can wait for a semaphore
   inside InnoDB: this is the 'sync wait array' size, as well as the
@@ -11765,7 +11768,7 @@ bool create_table_info_t::create_option_tablespace_is_valid() {
 
   if (block_size_needed != page_size.physical()) {
     my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
-                    "InnoDB: Tablespace `%s` uses block size %u"
+                    "InnoDB: Tablespace `%s` uses block size %zu"
                     " and cannot contain a table with physical"
                     " page size " ULINTPF,
                     MYF(0), m_create_info->tablespace, page_size.physical(),
@@ -12084,6 +12087,28 @@ static bool innobase_ddse_dict_init(
 
   DBUG_ASSERT(tables && tables->is_empty());
   DBUG_ASSERT(tablespaces && tablespaces->is_empty());
+
+  if (dblwr::enabled) {
+    if (innobase_doublewrite_dir != nullptr && *innobase_doublewrite_dir != 0) {
+      dblwr::dir.assign(innobase_doublewrite_dir);
+      switch (dblwr::dir.front()) {
+        case '#':
+        case '.':
+          break;
+        default:
+          if (!Fil_path::is_absolute_path(dblwr::dir)) {
+            dblwr::dir.insert(0, "#");
+          }
+      }
+      ib::info(ER_IB_MSG_DBLWR_1325)
+          << "Using " << dblwr::dir << " as doublewrite directory";
+    } else {
+      dblwr::dir.assign(".");
+    }
+    ib::info(ER_IB_MSG_DBLWR_1304) << "Atomic write enabled";
+  } else {
+    ib::info(ER_IB_MSG_DBLWR_1305) << "Atomic write disabled";
+  }
 
   if (innobase_init_files(dict_init_mode, tablespaces)) {
     return true;
@@ -19087,12 +19112,9 @@ static void innodb_io_capacity_max_update(
  value. This function is registered as a callback with MySQL. */
 static void innodb_io_capacity_update(
     THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
+    SYS_VAR *var,     /*!< in: pointer to system variable */
+    void *var_ptr,    /*!< out: where the formal string goes */
+    const void *save) /*!< in: immediate result from check function */
 {
   ulong in_val = *static_cast<const ulong *>(save);
   if (in_val > srv_max_io_capacity) {
@@ -19520,24 +19542,32 @@ static void innodb_make_page_dirty(
     return;
   }
 
+  auto page_id =
+      page_id_t{space->id, static_cast<page_no_t>(srv_saved_page_number_debug)};
+
   mtr.start();
 
   buf_block_t *block =
-      buf_page_get(page_id_t(space_id, srv_saved_page_number_debug),
-                   page_size_t(space->flags), RW_X_LATCH, &mtr);
+      buf_page_get(page_id, page_size_t(space->flags), RW_X_LATCH, &mtr);
 
   if (block != nullptr) {
     byte *page = block->frame;
 
-    ib::info(ER_IB_MSG_574)
-        << "Dirtying page: "
-        << page_id_t(page_get_space_id(page), page_get_page_no(page));
+    ib::info(ER_IB_MSG_574) << "Dirtying page: " << page_id;
+
+    dblwr::Force_crash.copy_from(page_id);
 
     mlog_write_ulint(page + FIL_PAGE_TYPE, fil_page_get_type(page), MLOG_2BYTES,
                      &mtr);
   }
+
   mtr.commit();
+
   fil_space_release(space);
+
+  if (block != nullptr) {
+    buf_flush_sync_all_buf_pools();
+  }
 }
 #endif  // UNIV_DEBUG
 
@@ -20369,12 +20399,13 @@ static float innobase_fts_find_ranking(FT_INFO *fts_hdl, uchar *, uint) {
 }
 
 #ifdef UNIV_DEBUG
-static bool innodb_background_drop_list_empty = TRUE;
-static bool innodb_purge_run_now = TRUE;
-static bool innodb_purge_stop_now = TRUE;
-static bool innodb_log_checkpoint_now = TRUE;
-static bool innodb_log_checkpoint_fuzzy_now = TRUE;
-static bool innodb_buf_flush_list_now = TRUE;
+static bool innodb_background_drop_list_empty = true;
+static bool innodb_purge_run_now = true;
+static bool innodb_purge_stop_now = true;
+static bool innodb_log_checkpoint_now = true;
+static bool innodb_buf_flush_list_now = true;
+static bool innodb_log_checkpoint_fuzzy_now = true;
+
 static uint innodb_merge_threshold_set_all_debug =
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
@@ -20764,13 +20795,6 @@ static MYSQL_SYSVAR_STR(data_home_dir, innobase_data_home_dir,
                         nullptr, nullptr);
 
 static MYSQL_SYSVAR_BOOL(
-    doublewrite, innobase_use_doublewrite,
-    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
-    "Enable InnoDB doublewrite buffer (enabled by default)."
-    " Disable with --skip-innodb-doublewrite.",
-    nullptr, nullptr, TRUE);
-
-static MYSQL_SYSVAR_BOOL(
     stats_include_delete_marked, srv_stats_include_delete_marked,
     PLUGIN_VAR_OPCMDARG,
     "Include delete marked records when calculating persistent statistics",
@@ -21078,13 +21102,36 @@ static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
                           "Number of rw_locks protecting buffer pool "
                           "page_hash. Rounded up to the next power of 2",
                           nullptr, nullptr, 16, 1, MAX_PAGE_HASH_LOCKS, 0);
+#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+
+// clang-format off
+static MYSQL_SYSVAR_BOOL(
+    doublewrite, dblwr::enabled, PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+    "Enable InnoDB doublewrite buffer (enabled by default)."
+    " Disable with --skip-innodb-doublewrite.",
+    nullptr, nullptr, TRUE);
+
+static MYSQL_SYSVAR_STR(
+    doublewrite_dir, innobase_doublewrite_dir, PLUGIN_VAR_READONLY,
+    "Use a separate directory for the doublewrite buffer files, ", NULL, NULL,
+    NULL);
 
 static MYSQL_SYSVAR_ULONG(
-    doublewrite_batch_size, srv_doublewrite_batch_size,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-    "Number of pages reserved in doublewrite buffer for batch flushing",
-    nullptr, nullptr, 120, 1, 127, 0);
-#endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
+    doublewrite_pages, dblwr::n_pages,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of double write pages per thread" , NULL, NULL, 0, 0, 512, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    doublewrite_files, dblwr::n_files,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of double write files", NULL, NULL, 0, 0, 256, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    doublewrite_batch_size, dblwr::batch_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of double write pages to write in a batch", NULL, NULL,
+    0, 0, 256, 0);
+// clang-format on
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -21838,11 +21885,13 @@ static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
                          "purge view have been updated"
                          " but the each purges were not done yet.",
                          nullptr, nullptr, FALSE);
-
-static MYSQL_SYSVAR_ULONG(fil_make_page_dirty_debug,
-                          srv_fil_make_page_dirty_debug, PLUGIN_VAR_OPCMDARG,
-                          "Make the first page of the given tablespace dirty.",
-                          nullptr, innodb_make_page_dirty, 0, 0, UINT_MAX32, 0);
+// clang-format off
+static MYSQL_SYSVAR_ULONG(
+	fil_make_page_dirty_debug,
+	srv_fil_make_page_dirty_debug, PLUGIN_VAR_OPCMDARG,
+	"Make the first page of the given tablespace dirty.",
+	nullptr, innodb_make_page_dirty, UINT_MAX32, 0, UINT_MAX32, 0);
+// clang-format on
 
 static MYSQL_SYSVAR_ULONG(saved_page_number_debug, srv_saved_page_number_debug,
                           PLUGIN_VAR_OPCMDARG, "An InnoDB page number.",
@@ -21916,6 +21965,10 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(temp_data_file_path),
     MYSQL_SYSVAR(data_home_dir),
     MYSQL_SYSVAR(doublewrite),
+    MYSQL_SYSVAR(doublewrite_dir),
+    MYSQL_SYSVAR(doublewrite_batch_size),
+    MYSQL_SYSVAR(doublewrite_files),
+    MYSQL_SYSVAR(doublewrite_pages),
     MYSQL_SYSVAR(stats_include_delete_marked),
     MYSQL_SYSVAR(api_enable_binlog),
     MYSQL_SYSVAR(api_enable_mdl),
@@ -22058,7 +22111,6 @@ static SYS_VAR *innobase_system_variables[] = {
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
     MYSQL_SYSVAR(page_hash_locks),
-    MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
     MYSQL_SYSVAR(status_output),
     MYSQL_SYSVAR(status_output_locks),

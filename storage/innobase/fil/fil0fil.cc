@@ -37,7 +37,6 @@ The tablespace memory cache */
 #include "btr0btr.h"
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "clone0api.h"
 #include "dict0boot.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
@@ -52,7 +51,8 @@ The tablespace memory cache */
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
+
+#include "clone0api.h"
 #include "os0file.h"
 #include "page0zip.h"
 #include "sql/mysqld.h"  // lower_case_file_system
@@ -280,7 +280,7 @@ Fil_path MySQL_datadir_path;
 Fil_path MySQL_undo_path;
 
 /** Common InnoDB file extentions */
-const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu"};
+const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu", ".dblwr"};
 
 /** The number of fsyncs done to the log */
 ulint fil_n_log_flushes = 0;
@@ -3314,8 +3314,6 @@ value returned.
 @return own: A copy of fil_node_t::path, nullptr if space ID is zero
 or not found. */
 char *fil_space_get_first_path(space_id_t space_id) {
-  ut_a(space_id != TRX_SYS_SPACE);
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
@@ -4391,7 +4389,7 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
   page_no_t n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   bool atomic_write = false;
-  if (!srv_use_doublewrite_buf) {
+  if (!dblwr::enabled) {
     atomic_write = fil_fusionio_enable_atomic_write(fh);
   }
 #else
@@ -5460,7 +5458,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   const bool atomic_write =
-      !srv_use_doublewrite_buf && fil_fusionio_enable_atomic_write(df.handle());
+      !dblwr::enabled && fil_fusionio_enable_atomic_write(df.handle());
 #else
   const bool atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -5477,6 +5475,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
       /* The following call prints an error message.
       For encrypted tablespace we skip print, since it should
       be keyring plugin issues. */
+
       os_file_get_last_error(true);
 
       ib::error(ER_IB_MSG_306, space_name, TROUBLESHOOT_DATADICT_MSG);
@@ -5508,7 +5507,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   we pass the 0 below */
 
   const fil_node_t *file =
-      shard->create_node(df.filepath(), 0, space, false, true, atomic_write);
+      shard->create_node(df.filepath(), 0, space, false, atomic_write, false);
 
   if (file == nullptr) {
     return (DB_ERROR);
@@ -5542,10 +5541,8 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
   if ((is_encrypted || space->encryption_op_in_progress == ENCRYPTION) &&
       !for_import) {
     dberr_t err;
-    byte *key = df.m_encryption_key;
     byte *iv = df.m_encryption_iv;
-
-    ut_ad(key && iv);
+    byte *key = df.m_encryption_key;
 
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
@@ -5853,7 +5850,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   /* We do not use the size information we have about the file, because
   the rounding formula for extents and pages is somewhat complex; we
-  let fil_node_create() do that task. */
+  let create_node() do that task. */
 
   const fil_node_t *file;
 
@@ -7656,7 +7653,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   /* We an try to recover the page from the double write buffer if
   the decompression fails or the page is corrupt. */
 
-  ut_a(req_type.is_dblwr_recover() || err == DB_SUCCESS);
+  ut_a(req_type.is_dblwr() || err == DB_SUCCESS);
 
   if (sync) {
     /* The i/o operation is already completed when we return from
@@ -7707,20 +7704,23 @@ segment it wants to wait for.
 @param[in]	segment		The number of the segment in the AIO array
                                 to wait for */
 void fil_aio_wait(ulint segment) {
-  fil_node_t *file;
+  void *m2;
+  fil_node_t *m1;
   IORequest type;
-  void *message;
 
   ut_ad(fil_validate_skip());
 
-  dberr_t err = os_aio_handler(segment, &file, &message, &type);
-
+  auto err = os_aio_handler(segment, &m1, &m2, &type);
   ut_a(err == DB_SUCCESS);
+
+  auto file = reinterpret_cast<fil_node_t *>(m1);
 
   if (file == nullptr) {
     ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
     return;
   }
+
+  ut_a(!type.is_dblwr());
 
   srv_set_io_thread_op_info(segment, "complete io for file");
 
@@ -7748,8 +7748,8 @@ void fil_aio_wait(ulint segment) {
 
       /* async single page writes from the dblwr buffer don't have
       access to the page */
-      if (message != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(message));
+      if (m2 != nullptr) {
+        buf_page_io_complete(static_cast<buf_page_t *>(m2));
       }
       return;
     case FIL_TYPE_LOG:
@@ -9641,8 +9641,12 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
       fil_tablespace_encryption_init(space);
     }
 
-    if (!recv_sys->dblwr.deferred.empty()) {
-      buf_dblwr_recover_pages(space);
+    if (!recv_sys->dblwr->empty()) {
+      recv_sys->dblwr->recover(space);
+
+    } else {
+      ib::info(ER_IB_MSG_DBLWR_1317) << "DBLWR recovery skipped for "
+                                     << space->name << " ID: " << space->id;
     }
 
     return (true);
@@ -9865,45 +9869,11 @@ or MLOG_FILE_RENAME record. These could not be recovered.
         ignore redo log records during the apply phase */
 bool Fil_system::check_missing_tablespaces() {
   bool missing = false;
-  auto &dblwr = recv_sys->dblwr;
   const auto end = recv_sys->deleted.end();
 
   /* Called in single threaded mode, no need to acquire the mutex. */
 
-  /* First check if we were able to restore all the doublewrite
-  buffer pages. If not then print a warning. */
-
-  for (auto &page : dblwr.deferred) {
-    space_id_t space_id;
-
-    space_id = page_get_space_id(page.m_page);
-
-    /* Skip messages for undo tablespaces that are being truncated since
-    they can be deleted during undo truncation without an MLOG_FILE_DELETE. */
-    if (!fsp_is_undo_tablespace(space_id)) {
-      /* If the tablespace was in the missing IDs then we
-      know that the problem is elsewhere. If a file deleted
-      record was not found in the redo log and the tablespace
-      doesn't exist in the SYS_TABLESPACES file then it is
-      an error or data corruption. The special case is an
-      undo truncate in progress. */
-
-      if (recv_sys->deleted.find(space_id) == end &&
-          recv_sys->missing_ids.find(space_id) != recv_sys->missing_ids.end()) {
-        page_no_t page_no = page_get_page_no(page.m_page);
-
-        ib::warn(ER_IB_MSG_1263)
-            << "Doublewrite page " << page.m_no << " for {space: " << space_id
-            << ", page_no:" << page_no << "} could not be restored."
-            << " File name unknown for tablespace ID " << space_id;
-      }
-    }
-
-    /* Free the memory. */
-    page.close();
-  }
-
-  dblwr.deferred.clear();
+  recv_sys->dblwr->check_missing_tablespaces();
 
   for (auto space_id : recv_sys->missing_ids) {
     if (recv_sys->deleted.find(space_id) != end) {

@@ -263,6 +263,7 @@ static bool log_test_recovery() {
   srv_is_being_started = true;
   recv_sys_create();
 
+  /** DBLWR directory is the current directory. */
   recv_sys_init(4 * 1024 * 1024);
 
   const bool result = log_sys_init(srv_n_log_files, srv_log_file_size,

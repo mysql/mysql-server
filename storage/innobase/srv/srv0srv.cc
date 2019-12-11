@@ -67,10 +67,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "my_psi_config.h"
 #include "os0proc.h"
 #include "os0thread-create.h"
 #include "pars0pars.h"
@@ -78,6 +74,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0mysql.h"
 #include "sql_thd_internal_api.h"
 #include "srv0mon.h"
+
+#include "my_dbug.h"
+#include "my_psi_config.h"
+
 #endif /* !UNIV_HOTBACKUP */
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -126,7 +126,10 @@ names, where the file name itself may also contain a path */
 
 char *srv_data_home = nullptr;
 
-/* The innodb_directories variable value. This a list of directories
+/** Separate directory for doublewrite files, if it is not NULL */
+char *srv_doublewrite_dir = NULL;
+
+/** The innodb_directories variable value. This a list of directories
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
 char *srv_innodb_directories = nullptr;
 
@@ -192,16 +195,12 @@ bool high_level_read_only;
 /** Number of threads to use for parallel reads. */
 ulong srv_parallel_read_threads;
 
-/* If this flag is TRUE, then we will use the native aio of the
+/** If this flag is true, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
-use simulated aio we build below with threads.
-Currently we support native aio on windows and linux */
-#ifdef _WIN32
-bool srv_use_native_aio = TRUE; /* enabled by default on Windows */
-#else
-bool srv_use_native_aio;
-#endif
-bool srv_numa_interleave = FALSE;
+use simulated aio we build below with threads. */
+bool srv_use_native_aio = false;
+
+bool srv_numa_interleave = false;
 
 #ifdef UNIV_DEBUG
 /** Force all user tables to use page compression. */
@@ -536,14 +535,6 @@ bool srv_stats_persistent = TRUE;
 bool srv_stats_include_delete_marked = FALSE;
 unsigned long long srv_stats_persistent_sample_pages = 20;
 bool srv_stats_auto_recalc = TRUE;
-
-ibool srv_use_doublewrite_buf = TRUE;
-
-/** doublewrite buffer is 1MB is size i.e.: it can hold 128 16K pages.
-The following parameter is the size of the buffer that is used for
-batch flushing i.e.: LRU flushing and flush_list flushing. The rest
-of the pages are used for single page flushing. */
-ulong srv_doublewrite_batch_size = 120;
 
 ulong srv_replication_delay = 0;
 

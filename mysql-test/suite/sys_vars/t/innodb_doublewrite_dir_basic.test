@@ -1,0 +1,21 @@
+# Can only be set from the command line.
+
+# show the global and session values;
+
+--echo Valid values are semi-colon separated strings
+select @@global.innodb_doublewrite_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_doublewrite_dir;
+show global variables like 'innodb_doublewrite_dir';
+show session variables like 'innodb_doublewrite_dir';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='innodb_doublewrite_dir';
+select * from performance_schema.session_variables where variable_name='innodb_doublewrite_dir';
+--enable_warnings
+
+# Show that it's read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_doublewrite_dir='a;b;c';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_doublewrite_dir=1;
+

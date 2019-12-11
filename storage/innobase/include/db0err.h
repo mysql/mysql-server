@@ -183,6 +183,14 @@ enum dberr_t {
   DB_ABORT_INCOMPLETE_CLONE,
   /** Btree level limit exceeded. */
   DB_BTREE_LEVEL_LIMIT_EXCEEDED,
+  /** Doublewrite meta data not found in the system space header */
+  DB_DBLWR_NOT_EXISTS,
+  /** Failed to initialize the doublewrite extents in the system tablespace */
+  DB_V1_DBLWR_INIT_FAILED,
+  /** Failed to create the doublewrite extents in the system tablespace */
+  DB_V1_DBLWR_CREATE_FAILED,
+  /** Failed to initialize the double write memory data structures */
+  DB_DBLWR_INIT_FAILED,
   /* Schema mismatch between the metadata and data being imported. */
   DB_SCHEMA_MISMATCH,
   /** System has run out of resources. */
@@ -210,5 +218,4 @@ enum dberr_t {
   /** Request the caller to cache records. */
   DB_CACHE_RECORDS
 };
-
 #endif

@@ -4265,10 +4265,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
   }
 
   if (!success) {
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
-
     return (false);
   }
 
@@ -4281,9 +4278,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
       rw_lock_x_unlock(&block->lock);
     }
 
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (false);
   }
@@ -4373,9 +4368,7 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
   }
 
   if (!success) {
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (false);
   }
@@ -4466,9 +4459,7 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
   }
 
   if (!success) {
-    buf_page_mutex_enter(block);
     buf_block_buf_fix_dec(block);
-    buf_page_mutex_exit(block);
 
     return (nullptr);
   }
@@ -5147,7 +5138,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     read_space_id = mach_read_from_4(frame + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
     if (bpage->id.space() == TRX_SYS_SPACE &&
-        buf_dblwr_page_inside(bpage->id.page_no())) {
+        dblwr::v1::is_inside(bpage->id.page_no())) {
       ib::error(ER_IB_MSG_78) << "Reading page " << bpage->id
                               << ", which is in the doublewrite buffer!";
 
@@ -5254,23 +5245,27 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     }
   }
 
-  mutex_enter(&buf_pool->LRU_list_mutex);
+  auto page_mutex = buf_page_get_mutex(bpage);
 
-  BPageMutex *page_mutex = buf_page_get_mutex(bpage);
-  mutex_enter(page_mutex);
+  if (io_type == BUF_IO_WRITE) {
+    mutex_enter(&buf_pool->LRU_list_mutex);
 
-  if (io_type == BUF_IO_WRITE &&
-      (
+    mutex_enter(page_mutex);
+
+    if (
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-          /* to keep consistency at buf_LRU_insert_zip_clean() */
-          buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
+        /* to keep consistency at buf_LRU_insert_zip_clean() */
+        buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-          buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU ||
-          buf_page_get_flush_type(bpage) == BUF_FLUSH_SINGLE_PAGE)) {
+        buf_page_get_flush_type(bpage) == BUF_FLUSH_LRU ||
+        buf_page_get_flush_type(bpage) == BUF_FLUSH_SINGLE_PAGE) {
 
-    have_LRU_mutex = true; /* optimistic */
+      have_LRU_mutex = true; /* optimistic */
+    } else {
+      mutex_exit(&buf_pool->LRU_list_mutex);
+    }
   } else {
-    mutex_exit(&buf_pool->LRU_list_mutex);
+    mutex_enter(page_mutex);
   }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -5304,7 +5299,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
         rw_lock_x_unlock_gen(&((buf_block_t *)bpage)->lock, BUF_IO_READ);
       }
 
-      mutex_exit(buf_page_get_mutex(bpage));
+      mutex_exit(page_mutex);
 
       ut_ad(buf_pool->n_pend_reads > 0);
       os_atomic_decrement_ulint(&buf_pool->n_pend_reads, 1);

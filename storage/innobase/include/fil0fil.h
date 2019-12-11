@@ -346,7 +346,15 @@ constexpr size_t FIL_SPACE_MAGIC_N = 89472;
 constexpr size_t FIL_NODE_MAGIC_N = 89389;
 
 /** Common InnoDB file extentions */
-enum ib_file_suffix { NO_EXT = 0, IBD = 1, CFG = 2, CFP = 3, IBT = 4, IBU = 5 };
+enum ib_file_suffix {
+  NO_EXT = 0,
+  IBD = 1,
+  CFG = 2,
+  CFP = 3,
+  IBT = 4,
+  IBU = 5,
+  DWR = 6
+};
 
 extern const char *dot_ext[];
 
@@ -355,6 +363,7 @@ extern const char *dot_ext[];
 #define DOT_CFP dot_ext[CFP]
 #define DOT_IBT dot_ext[IBT]
 #define DOT_IBU dot_ext[IBU]
+#define DOT_DWR dot_ext[DWR]
 
 #ifdef _WIN32
 /* Initialization of m_abs_path() produces warning C4351:
@@ -1014,8 +1023,8 @@ constexpr page_type_t FIL_PAGE_SDI_BLOB = 18;
 /** Commpressed SDI BLOB page */
 constexpr page_type_t FIL_PAGE_SDI_ZBLOB = 19;
 
-/** Available for future use */
-constexpr page_type_t FIL_PAGE_TYPE_UNUSED = 20;
+/** Legacy doublewrite buffer page. */
+constexpr page_type_t FIL_PAGE_TYPE_LEGACY_DBLWR = 20;
 
 /** Rollback Segment Array page */
 constexpr page_type_t FIL_PAGE_TYPE_RSEG_ARRAY = 21;

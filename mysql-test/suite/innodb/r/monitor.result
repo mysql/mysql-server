@@ -309,6 +309,11 @@ page_track_resets	disabled
 page_track_partial_block_writes	disabled
 page_track_full_block_writes	disabled
 page_track_checkpoint_partial_flush_request	disabled
+module_dblwr	disabled
+dblwr_async_requests	disabled
+dblwr_sync_requests	disabled
+dblwr_flush_requests	disabled
+dblwr_flush_wait_events	disabled
 set global innodb_monitor_enable = all;
 select name from information_schema.innodb_metrics where status!='enabled';
 name

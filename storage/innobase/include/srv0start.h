@@ -89,7 +89,7 @@ dberr_t srv_undo_tablespaces_upgrade();
 /** Start InnoDB.
 @param[in]	create_new_db		Whether to create a new database
 @return DB_SUCCESS or error code */
-dberr_t srv_start(bool create_new_db);
+dberr_t srv_start(bool create_new_db) MY_ATTRIBUTE((warn_unused_result));
 
 /** Fix up an undo tablespace if it was in the process of being truncated
 when the server crashed. This is the second call and is done after the DD

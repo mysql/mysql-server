@@ -356,7 +356,7 @@ ibool buf_page_in_file(
 /** Determines if a block should be on unzip_LRU list.
  @return true if block belongs to unzip_LRU */
 UNIV_INLINE
-ibool buf_page_belongs_to_unzip_LRU(
+bool buf_page_belongs_to_unzip_LRU(
     const buf_page_t *bpage) /*!< in: pointer to control block */
 {
   ut_ad(buf_page_in_file(bpage));
@@ -834,8 +834,7 @@ ib_uint64_t buf_block_get_modify_clock(const buf_block_t *block) {
 @return the count */
 UNIV_INLINE
 ulint buf_block_fix(buf_page_t *bpage) {
-  ib_uint32_t count;
-  count = os_atomic_increment_uint32(&bpage->buf_fix_count, 1);
+  auto count = os_atomic_increment_uint32(&bpage->buf_fix_count, 1);
   ut_ad(count > 0);
   return (count);
 }
@@ -876,9 +875,10 @@ void buf_block_buf_fix_inc_func(
 @return	the remaining buffer-fix count */
 UNIV_INLINE
 ulint buf_block_unfix(buf_page_t *bpage) {
-  ib_uint32_t count;
-  count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
-  ut_ad(count + 1 != 0);
+  ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
+  const auto count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
+  static_assert(std::is_unsigned<decltype(count)>::value, "Must be unsigned");
+  ut_ad(count != std::numeric_limits<decltype(count)>::max());
   return (count);
 }
 

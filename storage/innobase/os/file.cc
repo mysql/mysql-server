@@ -1,5 +1,4 @@
 /***********************************************************************
-
 Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
@@ -115,13 +114,13 @@ void Compression::deserialize_header(const byte *page,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
+@param[in]	dblwr_read	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
-dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
+dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
                                  ulint dst_len) {
   if (!is_compressed_page(src)) {
     /* There is nothing we can do. */
@@ -188,7 +187,7 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
     case Compression::LZ4:
 
-      if (dblwr_recover) {
+      if (dblwr_read) {
         ret = LZ4_decompress_safe(
             reinterpret_cast<char *>(ptr), reinterpret_cast<char *>(dst),
             header.m_compressed_size, header.m_original_size);
@@ -237,10 +236,10 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
   mach_write_to_2(src + FIL_PAGE_TYPE, header.m_original_type);
 
-  ut_ad(dblwr_recover || memcmp(src + FIL_PAGE_LSN + 4,
-                                src + (header.m_original_size + FIL_PAGE_DATA) -
-                                    FIL_PAGE_END_LSN_OLD_CHKSUM + 4,
-                                4) == 0);
+  ut_ad(dblwr_read || memcmp(src + FIL_PAGE_LSN + 4,
+                             src + (header.m_original_size + FIL_PAGE_DATA) -
+                                 FIL_PAGE_END_LSN_OLD_CHKSUM + 4,
+                             4) == 0);
 
   if (allocated) {
     ut_free(dst);
@@ -251,13 +250,13 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
 
 /** Decompress the page data contents. Page type must be FIL_PAGE_COMPRESSED, if
 not then the source contents are left unchanged and DB_SUCCESS is returned.
-@param[in]	dblwr_recover	true of double write recovery in progress
+@param[in]	dblwr_read	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
 @param[in,out]	dst		Scratch area to use for decompression
 @param[in]	dst_len		Size of the scratch area in bytes
 @return DB_SUCCESS or error code */
-dberr_t os_file_decompress_page(bool dblwr_recover, byte *src, byte *dst,
+dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
                                 ulint dst_len) {
-  return (Compression::deserialize(dblwr_recover, src, dst, dst_len));
+  return (Compression::deserialize(dblwr_read, src, dst, dst_len));
 }

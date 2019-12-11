@@ -79,3 +79,5 @@ SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 
 DROP TABLE test_ps_auto_recalc;
+
+call mtr.add_suppression("ignoring ib_[0-9]+_[0-9]+.dblwr - page size doesn't match");

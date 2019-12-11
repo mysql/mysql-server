@@ -1,0 +1,122 @@
+#****************************************************************
+# wl#5655: Test the doublewrite functionality with rpl scenario
+#     Set different system parameter values in Master and Slave
+#     Check the error messages on Master and Slave
+#     Set doubelwrite file path On Master and Slave side
+#****************************************************************
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/master-slave.inc
+
+--echo [Connection Master]
+--connection master
+
+USE test;
+
+--let $MYSQLD_MASTER_DATADIR =`SELECT @@datadir`
+
+# Check datadir path
+--replace_result $MYSQLD_MASTER_DATADIR MASTER_DATADIR
+SELECT @@datadir;
+
+# Check doublewrite file created in the specified path on master side
+--list_files $MYSQL_TMP_DIR/#DBWL-DIR/
+
+# Check the following variables as set in *.opt file
+--replace_result $MYSQL_TMP_DIR "MASTER_DOUBLEWRITE_DIR"
+SELECT @@innodb_doublewrite_dir;
+
+SELECT @@innodb_doublewrite_files;
+
+SELECT @@innodb_doublewrite_pages;
+
+SELECT @@innodb_doublewrite_batch_size;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+USE test;
+
+--let $MYSQLD_SLAVE_DATADIR =`SELECT @@datadir`
+
+# Check datadir path
+--replace_result $MYSQLD_SLAVE_DATADIR SLAVE_DATADIR
+SELECT @@datadir;
+
+# Check the following variables as set in *.opt file
+
+--let $SLAVE_DBLWR_DIR = $MYSQLTEST_VARDIR/mysqld.2/data
+
+# Check doublewrite file created in the specified path on slave side
+--list_files $SLAVE_DBLWR_DIR/##%DBWL-DIR/
+
+--replace_result $SLAVE_DBLWR_DIR "SLAVE_DOUBLEWRITE_DIR"
+SELECT @@innodb_doublewrite_dir;
+
+SELECT @@innodb_doublewrite_files;
+
+SELECT @@innodb_doublewrite_pages;
+
+SELECT @@innodb_doublewrite_batch_size;
+
+
+--echo [Connection Master]
+--connection master
+
+USE test;
+
+CREATE TABLE tab(c1 int,c2 TEXT);
+
+INSERT INTO tab VALUES(1,'Testing of WL#5655');
+
+SELECT * FROM tab;
+
+# Check following error messages on Master side
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_files=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_pages=10;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_batch_size=1;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+USE test;
+
+SELECT * FROM tab;
+
+# Check following error messages on Slave side
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_dir=$MYSQL_TMP_DIR/"#DBWL-DIR";
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_files=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_pages=10;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL innodb_doublewrite_batch_size=1;
+
+--echo [Connection Master]
+--connection master
+
+USE test;
+
+DROP TABLE tab;
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+USE test;
+
+--error ER_NO_SUCH_TABLE
+SELECT * FROM tab;
+
+--source include/rpl_end.inc

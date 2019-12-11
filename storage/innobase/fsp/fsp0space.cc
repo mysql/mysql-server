@@ -111,7 +111,7 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
     bool atomic_write;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-    if (!srv_use_doublewrite_buf) {
+    if (!dblwr::enabled) {
       atomic_write = fil_fusionio_enable_atomic_write(it->m_handle);
     } else {
       atomic_write = false;

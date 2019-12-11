@@ -34,16 +34,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define page0size_t
 
 #include "fsp0types.h"
-#include "univ.i"
 
-#define FIELD_REF_SIZE 20
+constexpr size_t FIELD_REF_SIZE = 20;
 
 /** A BLOB field reference full of zero, for use in assertions and
 tests.Initially, BLOB field references are set to zero, in
 dtuple_convert_big_rec(). */
 extern const byte field_ref_zero[FIELD_REF_SIZE];
 
-#define PAGE_SIZE_T_SIZE_BITS 17
+constexpr size_t PAGE_SIZE_T_SIZE_BITS = 17;
 
 /** Page size descriptor. Contains the physical and logical page size, as well
 as whether the page is compressed or not. */
@@ -118,7 +117,7 @@ class page_size_t {
 
   /** Retrieve the physical page size (on-disk).
   @return physical page size in bytes */
-  inline uint physical() const {
+  inline size_t physical() const {
     ut_ad(m_physical > 0);
 
     return (m_physical);
@@ -126,7 +125,7 @@ class page_size_t {
 
   /** Retrieve the logical page size (in-memory).
   @return logical page size in bytes */
-  inline uint logical() const {
+  inline size_t logical() const {
     ut_ad(m_logical > 0);
     return (m_logical);
   }
@@ -151,7 +150,7 @@ class page_size_t {
     return (size);
   }
 
-  ulint extents_per_xdes() const { return (m_physical / extent_size()); }
+  size_t extents_per_xdes() const { return (m_physical / extent_size()); }
 
   /** Check whether the page is compressed on disk.
   @return true if compressed */

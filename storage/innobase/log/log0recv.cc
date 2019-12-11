@@ -59,15 +59,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "mtr0mtr.h"
-#include "my_compiler.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
 #include "os0thread-create.h"
 #include "page0cur.h"
 #include "page0zip.h"
 #include "trx0rec.h"
 #include "trx0undo.h"
 #include "ut0new.h"
+
+#include "my_dbug.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "buf0rea.h"
@@ -447,6 +446,10 @@ static bool recv_sys_resize_buf() {
 
 /** Free up recovery data structures. */
 static void recv_sys_finish() {
+#ifndef UNIV_HOTBACKUP
+  recv_sys->dblwr->recovered();
+#endif /* !UNIV_HOTBACKUP */
+
   if (recv_sys->spaces != nullptr) {
     for (auto &space : *recv_sys->spaces) {
       if (space.second.m_heap != nullptr) {
@@ -457,19 +460,6 @@ static void recv_sys_finish() {
 
     UT_DELETE(recv_sys->spaces);
   }
-
-#ifndef UNIV_HOTBACKUP
-  ut_a(recv_sys->dblwr.pages.empty());
-
-  if (!recv_sys->dblwr.deferred.empty()) {
-    /* Free the pages that were not required for recovery. */
-    for (auto &page : recv_sys->dblwr.deferred) {
-      page.close();
-    }
-  }
-
-  recv_sys->dblwr.deferred.clear();
-#endif /* !UNIV_HOTBACKUP */
 
   ut_free(recv_sys->buf);
   ut_free(recv_sys->last_block_buf_start);
@@ -498,15 +488,17 @@ void recv_sys_close() {
     os_event_destroy(recv_sys->flush_end);
   }
 
-  ut_ad(!recv_writer_is_active());
-  mutex_free(&recv_sys->writer_mutex);
 #endif /* !UNIV_HOTBACKUP */
 
-  call_destructor(&recv_sys->dblwr);
+  UT_DELETE(recv_sys->dblwr);
+
   call_destructor(&recv_sys->deleted);
   call_destructor(&recv_sys->missing_ids);
 
   mutex_free(&recv_sys->mutex);
+
+  ut_ad(!recv_writer_is_active());
+  mutex_free(&recv_sys->writer_mutex);
 
   ut_free(recv_sys);
   recv_sys = nullptr;
@@ -592,8 +584,6 @@ static bool recv_report_corrupt_log(const byte *ptr, int type, space_id_t space,
   return (true);
 }
 
-/** Inits the recovery system for a recovery operation.
-@param[in]	max_mem		Available memory in bytes */
 void recv_sys_init(ulint max_mem) {
   if (recv_sys->spaces != nullptr) {
     return;
@@ -603,8 +593,8 @@ void recv_sys_init(ulint max_mem) {
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
-    recv_sys->flush_start = os_event_create(nullptr);
-    recv_sys->flush_end = os_event_create(nullptr);
+    recv_sys->flush_start = os_event_create("recv_flush_start");
+    recv_sys->flush_end = os_event_create("recv_flush_end");
   }
 #else  /* !UNIV_HOTBACKUP */
   recv_is_from_backup = true;
@@ -647,8 +637,7 @@ void recv_sys_init(ulint max_mem) {
 
   recv_max_page_lsn = 0;
 
-  /* Call the constructor for both placement new objects. */
-  new (&recv_sys->dblwr) recv_dblwr_t();
+  recv_sys->dblwr = UT_NEW_NOKEY(dblwr::recv::DBLWR());
 
   new (&recv_sys->deleted) recv_sys_t::Missing_Ids();
 
@@ -835,55 +824,6 @@ static void recv_writer_thread() {
     mutex_exit(&recv_sys->writer_mutex);
   }
 }
-
-#if 0
-/** recv_writer thread tasked with flushing dirty pages from the buffer
-pools. */
-static
-void
-recv_writer_thread()
-{
-	ut_ad(!srv_read_only_mode);
-
-	/* The code flow is as follows:
-	Step 1: In recv_recovery_from_checkpoint_start().
-	Step 2: This recv_writer thread is started.
-	Step 3: In recv_recovery_from_checkpoint_finish().
-	Step 4: Wait for recv_writer thread to complete.
-	Step 5: Assert that recv_writer thread is not active anymore.
-
-	It is possible that the thread that is started in step 2,
-	becomes active only after step 4 and hence the assert in
-	step 5 fails.  So mark this thread active only if necessary. */
-	mutex_enter(&recv_sys->writer_mutex);
-
-	if (!recv_recovery_on) {
-		mutex_exit(&recv_sys->writer_mutex);
-		return;
-	}
-	mutex_exit(&recv_sys->writer_mutex);
-
-	while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
-
-		os_thread_sleep(100000);
-
-		mutex_enter(&recv_sys->writer_mutex);
-
-		if (!recv_recovery_on) {
-			mutex_exit(&recv_sys->writer_mutex);
-			break;
-		}
-
-		/* Flush pages from end of LRU if required */
-		os_event_reset(recv_sys->flush_end);
-		recv_sys->flush_type = BUF_FLUSH_LRU;
-		os_event_set(recv_sys->flush_start);
-		os_event_wait(recv_sys->flush_end);
-
-		mutex_exit(&recv_sys->writer_mutex);
-	}
-}
-#endif
 
 /** Frees the recovery system. */
 void recv_sys_free() {
@@ -3658,7 +3598,7 @@ static void recv_init_crash_recovery() {
   ib::info(ER_IB_MSG_726);
   ib::info(ER_IB_MSG_727);
 
-  buf_dblwr_process();
+  recv_sys->dblwr->recover();
 
   if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
     /* Spawn the background thread to flush dirty pages
@@ -3729,8 +3669,23 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
   /* Make sure creator is properly '\0'-terminated for output */
   log_hdr_buf[LOG_HEADER_CREATOR_END - 1] = '\0';
 
-  if (0 == ut_memcmp(log_hdr_buf + LOG_HEADER_CREATOR, (byte *)"MEB",
-                     (sizeof "MEB") - 1)) {
+  const auto p = log_hdr_buf + LOG_HEADER_CREATOR;
+
+  if (memcmp(p, (byte *)"MEB", sizeof("MEB") - 1) == 0) {
+    /* Disable the double write buffer. MEB ensures that the data pages
+    are consistent. Therefore the dblwr is superfluous. Secondly, the dblwr
+    file is not redo logged and we can have pages in there that were written
+    after the redo log was copied by MEB. */
+
+    /* Restore state after recovery completes. */
+    recv_sys->dblwr_state = dblwr::enabled;
+
+    dblwr::enabled = false;
+
+    dblwr::set();
+
+    recv_sys->is_meb_recovery = true;
+
     if (srv_read_only_mode) {
       ib::error(ER_IB_MSG_729);
 
@@ -4037,49 +3992,6 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
 }
 
 #endif /* !UNIV_HOTBACKUP */
-
-/** Find a doublewrite copy of a page.
-@param[in]	space_id	tablespace identifier
-@param[in]	page_no		page number
-@return	page frame
-@retval nullptr if no page was found */
-const byte *recv_dblwr_t::find_page(space_id_t space_id, page_no_t page_no) {
-  typedef std::vector<const byte *, ut_allocator<const byte *>> matches_t;
-
-  matches_t matches;
-  const byte *result = nullptr;
-
-  for (auto i = pages.begin(); i != pages.end(); ++i) {
-    if (page_get_space_id(*i) == space_id && page_get_page_no(*i) == page_no) {
-      matches.push_back(*i);
-    }
-  }
-
-  for (auto i = deferred.begin(); i != deferred.end(); ++i) {
-    if (page_get_space_id(i->m_page) == space_id &&
-        page_get_page_no(i->m_page) == page_no) {
-      matches.push_back(i->m_page);
-    }
-  }
-
-  if (matches.size() == 1) {
-    result = matches[0];
-  } else if (matches.size() > 1) {
-    lsn_t max_lsn = 0;
-    lsn_t page_lsn = 0;
-
-    for (matches_t::iterator i = matches.begin(); i != matches.end(); ++i) {
-      page_lsn = mach_read_from_8(*i + FIL_PAGE_LSN);
-
-      if (page_lsn > max_lsn) {
-        max_lsn = page_lsn;
-        result = *i;
-      }
-    }
-  }
-
-  return (result);
-}
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.

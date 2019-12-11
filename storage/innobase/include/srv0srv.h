@@ -338,6 +338,9 @@ extern FILE *srv_misc_tmpfile;
 
 extern char *srv_data_home;
 
+/** Number of pages per doublewrite thread/segment */
+extern ulong srv_dblwr_pages;
+
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
@@ -655,8 +658,6 @@ extern unsigned long long srv_stats_persistent_sample_pages;
 extern bool srv_stats_auto_recalc;
 extern bool srv_stats_include_delete_marked;
 
-extern ibool srv_use_doublewrite_buf;
-extern ulong srv_doublewrite_batch_size;
 extern ulong srv_checksum_algorithm;
 
 extern double srv_max_buf_pool_modified_pct;

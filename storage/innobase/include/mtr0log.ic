@@ -228,27 +228,10 @@ byte *mlog_write_initial_log_record_fast(
   FSP_EXTENT_SIZE, ..., 3 * FSP_EXTENT_SIZE - 1 in the
   system tablespace */
 
+  /* We don't redo log the double write buffer */
   if (space == TRX_SYS_SPACE && offset >= FSP_EXTENT_SIZE &&
       offset < 3 * FSP_EXTENT_SIZE) {
-    if (buf_dblwr_being_created) {
-      /* Do nothing: we only come to this branch in an
-      InnoDB database creation. We do not redo log
-      anything for the doublewrite buffer pages. */
-      return (log_ptr);
-    } else {
-#ifdef UNIV_NO_ERR_MSGS
-      ib::error()
-#else
-      ib::error(ER_IB_MSG_1269)
-#endif /* !UNIV_NO_ERR_MSGS */
-          << "Trying to redo log a record of type " << type << "  on page "
-          << page_id_t(space, offset)
-          << "in the"
-             " doublewrite buffer, continuing anyway."
-             " Please post a bug report to"
-             " bugs.mysql.com.";
-      ut_ad(0);
-    }
+    return (log_ptr);
   }
 
   return (mlog_write_initial_log_record_low(type, space, offset, log_ptr, mtr));

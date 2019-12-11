@@ -326,62 +326,12 @@ struct recv_addr_t {
   List rec_list;
 };
 
-struct recv_dblwr_t {
-  // Default constructor
-  recv_dblwr_t() : deferred(), pages() {}
-
-  /** Add a page frame to the doublewrite recovery buffer. */
-  void add(const byte *page) { pages.push_back(page); }
-
-  /** Find a doublewrite copy of a page.
-  @param[in]	space_id	tablespace identifier
-  @param[in]	page_no		page number
-  @return	page frame
-  @retval NULL if no page was found */
-  const byte *find_page(space_id_t space_id, page_no_t page_no);
-
-  using List = std::list<const byte *>;
-
-  struct Page {
-    /** Default constructor */
-    Page() : m_no(), m_ptr(), m_page() {}
-
-    /** Constructor
-    @param[in]	no	Doublewrite page number
-    @param[in]	page	Page read from no */
-    Page(page_no_t no, const byte *page);
-
-    /** Free the memory */
-    void close() {
-      ut_free(m_ptr);
-      m_ptr = nullptr;
-      m_page = nullptr;
-    }
-
-    /** Page number if the doublewrite buffer */
-    page_no_t m_no;
-
-    /** Unaligned pointer */
-    byte *m_ptr;
-
-    /** Aligned pointer derived from ptr */
-    byte *m_page;
-  };
-
-  using Deferred = std::list<Page>;
-
-  /** Pages that could not be recovered from the doublewrite
-  buffer at the start and need to be recovered once we process an
-  MLOG_FILE_OPEN redo log record */
-  Deferred deferred;
-
-  /** Recovered doublewrite buffer page frames */
-  List pages;
-
-  // Disable copying
-  recv_dblwr_t(const recv_dblwr_t &) = delete;
-  recv_dblwr_t &operator=(const recv_dblwr_t &) = delete;
-};
+// Forward declaration
+namespace dblwr {
+namespace recv {
+class DBLWR;
+}
+}  // namespace dblwr
 
 /** Class to parse persistent dynamic metadata redo log, store and
 merge them and apply them to in-memory table objects finally */
@@ -565,14 +515,22 @@ struct recv_sys_t {
   /** If the recovery is from a cloned database. */
   bool is_cloned_db;
 
+  /** Recovering from MEB. */
+  bool is_meb_recovery;
+
+  /** Doublewrite buffer state before MEB recovery starts. We restore to this
+  state after MEB recovery completes and disable the doublewrite buffer during
+  MEB recovery. */
+  bool dblwr_state;
+
   /** Hash table of pages, indexed by SpaceID. */
   Spaces *spaces;
 
   /** Number of not processed hashed file addresses in the hash table */
   ulint n_addrs;
 
-  /** Doublewrite buffer state during recovery. */
-  recv_dblwr_t dblwr;
+  /** Doublewrite buffer pages, destroyed after recovery completes */
+  dblwr::recv::DBLWR *dblwr;
 
   /** We store and merge all table persistent data here during
   scanning redo logs */
