@@ -208,8 +208,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   int temp_argc = *argc;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
   char *ptr, **res, *datadir = nullptr;
-  char dir[FN_REFLEN] = {0};
-  const char *dirs = nullptr;
+  char dir[FN_REFLEN] = {0}, local_datadir_buffer[FN_REFLEN] = {0};
+  const char *dirs = NULL;
   bool persist_load = true;
 
   my_option persist_options[] = {
@@ -240,14 +240,21 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   persisted_globals_load = persist_load;
 
-  // mysql_real_data_home must be initialized at this point
-  DBUG_ASSERT(mysql_real_data_home[0]);
+  if (!datadir) {
+    // mysql_real_data_home must be initialized at this point
+    DBUG_ASSERT(mysql_real_data_home[0]);
+    /*
+      mysql_home_ptr should also be initialized at this point.
+      See calculate_mysql_home_from_my_progname() for details
+    */
+    DBUG_ASSERT(mysql_home_ptr && mysql_home_ptr[0]);
+    convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
+    (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
+                       mysql_home_ptr);
+    datadir = local_datadir_buffer;
+  }
 
-  /*
-    if datadir is set then search in this data dir else search in
-    MYSQL_DATADIR
-  */
-  dirs = ((datadir) ? datadir : mysql_real_data_home);
+  dirs = datadir;
   unpack_dirname(dir, dirs);
   my_realpath(datadir_buffer, dir, MYF(0));
   unpack_dirname(datadir_buffer, datadir_buffer);
