@@ -61,10 +61,8 @@ BEGIN
                         OR in_instrument LIKE 'statement/%'
                         OR in_instrument LIKE 'memory/performance_schema/%'
                         OR in_instrument IN ('wait/lock/table/sql/handler', 'idle')
-               /*!50707
                         OR in_instrument LIKE 'stage/innodb/%'
                         OR in_instrument = 'stage/sql/copy to tmp table'
-               */
                       ,
                        'YES',
                        'NO'

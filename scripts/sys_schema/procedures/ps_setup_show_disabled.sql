@@ -117,16 +117,10 @@ Query OK, 0 rows affected (0.01 sec)
 BEGIN
     SELECT @@performance_schema AS performance_schema_enabled;
 
-    -- In 5.7.6 and later the setup_actors table has an ENABLED column to
-    -- specify whether the actor is enabled. Before that all actors matched
-    -- in the setup_actors table were enabled.
-    -- So only execute the query in 5.7.6+
-    /*!50706
     SELECT CONCAT('\'', user, '\'@\'', host, '\'') AS disabled_users
       FROM performance_schema.setup_actors
      WHERE enabled = 'NO'
      ORDER BY disabled_users;
-    */
 
     SELECT object_type,
            CONCAT(object_schema, '.', object_name) AS objects,
