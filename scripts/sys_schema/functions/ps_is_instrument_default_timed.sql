@@ -55,17 +55,25 @@ mysql> SELECT sys.ps_is_instrument_default_timed(\'statement/sql/select\');
 BEGIN
     DECLARE v_timed ENUM('YES', 'NO');
 
-    -- Currently the same in all versions
-    SET v_timed = IF(in_instrument LIKE 'wait/io/file/%'
-                        OR in_instrument LIKE 'wait/io/table/%'
-                        OR in_instrument LIKE 'statement/%'
-                        OR in_instrument IN ('wait/lock/table/sql/handler', 'idle')
-                        OR in_instrument LIKE 'stage/innodb/%'
-                        OR in_instrument = 'stage/sql/copy to tmp table'
+    IF (in_instrument LIKE 'stage/%') THEN
+    BEGIN
+      -- Stages are timed by default if the progress property is set.
+      SET v_timed = (SELECT
+                      IF(find_in_set("progress", PROPERTIES) != 0, 'YES', 'NO')
+                      FROM performance_schema.setup_instruments
+                      WHERE NAME = in_instrument);
+      SET v_timed = IFNULL(v_timed, 'NO');
+    END;
+    ELSE
+      -- Mutex, rwlock, prlock, sxlock, cond are not timed by default
+      -- Memory instruments are never timed.
+      SET v_timed = IF(in_instrument LIKE 'wait/synch/%'
+                       OR in_instrument LIKE 'memory/%'
                       ,
-                       'YES',
-                       'NO'
+                       'NO',
+                       'YES'
                     );
+    END IF;
 
     RETURN v_timed;
 END$$
