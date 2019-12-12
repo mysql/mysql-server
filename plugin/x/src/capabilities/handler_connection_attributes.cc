@@ -26,10 +26,11 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
-#include "include/m_ctype.h"
 #include "include/mysql_com.h"
 #include "mysql/psi/mysql_thread.h"
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
@@ -74,7 +75,7 @@ void Capability_connection_attributes::commit() {
 #ifdef HAVE_PSI_THREAD_INTERFACE
   const auto bytes_lost = PSI_THREAD_CALL(set_thread_connect_attrs)(
       reinterpret_cast<char *>(buffer.data()), buffer.size(),
-      &my_charset_utf8mb4_general_ci);
+      mysqld::get_default_charset());
 
   if (bytes_lost != 0)
     log_debug(

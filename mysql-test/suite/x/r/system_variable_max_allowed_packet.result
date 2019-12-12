@@ -22,7 +22,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 45
+  collation: 255
   length: 2440012
   flags: 16
 }

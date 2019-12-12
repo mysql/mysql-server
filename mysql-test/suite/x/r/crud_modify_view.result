@@ -23,7 +23,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (algorithm=temptable)
@@ -32,7 +32,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (algorithm=merge)
@@ -41,7 +41,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (definer=xuser)
@@ -50,7 +50,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (security=invoker)
@@ -59,7 +59,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY INVOKER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (security=definer)
@@ -68,7 +68,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (check=local)
@@ -77,7 +77,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH LOCAL CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (check=cascaded)
@@ -86,7 +86,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable` WITH CASCADED CHECK OPTION	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (column)
@@ -95,7 +95,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 
 Modify view (too many columns)
@@ -108,7 +108,7 @@ Mysqlx.Error {
 }
 
 View	Create View	character_set_client	collation_connection
-xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_general_ci
+xview	CREATE ALGORITHM=MERGE DEFINER=`xuser`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`xview` (`third`) AS select `xtest`.`xtable`.`second` AS `doc` from `xtest`.`xtable`	utf8mb4	utf8mb4_0900_ai_ci
 0 rows affected
 Variable_name	Value
 Mysqlx_crud_modify_view	11
