@@ -9984,13 +9984,28 @@ bool change_master_cmd(THD *thd) {
     goto err;
   }
 
-  // If the chosen name is for group_replication_applier channel we allow the
-  // channel creation based on the check as to which field is being updated.
   if (channel_map.is_group_replication_channel_name(lex->mi.channel, true)) {
+    /*
+      If the chosen name is for group_replication_applier channel we allow the
+      channel creation based on the check as to which field is being updated.
+    */
     LEX_MASTER_INFO *lex_mi = &thd->lex->mi;
     if (is_invalid_change_master_for_group_replication_applier(lex_mi)) {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
                "CHANGE MASTER with the given parameters", lex->mi.channel);
+      res = true;
+      goto err;
+    }
+
+    /*
+      group_replication_applier channel only has the SQL thread, the IO thread
+      job is done by GR pipeline, which queues events into the relay log after
+      going through certification.
+      Thence for CHANGE MASTER execution pre-conditions we need to check if
+      the full GR stack is stopped.
+    */
+    if (is_group_replication_running()) {
+      my_error(ER_GRP_OPERATION_NOT_ALLOWED_GR_MUST_STOP, MYF(0));
       res = true;
       goto err;
     }
