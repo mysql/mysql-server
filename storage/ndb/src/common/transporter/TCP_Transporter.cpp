@@ -115,7 +115,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      conf->checksum,
 	      conf->signalId,
 	      conf->tcp.sendBufferSize,
-	      conf->preSendChecksum),
+	      conf->preSendChecksum,
+              conf->tcp.tcpSpintime),
   receiveBuffer()
 {
   maxReceiveSize = conf->tcp.maxReceiveSize;
@@ -155,7 +156,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      t->checksumUsed,
 	      t->signalIdUsed,
 	      t->m_max_send_buffer,
-	      t->check_send_checksum),
+	      t->check_send_checksum,
+              t->m_spintime),
   receiveBuffer()
 {
   maxReceiveSize = t->maxReceiveSize;

@@ -24,6 +24,7 @@ BackupMemory=                  4M
 TwoPassInitialNodeRestartCopy=1
 TransactionDeadlockDetectionTimeout=3000
 Checksum=1
+SpinMethod=CostBasedSpinning
 
 # O_DIRECT has issues on 2.4 which have not been handled, Bug #29612
 #ODirect= 1

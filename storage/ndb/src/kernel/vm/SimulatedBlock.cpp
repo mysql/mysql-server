@@ -636,12 +636,38 @@ SimulatedBlock::setSendNodeOverloadStatus(OverloadStatus new_status)
 }
 
 Uint32
-SimulatedBlock::getSpintime()
+SimulatedBlock::getConfiguredSpintime()
 {
 #ifdef NDBD_MULTITHREADED
-  return mt_getSpintime(m_threadId);
+  return mt_getConfiguredSpintime(m_threadId);
 #else
   return 0;
+#endif
+}
+
+void
+SimulatedBlock::setSpintime(Uint32 new_spintime)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setSpintime(m_threadId, new_spintime);
+#endif
+}
+
+Uint32
+SimulatedBlock::getWakeupLatency()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getWakeupLatency();
+#else
+  return 25;
+#endif
+}
+
+void
+SimulatedBlock::setWakeupLatency(Uint32 latency)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setWakeupLatency(latency);
 #endif
 }
 

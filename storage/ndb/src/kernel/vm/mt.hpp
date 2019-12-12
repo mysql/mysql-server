@@ -83,7 +83,12 @@ void mt_getPerformanceTimers(Uint32 self,
                              Uint64 & spin_time,
                              Uint64 & buffer_full_sleep,
                              Uint64 & micros_send);
-Uint32 mt_getSpintime(Uint32 self);
+
+Uint32 mt_getConfiguredSpintime(Uint32 self);
+void mt_setSpintime(Uint32 self, Uint32 new_spintime);
+Uint32 mt_getWakeupLatency(void);
+void mt_setWakeupLatency(Uint32);
+
 const char *mt_getThreadName(Uint32 self);
 const char *mt_getThreadDescription(Uint32 self);
 void mt_getSendPerformanceTimers(Uint32 send_instance,
@@ -176,8 +181,25 @@ struct ndb_thr_stat
   Uint64 remote_sent_priob;
 };
 
+
 void
 mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
+
+#define NUM_SPIN_INTERVALS 16
+struct ndb_spin_stat
+{
+  Uint32 m_sleep_longer_spin_time;
+  Uint32 m_sleep_shorter_spin_time;
+  Uint32 m_num_waits;
+  Uint32 m_micros_sleep_times[NUM_SPIN_INTERVALS];
+  Uint32 m_spin_interval[NUM_SPIN_INTERVALS];
+};
+
+void
+mt_get_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
+
+void
+mt_set_spin_stat(class SimulatedBlock *, ndb_spin_stat *dst);
 
 /**
  * Get TransporterReceiveHandle for a specific trpman instance

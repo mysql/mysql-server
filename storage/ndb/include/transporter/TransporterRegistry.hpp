@@ -676,7 +676,8 @@ public:
    */
   Uint32 pollReceive(Uint32 timeOutMillis, TransporterReceiveHandle& mask);
   Uint32 performReceive(TransporterReceiveHandle&, Uint32 receive_thread_idx);
-  void update_connections(TransporterReceiveHandle&);
+  Uint32 update_connections(TransporterReceiveHandle&,
+                          Uint32 max_spintime = UINT32_MAX);
 
   inline Uint32 pollReceive(Uint32 timeOutMillis) {
     assert(receiveHandle != 0);

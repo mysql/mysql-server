@@ -29,6 +29,7 @@
 
 #include <mgmapi.h>
 #include <mgmapi_configuration.hpp>
+#include <NdbSpin.h>
 
 
 /* Return true if node with "nodeId" is a MGM node */
@@ -222,6 +223,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     case CONNECTION_TYPE_TCP:
       if(iter.get(CFG_TCP_SEND_BUFFER_SIZE, &conf.tcp.sendBufferSize)) break;
       if(iter.get(CFG_TCP_RECEIVE_BUFFER_SIZE, &conf.tcp.maxReceiveSize)) break;
+      iter.get(CFG_TCP_SPINTIME, &spintime);
+      conf.tcp.tcpSpintime= spintime;
       
       const char * proxy;
       if (!iter.get(CFG_TCP_PROXY, &proxy)) {

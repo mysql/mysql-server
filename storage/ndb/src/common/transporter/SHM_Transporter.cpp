@@ -66,8 +66,8 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 	      lNodeId, rNodeId, serverNodeId,
 	      0, false, checksum, signalId,
               _send_buffer_size,
-              preSendChecksum),
-  m_spintime(_spintime),
+              preSendChecksum,
+              _spintime),
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
@@ -108,9 +108,9 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 	      t->checksumUsed,
 	      t->signalIdUsed,
 	      t->m_max_send_buffer,
-	      t->check_send_checksum)
+	      t->check_send_checksum,
+              t->m_spintime)
 {
-  m_spintime = t->m_spintime;
   shmKey = t->shmKey;
   shmSize = t->shmSize;
 #ifndef NDB_WIN32

@@ -253,6 +253,8 @@
 #define CFG_DB_MAX_DD_LATENCY         668
 #define CFG_DB_DD_USING_SAME_DISK     669
 #define CFG_DB_NODE_GROUP_TRANSPORTERS 670
+#define CFG_DB_SPIN_METHOD            671
+#define CFG_DB_SPIN_TIME_PER_CALL     672
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
@@ -306,6 +308,7 @@
 #define CFG_TCP_SND_BUF_SIZE          458
 #define CFG_TCP_MAXSEG_SIZE           459
 #define CFG_TCP_BIND_INADDR_ANY       460
+#define CFG_TCP_SPINTIME              461
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501

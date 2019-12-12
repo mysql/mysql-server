@@ -176,11 +176,6 @@ protected:
   int m_remote_pid;
   Uint32 m_signal_threshold;
 
-  Uint32 m_spintime;
-  Uint32 get_spintime()
-  {
-    return m_spintime;
-  }
 private:
   bool _shmSegCreated;
   bool _attached;

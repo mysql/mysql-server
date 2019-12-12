@@ -229,7 +229,8 @@ protected:
 	      bool checksum, 
 	      bool signalId,
               Uint32 max_send_buffer,
-              bool _presend_checksum);
+              bool _presend_checksum,
+              Uint32 spintime);
 
   virtual bool configure(const TransporterConfiguration* conf);
   virtual bool configure_derived(const TransporterConfiguration* conf) = 0;
@@ -255,6 +256,11 @@ protected:
 
   int m_s_port;
 
+  Uint32 m_spintime;
+  Uint32 get_spintime()
+  {
+    return m_spintime;
+  }
   const NodeId remoteNodeId;
   const NodeId localNodeId;
 

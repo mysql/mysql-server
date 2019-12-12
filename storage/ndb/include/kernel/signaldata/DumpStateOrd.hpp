@@ -92,6 +92,13 @@ public:
     CmvmiSendDummySignal = 103005,
     _CMVMIMax = 103099,
 
+    _THRMANMin = 104000,
+    SetSchedulerSpinTimerAll = 104000,
+    SetSchedulerSpinTimerThread = 104001,
+    SetAllowedSpinOverhead = 104002,
+    SetSpintimePerCall = 104003,
+    EnableAdaptiveSpinning = 104004,
+    _THRMANMax = 104999,
     // 1 QMGR Dump information about phase 1 variables
     // 13 CMVMI Dump signal counter
     // 13 NDBCNTR Dump start phase information

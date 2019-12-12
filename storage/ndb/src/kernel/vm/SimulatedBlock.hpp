@@ -704,7 +704,10 @@ protected:
                                 Uint64 & user_time_os,
                                 Uint64 & kernel_time_os,
                                 Uint64 & elapsed_time_os);
-  Uint32 getSpintime();
+  Uint32 getConfiguredSpintime();
+  void setSpintime(Uint32 new_spintime);
+  Uint32 getWakeupLatency();
+  void setWakeupLatency(Uint32);
   Uint32 getNumSendThreads();
   Uint32 getNumThreads();
   const char * getThreadName();
@@ -1416,8 +1419,9 @@ protected:
   void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
-  void execSEND_PACKED(Signal* signal);
   void execLOCAL_ROUTE_ORD(Signal*);
+public:
+  void execSEND_PACKED(Signal* signal);
 private:
   /**
    * Node state

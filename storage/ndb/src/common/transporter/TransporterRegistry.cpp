@@ -42,6 +42,7 @@
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
 #include <NdbMutex.h>
+#include <NdbSpin.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 #include <socket_io.h>
@@ -1426,22 +1427,26 @@ TransporterRegistry::spin_check_transporters(
 #ifndef WIN32
   Uint64 micros_passed = 0;
   bool any_connected = false;
+  Uint64 spintime = Uint64(recvdata.m_spintime);
 
+  if (spintime == 0)
+  {
+    return res;
+  }
   NDB_TICKS start = NdbTick_getCurrentTicks();
   do
   {
-    for (Uint32 i = 0; i < 3; i++)
     {
       res = poll_SHM(recvdata, any_connected);
       if (res || !any_connected)
         break;
-      cpu_pause();
     }
     if (res || !any_connected)
       break;
     res = check_TCP(recvdata, 0);
     if (res)
       break;
+    NdbSpin();
     NDB_TICKS now = NdbTick_getCurrentTicks();
     micros_passed =
       NdbTick_Elapsed(start, now).microSec();
@@ -3092,8 +3097,9 @@ TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
  * it must either be called from the same (receive-)thread as
  * performReceive(), or protected by aquiring the (client) poll rights.
  */
-void
-TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
+Uint32
+TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
+                                        Uint32 max_spintime)
 {
   Uint32 spintime = 0;
   TransporterReceiveWatchdog guard(recvdata);
@@ -3153,9 +3159,10 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
       break;
     }
   }
-  recvdata.m_spintime = spintime;
   recvdata.nTCPTransporters = nTCPTransporters;
   recvdata.nSHMTransporters = nSHMTransporters;
+  recvdata.m_spintime = MIN(spintime, max_spintime);
+  return spintime; //Inform caller of spintime calculated on this level
 }
 
 /**

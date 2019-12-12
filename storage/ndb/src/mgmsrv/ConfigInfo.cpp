@@ -36,6 +36,7 @@
 #include <ConfigObject.hpp>
 #include <unordered_map>
 #include <string>
+#include "../src/kernel/vm/mt-asm.h"
 
 #include <portlib/ndb_localtime.h>
 
@@ -729,6 +730,41 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "0",
     "0",
     "500" },
+
+  {
+    /**
+     * Allowed values are:
+     * StaticSpinning
+     *   Use traditional static spinning based on configuration.
+     *
+     * CostBasedSpinning
+     *   Use adaptive spinning, allow overhead of 200% and max
+     *   spintime of 100 us. This gives some benefits on VMs
+     *   even in shared environment although it pays a small
+     *   cost for improved latency.
+     *
+     * LatencyOptimisedSpinning
+     *   Use adaptive spinning, allow overhead of 1000% and
+     *   max spintime of 200 us. This mode means spinning at a
+     *   fairly high cost, but still limited. This mode can
+     *   be used when latency is important, but it one still
+     *   attempts to have reasonable limits on CPU usage.
+     *
+     * DatabaseMachineSpinning
+     *   Use adaptive spinning, allow overhead of 10000% and
+     *   max spintime of 500 us. This mode means spinning
+     *   all the time except when we are idle. Use this when
+     *   latency is vital and no other users exists on the
+     *   machine or at least the CPUs used by the data node.
+     */
+    CFG_DB_SPIN_METHOD,
+    "SpinMethod",
+    DB_TOKEN,
+    "Spin method used by data node",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_STRING,
+    "StaticSpinning", 0, 0 },
 
   {
     CFG_DB_SCHED_RESPONSIVENESS,
@@ -3331,6 +3367,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "2M",
     "64K",
     STR_VALUE(MAX_INT_RNIL) },
+
+  {
+    CFG_TCP_SPINTIME,
+    "TcpSpintime",
+    "TCP",
+    "Number of microseconds to spin before going to sleep when receiving",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "2000"
+  },
 
   {
     CFG_TCP_RECEIVE_BUFFER_SIZE,

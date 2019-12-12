@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include "my_sys.h"
 #include <NdbMutex.h>
 #include <NdbLockCpuUtil.h>
+#include <NdbSpin.h>
 
 class EventLogger *g_eventLogger = NULL;
 
@@ -47,6 +48,7 @@ extern int NdbLockCpu_Init();
 extern void NdbLockCpu_End();
 extern void NdbTick_Init();
 extern void NdbOut_Init();
+extern void NdbSpin_Init();
 
 extern "C"
 {
@@ -105,6 +107,7 @@ ndb_init_internal(Uint32 caller)
     NdbTick_Init();
     NdbCondition_initialize();
     NdbGetRUsage_Init();
+    NdbSpin_Init();
   }
   if (init_all)
   {

@@ -57,6 +57,7 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbMutex_DeadlockDetector.cpp
   NdbGetRUsage.cpp
   NdbLockCpuUtil.cpp
+  NdbSpin.cpp
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
 

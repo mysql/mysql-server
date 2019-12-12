@@ -43,7 +43,8 @@ Multi_Transporter::Multi_Transporter(TransporterRegistry &t_reg,
 	      t->checksumUsed,
 	      t->signalIdUsed,
 	      t->m_max_send_buffer,
-	      t->check_send_checksum)
+	      t->check_send_checksum,
+              t->m_spintime)
 {
   send_checksum_state.init();
   m_num_active_transporters = 0;

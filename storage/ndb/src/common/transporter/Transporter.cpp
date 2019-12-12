@@ -64,8 +64,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 bool _checksum,
 			 bool _signalId,
              Uint32 max_send_buffer,
-             bool _presend_checksum)
+             bool _presend_checksum,
+             Uint32 spintime)
   : m_s_port(s_port),
+    m_spintime(spintime),
     remoteNodeId(rNodeId),
     localNodeId(lNodeId),
     m_transporter_index(transporter_index),

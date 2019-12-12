@@ -86,6 +86,8 @@ public:
   int schedulerSpinTimer() const;
   void schedulerSpinTimer(int value);
 
+  Uint32 spinTimePerCall() const;
+
   Uint32 maxSendDelay() const;
 
   Uint32 schedulerResponsiveness() const
@@ -165,6 +167,7 @@ private:
   Uint32 _timeBetweenWatchDogCheck;
   Uint32 _schedulerExecutionTimer;
   Uint32 _schedulerSpinTimer;
+  Uint32 _spinTimePerCall;
   Uint32 _realtimeScheduler;
   Uint32 _maxSendDelay;
   Uint32 _schedulerResponsiveness;

@@ -35,6 +35,7 @@
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 #include <NdbConfig.h>
+#include <NdbSpin.h>
 
 #include <mgmapi_configuration.hpp>
 #include <kernel_config_parameters.h>
@@ -364,8 +365,17 @@ Configuration::setupConfiguration(){
   _schedulerExecutionTimer = 50;
   iter.get(CFG_DB_SCHED_EXEC_TIME, &_schedulerExecutionTimer);
 
-  _schedulerSpinTimer = 0;
+  _schedulerSpinTimer = DEFAULT_SPIN_TIME;
   iter.get(CFG_DB_SCHED_SPIN_TIME, &_schedulerSpinTimer);
+  /* Always set SchedulerSpinTimer to 0 on platforms not supporting spin */
+  if (!NdbSpin_is_supported())
+  {
+    _schedulerSpinTimer = 0;
+  }
+  g_eventLogger->info("SchedulerSpinTimer = %u", _schedulerSpinTimer);
+
+  _spinTimePerCall = 1000;
+  iter.get(CFG_DB_SPIN_TIME_PER_CALL, &_spinTimePerCall);
 
   _maxSendDelay = 0;
   iter.get(CFG_DB_MAX_SEND_DELAY, &_maxSendDelay);
@@ -583,6 +593,11 @@ void
 Configuration::schedulerExecutionTimer(int value) {
   if (value < 11000)
     _schedulerExecutionTimer = value;
+}
+
+Uint32
+Configuration::spinTimePerCall() const {
+  return _spinTimePerCall;
 }
 
 int 

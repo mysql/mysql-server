@@ -43,7 +43,9 @@
 #include <NdbGetRUsage.h>
 #include <portlib/ndb_prefetch.h>
 #include <blocks/pgman.hpp>
+#include <blocks/thrman.hpp>
 #include <Pool.hpp>
+#include <NdbSpin.h>
 
 #include "mt-asm.h"
 #include "mt-lock.hpp"
@@ -135,6 +137,7 @@ static Uint32 glob_num_threads = 0;
 static Uint32 glob_num_tc_threads = 1;
 static Uint32 first_receiver_thread_no = 0;
 static Uint32 max_send_delay = 0;
+static Uint32 glob_wakeup_latency = 25;
 
 #define NO_SEND_THREAD (MAX_BLOCK_THREADS + MAX_NDBMT_SEND_THREADS + 1)
 
@@ -1311,6 +1314,7 @@ struct alignas(NDB_CL) thr_data
    * is to increase readiness in systems with much CPU resources
    */
   unsigned m_spintime;
+  unsigned m_conf_spintime;
 
   /**
    * nosend option on a thread means that it will never assist with sending.
@@ -1459,6 +1463,15 @@ struct alignas(NDB_CL) thr_data
     Uint64 m_priob_count;
     Uint64 m_priob_size;
   } m_stat;
+
+  struct
+  {
+    Uint32 m_sleep_longer_spin_time;
+    Uint32 m_sleep_shorter_spin_time;
+    Uint32 m_num_waits;
+    Uint32 m_micros_sleep_times[NUM_SPIN_INTERVALS];
+    Uint32 m_spin_interval[NUM_SPIN_INTERVALS];
+  } m_spin_stat;
 
   Uint64 m_micros_send;
   Uint64 m_micros_sleep;
@@ -3074,47 +3087,206 @@ check_real_time_break(NDB_TICKS now,
   }
 }
 
-static bool
-check_yield(NDB_TICKS *start_spin_ticks,
-            Uint64 min_spin_timer) //microseconds
+#define NUM_WAITS_TO_CHECK_SPINTIME 6
+static void
+wait_time_tracking(thr_data *selfptr, Uint64 wait_time_in_us)
 {
-  /**
-   * We add a timer call to ensure that we spin correct amount of time.
-   * We are not worried over the overhead here since we are per definition
-   * spinning when coming here. So no need to worry what we do with the
-   * CPU while spinning.
-   */
-  cpu_pause();
-  NDB_TICKS now = NdbTick_getCurrentTicks();
-  assert(min_spin_timer > 0);
-
-  if (!NdbTick_IsValid(*start_spin_ticks))
+  for (Uint32 i = 0; i < NUM_SPIN_INTERVALS; i++)
   {
-    /**
-     * We haven't started spinning yet, start spin timer.
-     */
-    *start_spin_ticks = now;
-    return false;
+    if (wait_time_in_us <= selfptr->m_spin_stat.m_spin_interval[i])
+    {
+      selfptr->m_spin_stat.m_micros_sleep_times[i]++;
+      selfptr->m_spin_stat.m_num_waits++;
+      if (unlikely(selfptr->m_spintime == 0 &&
+            selfptr->m_conf_spintime != 0 &&
+            selfptr->m_spin_stat.m_num_waits == NUM_WAITS_TO_CHECK_SPINTIME))
+      {
+        /**
+         * React quickly to changes in environment, if we don't have
+         * spinning activated and have already seen 15 wait times, it means
+         * that there is a good chance that spinning is a good idea now.
+         * So invoke a check if we should activate spinning now.
+         */
+        SimulatedBlock *b = globalData.getBlock(THRMAN, selfptr->m_thr_no + 1);
+        ((Thrman*)b)->check_spintime(false);
+      }
+      return;
+    }
   }
-  if (unlikely(NdbTick_Compare(now, *start_spin_ticks) < 0))
-  {
-    /**
-     * Timer was adjusted backwards, or the monotonic timer implementation
-     * on this platform is unstable. Best we can do is to restart
-     * spin timers from new current time.
-     */
-    *start_spin_ticks = now;
-    return false;
-  }
+  require(false);
+}
 
+static bool check_queues_empty(thr_data *selfptr);
+static Uint32 scan_time_queues(struct thr_data* selfptr, NDB_TICKS now);
+static bool do_send(struct thr_data* selfptr,
+                    bool must_send,
+                    bool assist_send);
+/**
+ * We call this function only after executing no jobs and thus it is
+ * safe to spin for a short time.
+ */
+static bool
+check_yield(thr_data *selfptr,
+            Uint64 min_spin_timer, //microseconds
+            Uint32 *spin_time_in_us,
+            NDB_TICKS start_spin_ticks)
+{
+  NDB_TICKS now;
+  bool cont_flag = true;
+  do
+  {
+    for (Uint32 i = 0; i < 50; i++)
+    {
+      /**
+       * During around 50 us we only check for JBA and JBB
+       * queues to not be empty. This happens when another thread or
+       * the receive thread sends a signal to the thread.
+       */
+      NdbSpin();
+      if (!check_queues_empty(selfptr))
+      {
+        /* Found jobs to execute, successful spin */
+        cont_flag = false;
+        now = NdbTick_getCurrentTicks();
+        break;
+      }
+      /* Check if we have done enough spinning once per 3 us */
+      if ((i & 3) == 3)
+        continue;
+      now = NdbTick_getCurrentTicks();
+      Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
+      if (spin_micros > min_spin_timer)
+      {
+        /**
+         * We have spun for the required time, but to no avail, there was no
+         * work to do, so it is now time to yield and go to sleep.
+         */
+        *spin_time_in_us = spin_micros;
+        selfptr->m_curr_ticks = now;
+        selfptr->m_spin_stat.m_sleep_longer_spin_time++;
+        selfptr->m_measured_spintime += spin_micros;
+        return true;
+      }
+    }
+    if (!cont_flag)
+      break;
+    /**
+     * Every 50 us we also scan time queues to see if any delayed signals
+     * need to be delivered. After checking if this generates any new
+     * messages we also check if we have completed spinning for this
+     * time.
+     */
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
+    if (lagging_timers != 0 ||
+        !check_queues_empty(selfptr))
+    {
+      /* Found jobs to execute, successful spin */
+      cont_flag = false;
+      break;
+    }
+  } while (cont_flag);
   /**
-   * We have a minimum spin timer before we go to sleep.
-   * We will go to sleep only if we have spun for longer
-   * time than required by the minimum spin time.
+   * Successful spinning, we will record spinning time. We will also record
+   * the number of micros that this has saved. This is a static number based
+   * on experience. We use measurements from virtual machines where we gain
+   * the time it would take to go to sleep and wakeup again. This is roughly
+   * 25 microseconds.
+   *
+   * This is the positive part of spinning where we gained something through
+   * spinning.
    */
-  const Uint64 micros_passed =
-    NdbTick_Elapsed(*start_spin_ticks, now).microSec();
-  return (micros_passed >= min_spin_timer);
+  Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
+  selfptr->m_curr_ticks = now;
+  selfptr->m_measured_spintime += spin_micros;
+  selfptr->m_spin_stat.m_sleep_shorter_spin_time++;
+  selfptr->m_micros_sleep += spin_micros;
+  wait_time_tracking(selfptr, spin_micros);
+  return false;
+}
+
+/**
+ * We call this function only after executing no jobs and thus it is
+ * safe to spin for a short time.
+ */
+static bool
+check_recv_yield(thr_data *selfptr,
+                 TransporterReceiveHandle & recvdata,
+                 Uint64 min_spin_timer, //microseconds
+                 Uint32 & num_events,
+                 Uint32 *spin_time_in_us,
+                 NDB_TICKS start_spin_ticks)
+{
+  NDB_TICKS now;
+  bool cont_flag = true;
+  do
+  {
+    for (Uint32 i = 0; i < 60; i++)
+    {
+      /**
+       * During around 50 us we only check for JBA and JBB
+       * queues to not be empty. This happens when another thread or
+       * the receive thread sends a signal to the thread.
+       */
+      NdbSpin();
+      if ((!check_queues_empty(selfptr)) ||
+          ((num_events =
+            globalTransporterRegistry.pollReceive(0, recvdata)) > 0))
+      {
+        /* Found jobs to execute, successful spin */
+        cont_flag = false;
+        now = NdbTick_getCurrentTicks();
+        break;
+      }
+      /* Check if we have done enough spinning once per 3 us */
+      if ((i & 3) == 3)
+        continue;
+      /* Check if we have done enough spinning */
+      now = NdbTick_getCurrentTicks();
+      Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
+      if (spin_micros > min_spin_timer)
+      {
+        /**
+         * We have spun for the required time, but to no avail, there was no
+         * work to do, so it is now time to yield and go to sleep.
+         */
+        selfptr->m_measured_spintime += spin_micros;
+        selfptr->m_spin_stat.m_sleep_longer_spin_time++;
+        return true;
+      }
+    }
+    if (!cont_flag)
+      break;
+    /**
+     * Every 50 us we also scan time queues to see if any delayed signals
+     * need to be delivered. After checking if this generates any new
+     * messages we also check if we have completed spinning for this
+     * time.
+     */
+    const Uint32 lagging_timers = scan_time_queues(selfptr, now);
+    if (lagging_timers != 0 ||
+        !check_queues_empty(selfptr))
+    {
+      /* Found jobs to execute, successful spin */
+      cont_flag = false;
+      break;
+    }
+  } while (cont_flag);
+  /**
+   * Successful spinning, we will record spinning time. We will also record
+   * the number of micros that this has saved. This is a static number based
+   * on experience. We use measurements from virtual machines where we gain
+   * the time it would take to go to sleep and wakeup again. This is roughly
+   * 25 microseconds.
+   *
+   * This is the positive part of spinning where we gained something through
+   * spinning.
+   */
+  Uint64 spin_micros = NdbTick_Elapsed(start_spin_ticks, now).microSec();
+  selfptr->m_measured_spintime += spin_micros;
+  selfptr->m_spin_stat.m_sleep_shorter_spin_time++;
+  selfptr->m_micros_sleep += spin_micros;
+  wait_time_tracking(selfptr, spin_micros);
+  return false;
 }
 
 /**
@@ -3496,6 +3668,12 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     Uint64 exec_time = NdbTick_Elapsed(last_now, now).microSec();
     Uint64 time_since_update_rusage =
       NdbTick_Elapsed(last_rusage, now).microSec();
+    /**
+     * At this moment exec_time is elapsed time since last time
+     * we were here. Now remove the time we spent sleeping to
+     * get exec_time, thus exec_time + sleep_time will always
+     * be elapsed time.
+     */
     exec_time -= sleep_time;
     last_now = now;
     micros_sleep = 0;
@@ -3599,6 +3777,15 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
                             this_send_thread->m_thread,
                             SendThread);
     }
+
+
+    /**
+     * Send thread is by definition a throughput supportive thread.
+     * Thus in situations when the latency is at risk the sending
+     * is performed by the block threads. Thus there is no reason
+     * to perform any spinning in the send thread, we will ignore
+     * spin timer for send threads.
+     */
     {
       Uint32 max_wait_nsec;
       /**
@@ -3615,7 +3802,6 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       {
         max_wait_nsec = trp_wait * 1000;
       }
-
       NDB_TICKS before = NdbTick_getCurrentTicks();
       bool waited = yield(&this_send_thread->m_waiter_struct,
                           max_wait_nsec,
@@ -6185,12 +6371,15 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
   {
     BlockReference block = thr_ptr->m_instance_list[i];
     Uint32 main = blockToMain(block);
-    Uint32 instance = blockToInstance(block);
-    SimulatedBlock* b = globalData.getBlock(main, instance);
-    // wl4391_todo remove useless assert
-    assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
-    /* b->send_at_job_buffer_end(); */
-    b->executeFunction_async(GSN_SEND_PACKED, signal);
+    if (main == DBLQH || main == DBTC || main == DBTUP || main == NDBFS)
+    {
+      Uint32 instance = blockToInstance(block);
+      SimulatedBlock* b = globalData.getBlock(main, instance);
+      // wl4391_todo remove useless assert
+      assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
+      /* b->send_at_job_buffer_end(); */
+      b->executeFunction_async(GSN_SEND_PACKED, signal);
+    }
   }
 }
 
@@ -6920,8 +7109,17 @@ init_thread(thr_data *selfptr)
 
   selfptr->m_realtime = conf.do_get_realtime(selfptr->m_instance_list,
                                              selfptr->m_instance_count);
-  selfptr->m_spintime = conf.do_get_spintime(selfptr->m_instance_list,
-                                             selfptr->m_instance_count);
+  selfptr->m_conf_spintime = conf.do_get_spintime(selfptr->m_instance_list,
+                                                  selfptr->m_instance_count);
+
+  /* spintime always 0 on platforms not supporting spin */
+  if (!NdbSpin_is_supported())
+  {
+    selfptr->m_conf_spintime = 0;
+  }
+  selfptr->m_spintime = 0;
+  memset(&selfptr->m_spin_stat, 0, sizeof(selfptr->m_spin_stat));
+  selfptr->m_spin_stat.m_spin_interval[NUM_SPIN_INTERVALS - 1] = 0xFFFFFFFF;
 
   selfptr->m_sched_responsiveness =
     globalEmulatorData.theConfiguration->schedulerResponsiveness();
@@ -6940,7 +7138,7 @@ init_thread(thr_data *selfptr)
   tmp.appfmt("realtime=%u, spintime=%u, max_signals_before_send=%u"
              ", max_signals_before_send_flush=%u",
              selfptr->m_realtime,
-             selfptr->m_spintime,
+             selfptr->m_conf_spintime,
              selfptr->m_max_signals_before_send,
              selfptr->m_max_signals_before_send_flush);
 
@@ -7040,8 +7238,8 @@ mt_receiver_thread_main(void *thr_arg)
   int cnt = 0;
   bool real_time = false;
   Uint64 min_spin_timer;
-  NDB_TICKS start_spin_ticks;
   NDB_TICKS yield_ticks;
+  NDB_TICKS before;
 
   init_thread(selfptr);
   signal = aligned_signal(signal_buf, thr_no);
@@ -7060,8 +7258,8 @@ mt_receiver_thread_main(void *thr_arg)
    */
   g_trp_receive_handle_ptr[recv_thread_idx] = &recvdata;
 
-  NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
+  before = now;
   selfptr->m_curr_ticks = now;
   selfptr->m_signal = signal;
   selfptr->m_ticks = selfptr->m_scan_real_ticks = yield_ticks = now;
@@ -7072,8 +7270,19 @@ mt_receiver_thread_main(void *thr_arg)
     if (cnt == 0)
     {
       watchDogCounter = 5;
-      globalTransporterRegistry.update_connections(recvdata);
       update_spin_config(selfptr, min_spin_timer);
+      Uint32 max_spintime = 0;
+      /**
+       * The settings of spinning on transporter is only aimed at
+       * the NDB API part. We have an elaborate scheme for handling
+       * spinning in ndbmtd, so we shut down any spinning inside
+       * the transporter here. The principle is to only spin in one
+       * location and spinning in recv thread overrides any spinning
+       * desired on transporter level.
+       */
+      max_spintime = 0;
+      globalTransporterRegistry.update_connections(recvdata,
+                                                   max_spintime);
     }
     cnt = (cnt + 1) & 15;
 
@@ -7090,6 +7299,7 @@ mt_receiver_thread_main(void *thr_arg)
 
     if (sum || has_received)
     {
+      sendpacked(selfptr, signal);
       watchDogCounter = 6;
       flush_jbb_write_state(selfptr);
     }
@@ -7111,31 +7321,45 @@ mt_receiver_thread_main(void *thr_arg)
      * 1) We are not lagging behind in handling timer events.
      * 2) No more pending sends, or no send progress.
      * 3) There are no 'min_spin' configured or min_spin has elapsed
+     * We will not check spin timer until we have checked the
+     * transporters at least one loop and discovered no data. We also
+     * ensure that we have not executed any signals before we start
+     * the actual spin timer.
      */
     Uint32 delay = 0;
+    Uint32 num_events = 0;
+    Uint32 spin_micros = 0;
+    update_spin_config(selfptr, min_spin_timer);
+    before = NdbTick_getCurrentTicks();
 
     if (lagging_timers == 0 &&       // 1)
         pending_send  == false &&    // 2)
         (min_spin_timer == 0 ||      // 3)
-         check_yield(&start_spin_ticks,
-                     min_spin_timer)))
+         (sum == 0 &&
+          !has_received &&
+          check_recv_yield(selfptr,
+                           recvdata,
+                           min_spin_timer,
+                           num_events,
+                           &spin_micros,
+                           before))))
     {
-      delay = 1; // 1ms
+      delay = 10; // 10 ms
     }
 
     has_received = false;
-    NDB_TICKS before = NdbTick_getCurrentTicks();
-    if (min_spin_timer != 0 &&
-        NdbTick_IsValid(start_spin_ticks))
+    if (num_events == 0)
     {
-      selfptr->m_measured_spintime+=
-        NdbTick_Elapsed(start_spin_ticks, before).microSec();
-      NdbTick_Invalidate(&start_spin_ticks);
+      /* Need to call pollReceive if not already done in check_recv_yield */
+      num_events = globalTransporterRegistry.pollReceive(delay, recvdata);
     }
-    Uint32 num_events = globalTransporterRegistry.pollReceive(delay, recvdata);
-    NDB_TICKS after = NdbTick_getCurrentTicks();
-    selfptr->m_micros_sleep += NdbTick_Elapsed(before, after).microSec();
-
+    if (delay > 0)
+    {
+      NDB_TICKS after = NdbTick_getCurrentTicks();
+      Uint64 micros_sleep = NdbTick_Elapsed(before, after).microSec();
+      selfptr->m_micros_sleep += micros_sleep;
+      wait_time_tracking(selfptr, micros_sleep);
+    }
     if (num_events)
     {
       watchDogCounter = 8;
@@ -7172,10 +7396,6 @@ mt_receiver_thread_main(void *thr_arg)
               NdbTick_Elapsed(before, after).microSec();
           }
         }
-      }
-      else
-      {
-        NdbTick_Invalidate(&start_spin_ticks);
       }
     }
     selfptr->m_stat.m_loop_cnt++;
@@ -7407,7 +7627,6 @@ mt_job_thread_main(void *thr_arg)
   Uint32 maxloops = 10;/* Loops before reading clock, fuzzy adapted to 1ms freq. */
   Uint32 waits = 0;
 
-  NDB_TICKS start_spin_ticks;
   NDB_TICKS yield_ticks;
 
   Uint64 min_spin_timer;
@@ -7416,9 +7635,8 @@ mt_job_thread_main(void *thr_arg)
   update_rt_config(selfptr, real_time, BlockThread);
   update_spin_config(selfptr, min_spin_timer);
 
-  NdbTick_Invalidate(&start_spin_ticks);
   NDB_TICKS now = NdbTick_getCurrentTicks();
-  selfptr->m_ticks = start_spin_ticks = yield_ticks = now;
+  selfptr->m_ticks = yield_ticks = now;
   selfptr->m_scan_real_ticks = now;
   selfptr->m_signal = signal;
   selfptr->m_curr_ticks = now;
@@ -7452,7 +7670,6 @@ mt_job_thread_main(void *thr_arg)
                                  flush_sum,
                                  pending_send);
     
-    sendpacked(selfptr, signal);
 
     if (sum)
     {
@@ -7471,7 +7688,12 @@ mt_job_thread_main(void *thr_arg)
        *
        * No need to flush however if no signals have been executed since
        * last flush.
+       *
+       * No need to check for send packed signals if we didn't send
+       * any signals, packed signals are sent as a result of an
+       * executed signal.
        */
+      sendpacked(selfptr, signal);
       watchDogCounter = 6;
       if (flush_sum > 0)
       {
@@ -7479,7 +7701,6 @@ mt_job_thread_main(void *thr_arg)
         do_flush(selfptr);
         flush_sum = 0;
       }
-      NdbTick_Invalidate(&start_spin_ticks);
     }
     /**
      * Scheduler is not allowed to yield until its internal
@@ -7505,45 +7726,47 @@ mt_job_thread_main(void *thr_arg)
        */
       if (pending_send == false) /* Nothing pending, or no progress made */
       {
+        /**
+         * When min_spin_timer > 0 it means we are spinning, if we executed
+         * jobs this time there is no reason to check spin timer and since
+         * we executed at least one signal we are per definition not yet
+         * spinning. Thus we can immediately move to the next loop.
+         * Spinning is performed for a while when sum == 0 AND
+         * min_spin_timer > 0. In this case we need to go into check_yield
+         * and initialise spin timer (on first round) and check spin timer
+         * on subsequent loops.
+         */
+        Uint32 spin_time_in_us = 0;
+        update_spin_config(selfptr, min_spin_timer);
+        NDB_TICKS before = NdbTick_getCurrentTicks();
+        bool has_spun = (min_spin_timer != 0);
         if (min_spin_timer == 0 ||
-            check_yield(&start_spin_ticks,
-                        min_spin_timer))
+            check_yield(selfptr,
+                        min_spin_timer,
+                        &spin_time_in_us,
+                        before))
         {
           /**
            * Sleep, either a short nap if send failed due to send overload,
            * or a longer sleep if there are no more work waiting.
            */
-          Uint32 maxwait =
+          Uint32 maxwait_in_us =
             (selfptr->m_node_overload_status >=
              (OverloadStatus)MEDIUM_LOAD_CONST) ?
-            1 * 1000 * 1000 :
-            10 * 1000 * 1000;
-
-          NDB_TICKS before = NdbTick_getCurrentTicks();
-          if (min_spin_timer != 0 &&
-              NdbTick_IsValid(start_spin_ticks))
+            1 * 1000 :
+            10 * 1000;
+          if (maxwait_in_us < spin_time_in_us)
           {
-            selfptr->m_measured_spintime+=
-              NdbTick_Elapsed(start_spin_ticks, before).microSec();
-            NdbTick_Invalidate(&start_spin_ticks);
-            /**
-             * Ensure that we shorten sleep according to time of spinning
-             * we already done.
-             */
-            Uint32 spin_time_in_ns = min_spin_timer * 1000;
-            if (maxwait < spin_time_in_ns)
-            {
-              maxwait = 0;
-            }
-            else
-            { 
-              maxwait -= spin_time_in_ns;
-            }
+            maxwait_in_us = 0;
+          }
+          else
+          {
+            maxwait_in_us -= spin_time_in_us;
           }
           selfptr->m_watchdog_counter = 18;
-          const Uint32 used_maxwait = maxwait;
+          const Uint32 used_maxwait_in_ns = maxwait_in_us * 1000;
           bool waited = yield(&selfptr->m_waiter,
-                              used_maxwait,
+                              used_maxwait_in_ns,
                               check_queues_empty,
                               selfptr);
           if (waited)
@@ -7553,7 +7776,9 @@ mt_job_thread_main(void *thr_arg)
             now = NdbTick_getCurrentTicks();
             selfptr->m_curr_ticks = now;
             yield_ticks = now;
-            selfptr->m_micros_sleep += NdbTick_Elapsed(before, now).microSec();
+            Uint64 micros_sleep = NdbTick_Elapsed(before, now).microSec();
+            selfptr->m_micros_sleep += micros_sleep;
+            wait_time_tracking(selfptr, micros_sleep);
             selfptr->m_stat.m_wait_cnt += waits;
             selfptr->m_stat.m_loop_cnt += loops;
             if (selfptr->m_overload_status <=
@@ -7565,7 +7790,7 @@ mt_job_thread_main(void *thr_arg)
                * quickly discover if nothing is pending.
                */
               pending_send = true;
-            }           
+            }         
             waits = loops = 0;
             if (selfptr->m_thr_no == 0)
             {
@@ -7579,6 +7804,11 @@ mt_job_thread_main(void *thr_arg)
               check_for_input_from_ndbfs(selfptr, signal);
             }
           }
+          else if (has_spun)
+          {
+            selfptr->m_micros_sleep += spin_time_in_us;
+            wait_time_tracking(selfptr, spin_time_in_us);
+          }
         }
       }
     }
@@ -7587,6 +7817,7 @@ mt_job_thread_main(void *thr_arg)
      * Check if we executed enough signals,
      *   and if so recompute how many signals to execute
      */
+    now = NdbTick_getCurrentTicks();
     if (sum >= selfptr->m_max_exec_signals)
     {
       if (update_sched_config(selfptr,
@@ -7595,14 +7826,11 @@ mt_job_thread_main(void *thr_arg)
                               flush_sum))
       {
         /* Update current time after sleeping */
-        now = NdbTick_getCurrentTicks();
         selfptr->m_curr_ticks = now;
         selfptr->m_stat.m_wait_cnt += waits;
         selfptr->m_stat.m_loop_cnt += loops;
         waits = loops = 0;
-        NdbTick_Invalidate(&start_spin_ticks);
         update_rt_config(selfptr, real_time, BlockThread);
-        update_spin_config(selfptr, min_spin_timer);
         calculate_max_signals_parameters(selfptr);
       }
     }
@@ -7741,13 +7969,47 @@ mt_setSendNodeOverloadStatus(OverloadStatus new_status)
   }
 }
 
+void
+mt_setSpintime(Uint32 self, Uint32 new_spintime)
+{
+  struct thr_repository* rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  /* spintime always 0 on platforms not supporting spin */
+  if (!NdbSpin_is_supported())
+  {
+    new_spintime = 0;
+  }
+  selfptr->m_spintime = new_spintime;
+}
+
 Uint32
-mt_getSpintime(Uint32 self)
+mt_getConfiguredSpintime(Uint32 self)
 {
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
 
-  return selfptr->m_spintime;
+  return selfptr->m_conf_spintime;
+}
+
+Uint32
+mt_getWakeupLatency(void)
+{
+  return glob_wakeup_latency;
+}
+
+void
+mt_setWakeupLatency(Uint32 latency)
+{
+  /**
+   * Round up to next 5 micros (+4) AND
+   * add 2 microseconds for time to execute going to sleep (+2).
+   * Rounding up is an attempt to decrease variance by selecting the
+   * latency more coarsely.
+   * 
+   */
+  latency = (latency + 4 + 2) / 5;
+  latency *= 5;
+  glob_wakeup_latency = latency;
 }
 
 void
@@ -7776,8 +8038,21 @@ mt_getPerformanceTimers(Uint32 self,
   struct thr_repository* rep = g_thr_repository;
   struct thr_data *selfptr = &rep->m_thread[self];
 
+  /**
+   * Internally in mt.cpp sleep time now includes spin time. However
+   * to ensure backwards compatibility we report them separate to
+   * any block users of this information.
+   */
   micros_sleep = selfptr->m_micros_sleep;
   spin_time = selfptr->m_measured_spintime;
+  if (micros_sleep >= spin_time)
+  {
+    micros_sleep -= spin_time;
+  }
+  else
+  {
+    micros_sleep = 0;
+  }
   buffer_full_micros_sleep = selfptr->m_buffer_full_micros_sleep;
   micros_send = selfptr->m_micros_send;
 }
@@ -8734,6 +9009,16 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
 
   max_send_delay = globalEmulatorData.theConfiguration->maxSendDelay();
 
+  /**
+   * Set the configured time we will spend in spinloop before coming
+   * back to check conditions.
+   */
+  Uint32 spin_nanos = globalEmulatorData.theConfiguration->spinTimePerCall();
+  NdbSpin_Change(Uint64(spin_nanos));
+  g_eventLogger->info("Number of spin loops is %llu to pause %llu nanoseconds",
+                      NdbSpin_get_num_spin_loops(),
+                      NdbSpin_get_current_spin_nanos());
+
   if (globalData.ndbMtSendThreads)
   {
     /**
@@ -9459,6 +9744,34 @@ mt_get_blocklist(SimulatedBlock * block, Uint32 arr[], Uint32 len)
   }
 
   return thr_ptr->m_instance_count;
+}
+
+void
+mt_get_spin_stat(class SimulatedBlock *block, ndb_spin_stat *dst)
+{
+  Uint32 thr_no = block->getThreadId();
+  struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no];
+  dst->m_sleep_longer_spin_time = selfptr->m_spin_stat.m_sleep_longer_spin_time;
+  dst->m_sleep_shorter_spin_time =
+    selfptr->m_spin_stat.m_sleep_shorter_spin_time;
+  dst->m_num_waits = selfptr->m_spin_stat.m_num_waits;
+  for (Uint32 i = 0; i < NUM_SPIN_INTERVALS; i++)
+  {
+    dst->m_micros_sleep_times[i] =
+      selfptr->m_spin_stat.m_micros_sleep_times[i];
+    dst->m_spin_interval[i] = selfptr->m_spin_stat.m_spin_interval[i];
+  }
+}
+
+void mt_set_spin_stat(class SimulatedBlock *block, ndb_spin_stat *src)
+{
+  Uint32 thr_no = block->getThreadId();
+  struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no];
+  memset(&selfptr->m_spin_stat, 0, sizeof(selfptr->m_spin_stat));
+  for (Uint32 i = 0; i < NUM_SPIN_INTERVALS; i++)
+  {
+    selfptr->m_spin_stat.m_spin_interval[i] = src->m_spin_interval[i];
+  }
 }
 
 void
