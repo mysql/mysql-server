@@ -525,8 +525,17 @@ accounting. An object of this type is put in front of each allocated block
 of memory when allocation is done by ut_allocator::allocate(). This is
 because the data is needed even when freeing the memory. Users of
 ut_allocator::allocate_large() are responsible for maintaining this
-themselves. */
-struct ut_new_pfx_t {
+themselves.
+ To maintain proper alignment of the pointers ut_allocator returns to the
+calling code, this struct is declared with alignas(std::max_align_t). This tells
+the compiler to insert enough padding to the struct to satisfy the strictest
+fundamental alignment requirement. The size of this object then becomes a
+multiple of the alignment requirement, this is implied by the fact that arrays
+are contiguous in memory. This means that when we increment a pointer to
+ut_new_pfx_t the resulting pointer must be aligned to the alignment requirement
+of std::max_align_t. Ref. C++ standard: 6.6.5 [basic.align], 11.3.4 [dcl.array]
+*/
+struct alignas(std::max_align_t) ut_new_pfx_t {
 #ifdef UNIV_PFS_MEMORY
 
   /** Performance schema key. Assigned to a name at startup via
@@ -555,11 +564,6 @@ struct ut_new_pfx_t {
   allocated block and its users are responsible for maintaining it
   and passing it later to ut_allocator::deallocate_large(). */
   size_t m_size;
-#if SIZEOF_VOIDP == 4
-  /** Pad the header size to a multiple of 64 bits on 32-bit systems,
-  so that the payload will be aligned to 64 bits. */
-  size_t pad;
-#endif
 };
 
 /** Allocator class for allocating memory from inside std::* containers. */
@@ -574,6 +578,9 @@ class ut_allocator {
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
 
+  static_assert(alignof(T) <= alignof(std::max_align_t),
+                "ut_allocator does not support over-aligned types. Use "
+                "aligned_memory or another similar allocator for this type.");
   /** Default constructor.
   @param[in] key  performance schema key. */
   explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
@@ -663,10 +670,6 @@ class ut_allocator {
     size_t total_bytes = n_elements * sizeof(T);
 
 #ifdef UNIV_PFS_MEMORY
-    /* The header size must not ruin the 64-bit alignment
-    on 32-bit systems. Some allocated structures use
-    64-bit fields. */
-    ut_ad((sizeof(ut_new_pfx_t) & 7) == 0);
     total_bytes += sizeof(ut_new_pfx_t);
 #endif /* UNIV_PFS_MEMORY */
 
@@ -996,8 +999,8 @@ pointer must be passed to UT_DELETE() when no longer needed.
   /* Placement new will return NULL and not attempt to construct an      \
   object if the passed in pointer is NULL, e.g. if allocate() has        \
   failed to allocate memory and has returned NULL. */                    \
-  ::new (ut_allocator<byte>(key).allocate(sizeof expr, NULL, key, false, \
-                                          false)) expr
+  ::new (ut_allocator<decltype(expr)>(key).allocate(1, NULL, key, false, \
+                                                    false)) expr
 
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
