@@ -1346,6 +1346,9 @@ drop user con1@localhost;
 drop user con2@localhost;
 drop user mysqlcon1@localhost;
 drop user mysqlcon2@localhost;
+drop user ''@localhost;
+drop user special@localhost;
+drop user session@localhost;
 show status like 'Mysqlx_connections_closed';
 Variable_name	Value
 Mysqlx_connections_closed	15
