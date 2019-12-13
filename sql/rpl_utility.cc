@@ -420,6 +420,17 @@ can_convert_field_to(Field *field,
     else
       DBUG_RETURN(false);
   }
+  else if ((source_type == MYSQL_TYPE_DATETIME || source_type == MYSQL_TYPE_DATETIME2) &&
+          (field->real_type() == MYSQL_TYPE_TIMESTAMP || field->real_type() == MYSQL_TYPE_TIMESTAMP2))
+  {
+      // We don't (yet) support a source with a subsecond precision
+      if (metadata > 0) {
+          DBUG_RETURN(false);
+      }
+
+      *order_var= -1;
+      DBUG_RETURN(is_conversion_ok(*order_var, rli));
+  }
   else if (metadata == 0 &&
            (timestamp_cross_check(field->real_type(), source_type) ||
            datetime_cross_check(field->real_type(), source_type) ||
