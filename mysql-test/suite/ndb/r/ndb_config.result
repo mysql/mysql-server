@@ -49,7 +49,7 @@ Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
  WARNING  -- at line 27: WARNING: Too few CPU's specified with LockExecuteThreadToCPU. Only 4 specified  but 7 was needed, this may cause contention.
 Assigning LQH threads round robin to CPU(s) and other threads will share CPU 0
 
-1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0,spintime=100},ldm={cpubind=1,spintime=100},ldm={cpubind=2,spintime=100},ldm={cpubind=3,spintime=100},ldm={cpubind=1,spintime=100},recv={cpubind=0,spintime=100},rep={cpubind=0,spintime=100} 5,,ldm,ldm 6,, 7,,
+1,0-3,ldm={count=4} 2,4-8,ldm={count=4,cpubind=0-3} 3,,ldm={count=4} 4,0-3,main={cpubind=0},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=1},recv={cpubind=0},rep={cpubind=0} 5,,ldm,ldm 6,, 7,,
 == 22 == bug14555359
 1,ndbd,3145728 2,ndbd,4194304 3,ndb_mgmd,1048576 4,mysqld,2097152 5,mysqld,0
 == 23 == bug18366909

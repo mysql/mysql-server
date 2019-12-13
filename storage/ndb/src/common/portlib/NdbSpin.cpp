@@ -35,6 +35,8 @@ Uint64 NdbSpin_get_current_spin_nanos()
 
 void NdbSpin_Init()
 {
+  Uint64 loops = 0;
+#ifdef NDB_HAVE_CPU_PAUSE
   Uint64 spin_nanos = glob_current_spin_nanos;
   Uint64 min_nanos_per_call = 0xFFFFFFFF;
   for (Uint32 i = 0; i < 5; i++)
@@ -53,8 +55,8 @@ void NdbSpin_Init()
       min_nanos_per_call = nanos_per_call;
     }
   }
-  Uint64 loops = ((min_nanos_per_call - 1) + spin_nanos) / min_nanos_per_call;
-
+  loops = ((min_nanos_per_call - 1) + spin_nanos) / min_nanos_per_call;
+#endif
   if (loops == 0)
   {
     loops = 1;
@@ -64,6 +66,8 @@ void NdbSpin_Init()
 
 void NdbSpin_Change(Uint64 spin_nanos)
 {
+  (void)spin_nanos;
+#ifdef HAVE_NDB_CPU_PAUSE
   if (spin_nanos < 300)
   {
     spin_nanos = 300;
@@ -78,6 +82,7 @@ void NdbSpin_Change(Uint64 spin_nanos)
   }
   glob_current_spin_nanos = spin_nanos;
   glob_num_spin_loops = Uint32(new_spin_loops);
+#endif
 }
 
 bool NdbSpin_is_supported()
