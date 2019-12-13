@@ -7471,13 +7471,15 @@ Dbspj::scanFrag_send(Signal* signal,
   {
     /**
      * No valid statistics yet to estimate 'parallism' from. We start
-     * by reading a single fragment, which will get the entire 'batch',
-     * in order to hopefully give us a valid sample. Note that SCAN_FRAGCONF
-     * may start more scans when this scan completes, if there are a
-     * sufficient amount of unused batch size left.
+     * by reading a few fragments, but suffient many to take full advantage
+     * of scan parallelism. Batch completion will provide a parallelism sample,
+     * such that we can do a better parallelism guess next time.
+     * Note that SCAN_FRAGCONF may start more scans when this scan completes,
+     * if there are a sufficient amount of unused batch size left.
      */
     jam();
-    data.m_parallelism = 1;
+    data.m_parallelism = MIN(requestPtr.p->m_rootFragCnt,
+                             data.m_frags_not_started);
   }
   else
   {
@@ -7489,15 +7491,15 @@ Dbspj::scanFrag_send(Signal* signal,
      * in the other direction is more costly).
      */
     Int32 parallelism = 
-      static_cast<Int32>(MIN(data.m_parallelismStat.getMean()
+      static_cast<Int32>(MIN(data.m_parallelismStat.getMean() +
                              // Add 0.5 to get proper rounding.
                              - 2 * data.m_parallelismStat.getStdDev() + 0.5,
                              org->batch_size_rows));
 
-    if (parallelism < 1)
+    if (parallelism < static_cast<Int32>(requestPtr.p->m_rootFragCnt))
     {
       jam();
-      parallelism = 1;
+      parallelism = MIN(requestPtr.p->m_rootFragCnt, data.m_frags_not_started);
     }
     else if (data.m_frags_not_started % parallelism != 0)
     {
@@ -7612,7 +7614,9 @@ Dbspj::scanFrag_send(Signal* signal,
 
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   ndbassert(noOfFrags > 0);
-  ndbassert(data.m_frags_not_started >= noOfFrags);
+  ndbassert(noOfFrags <= data.m_frags_not_started);
+  ndbassert(noOfFrags == data.m_frags_not_started ||
+    (noOfFrags + data.m_frags_outstanding >= requestPtr.p->m_rootFragCnt));
   ScanFragReq* const req =
     reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   const ScanFragReq * const org
@@ -8250,6 +8254,12 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
       data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
                                MAX(1, data.m_parallelism/2));
     }
+    if (data.m_parallelism < requestPtr.p->m_rootFragCnt)
+    {
+      // Avoid starting so few scans that some LDM-threads are sitting idle
+      data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
+      requestPtr.p->m_rootFragCnt);
+    }
     ndbassert(data.m_parallelism > 0);
 #ifdef DEBUG_SCAN_FRAGREQ
     DEBUG("::scanFrag_execSCAN_NEXTREQ() Asking for new batches from " <<
@@ -8259,7 +8269,7 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
           " bytes.");
 #endif
   }
-  else
+  else // Max parallelism
   {
     jam();
     data.m_parallelism = MIN(data.m_fragCount - data.m_frags_complete,
