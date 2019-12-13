@@ -23,6 +23,8 @@
 #ifndef DD__DD_VERSION_INCLUDED
 #define DD__DD_VERSION_INCLUDED
 
+#include "mysql_version.h"  // MYSQL_VERSION_ID
+
 /**
   @file sql/dd/dd_version.h
   Data dictionary version.
@@ -185,8 +187,12 @@
 namespace dd {
 
 static const uint DD_VERSION = 80017;
+static_assert(DD_VERSION <= MYSQL_VERSION_ID,
+              "This release can not use a version number from the future");
 
 static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80017;
+static_assert(DD_VERSION_MINOR_DOWNGRADE_THRESHOLD <= MYSQL_VERSION_ID,
+              "This release can not use a version number from the future");
 
 }  // namespace dd
 
