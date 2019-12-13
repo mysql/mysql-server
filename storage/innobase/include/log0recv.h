@@ -54,10 +54,6 @@ class PersistentTableMetadata;
 
 struct recv_addr_t;
 
-/** This is set to FALSE if the backup was originally taken with the
-mysqlbackup --include regexp option: then we do not want to create tables in
-directories which were not included */
-extern bool meb_replay_file_ops;
 /** list of tablespaces, that experienced an inplace DDL during a backup op */
 extern std::list<std::pair<space_id_t, lsn_t>> index_load_list;
 /** the last redo log flush len as seen by MEB */

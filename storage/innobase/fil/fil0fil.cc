@@ -6854,7 +6854,7 @@ static void meb_tablespace_redo_create(const page_id_t &page_id, uint32_t flags,
   meb_make_abs_file_path(name, flags, page_id.space(), abs_file_path,
                          tablespace_name);
 
-  if (!meb_replay_file_ops || meb_is_intermediate_file(abs_file_path.c_str()) ||
+  if (meb_is_intermediate_file(abs_file_path.c_str()) ||
       fil_space_get(page_id.space()) ||
       fil_space_get_id_by_name(tablespace_name.c_str()) != SPACE_UNKNOWN ||
       meb_fil_space_get_rem_gen_ts_id_by_name(tablespace_name) !=
@@ -6909,7 +6909,7 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
 
   char *new_name = nullptr;
 
-  if (!meb_replay_file_ops || meb_is_intermediate_file(from_name) ||
+  if (meb_is_intermediate_file(from_name) ||
       meb_is_intermediate_file(to_name) ||
       fil_space_get_id_by_name(tablespace_name.c_str()) != SPACE_UNKNOWN ||
       meb_fil_space_get_rem_gen_ts_id_by_name(tablespace_name) !=
@@ -6942,14 +6942,12 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
   meb_fil_name_process(from_name, page_id.space());
   meb_fil_name_process(new_name, page_id.space());
 
-  if (meb_replay_file_ops) {
-    if (!fil_op_replay_rename(page_id, abs_from_path.c_str(),
-                              abs_to_path.c_str())) {
-      recv_sys->found_corrupt_fs = true;
-    }
-
-    meb_fil_name_process(to_name, page_id.space());
+  if (!fil_op_replay_rename(page_id, abs_from_path.c_str(),
+                            abs_to_path.c_str())) {
+    recv_sys->found_corrupt_fs = true;
   }
+
+  meb_fil_name_process(to_name, page_id.space());
 
   ut_free(new_name);
 }
@@ -6969,7 +6967,7 @@ static void meb_tablespace_redo_delete(const page_id_t &page_id,
 
   fil_system->meb_name_process(file_name, page_id.space(), true);
 
-  if (meb_replay_file_ops && fil_space_get(page_id.space())) {
+  if (fil_space_get(page_id.space())) {
     ib::trace_1() << "Deleting the tablespace : " << abs_file_path
                   << ", space_id : " << page_id.space();
     dberr_t err =
@@ -10532,10 +10530,6 @@ or new_name did not exist and name was successfully renamed to new_name) */
 static bool fil_op_replay_rename(const page_id_t &page_id,
                                  const std::string &old_name,
                                  const std::string &new_name) {
-#ifdef UNIV_HOTBACKUP
-  ut_ad(meb_replay_file_ops);
-#endif /* UNIV_HOTBACKUP */
-
   ut_ad(page_id.page_no() == 0);
   ut_ad(old_name.compare(new_name) != 0);
   ut_ad(Fil_path::has_suffix(IBD, new_name));
