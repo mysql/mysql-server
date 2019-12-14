@@ -4010,6 +4010,48 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
 }
 
 /**
+  Check if there is a collation change from the old field to the new
+  create field. If so, scan the indexes of the new table (including
+  the added ones), and check if the field is referred by any index.
+
+  @param field          Field in old table.
+  @param new_field      Field in new table (create field).
+  @param ha_alter_info  Alter inplace info structure.
+
+  @retval true           Field changes collation, and is indexed.
+  @retval false          Otherwise.
+ */
+static bool is_collation_change_for_indexed_field(
+    const Field &field, const Create_field &new_field,
+    Alter_inplace_info *ha_alter_info) {
+  DBUG_ASSERT(new_field.field == &field);
+
+  // No need to check indexes if the collation stays the same.
+  if (field.charset() == new_field.charset) return false;
+
+  const KEY *new_key_end =
+      ha_alter_info->key_info_buffer + ha_alter_info->key_count;
+  for (const KEY *new_key = ha_alter_info->key_info_buffer;
+       new_key < new_key_end; new_key++) {
+    /*
+      If the key of the new table has a part which referring to the create
+      field submitted, then mark this as a change of the stored column type.
+      This will prohibit performing this as an inplace operation.
+    */
+    const KEY_PART_INFO *end =
+        new_key->key_part + new_key->user_defined_key_parts;
+    for (const KEY_PART_INFO *new_part = new_key->key_part; new_part < end;
+         new_part++) {
+      if (get_field_by_index(ha_alter_info->alter_info, new_part->fieldnr) ==
+          &new_field)
+        return true;
+    }
+  }
+
+  return false;
+}
+
+/**
   Helper function which allows to detect column types for which we historically
   used key packing (optimization implemented only by MyISAM) under erroneous
   assumption that they have BLOB type.
@@ -11162,9 +11204,19 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
             data representation. Depending on storage engine, such a change can
             be carried out by simply updating data dictionary without changing
             actual data (for example, VARCHAR(300) is changed to VARCHAR(400)).
+
+            If the collation has changed, and there is an index on the column,
+            we must mark this as a change in stored column type, which is
+            usually rejected as inplace operation by the SE.
           */
-          ha_alter_info->handler_flags |=
-              Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
+          if (is_collation_change_for_indexed_field(*field, *new_field,
+                                                    ha_alter_info)) {
+            ha_alter_info->handler_flags |=
+                Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+          } else {
+            ha_alter_info->handler_flags |=
+                Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
+          }
           break;
         default:
           DBUG_ASSERT(0);
