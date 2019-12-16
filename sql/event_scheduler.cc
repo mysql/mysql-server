@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -544,6 +544,7 @@ Event_scheduler::run(THD *thd)
       DBUG_PRINT("info", ("job_data is NULL, the thread was killed"));
     }
     DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));
+    free_root(thd->mem_root, MYF(0));
   }
 
   LOCK_DATA();
