@@ -549,7 +549,7 @@ bool dict_table_has_atomic_blobs(const dict_table_t *table)
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-void dict_tf_set(uint32_t *flags, rec_format_t format, ulint zip_ssize,
+void dict_tf_set(uint32_t *flags, rec_format_t format, uint32_t zip_ssize,
                  bool use_data_dir, bool shared_space);
 
 /** Initialize a dict_table_t::flags pointer.
@@ -1503,7 +1503,7 @@ ulint dict_index_zip_pad_optimal_page_size(
 /** Convert table flag to row format string.
  @return row format name */
 const char *dict_tf_to_row_format_string(
-    ulint table_flag); /*!< in: row format setting */
+    uint32_t table_flag); /*!< in: row format setting */
 /** Return maximum size of the node pointer record.
  @return maximum size of the record in bytes */
 ulint dict_index_node_ptr_max_size(const dict_index_t *index) /*!< in: index */

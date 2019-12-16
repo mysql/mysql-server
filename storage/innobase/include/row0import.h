@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -64,7 +64,5 @@ dberr_t row_import_update_discarded_flag(
                          caller already owns the
                          dict_sys_t:: mutex. */
     MY_ATTRIBUTE((warn_unused_result));
-
-#include "row0import.ic"
 
 #endif /* row0import_h */

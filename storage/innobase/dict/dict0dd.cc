@@ -3757,7 +3757,7 @@ void dd_get_meta_data_filename(dict_table_t *table, dd::Table *dd_table,
 template <typename Table>
 void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
                         mem_heap_t *heap, dict_err_ignore_t ignore_err,
-                        ulint expected_fsp_flags) {
+                        uint32_t expected_fsp_flags) {
   ut_ad(!table->is_temporary());
   ut_ad(mutex_own(&dict_sys->mutex));
 

@@ -4905,7 +4905,7 @@ uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) {
 /** Convert table flag to row format string.
  @return row format name. */
 const char *dict_tf_to_row_format_string(
-    ulint table_flag) /*!< in: row format setting */
+    uint32_t table_flag) /*!< in: row format setting */
 {
   switch (dict_tf_get_rec_format(table_flag)) {
     case REC_FORMAT_REDUNDANT:

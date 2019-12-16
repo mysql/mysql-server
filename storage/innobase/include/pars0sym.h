@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -220,7 +220,5 @@ struct sym_tab_t {
   mem_heap_t *heap; /*!< memory heap from which we can
                     allocate space */
 };
-
-#include "pars0sym.ic"
 
 #endif

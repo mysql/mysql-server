@@ -742,7 +742,7 @@ dberr_t Datafile::find_space_id() {
   /* Assuming a page size, read the space_id from each page and store it
   in a map.  Find out which space_id is agreed on by majority of the
   pages.  Choose that space_id. */
-  for (ulint page_size = UNIV_ZIP_SIZE_MIN; page_size <= UNIV_PAGE_SIZE_MAX;
+  for (uint32_t page_size = UNIV_ZIP_SIZE_MIN; page_size <= UNIV_PAGE_SIZE_MAX;
        page_size <<= 1) {
     /* map[space_id] = count of pages */
     typedef std::map<space_id_t, ulint, std::less<space_id_t>,

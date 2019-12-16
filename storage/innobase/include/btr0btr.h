@@ -318,7 +318,7 @@ void btr_truncate_recover(const dict_index_t *index);
  guaranteed to be available before this function is called.
  @return inserted record */
 rec_t *btr_root_raise_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in: cursor at which to insert: must be
                            on the root page; when the function returns,
                            the cursor is positioned on the predecessor
@@ -393,7 +393,7 @@ ibool btr_page_get_split_rec_to_right(
 
  @return inserted record */
 rec_t *btr_page_split_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in: cursor at which to insert; when the
                            function returns, the cursor is positioned
                            on the predecessor of the inserted record */
@@ -406,7 +406,7 @@ rec_t *btr_page_split_and_insert(
 /** Inserts a data tuple to a tree on a non-leaf level. It is assumed
  that mtr holds an x-latch on the tree. */
 void btr_insert_on_non_leaf_level_func(
-    ulint flags,         /*!< in: undo logging and locking flags */
+    uint32_t flags,      /*!< in: undo logging and locking flags */
     dict_index_t *index, /*!< in: index */
     ulint level,         /*!< in: level, must be > 0 */
     dtuple_t *tuple,     /*!< in: the record to be inserted */

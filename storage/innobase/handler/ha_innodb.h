@@ -1008,7 +1008,7 @@ class innobase_basic_ddl {
   static int create_impl(THD *thd, const char *name, TABLE *form,
                          HA_CREATE_INFO *create_info, Table *dd_tab,
                          bool file_per_table, bool evictable, bool skip_strict,
-                         ulint old_flags, ulint old_flags2);
+                         uint32_t old_flags, uint32_t old_flags2);
 
   /** Drop an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition
@@ -1123,10 +1123,10 @@ class innobase_truncate {
   bool m_keep_autoinc;
 
   /** flags of the table to be truncated, which should not change */
-  uint64_t m_flags;
+  uint32_t m_flags;
 
   /** flags2 of the table to be truncated, which should not change */
-  uint64_t m_flags2;
+  uint32_t m_flags2;
 };
 
 /**

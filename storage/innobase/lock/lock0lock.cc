@@ -391,7 +391,7 @@ void lock_sys_close(void) {
 
   srv_slot_t *slot = lock_sys->waiting_threads;
 
-  for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
+  for (uint32_t i = 0; i < srv_max_n_threads; i++, ++slot) {
     if (slot->event != NULL) {
       os_event_destroy(slot->event);
     }
@@ -1151,7 +1151,8 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
   the third option is used if and only if it is inside the valid range of
   <0,MAX_REASONABLE_AGE>. */
 
-  const int32_t MAX_REASONABLE_AGE = std::min<ulint>(srv_max_n_threads, 100000);
+  const int32_t MAX_REASONABLE_AGE =
+      std::min<int32_t>(srv_max_n_threads, 100000);
   trx->age += std::min(MAX_REASONABLE_AGE - trx->age, std::max(-trx->age, age));
 
   DBUG_EXECUTE_IF("lock_update_trx_age_check_age_limit", ut_a(trx->age < 100););

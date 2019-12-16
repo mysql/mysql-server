@@ -8262,7 +8262,8 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
       page_zip_set_size(&block->page.zip, iter.m_page_size);
 
       block->page.size.copy_from(
-          page_size_t(iter.m_page_size, univ_page_size.logical(), true));
+          page_size_t(static_cast<uint32_t>(iter.m_page_size),
+                      static_cast<uint32_t>(univ_page_size.logical()), true));
 
       block->page.zip.data = block->frame + UNIV_PAGE_SIZE;
       ut_d(block->page.zip.m_external = true);

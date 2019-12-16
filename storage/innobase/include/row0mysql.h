@@ -988,8 +988,6 @@ void innobase_rename_vc_templ(dict_table_t *table);
 #define ROW_READ_TRY_SEMI_CONSISTENT 1
 #define ROW_READ_DID_SEMI_CONSISTENT 2
 
-#include "row0mysql.ic"
-
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */
 void row_wait_for_background_drop_list_empty();

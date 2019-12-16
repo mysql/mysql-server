@@ -496,7 +496,7 @@ bool dict_table_has_atomic_blobs(const dict_table_t *table) {
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-void dict_tf_set(uint32_t *flags, rec_format_t format, ulint zip_ssize,
+void dict_tf_set(uint32_t *flags, rec_format_t format, uint32_t zip_ssize,
                  bool use_data_dir, bool shared_space) {
   switch (format) {
     case REC_FORMAT_REDUNDANT:
@@ -624,13 +624,13 @@ ulint dict_tf_to_sys_tables_type(uint32_t flags) /*!< in: dict_table_t::flags */
 page sizes and a boolean indicating if the page is compressed. */
 UNIV_INLINE
 const page_size_t dict_tf_get_page_size(uint32_t flags) {
-  const ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
+  const uint32_t zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
 
   if (zip_ssize == 0) {
     return (univ_page_size);
   }
 
-  const ulint zip_size = (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize;
+  const uint32_t zip_size = (UNIV_ZIP_SIZE_MIN >> 1) << zip_ssize;
 
   ut_ad(zip_size <= UNIV_ZIP_SIZE_MAX);
 

@@ -9727,7 +9727,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
   auto n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
   ut_a(n_threads <= Parallel_reader::MAX_THREADS);
 
-  n_threads = Parallel_reader::available_threads(n_threads);
+  n_threads = static_cast<ulong>(Parallel_reader::available_threads(n_threads));
 
   if (n_threads == 0) {
     return (HA_ERR_GENERIC);
@@ -10551,11 +10551,11 @@ void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
     const char *name = strchr(table_s->name.m_name, '/') + 1;
     str.append(name);
 
-    uint old_size = mem_heap_get_size(table_s->heap);
+    ulint old_size = mem_heap_get_size(table_s->heap);
 
     table_s->data_dir_path = mem_heap_strdup(table_s->heap, str.c_str());
 
-    uint new_size = mem_heap_get_size(table_s->heap);
+    ulint new_size = mem_heap_get_size(table_s->heap);
     mutex_enter(&dict_sys->mutex);
     dict_sys->size += new_size - old_size;
     mutex_exit(&dict_sys->mutex);

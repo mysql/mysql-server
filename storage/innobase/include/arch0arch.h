@@ -555,7 +555,7 @@ class Arch_File_Ctx {
   @param[in]		offset		file offset from where to read
   @param[in]		size		size of data to read in bytes
   @return error code */
-  dberr_t read(byte *to_buffer, const uint offset, const uint size);
+  dberr_t read(byte *to_buffer, const uint64_t offset, const uint size);
 
   /** Write data to this file context from the given file offset.
   Data source is another file context or buffer. If buffer is NULL, data is
@@ -626,7 +626,7 @@ class Arch_File_Ctx {
 
   /* Fetch offset of the file open in this context.
   @return file offset */
-  uint get_offset() const { return (m_offset); }
+  uint64_t get_offset() const { return (m_offset); }
 
   /** Get number of files
   @return current file count */

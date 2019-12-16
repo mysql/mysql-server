@@ -52,7 +52,7 @@ class page_size_t {
   @param[in]	physical	physical (on-disk/zipped) page size
   @param[in]	logical		logical (in-memory/unzipped) page size
   @param[in]	is_compressed	whether the page is compressed */
-  page_size_t(ulint physical, ulint logical, bool is_compressed) {
+  page_size_t(uint32_t physical, uint32_t logical, bool is_compressed) {
     if (physical == 0) {
       physical = UNIV_PAGE_SIZE_ORIG;
     }

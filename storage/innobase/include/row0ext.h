@@ -63,7 +63,7 @@ or purge)
 @param[in]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
-                               const ulint *ext, ulint flags,
+                               const ulint *ext, uint32_t flags,
                                const dtuple_t *tuple,
 #ifdef UNIV_DEBUG
                                bool is_sdi,

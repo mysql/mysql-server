@@ -500,10 +500,10 @@ struct Clone_File_Meta {
   bool m_punch_hole;
 
   /** File system block size. */
-  uint32_t m_fsblk_size;
+  size_t m_fsblk_size;
 
   /** Tablespace ID for the file */
-  ulint m_space_id;
+  uint32_t m_space_id;
 
   /** File index in clone data file vector */
   uint m_file_index;

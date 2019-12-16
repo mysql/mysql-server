@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,7 +51,5 @@ this program; if not, write to the Free Software Foundation, Inc.,
 dberr_t row_undo_ins(undo_node_t *node, /*!< in: row undo node */
                      que_thr_t *thr)    /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
-
-#include "row0uins.ic"
 
 #endif

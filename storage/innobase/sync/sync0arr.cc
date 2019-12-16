@@ -985,7 +985,7 @@ static bool sync_array_print_long_waits_low(
 {
   ulint fatal_timeout = srv_fatal_semaphore_wait_threshold;
   ibool fatal = FALSE;
-  double longest_diff = 0;
+  uint64_t longest_diff = 0;
 
   /* For huge tables, skip the check during CHECK TABLE etc... */
   if (fatal_timeout > SRV_SEMAPHORE_WAIT_EXTENSION) {

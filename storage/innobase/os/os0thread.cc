@@ -47,7 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innodb_init_params() sets the value. */
-ulint srv_max_n_threads = 0;
+uint32_t srv_max_n_threads = 0;
 
 /** Number of threads active. */
 std::atomic_int os_thread_count;

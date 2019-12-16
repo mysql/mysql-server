@@ -1969,7 +1969,7 @@ dberr_t PageConverter::update_header(buf_block_t *block) UNIV_NOTHROW {
       ib::warn(ER_IB_MSG_941) << "Space id check in the header failed: ignored";
   }
 
-  ulint space_flags = fsp_header_get_flags(get_frame(block));
+  uint32_t space_flags = fsp_header_get_flags(get_frame(block));
 
   if (!fsp_flags_is_valid(space_flags)) {
     ib::error(ER_IB_MSG_942) << "Unsupported tablespace format " << space_flags;

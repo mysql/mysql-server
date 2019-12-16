@@ -275,7 +275,8 @@ bool rtr_update_mbr_field(
   mem_heap_t *heap;
   page_t *page;
   rec_t *rec;
-  ulint flags = BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG;
+  uint32_t flags =
+      BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG | BTR_KEEP_SYS_FLAG;
   dberr_t err;
   big_rec_t *dummy_big_rec;
   buf_block_t *block;
@@ -570,7 +571,7 @@ bool rtr_update_mbr_field(
 /** Update parent page's MBR and Predicate lock information during a split */
 static void rtr_adjust_upper_level(
     btr_cur_t *sea_cur,     /*!< in: search cursor */
-    ulint flags,            /*!< in: undo logging and
+    uint32_t flags,         /*!< in: undo logging and
                             locking flags */
     buf_block_t *block,     /*!< in/out: page to be split */
     buf_block_t *new_block, /*!< in/out: the new half page */
@@ -886,7 +887,7 @@ static ibool rtr_split_page_move_rec_list(
  this function is called.
  @return inserted record */
 rec_t *rtr_page_split_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in/out: cursor at which to insert; when the
                            function returns, the cursor is positioned
                            on the predecessor of the inserted record */
