@@ -42,20 +42,6 @@ ENDIF()
 #
 # Build static ndbclient library
 #
-SET(NDBCLIENT_LIBS
-  mysys dbug strings mysys_ssl
-  ${SSL_LIBRARIES} ${ZLIB_LIBRARY}
-  ndbapi
-  ndbtransport
-  ndbtrace
-  ndbsignaldata
-  ndbmgmapi
-  ndbmgmcommon
-  ndblogger
-  ndbportlib
-  ndbgeneral
-  ndbconf)
-
 SET(LIBS_TO_MERGE
   mysys dbug strings mysys_ssl
   ndbapi
@@ -69,20 +55,23 @@ SET(LIBS_TO_MERGE
   ndbgeneral
   ndbconf)
 
+SET(LIBS_TO_LINK ${SSL_LIBRARIES})
+IF(WIN32)
+  LIST(APPEND LIBS_TO_LINK crypt32)
+ENDIF()
+
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
-ENDIF()
-IF(NOT WITH_SSL STREQUAL "system")
-  LIST(APPEND LIBS_TO_MERGE ${SSL_LIBRARIES})
+ELSE()
+  LIST(APPEND LIBS_TO_LINK ${ZLIB_LIBRARY})
 ENDIF()
 
-
+MESSAGE(STATUS "LIBS_TO_LINK ${LIBS_TO_LINK}")
 MESSAGE(STATUS "LIBS_TO_MERGE ${LIBS_TO_MERGE}")
-MESSAGE(STATUS "NDBCLIENT_LIBS ${NDBCLIENT_LIBS}")
 
 MERGE_CONVENIENCE_LIBRARIES(
   ndbclient_static ${LIBS_TO_MERGE} COMPONENT Development)
-TARGET_LINK_LIBRARIES(ndbclient_static ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(ndbclient_static ${LIBS_TO_LINK})
 
 SET(KNOWN_CONVENIENCE_LIBRARIES
   ${KNOWN_CONVENIENCE_LIBRARIES} ndbclient_static CACHE INTERNAL "" FORCE)
