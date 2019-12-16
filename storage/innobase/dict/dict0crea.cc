@@ -654,7 +654,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
 
   rec_format_t rec_format;
 
-  ulint zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+  uint32_t zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
   bool has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
   bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);

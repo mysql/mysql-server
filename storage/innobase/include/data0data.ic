@@ -78,7 +78,7 @@ void *dfield_get_data(const dfield_t *field) /*!< in: field */
 /** Gets length of field data.
  @return length of data; UNIV_SQL_NULL if SQL null data */
 UNIV_INLINE
-ulint dfield_get_len(const dfield_t *field) /*!< in: field */
+uint32_t dfield_get_len(const dfield_t *field) /*!< in: field */
 {
   ut_ad(field);
   ut_ad((field->len == UNIV_SQL_NULL) || (field->data != &data_error));

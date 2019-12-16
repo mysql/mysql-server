@@ -819,7 +819,7 @@ ulint fsp_header_get_encryption_offset(const page_size_t &page_size) {
 @param[in,out]	mtr			mini-transaction
 @return true if success. */
 bool fsp_header_write_encryption_progress(
-    space_id_t space_id, ulint space_flags, ulint progress_info,
+    space_id_t space_id, uint32_t space_flags, ulint progress_info,
     byte operation_type, bool update_operation_type, mtr_t *mtr) {
   buf_block_t *block;
   ulint offset;
@@ -889,7 +889,7 @@ encryption_op_type fsp_header_encryption_op_type_in_progress(
 @param[in]      rotate_encryption	if it is called during key rotation
 @param[in,out]	mtr			mini-transaction
 @return true if success. */
-bool fsp_header_write_encryption(space_id_t space_id, ulint space_flags,
+bool fsp_header_write_encryption(space_id_t space_id, uint32_t space_flags,
                                  byte *encrypt_info, bool update_fsp_flags,
                                  bool rotate_encryption, mtr_t *mtr) {
   buf_block_t *block;
@@ -2593,7 +2593,8 @@ static xdes_t *fsp_alloc_xdes_free_frag(space_id_t space, fseg_inode_t *inode,
 
   File_segment_inode fseg_inode(space, page_size, inode, mtr);
   n_used = fseg_inode.read_not_full_n_used();
-  fseg_inode.write_not_full_n_used(n_used + XDES_FRAG_N_USED);
+  fseg_inode.write_not_full_n_used(
+      static_cast<uint32_t>(n_used + XDES_FRAG_N_USED));
 
   return (descr);
 }
@@ -3217,7 +3218,7 @@ static void fseg_mark_page_used(space_id_t space_id,
                                 const page_size_t &page_size,
                                 fseg_inode_t *seg_inode, page_no_t page,
                                 xdes_t *descr, mtr_t *mtr) {
-  ulint not_full_n_used;
+  uint32_t not_full_n_used;
 
   ut_ad(fil_page_get_type(page_align(seg_inode)) == FIL_PAGE_INODE);
   ut_ad(!((page_offset(seg_inode) - FSEG_ARR_OFFSET) % FSEG_INODE_SIZE));
@@ -3267,7 +3268,7 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
                                const page_size_t &page_size, bool ahi,
                                mtr_t *mtr) {
   xdes_t *descr;
-  ulint not_full_n_used;
+  uint32_t not_full_n_used;
   ib_id_t descr_id;
   ib_id_t seg_id;
   ulint i;
@@ -3998,7 +3999,7 @@ dberr_t fsp_has_sdi(space_id_t space_id) {
 @param[in]	total_pages	total pages in tablespace
 @param[in]	from_page	page number from where to start the operation */
 static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
-                                              ulint space_flags,
+                                              uint32_t space_flags,
                                               page_no_t total_pages,
                                               page_no_t from_page) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -4100,7 +4101,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                      bool in_recovery, void *dd_space_in) {
   dberr_t err = DB_SUCCESS;
   fil_space_t *space = fil_space_get(space_id);
-  ulint space_flags = 0;
+  uint32_t space_flags = 0;
   page_no_t total_pages = 0;
   dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
   byte operation_type = 0;

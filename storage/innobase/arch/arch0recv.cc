@@ -103,7 +103,7 @@ dberr_t Arch_Dblwr_Ctx::read_blocks() {
   ut_ad(m_file_ctx.get_phy_size() == m_file_size);
 
   /* Read the entire file. */
-  err = m_file_ctx.read(m_buf, 0, m_file_size);
+  err = m_file_ctx.read(m_buf, 0, static_cast<uint>(m_file_size));
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -233,8 +233,8 @@ bool Arch_Page_Sys::Recv::scan_group() {
 
 dberr_t Arch_Group::recovery_replace_pages_from_dblwr(
     Arch_Dblwr_Ctx *dblwr_ctx) {
-  auto ARCH_UNKNOWN_BLOCK = std::numeric_limits<uint>::max();
-  uint full_flush_blk_num = ARCH_UNKNOWN_BLOCK;
+  auto ARCH_UNKNOWN_BLOCK = std::numeric_limits<uint64_t>::max();
+  uint64_t full_flush_blk_num = ARCH_UNKNOWN_BLOCK;
   auto dblwr_blocks = dblwr_ctx->get_blocks();
   size_t num_files = get_file_count();
 
@@ -286,14 +286,15 @@ dberr_t Arch_Group::recovery_replace_pages_from_dblwr(
 
     dberr_t err;
 
-    err = m_file_ctx.open(false, m_begin_lsn, num_files - 1, 0);
+    err = m_file_ctx.open(false, m_begin_lsn, static_cast<uint>(num_files) - 1,
+                          0);
 
     if (err != DB_SUCCESS) {
       return (err);
     }
 
-    err = m_file_ctx.write(nullptr, dblwr_block.m_block, offset,
-                           ARCH_PAGE_BLK_SIZE);
+    err = m_file_ctx.write(nullptr, dblwr_block.m_block,
+                           static_cast<uint>(offset), ARCH_PAGE_BLK_SIZE);
 
     if (err != DB_SUCCESS) {
       return (err);
@@ -549,11 +550,12 @@ dberr_t Arch_Group::recovery_parse(Arch_Page_Pos &write_pos,
 
   ut_ad(m_file_ctx.is_closed());
 
-  uint file_count = start_index + num_files;
+  size_t file_count = start_index + num_files;
 
   for (auto file_index = start_index; file_index < file_count; ++file_index) {
     if (file_index == start_index) {
-      err = m_file_ctx.open(true, m_begin_lsn, start_index, 0);
+      err =
+          m_file_ctx.open(true, m_begin_lsn, static_cast<uint>(start_index), 0);
     } else {
       err = m_file_ctx.open_next(m_begin_lsn, 0);
     }
@@ -562,7 +564,8 @@ dberr_t Arch_Group::recovery_parse(Arch_Page_Pos &write_pos,
       break;
     }
 
-    err = m_file_ctx.fetch_reset_points(file_index, reset_pos);
+    err =
+        m_file_ctx.fetch_reset_points(static_cast<uint>(file_index), reset_pos);
 
     if (err != DB_SUCCESS) {
       break;

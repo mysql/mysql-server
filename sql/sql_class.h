@@ -3707,9 +3707,11 @@ class THD : public MDL_context_owner,
 
   void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
                              size_t query_length_arg MY_ATTRIBUTE((unused))) {
-    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg,
+                             static_cast<uint>(query_length_arg));
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+    PSI_THREAD_CALL(set_thread_info)
+    (query_arg, static_cast<uint>(query_length_arg));
 #endif
   }
   void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }

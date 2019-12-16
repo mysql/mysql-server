@@ -79,22 +79,25 @@ void Parallel_reader_adapter::set(row_prebuilt_t *prebuilt) {
   for (uint i = 0; i < prebuilt->n_template; ++i) {
     const auto &templt = prebuilt->mysql_template[i];
 
-    m_mysql_row.m_offsets.push_back(templt.mysql_col_offset);
-    m_mysql_row.m_null_bit_mask.push_back(templt.mysql_null_bit_mask);
-    m_mysql_row.m_null_bit_offsets.push_back(templt.mysql_null_byte_offset);
+    m_mysql_row.m_offsets.push_back(
+        static_cast<ulong>(templt.mysql_col_offset));
+    m_mysql_row.m_null_bit_mask.push_back(
+        static_cast<ulong>(templt.mysql_null_bit_mask));
+    m_mysql_row.m_null_bit_offsets.push_back(
+        static_cast<ulong>(templt.mysql_null_byte_offset));
   }
 
   ut_a(m_mysql_row.m_max_len == 0);
   ut_a(prebuilt->mysql_row_len > 0);
-  m_mysql_row.m_max_len = prebuilt->mysql_row_len;
+  m_mysql_row.m_max_len = static_cast<ulong>(prebuilt->mysql_row_len);
 
   // clang-format off
   m_parallel_reader.set_start_callback([=](size_t thread_id) {
-      return (init(thread_id));
+    return (init(thread_id));
   });
 
   m_parallel_reader.set_finish_callback([=](size_t thread_id) {
-      return (end(thread_id));
+    return (end(thread_id));
   });
   // clang-format on
 
@@ -128,7 +131,7 @@ dberr_t Parallel_reader_adapter::send_batch(size_t thread_id, uint64_t n_recs) {
 
   const auto p = &buffer[start * m_mysql_row.m_max_len];
 
-  if (m_load_fn(m_thread_contexts[thread_id], n_recs, p)) {
+  if (m_load_fn(m_thread_contexts[thread_id], static_cast<uint>(n_recs), p)) {
     err = DB_INTERRUPTED;
     m_parallel_reader.set_error_state(DB_INTERRUPTED);
   }
@@ -139,10 +142,11 @@ dberr_t Parallel_reader_adapter::send_batch(size_t thread_id, uint64_t n_recs) {
 }
 
 dberr_t Parallel_reader_adapter::init(size_t thread_id) {
-  auto ret = m_init_fn(
-      m_thread_contexts[thread_id], m_mysql_row.m_offsets.size(),
-      m_mysql_row.m_max_len, &m_mysql_row.m_offsets[0],
-      &m_mysql_row.m_null_bit_offsets[0], &m_mysql_row.m_null_bit_mask[0]);
+  auto ret = m_init_fn(m_thread_contexts[thread_id],
+                       static_cast<ulong>(m_mysql_row.m_offsets.size()),
+                       m_mysql_row.m_max_len, &m_mysql_row.m_offsets[0],
+                       &m_mysql_row.m_null_bit_offsets[0],
+                       &m_mysql_row.m_null_bit_mask[0]);
 
   return (ret ? DB_INTERRUPTED : DB_SUCCESS);
 }

@@ -52,7 +52,7 @@ static void lock_wait_table_print(void) {
 
   const srv_slot_t *slot = lock_sys->waiting_threads;
 
-  for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
+  for (uint32_t i = 0; i < srv_max_n_threads; i++, ++slot) {
     fprintf(stderr,
             "Slot %lu: thread type %lu,"
             " in use %lu, susp %lu, timeout %lu, time %lu\n",
@@ -138,7 +138,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
 
   slot = lock_sys->waiting_threads;
 
-  for (ulint i = srv_max_n_threads; i--; ++slot) {
+  for (uint32_t i = srv_max_n_threads; i--; ++slot) {
     if (!slot->in_use) {
       slot->reservation_no = lock_wait_table_reservations++;
       slot->in_use = TRUE;

@@ -67,6 +67,4 @@ void row_quiesce_table_complete(
     dict_table_t *table, /*!< in: quiesce this table */
     trx_t *trx);         /*!< in/out: transaction/session */
 
-#include "row0quiesce.ic"
-
 #endif /* row0quiesce_h */

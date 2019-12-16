@@ -2956,7 +2956,7 @@ dberr_t btr_cur_optimistic_insert(
  to brothers of page, if those brothers exist.
  @return DB_SUCCESS or error number */
 dberr_t btr_cur_pessimistic_insert(
-    ulint flags,         /*!< in: undo logging and locking flags: if not
+    uint32_t flags,      /*!< in: undo logging and locking flags: if not
                          zero, the parameter thr should be
                          specified; if no undo logging is specified,
                          then the caller must have reserved enough
@@ -4645,9 +4645,10 @@ ibool btr_cur_optimistic_delete_func(
 }
 
 ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
-                                 btr_cur_t *cursor, ulint flags, bool rollback,
-                                 trx_id_t trx_id, undo_no_t undo_no,
-                                 ulint rec_type, mtr_t *mtr, btr_pcur_t *pcur) {
+                                 btr_cur_t *cursor, uint32_t flags,
+                                 bool rollback, trx_id_t trx_id,
+                                 undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
+                                 btr_pcur_t *pcur) {
   DBUG_TRACE;
 
   buf_block_t *block;

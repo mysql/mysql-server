@@ -1449,7 +1449,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    apply_insert_multi_value(ulint flags, dict_index_t *index,
+    apply_insert_multi_value(uint32_t flags, dict_index_t *index,
                              mem_heap_t *offsets_heap, mem_heap_t *heap,
                              dtuple_t *entry, trx_id_t trx_id, que_thr_t *thr) {
   dberr_t err = DB_SUCCESS;
@@ -1495,8 +1495,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
              ("insert table " IB_ID_FMT "(index " IB_ID_FMT "): %s",
               index->table->id, index->id, rec_printer(row).str().c_str()));
 
-  static const ulint flags = (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG |
-                              BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG);
+  static const uint32_t flags = (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG |
+                                 BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG);
 
   entry = row_build_index_entry(row, nullptr, index, heap);
 
@@ -1970,7 +1970,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   btr_pcur_t pcur;
   dberr_t error;
   bool non_mv_upd = true;
-  ulint n_index = 0;
+  uint32_t n_index = 0;
   trx_t *trx = thr_get_trx(thr);
 
   ut_ad(dtuple_get_n_fields_cmp(old_pk) == dict_index_get_n_unique(index));

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -246,8 +246,6 @@ extern buf_LRU_stat_t buf_LRU_stat_sum;
 #define buf_LRU_stat_inc_io() buf_LRU_stat_cur.io++
 /** Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
 #define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
-
-#include "buf0lru.ic"
 
 #endif /* !UNIV_HOTBACKUP */
 

@@ -26,7 +26,7 @@
 
 #include "os0thread-create.h"
 
-extern ulint srv_max_n_threads;
+extern uint32_t srv_max_n_threads;
 
 namespace {
 

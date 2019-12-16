@@ -1884,7 +1884,7 @@ dberr_t srv_start(bool create_new_db) {
   page_no_t sum_of_data_file_sizes;
   page_no_t tablespace_size_in_header;
   dberr_t err;
-  ulint srv_n_log_files_found = srv_n_log_files;
+  uint32_t srv_n_log_files_found = srv_n_log_files;
   mtr_t mtr;
   purge_pq_t *purge_queue;
   char logfilename[10000];

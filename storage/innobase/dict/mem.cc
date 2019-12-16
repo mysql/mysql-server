@@ -155,13 +155,13 @@ static bool dict_mem_table_is_system(const std::string name) {
   /* Table has the following format: database/table and some system table are
   of the form SYS_* */
   if (name.find('/') != std::string::npos) {
-    int table_len = name.length();
+    size_t table_len = name.length();
 
     std::string system_db = std::string(innobase_system_databases[0]);
     int i = 0;
 
     while (system_db.compare("") != 0) {
-      int len = system_db.length();
+      size_t len = system_db.length();
 
       if (table_len > len && name.compare(0, len, system_db) == 0) {
         return true;

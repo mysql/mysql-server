@@ -464,7 +464,9 @@ Table_columns_view<F> &Table_columns_view<F>::translate_bitmap(
   for (size_t d = 0, s = 0; d != destination.n_bits && s != source.n_bits;
        ++d) {
     if (!this->is_excluded(d)) {
-      if (bitmap_is_set(&source, s)) bitmap_set_bit(&destination, d);
+      if (bitmap_is_set(&source, static_cast<uint>(s))) {
+        bitmap_set_bit(&destination, static_cast<uint>(d));
+      }
       ++s;
     }
   }

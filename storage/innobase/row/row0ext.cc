@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -115,7 +115,7 @@ static void row_ext_cache_fill_func(const dict_index_t *index, row_ext_t *ext,
 @param[in,out]	heap	heap where created
 @return own: column prefix cache */
 row_ext_t *row_ext_create_func(const dict_index_t *index, ulint n_ext,
-                               const ulint *ext, ulint flags,
+                               const ulint *ext, uint32_t flags,
                                const dtuple_t *tuple,
 #ifdef UNIV_DEBUG
                                bool is_sdi,

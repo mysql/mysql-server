@@ -205,8 +205,8 @@ inline unsigned long long int my_micro_time() {
 */
 inline void my_micro_time_to_timeval(std::uint64_t micro_time,
                                      struct timeval *tm) {
-  tm->tv_sec = micro_time / 1000000;
-  tm->tv_usec = micro_time % 1000000;
+  tm->tv_sec = static_cast<long>(micro_time / 1000000);
+  tm->tv_usec = static_cast<long>(micro_time % 1000000);
 }
 
 void get_date(char *to, int flag, time_t date);

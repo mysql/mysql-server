@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -51,7 +51,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 a semaphore inside InnoDB. innobase_start_or_create_for_mysql() sets the
 value. */
 
-extern ulint srv_max_n_threads;
+extern uint32_t srv_max_n_threads;
 
 /** The following controls how many threads we let inside InnoDB concurrently:
 threads waiting for locks are not counted into the number because otherwise

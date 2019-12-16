@@ -74,7 +74,7 @@ void dfield_set_type(dfield_t *field, const dtype_t *type);
 /** Gets length of field data.
  @return length of data; UNIV_SQL_NULL if SQL null data */
 UNIV_INLINE
-ulint dfield_get_len(const dfield_t *field) /*!< in: field */
+uint32_t dfield_get_len(const dfield_t *field) /*!< in: field */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets length in a field.

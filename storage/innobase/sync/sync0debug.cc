@@ -1536,7 +1536,7 @@ struct CreateTracker {
 
   /** Destructor */
   ~CreateTracker() UNIV_NOTHROW {
-    ut_d(m_files.empty());
+    ut_ad(m_files.empty());
 
     m_mutex.destroy();
   }

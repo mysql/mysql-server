@@ -2329,7 +2329,7 @@ static void row_ins_temp_prebuilt_tree_modified(dict_table_t *table) {
  @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
  @return error code */
 dberr_t row_ins_clust_index_entry_low(
-    ulint flags,         /*!< in: undo logging and locking flags */
+    uint32_t flags,      /*!< in: undo logging and locking flags */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
                          pessimistic descent down the index tree */
@@ -2764,7 +2764,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
+dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
                                     dict_index_t *index,
                                     mem_heap_t *offsets_heap, mem_heap_t *heap,
                                     dtuple_t *entry, trx_id_t trx_id,
@@ -3067,7 +3067,7 @@ and return. don't execute actual insert. */
   n_uniq = dict_index_is_unique(index) ? index->n_uniq : 0;
 
   /* Try first optimistic descent to the B-tree */
-  ulint flags;
+  uint32_t flags;
 
   if (!index->table->is_intrinsic()) {
     log_free_check();
@@ -3169,7 +3169,7 @@ and return. don't execute actual insert. */
 
   /* Try first optimistic descent to the B-tree */
 
-  ulint flags;
+  uint32_t flags;
 
   if (!index->table->is_intrinsic()) {
     log_free_check();

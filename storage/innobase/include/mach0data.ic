@@ -200,10 +200,10 @@ ulint mach_write_compressed(byte *b, ulint n) {
 }
 
 /** Return the size of an ulint when written in the compressed form.
-@param[in]	n	ulint integer (< 2^32) to be stored
+@param[in]	n	uint32_t integer (< 2^32) to be stored
 @return compressed size in bytes */
 UNIV_INLINE
-ulint mach_get_compressed_size(ulint n) {
+uint32_t mach_get_compressed_size(ulint n) {
   if (n < 0x80) {
     /* 0nnnnnnn (7 bits) */
     return (1);

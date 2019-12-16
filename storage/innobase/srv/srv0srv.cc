@@ -2493,7 +2493,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
     return true;
   }
 
-  ulint new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
+  uint32_t new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
 
   /* Write encryption info on tablespace header page */
   if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,

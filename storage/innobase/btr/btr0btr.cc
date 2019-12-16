@@ -1483,7 +1483,7 @@ static void btr_page_empty(
  guaranteed to be available before this function is called.
  @return inserted record */
 rec_t *btr_root_raise_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in: cursor at which to insert: must be
                            on the root page; when the function returns,
                            the cursor is positioned on the predecessor
@@ -1942,7 +1942,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool btr_page_insert_fits(
 /** Inserts a data tuple to a tree on a non-leaf level. It is assumed
  that mtr holds an x-latch on the tree. */
 void btr_insert_on_non_leaf_level_func(
-    ulint flags,         /*!< in: undo logging and locking flags */
+    uint32_t flags,      /*!< in: undo logging and locking flags */
     dict_index_t *index, /*!< in: index */
     ulint level,         /*!< in: level, must be > 0 */
     dtuple_t *tuple,     /*!< in: the record to be inserted */
@@ -2297,7 +2297,7 @@ static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
  this function is called.
  @return inserted record */
 rec_t *btr_page_split_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in: cursor at which to insert; when the
                            function returns, the cursor is positioned
                            on the predecessor of the inserted record */

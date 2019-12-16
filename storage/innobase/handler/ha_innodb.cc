@@ -3772,8 +3772,9 @@ static int innobase_page_track_get_page_ids(Page_Track_Callback cbk_func,
                                             uint64_t *stop_id,
                                             unsigned char *buffer,
                                             size_t buffer_len) {
-  auto err = arch_page_sys->get_pages(nullptr, cbk_func, cbk_ctx, *start_id,
-                                      *stop_id, buffer, buffer_len);
+  auto err =
+      arch_page_sys->get_pages(nullptr, cbk_func, cbk_ctx, *start_id, *stop_id,
+                               buffer, static_cast<uint>(buffer_len));
 
   if (err != 0) {
     DBUG_PRINT("page_archiver", ("Fetch Pages"));
@@ -4938,7 +4939,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
       return innodb_init_abort();
     }
 
-    if (trx_sys->found_prepared_trx > 0) {
+    if (trx_sys->found_prepared_trx) {
       ib::error(ER_DD_UPGRADE_FOUND_PREPARED_XA_TRANSACTION);
       return innodb_init_abort();
     }
@@ -5700,11 +5701,12 @@ static void innobase_kill_connection(
 is given in kilobytes. If it is a valid number, store
 that value as the number of log2 shifts from 512 in
 zip_ssize. Zero means it is not compressed. */
-static ulint get_zip_shift_size(ulint key_block_size) {
-  ulint zssize; /* Zip Shift Size */
-  ulint kbsize; /* Key Block Size */
-  const ulint zip_ssize_max = ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
-                                     static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
+static uint32_t get_zip_shift_size(ulint key_block_size) {
+  uint32_t zssize; /* Zip Shift Size */
+  uint32_t kbsize; /* Key Block Size */
+  const uint32_t zip_ssize_max =
+      ut_min(static_cast<uint32_t>(UNIV_PAGE_SSIZE_MAX),
+             static_cast<uint32_t>(PAGE_ZIP_SSIZE_MAX));
   for (zssize = kbsize = 1; zssize <= zip_ssize_max; zssize++, kbsize <<= 1) {
     if (kbsize == key_block_size) {
       return (zssize);
@@ -8229,7 +8231,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
 
   /* Even for single values, there will be an array with 1 element */
   ut_ad(bv->type() == json_binary::Value::ARRAY);
-  ulint elements = bv->element_count();
+  uint32_t elements = bv->element_count();
 
   ut_ad(elements > 0);
 
@@ -8923,7 +8925,8 @@ static dberr_t calc_row_difference(
 
         if (is_multi_value) {
           innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
-                                   old_row - new_row, comp, uvect->heap);
+                                   static_cast<uint>(old_row - new_row), comp,
+                                   uvect->heap);
         } else {
           buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len, col,
                                          old_mysql_row_col, col_pack_len, buf);
@@ -8962,9 +8965,9 @@ static dberr_t calc_row_difference(
         col->copy_type(dfield_get_type(&old_field));
         col->copy_type(dfield_get_type(&new_field));
 
-        innobase_get_multi_value_and_diff(prebuilt->m_mysql_table, i,
-                                          &old_field, &new_field,
-                                          old_row - new_row, comp, uvect->heap);
+        innobase_get_multi_value_and_diff(
+            prebuilt->m_mysql_table, i, &old_field, &new_field,
+            static_cast<uint>(old_row - new_row), comp, uvect->heap);
 
         multi_value_calc_by_diff = true;
       }
@@ -9010,9 +9013,9 @@ static dberr_t calc_row_difference(
           }
 
           if (is_multi_value && !multi_value_calc_by_diff) {
-            innobase_get_multi_value(prebuilt->m_mysql_table, i, &dfield,
-                                     nullptr, old_row - new_row, comp,
-                                     uvect->heap);
+            innobase_get_multi_value(
+                prebuilt->m_mysql_table, i, &dfield, nullptr,
+                static_cast<uint>(old_row - new_row), comp, uvect->heap);
           } else {
             buf = row_mysql_store_col_in_innobase_format(
                 &dfield, (byte *)buf, TRUE, old_mysql_row_col, col_pack_len,
@@ -9072,7 +9075,8 @@ static dberr_t calc_row_difference(
 
       if (is_multi_value) {
         innobase_get_multi_value(prebuilt->m_mysql_table, i, vfield, nullptr,
-                                 old_row - new_row, comp, uvect->heap);
+                                 static_cast<uint>(old_row - new_row), comp,
+                                 uvect->heap);
       } else {
         buf = innodb_fill_old_vcol_val(prebuilt, vfield, o_len, col,
                                        old_mysql_row_col, col_pack_len, buf);
@@ -12304,14 +12308,14 @@ bool create_table_info_t::innobase_table_flags() {
   DBUG_TRACE;
 
   const char *fts_doc_id_index_bad = nullptr;
-  ulint zip_ssize = 0;
+  uint32_t zip_ssize = 0;
   enum row_type row_type;
   const bool is_temp = m_create_info->options & HA_LEX_CREATE_TMP_TABLE;
   bool zip_allowed = !is_temp;
   rec_format_t innodb_row_format = get_row_format(innodb_default_row_format);
 
-  const ulint zip_ssize_max = ut_min(static_cast<ulint>(UNIV_PAGE_SSIZE_MAX),
-                                     static_cast<ulint>(PAGE_ZIP_SSIZE_MAX));
+  const uint32_t zip_ssize_max =
+      std::min<uint32_t>((UNIV_PAGE_SSIZE_MAX), (PAGE_ZIP_SSIZE_MAX));
 
   m_flags = 0;
   m_flags2 = 0;
@@ -13276,8 +13280,8 @@ template <typename Table>
 int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
                                     HA_CREATE_INFO *create_info, Table *dd_tab,
                                     bool file_per_table, bool evictable,
-                                    bool skip_strict, ulint old_flags,
-                                    ulint old_flags2) {
+                                    bool skip_strict, uint32_t old_flags,
+                                    uint32_t old_flags2) {
   char norm_name[FN_REFLEN] = {'\0'};   /* {database}/{tablename} */
   char remote_path[FN_REFLEN] = {'\0'}; /* Absolute path of table */
   char tablespace[NAME_LEN] = {'\0'};   /* Tablespace name identifier */
@@ -13376,15 +13380,13 @@ cleanup:
   return (error);
 }
 
-template int innobase_basic_ddl::create_impl<dd::Table>(THD *, const char *,
-                                                        TABLE *,
-                                                        HA_CREATE_INFO *,
-                                                        dd::Table *, bool, bool,
-                                                        bool, ulint, ulint);
+template int innobase_basic_ddl::create_impl<dd::Table>(
+    THD *, const char *, TABLE *, HA_CREATE_INFO *, dd::Table *, bool, bool,
+    bool, uint32_t, uint32_t);
 
 template int innobase_basic_ddl::create_impl<dd::Partition>(
     THD *, const char *, TABLE *, HA_CREATE_INFO *, dd::Partition *, bool, bool,
-    bool, ulint, ulint);
+    bool, uint32_t, uint32_t);
 
 /** Drop a table.
 @tparam		Table		dd::Table or dd::Partition
@@ -14711,7 +14713,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   /* In FSP_FLAGS, a zip_ssize of zero means that the tablespace
   holds non-compresssed tables.  A non-zero zip_ssize means that
   the general tablespace can ONLY contain compressed tables. */
-  ulint zip_size = static_cast<ulint>(alter_info->file_block_size);
+  uint32_t zip_size = static_cast<uint32_t>(alter_info->file_block_size);
   ut_ad(zip_size <= UNIV_PAGE_SIZE_MAX);
   if (zip_size == 0) {
     zip_size = UNIV_PAGE_SIZE;
@@ -16665,10 +16667,8 @@ static bool innobase_get_table_statistics(
                        &truncated);
 
   if (truncated || !normalize_table_name(norm_name, buf)) {
-    /* purecov: begin inspected */
     ut_ad(false);
-    return (HA_ERR_TOO_LONG_PATH);
-    /* purecov: end */
+    return true;  // (HA_ERR_TOO_LONG_PATH);
   }
 
   MDL_ticket *mdl = nullptr;
@@ -22664,7 +22664,7 @@ void ha_innobase::mv_key_capacity(uint *num_keys, size_t *keys_length) const {
   }
 
   *keys_length = Multi_value_logger::get_keys_capacity(
-      free_space, min_mv_key_length, num_keys);
+      static_cast<uint32_t>(free_space), min_mv_key_length, num_keys);
 }
 
 /** Use this when the args are passed to the format string from

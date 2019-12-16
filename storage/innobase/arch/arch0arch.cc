@@ -201,7 +201,8 @@ dberr_t Arch_Group::write_to_file(Arch_File_Ctx *from_file, byte *from_buffer,
 
     if (partial_write) {
       DBUG_EXECUTE_IF("crash_after_partial_block_dblwr_flush", DBUG_SUICIDE(););
-      err = m_file_ctx.write(from_file, from_buffer, m_file_ctx.get_offset(),
+      err = m_file_ctx.write(from_file, from_buffer,
+                             static_cast<uint>(m_file_ctx.get_offset()),
                              write_size);
     } else {
       DBUG_EXECUTE_IF("crash_after_full_block_dblwr_flush", DBUG_SUICIDE(););
@@ -409,7 +410,7 @@ dberr_t Arch_File_Ctx::open_next(lsn_t start_lsn, uint64_t file_offset) {
   return (error);
 }
 
-dberr_t Arch_File_Ctx::read(byte *to_buffer, uint offset, uint size) {
+dberr_t Arch_File_Ctx::read(byte *to_buffer, uint64_t offset, uint size) {
   ut_ad(offset + size <= m_size);
   ut_ad(!is_closed());
 

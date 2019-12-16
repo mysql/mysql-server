@@ -80,7 +80,7 @@ dtuple_t *rtr_index_build_node_ptr(
  this function is called.
  @return inserted record */
 rec_t *rtr_page_split_and_insert(
-    ulint flags,           /*!< in: undo logging and locking flags */
+    uint32_t flags,        /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,     /*!< in/out: cursor at which to insert; when the
                            function returns, the cursor is positioned
                            on the predecessor of the inserted record */

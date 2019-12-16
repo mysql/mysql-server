@@ -486,7 +486,7 @@ caller.
 constexpr int ut_new_get_key_by_base_file(const char *file, size_t len) {
   for (size_t i = 0; i < n_auto; ++i) {
     if (ut_string_begins_with(auto_event_names[i], file, len)) {
-      return i;
+      return static_cast<int>(i);
     }
   }
   return -1;

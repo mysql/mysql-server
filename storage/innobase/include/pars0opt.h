@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,7 +58,5 @@ void opt_find_all_cols(
                                to add new found columns */
     plan_t *plan,              /*!< in: plan or NULL */
     que_node_t *exp);          /*!< in: expression or condition */
-
-#include "pars0opt.ic"
 
 #endif

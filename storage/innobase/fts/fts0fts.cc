@@ -2352,7 +2352,7 @@ static
 const char*
 fts_get_state_str(
 				/* out: string representation of state */
-	fts_row_state	state)	/*!< in: state */
+    fts_row_state zstate) /*!< in: state */
 {
 	switch (state) {
 	case FTS_INSERT:
@@ -4069,9 +4069,9 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   ibool print_error = FALSE;
   dict_table_t *table = index_cache->index->table;
   const float cutoff = 0.98f;
-  ulint lock_threshold =
+  ulint lock_threshold = static_cast<ulint>(
       (srv_fatal_semaphore_wait_threshold % SRV_SEMAPHORE_WAIT_EXTENSION) *
-      cutoff;
+      cutoff);
   bool timeout_extended = false;
 
   FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,

@@ -459,7 +459,7 @@ dberr_t DDL_Log_Table::insert(const DDL_Record &record) {
   dberr_t error;
   dict_index_t *index = m_table->first_index();
   dtuple_t *entry;
-  ulint flags = BTR_NO_LOCKING_FLAG;
+  uint32_t flags = BTR_NO_LOCKING_FLAG;
   mem_heap_t *offsets_heap = mem_heap_create(1000);
   static std::atomic<uint64_t> count(0);
 

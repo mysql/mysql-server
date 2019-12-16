@@ -80,7 +80,7 @@ void ins_node_set_new_row(
  @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
  @return error code */
 dberr_t row_ins_clust_index_entry_low(
-    ulint flags,         /*!< in: undo logging and locking flags */
+    uint32_t flags,      /*!< in: undo logging and locking flags */
     ulint mode,          /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
                          depending on whether we wish optimistic or
                          pessimistic descent down the index tree */
@@ -117,7 +117,7 @@ It is then unmarked. Otherwise, the entry is just inserted to the index.
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
-dberr_t row_ins_sec_index_entry_low(ulint flags, ulint mode,
+dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
                                     dict_index_t *index,
                                     mem_heap_t *offsets_heap, mem_heap_t *heap,
                                     dtuple_t *entry, trx_id_t trx_id,
@@ -213,7 +213,5 @@ struct ins_node_t {
 #define INS_NODE_INSERT_ENTRIES          \
   3 /* index entries should be built and \
     inserted */
-
-#include "row0ins.ic"
 
 #endif
