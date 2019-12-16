@@ -558,6 +558,7 @@ bool Event_scheduler::run(THD *thd) {
       DBUG_PRINT("info", ("job_data is NULL, the thread was killed"));
     }
     DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));
+    thd->mem_root->Clear();
   }
 
   LOCK_DATA();
