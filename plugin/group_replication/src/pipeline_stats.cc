@@ -928,7 +928,16 @@ Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
   Pipeline_member_stats *member_pipeline_stats = nullptr;
   Flow_control_module_info::iterator it = m_info.find(member_id);
   if (it != m_info.end()) {
-    member_pipeline_stats = new Pipeline_member_stats(it->second);
+    try {
+      DBUG_EXECUTE_IF("flow_control_simulate_bad_alloc_exception",
+                      throw std::bad_alloc(););
+      member_pipeline_stats = new Pipeline_member_stats(it->second);
+    } catch (const std::bad_alloc &) {
+      my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0),
+               "while getting replication_group_member_stats table rows",
+               __FUNCTION__);
+      return nullptr;
+    }
   }
   return member_pipeline_stats;
 }
