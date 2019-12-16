@@ -29,97 +29,149 @@
 #include <stddef.h>
 
 #include "storage/innobase/include/univ.i"
-#include "storage/innobase/include/ut0new.h"
 
 namespace innodb_ut0new_unittest {
 
-class C {
- public:
-  C(int x = 42) : m_x(x) {}
-
-  int m_x;
-};
-
 static void start() { ut_new_boot_safe(); }
 
-/* test UT_NEW*() */
-TEST(ut0new, utnew) {
+using int_types =
+    ::testing::Types<short int, unsigned short int, int, unsigned int, long int,
+                     unsigned long int, long long int, unsigned long long int>;
+
+using char_types = ::testing::Types<char, unsigned char, wchar_t>;
+
+using floating_point_types = ::testing::Types<float, double, long double>;
+
+/**
+ * This is a typed test template, it's instantiated below for all primitive
+ * types. This way we can cover all the supported fundamental alignments and
+ * sizes.
+ */
+template <class T>
+class ut0new_t : public ::testing::Test {
+ protected:
+  ut_allocator<T> allocator;
+};
+
+template <class T>
+struct wrapper {
+ public:
+  static constexpr T INIT_VAL = std::numeric_limits<T>::min() + 1;
+  wrapper(T data = INIT_VAL) : data(data) {}
+  T data;
+};
+
+template <class T>
+constexpr T wrapper<T>::INIT_VAL;
+
+TYPED_TEST_CASE_P(ut0new_t);
+
+TYPED_TEST_P(ut0new_t, ut_new_fundamental_types) {
   start();
-
-  C *p;
-
-  p = UT_NEW_NOKEY(C(12));
-  EXPECT_EQ(12, p->m_x);
+  const auto MAX = std::numeric_limits<TypeParam>::max();
+  auto p = UT_NEW_NOKEY(TypeParam(MAX));
+  EXPECT_EQ(*p, MAX);
   UT_DELETE(p);
 
-  p = UT_NEW(C(34), mem_key_buf_buf_pool);
-  EXPECT_EQ(34, p->m_x);
+  p = UT_NEW(TypeParam(MAX - 1), mem_key_buf_buf_pool);
+  EXPECT_EQ(*p, MAX - 1);
   UT_DELETE(p);
 
-  p = UT_NEW_ARRAY_NOKEY(C, 5);
-  EXPECT_EQ(42, p[0].m_x);
-  EXPECT_EQ(42, p[1].m_x);
-  EXPECT_EQ(42, p[2].m_x);
-  EXPECT_EQ(42, p[3].m_x);
-  EXPECT_EQ(42, p[4].m_x);
+  const int CNT = 5;
+  p = UT_NEW_ARRAY_NOKEY(TypeParam, CNT);
+  for (int i = 0; i < CNT; ++i) {
+    p[i] = MAX;
+    EXPECT_EQ(p[i], MAX);
+  }
   UT_DELETE_ARRAY(p);
 
-  p = UT_NEW_ARRAY(C, 5, mem_key_buf_buf_pool);
-  EXPECT_EQ(42, p[0].m_x);
-  EXPECT_EQ(42, p[1].m_x);
-  EXPECT_EQ(42, p[2].m_x);
-  EXPECT_EQ(42, p[3].m_x);
-  EXPECT_EQ(42, p[4].m_x);
+  p = UT_NEW_ARRAY(TypeParam, CNT, mem_key_buf_buf_pool);
+  for (int i = 0; i < CNT; ++i) {
+    p[i] = MAX - 1;
+    EXPECT_EQ(p[i], MAX - 1);
+  }
   UT_DELETE_ARRAY(p);
 }
 
-/* test ut_*alloc*() */
-TEST(ut0new, utmalloc) {
+TYPED_TEST_P(ut0new_t, ut_new_structs) {
   start();
+  const auto MAX = std::numeric_limits<TypeParam>::max();
 
-  int *p;
+  using w = wrapper<TypeParam>;
 
-  p = static_cast<int *>(ut_malloc_nokey(sizeof(int)));
-  *p = 12;
+  auto p = UT_NEW_NOKEY(w(TypeParam(MAX)));
+  EXPECT_EQ(p->data, MAX);
+  UT_DELETE(p);
+
+  p = UT_NEW(w(TypeParam(MAX - 1)), mem_key_buf_buf_pool);
+  EXPECT_EQ(p->data, MAX - 1);
+  UT_DELETE(p);
+
+  const int CNT = 5;
+
+  p = UT_NEW_ARRAY_NOKEY(w, CNT);
+  for (int i = 0; i < CNT; ++i) {
+    EXPECT_EQ(w::INIT_VAL, p[i].data);
+  }
+  UT_DELETE_ARRAY(p);
+
+  p = UT_NEW_ARRAY(w, CNT, mem_key_buf_buf_pool);
+  for (int i = 0; i < CNT; ++i) {
+    EXPECT_EQ(w::INIT_VAL, p[i].data);
+  }
+  UT_DELETE_ARRAY(p);
+}
+
+TYPED_TEST_P(ut0new_t, ut_malloc) {
+  start();
+  TypeParam *p;
+  const auto MAX = std::numeric_limits<TypeParam>::max();
+  const auto MIN = std::numeric_limits<TypeParam>::min();
+
+  p = static_cast<TypeParam *>(ut_malloc_nokey(sizeof(TypeParam)));
+  *p = MIN;
   ut_free(p);
 
-  p = static_cast<int *>(ut_malloc(sizeof(int), mem_key_buf_buf_pool));
-  *p = 34;
+  p = static_cast<TypeParam *>(
+      ut_malloc(sizeof(TypeParam), mem_key_buf_buf_pool));
+  *p = MAX;
   ut_free(p);
 
-  p = static_cast<int *>(ut_zalloc_nokey(sizeof(int)));
+  p = static_cast<TypeParam *>(ut_zalloc_nokey(sizeof(TypeParam)));
   EXPECT_EQ(0, *p);
-  *p = 56;
+  *p = MAX;
   ut_free(p);
 
-  p = static_cast<int *>(ut_zalloc(sizeof(int), mem_key_buf_buf_pool));
+  p = static_cast<TypeParam *>(
+      ut_zalloc(sizeof(TypeParam), mem_key_buf_buf_pool));
   EXPECT_EQ(0, *p);
-  *p = 78;
+  *p = MAX;
   ut_free(p);
 
-  p = static_cast<int *>(ut_malloc_nokey(sizeof(int)));
-  *p = 90;
-  p = static_cast<int *>(ut_realloc(p, 2 * sizeof(int)));
-  EXPECT_EQ(90, p[0]);
-  p[1] = 91;
+  p = static_cast<TypeParam *>(ut_malloc_nokey(sizeof(TypeParam)));
+  *p = MAX - 1;
+  p = static_cast<TypeParam *>(ut_realloc(p, 2 * sizeof(TypeParam)));
+  EXPECT_EQ(MAX - 1, p[0]);
+  p[1] = MAX;
   ut_free(p);
 }
 
 /* test ut_allocator() */
-TEST(ut0new, utallocator) {
+TYPED_TEST_P(ut0new_t, ut_vector) {
   start();
 
-  typedef int basic_t;
-  typedef ut_allocator<basic_t> vec_allocator_t;
-  typedef std::vector<basic_t, vec_allocator_t> vec_t;
+  typedef ut_allocator<TypeParam> vec_allocator_t;
+  typedef std::vector<TypeParam, vec_allocator_t> vec_t;
+  const auto MAX = std::numeric_limits<TypeParam>::max();
+  const auto MIN = std::numeric_limits<TypeParam>::min();
 
   vec_t v1;
-  v1.push_back(21);
-  v1.push_back(31);
-  v1.push_back(41);
-  EXPECT_EQ(21, v1[0]);
-  EXPECT_EQ(31, v1[1]);
-  EXPECT_EQ(41, v1[2]);
+  v1.push_back(MIN);
+  v1.push_back(MIN + 1);
+  v1.push_back(MAX);
+  EXPECT_EQ(MIN, v1[0]);
+  EXPECT_EQ(MIN + 1, v1[1]);
+  EXPECT_EQ(MAX, v1[2]);
 
   /* We use "new" instead of "UT_NEW()" for simplicity here. Real InnoDB
   code should use UT_NEW(). */
@@ -129,14 +181,22 @@ TEST(ut0new, utallocator) {
   = new std::vector<int, ut_allocator<int> >(ut_allocator<int>(
   mem_key_buf_buf_pool)); */
   vec_t *v2 = new vec_t(vec_allocator_t(mem_key_buf_buf_pool));
-  v2->push_back(27);
-  v2->push_back(37);
-  v2->push_back(47);
-  EXPECT_EQ(27, v2->at(0));
-  EXPECT_EQ(37, v2->at(1));
-  EXPECT_EQ(47, v2->at(2));
+  v2->push_back(MIN);
+  v2->push_back(MIN + 1);
+  v2->push_back(MAX);
+  EXPECT_EQ(MIN, v2->at(0));
+  EXPECT_EQ(MIN + 1, v2->at(1));
+  EXPECT_EQ(MAX, v2->at(2));
   delete v2;
 }
+
+REGISTER_TYPED_TEST_CASE_P(ut0new_t, ut_new_fundamental_types, ut_new_structs,
+                           ut_malloc, ut_vector);
+
+INSTANTIATE_TYPED_TEST_CASE_P(int_types, ut0new_t, int_types);
+INSTANTIATE_TYPED_TEST_CASE_P(float_types, ut0new_t, floating_point_types);
+INSTANTIATE_TYPED_TEST_CASE_P(char_types, ut0new_t, char_types);
+INSTANTIATE_TYPED_TEST_CASE_P(bool, ut0new_t, bool);
 
 static int n_construct = 0;
 
