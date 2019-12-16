@@ -55,20 +55,26 @@ mysql> SELECT sys.ps_is_instrument_default_enabled(\'statement/sql/select\');
 BEGIN
     DECLARE v_enabled ENUM('YES', 'NO');
 
-    -- Currently the same in all versions
-    SET v_enabled = IF(in_instrument LIKE 'wait/io/file/%'
-                        OR in_instrument LIKE 'wait/io/table/%'
-                        OR in_instrument LIKE 'statement/%'
-                        OR in_instrument LIKE 'memory/performance_schema/%'
-                        OR in_instrument IN ('wait/lock/table/sql/handler', 'idle')
-                        OR in_instrument LIKE 'stage/innodb/%'
-                        OR in_instrument = 'stage/sql/copy to tmp table'
-                      ,
-                       'YES',
-                       'NO'
-                    );
+    IF (in_instrument LIKE 'stage/%') THEN
+    BEGIN
+      /* Stages are enabled by default if the progress property is set. */
+      SET v_enabled = (SELECT
+                        IF(find_in_set("progress", PROPERTIES) != 0, 'YES', 'NO')
+                        FROM performance_schema.setup_instruments
+                        WHERE NAME = in_instrument);
+      SET v_enabled = IFNULL(v_enabled, 'NO');
+    END;
+    ELSE
+      SET v_enabled = IF(in_instrument LIKE 'wait/synch/%'
+                         OR in_instrument LIKE 'wait/io/socket/%'
+                        ,
+                         'NO',
+                         'YES'
+                      );
+    END IF;
 
     RETURN v_enabled;
 END$$
+
 
 DELIMITER ;
