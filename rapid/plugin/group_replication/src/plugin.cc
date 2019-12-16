@@ -38,12 +38,12 @@ unsigned int plugin_version= 0;
 
 //The plugin running flag and lock
 static mysql_mutex_t plugin_running_mutex;
-static bool group_replication_running;
+bool group_replication_running= false;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
-static bool plugin_is_waiting_to_set_server_read_mode= false;
-static bool plugin_is_being_uninstalled= false;
+bool plugin_is_waiting_to_set_server_read_mode= false;
+bool plugin_is_being_uninstalled= false;
 
 /* Plugin modules */
 //The plugin applier
@@ -987,6 +987,11 @@ int terminate_plugin_modules(bool flag_stop_async_channel)
 
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
+  // Reset plugin local variables.
+  group_replication_running= false;
+  plugin_is_being_uninstalled= false;
+  plugin_is_waiting_to_set_server_read_mode= false;
+
   // Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
