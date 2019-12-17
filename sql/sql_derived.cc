@@ -795,6 +795,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   while (TABLE *t = it.get_next())
     if (t->materialized) {
       table->materialized = true;
+      table->set_not_started();
       return false;
     }
 
@@ -832,6 +833,11 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   }
 
   table->materialized = true;
+
+  // Mark the table as not started (default is just zero status),
+  // or read_system() and read_const() will forget to read the row.
+  table->set_not_started();
+
   return res;
 }
 

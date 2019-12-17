@@ -4210,7 +4210,6 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
   keys_in_use_for_query.init();
   keys_in_use_for_group_by.init();
   keys_in_use_for_order_by.init();
-  set_not_started();
 #ifndef DBUG_OFF
   set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
 #endif
