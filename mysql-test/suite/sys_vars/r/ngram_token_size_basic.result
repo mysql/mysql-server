@@ -36,3 +36,4 @@ ngram_token_size	10
 select * from performance_schema.global_variables where variable_name='ngram_token_size';
 VARIABLE_NAME	VARIABLE_VALUE
 ngram_token_size	10
+# restart:

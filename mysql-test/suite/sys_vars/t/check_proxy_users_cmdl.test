@@ -78,3 +78,7 @@ CALL mtr.add_suppression("option 'check_proxy_users': boolean value '' was not r
 --exec echo "restart:--check-proxy-users=" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 SELECT @@global.check_proxy_users;
+
+# restore default options in .opt
+let $restart_parameters = restart:;
+source include/restart_mysqld.inc;
