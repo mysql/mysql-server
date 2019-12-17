@@ -2116,6 +2116,7 @@ SELECT LEFT(col_varchar_key, 1) AS field1 FROM view_AA WHERE ( pk, NULL ) IN
 (  SELECT col_time_key AS subfield21, pk AS subfield22, col_time_key AS subfield23 FROM t1 WHERE col_varchar != col_varchar_key    )
 ORDER BY subfield12   ) OR col_int IS NOT NULL  ORDER BY field1 LIMIT 10 OFFSET 25;
 field1
+DROP VIEW view_AA, view_CC;
 DROP TABLE t1, t2;
 #
 # Bug#26641404 WL9223:ASSERTION `DELSUM+(INT) Y/4-TEMP >= 0' FAILED.
@@ -3186,3 +3187,4 @@ Table	Op	Msg_type	Msg_text
 test.t1	histogram	Error	Lock wait timeout exceeded; try restarting transaction
 UNLOCK INSTANCE;
 DROP TABLE t1;
+# restart:
