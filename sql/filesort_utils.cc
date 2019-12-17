@@ -53,12 +53,11 @@ namespace {
   See the accompanying unit tests, which measure various implementations.
  */
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
-  DBUG_ASSERT(len > 0);
   DBUG_ASSERT(s1 != nullptr);
   DBUG_ASSERT(s2 != nullptr);
-  do {
-    if (*s1++ != *s2++) return *--s1 < *--s2;
-  } while (--len != 0);
+  for (size_t i = 0; i < len; ++i) {
+    if (s1[i] != s2[i]) return s1[i] < s2[i];
+  }
   return false;
 }
 

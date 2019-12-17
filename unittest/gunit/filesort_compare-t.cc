@@ -28,6 +28,7 @@
 #include "my_byteorder.h"
 #include "my_inttypes.h"
 #include "sql/filesort_utils.h"
+#include "unittest/gunit/benchmark.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace filesort_compare_unittest {
@@ -72,10 +73,8 @@ TEST(BufferAlignmentTest, IntsToBytesToInt) {
   }
 }
 
-class FileSortCompareTest : public ::testing::Test {
- protected:
-  // Do each sort algorithm this many times. Increase value for benchmarking!
-  static const int num_iterations = 1;
+class FileSortBMHelper {
+ public:
   // Number of records.
   static const int num_records = 100 * 100;
   // Number of keys in each record.
@@ -83,11 +82,11 @@ class FileSortCompareTest : public ::testing::Test {
   // Size of each record.
   static const int record_size = keys_per_record * sizeof(int);
 
-  // Static buffer containing data to be sorted.
+  // Buffer containing data to be sorted.
   // (actually: we only sort the sort_keys below, data is stable).
-  static std::vector<int> test_data;
+  std::vector<int> test_data;
 
-  static void SetUpTestCase() {
+  FileSortBMHelper() {
     test_data.reserve(num_records * keys_per_record);
     union {
       int val;
@@ -102,35 +101,41 @@ class FileSortCompareTest : public ::testing::Test {
     }
     // Comment away shuffling for testing partially pre-sorted data.
     // std::random_shuffle(test_data.begin(), test_data.end());
-  }
 
-  static void TearDownTestCase() {
-    // Delete the data now, rather than during exit().
-    std::vector<int>().swap(test_data);
-  }
-
-  virtual void SetUp() {
-    sort_keys = new uchar *[num_records];
+    sort_keys.reset(new uchar *[num_records]);
     for (int ix = 0; ix < num_records; ++ix)
       sort_keys[ix] = static_cast<uchar *>(
           static_cast<void *>(&test_data[keys_per_record * ix]));
   }
 
-  virtual void TearDown() { delete[] sort_keys; }
+  std::vector<uchar *> GetKeys() const {
+    return {sort_keys.get(), sort_keys.get() + num_records};
+  }
 
-  uchar **sort_keys;
+  std::unique_ptr<uchar *[]> sort_keys;
 };
-std::vector<int> FileSortCompareTest::test_data;
 
 /*
   Some different mem_compare functions.
-  The first one seems to win on all platforms, except sparc,
+  The second one seems to win on all platforms, except sparc,
   where the builtin memcmp() wins.
+
+  TODO(sgunders): Consider re-tuning this and switch to one of
+  the other ones; ideally, just memcmp().
  */
 inline bool mem_compare_0(const uchar *s1, const uchar *s2, size_t len) {
   do {
     if (*s1++ != *s2++) return *--s1 < *--s2;
   } while (--len != 0);
+  return s1 > s2;  // Return false for duplicate keys.
+}
+
+// This variant is safe against zero-length inputs.
+inline bool mem_compare_0_zerosafe(const uchar *s1, const uchar *s2,
+                                   size_t len) {
+  for (size_t i = 0; i < len; ++i) {
+    if (s1[i] != s2[i]) return s1[i] < s2[i];
+  }
   return s1 > s2;  // Return false for duplicate keys.
 }
 
@@ -165,7 +170,7 @@ inline bool mem_compare_3(const uchar *s1, const uchar *s2, size_t len) {
 
 class Mem_compare_memcmp {
  public:
-  Mem_compare_memcmp(size_t n) : m_size(n) {}
+  explicit Mem_compare_memcmp(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     return memcmp(s1, s2, m_size) < 0;
   }
@@ -174,16 +179,25 @@ class Mem_compare_memcmp {
 
 class Mem_compare_0 {
  public:
-  Mem_compare_0(size_t n) : m_size(n) {}
+  explicit Mem_compare_0(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     return mem_compare_0(s1, s2, m_size);
   }
   size_t m_size;
 };
 
+class Mem_compare_0_zerosafe {
+ public:
+  explicit Mem_compare_0_zerosafe(size_t n) : m_size(n) {}
+  bool operator()(const uchar *s1, const uchar *s2) {
+    return mem_compare_0_zerosafe(s1, s2, m_size);
+  }
+  size_t m_size;
+};
+
 class Mem_compare_1 {
  public:
-  Mem_compare_1(size_t n) : m_size(n) {}
+  explicit Mem_compare_1(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     return mem_compare_1(s1, s2, m_size);
   }
@@ -192,7 +206,7 @@ class Mem_compare_1 {
 
 class Mem_compare_2 {
  public:
-  Mem_compare_2(size_t n) : m_size(n) {}
+  explicit Mem_compare_2(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     return mem_compare_2(s1, s2, m_size);
   }
@@ -201,7 +215,7 @@ class Mem_compare_2 {
 
 class Mem_compare_3 {
  public:
-  Mem_compare_3(size_t n) : m_size(n) {}
+  explicit Mem_compare_3(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     return mem_compare_3(s1, s2, m_size);
   }
@@ -213,7 +227,7 @@ class Mem_compare_3 {
 
 class Mem_compare_4 {
  public:
-  Mem_compare_4(size_t n) : m_size(n) {}
+  explicit Mem_compare_4(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     size_t len = m_size;
     while (len > 0) {
@@ -232,7 +246,7 @@ class Mem_compare_4 {
 
 class Mem_compare_5 {
  public:
-  Mem_compare_5(size_t n) : m_size(n) {}
+  explicit Mem_compare_5(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     COMPARE(0);
     COMPARE(1);
@@ -247,7 +261,7 @@ class Mem_compare_5 {
 // We treat the first key as int, the rest byte-by-byte.
 class Mem_compare_int {
  public:
-  Mem_compare_int(size_t n) : m_size(n), rest(n - sizeof(int)) {}
+  explicit Mem_compare_int(size_t n) : m_size(n), rest(n - sizeof(int)) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     int int1 = bytes_to_int(s1);
     int int2 = bytes_to_int(s2);
@@ -262,7 +276,7 @@ class Mem_compare_int {
 
 class Mem_compare_int_4 {
  public:
-  Mem_compare_int_4(size_t) : keyno(1) {}
+  explicit Mem_compare_int_4(size_t) : keyno(1) {}
   bool operator()(const uchar *s1, const uchar *s2) {
     int inta1 = bytes_to_int(s1);
     int intb1 = bytes_to_int(s2);
@@ -275,146 +289,134 @@ class Mem_compare_int_4 {
   int keyno;
 };
 
+template <class Compare>
+static inline void RunSortBenchmark(size_t num_iterations, bool stable_sort) {
+  StopBenchmarkTiming();
+  FileSortBMHelper helper;
+  for (size_t ix = 0; ix < num_iterations; ++ix) {
+    std::vector<uchar *> keys = helper.GetKeys();
+    StartBenchmarkTiming();
+    if (stable_sort) {
+      std::stable_sort(keys.begin(), keys.end(), Compare(helper.record_size));
+    } else {
+      std::sort(keys.begin(), keys.end(), Compare(helper.record_size));
+    }
+    StopBenchmarkTiming();
+  }
+}
+
 /*
   Several sorting tests below, each one runs num_iterations.
   For each iteration we take a copy of the key pointers, and sort the copy.
   Most of the tests below are run with std::sort and std::stable_sort.
   Stable sort seems to be faster for all test cases, on all platforms.
  */
-TEST_F(FileSortCompareTest, SetUpOnly) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-  }
+static void BM_StdSortmemcmp(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_memcmp>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortmemcmp);
 
-TEST_F(FileSortCompareTest, StdSortmemcmp) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_memcmp(record_size));
-  }
+static void BM_StdStableSortmemcmp(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_memcmp>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortmemcmp);
 
-TEST_F(FileSortCompareTest, StdStableSortmemcmp) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_memcmp(record_size));
-  }
+static void BM_StdSortCompare0(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_0>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare0);
 
-TEST_F(FileSortCompareTest, StdSortCompare0) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_0(record_size));
-  }
+static void BM_StdStableSortCompare0(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_0>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare0);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare0) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_0(record_size));
-  }
+static void BM_StdSortCompare0ZeroSafe(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_0_zerosafe>(num_iterations,
+                                           /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare0ZeroSafe);
 
-TEST_F(FileSortCompareTest, StdSortCompare1) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_1(record_size));
-  }
+static void BM_StdStableSortCompare0ZeroSafe(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_0_zerosafe>(num_iterations,
+                                           /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare0ZeroSafe);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare1) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_1(record_size));
-  }
+static void BM_StdSortCompare1(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_1>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare1);
 
-TEST_F(FileSortCompareTest, StdSortCompare2) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_2(record_size));
-  }
+static void BM_StdStableSortCompare1(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_1>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare1);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare2) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_2(record_size));
-  }
+static void BM_StdSortCompare2(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_2>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare2);
 
-TEST_F(FileSortCompareTest, StdSortCompare3) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_3(record_size));
-  }
+static void BM_StdStableSortCompare2(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_2>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare2);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare3) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_3(record_size));
-  }
+static void BM_StdSortCompare3(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_3>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare3);
 
-TEST_F(FileSortCompareTest, StdSortCompare4) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_4(record_size));
-  }
+static void BM_StdStableSortCompare3(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_3>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare3);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare4) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_4(record_size));
-  }
+static void BM_StdSortCompare4(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_4>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare4);
 
-TEST_F(FileSortCompareTest, StdSortCompare5) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_5(record_size));
-  }
+static void BM_StdStableSortCompare4(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_4>(num_iterations, /*stable_sort=*/true);
 }
+BENCHMARK(BM_StdStableSortCompare4);
 
-TEST_F(FileSortCompareTest, StdStableSortCompare5) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_5(record_size));
-  }
+static void BM_StdSortCompare5(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_5>(num_iterations, /*stable_sort=*/false);
 }
+BENCHMARK(BM_StdSortCompare5);
+
+static void BM_StdStableSortCompare5(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_5>(num_iterations, /*stable_sort=*/true);
+}
+BENCHMARK(BM_StdStableSortCompare5);
 
 // Disabled: experimental.
-TEST_F(FileSortCompareTest, DISABLED_StdSortIntCompare) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_int(record_size));
-  }
+static void MY_ATTRIBUTE((unused)) BM_StdSortIntCompare(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/false);
 }
+// BENCHMARK(BM_StdSortIntCompare);
+
+static void MY_ATTRIBUTE((unused))
+    BM_StdStableSortIntCompare(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/true);
+}
+// BENCHMARK(BM_StdStableSortIntCompare);
 
 // Disabled: experimental.
-TEST_F(FileSortCompareTest, DISABLED_StdStableSortIntCompare) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_int(record_size));
-  }
+static void MY_ATTRIBUTE((unused))
+    BM_StdSortIntIntIntInt(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/false);
 }
+// BENCHMARK(BM_StdSortIntIntIntInt);
 
 // Disabled: experimental.
-TEST_F(FileSortCompareTest, DISABLED_StdSortIntIntIntInt) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::sort(keys.begin(), keys.end(), Mem_compare_int_4(record_size));
-  }
+static void MY_ATTRIBUTE((unused))
+    BM_StdStableSortIntIntIntInt(size_t num_iterations) {
+  RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/true);
 }
-
-// Disabled: experimental.
-TEST_F(FileSortCompareTest, DISABLED_StdStableSortIntIntIntInt) {
-  for (int ix = 0; ix < num_iterations; ++ix) {
-    std::vector<uchar *> keys(sort_keys, sort_keys + num_records);
-    std::stable_sort(keys.begin(), keys.end(), Mem_compare_int_4(record_size));
-  }
-}
+// BENCHMARK(BM_StdStableSortIntIntIntInt);
 
 }  // namespace filesort_compare_unittest
