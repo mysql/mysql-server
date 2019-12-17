@@ -190,24 +190,24 @@ std::string ProcessManager::make_DEFAULT_section(
                : "";
   };
 
-  return params
-             ? std::string("[DEFAULT]\n") + l("logging_folder") +
-                   l("plugin_folder") + l("runtime_folder") +
-                   l("config_folder") + l("data_folder") + l("keyring_path") +
-                   l("master_key_path") + l("master_key_reader") +
-                   l("master_key_writer") + l("dynamic_state") + "\n"
-             : std::string("[DEFAULT]\n") +
-                   "logging_folder = " + logging_dir_.name() + "\n" +
-                   "plugin_folder = " + plugin_dir_.str() + "\n" +
-                   "runtime_folder = " + origin_dir_.str() + "\n" +
-                   "config_folder = " + origin_dir_.str() + "\n" +
-                   "data_folder = " + origin_dir_.str() + "\n\n";
+  return params ? std::string("[DEFAULT]\n") + l("logging_folder") +
+                      l("plugin_folder") + l("runtime_folder") +
+                      l("config_folder") + l("data_folder") +
+                      l("keyring_path") + l("master_key_path") +
+                      l("master_key_reader") + l("master_key_writer") +
+                      l("dynamic_state") + l("pid_file") + "\n"
+                : std::string("[DEFAULT]\n") +
+                      "logging_folder = " + logging_dir_.name() + "\n" +
+                      "plugin_folder = " + plugin_dir_.str() + "\n" +
+                      "runtime_folder = " + origin_dir_.str() + "\n" +
+                      "config_folder = " + origin_dir_.str() + "\n" +
+                      "data_folder = " + origin_dir_.str() + "\n\n";
 }
 
 std::string ProcessManager::create_config_file(
     const std::string &directory, const std::string &sections,
     const std::map<std::string, std::string> *default_section,
-    const std::string &name) const {
+    const std::string &name, const std::string &extra_defaults) const {
   Path file_path = Path(directory).join(name);
   std::ofstream ofs_config(file_path.str());
 
@@ -217,6 +217,7 @@ std::string ProcessManager::create_config_file(
   }
 
   ofs_config << make_DEFAULT_section(default_section);
+  ofs_config << extra_defaults << std::endl;
   ofs_config << sections << std::endl;
   ofs_config.close();
 

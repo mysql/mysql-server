@@ -373,7 +373,7 @@ protocol=x)";
   EXPECT_TRUE(config_file_str.find(config_file_expected1) !=
                   std::string::npos &&
               config_file_str.find(config_file_expected2) != std::string::npos)
-      << "Unexptected config file output:" << std::endl
+      << "Unexpected config file output:" << std::endl
       << config_file_str << std::endl
       << "Expected:" << config_file_expected1 << std::endl
       << config_file_expected2;
@@ -618,6 +618,138 @@ TEST_F(CommonBootstrapTest, BootstrapWhileMetadataUpgradeInProgress) {
          "rerun the bootstrap when it is finished."},
         10s, {0, 0, 0});
   }
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap handles --pid-file option on
+ *       command line correctly
+ *       TS_FR12_01
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileOpt) {
+  TempDirectory mytmp;
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).join("test.pid").str();
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "--pid-file",
+        pidfile,
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d",
+        bootstrap_dir.name(),
+        "--report-host",
+        my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options, EXIT_FAILURE,
+                       {"^Error: Option --pid-file cannot be used together "
+                        "with -B/--bootstrap"},
+                       10s);
+  }
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap handles pid_file option in
+ *       config file correctly
+ *       TS_FR13_01
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileCfg) {
+  TempDirectory mytmp;
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).real_path().join("test.pid").str();
+
+  auto params = get_DEFAULT_defaults();
+  params["pid_file"] = pidfile;
+  std::string conf_file =
+      create_config_file(get_data_dir().c_str(), "", &params);
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "-c",
+        conf_file,
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d",
+        bootstrap_dir.name(),
+        "--report-host",
+        my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options);
+
+    ASSERT_FALSE(mysql_harness::Path(pidfile.c_str()).exists());
+  }
+
+  // Post check that pid_file is not included in config
+  const std::string config_file_str = get_file_output(config_file);
+
+  EXPECT_TRUE(config_file_str.find("pid_file") == std::string::npos)
+      << "config file includes pid_file setting :" << std::endl
+      << config_file_str << std::endl;
+}
+
+/**
+ * @test
+ *       verify that the router's \c --bootstrap does not create a pidfile when
+ *       ROUTER_PID is specified
+ *       TS_FR13_02
+ */
+TEST_F(CommonBootstrapTest, BootstrapPidfileEnv) {
+  // Set ROUTER_PID
+  TempDirectory mytmp;
+  std::string pidfile =
+      mysql_harness::Path(mytmp.name()).real_path().join("test.pid").str();
+#ifdef _WIN32
+  int err_code = _putenv_s("ROUTER_PID", pidfile.c_str());
+#else
+  int err_code = ::setenv("ROUTER_PID", pidfile.c_str(), 1);
+#endif
+  if (err_code) throw std::runtime_error("Failed to add ROUTER_PID");
+
+  {
+    std::vector<Config> config{
+        {"127.0.0.1", port_pool_.get_next_available(),
+         port_pool_.get_next_available(),
+         get_data_dir().join("bootstrap_gr.js").str()},
+    };
+
+    std::vector<std::string> router_options = {
+        "--bootstrap=" + config.at(0).ip + ":" +
+            std::to_string(config.at(0).port),
+        "-d", bootstrap_dir.name(), "--report-host", my_hostname};
+
+    bootstrap_failover(config, ClusterType::GR_V2, router_options);
+
+    ASSERT_FALSE(mysql_harness::Path(pidfile.c_str()).exists());
+  }
+
+  // reset ROUTER_PID
+#ifdef _WIN32
+  err_code = _putenv_s("ROUTER_PID", "");
+#else
+  err_code = ::unsetenv("ROUTER_PID");
+#endif
+  if (err_code) throw std::runtime_error("Failed to remove ROUTER_PID");
+
+  // Post check that pid_file is not included in config
+  const std::string config_file_str = get_file_output(config_file);
+
+  EXPECT_TRUE(config_file_str.find("pid_file") == std::string::npos)
+      << "config file includes pid_file setting :" << std::endl
+      << config_file_str << std::endl;
 }
 
 class RouterBootstrapFailoverSuperReadonly

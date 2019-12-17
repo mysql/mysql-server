@@ -161,6 +161,17 @@ class HARNESS_EXPORT Path {
   bool is_regular() const;
 
   /**
+   * Check if the path is absolute or not
+   *
+   * The path is considered absolute if it starts with one of:
+   *   Unix:    '/'
+   *   Windows: '/' or '\' or '.:' (where . is any character)
+   * else:
+   *   it's considered relative (empty path is also relative in such respect)
+   */
+  bool is_absolute() const;
+
+  /**
    * Check if path exists
    */
   bool exists() const;
@@ -572,6 +583,19 @@ void make_file_readable_for_everyone(const std::string &file_name);
 void HARNESS_EXPORT
 make_file_private(const std::string &file_name,
                   const bool read_only_for_local_service = true);
+
+/**
+ * Changes file access permissions to be read only.
+ *
+ * On Unix, the function sets file permission mask to 555.
+ * On Windows, all permissions to this file are read access only for Everyone
+ * group, LocalService account gets read access.
+ *
+ * @param[in] file_name File name.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+void HARNESS_EXPORT make_file_readonly(const std::string &file_name);
 
 /**
  * Verifies access permissions of a file.

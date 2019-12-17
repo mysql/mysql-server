@@ -396,13 +396,13 @@ static string ensure_absolute_path(const string &path,
   if (path.compare(0, strlen("{origin}"), "{origin}") == 0) return path;
   if (path.find("ENV{") != std::string::npos) return path;
 #ifdef _WIN32
-  if (path[0] == '\\' || path[0] == '/' || path[1] == ':') return path;
   // if the path is not absolute, it must be relative to the origin
-  return basedir + "\\" + path;
+  return (mysql_harness::Path(path).is_absolute() ? path
+                                                  : basedir + "\\" + path);
 #else
-  if (path[0] == '/') return path;
   // if the path is not absolute, it must be relative to the origin
-  return basedir + "/" + path;
+  return (mysql_harness::Path(path).is_absolute() ? path
+                                                  : basedir + "/" + path);
 #endif
 }
 
@@ -580,12 +580,61 @@ void MySQLRouter::start() {
     throw std::runtime_error("Can not start");
   }
 
-  // Using environment variable ROUTER_PID is a temporary solution. We will
-  // remove this functionality when Harness introduces the `pid_file` option.
-  auto pid_file_env = std::getenv("ROUTER_PID");
-  if (pid_file_env != nullptr) {
-    pid_file_path_ = pid_file_env;
+  // Setup pidfile path for the application.
+  // Order of significance: commandline > config file > ROUTER_PID envvar
+  if (pid_file_path_.empty()) {
+    if (config.has_default("pid_file")) {
+      const std::string pidfile = config.get_default("pid_file");
+      if (!pidfile.empty()) {
+        pid_file_path_ = pidfile;
+      } else {
+        throw std::runtime_error(string_format("PID filename '%s' is illegal.",
+                                               pid_file_path_.c_str()));
+      }
+    }
+    // ... if still empty, check ENV
+    if (pid_file_path_.empty()) {
+      const auto pid_file_env = std::getenv("ROUTER_PID");
+      if (pid_file_env != nullptr) {
+        const std::string pidfile = std::string(pid_file_env);
+        if (!pidfile.empty()) {
+          pid_file_path_ = pidfile;
+        } else {
+          throw std::runtime_error(
+              string_format("PID filename '%s' is illegal.", pid_file_env));
+        }
+      }
+    }
+  }
+
+  // Check existing if set
+  if (!pid_file_path_.empty()) {
     mysql_harness::Path pid_file_path(pid_file_path_);
+    // append runtime path to relative paths
+    if (!pid_file_path.is_absolute()) {
+      mysql_harness::Path runtime_path =
+          mysql_harness::Path(config.get_default("runtime_folder"));
+      // mkdir if runtime_folder doesn't exist
+      if (!runtime_path.exists() &&
+          (mysql_harness::mkdir(runtime_path.str(),
+                                mysql_harness::kStrictDirectoryPerm,
+                                true) != 0)) {
+        auto last_error =
+#ifdef _WIN32
+            GetLastError()
+#else
+            errno
+#endif
+            ;
+        throw std::system_error(last_error, std::system_category(),
+                                "Error when creating dir '" +
+                                    runtime_path.str() +
+                                    "': " + std::to_string(last_error));
+      }
+      mysql_harness::Path tmp = mysql_harness::Path(pid_file_path);
+      pid_file_path = runtime_path.join(tmp);
+      pid_file_path_ = std::string(pid_file_path.c_str());
+    }
     if (pid_file_path.is_regular()) {
       throw std::runtime_error(string_format(
           "PID file %s found. Already running?", pid_file_path_.c_str()));
@@ -720,6 +769,13 @@ void MySQLRouter::assert_bootstrap_mode(const std::string &option_name) const {
   if (this->bootstrap_uri_.empty())
     throw std::runtime_error("Option " + option_name +
                              " can only be used together with -B/--bootstrap");
+}
+
+void MySQLRouter::assert_not_bootstrap_mode(
+    const std::string &option_name) const {
+  if (!this->bootstrap_uri_.empty())
+    throw std::runtime_error("Option " + option_name +
+                             " cannot be used together with -B/--bootstrap");
 }
 
 void MySQLRouter::prepare_command_options() noexcept {
@@ -1015,6 +1071,21 @@ void MySQLRouter::prepare_command_options() noexcept {
       },
       [this](const string &) {
         this->assert_bootstrap_mode("--password-retries");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--pid-file"}), "Path and filename of pid file",
+      CmdOptionValueReq::required, "pidfile",
+      [this](const string &pidfile_url) {
+        if (!this->pid_file_path_.empty())
+          throw std::runtime_error("Option --pid-file can only be given once");
+        if (pidfile_url.empty()) {
+          throw std::runtime_error("Invalid empty value for --pid-file option");
+        }
+        this->pid_file_path_ = pidfile_url;
+      },
+      [this](const string &) {
+        this->assert_not_bootstrap_mode("--pid-file");
       });
 
   arg_handler_.add_option(
@@ -1434,8 +1505,8 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
       {"run",
        {"--user", "--config", "--extra-config", "--clear-all-credentials",
         "--service", "--remove-service", "--install-service",
-        "--install-service-manual", "--remove-credentials-section",
-        "--update-credentials-section"}}};
+        "--install-service-manual", "--pid-file",
+        "--remove-credentials-section", "--update-credentials-section"}}};
 
   for (const auto &section : usage_sections) {
     for (auto line : arg_handler_.usage_lines_if(

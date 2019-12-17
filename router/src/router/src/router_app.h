@@ -404,6 +404,14 @@ class MySQLRouter {
    */
   void assert_bootstrap_mode(const std::string &option_name) const;
 
+  /**
+   * @brief verify that option given by user is not used with bootstrap option
+   * (--bootstrap or -B).
+   *
+   * @throw std::runtime_error if called in bootstrap mode.
+   */
+  void assert_not_bootstrap_mode(const std::string &option_name) const;
+
   /** @brief Shows command line usage and option description
    *
    * Shows command line usage and all available options together with their

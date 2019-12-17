@@ -191,13 +191,15 @@ class ProcessManager {
    * sections)
    * @param default_section [DEFAULT] section parameters
    * @param name config file name
+   * @param extra_defaults addional parameters to add to [DEFAULT]
    *
    * @return path to the created file
    */
   std::string create_config_file(
       const std::string &directory, const std::string &sections = "",
       const std::map<std::string, std::string> *default_section = nullptr,
-      const std::string &name = "mysqlrouter.conf") const;
+      const std::string &name = "mysqlrouter.conf",
+      const std::string &extra_defaults = "") const;
 
   // returns full path to the file
   std::string create_state_file(const std::string &dir_name,

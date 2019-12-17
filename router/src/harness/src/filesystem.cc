@@ -116,6 +116,17 @@ bool Path::is_regular() const {
   return type() == FileType::REGULAR_FILE;
 }
 
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+#ifdef _WIN32
+  if (path_[0] == '\\' || path_[0] == '/' || path_[1] == ':') return true;
+  return false;
+#else
+  if (path_[0] == '/') return true;
+  return false;
+#endif
+}
+
 bool Path::exists() const {
   validate_non_empty_path();  // throws std::invalid_argument
   return type() != FileType::FILE_NOT_FOUND && type() != FileType::STATUS_ERROR;
@@ -692,5 +703,15 @@ void make_file_readable_for_everyone(const std::string &file_name) {
   }
 }
 #endif
+
+void make_file_readonly(const std::string &file_name) {
+#ifdef _WIN32
+  set_everyone_group_access_rights(file_name,
+                                   FILE_GENERIC_EXECUTE | FILE_GENERIC_READ);
+#else
+  throwing_chmod(file_name,
+                 S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+#endif
+}
 
 }  // namespace mysql_harness
