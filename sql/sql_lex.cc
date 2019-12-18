@@ -472,7 +472,6 @@ void LEX::reset() {
   binlog_need_explicit_defaults_ts = false;
   m_extended_show = false;
   option_type = OPT_DEFAULT;
-  force_iterator_executor = false;
   check_opt = HA_CHECK_OPT();
 
   clear_privileges();
@@ -989,7 +988,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
               case '_':
               case '%':
                 *to++ = '\\';  // remember prefix for wildcard
-                /* Fall through */
+                               /* Fall through */
               default:
                 *to++ = *str;
                 break;
@@ -3553,16 +3552,16 @@ bool LEX::can_use_merged() {
     case SQLCOM_LOAD:
 
     /*
-      With WL#6599 following SHOW commands are implemented over the
-      INFORMATION_SCHEMA system views, and we do not create
-      temporary tables anymore now. So these queries should be
-      allowed to be mergeable, which makes the INFORMATION_SCHEMA
-      query execution faster.
+            With WL#6599 following SHOW commands are implemented over the
+            INFORMATION_SCHEMA system views, and we do not create
+            temporary tables anymore now. So these queries should be
+            allowed to be mergeable, which makes the INFORMATION_SCHEMA
+            query execution faster.
 
-      According to optimizer team (Roy), making this decision based on
-      the command type here is a hack. This should probably change when
-      we introduce Sql_cmd_show class, which should treat the following
-      SHOW commands same as SQLCOM_SELECT.
+            According to optimizer team (Roy), making this decision based on
+            the command type here is a hack. This should probably change when
+            we introduce Sql_cmd_show class, which should treat the following
+            SHOW commands same as SQLCOM_SELECT.
     */
     case SQLCOM_SHOW_CHARSETS:
     case SQLCOM_SHOW_COLLATIONS:
@@ -3866,31 +3865,31 @@ void LEX::set_trg_event_type_for_tables() {
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE));
       break;
     /*
-      Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
-      clause, it will be handled later in this method.
+            Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
+            clause, it will be handled later in this method.
     */
     case SQLCOM_INSERT: /* fall through */
     case SQLCOM_INSERT_SELECT:
     /*
-      LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
-      triggers.
-      If the statement also has REPLACE clause, it will be
-      handled later in this method.
+            LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
+            triggers.
+            If the statement also has REPLACE clause, it will be
+            handled later in this method.
     */
     case SQLCOM_LOAD: /* fall through */
     /*
-      REPLACE is semantically equivalent to INSERT. In case
-      of a primary or unique key conflict, it deletes the old
-      record and inserts a new one. So we also may need to
-      fire ON DELETE triggers. This functionality is handled
-      later in this method.
+            REPLACE is semantically equivalent to INSERT. In case
+            of a primary or unique key conflict, it deletes the old
+            record and inserts a new one. So we also may need to
+            fire ON DELETE triggers. This functionality is handled
+            later in this method.
     */
     case SQLCOM_REPLACE: /* fall through */
     case SQLCOM_REPLACE_SELECT:
     /*
-      CREATE TABLE ... SELECT defaults to INSERT if the table or
-      view already exists. REPLACE option of CREATE TABLE ...
-      REPLACE SELECT is handled later in this method.
+            CREATE TABLE ... SELECT defaults to INSERT if the table or
+            view already exists. REPLACE option of CREATE TABLE ...
+            REPLACE SELECT is handled later in this method.
     */
     case SQLCOM_CREATE_TABLE:
       new_trg_event_map |=

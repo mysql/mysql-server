@@ -5692,21 +5692,6 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
     if (reparse_common_table_expr(thd, dummy_subq.str, dummy_subq.length, 0,
                                   &node))
       return true; /* purecov: inspected */
-
-    // If we have a recursive CTE, it could be optimized for the iterator
-    // executor in such a way that the pre-iterator executor is not capable of
-    // running it (the pre-iterator executor does not support materializing
-    // directly into the derived table, which the iterator executor depends on).
-    // Since CTEs are optimized before their parents, and in particular, before
-    // join optimization, this could mean that we ended up with a situation
-    // where we'd plan BNL (or BKA) for the parent query expression, making the
-    // query unrunnable. To break this deadlock, we turn off BNL/BKA for the
-    // entire query if we see a WITH RECURISVE clause, so that we are guaranteed
-    // to have the entire query running in the iterator executor.
-    //
-    // This is a temporary measure until we have BNL/BKA (or their replacements)
-    // in the iterator executor.
-    thd->lex->force_iterator_executor = true;
   } else if (cte->make_subquery_node(thd, &node))
     return true; /* purecov: inspected */
   // We imitate derived tables as much as possible.

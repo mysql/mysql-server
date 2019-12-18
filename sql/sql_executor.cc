@@ -3034,11 +3034,7 @@ void JOIN::create_iterators() {
   //    composite iterators combining the row from each table.
   unique_ptr_destroy_only<RowIterator> iterator =
       create_root_iterator_for_join();
-  if (iterator == nullptr) {
-    // The query is not supported by the iterator executor.
-    DBUG_ASSERT(!select_lex->parent_lex->force_iterator_executor);
-    return;
-  }
+  assert(iterator != nullptr);
 
   iterator = attach_iterators_for_having_and_limit(move(iterator));
   iterator->set_join_for_explain(this);
@@ -3087,12 +3083,6 @@ void JOIN::create_table_iterators() {
   }
 }
 
-static bool HashJoinDisabledByHint(const THD *thd,
-                                   const TABLE_LIST *table_list) {
-  return !hint_table_state(thd, table_list, HASH_JOIN_HINT_ENUM,
-                           OPTIMIZER_SWITCH_HASH_JOIN);
-}
-
 unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   if (select_count) {
     return unique_ptr_destroy_only<RowIterator>(
@@ -3110,38 +3100,11 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // There are only two specific cases where we need to use the pre-iterator
-  // executor:
-  //
-  //   1. We have a child query expression that needs to run in it.
-  //   2. We have BNL that we cannot rewrite to hash join (non-equi-join
-  //      condition).
-  //
-  // If either #1 or #2 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
-    if (qep_tab->materialize_table == join_materialize_derived) {
-      // If we have a derived table that can be processed by
-      // the iterator executor, MaterializeIterator can deal with it.
-      SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
-      if (unit->root_iterator() == nullptr &&
-          !unit->unfinished_materialization()) {
-        // Runs in the pre-iterator executor.
-        return nullptr;
-      }
-    }
     if (qep_tab->next_select == sub_select_op) {
       QEP_operation *op = qep_tab[1].op;
-      if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        // See if it's possible to replace the BNL with a hash join,
-        // or if it's BKA.
-        const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
-        if (HashJoinDisabledByHint(thd, qep_tab[1].table_ref) &&
-            join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
-          return nullptr;
-        }
-      } else {
-        DBUG_ASSERT(op->type() == QEP_operation::OT_TMP_TABLE);
+      if (op->type() == QEP_operation::OT_TMP_TABLE) {
         QEP_tmp_table *tmp_op = down_cast<QEP_tmp_table *>(op);
         if (tmp_op->get_write_func() == end_write) {
           DBUG_ASSERT(need_tmp_before_win);
@@ -3202,11 +3165,9 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (const_tables > 0) {
       QEP_TAB *qep_tab = &this->qep_tab[const_tables];
       if (qep_tab[-1].next_select == sub_select_op) {
-        // We don't support join buffering, but we do support temporary tables.
-        QEP_operation *op = qep_tab->op;
-        if (op->type() != QEP_operation::OT_TMP_TABLE) {
-          return nullptr;
-        }
+        // There should be no join buffering against temporary tables.
+        QEP_operation *op MY_ATTRIBUTE((unused)) = qep_tab->op;
+        DBUG_ASSERT(op->type() == QEP_operation::OT_TMP_TABLE);
         DBUG_ASSERT(down_cast<QEP_tmp_table *>(op)->get_write_func() ==
                     end_write);
         qep_tab->iterator.reset();

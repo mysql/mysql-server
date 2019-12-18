@@ -993,9 +993,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
@@ -1169,9 +1169,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
 with recursive tree_of_a as
@@ -2343,9 +2343,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using filesort
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` order by `tree_of_a`.`path`
 with recursive tree_of_a as
@@ -2519,9 +2519,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	const	#	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
 3	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 5	UNION	tree_of_a	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Recursive
-5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+5	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	with recursive `tree_of_a` as (/* select#2 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,cast(`test`.`t2`.`id` as char(200) charset utf8mb4) AS `path` from `test`.`t2` where (`test`.`t2`.`name` = 'A') union all /* select#3 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`leftpar`) union all /* select#5 */ select `test`.`t2`.`id` AS `id`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`leftpar` AS `leftpar`,`test`.`t2`.`rightpar` AS `rightpar`,concat(`tree_of_a`.`path`,',',`test`.`t2`.`id`) AS `concat(tree_of_a.path,",",t2.id)` from `test`.`t2` join `tree_of_a` where (`test`.`t2`.`id` = `tree_of_a`.`rightpar`)) /* select#1 */ select `tree_of_a`.`id` AS `id`,`tree_of_a`.`name` AS `name`,`tree_of_a`.`leftpar` AS `leftpar`,`tree_of_a`.`rightpar` AS `rightpar`,`tree_of_a`.`path` AS `path` from `tree_of_a` where (`tree_of_a`.`id` = 2)
 with recursive tree_of_a as

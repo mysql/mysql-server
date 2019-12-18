@@ -609,11 +609,6 @@ bool JOIN::optimize() {
       select_lex->ftfunc_list->elements)
     no_jbuf_after = 0;
 
-  // If we _must_ use the iterator executor, turn off BNL/BKA, since those
-  // are the only features that it can't deal with now.
-  // See SELECT_LEX::find_common_table_expr() for more information.
-  if (select_lex->parent_lex->force_iterator_executor) no_jbuf_after = 0;
-
   /* Perform FULLTEXT search before all regular searches */
   if (select_lex->has_ft_funcs() && optimize_fts_query()) return true;
 

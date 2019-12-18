@@ -3786,13 +3786,6 @@ struct LEX : public Query_tables_list {
   */
   void set_secondary_engine_execution_context(
       Secondary_engine_execution_context *context);
-
-  /**
-    If true, features that would prohibit the iterator executor from
-    being used (BNL/BKA) are turned off.
-    See SELECT_LEX::find_common_table_expr().
-   */
-  bool force_iterator_executor = false;
 };
 
 /**
