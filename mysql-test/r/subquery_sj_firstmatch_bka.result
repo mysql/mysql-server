@@ -12754,7 +12754,7 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Inner hash join
+-> Inner hash join (no condition)
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Hash
         -> Limit: 1 row(s)

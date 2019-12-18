@@ -1165,7 +1165,7 @@ EXISTS ( SELECT c FROM c AS c_inner_inner )
 EXPLAIN
 -> Sort: <temporary>.c
     -> Stream results
-        -> Inner hash join
+        -> Inner hash join (no condition)
             -> Index scan on c using idx_c  (cost=0.45 rows=2)
             -> Hash
                 -> Nested loop inner join
@@ -1173,7 +1173,7 @@ EXPLAIN
                         -> Table scan on <subquery2>
                             -> Materialize with deduplication
                                 -> Filter: (b.c is not null)  (cost=1.80 rows=4)
-                                    -> Inner hash join  (cost=1.80 rows=4)
+                                    -> Inner hash join (no condition)  (cost=1.80 rows=4)
                                         -> Index scan on c_inner_inner using idx_c  (cost=0.23 rows=2)
                                         -> Hash
                                             -> Nested loop left join  (cost=1.15 rows=2)
@@ -1214,7 +1214,7 @@ EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t1) */ *
 FROM
 t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
 EXPLAIN
--> Inner hash join
+-> Inner hash join (no condition)
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Hash
         -> Limit: 1 row(s)

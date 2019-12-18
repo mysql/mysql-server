@@ -766,12 +766,16 @@ int HashJoinIterator::Read() {
 std::vector<std::string> HashJoinIterator::DebugString() const {
   std::string ret("Inner hash join");
 
-  for (const HashJoinCondition &join_condition : m_join_conditions) {
-    if (join_condition.join_condition() !=
-        m_join_conditions[0].join_condition()) {
-      ret.append(",");
+  if (m_join_conditions.empty()) {
+    ret.append(" (no condition)");
+  } else {
+    for (const HashJoinCondition &join_condition : m_join_conditions) {
+      if (join_condition.join_condition() !=
+          m_join_conditions[0].join_condition()) {
+        ret.append(",");
+      }
+      ret.append(" " + ItemToString(join_condition.join_condition()));
     }
-    ret.append(" " + ItemToString(join_condition.join_condition()));
   }
 
   return {ret};

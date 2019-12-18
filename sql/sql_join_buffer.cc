@@ -684,50 +684,7 @@ bool JOIN_CACHE_BNL::can_be_replaced_with_hash_join() const {
     return false;
   }
 
-  if (qep_tab->condition() == nullptr) {
-    // No condition attached to this table, so the join condition is always
-    // true.
-    return true;
-  }
-
-  const Item *condition = qep_tab->condition();
-  if (condition->type() != Item::FUNC_ITEM &&
-      condition->type() != Item::COND_ITEM) {
-    return false;
-  }
-
-  // Find the first table in the join, so that we can build a bitmap of the
-  // tables in the join. The bitmap will later be used to determine whether or
-  // not we have a join condition that can be implemented as hash join.
-  //
-  // Since the join cache objects are linked, traverse to the beginning and add
-  // up the number of tables.
-  const JOIN_CACHE *prev_join_cache = this;
-  int num_tables = 0;
-  do {
-    num_tables += prev_join_cache->tables;
-    prev_join_cache = prev_join_cache->prev_cache;
-  } while (prev_join_cache != nullptr);
-
-  // Now that we know how many tables we have in the left side of the join,
-  // we can build a bitmap from the range of the tables.
-  QEP_TAB *tab = qep_tab - num_tables;
-  table_map prefix_tables = 0;
-  for (; tab < qep_tab; tab++) {
-    prefix_tables |= tab->table_ref->map();
-  }
-
-  const Item_func *func_item =
-      down_cast<const Item_func *>(qep_tab->condition());
-  if (func_item->has_any_hash_join_condition(prefix_tables, *qep_tab)) {
-    return true;
-  }
-
-  // If we have at least one non equi-join conditions, use BNL to execute the
-  // join. Seen the other way around; we replace BNL with hash join if the join
-  // is the Cartesian product, and the conditions attached to the QEP_TAB are
-  // filters that should be attached to the table.
-  return !func_item->has_any_non_equi_join_condition();
+  return true;
 }
 
 /*
