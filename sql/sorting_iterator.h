@@ -58,6 +58,11 @@ class SortingIterator final : public RowIterator {
   // times). It _does_ take ownership of "source", and is responsible for
   // calling Init() on it, but does not hold the memory.
   // "examined_rows", if not nullptr, is incremented for each successful Read().
+  //
+  // qep_tab is used for two things: To fill in any old-style information schema
+  // tables before scanning, if needed, and to count the number of read rows
+  // (for SQL_CALC_FOUND_ROWS). If you need neither of these, you can pass
+  // nullptr.
   SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
                   unique_ptr_destroy_only<RowIterator> source,
                   ha_rows *examined_rows);

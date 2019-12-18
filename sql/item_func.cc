@@ -6975,10 +6975,10 @@ bool Item_func_match::init_search(THD *thd) {
   /* Check if init_search() has been called before */
   if (ft_handler && !master) {
     /*
-      We should reset ft_handler as it is cleaned up
-      at the end of SortingIterator::DoSort().
-      (necessary in case of re-execution of subquery).
-      TODO: SortingIterator::DoSort() should not clean up ft_handler.
+      We should reset ft_handler (necessary in case of re-execution of
+      subquery), as it is cleaned up when initializing the
+      SortBufferIndirectIterator / SortFileIndirectIterator.
+      TODO: Those iterators should not clean up ft_handler.
     */
     if (join_key) table->file->ft_handler = ft_handler;
     return false;
