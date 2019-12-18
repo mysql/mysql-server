@@ -802,6 +802,24 @@ class store_key {
   virtual enum store_key_result copy_inner() = 0;
 };
 
+class store_key_field final : public store_key {
+  Copy_field m_copy_field;
+  const char *m_field_name;
+
+ public:
+  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                  uchar *null_ptr_arg, uint length, Field *from_field,
+                  const char *name_arg);
+
+  const char *name() const override { return m_field_name; }
+
+  // Change the source field to be another field. Used only by
+  // CreateBKAIterator, when rewriting multi-equalities used in ref access.
+  void replace_from_field(Field *from_field);
+
+ protected:
+  enum store_key_result copy_inner() override;
+};
 class store_key_item : public store_key {
  protected:
   Item *item;

@@ -3353,28 +3353,8 @@ class COND_CMP : public ilink<COND_CMP> {
   COND_CMP(Item *a, Item_func *b) : and_level(a), cmp_func(b) {}
 };
 
-/**
-  Find the multiple equality predicate containing a field.
-
-  The function retrieves the multiple equalities accessed through
-  the cond_equal structure from current level and up looking for
-  an equality containing a field. It stops retrieval as soon as the equality
-  is found and set up inherited_fl to true if it's found on upper levels.
-
-  @param cond_equal          multiple equalities to search in
-  @param item_field          field to look for
-  @param[out] inherited_fl   set up to true if multiple equality is found
-                             on upper levels (not on current level of
-                             cond_equal)
-
-  @return
-    - Item_equal for the found multiple equality predicate if a success;
-    - NULL otherwise.
-*/
-
-static Item_equal *find_item_equal(COND_EQUAL *cond_equal,
-                                   const Item_field *item_field,
-                                   bool *inherited_fl) {
+Item_equal *find_item_equal(COND_EQUAL *cond_equal,
+                            const Item_field *item_field, bool *inherited_fl) {
   Item_equal *item = nullptr;
   bool in_upper_level = false;
   while (cond_equal) {

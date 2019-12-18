@@ -2156,39 +2156,34 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   return thd->is_error();
 }
 
+store_key_field::store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
+                                 uchar *null_ptr_arg, uint length,
+                                 Field *from_field, const char *name_arg)
+    : store_key(thd, to_field_arg, ptr, null_ptr_arg, length),
+      m_field_name(name_arg) {
+  // If from_field is nullable but we cannot store null, make
+  // to_field temporary nullable so we can check in copy_inner()
+  // if we end up with an illegal null value.
+  if (!to_field->is_nullable() &&
+      (from_field->is_nullable() || from_field->table->is_nullable()))
+    to_field->set_tmp_nullable();
+  m_copy_field.set(to_field, from_field, false);
+}
+
+enum store_key::store_key_result store_key_field::copy_inner() {
+  TABLE *table = to_field->table;
+  my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+  m_copy_field.invoke_do_copy();
+  dbug_tmp_restore_column_map(table->write_set, old_map);
+  null_key = to_field->is_null();
+  return to_field->is_tmp_null() ? STORE_KEY_FATAL : STORE_KEY_OK;
+}
+
+void store_key_field::replace_from_field(Field *from_field) {
+  m_copy_field.set(to_field, from_field, false);
+}
+
 namespace {
-
-class store_key_field final : public store_key {
-  Copy_field m_copy_field;
-  const char *m_field_name;
-
- public:
-  store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
-                  uchar *null_ptr_arg, uint length, Field *from_field,
-                  const char *name_arg)
-      : store_key(thd, to_field_arg, ptr, null_ptr_arg, length),
-        m_field_name(name_arg) {
-    // If from_field is nullable but we cannot store null, make
-    // to_field temporary nullable so we can check in copy_inner()
-    // if we end up with an illegal null value.
-    if (!to_field->is_nullable() &&
-        (from_field->is_nullable() || from_field->table->is_nullable()))
-      to_field->set_tmp_nullable();
-    m_copy_field.set(to_field, from_field, false);
-  }
-
-  const char *name() const override { return m_field_name; }
-
- protected:
-  enum store_key_result copy_inner() override {
-    TABLE *table = to_field->table;
-    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
-    m_copy_field.invoke_do_copy();
-    dbug_tmp_restore_column_map(table->write_set, old_map);
-    null_key = to_field->is_null();
-    return to_field->is_tmp_null() ? STORE_KEY_FATAL : STORE_KEY_OK;
-  }
-};
 
 class store_key_const_item final : public store_key_item {
   int cached_result = -1;

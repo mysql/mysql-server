@@ -1251,6 +1251,73 @@ static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
   return invalidator;
 }
 
+unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
+    THD *thd, JOIN *join, unique_ptr_destroy_only<RowIterator> iterator,
+    qep_tab_map left_tables,
+    unique_ptr_destroy_only<RowIterator> subtree_iterator,
+    qep_tab_map right_tables, TABLE *table, TABLE_LIST *table_list,
+    TABLE_REF *ref, MultiRangeRowIterator *mrr_iterator) {
+  table_map left_table_map = 0;
+  table_map right_table_map = 0;
+  for (QEP_TAB *tab : TablesContainedIn(join, left_tables)) {
+    left_table_map |= tab->table_ref->map();
+  }
+  for (QEP_TAB *tab : TablesContainedIn(join, right_tables)) {
+    right_table_map |= tab->table_ref->map();
+  }
+
+  // If the BKA join condition (the “ref”) references fields that are outside
+  // what we have available for this join, it is because they were
+  // substituted by multi-equalities earlier (which assumes the
+  // pre-iterator executor, which goes outside-in and not inside-out),
+  // so find those multi-equalities and rewrite the fields back.
+  for (uint part_no = 0; part_no < ref->key_parts; ++part_no) {
+    Item *item = ref->items[part_no];
+    if (item->type() == Item::FUNC_ITEM || item->type() == Item::COND_ITEM) {
+      Item_func *func_item = down_cast<Item_func *>(item);
+      if (func_item->functype() == Item_func::EQ_FUNC) {
+        down_cast<Item_func_eq *>(func_item)
+            ->ensure_multi_equality_fields_are_available(left_table_map,
+                                                         right_table_map);
+      }
+    } else if (item->type() == Item::FIELD_ITEM) {
+      if (ref->key_copy[part_no] == nullptr) {
+        // A constant, so no need to propagate.
+        continue;
+      }
+
+      bool dummy;
+      Item_equal *item_eq = find_item_equal(
+          table_list->cond_equal, down_cast<Item_field *>(item), &dummy);
+      if (item_eq == nullptr) {
+        // Didn't come from a multi-equality.
+        continue;
+      }
+
+      // Allocate a new Item that we attach to the ref instead of re-using
+      // the existing item. We must do this because the Item_field might be
+      // used in a filter somewhere else, with different table availability.
+      // Note that we clone Item_fields similarly in eliminate_item_equal(),
+      // for pretty much the same reasons.
+      Item_field *new_item_field =
+          new Item_field(thd, down_cast<Item_field *>(item));
+      ref->items[part_no] = new_item_field;
+      new_item_field->walk(
+          &Item::ensure_multi_equality_fields_are_available_walker,
+          enum_walk::POSTFIX, pointer_cast<uchar *>(&left_table_map));
+      down_cast<store_key_field *>(ref->key_copy[part_no])
+          ->replace_from_field(down_cast<Item_field *>(new_item_field)->field);
+    }
+  }
+
+  const float rec_per_key =
+      table->key_info[ref->key].records_per_key(ref->key_parts - 1);
+  return NewIterator<BKAIterator>(
+      thd, join, move(iterator), left_tables, move(subtree_iterator),
+      thd->variables.join_buff_size, table->file->stats.mrr_length_per_rec,
+      rec_per_key, mrr_iterator);
+}
+
 static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const vector<PendingCondition> &conditions, THD *thd) {
@@ -2740,15 +2807,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
 
       if (is_bka) {
-        const TABLE *table = qep_tab->table();
-        const TABLE_REF *ref = &qep_tab->ref();
-        const float rec_per_key =
-            table->key_info[ref->key].records_per_key(ref->key_parts - 1);
-        iterator = NewIterator<BKAIterator>(
+        qep_tab_map right_tables = qep_tab->idx_map();
+        iterator = CreateBKAIterator(
             thd, qep_tab->join(), move(iterator), left_tables,
-            move(table_iterator), thd->variables.join_buff_size,
-            table->file->stats.mrr_length_per_rec, rec_per_key,
-            mrr_iterator_ptr);
+            move(table_iterator), right_tables, qep_tab->table(),
+            qep_tab->table_ref, &qep_tab->ref(), mrr_iterator_ptr);
       } else if (replace_with_hash_join) {
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.

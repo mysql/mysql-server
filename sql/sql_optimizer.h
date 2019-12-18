@@ -1232,4 +1232,25 @@ extern const char *antijoin_null_cond;
 */
 bool evaluate_during_optimization(const Item *item, const SELECT_LEX *select);
 
+/**
+  Find the multiple equality predicate containing a field.
+
+  The function retrieves the multiple equalities accessed through
+  the cond_equal structure from current level and up looking for
+  an equality containing a field. It stops retrieval as soon as the equality
+  is found and set up inherited_fl to true if it's found on upper levels.
+
+  @param cond_equal          multiple equalities to search in
+  @param item_field          field to look for
+  @param[out] inherited_fl   set up to true if multiple equality is found
+                             on upper levels (not on current level of
+                             cond_equal)
+
+  @return
+    - Item_equal for the found multiple equality predicate if a success;
+    - nullptr otherwise.
+*/
+Item_equal *find_item_equal(COND_EQUAL *cond_equal,
+                            const Item_field *item_field, bool *inherited_fl);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

@@ -2456,3 +2456,48 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #30659532: WL#13476: DIFFERENT NUMBER OF ROWS WITH NESTED LOOP JOINS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL
+);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t2 VALUES (3);
+
+CREATE TABLE t3 (
+  f1 INTEGER,
+  f2 INTEGER,
+  KEY k2 (f2)
+);
+
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,295010100);
+INSERT INTO t3 VALUES (NULL,NULL);
+INSERT INTO t3 VALUES (NULL,-1762438755);
+INSERT INTO t3 VALUES (NULL,4);
+
+ANALYZE TABLE t1, t2, t3;
+
+# For BKA, verify that the multi-equality rewriting of the MRR iterator
+# (which is really unneeded in this case, but still done) doesn't change
+# the condition on t1.
+let $query =
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.pk = t2.pk LEFT JOIN t3 ON t2.pk = t3.f2 WHERE t2.pk < 5;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
