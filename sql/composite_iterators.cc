@@ -1569,6 +1569,10 @@ bool WeedoutIterator::Init() {
   if (m_sj->tmp_table->file->ha_delete_all_rows()) {
     return true;
   }
+  if (m_sj->tmp_table->hash_field != nullptr &&
+      !m_sj->tmp_table->file->inited) {
+    m_sj->tmp_table->file->ha_index_init(0, false);
+  }
   return m_source->Init();
 }
 
