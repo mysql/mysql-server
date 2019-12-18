@@ -50,8 +50,18 @@
 #include "sql/table.h"
 
 using hash_join_buffer::BufferRow;
+using hash_join_buffer::TableCollection;
 using std::string;
 using std::vector;
+
+static bool NeedMatchFlags(JoinType join_type) {
+  return join_type == JoinType::OUTER || join_type == JoinType::SEMI;
+}
+
+static size_t BytesNeededForMatchFlags(size_t rows) {
+  // One bit per row.
+  return (rows + 7) / 8;
+}
 
 BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          unique_ptr_destroy_only<RowIterator> outer_input,
@@ -60,7 +70,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
                          float expected_inner_rows_per_outer_row,
-                         MultiRangeRowIterator *mrr_iterator)
+                         MultiRangeRowIterator *mrr_iterator,
+                         JoinType join_type)
     : RowIterator(thd),
       m_outer_input(move(outer_input)),
       m_inner_input(move(inner_input)),
@@ -70,7 +81,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
           mrr_bytes_needed_for_single_inner_row),
-      m_mrr_iterator(mrr_iterator) {
+      m_mrr_iterator(mrr_iterator),
+      m_join_type(join_type) {
   DBUG_ASSERT(m_outer_input != nullptr);
   DBUG_ASSERT(m_inner_input != nullptr);
 
@@ -86,6 +98,9 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       it.qep_tab->rowid_status = ROWID_PROVIDED_BY_ITERATOR_READ_CALL;
     }
   }
+
+  m_mrr_iterator->set_outer_input_tables(join, outer_input_tables);
+  m_mrr_iterator->set_join_type(join_type);
 }
 
 bool BKAIterator::Init() {
@@ -152,6 +167,12 @@ int BKAIterator::ReadOuterRows() {
     size_t total_bytes_needed_after_this_row =
         m_bytes_used + row_size +
         (m_mrr_bytes_needed_per_row + sizeof(m_rows[0])) * (m_rows.size() + 1);
+
+    if (NeedMatchFlags(m_join_type)) {
+      total_bytes_needed_after_this_row +=
+          BytesNeededForMatchFlags(m_rows.size() + 1);
+    }
+
     if (!m_rows.empty() &&
         total_bytes_needed_after_this_row > m_max_memory_available) {
       // Out of memory, so end the batch and send it.
@@ -203,6 +224,11 @@ int BKAIterator::ReadOuterRows() {
   m_mrr_iterator->set_rows(m_rows.begin(), m_rows.end());
   m_mrr_iterator->set_mrr_buffer(m_mem_root.ArrayAlloc<uchar>(mrr_buffer_size),
                                  mrr_buffer_size);
+  if (NeedMatchFlags(m_join_type)) {
+    const size_t bytes_needed = BytesNeededForMatchFlags(m_rows.size());
+    m_mrr_iterator->set_match_flag_buffer(
+        m_mem_root.ArrayAlloc<uchar>(bytes_needed));
+  }
   if (m_inner_input->Init()) {
     return 1;
   }
@@ -240,8 +266,24 @@ int BKAIterator::Read() {
       }
     }
 
+    if (err == 0) {
+      m_mrr_iterator->MarkLastRowAsRead();
+    }
+
     // A row or an error; pass it through.
     return err;
+  }
+}
+
+vector<string> BKAIterator::DebugString() const {
+  switch (m_join_type) {
+    case JoinType::INNER:
+      return {"Batched key access inner join"};
+    case JoinType::SEMI:
+      return {"Batched key access semijoin"};
+    default:
+      DBUG_ASSERT(false);
+      return {"Batched key access unknown join"};
   }
 }
 
@@ -258,6 +300,11 @@ MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
       m_ref(ref),
       m_mrr_flags(mrr_flags),
       m_outer_input_tables(join, outer_input_tables) {}
+
+void MultiRangeRowIterator::set_outer_input_tables(
+    JOIN *join, qep_tab_map outer_input_tables) {
+  m_outer_input_tables = TableCollection(join, outer_input_tables);
+}
 
 bool MultiRangeRowIterator::Init() {
   /*
@@ -277,6 +324,18 @@ bool MultiRangeRowIterator::Init() {
   if (m_cache_idx_cond != nullptr) {
     seq_funcs.skip_index_tuple =
         MultiRangeRowIterator::MrrSkipIndexTupleCallbackThunk;
+  }
+  if (m_join_type == JoinType::SEMI) {
+    seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
+  }
+  if (m_match_flag_buffer != nullptr) {
+    DBUG_ASSERT(NeedMatchFlags(m_join_type));
+
+    // Reset all the match flags.
+    memset(m_match_flag_buffer, 0,
+           BytesNeededForMatchFlags(std::distance(m_begin, m_end)));
+  } else {
+    DBUG_ASSERT(!NeedMatchFlags(m_join_type));
   }
 
   /**
@@ -361,17 +420,30 @@ bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
   return !m_cache_idx_cond->val_int();
 }
 
+bool MultiRangeRowIterator::MrrSkipRecord(char *range_info) {
+  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
+  return RowHasBeenRead(rec_ptr);
+}
+
 int MultiRangeRowIterator::Read() {
   // Read a row from the MRR buffer. rec_ptr tells us which outer row
   // this corresponds to; it corresponds to range->ptr in MrrNextCallback(),
   // and points to the serialized outer row in BKAIterator's m_row array.
   BufferRow *rec_ptr = nullptr;
-  int error = m_file->ha_multi_range_read_next(pointer_cast<char **>(&rec_ptr));
-  if (error != 0) {
-    return HandleError(error);
-  }
+  do {
+    int error =
+        m_file->ha_multi_range_read_next(pointer_cast<char **>(&rec_ptr));
+    if (error != 0) {
+      return HandleError(error);
+    }
+
+    // NDB never calls mrr_funcs.skip_record(), so we need to recheck here.
+    // See bug #30594210.
+  } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
 
   hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+
+  m_last_row_returned = rec_ptr;
 
   if (m_keep_current_rowid) {
     m_file->position(m_table->record[0]);

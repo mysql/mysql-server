@@ -54,6 +54,7 @@ class Item;
 class Item_sum;
 class JOIN;
 class JOIN_TAB;
+class MultiRangeRowIterator;
 class Opt_trace_object;
 class QEP_TAB;
 class QUICK_SELECT_I;
@@ -794,6 +795,14 @@ class QEP_TAB : public QEP_shared_owner {
     such iterators, to coordinate rematerialization and other signals.
    */
   FollowTailIterator *recursive_iterator = nullptr;
+
+  /**
+    If this table is a multi-range row iterator (the inner part of BKA),
+    contains a pointer to the iterator here. This is solely for use during
+    construction of the iterator tree, so that when we set up the BKAIterator,
+    we have easy access to the MRR iterator.
+   */
+  MultiRangeRowIterator *mrr_iterator = nullptr;
 
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined

@@ -1256,7 +1256,7 @@ unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
     qep_tab_map left_tables,
     unique_ptr_destroy_only<RowIterator> subtree_iterator,
     qep_tab_map right_tables, TABLE *table, TABLE_LIST *table_list,
-    TABLE_REF *ref, MultiRangeRowIterator *mrr_iterator) {
+    TABLE_REF *ref, MultiRangeRowIterator *mrr_iterator, JoinType join_type) {
   table_map left_table_map = 0;
   table_map right_table_map = 0;
   for (QEP_TAB *tab : TablesContainedIn(join, left_tables)) {
@@ -1315,7 +1315,7 @@ unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
   return NewIterator<BKAIterator>(
       thd, join, move(iterator), left_tables, move(subtree_iterator),
       thd->variables.join_buff_size, table->file->stats.mrr_length_per_rec,
-      rec_per_key, mrr_iterator);
+      rec_per_key, mrr_iterator, join_type);
 }
 
 static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
@@ -2305,6 +2305,13 @@ static bool UseHashJoin(QEP_TAB *qep_tab) {
              JOIN_CACHE::ALG_BKA;
 }
 
+static bool UseBKA(QEP_TAB *qep_tab) {
+  return qep_tab->op != nullptr &&
+         qep_tab->op->type() == QEP_operation::OT_CACHE &&
+         down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() ==
+             JOIN_CACHE::ALG_BKA;
+}
+
 static bool InsideOuterOrAntiJoin(QEP_TAB *qep_tab) {
   return qep_tab->last_inner() != NO_PLAN_IDX;
 }
@@ -2588,7 +2595,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
-      } else if (UseHashJoin(qep_tab)) {
+      } else if (UseHashJoin(qep_tab) || UseBKA(qep_tab)) {
         qep_tab_map left_tables = TablesBetween(first_idx, i);
         qep_tab_map right_tables = TablesBetween(i, substructure_end);
 
@@ -2607,9 +2614,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           }
         }
 
-        iterator = CreateHashJoinIterator(
-            thd, qep_tab, move(subtree_iterator), right_tables, move(iterator),
-            left_tables, join_type, &join_conditions);
+        if (UseBKA(qep_tab)) {
+          iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
+                                       left_tables, move(subtree_iterator),
+                                       right_tables, qep_tab->table(),
+                                       qep_tab->table_ref, &qep_tab->ref(),
+                                       qep_tab->mrr_iterator, join_type);
+        } else {
+          iterator = CreateHashJoinIterator(
+              thd, qep_tab, move(subtree_iterator), right_tables,
+              move(iterator), left_tables, join_type, &join_conditions);
+        }
 
         iterator =
             PossiblyAttachFilterIterator(move(iterator), join_conditions, thd);
@@ -2672,7 +2687,6 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     unique_ptr_destroy_only<RowIterator> table_iterator =
         GetTableIterator(thd, qep_tab, qep_tabs);
-    MultiRangeRowIterator *mrr_iterator_ptr = nullptr;
 
     // If this is a BNL, we should replace it with hash join. We did decide
     // during create_iterators that we actually can replace the BNL with a hash
@@ -2696,10 +2710,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     qep_tab_map left_tables = 0;
 
     // We can always do BKA. The setup is very similar to hash join.
-    const bool is_bka = qep_tab->op != nullptr &&
-                        qep_tab->op->type() == QEP_operation::OT_CACHE &&
-                        down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() ==
-                            JOIN_CACHE::ALG_BKA;
+    const bool is_bka = UseBKA(qep_tab);
 
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
@@ -2718,7 +2729,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             thd, qep_tab->join(), left_tables, qep_tab->cache_idx_cond,
             qep_tab->table(), qep_tab->copy_current_rowid, &qep_tab->ref(),
             qep_tab->position()->table->join_cache_flags);
-        mrr_iterator_ptr =
+        qep_tab->mrr_iterator =
             down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
       } else {
         // We will now take all the join conditions (both equi- and
@@ -2808,10 +2819,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
       if (is_bka) {
         qep_tab_map right_tables = qep_tab->idx_map();
-        iterator = CreateBKAIterator(
-            thd, qep_tab->join(), move(iterator), left_tables,
-            move(table_iterator), right_tables, qep_tab->table(),
-            qep_tab->table_ref, &qep_tab->ref(), mrr_iterator_ptr);
+        iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
+                                     left_tables, move(table_iterator),
+                                     right_tables, qep_tab->table(),
+                                     qep_tab->table_ref, &qep_tab->ref(),
+                                     qep_tab->mrr_iterator, JoinType::INNER);
       } else if (replace_with_hash_join) {
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
@@ -2947,8 +2959,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   //   1. We have a child query expression that needs to run in it.
   //   2. We have BNL that we cannot rewrite to hash join (non-equi-join
   //      condition).
-  //   3. We have join buffering (BNL/BKA) that is not an inner join
-  //      (outer join, semijoin, or antijoin).
+  //   3. We have join buffering (BNL/BKA) that is not an inner join or semijoin
+  //      (outer join or antijoin).
   //
   // If either #1, #2 or #3 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
@@ -2973,11 +2985,9 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
             join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
           return nullptr;
         }
-
         if (join_cache->cache_type() == JOIN_CACHE::ALG_BKA &&
-            (qep_tab[1].firstmatch_return != NO_PLAN_IDX ||
-             qep_tab[1].last_inner() != NO_PLAN_IDX)) {
-          // Combination of BKA and semi/outer join is not supported yet.
+            qep_tab[1].last_inner() != NO_PLAN_IDX) {
+          // Outer join. Not supported for BKA yet!
           return nullptr;
         }
       } else {
