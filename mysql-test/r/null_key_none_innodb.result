@@ -92,11 +92,11 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
 LEFT JOIN t3 ON t2.b=t3.b;
 a	a	b	b
 1	1	1	NULL
-3	3	1	NULL
 2	NULL	NULL	NULL
+3	3	1	NULL
 4	NULL	NULL	NULL
-Warnings:
 Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warnings:
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 4

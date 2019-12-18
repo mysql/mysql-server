@@ -827,6 +827,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        (t1,t2)
        ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3,t4)
        LEFT JOIN              
@@ -834,6 +835,7 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
        ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 
 --echo "Standard compliant copy of above query"
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
   FROM (t3 CROSS JOIN t4)
        LEFT JOIN              
@@ -1072,10 +1074,12 @@ SELECT t2.a,t2.b
 SELECT t3.a,t3.b
   FROM t3;
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b
   FROM t2 LEFT JOIN t3 ON t2.b=t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a,t3.b
   FROM t2 LEFT JOIN (t3) ON t2.b=t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a IS NULL);
@@ -1084,10 +1088,12 @@ ALTER TABLE t3
   CHANGE COLUMN a a1 int,
   CHANGE COLUMN c c1 int; 
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a1,t3.b
   FROM t2 LEFT JOIN t3 ON t2.b=t3.b
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);
 
+--sorted_result
 SELECT t2.a,t2.b,t3.a1,t3.b
   FROM t2 NATURAL LEFT JOIN t3
     WHERE t2.a = 4 OR (t2.a > 4 AND t3.a1 IS NULL);

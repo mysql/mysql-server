@@ -1996,6 +1996,7 @@ SELECT t4.col_int
   WHERE t1.col_int OR t3.col_int;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t3, t4;

@@ -643,10 +643,10 @@ b	c	a	c	b	y
 1	3	2	3	1	2
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 b	c	c	b	a	b	y	c	y	z
-1	3	10	1	2	1	11	3	11	4
 1	10	10	1	2	1	11	3	11	4
-1	3	3	1	2	1	11	3	11	4
 1	10	3	1	2	1	11	3	11	4
+1	3	10	1	2	1	11	3	11	4
+1	3	3	1	2	1	11	3	11	4
 select * from t1 natural join t2 where t1.b > 0;
 b	c	a
 1	10	2

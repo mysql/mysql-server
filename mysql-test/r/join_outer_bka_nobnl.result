@@ -3016,8 +3016,8 @@ ON alias1.col_int = alias4.col_int
 ;
 col_datetime_key
 1970-01-01 00:00:00
-NULL
 1970-01-01 00:00:00
+NULL
 DROP TABLE t1, t2, t3, t4;
 # Bug#22833364: Left join returns incorrect results on the outer side
 CREATE TABLE ta (

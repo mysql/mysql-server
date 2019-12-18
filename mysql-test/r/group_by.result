@@ -579,9 +579,9 @@ select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id =
 c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
 c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS NOT NULL);
 pid	c1id	c2id	value	id	active	id	active
-1	NULL	3	3	NULL	NULL	3	Yes
 1	1	NULL	1	1	Yes	NULL	NULL
 1	4	NULL	4	4	Yes	NULL	NULL
+1	NULL	3	3	NULL	NULL	3	Yes
 select max(value) from t1 AS m LEFT JOIN t2 AS c1 ON 
 m.c1id = c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = 
 c2.id AND c2.active = 'Yes' WHERE m.pid=1  AND (c1.id IS NOT NULL OR c2.id IS 

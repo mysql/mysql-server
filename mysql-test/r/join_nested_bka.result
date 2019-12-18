@@ -1444,10 +1444,10 @@ LEFT JOIN
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 a	b	a	b	a	b
 4	2	1	2	3	2
-4	2	1	2	4	2
+4	2	1	2	3	2
 4	2	1	2	3	2
 4	2	1	2	4	2
-4	2	1	2	3	2
+4	2	1	2	4	2
 4	2	1	2	4	2
 NULL	NULL	2	2	3	2
 NULL	NULL	2	2	4	2
@@ -1459,10 +1459,10 @@ LEFT JOIN
 ON t3.a=1 AND t3.b=t2.b AND t2.b=t4.b;
 a	b	a	b	a	b
 4	2	1	2	3	2
-4	2	1	2	4	2
+4	2	1	2	3	2
 4	2	1	2	3	2
 4	2	1	2	4	2
-4	2	1	2	3	2
+4	2	1	2	4	2
 4	2	1	2	4	2
 NULL	NULL	2	2	3	2
 NULL	NULL	2	2	4	2
@@ -2536,10 +2536,10 @@ ON t7.b=t8.b AND t6.b < 10
 ON t6.b >= 2 AND t5.b=t7.b AND
 (t8.a > 0 OR t8.c IS NULL);
 a	b	a	b	a	b	a	b
-2	2	1	2	2	2	1	2
-2	2	3	2	2	2	1	2
 1	1	1	2	1	1	NULL	NULL
 1	1	3	2	1	1	NULL	NULL
+2	2	1	2	2	2	1	2
+2	2	3	2	2	2	1	2
 3	3	NULL	NULL	NULL	NULL	NULL	NULL
 DELETE FROM t5;
 DELETE FROM t6;

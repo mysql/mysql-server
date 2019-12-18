@@ -434,6 +434,7 @@ FROM t1 AS alias1 LEFT JOIN t1 AS alias2
   ON NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE ( SELECT 1 FROM DUAL ) IS NULL );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;

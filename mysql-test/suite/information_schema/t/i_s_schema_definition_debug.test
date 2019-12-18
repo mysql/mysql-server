@@ -254,6 +254,7 @@ INSERT INTO I_S_published_schema
   VALUES ('800201', 1,
     '1223657a2f27ecdbea64f024eba5799275acd91fd23ef6696696ecf9f64161ec');
 
+--sorted_result
 SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
                      version, '.'),
               CONCAT('No I_S version found with schema checksum ',

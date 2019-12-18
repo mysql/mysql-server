@@ -191,8 +191,8 @@ LEFT JOIN t2 USING(c)
 LEFT JOIN t3 ON t3.c = t1.c;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
-3	2	123 Park Place
 2	1	25
+3	2	123 Park Place
 4	2	453 Boardwalk
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1
@@ -200,8 +200,8 @@ LEFT JOIN t2 ON t1.c = t2.c
 LEFT JOIN t3 ON t3.c = t1.c;
 a	b	if(b = 1,i,if(b = 2,v,''))
 1	1	50
-3	2	123 Park Place
 2	1	25
+3	2	123 Park Place
 4	2	453 Boardwalk
 SELECT    a,b,if(b = 1,i,if(b = 2,v,''))
 FROM      t1

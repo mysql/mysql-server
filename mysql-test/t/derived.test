@@ -479,6 +479,7 @@ CREATE TABLE `t1` (
 INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
 (8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
 
+--sorted_result
 SELECT * FROM ( 
   SELECT DISTINCT tableb.col_datetime_key 
   FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key

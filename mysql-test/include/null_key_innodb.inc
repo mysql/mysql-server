@@ -74,6 +74,7 @@ SELECT COUNT(*) FROM t3;
 EXPLAIN SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
                                              LEFT JOIN t3 ON t2.b=t3.b;
 FLUSH STATUS ;
+--sorted_result
 --replace_column 10 #
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
                                      LEFT JOIN t3 ON t2.b=t3.b;

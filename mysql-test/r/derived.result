@@ -611,8 +611,8 @@ SELECT DISTINCT tableb.col_datetime_key
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
 ) AS from_subquery;
 col_datetime_key
-NULL
 1900-01-01 00:00:00
+NULL
 EXPLAIN SELECT * FROM ( 
 SELECT DISTINCT tableb.col_datetime_key 
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key

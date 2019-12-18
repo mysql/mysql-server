@@ -6970,26 +6970,26 @@ SELECT DISTINCT f1_key
 FROM t2 
 WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 f1	f1_key
-v	c
 s	c
-v	d
 s	d
-v	d
 s	d
-v	d
 s	d
-v	j
 s	j
-v	m
 s	m
-v	s
 s	s
-v	t
 s	t
-v	v
 s	v
-v	y
 s	y
+v	c
+v	d
+v	d
+v	d
+v	j
+v	m
+v	s
+v	t
+v	v
+v	y
 explain SELECT table1.f1, table2.f1_key
 FROM t1 AS table1, t2 AS table2
 WHERE EXISTS 

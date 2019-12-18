@@ -1909,9 +1909,9 @@ a	d	b	c
 # This result should differ from the result sets above.
 SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
 a	b	d	c
-3	3	3	3
 1	1	NULL	NULL
 2	2	NULL	NULL
+3	3	3	3
 DROP TABLE t1, t2, t3;
 #
 # Bug#22995438: BUILD INDEX DEFINITION SYNTAX BOTTOM-UP

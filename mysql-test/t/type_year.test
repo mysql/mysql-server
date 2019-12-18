@@ -47,6 +47,7 @@ SELECT * FROM t4;
 
 SELECT * FROM t4 a, t4 b WHERE a.yyyy = b.yyyy;
 SELECT * FROM t4 a, t4 b WHERE a.yyyy <=> b.yyyy;
+--sorted_result
 SELECT * FROM t4 a, t4 b WHERE a.yyyy < b.yyyy;
 
 --echo # Comparison with constants:

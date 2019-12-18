@@ -760,9 +760,9 @@ insert into t2 values (1,3), (2,3);
 insert into t3 values (2,4),        (3,4);
 select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 a1	a2	b1	b2	c1	c2
-3	2	NULL	NULL	3	4
 1	2	1	3	NULL	NULL
 2	2	2	3	NULL	NULL
+3	2	NULL	NULL	3	4
 explain select * from t1 left join t2  on  b1 = a1 left join t3  on  c1 = a1  and  b1 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -1287,14 +1287,14 @@ SELECT v1.a, v2. b
 FROM v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3)
 GROUP BY v1.a;
 a	b
-3	3
 2	NULL
+3	3
 SELECT v1.a, v2. b 
 FROM { OJ v1 LEFT OUTER JOIN v2 ON (v1.a=v2.b) AND (v1.a >= 3) }
 GROUP BY v1.a;
 a	b
-3	3
 2	NULL
+3	3
 DROP VIEW v1,v2;
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a int);
@@ -3103,8 +3103,8 @@ USING (ionumber)
 USING (adslot);
 adslot	ionumber1	ionumber2	ioattribute
 1	01602	01602	BOB
-3	01602	01602	BOB
 2	NULL	NULL	NULL
+3	01602	01602	BOB
 DROP TABLE t1, t2, t3;
 #
 # Bug #26432173: INCORRECT SUBQUERY OPTIMIZATION WITH
@@ -3232,9 +3232,9 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0
@@ -3264,9 +3264,9 @@ LEFT JOIN t4 ON t3.i= t4.i
 )ON t2.i= t1.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
 2	NULL	NULL	NULL
 3	NULL	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0
@@ -3294,9 +3294,9 @@ LEFT JOIN t3 ON t3.i= t2.i
 LEFT JOIN t4 ON t3.i= t4.i;
 i	i	i	i
 0	0	0	0
-4	4	4	NULL
-3	3	NULL	NULL
 2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
 SHOW STATUS LIKE 'HANDLER_%';
 Variable_name	Value
 Handler_commit	0

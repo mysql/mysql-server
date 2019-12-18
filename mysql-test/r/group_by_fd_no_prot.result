@@ -1725,21 +1725,21 @@ d
 create view v1 as select a as a, 2*a as b, coalesce(a,3) as c from t1;
 select v1.b from t1 left join v1 on 1;
 b
-NULL
-NULL
 20
 20
+NULL
+NULL
 # If v1.a is NULL then v1.b is NULL: a->b is NULL-friendly
 select v1.b from t1 left join v1 on 1 group by v1.a;
 b
-NULL
 20
+NULL
 select v1.c from t1 left join v1 on 1;
 c
-3
-3
 10
 10
+3
+3
 # If v1.a is NULL then v1.c may not be NULL: a->c is not NULL-friendly
 select v1.c from t1 left join v1 on 1 group by v1.a;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'v1.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by

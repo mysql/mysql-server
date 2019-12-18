@@ -1247,12 +1247,12 @@ FROM t2 JOIN t1 ON ( t1.pk >= t2.col_int_key
 AND t1.col_varchar_key != t2.col_varchar_key );
 pk	col_int_key	col_varchar_key	col_varchar_key
 3	2	ksatefqs	kqukkoe
-4	2	sate	kqukkoe
-5	2	a	kqukkoe
-5	5	a	qukkoeiws
 3	3	ksatefqs	kkoeiwsgp
+4	2	sate	kqukkoe
 4	3	sate	kkoeiwsgp
+5	2	a	kqukkoe
 5	3	a	kkoeiwsgp
+5	5	a	qukkoeiws
 EXPLAIN SELECT STRAIGHT_JOIN t1.pk, t2.col_int_key,
 t1.col_varchar_key, t2.col_varchar_key FROM
 t2 JOIN t1 ON ( t1.pk >= t2.col_int_key AND 
