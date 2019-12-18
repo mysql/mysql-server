@@ -39,3 +39,7 @@ SHOW COLLATION LIKE 'utf8_phone_ci';
 --echo # Create a table using the deleted collation, expected to fail:
 --error ER_UNKNOWN_COLLATION
 CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
+
+# restore default values
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

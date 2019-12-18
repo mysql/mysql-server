@@ -264,3 +264,4 @@ DROP TABLE IF EXISTS tab1;
 DROP TABLE IF EXISTS tab2;
 DROP TABLE IF EXISTS tab3;
 set @@GLOBAL.table_open_cache=DEFAULT;
+# restart:

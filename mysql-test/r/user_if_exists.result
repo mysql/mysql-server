@@ -269,3 +269,4 @@ ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
 Warnings:
 Note	3162	Authorization ID 'b21807286'@'localhost' does not exist.
 # End of 5.7 tests
+# restart:

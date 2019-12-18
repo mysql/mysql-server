@@ -1,6 +1,10 @@
 --source include/have_example_component.inc
 --source include/no_valgrind_without_big.inc
 
+# Save timestamp to restore tables
+--let $PWCHANGED= `SELECT password_last_changed FROM mysql.user WHERE user LIKE 'mysql.sys';`
+--let $TIMESTAMP= `SELECT timestamp FROM mysql.tables_priv WHERE user LIKE 'mysql.sys';`
+
 --echo #
 --echo # Bug #24453571  SERVER CRASHES WHEN INSTALL COMPONENT IS ISSUED,
 --echo # AFTER MYSQL_UPGRADE
@@ -36,3 +40,13 @@ INSTALL COMPONENT "file://component_example_component1";
 --echo # a component should present
 SELECT COUNT(*) FROM mysql.component;
 UNINSTALL COMPONENT "file://component_example_component1";
+
+# Restore user tables
+--disable_query_log
+--eval UPDATE mysql.user SET password_last_changed = '$PWCHANGED' WHERE user LIKE 'mysql.sys'
+--eval UPDATE mysql.tables_priv SET timestamp = '$TIMESTAMP' WHERE user LIKE 'mysql.sys'
+--enable_query_log
+
+# restore default options in .opt
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -86,3 +86,7 @@ UNINSTALL COMPONENT "file://component_test_system_variable_source";
 let $MYSQLD_DATADIR= `select @@datadir`;
 cat_file $MYSQLD_DATADIR/test_system_variable_source.log;
 remove_file $MYSQLD_DATADIR/test_system_variable_source.log;
+
+# restore default values
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

@@ -382,3 +382,4 @@ Variable_name	Value
 Aborted_connects	4
 DROP USER 'new1'@'localhost';
 DROP DATABASE test1;
+# restart:

@@ -197,3 +197,7 @@ ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'xyz';
 
 
 --echo # End of 5.7 tests
+
+# restore --log-raw option
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc
