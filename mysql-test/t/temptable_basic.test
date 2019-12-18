@@ -218,4 +218,39 @@ SELECT attrs.* FROM t_json, JSON_TABLE(json_col, '$[*]' COLUMNS (nickname JSON P
 
 DROP TABLE t_json;
 
+--echo #
+--echo # Bug #30677984: UNINITIALISED VALUE ERROR WITH VALGRIND IN SQL_TMP_TABLE.CC
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  f1 varchar(255)
+);
+INSERT INTO t1 VALUES (5,'N');
+
+CREATE TABLE t2 (
+  pk int,
+  f2 varchar(10)
+);
+INSERT INTO t2 VALUES (5,'he');
+INSERT INTO t2 VALUES (5,'l');
+
+CREATE TABLE t3 (
+  f2 varchar(10),
+  f3 varchar(255)
+);
+INSERT INTO t3 VALUES ('L','2.0');
+
+set optimizer_switch='block_nested_loop=off';
+
+SELECT SUM(t3.f3)
+FROM t1
+  LEFT JOIN t2 ON t1.pk = t2.pk
+  LEFT JOIN t3 ON t2.f2 = t3.f2
+GROUP BY t1.f1;
+
+set optimizer_switch=default;
+
+DROP TABLE t1, t2, t3;
+
 SET @@internal_tmp_mem_storage_engine = default;

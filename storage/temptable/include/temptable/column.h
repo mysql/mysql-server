@@ -257,6 +257,11 @@ inline bool Column::is_fixed_size() const { return m_length_bytes_size == 0; }
 
 inline uint32_t Column::read_user_data_length(
     const unsigned char *mysql_row) const {
+  if (m_length_bytes_size == 0) {
+    /* Fixed size cell. */
+    return m_length;
+  }
+
   // data_length may contain junk value while particular cell is NULL
   if (read_is_null(mysql_row)) {
     return 0;
@@ -264,9 +269,6 @@ inline uint32_t Column::read_user_data_length(
 
   const unsigned char *p = mysql_row + m_offset;
   switch (m_length_bytes_size) {
-    case 0:
-      /* Fixed size cell. */
-      return m_length;
     case 1:
       return *p;
     case 2:

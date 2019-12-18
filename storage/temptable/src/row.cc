@@ -92,7 +92,7 @@ Result Row::copy_to_own_memory(const Columns &columns,
 
     const uint32_t data_length = column.read_user_data_length(mysql_row);
 
-    if (!is_null && data_length > 0) {
+    if (data_length > 0) {
       DBUG_ASSERT(buf_is_inside_another(data_ptr, data_length, m_ptr, buf_len));
 
       column.read_user_data(data_ptr, data_length, mysql_row, mysql_row_length);
