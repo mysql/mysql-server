@@ -1691,9 +1691,20 @@ main(int argc, char** argv)
       Uint32 fragmentId; 
       while (dataIter.readFragmentHeader(res= 0, &fragmentId))
       {
+#ifdef ERROR_INSERT
+        Uint64 rowCount = 0;
+#endif
 	const TupleS* tuple;
 	while ((tuple = dataIter.getNextTuple(res= 1)) != 0)
 	{
+#ifdef ERROR_INSERT
+          if ((_error_insert == NDB_RESTORE_ERROR_INSERT_SKIP_ROWS) &&
+              ((++rowCount % 3) == 0))
+          {
+            info << "Skipping row on error insertion" << endl;
+            continue;
+          }
+#endif
           const TableS* table = tuple->getTable();
           OutputStream *output = table_output[table->getLocalId()];
           if (!output)
