@@ -2008,6 +2008,46 @@ void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
                                cost_model.row_evaluate_cost(joined_rows));
 }
 
+static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> build_iterator,
+    qep_tab_map build_tables,
+    unique_ptr_destroy_only<RowIterator> probe_iterator, QEP_TAB *probe_table,
+    const std::vector<Item_func_eq *> &hash_join_conditions) {
+  const bool has_grouping =
+      probe_table->join()->implicit_grouping || probe_table->join()->grouped;
+
+  const bool has_limit = probe_table->join()->m_select_limit != HA_POS_ERROR;
+
+  const bool has_order_by = probe_table->join()->order.order != nullptr;
+
+  // If we have a limit in the query, do not allow hash join to spill to
+  // disk. The effect of this is that hash join will start producing
+  // result rows a lot earlier, and thus hit the LIMIT a lot sooner.
+  // Ideally, this should be decided during optimization.
+  // There are however two situations where we always allow spill to disk,
+  // and that is if we either have grouping or sorting in the query. In
+  // those cases, the iterator above us will most likely consume the
+  // entire result set anyways.
+  bool allow_spill_to_disk = !has_limit || has_grouping || has_order_by;
+
+  // If this table is part of a pushed join query, rows from the dependant child
+  // table(s) has to be read while we are positioned on the rows from the pushed
+  // ancestors which the child depends on. Thus, we can not allow rows from a
+  // 'pushed join' to 'spill_to_disk'.
+  if (probe_table->table()->file->member_of_pushed_join()) {
+    allow_spill_to_disk = false;
+  }
+
+  auto iterator = NewIterator<HashJoinIterator>(
+      thd, move(build_iterator), build_tables, move(probe_iterator),
+      probe_table, thd->variables.join_buff_size, hash_join_conditions,
+      allow_spill_to_disk);
+  SetCostOnHashJoinIterator(*thd->cost_model(), probe_table->position(),
+                            iterator.get());
+
+  return iterator;
+}
+
 // Move all the hash join conditions from the vector "predicates" over to the
 // vector "hash_join_conditions". Only join conditions that are suitable for
 // hash join are moved. If there are any condition that has to be evaluated
@@ -2499,39 +2539,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             table->file->stats.mrr_length_per_rec, rec_per_key,
             mrr_iterator_ptr);
       } else if (replace_with_hash_join) {
-        const bool has_grouping =
-            qep_tab->join()->implicit_grouping || qep_tab->join()->grouped;
-
-        const bool has_limit = qep_tab->join()->m_select_limit != HA_POS_ERROR;
-
-        const bool has_order_by = qep_tab->join()->order.order != nullptr;
-
-        // If we have a limit in the query, do not allow hash join to spill to
-        // disk. The effect of this is that hash join will start producing
-        // result rows a lot earlier, and thus hit the LIMIT a lot sooner.
-        // Ideally, this should be decided during optimization.
-        // There are however two situations where we always allow spill to disk,
-        // and that is if we either have grouping or sorting in the query. In
-        // those cases, the iterator above us will most likely consume the
-        // entire result set anyways.
-        bool allow_spill_to_disk = !has_limit || has_grouping || has_order_by;
-
-        // If this table is part of a pushed join query, rows from the
-        // dependant child table(s) has to be read while we are positioned on
-        // the rows from the pushed ancestors which the child depends on.
-        // Thus, we can not allow rows from a 'pushed join' to 'spill_to_disk'.
-        if (qep_tab->table()->file->member_of_pushed_join()) {
-          allow_spill_to_disk = false;
-        }
-
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
-        iterator = NewIterator<HashJoinIterator>(
-            thd, move(iterator), left_tables, move(table_iterator), qep_tab,
-            thd->variables.join_buff_size, hash_join_conditions,
-            allow_spill_to_disk);
-        SetCostOnHashJoinIterator(*thd->cost_model(), qep_tab->position(),
-                                  iterator.get());
+        iterator = CreateHashJoinIterator(thd, move(iterator), left_tables,
+                                          move(table_iterator), qep_tab,
+                                          hash_join_conditions);
 
         // Attach the conditions that must be evaluated after the join, such as
         // non equi-join conditions.

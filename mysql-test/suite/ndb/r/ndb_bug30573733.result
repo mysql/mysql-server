@@ -58,13 +58,13 @@ JOIN t as t5 ON t5.pk = t4.col_int
 EXPLAIN
 -> Aggregate: count(0)
     -> Nested loop inner join  (cost=104758.75 rows=390625)
-        -> Inner hash join  (cost=65690.00 rows=390625)
+        -> Inner hash join (no condition)  (cost=65690.00 rows=390625)
             -> Table scan on t4, activating pushed join of 2 tables  (cost=0.40 rows=25)
             -> Hash
-                -> Inner hash join  (cost=20377.50 rows=15625)
+                -> Inner hash join (no condition)  (cost=20377.50 rows=15625)
                     -> Table scan on t3  (cost=10.00 rows=25)
                     -> Hash
-                        -> Inner hash join  (cost=12565.00 rows=625)
+                        -> Inner hash join (no condition)  (cost=12565.00 rows=625)
                             -> Table scan on t2  (cost=250.10 rows=25)
                             -> Hash
                                 -> Table scan on t1  (cost=6252.50 rows=25)
