@@ -1864,9 +1864,20 @@ main(int argc, char** argv)
          * this fragment
          */
         const TupleS* tuple;
+#ifdef ERROR_INSERT
+        Uint64 rowCount = 0;
+#endif
 	while ((tuple = dataIter.getNextTuple(res= 1, skipFragment)) != 0)
         {
           assert(output && !skipFragment);
+#ifdef ERROR_INSERT
+          if ((_error_insert == NDB_RESTORE_ERROR_INSERT_SKIP_ROWS) &&
+              ((++rowCount % 3) == 0))
+          {
+            info << "Skipping row on error insertion" << endl;
+            continue;
+          }
+#endif
           OutputStream *tmp = ndbout.m_out;
           ndbout.m_out = output;
           for(Uint32 j= 0; j < g_consumers.size(); j++) 
