@@ -20,8 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "sql/sorting_iterator.h"
+
 #include <stdio.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <cstring>
 #include <memory>
@@ -46,7 +49,6 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/sort_param.h"
-#include "sql/sorting_iterator.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"

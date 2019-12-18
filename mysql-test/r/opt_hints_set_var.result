@@ -389,13 +389,6 @@ VARIABLE_VALUE
 MEMORY
 VARIABLE_VALUE
 TempTable
-CALL test_hint("SET_VAR(max_length_for_sort_data=4)", "max_length_for_sort_data");
-VARIABLE_VALUE
-4096
-VARIABLE_VALUE
-4
-VARIABLE_VALUE
-4096
 SELECT /*+ SET_VAR(max_points_in_geometry=1048576) */
 st_astext(st_buffer(point(-5,0),8772, st_buffer_strategy( 'point_circle',1024*1024*1024))) as result;
 ERROR HY000: Parameter points_per_circle exceeds the maximum number of points in a geometry (1048576) in function st_buffer_strategy.

@@ -222,9 +222,6 @@ DROP TABLE t1;
 CALL test_hint("SET_VAR(max_heap_table_size=16384)", "max_heap_table_size");
 CALL test_hint("SET_VAR(internal_tmp_mem_storage_engine=MEMORY)", "internal_tmp_mem_storage_engine");
 
-# Testing max_length_for_sort_data variable, no functional test.
-CALL test_hint("SET_VAR(max_length_for_sort_data=4)", "max_length_for_sort_data");
-
 # Testing max_points_in_geometry variable, the value in error message is 1048576.
 --error ER_GIS_MAX_POINTS_IN_GEOMETRY_OVERFLOWED
 SELECT /*+ SET_VAR(max_points_in_geometry=1048576) */

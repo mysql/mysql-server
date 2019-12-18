@@ -275,21 +275,6 @@ a+0	b+0
 49	345
 56	379
 68	454
-set @@max_length_for_sort_data=0;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
-Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
-select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
-a+0	b+0
-57	135
-61	152
-59	188
-68	206
-44	307
-60	343
-49	345
-56	379
-68	454
 select hex(min(a)) from t1;
 hex(min(a))
 0

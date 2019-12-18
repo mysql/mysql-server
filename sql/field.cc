@@ -24,10 +24,10 @@
 
 #include "sql/field.h"
 
-#include "my_config.h"
-
 #include <float.h>
 #include <stddef.h>
+
+#include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -7313,20 +7313,28 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length,
   uint32 length = get_length(from);  // Length of from string
 
   /*
-    Store max length, which will occupy packlength bytes. If the max
-    length given is smaller than the actual length of the blob, we
-    just store the initial bytes of the blob.
+    Store max length, which will occupy packlength bytes.
   */
-  store_blob_length(to, packlength, min(length, max_length), low_byte_first);
+  uchar len_buf[4];
+  DBUG_ASSERT(packlength <= sizeof(len_buf));
+  store_blob_length(len_buf, packlength, length, low_byte_first);
+
+  if (packlength >= max_length) {
+    memcpy(to, len_buf, max_length);
+    return to + max_length;
+  }
+
+  memcpy(to, len_buf, packlength);
 
   /*
     Store the actual blob data, which will occupy 'length' bytes.
    */
-  if (length > 0) {
-    memcpy(to + packlength, get_blob_data(from + packlength), length);
+  uint32 store_length = min(length, max_length - packlength);
+  if (store_length > 0) {
+    memcpy(to + packlength, get_blob_data(from + packlength), store_length);
   }
 
-  return to + packlength + length;
+  return to + packlength + store_length;
 }
 
 /**
@@ -7367,10 +7375,17 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
 }
 
 uint Field_blob::max_packed_col_length() const {
-  // We do not use addon fields for blobs.
-  DBUG_ASSERT(false);
-  const uint max_length = pack_length();
-  return (max_length > 255 ? 2 : 1) + max_length;
+  switch (packlength) {
+    case 1:
+    case 2:
+    case 3:
+      return packlength + (1u << (packlength * 8)) - 1;
+    case 4:
+      return UINT_MAX;
+    default:
+      DBUG_ASSERT(false);
+      return UINT_MAX;
+  }
 }
 
 uint Field_blob::is_equal(const Create_field *new_field) const {

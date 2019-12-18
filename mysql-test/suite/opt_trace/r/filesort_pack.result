@@ -68,178 +68,8 @@ c62 VARCHAR(1022) NOT NULL DEFAULT '',
 c63 VARCHAR(1022) NOT NULL DEFAULT '',
 c64 VARCHAR(1021) NOT NULL DEFAULT ''
 ) ENGINE = INNODB, charset latin1;
-SET @save_max_length_for_sort_data = @@max_length_for_sort_data;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 SET @save_sort_buffer_size= @@sort_buffer_size;
-SET @@max_length_for_sort_data = 65535 + 1021;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
-select * from t1 order by c1;
-c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32	c33	c34	c35	c36	c37	c38	c39	c40	c41	c42	c43	c44	c45	c46	c47	c48	c49	c50	c51	c52	c53	c54	c55	c56	c57	c58	c59	c60	c61	c62	c63	c64
-SELECT * FROM information_schema.OPTIMIZER_TRACE;
-QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-select * from t1 order by c1	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t1`.`c2` AS `c2`,`t1`.`c3` AS `c3`,`t1`.`c4` AS `c4`,`t1`.`c5` AS `c5`,`t1`.`c6` AS `c6`,`t1`.`c7` AS `c7`,`t1`.`c8` AS `c8`,`t1`.`c9` AS `c9`,`t1`.`c10` AS `c10`,`t1`.`c11` AS `c11`,`t1`.`c12` AS `c12`,`t1`.`c13` AS `c13`,`t1`.`c14` AS `c14`,`t1`.`c15` AS `c15`,`t1`.`c16` AS `c16`,`t1`.`c17` AS `c17`,`t1`.`c18` AS `c18`,`t1`.`c19` AS `c19`,`t1`.`c20` AS `c20`,`t1`.`c21` AS `c21`,`t1`.`c22` AS `c22`,`t1`.`c23` AS `c23`,`t1`.`c24` AS `c24`,`t1`.`c25` AS `c25`,`t1`.`c26` AS `c26`,`t1`.`c27` AS `c27`,`t1`.`c28` AS `c28`,`t1`.`c29` AS `c29`,`t1`.`c30` AS `c30`,`t1`.`c31` AS `c31`,`t1`.`c32` AS `c32`,`t1`.`c33` AS `c33`,`t1`.`c34` AS `c34`,`t1`.`c35` AS `c35`,`t1`.`c36` AS `c36`,`t1`.`c37` AS `c37`,`t1`.`c38` AS `c38`,`t1`.`c39` AS `c39`,`t1`.`c40` AS `c40`,`t1`.`c41` AS `c41`,`t1`.`c42` AS `c42`,`t1`.`c43` AS `c43`,`t1`.`c44` AS `c44`,`t1`.`c45` AS `c45`,`t1`.`c46` AS `c46`,`t1`.`c47` AS `c47`,`t1`.`c48` AS `c48`,`t1`.`c49` AS `c49`,`t1`.`c50` AS `c50`,`t1`.`c51` AS `c51`,`t1`.`c52` AS `c52`,`t1`.`c53` AS `c53`,`t1`.`c54` AS `c54`,`t1`.`c55` AS `c55`,`t1`.`c56` AS `c56`,`t1`.`c57` AS `c57`,`t1`.`c58` AS `c58`,`t1`.`c59` AS `c59`,`t1`.`c60` AS `c60`,`t1`.`c61` AS `c61`,`t1`.`c62` AS `c62`,`t1`.`c63` AS `c63`,`t1`.`c64` AS `c64` from `t1` order by `t1`.`c1`"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-          {
-            "substitute_generated_columns": {
-            }
-          },
-          {
-            "table_dependencies": [
-              {
-                "table": "`t1`",
-                "row_may_be_null": false,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                ]
-              }
-            ]
-          },
-          {
-            "rows_estimation": [
-              {
-                "table": "`t1`",
-                "table_scan": {
-                  "rows": 1,
-                  "cost": 0.25
-                }
-              }
-            ]
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "plan_prefix": [
-                ],
-                "table": "`t1`",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "rows_to_scan": 1,
-                      "access_type": "scan",
-                      "resulting_rows": 1,
-                      "cost": 0.35,
-                      "chosen": true,
-                      "use_tmp_table": true
-                    }
-                  ]
-                },
-                "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
-                "cost_for_plan": 0.35,
-                "sort_cost": 1,
-                "new_cost_for_plan": 1.35,
-                "chosen": true
-              }
-            ]
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ],
-              "attached_conditions_summary": [
-                {
-                  "table": "`t1`",
-                  "attached": null
-                }
-              ]
-            }
-          },
-          {
-            "optimizing_distinct_group_by_order_by": {
-              "simplifying_order_by": {
-                "original_clause": "`t1`.`c1`",
-                "items": [
-                  {
-                    "item": "`t1`.`c1`"
-                  }
-                ],
-                "resulting_clause_is_simple": true,
-                "resulting_clause": "`t1`.`c1`"
-              }
-            }
-          },
-          {
-            "finalizing_table_conditions": [
-            ]
-          },
-          {
-            "refine_plan": [
-              {
-                "table": "`t1`"
-              }
-            ]
-          },
-          {
-            "considering_tmp_tables": [
-              {
-                "adding_sort_to_table_in_plan_at_position": 0
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-          {
-            "sorting_table_in_plan_at_position": 0,
-            "filesort_information": [
-              {
-                "direction": "asc",
-                "table": "`t1`",
-                "field": "c1"
-              }
-            ],
-            "filesort_priority_queue_optimization": {
-              "usable": false,
-              "cause": "not applicable (no LIMIT)"
-            },
-            "filesort_execution": [
-            ],
-            "filesort_summary": {
-              "memory_available": 262144,
-              "key_size": 1028,
-              "row_size": 1028,
-              "max_rows_per_buffer": 215,
-              "num_rows_estimate": 215,
-              "num_rows_found": 0,
-              "num_initial_chunks_spilled_to_disk": 0,
-              "peak_memory_used": 0,
-              "sort_algorithm": "none",
-              "unpacked_addon_fields": "max_length_for_sort_data",
-              "sort_mode": "<fixed_sort_key, rowid>"
-            }
-          }
-        ]
-      }
-    }
-  ]
-}	0	0
-SET @@max_length_for_sort_data = 65535 + 1022;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
-SET @@sort_buffer_size = 8 + 15 * (@@max_length_for_sort_data + 8);
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
+SET @@sort_buffer_size = 8 + 15 * (65535 + 1022 + 8);
 select * from t1 order by c1;
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32	c33	c34	c35	c36	c37	c38	c39	c40	c41	c42	c43	c44	c45	c46	c47	c48	c49	c50	c51	c52	c53	c54	c55	c56	c57	c58	c59	c60	c61	c62	c63	c64
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -383,15 +213,14 @@ select * from t1 order by c1	{
             "filesort_summary": {
               "memory_available": 998483,
               "key_size": 1022,
-              "row_size": 66557,
-              "max_rows_per_buffer": 15,
+              "row_size": 66561,
+              "max_rows_per_buffer": 14,
               "num_rows_estimate": 215,
               "num_rows_found": 0,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": 0,
               "sort_algorithm": "none",
-              "unpacked_addon_fields": "row_too_large",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -399,12 +228,7 @@ select * from t1 order by c1	{
     }
   ]
 }	0	0
-SET @@max_length_for_sort_data = 65535 + 1023;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
-SET @@sort_buffer_size = 8 + 15 * (@@max_length_for_sort_data + 8);
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
+SET @@sort_buffer_size = 8 + 15 * (65535 + 1023 + 8);
 select * from t1 order by c1;
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32	c33	c34	c35	c36	c37	c38	c39	c40	c41	c42	c43	c44	c45	c46	c47	c48	c49	c50	c51	c52	c53	c54	c55	c56	c57	c58	c59	c60	c61	c62	c63	c64
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -548,15 +372,14 @@ select * from t1 order by c1	{
             "filesort_summary": {
               "memory_available": 998498,
               "key_size": 1022,
-              "row_size": 66557,
-              "max_rows_per_buffer": 15,
+              "row_size": 66561,
+              "max_rows_per_buffer": 14,
               "num_rows_estimate": 215,
               "num_rows_found": 0,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": 0,
               "sort_algorithm": "none",
-              "unpacked_addon_fields": "row_too_large",
-              "sort_mode": "<fixed_sort_key, additional_fields>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -564,12 +387,7 @@ select * from t1 order by c1	{
     }
   ]
 }	0	0
-SET @@max_length_for_sort_data = 65535 + 1024;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
-SET @@sort_buffer_size = 8 + 15 * (@@max_length_for_sort_data + 8);
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
+SET @@sort_buffer_size = 8 + 15 * (65535 + 1024 + 8);
 select * from t1 order by c1;
 c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19	c20	c21	c22	c23	c24	c25	c26	c27	c28	c29	c30	c31	c32	c33	c34	c35	c36	c37	c38	c39	c40	c41	c42	c43	c44	c45	c46	c47	c48	c49	c50	c51	c52	c53	c54	c55	c56	c57	c58	c59	c60	c61	c62	c63	c64
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
@@ -713,8 +531,8 @@ select * from t1 order by c1	{
             "filesort_summary": {
               "memory_available": 998513,
               "key_size": 1022,
-              "row_size": 66559,
-              "max_rows_per_buffer": 15,
+              "row_size": 66561,
+              "max_rows_per_buffer": 14,
               "num_rows_estimate": 215,
               "num_rows_found": 0,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -728,9 +546,6 @@ select * from t1 order by c1	{
     }
   ]
 }	0	0
-SET @@max_length_for_sort_data = @save_max_length_for_sort_data;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 SET @@sort_buffer_size= @save_sort_buffer_size;
 DROP TABLE t1;
 SET innodb_strict_mode=off;
@@ -1137,16 +952,15 @@ SELECT * FROM t1 ORDER BY c1	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 261,
-              "row_size": 261,
-              "max_rows_per_buffer": 15,
+              "key_size": 255,
+              "row_size": 66050,
+              "max_rows_per_buffer": 3,
               "num_rows_estimate": 15,
               "num_rows_found": 0,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": 0,
               "sort_algorithm": "none",
-              "unpacked_addon_fields": "max_length_for_sort_data",
-              "sort_mode": "<fixed_sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             }
           }
         ]

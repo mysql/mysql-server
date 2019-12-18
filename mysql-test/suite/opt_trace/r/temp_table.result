@@ -1,9 +1,6 @@
 SET optimizer_trace_max_mem_size=1048576;
 SET optimizer_trace="enabled=on,one_line=off";
 SET end_markers_in_json="on";
-SET max_length_for_sort_data=1024;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.
 CREATE TABLE tmp (
 pk INT PRIMARY KEY AUTO_INCREMENT,
 col1 CHAR (1)
@@ -1188,13 +1185,14 @@ ORDER BY cc	{
           {
             "creating_tmp_table": {
               "tmp_table_info": {
-                "in_plan_at_position": 1,
+                "table": " `tt`",
+                "in_plan_at_position": 0,
                 "columns": 2,
-                "row_length": 1507,
-                "key_length": 0,
+                "row_length": 757,
+                "key_length": 757,
                 "unique_constraint": false,
                 "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
+                "cannot_insert_duplicates": true,
                 "location": "memory (heap)",
                 "row_limit_estimate": 1
               } /* tmp_table_info */
@@ -1202,10 +1200,11 @@ ORDER BY cc	{
           },
           {
             "materialize": {
-              "select#": 1,
+              "select#": 2,
               "steps": [
                 {
-                  "creating_tmp_table": {
+                  "converting_tmp_table_to_ondisk": {
+                    "cause": "memory_table_size_exceeded",
                     "tmp_table_info": {
                       "table": " `tt`",
                       "in_plan_at_position": 0,
@@ -1215,81 +1214,6 @@ ORDER BY cc	{
                       "unique_constraint": false,
                       "makes_grouped_rows": false,
                       "cannot_insert_duplicates": true,
-                      "location": "memory (heap)",
-                      "row_limit_estimate": 1
-                    } /* tmp_table_info */
-                  } /* creating_tmp_table */
-                },
-                {
-                  "materialize": {
-                    "select#": 2,
-                    "steps": [
-                      {
-                        "converting_tmp_table_to_ondisk": {
-                          "cause": "memory_table_size_exceeded",
-                          "tmp_table_info": {
-                            "table": " `tt`",
-                            "in_plan_at_position": 0,
-                            "columns": 2,
-                            "row_length": 757,
-                            "key_length": 757,
-                            "unique_constraint": false,
-                            "makes_grouped_rows": false,
-                            "cannot_insert_duplicates": true,
-                            "location": "disk (TMP_TABLE_ENGINE)",
-                            "record_format": "packed"
-                          } /* tmp_table_info */
-                        } /* converting_tmp_table_to_ondisk */
-                      }
-                    ] /* steps */
-                  } /* materialize */
-                },
-                {
-                  "materialize": {
-                    "select#": 3,
-                    "steps": [
-                    ] /* steps */
-                  } /* materialize */
-                },
-                {
-                  "sorting_table_in_plan_at_position": 0,
-                  "filesort_information": [
-                    {
-                      "direction": "asc",
-                      "table": " `tt`",
-                      "field": "c1"
-                    }
-                  ] /* filesort_information */,
-                  "filesort_priority_queue_optimization": {
-                    "usable": false,
-                    "cause": "not applicable (no LIMIT)"
-                  } /* filesort_priority_queue_optimization */,
-                  "filesort_execution": [
-                  ] /* filesort_execution */,
-                  "filesort_summary": {
-                    "memory_available": 262144,
-                    "key_size": 4,
-                    "row_size": 763,
-                    "max_rows_per_buffer": 340,
-                    "num_rows_estimate": 1820,
-                    "num_rows_found": 132,
-                    "num_initial_chunks_spilled_to_disk": 0,
-                    "peak_memory_used": "NNN",
-                    "sort_algorithm": "std::stable_sort",
-                    "sort_mode": "<fixed_sort_key, packed_additional_fields>"
-                  } /* filesort_summary */
-                },
-                {
-                  "converting_tmp_table_to_ondisk": {
-                    "cause": "memory_table_size_exceeded",
-                    "tmp_table_info": {
-                      "in_plan_at_position": 1,
-                      "columns": 2,
-                      "row_length": 1507,
-                      "key_length": 0,
-                      "unique_constraint": false,
-                      "makes_grouped_rows": false,
-                      "cannot_insert_duplicates": false,
                       "location": "disk (TMP_TABLE_ENGINE)",
                       "record_format": "packed"
                     } /* tmp_table_info */
@@ -1297,6 +1221,41 @@ ORDER BY cc	{
                 }
               ] /* steps */
             } /* materialize */
+          },
+          {
+            "materialize": {
+              "select#": 3,
+              "steps": [
+              ] /* steps */
+            } /* materialize */
+          },
+          {
+            "sorting_table_in_plan_at_position": 0,
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": " `tt`",
+                "field": "c1"
+              }
+            ] /* filesort_information */,
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            } /* filesort_priority_queue_optimization */,
+            "filesort_execution": [
+            ] /* filesort_execution */,
+            "filesort_summary": {
+              "memory_available": 262144,
+              "key_size": 4,
+              "row_size": 765,
+              "max_rows_per_buffer": 339,
+              "num_rows_estimate": 1820,
+              "num_rows_found": 132,
+              "num_initial_chunks_spilled_to_disk": 0,
+              "peak_memory_used": "NNN",
+              "sort_algorithm": "std::stable_sort",
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+            } /* filesort_summary */
           },
           {
             "sorting_table_in_plan_at_position": 1,
@@ -1314,16 +1273,15 @@ ORDER BY cc	{
             ] /* filesort_execution */,
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 1007,
-              "row_size": 1007,
-              "max_rows_per_buffer": 258,
-              "num_rows_estimate": 1365,
+              "key_size": 1001,
+              "row_size": 2512,
+              "max_rows_per_buffer": 104,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 66,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "max_length_for_sort_data",
-              "sort_mode": "<fixed_sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */
@@ -1334,6 +1292,3 @@ ORDER BY cc	{
 DROP TABLE t1;
 #
 SET SESSION internal_tmp_mem_storage_engine=default;
-SET max_length_for_sort_data=DEFAULT;
-Warnings:
-Warning	1287	'@@max_length_for_sort_data' is deprecated and will be removed in a future release.

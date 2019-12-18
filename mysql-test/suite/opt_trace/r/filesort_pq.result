@@ -280,7 +280,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             "filesort_summary": {
               "memory_available": 262144,
               "key_size": 9,
-              "row_size": 221,
+              "row_size": 223,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -3023,7 +3023,7 @@ ORDER BY f1, f0 LIMIT 30	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 9,
-              "row_size": 221,
+              "row_size": 223,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -3195,7 +3195,7 @@ ORDER BY f1, f0 LIMIT 0	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 9,
-              "row_size": 221,
+              "row_size": 223,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -3419,8 +3419,8 @@ ORDER BY f2, f0 LIMIT 20	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 417,
-              "max_rows_per_buffer": 77,
+              "row_size": 419,
+              "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -3623,8 +3623,8 @@ ORDER BY f2, f0 LIMIT 0	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 417,
-              "max_rows_per_buffer": 77,
+              "row_size": 419,
+              "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -3837,8 +3837,8 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 417,
-              "max_rows_per_buffer": 77,
+              "row_size": 419,
+              "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -4041,8 +4041,8 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_summary": {
               "memory_available": 32768,
               "key_size": 205,
-              "row_size": 417,
-              "max_rows_per_buffer": 77,
+              "row_size": 419,
+              "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -4987,8 +4987,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "filesort_summary": {
               "memory_available": 327680,
               "key_size": 9,
-              "row_size": 246,
-              "max_rows_per_buffer": 1290,
+              "row_size": 248,
+              "max_rows_per_buffer": 1280,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -5365,8 +5365,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "filesort_summary": {
               "memory_available": 327680,
               "key_size": 9,
-              "row_size": 246,
-              "max_rows_per_buffer": 1290,
+              "row_size": 248,
+              "max_rows_per_buffer": 1280,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1185,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -7773,7 +7773,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             "filesort_summary": {
               "memory_available": 327680,
               "key_size": 205,
-              "row_size": 417,
+              "row_size": 419,
               "max_rows_per_buffer": 510,
               "num_rows_estimate": 510,
               "num_rows_found": 445,
@@ -12904,8 +12904,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "row_contains_blob",
-              "sort_mode": "<varlen_sort_key, rowid>"
+              "sort_mode": "<varlen_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -13087,8 +13086,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "row_contains_blob",
-              "sort_mode": "<varlen_sort_key, rowid>"
+              "sort_mode": "<varlen_sort_key, packed_additional_fields>"
             }
           }
         ]
@@ -13271,8 +13269,7 @@ limit 2 offset 2	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "row_contains_blob",
-              "sort_mode": "<varlen_sort_key, rowid>"
+              "sort_mode": "<varlen_sort_key, packed_additional_fields>"
             }
           }
         ]

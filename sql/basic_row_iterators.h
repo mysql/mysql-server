@@ -197,10 +197,8 @@ class SortBufferIterator final : public TableRowIterator {
   the table on disk.
 
   Used when the above (comment on SortBufferIterator) is not true, UPDATE,
-  DELETE and so forth and SELECT's involving BLOB's. It is also used when the
-  addon_field buffer is not allocated due to that its size was bigger than the
-  session variable max_length_for_sort_data. Finally, it is used for the
-  result of Unique, which returns row IDs in the same format as filesort.
+  DELETE and so forth and SELECT's involving large BLOBs. It is also used for
+  the result of Unique, which returns row IDs in the same format as filesort.
   In this case the record data is fetched from the handler using the saved
   reference using the rnd_pos handler call.
  */

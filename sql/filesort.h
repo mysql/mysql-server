@@ -71,8 +71,7 @@ class Filesort {
            bool force_stable_sort, bool remove_duplicates,
            bool force_sort_positions);
 
-  Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
-                                 Field **ptabfield, uint sortlength,
+  Addon_fields *get_addon_fields(Field **ptabfield,
                                  Addon_fields_status *addon_fields_status,
                                  uint *plength, uint *ppackable_length);
 

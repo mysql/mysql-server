@@ -221,7 +221,7 @@ EXPLAIN
     -> Table scan on t1
 
 DROP TABLE t1;
-CREATE TABLE t1 ( a BLOB, b INT );
+CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text

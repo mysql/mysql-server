@@ -41,6 +41,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -144,7 +145,8 @@ static ha_rows read_all_rows(
     THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
     IO_CACHE *buffer_file, IO_CACHE *chunk_file,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
-    RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key);
+    RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
+    size_t *longest_addons);
 static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
                       IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void register_used_fields(Sort_param *param);
@@ -159,8 +161,6 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                                    ulong memory_available);
 
 void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
-                                     ulong max_length_for_sort_data,
-                                     uint fixed_sort_length,
                                      bool force_sort_positions) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
@@ -195,17 +195,16 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
       Get the descriptors of all fields whose values are appended
       to sorted fields and get its total length in m_addon_length.
     */
-    addon_fields = file_sort->get_addon_fields(
-        max_length_for_sort_data, table->field, fixed_sort_length,
-        &m_addon_fields_status, &m_addon_length, &m_packable_length);
+    addon_fields =
+        file_sort->get_addon_fields(table->field, &m_addon_fields_status,
+                                    &m_addon_length, &m_packable_length);
   }
 }
 
 void Sort_param::init_for_filesort(Filesort *file_sort,
                                    Bounds_checked_array<st_sort_field> sf_array,
-                                   uint sortlen, TABLE *table,
-                                   ulong max_length_for_sort_data,
-                                   ha_rows maxrows, bool remove_duplicates) {
+                                   uint sortlen, TABLE *table, ha_rows maxrows,
+                                   bool remove_duplicates) {
   m_fixed_sort_length = sortlen;
   m_force_stable_sort = file_sort->m_force_stable_sort;
   m_remove_duplicates = remove_duplicates;
@@ -213,8 +212,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
 
   local_sortorder = sf_array;
 
-  decide_addon_fields(file_sort, table, max_length_for_sort_data, sortlen,
-                      file_sort->m_force_sort_positions);
+  decide_addon_fields(file_sort, table, file_sort->m_force_sort_positions);
   if (using_addon_fields()) {
     fixed_res_length = m_addon_length;
   } else {
@@ -244,22 +242,13 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
   max_rows = maxrows;
 }
 
-void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data) {
+void Sort_param::try_to_pack_addons() {
   if (!using_addon_fields() ||  // no addons, or
       using_packed_addons())    // already packed
     return;
 
-  if (!Addon_fields::can_pack_addon_fields(fixed_res_length)) {
-    m_addon_fields_status = Addon_fields_status::row_too_large;
-    return;
-  }
-  const uint sz = Addon_fields::size_of_length_field;
-  if (m_fixed_rec_length + sz > max_length_for_sort_data) {
-    m_addon_fields_status = Addon_fields_status::row_too_large;
-    return;
-  }
-
   // Heuristic: skip packing if potential savings are less than 10 bytes.
+  const uint sz = Addon_fields::size_of_length_field;
   if (m_packable_length < (10 + sz)) {
     m_addon_fields_status = Addon_fields_status::skip_heuristic;
     return;
@@ -273,9 +262,9 @@ void Sort_param::try_to_pack_addons(ulong max_length_for_sort_data) {
   addon_fields->set_using_packed_addons(true);
   m_using_packed_addons = true;
 
-  m_addon_length += sz;
-  fixed_res_length += sz;
-  m_fixed_rec_length += sz;
+  AddWithSaturate(sz, &m_addon_length);
+  AddWithSaturate(sz, &fixed_res_length);
+  AddWithSaturate(sz, &m_fixed_rec_length);
 }
 
 int Sort_param::count_varlen_keys() const {
@@ -436,8 +425,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
   param->init_for_filesort(filesort, make_array(filesort->sortorder, s_length),
                            sortlength(thd, filesort->sortorder, s_length),
-                           table, thd->variables.max_length_for_sort_data,
-                           max_rows, filesort->m_remove_duplicates);
+                           table, max_rows, filesort->m_remove_duplicates);
 
   fs_info->addon_fields = param->addon_fields;
 
@@ -509,7 +497,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
       When sorting using priority queue, we cannot use packed addons.
       Without PQ, we can try.
     */
-    param->try_to_pack_addons(thd->variables.max_length_for_sort_data);
+    param->try_to_pack_addons();
 
     /*
       NOTE: param->max_rows_per_buffer is merely informative (for optimizer
@@ -525,14 +513,15 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   }
 
   param->sort_form = table;
-  size_t longest_key;
+  size_t longest_key, longest_addons;
 
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows_found = read_all_rows(thd, param, qep_tab, fs_info, &chunk_file,
-                                   &tempfile, param->using_pq ? &pq : nullptr,
-                                   source_iterator, found_rows, &longest_key);
+    num_rows_found =
+        read_all_rows(thd, param, qep_tab, fs_info, &chunk_file, &tempfile,
+                      param->using_pq ? &pq : nullptr, source_iterator,
+                      found_rows, &longest_key, &longest_addons);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -560,7 +549,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
     // We will need an extra buffer in SortFileIndirectIterator
     if (fs_info->addon_fields != nullptr &&
-        !(fs_info->addon_fields->allocate_addon_buf(param->m_addon_length)))
+        !(fs_info->addon_fields->allocate_addon_buf(longest_addons)))
       goto err; /* purecov: inspected */
 
     fs_info->read_chunk_descriptors(&chunk_file, num_chunks);
@@ -889,13 +878,15 @@ class Filesort_error_handler : public Internal_error_handler {
 };
 
 static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
-                                   uchar *ref_pos, size_t *key_length) {
+                                   uchar *ref_pos, size_t *key_length,
+                                   size_t *longest_addons) {
   size_t min_bytes = 1;
   for (;;) {  // Termination condition within loop.
     Bounds_checked_array<uchar> sort_key_buf =
         fs_info->get_next_record_pointer(min_bytes);
     if (sort_key_buf.array() == nullptr) return true;
-    const uint rec_sz = param->make_sortkey(sort_key_buf, ref_pos);
+    const uint rec_sz =
+        param->make_sortkey(sort_key_buf, ref_pos, longest_addons);
     if (rec_sz > sort_key_buf.size()) {
       // The record wouldn't fit. Try again, asking for a larger buffer.
       min_bytes = sort_key_buf.size() + 1;
@@ -926,6 +917,9 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
                            For a query with LIMIT, this value will typically
                            be larger than the function return value.
   @param [out] longest_key The largest single key found, in bytes.
+  @param [out] longest_addons
+     The longest addon field row (sum of all addon fields for any single
+     given row) found.
 
   @note
     Basic idea:
@@ -970,7 +964,8 @@ static ha_rows read_all_rows(
     THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
-    RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key) {
+    RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
+    size_t *longest_addons) {
   /*
     Set up an error handler for filesort. It is automatically pushed
     onto the internal error handler stack upon creation, and will be
@@ -986,6 +981,7 @@ static ha_rows read_all_rows(
   handler *file = sort_form->file;
   *found_rows = 0;
   size_t longest_key_so_far = 0;
+  size_t longest_addon_so_far = 0;
   uchar *ref_pos = &file->ref[0];
 
   // Now modify the read bitmaps, so that we are sure to get the rows
@@ -1066,8 +1062,8 @@ static ha_rows read_all_rows(
       pq->push(ref_pos);
     else {
       size_t key_length;
-      bool out_of_mem =
-          alloc_and_make_sortkey(param, fs_info, ref_pos, &key_length);
+      bool out_of_mem = alloc_and_make_sortkey(
+          param, fs_info, ref_pos, &key_length, &longest_addon_so_far);
       if (out_of_mem) {
         // Out of room, so flush chunk to disk (if there's anything to flush).
         if (num_records_this_chunk > 0) {
@@ -1081,8 +1077,8 @@ static ha_rows read_all_rows(
           fs_info->reset();
 
           // Now we should have room for a new row.
-          out_of_mem =
-              alloc_and_make_sortkey(param, fs_info, ref_pos, &key_length);
+          out_of_mem = alloc_and_make_sortkey(
+              param, fs_info, ref_pos, &key_length, &longest_addon_so_far);
         }
 
         // If we're still out of memory after flushing to disk, give up.
@@ -1131,6 +1127,7 @@ cleanup:
   DBUG_PRINT("info", ("read_all_rows return %lu", (ulong)num_total_records));
 
   *longest_key = longest_key_so_far;
+  *longest_addons = longest_addon_so_far;
   return num_total_records;
 } /* read_all_rows */
 
@@ -1512,7 +1509,8 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
 }  // namespace
 
 uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
-                              const uchar *ref_pos) {
+                              const uchar *ref_pos,
+                              size_t *longest_addon_so_far) {
   uchar *to = dst.array();
   uchar *to_end = dst.array() + dst.size();
   uchar *orig_to = to;
@@ -1641,6 +1639,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         to += addonf->max_length;
       }
     }
+    *longest_addon_so_far = max<size_t>(*longest_addon_so_far, to - p_len);
     DBUG_PRINT("info", ("make_sortkey %p %u", orig_to,
                         static_cast<unsigned>(to - p_len)));
   } else {
@@ -1735,7 +1734,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   }
 
   sort_result->sorted_result_in_fsbuf = false;
-  const size_t buf_size = param->fixed_res_length * count;
+  const size_t buf_size = size_t{param->fixed_res_length} * count;
 
   DBUG_ASSERT(sort_result->sorted_result == nullptr);
   sort_result->sorted_result.reset(static_cast<uchar *>(my_malloc(
@@ -2301,14 +2300,11 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
   The function first finds out what fields are used in the result set.
   Then it calculates the length of the buffer to store the values of
   these fields together with the value of sort values.
-  If the calculated length is not greater than max_length_for_sort_data
-  the function allocates memory for an array of descriptors containing
-  layouts for the values of the non-sorted fields in the buffer and
-  fills them.
+  If there are no large blobs (which prevent addon fields), the function
+  allocates memory for an array of descriptors containing layouts for the values
+  of the non-sorted fields in the buffer and fills them.
 
-  @param max_length_for_sort_data Value of session variable.
   @param ptabfield             Array of references to the table fields
-  @param sortlength            Total length of sorted fields
   @param[out] addon_fields_status Reason for *not* using packed addon fields
   @param[out] plength          Total length of appended fields
   @param[out] ppackable_length Total length of appended fields having a
@@ -2325,8 +2321,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
 */
 
 Addon_fields *Filesort::get_addon_fields(
-    ulong max_length_for_sort_data, Field **ptabfield, uint sortlength,
-    Addon_fields_status *addon_fields_status, uint *plength,
+    Field **ptabfield, Addon_fields_status *addon_fields_status, uint *plength,
     uint *ppackable_length) {
   Field **pfield;
   Field *field;
@@ -2367,36 +2362,55 @@ Addon_fields *Filesort::get_addon_fields(
 
   for (pfield = ptabfield; (field = *pfield); pfield++) {
     if (!bitmap_is_set(read_set, field->field_index)) continue;
-    // part_of_key is empty for a BLOB, so apply this check before the next.
-    if (field->flags & BLOB_FLAG) {
+
+    // Having large blobs in addon fields could be very inefficient,
+    // but small blobs are OK (where “small” is a bit fuzzy, and relative
+    // to the size of the sort buffer). There are two types of small blobs:
+    //
+    //  - Those explicitly bounded to small lengths, namely tinyblob (255 bytes)
+    //    and blob (65535 bytes).
+    //  - Those that are _typically_ fairly small, which includes JSON and
+    //    geometries. We don't actually declare anywhere that they are
+    //    implemented using blobs under the hood, so it's not unreasonable to
+    //    demand that the user have large enough sort buffers for a few rows.
+    //    (If a user has multi-megabyte JSON rows and wishes to sort them,
+    //    they would usually have a fair bit of RAM anyway, since they'd need
+    //    that to hold the result set and process it in a reasonable fashion.)
+    //
+    // That leaves only mediumblob and longblob. If a user declares a field as
+    // one of those, it's reasonable for them to expect that sorting doesn't
+    // need to pull many of them up in memory, so we should stick to sorting row
+    // IDs.
+    if (field->type() == MYSQL_TYPE_BLOB &&
+        field->max_packed_col_length() > 70000u) {
       DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
       *addon_fields_status = Addon_fields_status::row_contains_blob;
       return nullptr;
     }
-    if (filter_covering && !field->part_of_key.is_set(index))
-      continue;  // See explanation above filter_covering
+
+    // See explanation above filter_covering. Note that part_of_key is empty for
+    // a blob, so don't test it for blobs.
+    if (filter_covering && (field->flags & BLOB_FLAG) == 0 &&
+        !field->part_of_key.is_set(index))
+      continue;
 
     const uint field_length = field->max_packed_col_length();
-    total_length += field_length;
+    AddWithSaturate(field_length, &total_length);
 
     const enum_field_types field_type = field->type();
     if (field->is_nullable() || field_type == MYSQL_TYPE_STRING ||
-        field_type == MYSQL_TYPE_VARCHAR || field_type == MYSQL_TYPE_VAR_STRING)
-      packable_length += field_length;
+        field_type == MYSQL_TYPE_VARCHAR ||
+        field_type == MYSQL_TYPE_VAR_STRING || (field->flags & BLOB_FLAG)) {
+      AddWithSaturate(field_length, &packable_length);
+    }
     if (field->is_nullable()) null_fields++;
     num_fields++;
   }
   if (0 == num_fields) return nullptr;
 
-  total_length += (null_fields + 7) / 8;
+  AddWithSaturate((null_fields + 7) / 8, &total_length);
 
   *ppackable_length = packable_length;
-
-  if (total_length + sortlength > max_length_for_sort_data) {
-    DBUG_ASSERT(m_sort_param.addon_fields == nullptr);
-    *addon_fields_status = Addon_fields_status::max_length_for_sort_data;
-    return nullptr;
-  }
 
   if (m_sort_param.addon_fields == nullptr) {
     void *rawmem1 = (*THR_MALLOC)->Alloc(sizeof(Addon_fields));
@@ -2440,7 +2454,7 @@ Addon_fields *Filesort::get_addon_fields(
     DBUG_PRINT("info", ("addon_field %s max_length %u",
                         addonf->field->field_name, addonf->max_length));
 
-    length += addonf->max_length;
+    AddWithSaturate(addonf->max_length, &length);
     addonf++;
   }
 
@@ -2452,10 +2466,8 @@ Addon_fields *Filesort::get_addon_fields(
 bool Filesort::using_addon_fields() {
   if (m_sort_param.m_addon_fields_status ==
       Addon_fields_status::unknown_status) {
-    m_sort_param.decide_addon_fields(
-        this, qep_tab->table(), m_thd->variables.max_length_for_sort_data,
-        sortlength(m_thd, sortorder, m_sort_order_length),
-        m_force_sort_positions);
+    m_sort_param.decide_addon_fields(this, qep_tab->table(),
+                                     m_force_sort_positions);
   }
   return m_sort_param.using_addon_fields();
 }

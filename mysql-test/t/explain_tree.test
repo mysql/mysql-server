@@ -140,7 +140,7 @@ DROP TABLE t1;
 
 # Pointless materialization.
 # Also demonstrates printout of sorting without addon fields.
-CREATE TABLE t1 ( a BLOB, b INT );
+CREATE TABLE t1 ( a LONGBLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
 ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT 0 AS foo FROM t1 WHERE 0 = (SELECT group_concat(b) FROM t1 t GROUP BY t1.a) ;

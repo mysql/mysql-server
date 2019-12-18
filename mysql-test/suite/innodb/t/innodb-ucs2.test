@@ -35,8 +35,10 @@ insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
-select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler, hex(b) desc;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t1 order by filler;
+--partially_sorted_result 2
+select filler,hex(b),a,hex(c) from t2 order by filler, hex(b) desc;
 drop table t1;
 drop table t2;
 
@@ -68,8 +70,10 @@ insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
-select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler, hex(b) desc;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t1 order by filler;
+--partially_sorted_result 2
+select filler,hex(b),a,hex(c) from t2 order by filler, hex(b) desc;
 drop table t1;
 drop table t2;
 
@@ -101,8 +105,10 @@ insert into t2 values (4,_ucs2 0x0563001fc0563,_ucs2 0x0563001fc0563,'point');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
-select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t1 order by filler;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t2 order by filler;
 drop table t1;
 drop table t2;
 
@@ -130,8 +136,10 @@ insert into t2 values (4,_ucs2 0x0563,_ucs2 0x0563,'ten');
 insert into t2 values (4,_ucs2 0x05612020,_ucs2 0x05612020,'taken');
 update t1 set filler = 'boo' where a = 1;
 update t2 set filler ='email' where a = 4;
-select a,hex(b),hex(c),filler from t1 order by filler;
-select a,hex(b),hex(c),filler from t2 order by filler;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t1 order by filler;
+--partially_sorted_result 1
+select filler,a,hex(b),hex(c) from t2 order by filler;
 drop table t1;
 drop table t2;
 commit;
