@@ -2870,6 +2870,26 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   DBUG_ASSERT(lsel && lsel->table_list.first);
 
   /*
+    In cases when SELECT from I_S table being filled by this call is
+    part of statement which also uses other tables or is being executed
+    under LOCK TABLES or is part of transaction which also uses other
+    tables waiting for metadata locks which happens below might result
+    in deadlocks.
+    To avoid them we don't wait if conflicting metadata lock is
+    encountered and skip table with emitting an appropriate warning.
+  */
+  bool can_deadlock = thd->mdl_context.has_locks();
+
+  /*
+    We should not introduce deadlocks even if we already have some
+    tables open and locked, since we won't lock tables which we will
+    open and will ignore pending exclusive metadata locks for these
+    tables by using high-priority requests for shared metadata locks.
+  */
+  Open_tables_backup open_tables_state_backup;
+  thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
+
+  /*
     When a view is opened its structures are allocated on a permanent
     statement arena and linked into the LEX tree for the current statement
     (this happens even in cases when view is handled through TEMPTABLE
@@ -2933,12 +2953,20 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
 
   table_list = lex->select_lex->table_list.first;
   DBUG_ASSERT(!table_list->is_view_or_derived());
+
+  /*
+    Restore thd->temporary_tables to be able to process
+    temporary tables (only for 'show index' & 'show columns').
+  */
+  thd->temporary_tables = open_tables_state_backup.temporary_tables;
+
   result = open_temporary_tables(thd, table_list);
 
   if (!result)
     result = open_tables_for_query(
         thd, table_list,
-        MYSQL_OPEN_IGNORE_FLUSH | MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
+        MYSQL_OPEN_IGNORE_FLUSH | MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
+            (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0));
 
   /*
     Restore old value of sql_command back as it is being looked at in
@@ -2968,10 +2996,19 @@ end:
   DBUG_ASSERT(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
+  /*
+    For safety reset list of open temporary tables before closing
+    all tables open within this Open_tables_state.
+  */
+  thd->temporary_tables = nullptr;
+  close_thread_tables(thd);
+
   thd->lex = old_lex;
 
   thd->stmt_arena = old_arena;
   thd->swap_query_arena(backup_arena, &i_s_arena);
+
+  thd->restore_backup_open_tables_state(&open_tables_state_backup);
 
   return result;
 }
