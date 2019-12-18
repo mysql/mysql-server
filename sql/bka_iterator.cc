@@ -49,6 +49,7 @@
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"
 
+using hash_join_buffer::BufferRow;
 using std::string;
 using std::vector;
 
@@ -106,7 +107,7 @@ bool BKAIterator::Init() {
 
 void BKAIterator::BeginNewBatch() {
   m_mem_root.ClearForReuse();
-  new (&m_rows) Mem_root_array<hash_join_buffer::BufferRow>(&m_mem_root);
+  new (&m_rows) Mem_root_array<BufferRow>(&m_mem_root);
   m_bytes_used = 0;
   m_state = State::NEED_OUTER_ROWS;
 }
@@ -165,7 +166,7 @@ int BKAIterator::ReadOuterRows() {
     }
     memcpy(row, m_outer_row_buffer.ptr(), row_size);
 
-    m_rows.push_back(hash_join_buffer::BufferRow(row, row_size));
+    m_rows.push_back(BufferRow(row, row_size));
     m_bytes_used += row_size;
   }
 
@@ -332,8 +333,7 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
   // at the row in question, and ends right after it (exclusive).
 
   range->range_flag = EQ_RANGE;
-  range->ptr =
-      const_cast<char *>(pointer_cast<const char *>(m_current_pos->data()));
+  range->ptr = const_cast<char *>(pointer_cast<const char *>(m_current_pos));
 
   range->start_key.key = m_ref->key_buff;
   range->start_key.keypart_map = (1 << m_ref->key_parts) - 1;  // All keyparts.
@@ -348,13 +348,14 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
 }
 
 bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
+  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
+
   // The index condition depends on fields from the outer tables (or we would
   // not be called), so we need to load the relevant rows before checking it.
   // range_info tells us which outer row we are talking about; it corresponds to
   // range->ptr in MrrNextCallback(), and points to the serialized outer row in
   // BKAIterator's m_row array.
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
-                                         pointer_cast<uchar *>(range_info));
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   // Skip this tuple if the index condition is false.
   return !m_cache_idx_cond->val_int();
@@ -364,13 +365,13 @@ int MultiRangeRowIterator::Read() {
   // Read a row from the MRR buffer. rec_ptr tells us which outer row
   // this corresponds to; it corresponds to range->ptr in MrrNextCallback(),
   // and points to the serialized outer row in BKAIterator's m_row array.
-  uchar *rec_ptr = nullptr;
+  BufferRow *rec_ptr = nullptr;
   int error = m_file->ha_multi_range_read_next(pointer_cast<char **>(&rec_ptr));
   if (error != 0) {
     return HandleError(error);
   }
 
-  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr);
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   if (m_keep_current_rowid) {
     m_file->position(m_table->record[0]);
