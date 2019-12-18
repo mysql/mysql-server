@@ -405,9 +405,12 @@ outer_ as
 select a*2 from outer_ where a<1000)
 select a from outer_;
 a
+1000
 123
 124
 125
+1968
+1984
 246
 248
 250
@@ -416,9 +419,6 @@ a
 500
 984
 992
-1000
-1968
-1984
 show status like "handler_write";
 Variable_name	Value
 Handler_write	17
@@ -1253,14 +1253,14 @@ where from_id=cte.id and is_cycle=0
 select * from cte;
 id	path	is_cycle
 1	1	0
+1	1,3,6,2,1	1
+1	1,4,6,2,1	1
+2	1,3,6,2	0
+2	1,4,6,2	0
 3	1,3	0
 4	1,4	0
 6	1,3,6	0
 6	1,4,6	0
-2	1,3,6,2	0
-2	1,4,6,2	0
-1	1,3,6,2,1	1
-1	1,4,6,2,1	1
 # It is simpler with DISTINCT:
 with recursive cte as
 (
@@ -1271,10 +1271,10 @@ select to_id from arcs, cte where from_id=cte.id
 select * from cte;
 id
 1
+2
 3
 4
 6
-2
 drop table nodes, arcs;
 # Hash field and MEMORY don't work together. Make long distinct
 # key to force hash field, to see if it switches to InnoDB.
@@ -1755,9 +1755,12 @@ outer_ as
 select a*2 from outer_ where a<1000)
 select a from outer_;
 a
+1000
 123
 124
 125
+1968
+1984
 246
 248
 250
@@ -1766,9 +1769,6 @@ a
 500
 984
 992
-1000
-1968
-1984
 show status like "handler_write";
 Variable_name	Value
 Handler_write	17
@@ -2603,14 +2603,14 @@ where from_id=cte.id and is_cycle=0
 select * from cte;
 id	path	is_cycle
 1	1	0
+1	1,3,6,2,1	1
+1	1,4,6,2,1	1
+2	1,3,6,2	0
+2	1,4,6,2	0
 3	1,3	0
 4	1,4	0
 6	1,3,6	0
 6	1,4,6	0
-2	1,3,6,2	0
-2	1,4,6,2	0
-1	1,3,6,2,1	1
-1	1,4,6,2,1	1
 # It is simpler with DISTINCT:
 with recursive cte as
 (
@@ -2621,10 +2621,10 @@ select to_id from arcs, cte where from_id=cte.id
 select * from cte;
 id
 1
+2
 3
 4
 6
-2
 drop table nodes, arcs;
 # Hash field and MEMORY don't work together. Make long distinct
 # key to force hash field, to see if it switches to InnoDB.

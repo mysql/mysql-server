@@ -274,12 +274,14 @@ select * from qn;
 --echo # Prove that a materialized QN is shared among all references:
 
 flush status;
+--sorted_result
 with recursive qn as (
 select 123 as a union all
 select 1+a from qn where a<125)
 select * from qn;
 show status like "handler_write";
 flush status;
+--sorted_result
 with recursive qn as (
 select 123 as a union all
 select 1+a from qn where a<125)
@@ -289,6 +291,7 @@ show status like 'Created_tmp%table%';
 
 --echo # Also works if references are nested inside other query names:
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
@@ -297,6 +300,7 @@ select * from outer_, outer_ as outer1;
 show status like "handler_write";
 
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
@@ -308,6 +312,7 @@ show status like "handler_write";
 
 --echo # Even if the two query names are recursive:
 flush status;
+--sorted_result
 with recursive inner_ as (
 select 123 as a union all
 select 1+a from inner_ where a<125),
@@ -866,6 +871,7 @@ select count(*), max(depth) from cte;
 
 --echo # Can use cycle detection:
 
+--sorted_result
 with recursive cte as
 (
   select id, cast(id as char(200)) as path, 0 as is_cycle
@@ -878,6 +884,7 @@ with recursive cte as
 select * from cte;
 
 --echo # It is simpler with DISTINCT:
+--sorted_result
 with recursive cte as
 (
   select id from nodes where id=1
@@ -892,6 +899,7 @@ drop table nodes, arcs;
 --echo # key to force hash field, to see if it switches to InnoDB.
 
 --echo # Not too long key (500 bytes in latin1)
+--sorted_result
 with recursive cte as
  (
   select 1 as n,
@@ -906,6 +914,7 @@ select sum(n) from cte;
 show status like 'Created_tmp_disk_tables';
 
 --echo # Too long key (>3000 bytes in latin1)
+--sorted_result
 with recursive cte as
  (
   select 1 as n,
