@@ -3048,6 +3048,17 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         return true; /* purecov: inspected */
     }
 
+    // Now that we have decided which index to use, it is time to filter away
+    // base columns for virtual generated columns from the read_set. This is
+    // so that if we are scanning on a covering index, code that uses the
+    // table's read set (join buffering, hash join, filesort; they all use it
+    // to figure out which records to pack into their buffers) do not try
+    // to pack the non-existent base columns. See
+    // filter_virtual_gcol_base_cols().
+    //
+    // This must be done before we set up join buffering.
+    filter_virtual_gcol_base_cols(qep_tab);
+
     if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE)
       qep_tab->init_join_cache(tab);
 

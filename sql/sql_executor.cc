@@ -5114,7 +5114,10 @@ DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
                                            ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_qep_tab(qep_tab),
-      m_examined_rows(examined_rows) {}
+      m_examined_rows(examined_rows),
+      m_original_read_set(table->read_set) {
+  add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
+}
 
 bool DynamicRangeIterator::Init() {
   // The range optimizer generally expects this to be set.
@@ -5178,9 +5181,11 @@ bool DynamicRangeIterator::Init() {
   if (qck) {
     m_iterator = NewIterator<IndexRangeScanIterator>(
         thd(), table(), qck, m_qep_tab, m_examined_rows);
+    table()->read_set = m_original_read_set;
   } else {
     m_iterator = NewIterator<TableScanIterator>(thd(), table(), m_qep_tab,
                                                 m_examined_rows);
+    table()->read_set = &m_table_scan_read_set;
   }
   return m_iterator->Init();
 }
@@ -5492,7 +5497,8 @@ AlternativeIterator::AlternativeIterator(
       m_source_iterator(std::move(source)),
       m_table_scan_iterator(
           NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows)),
-      m_table(table) {
+      m_table(table),
+      m_original_read_set(table->read_set) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
        ++key_part_idx) {
     bool *cond_guard = ref->cond_guards[key_part_idx];
@@ -5501,13 +5507,17 @@ AlternativeIterator::AlternativeIterator(
     }
   }
   DBUG_ASSERT(!m_applicable_cond_guards.empty());
+
+  add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
 }
 
 bool AlternativeIterator::Init() {
   m_iterator = m_source_iterator.get();
+  m_table->read_set = m_original_read_set;
   for (bool *cond_guard : m_applicable_cond_guards) {
     if (!*cond_guard) {
       m_iterator = m_table_scan_iterator.get();
+      m_table->read_set = &m_table_scan_read_set;
       break;
     }
   }

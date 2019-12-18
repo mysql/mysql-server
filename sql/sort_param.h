@@ -291,6 +291,13 @@ class Sort_param {
 
   /// Decide whether we are to use addon fields (sort rows instead of sorting
   /// row IDs or not). See using_addon_fields().
+  ///
+  /// Note that currently, this function must _not_ be called from the Filesort
+  /// constructor, as the read sets are not fully set up at that time
+  /// (see filter_virtual_gcol_base_cols(), which runs very late in
+  /// optimization). If we want to change this, we can probably have
+  /// make_sortkey() check the read set at runtime, at the cost of slightly less
+  /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort, TABLE *table,
                            bool sort_positions);
 

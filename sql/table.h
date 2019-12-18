@@ -1426,7 +1426,20 @@ struct TABLE {
   */
   MY_BITMAP def_fields_set_during_insert;
 
-  MY_BITMAP *read_set{nullptr}, *write_set{nullptr}; /* Active column sets */
+  /**
+    Set over all columns that the optimizer intends to read. This is used
+    for two purposes: First, to tell the storage engine which ones it needs
+    to populate. (In particular, NDB can save a lot of bandwidth here.)
+    Second, functions that need to store and restore rows, such as hash join
+    or filesort, need to know which ones to keep.
+
+    Set during resolving; every field that gets resolved, sets its own bit
+    in the read set. In some cases, we switch the read set around during
+    various phases; note that it is a pointer.
+   */
+  MY_BITMAP *read_set{nullptr};
+
+  MY_BITMAP *write_set{nullptr};
 
   /**
     A pointer to the bitmap of table fields (columns), which are explicitly set

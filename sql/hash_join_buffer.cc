@@ -54,35 +54,12 @@ Column::Column(Field *field) : field(field), field_type(field->real_type()) {}
 // query (determined by the read set of the table).
 Table::Table(QEP_TAB *qep_tab)
     : qep_tab(qep_tab), columns(PSI_NOT_INSTRUMENTED) {
-  MEM_ROOT tmp_mem_root;
-  mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> saved_read_sets(
-      &tmp_mem_root);
-
-  // When a table contains a virtual column, the base columns that the computed
-  // value is derived from is also included in the read_set regardless whether
-  // the user explicitly asked for them or not:
-  //
-  // CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1));
-  // SELECT col2 FROM t1; # col1 is also included in the read_set, since the
-  //                      # value of col2 depends on it.
-  //
-  // But when a virtual generated column is fetched from the storage engine
-  // using a covering index, the computed value of the virtual column is already
-  // available from the index. In this case, a row buffer does not need to (and
-  // should not) copy the value of the base column(s).
-  // filter_virtual_gcol_base_cols() will remove these base columns that are not
-  // needed from the read_set, and they will thus be excluded from the row
-  // buffer.
-  filter_virtual_gcol_base_cols(qep_tab, &tmp_mem_root, &saved_read_sets);
-
   const TABLE *table = qep_tab->table();
   for (uint i = 0; i < table->s->fields; ++i) {
     if (bitmap_is_set(table->read_set, i)) {
       columns.emplace_back(table->field[i]);
     }
   }
-
-  restore_virtual_gcol_base_cols(qep_tab, &saved_read_sets);
 
   // Cache the value of rowid_status, the value may be changed by other
   // iterators. See QEP_TAB::rowid_status for more details.

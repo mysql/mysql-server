@@ -526,9 +526,7 @@ static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
   }
 }
 
-void filter_virtual_gcol_base_cols(
-    const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
-    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
+void filter_virtual_gcol_base_cols(const QEP_TAB *qep_tab) {
   TABLE *table = qep_tab->table();
   if (table->vfield == nullptr) return;
 
@@ -547,43 +545,48 @@ void filter_virtual_gcol_base_cols(
       table->covering_keys.is_set(index);
   if (!(cov_index || qep_tab->dynamic_range())) return;
 
-  /*
-    Save of a copy of table->read_set in save_read_set so that it can be
-    restored. tmp_set cannot be used as recipient for this as it's already
-    used in other parts of JOIN_CACHE::init().
-  */
-  auto bitbuf =
-      mem_root->ArrayAlloc<my_bitmap_map>(table->s->column_bitmap_size);
-  auto save_read_set = new (mem_root) MY_BITMAP;
-  bitmap_init(save_read_set, bitbuf, table->s->fields);
-  bitmap_copy(save_read_set, table->read_set);
-  /*
-    restore_virtual_gcol_base_cols() will need old bitmap so we save a
-    reference to it.
-  */
-  saved_bitmaps->emplace(qep_tab, save_read_set);
-
   if (cov_index) {
+    /*
+      Save of a copy of table->read_set in save_read_set so that we can
+      intersect with it. tmp_set cannot be used as recipient for this as it's
+      already used in other parts of JOIN_CACHE::init().
+    */
+    my_bitmap_map
+        bitbuf[(bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)) + 1];
+    MY_BITMAP save_read_set;
+    bitmap_init(&save_read_set, bitbuf, table->s->fields);
+    bitmap_copy(&save_read_set, table->read_set);
+
     bitmap_clear_all(table->read_set);
     table->mark_columns_used_by_index_no_reset(index, table->read_set);
     if (table->s->primary_key != MAX_KEY)
       table->mark_columns_used_by_index_no_reset(table->s->primary_key,
                                                  table->read_set);
-    bitmap_intersect(table->read_set, save_read_set);
+    bitmap_intersect(table->read_set, &save_read_set);
   } else if (qep_tab->dynamic_range()) {
     filter_gcol_for_dynamic_range_scan(qep_tab);
   }
 }
 
-void restore_virtual_gcol_base_cols(
-    const QEP_TAB *qep_tab,
-    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
-  TABLE *table = qep_tab->table();
-  if (table->vfield == nullptr) return;
+void add_virtual_gcol_base_cols(TABLE *table, MEM_ROOT *mem_root,
+                                MY_BITMAP *completed_read_set) {
+  MY_BITMAP *original_read_set = table->read_set;
 
-  auto saved = saved_bitmaps->find(qep_tab);
-  if (saved != saved_bitmaps->end())
-    bitmap_copy(table->read_set, saved->second);
+  auto bitbuf =
+      mem_root->ArrayAlloc<my_bitmap_map>(table->s->column_bitmap_size);
+  bitmap_init(completed_read_set, bitbuf, table->s->fields);
+  bitmap_copy(completed_read_set, table->read_set);
+  table->read_set = completed_read_set;
+  for (Field **field_ptr = table->field; *field_ptr != nullptr; ++field_ptr) {
+    Field *field = *field_ptr;
+    if (bitmap_is_set(table->read_set, field->field_index)) {
+      if (field->is_virtual_gcol()) {
+        table->mark_gcol_in_maps(field);
+      }
+    }
+  }
+
+  table->read_set = original_read_set;
 }
 
 /*
@@ -629,10 +632,6 @@ int JOIN_CACHE_BNL::init() {
 
     tables = qep_tab - tab;
   }
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
-                                  &save_read_set_for_gcol);
-  }
 
   calc_record_fields();
 
@@ -641,10 +640,6 @@ int JOIN_CACHE_BNL::init() {
   create_flag_fields();
 
   create_remaining_fields(true);
-
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    restore_virtual_gcol_base_cols(tab, &save_read_set_for_gcol);
-  }
 
   set_constants();
 
@@ -718,10 +713,6 @@ int JOIN_CACHE_BKA::init() {
                              : &join->qep_tab[join->const_tables];
 
     tables = qep_tab - tab;
-  }
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
-                                  &save_read_set_for_gcol);
   }
   calc_record_fields();
 
@@ -821,9 +812,6 @@ int JOIN_CACHE_BKA::init() {
   use_emb_key = check_emb_key_usage();
 
   create_remaining_fields(false);
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    restore_virtual_gcol_base_cols(tab, &save_read_set_for_gcol);
-  }
   bitmap_clear_all(&qep_tab->table()->tmp_set);
 
   set_constants();

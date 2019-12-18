@@ -91,29 +91,37 @@ struct CACHE_FIELD {
   scan.
 
   Adjust table->read_set so that it only contains the columns that are needed in
-  the join operation and afterwards. A copy of the original read_set is stored
-  in "saved_bitmaps".
+  the join operation and afterwards.
 
   For a virtual generated column, all base columns are added to the read_set
   of the table. The storage engine will then copy all base column values so
   that the value of the GC can be calculated inside the executor.
   But when a virtual GC is fetched using a covering index, the actual GC
   value is fetched by the storage engine and the base column values are not
-  needed. Join buffering code must not try to copy them (in
-  create_remaining_fields()).
+  needed. Code that looks at the read sets (join buffering, hash join, filesort)
+  must not try to copy them.
   So, we eliminate from read_set those columns that are available from the
   covering index.
+
+  Note that some iterators (DynamicRangeIterator and AlternativeIterator)
+  may need to switch back to table scans. If so, they will adjust the table's
+  read set before reading; see add_virtual_gcol_base_cols().
 */
-void filter_virtual_gcol_base_cols(
-    const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
-    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+void filter_virtual_gcol_base_cols(const QEP_TAB *qep_tab);
 
 /**
-  Restore table->read_set to the value stored in "saved_bitmaps".
-*/
-void restore_virtual_gcol_base_cols(
-    const QEP_TAB *qep_tab,
-    mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps);
+  Create a read set that undoes the work of filter_virtual_gcol_base_cols();
+  ie., for every virtual generated column that is part of the given table's read
+  set, we also include the base tables. This is needed if we revert from
+  a covering index back to a table scan (which doesn't store the virtual
+  generated columns themselves, unlike the covering index). This happens in
+  DynamicRangeIterator and AlternativeIterator.
+
+  The new read set gets a new buffer, allocated on the given MEM_ROOT.
+  table->read_set is not changed.
+ */
+void add_virtual_gcol_base_cols(TABLE *table, MEM_ROOT *mem_root,
+                                MY_BITMAP *completed_read_set);
 
 /**
   JOIN_CACHE is the base class to support the implementations of both
@@ -142,12 +150,6 @@ class JOIN_CACHE : public QEP_operation {
   uint size_of_rec_len;
   /// Size of the offset of a field within a record in the cache.
   uint size_of_fld_ofs;
-
-  /**
-     In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
-     enough; this one is specific of generated column handling.
-  */
-  mem_root_unordered_map<const QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
 
  protected:
   /// @return the number of bytes used to store an offset value
@@ -539,7 +541,6 @@ class JOIN_CACHE : public QEP_operation {
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
       : QEP_operation(qep_tab_arg),
-        save_read_set_for_gcol(*THR_MALLOC),
         join(j),
         buff(nullptr),
         prev_cache(prev),

@@ -2238,22 +2238,6 @@ Addon_fields *Filesort::get_addon_fields(
   TABLE *const table = qep_tab->table();
   MY_BITMAP *read_set = table->read_set;
 
-  // Locate the effective index for the table to be sorted (if any)
-  const uint index = qep_tab->effective_index();
-  /*
-    filter_covering is true if access is via an index that is covering,
-    regardless of whether the access is by the covering index or by
-    index and base table, since the query has to be fulfilled with fields
-    from that index only.
-    This information is later used to filter out base columns for virtual
-    generated columns, since these are only needed when reading the table.
-    During sorting, trust that values for all generated columns have been
-    materialized, which means that base columns are no longer necessary.
-  */
-  const bool filter_covering = index != MAX_KEY &&
-                               table->covering_keys.is_set(index) &&
-                               table->index_contains_some_virtual_gcol(index);
-
   /*
     If there is a reference to a field in the query add it
     to the the set of appended fields.
@@ -2293,12 +2277,6 @@ Addon_fields *Filesort::get_addon_fields(
       *addon_fields_status = Addon_fields_status::row_contains_blob;
       return nullptr;
     }
-
-    // See explanation above filter_covering. Note that part_of_key is empty for
-    // a blob, so don't test it for blobs.
-    if (filter_covering && (field->flags & BLOB_FLAG) == 0 &&
-        !field->part_of_key.is_set(index))
-      continue;
 
     const uint field_length = field->max_packed_col_length();
     AddWithSaturate(field_length, &total_length);
@@ -2343,7 +2321,6 @@ Addon_fields *Filesort::get_addon_fields(
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
   for (pfield = ptabfield; (field = *pfield); pfield++) {
     if (!bitmap_is_set(read_set, field->field_index)) continue;
-    if (filter_covering && !field->part_of_key.is_set(index)) continue;
     DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
     addonf->field = field;
