@@ -2505,6 +2505,27 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
       i = substructure_end;
       continue;
+    } else if (qep_tab->do_loosescan() && qep_tab->match_tab != i &&
+               iterator != nullptr) {
+      // Multi-table loose scan is generally handled by other parts of the code
+      // (FindSubstructure() returns SEMIJOIN on the next table, since they will
+      // have first match set), but we need to make sure there is only one table
+      // on NestedLoopSemiJoinWithDuplicateRemovalIterator's left (outer) side.
+      // Since we're not at the first table, we would be collecting a join
+      // in “iterator” if we just kept on going, so we need to create a separate
+      // tree by recursing here.
+      unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+          first_idx, i, qep_tab->match_tab + 1, qep_tabs, thd, TOP_LEVEL,
+          pending_conditions, pending_invalidators, pending_join_conditions,
+          unhandled_duplicates, conditions_depend_on_outer_tables);
+
+      iterator = NewIterator<NestedLoopIterator>(
+          thd, move(iterator), move(subtree_iterator), JoinType::INNER,
+          /*pfs_batch_mode=*/false);
+      SetCostOnNestedLoopIterator(*thd->cost_model(), qep_tab->position(),
+                                  iterator.get());
+      i = qep_tab->match_tab + 1;
+      continue;
     }
 
     unique_ptr_destroy_only<RowIterator> table_iterator =

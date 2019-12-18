@@ -1011,7 +1011,8 @@ class RemoveDuplicatesIterator final : public RowIterator {
 
   In this case, the query tree without this iterator would ostensibly look like
 
-    -> Table scan on t1
+    -> Nested loop join
+       -> Table scan on t1
        -> Remove duplicates on t2_idx
           -> Nested loop semijoin
              -> Index scan on t2 using t2_idx
