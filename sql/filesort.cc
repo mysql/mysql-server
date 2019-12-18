@@ -142,14 +142,13 @@ struct Mem_compare_queue_key {
 /* functions defined in this file */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
-    IO_CACHE *buffer_file, IO_CACHE *chunk_file,
+    THD *thd, Sort_param *param, Filesort_info *fs_info, IO_CACHE *buffer_file,
+    IO_CACHE *chunk_file,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
     RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
     size_t *longest_addons);
 static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
                       IO_CACHE *buffer_file, IO_CACHE *tempfile);
-static void register_used_fields(Sort_param *param);
 static int merge_index(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array, IO_CACHE *tempfile,
                        IO_CACHE *outfile);
@@ -514,12 +513,13 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
   param->sort_form = table;
   size_t longest_key, longest_addons;
+  longest_addons = 0;
 
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found =
-        read_all_rows(thd, param, qep_tab, fs_info, &chunk_file, &tempfile,
+        read_all_rows(thd, param, fs_info, &chunk_file, &tempfile,
                       param->using_pq ? &pq : nullptr, source_iterator,
                       found_rows, &longest_key, &longest_addons);
     if (num_rows_found == HA_POS_ERROR) goto err;
@@ -905,8 +905,6 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
 
   @param thd               Thread handle
   @param param             Sorting parameter
-  @param qep_tab           Parameters for which data to read (see
-                           source_iterator).
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
@@ -961,8 +959,8 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
 */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
-    IO_CACHE *chunk_file, IO_CACHE *tempfile,
+    THD *thd, Sort_param *param, Filesort_info *fs_info, IO_CACHE *chunk_file,
+    IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
     RowIterator *source_iterator, ha_rows *found_rows, size_t *longest_key,
     size_t *longest_addons) {
@@ -984,51 +982,24 @@ static ha_rows read_all_rows(
   size_t longest_addon_so_far = 0;
   uchar *ref_pos = &file->ref[0];
 
-  // Now modify the read bitmaps, so that we are sure to get the rows
-  // that we need for the sort (ie., the fields to sort on) as well as
-  // the actual fields we want to return. We need to do this after Init()
-  // has run, as Init() may want to set its own bitmaps and we don't want
-  // it to overwrite ours. This is fairly ugly, though; we could end up
-  // setting fields that the access method doesn't actually need (e.g.
-  // if we set a condition that the access method can satisfy using an
-  // index only), and in theory also clear fields it _would_ need, although
-  // the latter should never happen in practice. A better solution would
-  // involve communicating which extra fields we need down to the
-  // RowIterator, instead of just overwriting the read set.
-
-  /* Remember original bitmaps */
-  MY_BITMAP *save_read_set = sort_form->read_set;
-  MY_BITMAP *save_write_set = sort_form->write_set;
-  /*
-    Set up temporary column read map for columns used by sort and verify
-    it's not used
-  */
-  DBUG_ASSERT(sort_form->tmp_set.n_bits == 0 ||
-              bitmap_is_clear_all(&sort_form->tmp_set));
-
-  // Temporary set for register_used_fields and mark_field_in_map()
-  sort_form->read_set = &sort_form->tmp_set;
-  // Include fields used for sorting in the read_set.
-  register_used_fields(param);
-
-  // Include fields used by conditions in the read_set.
-  if (qep_tab->condition()) {
-    Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->condition()->walk(&Item::mark_field_in_map,
-                               enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
-  }
-  if (qep_tab->having) {
-    Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->having->walk(&Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX,
-                          (uchar *)&mf);
-  }
-  // Include fields used by pushed conditions in the read_set.
-  if (qep_tab->table()->file->pushed_idx_cond) {
-    Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->table()->file->pushed_idx_cond->walk(
-        &Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
-  }
-  sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
+  // NOTE(sgunders): When we sort row IDs, our read sets are a bit larger
+  // than required by read_all_rows(); in particular, columns that we
+  // don't sort on will still be read. (In particular, this makes us read
+  // and allocate blobs, where present.) However, with sorting row IDs being
+  // a rather marginal case, it's not worth it for us to try to compute new
+  // read sets to have different ones in the first phase of such sorts.
+  //
+  // This isn't the only case of too large read sets. For a query such as
+  // SELECT a FROM t1 WHERE b ORDER BY c, all three fields a,b,c will be in
+  // the read set; in particular, find_order_in_list() will include any
+  // columns used in ORDER BY in the read sets, as part of resolving them.
+  // This is required for correct operation. However, anything that is part
+  // of the read set will by extension be included as addon fields,
+  // unless we sort row IDs for some reason -- even c, which is part of
+  // the key. To remedy this, one would probably need a system
+  // of pushing read sets through the iterator tree (except it should
+  // ideally be done before optimization, where we set them up), so that
+  // each iterator can use the right read set for its time.
 
   DEBUG_SYNC(thd, "after_index_merge_phase1");
   ha_rows num_total_records = 0, num_records_this_chunk = 0;
@@ -1038,7 +1009,7 @@ static ha_rows read_all_rows(
     fs_info->clear_peak_memory_used();
   }
 
-  source_iterator->StartPSIBatchMode();
+  PFSBatchMode batch_mode(source_iterator);
   for (;;) {
     DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
     if ((error = source_iterator->Read())) {
@@ -1052,8 +1023,7 @@ static ha_rows read_all_rows(
 
     if (thd->killed) {
       DBUG_PRINT("info", ("Sort killed by user"));
-      num_total_records = HA_POS_ERROR;
-      goto cleanup;
+      return HA_POS_ERROR;
     }
 
     ++(*found_rows);
@@ -1069,8 +1039,7 @@ static ha_rows read_all_rows(
         if (num_records_this_chunk > 0) {
           if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
                          tempfile)) {
-            num_total_records = HA_POS_ERROR;
-            goto cleanup;
+            return HA_POS_ERROR;
           }
           num_records_this_chunk = 0;
           num_written_chunks++;
@@ -1085,8 +1054,7 @@ static ha_rows read_all_rows(
         if (out_of_mem) {
           my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
           LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
-          num_total_records = HA_POS_ERROR;
-          goto cleanup;
+          return HA_POS_ERROR;
         }
       }
 
@@ -1098,31 +1066,19 @@ static ha_rows read_all_rows(
   }
 
   if (thd->is_error()) {
-    num_total_records = HA_POS_ERROR;
-    goto cleanup;
+    return HA_POS_ERROR;
   }
-
-  /* Signal we should use orignal column read and write maps */
-  sort_form->column_bitmaps_set(save_read_set, save_write_set);
 
   DBUG_PRINT("test",
              ("error: %d  num_written_chunks: %d", error, num_written_chunks));
   if (error == 1) {
-    num_total_records = HA_POS_ERROR;
-    goto cleanup;
+    return HA_POS_ERROR;
   }
   if (num_written_chunks != 0 && num_records_this_chunk != 0 &&
       write_keys(param, fs_info, num_records_this_chunk, chunk_file,
                  tempfile)) {
-    num_total_records = HA_POS_ERROR;  // purecov: inspected
-    goto cleanup;
+    return HA_POS_ERROR;  // purecov: inspected
   }
-
-cleanup:
-  source_iterator->EndPSIBatchModeIfStarted();
-
-  // Clear tmp_set so it can be used elsewhere
-  bitmap_clear_all(&sort_form->tmp_set);
 
   DBUG_PRINT("info", ("read_all_rows return %lu", (ulong)num_total_records));
 
@@ -1652,43 +1608,6 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     to += ref_length;
   }
   return to - orig_to;
-}
-
-/*
-  Register fields used by sorting in the sorted table's read set
-*/
-
-static void register_used_fields(Sort_param *param) {
-  Bounds_checked_array<st_sort_field>::const_iterator sort_field;
-  TABLE *table = param->sort_form;
-  MY_BITMAP *bitmap = table->read_set;
-  Mark_field mf(table, MARK_COLUMNS_TEMP);
-
-  for (sort_field = param->local_sortorder.begin();
-       sort_field != param->local_sortorder.end(); sort_field++) {
-    const Field *field;
-    if ((field = sort_field->field)) {
-      if (field->table == table) {
-        bitmap_set_bit(bitmap, field->field_index);
-        if (field->is_virtual_gcol()) table->mark_gcol_in_maps(field);
-      }
-    } else {  // Item
-      sort_field->item->walk(&Item::mark_field_in_map,
-                             enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
-    }
-  }
-
-  if (param->using_addon_fields()) {
-    Addon_fields_array::const_iterator addonf = param->addon_fields->begin();
-    for (; addonf != param->addon_fields->end(); ++addonf) {
-      Field *field = addonf->field;
-      bitmap_set_bit(bitmap, field->field_index);
-      if (field->is_virtual_gcol()) table->mark_gcol_in_maps(field);
-    }
-  } else {
-    /* Save filepos last */
-    table->prepare_for_position();
-  }
 }
 
 /**
