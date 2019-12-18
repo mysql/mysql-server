@@ -7018,6 +7018,31 @@ static bool append_double_or_int_value(const char *value, size_t value_length,
   return false;
 }
 
+static bool append_hash_for_string_value(Item *comparand,
+                                         const CHARSET_INFO *character_set,
+                                         String *join_key_buffer) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
+  String *str = comparand->val_str(&str_buffer);
+
+  if (comparand->null_value) {
+    return true;
+  }
+
+  // nr2 isn't used; we only need one, and some collations don't even
+  // update it. The seeds are 1 and 4 by convention.
+  uint64 nr1 = 1, nr2 = 4;
+  character_set->coll->hash_sort(character_set,
+                                 pointer_cast<const uchar *>(str->ptr()),
+                                 str->length(), &nr1, &nr2);
+
+  join_key_buffer->reserve(sizeof(nr1));
+  uchar *dptr =
+      pointer_cast<uchar *>(join_key_buffer->ptr()) + join_key_buffer->length();
+  memcpy(dptr, &nr1, sizeof(nr1));
+  join_key_buffer->length(join_key_buffer->length() + sizeof(nr1));
+  return false;
+}
+
 // Append a decimal value to join_key_buffer, extracted from "comparand".
 static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
   my_decimal decimal_buffer;
@@ -7076,6 +7101,7 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
                                         const Arg_comparator *comparator,
                                         bool is_left_argument,
                                         size_t max_char_length,
+                                        bool store_full_sort_key,
                                         String *join_key_buffer) {
   if (comparator->use_custom_value_extractors()) {
     // The Arg_comparator has decided that the values should be extracted using
@@ -7096,10 +7122,15 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
 
   switch (comparator->get_compare_type()) {
     case STRING_RESULT: {
-      return append_string_value(
-          comparand, comparator->cmp_collation.collation, max_char_length,
-          (thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) > 0,
-          join_key_buffer);
+      if (store_full_sort_key) {
+        return append_string_value(
+            comparand, comparator->cmp_collation.collation, max_char_length,
+            (thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) > 0,
+            join_key_buffer);
+      } else {
+        return append_hash_for_string_value(
+            comparand, comparator->cmp_collation.collation, join_key_buffer);
+      }
     }
     case REAL_RESULT: {
       const double value = comparand->val_real();
@@ -7133,12 +7164,14 @@ bool Item_func_eq::append_join_key_for_hash_join(
     DBUG_ASSERT(!join_condition.right_uses_any_table(tables));
     return extract_value_for_hash_join(
         thd, join_condition.left_extractor(), &cmp, true,
-        join_condition.max_character_length(), join_key_buffer);
+        join_condition.max_character_length(),
+        join_condition.store_full_sort_key(), join_key_buffer);
   } else if (join_condition.right_uses_any_table(tables)) {
     DBUG_ASSERT(!join_condition.left_uses_any_table(tables));
     return extract_value_for_hash_join(
         thd, join_condition.right_extractor(), &cmp, false,
-        join_condition.max_character_length(), join_key_buffer);
+        join_condition.max_character_length(),
+        join_condition.store_full_sort_key(), join_key_buffer);
   }
 
   DBUG_ASSERT(false);
@@ -7183,7 +7216,21 @@ HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
       m_left_used_tables(join_condition->arguments()[0]->used_tables()),
       m_right_used_tables(join_condition->arguments()[1]->used_tables()),
       m_max_character_length(max(m_left_extractor->max_char_length(),
-                                 m_right_extractor->max_char_length())) {}
+                                 m_right_extractor->max_char_length())) {
+  m_store_full_sort_key = true;
+
+  if (join_condition->compare_type() == STRING_RESULT) {
+    const CHARSET_INFO *cs = join_condition->compare_collation();
+    if (cs->coll->strnxfrmlen(cs, cs->mbmaxlen * m_max_character_length) >
+        1024) {
+      // This field can potentially get very long keys; it is better to
+      // just store the hash, and then re-check the condition afterwards.
+      // The value of 1024 is fairly arbitrary, and may be changed in the
+      // future.
+      m_store_full_sort_key = false;
+    }
+  }
+}
 
 longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
                                                      bool left_argument,

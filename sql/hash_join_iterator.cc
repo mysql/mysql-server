@@ -53,25 +53,12 @@
 
 constexpr size_t HashJoinIterator::kMaxChunks;
 
-// Make a hash join condition for each equality comparison. This may entail
-// allocating type cast nodes; see the comments on HashJoinCondition for more
-// details.
-static std::vector<HashJoinCondition> ItemToHashJoinConditions(
-    const std::vector<Item_func_eq *> &join_conditions, MEM_ROOT *mem_root) {
-  std::vector<HashJoinCondition> result;
-  for (Item_func_eq *item_func_eq : join_conditions) {
-    result.emplace_back(item_func_eq, mem_root);
-  }
-
-  return result;
-}
-
 HashJoinIterator::HashJoinIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
     qep_tab_map build_input_tables,
     unique_ptr_destroy_only<RowIterator> probe_input,
     qep_tab_map probe_input_tables, size_t max_memory_available,
-    const std::vector<Item_func_eq *> &join_conditions,
+    const std::vector<HashJoinCondition> &join_conditions,
     bool allow_spill_to_disk, JoinType join_type, const JOIN *join,
     const std::vector<Item *> &extra_conditions)
     : RowIterator(thd),
@@ -80,20 +67,14 @@ HashJoinIterator::HashJoinIterator(
       m_probe_input(move(probe_input)),
       m_probe_input_tables(join, probe_input_tables),
       m_build_input_tables(join, build_input_tables),
-      m_row_buffer(m_build_input_tables,
-                   ItemToHashJoinConditions(join_conditions, thd->mem_root),
-                   max_memory_available),
-      m_join_conditions(PSI_NOT_INSTRUMENTED),
+      m_row_buffer(m_build_input_tables, join_conditions, max_memory_available),
+      m_join_conditions(PSI_NOT_INSTRUMENTED, join_conditions.data(),
+                        join_conditions.data() + join_conditions.size()),
       m_chunk_files_on_disk(thd->mem_root, kMaxChunks),
       m_allow_spill_to_disk(allow_spill_to_disk),
       m_join_type(join_type) {
   DBUG_ASSERT(m_build_input != nullptr);
   DBUG_ASSERT(m_probe_input != nullptr);
-
-  for (Item_func_eq *join_condition : join_conditions) {
-    DBUG_ASSERT(join_condition->arg_count == 2);
-    m_join_conditions.emplace_back(join_condition, thd->mem_root);
-  }
 
   // If there are multiple extra conditions, merge them into a single AND-ed
   // condition, so evaluation of the item is a bit easier.
@@ -1149,7 +1130,13 @@ std::vector<std::string> HashJoinIterator::DebugString() const {
           m_join_conditions[0].join_condition()) {
         ret.push_back(',');
       }
-      ret.append(" " + ItemToString(join_condition.join_condition()));
+      if (!join_condition.store_full_sort_key()) {
+        ret.append(" (<hash>(" + ItemToString(join_condition.left_extractor()) +
+                   ")=<hash>(" +
+                   ItemToString(join_condition.right_extractor()) + "))");
+      } else {
+        ret.append(" " + ItemToString(join_condition.join_condition()));
+      }
     }
   }
 

@@ -287,7 +287,7 @@ class HashJoinIterator final : public RowIterator {
                    qep_tab_map build_input_tables,
                    unique_ptr_destroy_only<RowIterator> probe_input,
                    qep_tab_map probe_input_tables, size_t max_memory_available,
-                   const std::vector<Item_func_eq *> &join_conditions,
+                   const std::vector<HashJoinCondition> &join_conditions,
                    bool allow_spill_to_disk, JoinType join_type,
                    const JOIN *join,
                    const std::vector<Item *> &extra_conditions);

@@ -1874,7 +1874,7 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
 
   // Move out equi-join conditions and non-equi-join conditions, so we can
   // attach them as join condition and extra conditions in hash join.
-  vector<Item_func_eq *> hash_join_conditions;
+  vector<HashJoinCondition> hash_join_conditions;
   vector<Item *> hash_join_extra_conditions;
 
   for (Item *outer_item : *join_conditions) {
@@ -1904,12 +1904,24 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
         if (func_item->contains_only_equi_join_condition() &&
             !ItemRefersToOneSideOnly(func_item, left_table_map,
                                      right_table_map)) {
-          hash_join_conditions.push_back(down_cast<Item_func_eq *>(func_item));
+          // Make a hash join condition for this equality comparison.
+          // This may entail allocating type cast nodes; see the comments
+          // on HashJoinCondition for more details.
+          hash_join_conditions.emplace_back(
+              down_cast<Item_func_eq *>(func_item), thd->mem_root);
           continue;
         }
       }
       // It was not.
       hash_join_extra_conditions.push_back(inner_item);
+    }
+  }
+
+  // For any conditions for which HashJoinCondition decided only to store the
+  // hash in the key, we need to re-check.
+  for (const HashJoinCondition &cond : hash_join_conditions) {
+    if (!cond.store_full_sort_key()) {
+      hash_join_extra_conditions.push_back(cond.join_condition());
     }
   }
 

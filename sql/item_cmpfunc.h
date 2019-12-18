@@ -99,6 +99,8 @@ class HashJoinCondition {
 
   size_t max_character_length() const { return m_max_character_length; }
 
+  bool store_full_sort_key() const { return m_store_full_sort_key; }
+
  private:
   Item_func_eq *m_join_condition;
   Item *m_left_extractor;
@@ -110,11 +112,19 @@ class HashJoinCondition {
   const table_map m_left_used_tables;
   const table_map m_right_used_tables;
 
-  // The maximum number of characters among the two arguments. This is only
-  // relevant when we have a PAD SPACE collation and the SQL mode
+  // The maximum number of characters among the two arguments. This is
+  // especially relevant when we have a PAD SPACE collation and the SQL mode
   // PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
   // argument to the same length as the longest argument.
   const size_t m_max_character_length{0};
+
+  // Normally, we store the full sort key for the condition as key in the hash
+  // table. However, if the string is very long, or we have a PAD SPACE
+  // collation, this could result in huge sort keys. If we detect that this
+  // could happen in the worst case, we store just a hash in the key instead (so
+  // we hash the hash). If so, we have to do a recheck afterwards, in order to
+  // guard against hash collisions.
+  bool m_store_full_sort_key;
 };
 
 class Arg_comparator {
@@ -628,6 +638,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   const CHARSET_INFO *compare_collation() const override {
     return cmp.cmp_collation.collation;
   }
+  Item_result compare_type() const { return cmp.get_compare_type(); }
   void apply_is_true() override { abort_on_null = true; }
   /// Treat UNKNOWN result like FALSE because callers see no difference
   bool ignore_unknown() const { return abort_on_null; }

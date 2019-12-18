@@ -236,10 +236,11 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
 EXPLAIN
--> Inner hash join (t2.col1 = t1.col1)  (cost=0.70 rows=1)
-    -> Table scan on t2  (cost=0.35 rows=1)
-    -> Hash
-        -> Table scan on t1  (cost=0.35 rows=1)
+-> Filter: (t2.col1 = t1.col1)  (cost=0.70 rows=1)
+    -> Inner hash join (<hash>(t2.col1)=<hash>(t1.col1))  (cost=0.70 rows=1)
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Hash
+            -> Table scan on t1  (cost=0.35 rows=1)
 
 SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
 col1	col1
@@ -910,10 +911,11 @@ SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
 EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
 -> Aggregate: count(0)
-    -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=26214)
-        -> Table scan on t2  (cost=*** rows=512)
-        -> Hash
-            -> Table scan on t1  (cost=*** rows=512)
+    -> Filter: (t2.col1 = t1.col1)  (cost=*** rows=26214)
+        -> Inner hash join (<hash>(t2.col1)=<hash>(t1.col1))  (cost=*** rows=26214)
+            -> Table scan on t2  (cost=*** rows=512)
+            -> Hash
+                -> Table scan on t1  (cost=*** rows=512)
 
 SET join_buffer_size = 1024;
 SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
@@ -2849,10 +2851,11 @@ SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
 -> Limit: 1000 row(s)
-    -> Inner hash join (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1907.45 rows=16384)
-        -> Table scan on t2  (cost=2.10 rows=128)
-        -> Hash
-            -> Table scan on t1  (cost=13.05 rows=128)
+    -> Filter: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1907.45 rows=16384)
+        -> Inner hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4)))  (cost=1907.45 rows=16384)
+            -> Table scan on t2  (cost=2.10 rows=128)
+            -> Hash
+                -> Table scan on t1  (cost=13.05 rows=128)
 
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 SET join_buffer_size = DEFAULT;
@@ -3358,7 +3361,7 @@ SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
 -> Limit: 1000 row(s)
-    -> Left hash join (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1896.50 rows=16384)
+    -> Left hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4))), extra conditions: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1896.50 rows=16384)
         -> Table scan on t1  (cost=13.05 rows=128)
         -> Hash
             -> Table scan on t2  (cost=2.10 rows=128)
@@ -3585,3 +3588,36 @@ EXPLAIN
         -> Table scan on t2  (cost=0.15 rows=5)
 
 DROP TABLE t1, t2;
+#
+# Bug #30664671: HASH JOINS : CRASH WITH COMPARING DIFFERENT CHARSET
+# Bug #30664831: SEVERE PERFORMANCE REGRESSION JOINING ON MEDIUMTEXT COLUMNS!
+#
+CREATE TABLE t1 (
+a LONGTEXT COLLATE utf32_sinhala_ci
+);
+INSERT INTO t1 (a) VALUES ('abc');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 JOIN t1 AS t2 ON t1.a=t2.a;
+EXPLAIN
+-> Filter: (t2.a = t1.a)  (cost=0.72 rows=1)
+    -> Inner hash join (<hash>(t2.a)=<hash>(t1.a))  (cost=0.72 rows=1)
+        -> Table scan on t2  (cost=0.37 rows=1)
+        -> Hash
+            -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT 1 FROM t1 JOIN t1 AS t2 ON t1.a=t2.a;
+1
+1
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
+EXPLAIN
+-> Left hash join (<hash>(t2.a)=<hash>(t1.a)), extra conditions: (t2.a = t1.a)  (cost=0.73 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t2  (cost=0.37 rows=1)
+
+SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
+1
+1
+DROP TABLE t1;
