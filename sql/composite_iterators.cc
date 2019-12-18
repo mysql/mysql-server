@@ -612,10 +612,14 @@ int NestedLoopIterator::Read() {
       if (m_pfs_batch_mode) {
         m_source_inner->StartPSIBatchMode();
       }
+
+      // Init() could read the NULL row flags (e.g., when building a hash
+      // table), so unset them before instead of after.
+      m_source_inner->SetNullRowFlag(false);
+
       if (m_source_inner->Init()) {
         return 1;
       }
-      m_source_inner->SetNullRowFlag(false);
       m_state = READING_FIRST_INNER_ROW;
     }
     DBUG_ASSERT(m_state == READING_INNER_ROWS ||

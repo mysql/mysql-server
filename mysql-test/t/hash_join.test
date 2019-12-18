@@ -2056,3 +2056,49 @@ eval $query;
 SET optimizer_switch=DEFAULT;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #30665042: WL#13476: RESULTSET DIFFERENT NUMBER OF ROWS
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER,
+  f1 varchar(1),
+  KEY i1 (pk)
+);
+
+INSERT INTO t1 VALUES (2,'x');
+INSERT INTO t1 VALUES (3,'x');
+INSERT INTO t1 VALUES (4,'x');
+INSERT INTO t1 VALUES (5,'x');
+
+ANALYZE TABLE t1;
+
+# This test is more complicated than what we are trying to actually test
+# (in particular, BKA has nothing to do with it), but it seems to be difficult
+# to get the join optimizer to set up the required nested two hash joins
+# in a simpler way.
+#
+# The basic idea we're trying to show is that when there is an extra condition
+# that involves inner_t3, the NULL row flag of inner_t1 must also be set to
+# false, since the access to inner_t3.pk goes through a view ref (even though
+# the derived table is merged) that checks NULLity of the derived table by
+# checking inner_t1.
+let $query =
+  SELECT *
+    FROM t1 AS table1
+    LEFT JOIN (
+      SELECT inner_t3.* FROM
+        t1 AS inner_t1
+        JOIN t1 AS inner_t2 ON inner_t1.pk = inner_t2.pk
+        JOIN t1 AS inner_t3 ON inner_t1.f1 = inner_t2.f1
+    ) AS table2 ON NOT EXISTS (
+      SELECT * FROM t1 WHERE table2.pk >= 1 OR table1.f1 = 'G'
+    );
+
+SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1;

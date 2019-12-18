@@ -3489,3 +3489,64 @@ pk	col_datetime	pk	col_datetime	col_int_key	col_datetime
 9	1988-02-06 01:32:15	9	1988-02-06 01:32:15	9	2025-01-07 03:12:24
 SET optimizer_switch=DEFAULT;
 DROP TABLE t1, t2;
+#
+# Bug #30665042: WL#13476: RESULTSET DIFFERENT NUMBER OF ROWS
+#
+CREATE TABLE t1 (
+pk INTEGER,
+f1 varchar(1),
+KEY i1 (pk)
+);
+INSERT INTO t1 VALUES (2,'x');
+INSERT INTO t1 VALUES (3,'x');
+INSERT INTO t1 VALUES (4,'x');
+INSERT INTO t1 VALUES (5,'x');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
+EXPLAIN FORMAT=tree SELECT *
+FROM t1 AS table1
+LEFT JOIN (
+SELECT inner_t3.* FROM
+t1 AS inner_t1
+JOIN t1 AS inner_t2 ON inner_t1.pk = inner_t2.pk
+JOIN t1 AS inner_t3 ON inner_t1.f1 = inner_t2.f1
+) AS table2 ON NOT EXISTS (
+SELECT * FROM t1 WHERE table2.pk >= 1 OR table1.f1 = 'G'
+    );
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table1  (cost=0.65 rows=4)
+    -> Batched key access inner join
+        -> Batch input rows
+            -> Inner hash join (no condition)  (cost=8.66 rows=64)
+                -> Table scan on inner_t1  (cost=0.04 rows=4)
+                -> Hash
+                    -> Hash antijoin (no condition), extra conditions: ((inner_t3.pk >= 1) or (table1.f1 = 'G'))  (cost=2.01 rows=16)
+                        -> Table scan on inner_t3  (cost=0.16 rows=4)
+                        -> Hash
+                            -> Index scan on t1 using i1  (cost=0.16 rows=4)
+        -> Filter: (inner_t2.f1 = inner_t1.f1)
+            -> Multi-range index lookup on inner_t2 using i1 (pk=inner_t1.pk)
+
+Warnings:
+Note	1276	Field or reference 'table2.pk' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.table1.f1' of SELECT #3 was resolved in SELECT #1
+SELECT *
+FROM t1 AS table1
+LEFT JOIN (
+SELECT inner_t3.* FROM
+t1 AS inner_t1
+JOIN t1 AS inner_t2 ON inner_t1.pk = inner_t2.pk
+JOIN t1 AS inner_t3 ON inner_t1.f1 = inner_t2.f1
+) AS table2 ON NOT EXISTS (
+SELECT * FROM t1 WHERE table2.pk >= 1 OR table1.f1 = 'G'
+    );
+pk	f1	pk	f1
+2	x	NULL	NULL
+3	x	NULL	NULL
+4	x	NULL	NULL
+5	x	NULL	NULL
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1;
