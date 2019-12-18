@@ -98,13 +98,13 @@ explain select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t1
 
 --echo subqueries within outer joins go into ON expr.
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join (t2 a, t2 b) on ( a.a= t1.a and b.a in (select pk from t10));
 
 # TODO: psergey: check if case conversions like those are ok (it broke on  windows)
 --echo t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
---replace_result a A b B
+--replace_regex /\ba\b/A/ /\bb\b/B/
 explain
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t10));
 
