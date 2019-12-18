@@ -2305,11 +2305,54 @@ static bool UseHashJoin(QEP_TAB *qep_tab) {
              JOIN_CACHE::ALG_BKA;
 }
 
-static bool UseBKA(QEP_TAB *qep_tab) {
+static bool QepTabUsesBKA(QEP_TAB *qep_tab) {
   return qep_tab->op != nullptr &&
          qep_tab->op->type() == QEP_operation::OT_CACHE &&
          down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() ==
              JOIN_CACHE::ALG_BKA;
+}
+
+static bool UseBKA(QEP_TAB *qep_tab) {
+  if (!QepTabUsesBKA(qep_tab)) {
+    // Not BKA.
+    return false;
+  }
+
+  // Similar to QueryMixesOuterBKAAndBNL(), if we have an outer join BKA
+  // that contains multiple tables on the right side, we will not have a
+  // left-deep tree, which we cannot handle at this point.
+  if (qep_tab->last_inner() != NO_PLAN_IDX &&
+      qep_tab->last_inner() != qep_tab->idx()) {
+    // More than one table on the right side of an outer join, so not
+    // left-deep.
+    return false;
+  }
+  return true;
+}
+
+// Having a non-BKA join on the right side of an outer BKA join causes problems
+// for the matched-row signaling from MultiRangeRowIterator to BKAIterator;
+// rows could be found just fine, but not go through the join filter (and thus
+// not be marked as matched in BKAIterator), creating extra NULLs.
+//
+// The only way this can happen is when we get a hash join on the inside of an
+// outer BKA join (otherwise, the join tree will be left-deep). If this
+// happens, we simply turn off both BKA and hash join handling for the query;
+// it is a very rare situation, and the slowdown should be acceptable.
+// (Only turning off BKA helps somewhat, but MultiRangeRowIterator also cannot
+// be on the inside of a hash join, so we need to turn off BNL as well.)
+static bool QueryMixesOuterBKAAndBNL(JOIN *join) {
+  bool has_outer_bka = false;
+  bool has_bnl = false;
+  for (uint i = join->const_tables; i < join->primary_tables; ++i) {
+    QEP_TAB *qep_tab = &join->qep_tab[i];
+    if (UseHashJoin(qep_tab)) {
+      has_bnl = true;
+    } else if (QepTabUsesBKA(qep_tab) && qep_tab->last_inner() != NO_PLAN_IDX) {
+      has_outer_bka = true;
+    }
+  }
+  return has_bnl && has_outer_bka;
 }
 
 static bool InsideOuterOrAntiJoin(QEP_TAB *qep_tab) {
@@ -2447,13 +2490,24 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       vector<PendingCondition> subtree_pending_join_conditions;
       if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
-        // Send in "subtree_pending_join_conditions", so that any semijoin
-        // conditions are moved up to this level, where they will be attached as
-        // conditions to the hash join iterator.
-        subtree_iterator = ConnectJoins(
-            first_idx, i, substructure_end, qep_tabs, thd,
-            DIRECTLY_UNDER_SEMIJOIN, pending_conditions, pending_invalidators,
-            &subtree_pending_join_conditions, unhandled_duplicates);
+        if (UseHashJoin(qep_tab) &&
+            !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
+          // We must move any join conditions inside the subtructure up to this
+          // level so that they can be attached to the hash join iterator.
+          subtree_iterator = ConnectJoins(
+              first_idx, i, substructure_end, qep_tabs, thd,
+              DIRECTLY_UNDER_SEMIJOIN, &subtree_pending_conditions,
+              &subtree_pending_invalidators, &subtree_pending_join_conditions,
+              unhandled_duplicates);
+        } else {
+          // Send in "subtree_pending_join_conditions", so that any semijoin
+          // conditions are moved up to this level, where they will be attached
+          // as conditions to the hash join iterator.
+          subtree_iterator = ConnectJoins(
+              first_idx, i, substructure_end, qep_tabs, thd,
+              DIRECTLY_UNDER_SEMIJOIN, pending_conditions, pending_invalidators,
+              &subtree_pending_join_conditions, unhandled_duplicates);
+        }
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
@@ -2595,7 +2649,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
-      } else if (UseHashJoin(qep_tab) || UseBKA(qep_tab)) {
+      } else if ((UseHashJoin(qep_tab) || UseBKA(qep_tab)) &&
+                 !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
         qep_tab_map left_tables = TablesBetween(first_idx, i);
         qep_tab_map right_tables = TablesBetween(i, substructure_end);
 
@@ -2692,7 +2747,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     // during create_iterators that we actually can replace the BNL with a hash
     // join, so we don't bother checking any further that we actually can
     // replace the BNL with a hash join.
-    const bool replace_with_hash_join = UseHashJoin(qep_tab);
+    const bool replace_with_hash_join =
+        UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
 
     vector<Item *> predicates_below_join;
     vector<Item *> join_conditions;
@@ -2710,7 +2766,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     qep_tab_map left_tables = 0;
 
     // We can always do BKA. The setup is very similar to hash join.
-    const bool is_bka = UseBKA(qep_tab);
+    const bool is_bka =
+        UseBKA(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
 
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
@@ -2726,8 +2783,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
       if (is_bka) {
         table_iterator = NewIterator<MultiRangeRowIterator>(
-            thd, qep_tab->join(), left_tables, qep_tab->cache_idx_cond,
-            qep_tab->table(), qep_tab->copy_current_rowid, &qep_tab->ref(),
+            thd, qep_tab->cache_idx_cond, qep_tab->table(),
+            qep_tab->copy_current_rowid, &qep_tab->ref(),
             qep_tab->position()->table->join_cache_flags);
         qep_tab->mrr_iterator =
             down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
@@ -2953,16 +3010,14 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   };
   vector<MaterializeOperation> final_materializations;
 
-  // There are only three specific cases where we need to use the pre-iterator
+  // There are only two specific cases where we need to use the pre-iterator
   // executor:
   //
   //   1. We have a child query expression that needs to run in it.
   //   2. We have BNL that we cannot rewrite to hash join (non-equi-join
   //      condition).
-  //   3. We have join buffering (BNL/BKA) that is not an inner join or semijoin
-  //      (outer join or antijoin).
   //
-  // If either #1, #2 or #3 is detected, revert to the pre-iterator executor.
+  // If either #1 or #2 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
     QEP_TAB *qep_tab = &this->qep_tab[table_idx];
     if (qep_tab->materialize_table == join_materialize_derived) {
@@ -2983,11 +3038,6 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
         if (HashJoinDisabledByHint(thd, qep_tab[1].table_ref) &&
             join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
-          return nullptr;
-        }
-        if (join_cache->cache_type() == JOIN_CACHE::ALG_BKA &&
-            qep_tab[1].last_inner() != NO_PLAN_IDX) {
-          // Outer join. Not supported for BKA yet!
           return nullptr;
         }
       } else {

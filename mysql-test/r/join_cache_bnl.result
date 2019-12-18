@@ -2995,4 +2995,34 @@ t4 AS table4s LEFT JOIN
 ON table3s.col_int_unique = table4s.col_int_unique);
 col_varchar_10_unique
 DROP TABLE t1,t2,t3,t4;
+#
+# t2 and t3 are const tables, which makes for a t1-t4 join on a constant,
+# where the constant comes from a multi-equality. Verify that we get the expected
+# query plan and don't crash (we don't care about the result).
+#
+CREATE TABLE t1 (
+pk integer NOT NULL,
+a integer,
+b integer,
+PRIMARY KEY (pk),
+KEY idx1 (b)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,5,5);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT *
+FROM
+t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.pk
+LEFT JOIN t1 AS t3 ON t2.pk = t3.pk
+LEFT JOIN t1 AS t4 ON t3.b = t4.b
+WHERE t2.pk = 1;
+EXPLAIN
+-> Nested loop left join  (cost=0.70 rows=1)
+    -> Filter: (t1.a = 1)  (cost=0.35 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+    -> Index lookup on t4 using idx1 (b='5')  (cost=0.35 rows=1)
+
+DROP TABLE t1;
 set optimizer_switch = default;

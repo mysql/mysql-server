@@ -22,6 +22,8 @@ create table t2 (id int, a bigint unsigned not null, c char(10), d int, primary 
 insert into t2 values (1,1,"a",1),(3,4,"A",4),(3,5,"B",5),(3,6,"C",6),(4,7,"D",7);
 
 select t1.*,t2.* from t1 JOIN t2 where t1.a=t2.a;
+# Tests printing of EXPLAIN FORMAT=tree for outer join BKA (in join_outer_bka.test).
+EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 select t1.*,t2.* from { oj t2 left outer join t1 on (t1.a=t2.a) };
 select t1.*,t2.* from t1 as t0,{ oj t2 left outer join t1 on (t1.a=t2.a) } WHERE t0.a=2;
@@ -261,6 +263,9 @@ select count(*) from t2 right join t1 on (t1.id = t2.owner);
 select t1.name, t2.name, t2.id,t3.id from t2 right join t1 on (t1.id = t2.owner) left join t1 as t3 on t3.id=t2.owner;
 --sorted_result
 select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+# In join_outer_bka.test, demonstrates that when combining outer BKA and BNL,
+# we revert to simple nested loops.
+explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 --sorted_result
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 
@@ -2501,3 +2506,50 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #30654713: WL#13476: DIFFERENT ROWS WITH BATCHED KEY ACCESS LEFT JOIN
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  a INTEGER,
+  b varchar(10),
+  KEY key_a (a)
+);
+
+INSERT INTO t1 VALUES (5,NULL,'p');
+INSERT INTO t1 VALUES (6,NULL,'');
+INSERT INTO t1 VALUES (7,NULL,'');
+INSERT INTO t1 VALUES (8,NULL,'Z');
+INSERT INTO t1 VALUES (9,4,'g');
+INSERT INTO t1 VALUES (10,NULL,'if');
+INSERT INTO t1 VALUES (11,NULL,'j');
+INSERT INTO t1 VALUES (12,9,'');
+
+CREATE TABLE t2 (
+  a INTEGER,
+  b varchar(10),
+  KEY key_b (b)
+);
+
+INSERT INTO t2 VALUES (1,'j');
+INSERT INTO t2 VALUES (2,'o');
+INSERT INTO t2 VALUES (3,'z');
+INSERT INTO t2 VALUES (4,'really');
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+  SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+  FROM t1
+  LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+    ON t1.b = t2.b;
+
+# Verify that we've got BKA (in join_outer_bka.test) on the innermost join,
+# but not on the outermost, because that join is not right-deep.
+eval EXPLAIN format=tree $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2;

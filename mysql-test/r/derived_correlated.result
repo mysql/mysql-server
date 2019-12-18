@@ -1479,7 +1479,7 @@ t11a	t11b	t12a	t12b	t12a
 99	3	NULL	NULL	NULL
 show status like "handler_write";
 Variable_name	Value
-Handler_write	3
+Handler_write	4
 DROP TABLE t11,t12;
 set @@optimizer_switch=@old_opt_switch;
 # Test that with an auto_key on the lateral DT, the index is
@@ -3038,7 +3038,7 @@ t11a	t11b	t12a	t12b	t12a
 99	3	NULL	NULL	NULL
 show status like "handler_write";
 Variable_name	Value
-Handler_write	3
+Handler_write	4
 DROP TABLE t11,t12;
 set @@optimizer_switch=@old_opt_switch;
 # Test that with an auto_key on the lateral DT, the index is

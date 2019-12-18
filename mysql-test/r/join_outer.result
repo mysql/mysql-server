@@ -16,6 +16,14 @@ grp	a	c	id	a	c	d
 3	4	E	3	4	A	4
 3	5	C	3	5	B	5
 3	6	D	3	6	C	6
+EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
+EXPLAIN
+-> Sort: <temporary>.grp, <temporary>.a, <temporary>.c
+    -> Stream results
+        -> Nested loop left join  (cost=3.67 rows=7)
+            -> Table scan on t1  (cost=1.22 rows=7)
+            -> Single-row index lookup on t2 using PRIMARY (a=t1.a)  (cost=0.26 rows=1)
+
 select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 grp	a	c	id	a	c	d
 NULL	NULL		NULL	NULL	NULL	NULL
@@ -394,6 +402,15 @@ Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
 NULL	NULL	NULL	2
 Thimble Smith	Happy	3	3
+explain format=tree select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
+EXPLAIN
+-> Nested loop left join  (cost=2.49 rows=9)
+    -> Index scan on t3 using PRIMARY  (cost=0.84 rows=3)
+    -> Nested loop inner join  (cost=1.13 rows=3)
+        -> Single-row index lookup on t1 using PRIMARY (id=t3.id)  (cost=0.28 rows=1)
+        -> Filter: (t2.`owner` = t3.id)  (cost=0.28 rows=3)
+            -> Table scan on t2  (cost=0.28 rows=3)
+
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
@@ -3592,3 +3609,58 @@ pk	pk	f1	f2
 1	1	NULL	NULL
 2	2	NULL	NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug #30654713: WL#13476: DIFFERENT ROWS WITH BATCHED KEY ACCESS LEFT JOIN
+#
+CREATE TABLE t1 (
+col_int INTEGER,
+a INTEGER,
+b varchar(10),
+KEY key_a (a)
+);
+INSERT INTO t1 VALUES (5,NULL,'p');
+INSERT INTO t1 VALUES (6,NULL,'');
+INSERT INTO t1 VALUES (7,NULL,'');
+INSERT INTO t1 VALUES (8,NULL,'Z');
+INSERT INTO t1 VALUES (9,4,'g');
+INSERT INTO t1 VALUES (10,NULL,'if');
+INSERT INTO t1 VALUES (11,NULL,'j');
+INSERT INTO t1 VALUES (12,9,'');
+CREATE TABLE t2 (
+a INTEGER,
+b varchar(10),
+KEY key_b (b)
+);
+INSERT INTO t2 VALUES (1,'j');
+INSERT INTO t2 VALUES (2,'o');
+INSERT INTO t2 VALUES (3,'z');
+INSERT INTO t2 VALUES (4,'really');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN format=tree SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+EXPLAIN
+-> Nested loop left join  (cost=4.11 rows=8)
+    -> Table scan on t1  (cost=1.31 rows=8)
+    -> Nested loop left join  (cost=2.36 rows=1)
+        -> Index lookup on t2 using key_b (b=t1.b)  (cost=0.26 rows=1)
+        -> Index lookup on t3 using key_a (a=t2.a)  (cost=0.26 rows=1)
+
+SELECT t1.col_int as t1_ci, t1.a as t1_a, t1.b as t1_b, t2.a as t2_a, t2.b as t2_b, t3.col_int as t3_ci, t3.a as t3_a, t3.b as t3_b
+FROM t1
+LEFT JOIN ( t2 LEFT JOIN t1 AS t3 ON t2.a=t3.a )
+ON t1.b = t2.b;
+t1_ci	t1_a	t1_b	t2_a	t2_b	t3_ci	t3_a	t3_b
+10	NULL	if	NULL	NULL	NULL	NULL	NULL
+11	NULL	j	1	j	NULL	NULL	NULL
+12	9		NULL	NULL	NULL	NULL	NULL
+5	NULL	p	NULL	NULL	NULL	NULL	NULL
+6	NULL		NULL	NULL	NULL	NULL	NULL
+7	NULL		NULL	NULL	NULL	NULL	NULL
+8	NULL	Z	3	z	NULL	NULL	NULL
+9	4	g	NULL	NULL	NULL	NULL	NULL
+DROP TABLE t1, t2;

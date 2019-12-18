@@ -55,7 +55,8 @@ using std::string;
 using std::vector;
 
 static bool NeedMatchFlags(JoinType join_type) {
-  return join_type == JoinType::OUTER || join_type == JoinType::SEMI;
+  return join_type == JoinType::OUTER || join_type == JoinType::SEMI ||
+         join_type == JoinType::ANTI;
 }
 
 static size_t BytesNeededForMatchFlags(size_t rows) {
@@ -235,43 +236,90 @@ int BKAIterator::ReadOuterRows() {
 
   // Probe the rows we've got using MRR.
   m_state = State::RETURNING_JOINED_ROWS;
+  m_mrr_iterator->SetNullRowFlag(false);
   return 0;
+}
+
+void BKAIterator::BatchFinished() {
+  // End of joined rows; start reading the next batch if there are
+  // more outer rows.
+  if (m_end_of_outer_rows) {
+    m_state = State::END_OF_ROWS;
+  } else {
+    BeginNewBatch();
+    DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
+  }
+}
+
+int BKAIterator::MakeNullComplementedRow() {
+  // Find the next row that hasn't been matched to anything yet.
+  while (m_current_pos != m_rows.end()) {
+    if (m_mrr_iterator->RowHasBeenRead(m_current_pos)) {
+      ++m_current_pos;
+    } else {
+      // Return a NULL-complemented row. (Our table already has the NULL flag
+      // set.)
+      hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
+                                             m_current_pos->data());
+      ++m_current_pos;
+      return 0;
+    }
+  }
+
+  // No more NULL-complemented rows to return.
+  m_mrr_iterator->SetNullRowFlag(false);
+  return -1;
 }
 
 int BKAIterator::Read() {
   for (;;) {  // Termination condition within loop.
-    if (m_state == State::END_OF_ROWS) {
-      return -1;
-    }
-
-    if (m_state == State::NEED_OUTER_ROWS) {
-      int err = ReadOuterRows();
-      if (err != 0) {
-        return err;
-      }
-    }
-
-    DBUG_ASSERT(m_state == State::RETURNING_JOINED_ROWS);
-    int err = m_inner_input->Read();
-    if (err == -1) {
-      // End of joined rows; start reading the next batch if there are
-      // more outer rows.
-      if (m_end_of_outer_rows) {
-        m_state = State::END_OF_ROWS;
+    switch (m_state) {
+      case State::END_OF_ROWS:
         return -1;
-      } else {
-        BeginNewBatch();
-        DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
-        continue;
+      case State::NEED_OUTER_ROWS: {
+        int err = ReadOuterRows();
+        if (err != 0) {
+          return err;
+        }
+        break;
+      }
+      case State::RETURNING_JOINED_ROWS: {
+        int err = m_inner_input->Read();
+        if (err != -1) {
+          if (err == 0) {
+            m_mrr_iterator->MarkLastRowAsRead();
+            if (m_join_type == JoinType::ANTI) {
+              break;
+            }
+          }
+
+          // A row or an error; pass it through (unless we are an antijoin).
+          return err;
+        }
+
+        // No more joined rows in this batch. Go to the next batch -- but
+        // if we're an outer join or antijoin, first create NULL-complemented
+        // rows for the ones in this batch that we didn't match to anything.
+        if (m_join_type == JoinType::OUTER || m_join_type == JoinType::ANTI) {
+          m_state = State::RETURNING_NULL_COMPLEMENTED_ROWS;
+          m_current_pos = m_rows.begin();
+          m_mrr_iterator->SetNullRowFlag(true);
+        } else {
+          BatchFinished();
+          break;
+        }
+      }
+      // Fall through.
+      case State::RETURNING_NULL_COMPLEMENTED_ROWS: {
+        int err = MakeNullComplementedRow();
+        if (err != -1) {
+          return err;
+        }
+
+        BatchFinished();
+        break;
       }
     }
-
-    if (err == 0) {
-      m_mrr_iterator->MarkLastRowAsRead();
-    }
-
-    // A row or an error; pass it through.
-    return err;
   }
 }
 
@@ -281,15 +329,18 @@ vector<string> BKAIterator::DebugString() const {
       return {"Batched key access inner join"};
     case JoinType::SEMI:
       return {"Batched key access semijoin"};
+    case JoinType::OUTER:
+      return {"Batched key access left join"};
+    case JoinType::ANTI:
+      return {"Batched key access antijoin"};
     default:
       DBUG_ASSERT(false);
       return {"Batched key access unknown join"};
   }
 }
 
-MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
-                                             qep_tab_map outer_input_tables,
-                                             Item *cache_idx_cond, TABLE *table,
+MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, Item *cache_idx_cond,
+                                             TABLE *table,
                                              bool keep_current_rowid,
                                              TABLE_REF *ref, int mrr_flags)
     : TableRowIterator(thd, table),
@@ -298,8 +349,7 @@ MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, JOIN *join,
       m_table(table),
       m_file(table->file),
       m_ref(ref),
-      m_mrr_flags(mrr_flags),
-      m_outer_input_tables(join, outer_input_tables) {}
+      m_mrr_flags(mrr_flags) {}
 
 void MultiRangeRowIterator::set_outer_input_tables(
     JOIN *join, qep_tab_map outer_input_tables) {
@@ -325,7 +375,7 @@ bool MultiRangeRowIterator::Init() {
     seq_funcs.skip_index_tuple =
         MultiRangeRowIterator::MrrSkipIndexTupleCallbackThunk;
   }
-  if (m_join_type == JoinType::SEMI) {
+  if (m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) {
     seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
   }
   if (m_match_flag_buffer != nullptr) {

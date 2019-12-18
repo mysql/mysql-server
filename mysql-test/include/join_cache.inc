@@ -2110,3 +2110,30 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # t2 and t3 are const tables, which makes for a t1-t4 join on a constant,
+--echo # where the constant comes from a multi-equality. Verify that we get the expected
+--echo # query plan and don't crash (we don't care about the result).
+--echo #
+
+CREATE TABLE t1 (
+  pk integer NOT NULL,
+  a integer,
+  b integer,
+  PRIMARY KEY (pk),
+  KEY idx1 (b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,5,5);
+ANALYZE TABLE t1;
+
+EXPLAIN FORMAT=tree SELECT *
+FROM
+  t1
+  LEFT JOIN t1 AS t2 ON t1.a = t2.pk
+  LEFT JOIN t1 AS t3 ON t2.pk = t3.pk
+  LEFT JOIN t1 AS t4 ON t3.b = t4.b
+WHERE t2.pk = 1;
+
+DROP TABLE t1;
