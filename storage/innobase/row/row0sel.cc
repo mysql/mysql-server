@@ -456,16 +456,18 @@ void row_sel_copy_input_variable_vals(sel_node_t *node) /*!< in: select node */
   }
 }
 
-/** Fetches the column values from a record. */
-static void row_sel_fetch_columns(
-    trx_t *trx,           /*!< in: the current transaction or nullptr */
-    dict_index_t *index,  /*!< in: record index */
-    const rec_t *rec,     /*!< in: record in a clustered or non-clustered
-                          index; must be protected by a page latch */
-    const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
-    sym_node_t *column)   /*!< in: first column in a column list, or
-                          NULL */
-{
+/** Fetches the column values from a record.
+@param[in]   trx             the current transaction or nullptr
+@param[in]   index           record index
+@param[in]   rec             record in a clustered or non-clustered index;
+                             must be protected by a page latch
+@param[in]   offsets         rec_get_offsets(rec, index)
+@param[in]   column          first column in a column list, or NULL
+@param[in]   allow_null_lob  allow null lob if true. default is false. */
+static void row_sel_fetch_columns(trx_t *trx, dict_index_t *index,
+                                  const rec_t *rec, const ulint *offsets,
+                                  sym_node_t *column,
+                                  bool allow_null_lob = false) {
   dfield_t *val;
   ulint index_type;
   ulint field_no;
@@ -482,7 +484,7 @@ static void row_sel_fetch_columns(
 
   while (column) {
     mem_heap_t *heap = nullptr;
-    ibool needs_copy;
+    bool needs_copy;
 
     field_no = column->field_nos[index_type];
 
@@ -497,20 +499,19 @@ static void row_sel_fetch_columns(
             trx, index, rec, offsets, dict_table_page_size(index->table),
             field_no, &len, nullptr, dict_index_is_sdi(index), heap);
 
-        /* data == NULL means that the
-        externally stored field was not
-        written yet. This record
-        should only be seen by
-        trx_rollback_or_clean_all_recovered() or any
-        TRX_ISO_READ_UNCOMMITTED
-        transactions. The InnoDB SQL parser
-        (the sole caller of this function)
-        does not implement READ UNCOMMITTED,
-        and it is not involved during rollback. */
-        ut_a(data);
-        ut_a(len != UNIV_SQL_NULL);
-
-        needs_copy = TRUE;
+        if (data == nullptr) {
+          /* This means that the externally stored field was not written yet.
+          This record should only be seen by following situations:
+           * Read uncommitted transactions (TRX_ISO_READ_UNCOMMITTED)
+           * During crash recovery [trx_rollback_or_clean_all_recovered().]
+           * During lock-less consistent read, when the trx reads LOB even
+             though the clust_rec is not to be seen. */
+          ut_ad(allow_null_lob);
+          len = UNIV_SQL_NULL;
+          needs_copy = false;
+        } else {
+          needs_copy = true;
+        }
       } else {
         data = rec_get_nth_field_instant(rec, offsets, field_no, index, &len);
 
@@ -1813,8 +1814,10 @@ skip_lock:
           The latch will not be released
           until mtr_commit(mtr). */
 
+          const bool allow_null_lob = true;
           row_sel_fetch_columns(thr_get_trx(thr), index, rec, offsets,
-                                UT_LIST_GET_FIRST(plan->columns));
+                                UT_LIST_GET_FIRST(plan->columns),
+                                allow_null_lob);
 
           if (!row_sel_test_end_conds(plan)) {
             goto table_exhausted;
