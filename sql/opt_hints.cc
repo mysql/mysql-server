@@ -34,6 +34,7 @@
 #include "sql/derror.h"  // ER_THD
 #include "sql/error_handler.h"
 #include "sql/item.h"
+#include "sql/item_subselect.h"
 #include "sql/key.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
@@ -260,13 +261,11 @@ uint Opt_hints_qb::sj_enabled_strategies(uint opt_switches) const {
   return opt_switches;
 }
 
-Item_exists_subselect::enum_exec_method Opt_hints_qb::subquery_strategy()
-    const {
+SubqueryExecMethod Opt_hints_qb::subquery_strategy() const {
   if (subquery_hint)
-    return static_cast<Item_exists_subselect::enum_exec_method>(
-        subquery_hint->get_args());
+    return static_cast<SubqueryExecMethod>(subquery_hint->get_args());
 
-  return Item_exists_subselect::EXEC_UNSPECIFIED;
+  return SubqueryExecMethod::EXEC_UNSPECIFIED;
 }
 
 void Opt_hints_qb::print_irregular_hints(const THD *thd, String *str) {

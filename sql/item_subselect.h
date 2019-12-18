@@ -35,6 +35,7 @@
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
+#include "sql/comp_creator.h"
 #include "sql/enum_query_type.h"
 #include "sql/item.h"  // Item_result_field
 #include "sql/parse_tree_node_base.h"
@@ -42,7 +43,6 @@
 #include "sql/sql_const.h"
 #include "template_utils.h"
 
-class Comp_creator;
 class Field;
 class Item_func_not_all;
 class Item_in_optimizer;
@@ -63,14 +63,6 @@ class subselect_indexsubquery_engine;
 struct TABLE_LIST;
 template <class T>
 class List;
-
-/**
-  Convenience typedef used in this file, and further used by any files
-  including this file.
-
-  @retval NULL In case of semantic errors.
-*/
-typedef Comp_creator *(*chooser_compare_func_creator)(bool invert);
 
 /* base class for subselects */
 
@@ -343,6 +335,22 @@ class Item_maxmin_subselect final : public Item_singlerow_subselect {
 
 /* exists subselect */
 
+enum class SubqueryExecMethod : int {
+  EXEC_UNSPECIFIED,  ///< No execution method specified yet.
+  EXEC_SEMI_JOIN,    ///< Predicate is converted to semi-join nest.
+  /// IN was converted to correlated EXISTS, and this is a final decision.
+  EXEC_EXISTS,
+  /**
+     Decision between EXISTS and MATERIALIZATION is not yet taken.
+     IN was temporarily converted to correlated EXISTS.
+     All descendants of Item_in_subselect must go through this method
+     before they can reach EXISTS.
+  */
+  EXEC_EXISTS_OR_MAT,
+  /// Predicate executed via materialization, and this is a final decision.
+  EXEC_MATERIALIZATION
+};
+
 class Item_exists_subselect : public Item_subselect {
   typedef Item_subselect super;
 
@@ -355,24 +363,9 @@ class Item_exists_subselect : public Item_subselect {
     The method chosen to execute the predicate, currently used for IN, =ANY
     and EXISTS predicates.
   */
-  enum enum_exec_method {
-    EXEC_UNSPECIFIED,  ///< No execution method specified yet.
-    EXEC_SEMI_JOIN,    ///< Predicate is converted to semi-join nest.
-    /// IN was converted to correlated EXISTS, and this is a final decision.
-    EXEC_EXISTS,
-    /**
-       Decision between EXEC_EXISTS and EXEC_MATERIALIZATION is not yet taken.
-       IN was temporarily converted to correlated EXISTS.
-       All descendants of Item_in_subselect must go through this method
-       before they can reach EXEC_EXISTS.
-    */
-    EXEC_EXISTS_OR_MAT,
-    /// Predicate executed via materialization, and this is a final decision.
-    EXEC_MATERIALIZATION
-  };
-  enum_exec_method exec_method;
+  SubqueryExecMethod exec_method{SubqueryExecMethod::EXEC_UNSPECIFIED};
   /// Priority of this predicate in the convert-to-semi-join-nest process.
-  int sj_convert_priority;
+  int sj_convert_priority{0};
   /// Decision on whether predicate is selected for semi-join transformation
   enum enum_sj_selection {
     /// Not selected for semi-join, evaluate as subquery predicate, or
@@ -394,26 +387,16 @@ class Item_exists_subselect : public Item_subselect {
                           predicate is not a candidate for transformation.
     See also THD::emb_on_expr_nest.
   */
-  TABLE_LIST *embedding_join_nest;
+  TABLE_LIST *embedding_join_nest{nullptr};
 
   Item_exists_subselect(SELECT_LEX *select);
 
-  Item_exists_subselect()
-      : Item_subselect(),
-        value(false),
-        exec_method(EXEC_UNSPECIFIED),
-        sj_convert_priority(0),
-        embedding_join_nest(nullptr) {}
+  Item_exists_subselect() : Item_subselect() {}
 
-  explicit Item_exists_subselect(const POS &pos)
-      : super(pos),
-        value(false),
-        exec_method(EXEC_UNSPECIFIED),
-        sj_convert_priority(0),
-        embedding_join_nest(nullptr) {}
+  explicit Item_exists_subselect(const POS &pos) : super(pos) {}
 
   trans_res select_transformer(THD *, SELECT_LEX *) override {
-    exec_method = EXEC_EXISTS;
+    exec_method = SubqueryExecMethod::EXEC_EXISTS;
     return RES_OK;
   }
   subs_type substype() const override { return EXISTS_SUBS; }
@@ -852,4 +835,5 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   RowIterator *root_iterator() const { return m_iterator.get(); }
   void create_iterators(THD *thd) override;
 };
+
 #endif /* ITEM_SUBSELECT_INCLUDED */

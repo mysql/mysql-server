@@ -41,6 +41,7 @@
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/item_func.h"
+#include "sql/item_subselect.h"
 #include "sql/mysqld.h"  // table_alias_charset
 #include "sql/nested_join.h"
 #include "sql/parse_location.h"
@@ -4383,8 +4384,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
   return get_optimizable_join_conditions(thd, top_join_list);
 }
 
-Item_exists_subselect::enum_exec_method SELECT_LEX::subquery_strategy(
-    THD *thd) const {
+SubqueryExecMethod SELECT_LEX::subquery_strategy(THD *thd) const {
   if (m_windows.elements > 0)
     /*
       A window function is in the SELECT list.
@@ -4394,21 +4394,20 @@ Item_exists_subselect::enum_exec_method SELECT_LEX::subquery_strategy(
       rows over which the WF is supposed to be calculated.
       So, subquery materialization is imposed. Grep for (and read) WL#10431.
     */
-    return Item_exists_subselect::EXEC_MATERIALIZATION;
+    return SubqueryExecMethod::EXEC_MATERIALIZATION;
 
   if (opt_hints_qb) {
-    Item_exists_subselect::enum_exec_method strategy =
-        opt_hints_qb->subquery_strategy();
-    if (strategy != Item_exists_subselect::EXEC_UNSPECIFIED) return strategy;
+    SubqueryExecMethod strategy = opt_hints_qb->subquery_strategy();
+    if (strategy != SubqueryExecMethod::EXEC_UNSPECIFIED) return strategy;
   }
 
   // No SUBQUERY hint given, base possible strategies on optimizer_switch
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
     return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
-               ? Item_exists_subselect::EXEC_EXISTS_OR_MAT
-               : Item_exists_subselect::EXEC_MATERIALIZATION;
+               ? SubqueryExecMethod::EXEC_EXISTS_OR_MAT
+               : SubqueryExecMethod::EXEC_MATERIALIZATION;
 
-  return Item_exists_subselect::EXEC_EXISTS;
+  return SubqueryExecMethod::EXEC_EXISTS;
 }
 
 bool SELECT_LEX::semijoin_enabled(THD *thd) const {
@@ -4555,6 +4554,19 @@ static bool walk_join_condition(mem_root_deque<TABLE_LIST *> *tables,
       return true;
   }
   return false;
+}
+
+void SELECT_LEX_UNIT::accumulate_used_tables(table_map map) {
+  DBUG_ASSERT(outer_select());
+  if (item)
+    item->accumulate_used_tables(map);
+  else if (m_lateral_deps)
+    m_lateral_deps |= map;
+}
+
+enum_parsing_context SELECT_LEX_UNIT::place() const {
+  DBUG_ASSERT(outer_select());
+  return item ? item->place() : CTX_DERIVED;
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {

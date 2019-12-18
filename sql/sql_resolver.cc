@@ -1201,7 +1201,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
     that are transformed to semijoin, but for other subqueries, this function
     is called for every execution. One solution is perhaps to define
     exec_method in class Item_subselect and exit immediately if unequal to
-    EXEC_UNSPECIFIED.
+    SubqueryExecMethod::EXEC_UNSPECIFIED.
   */
   Item_subselect *subq_predicate = master_unit()->item;
   DBUG_ASSERT(subq_predicate != nullptr);
@@ -1291,7 +1291,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       outer->sj_candidates &&                                     // 7
       leaf_table_count &&                                         // 8
       predicate->exec_method ==                                   //  9
-          Item_exists_subselect::EXEC_UNSPECIFIED &&              //  9
+          SubqueryExecMethod::EXEC_UNSPECIFIED &&                 //  9
       outer->leaf_table_count &&                                  // 10
       !((active_options() | outer->active_options()) &            // 11
         SELECT_STRAIGHT_JOIN) &&                                  // 11
@@ -2898,7 +2898,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
 
-  subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
+  subq_pred->exec_method = SubqueryExecMethod::EXEC_SEMI_JOIN;
 
   if (subq_pred->substype() == Item_subselect::IN_SUBS) {
     Item_in_subselect *in_subq_pred = (Item_in_subselect *)subq_pred;

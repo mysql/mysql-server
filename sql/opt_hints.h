@@ -37,12 +37,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
-#include "sql/item_subselect.h"  // Item_exists_subselect
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/sql_bitmap.h"      // Bitmap
 #include "sql/sql_show.h"        // append_identifier
 #include "sql_string.h"          // String
 
+enum class SubqueryExecMethod : int;
 class Item;
 class JOIN;
 class Opt_hints_table;
@@ -462,7 +462,7 @@ class Opt_hints_qb : public Opt_hints {
     @retval EXEC_EXISTS In-to-exists execution should be used
     @retval EXEC_UNSPECIFIED No SUBQUERY hint for this query block
   */
-  Item_exists_subselect::enum_exec_method subquery_strategy() const;
+  SubqueryExecMethod subquery_strategy() const;
 
   void print_irregular_hints(const THD *thd, String *str) override;
 

@@ -64,11 +64,10 @@
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/item.h"            // Name_resolution_context
-#include "sql/item_subselect.h"  // chooser_compare_func_creator
-#include "sql/key_spec.h"        // KEY_CREATE_INFO
-#include "sql/lex_symbol.h"      // LEX_SYMBOL
-#include "sql/lexer_yystype.h"   // Lexer_yystype
+#include "sql/item.h"           // Name_resolution_context
+#include "sql/key_spec.h"       // KEY_CREATE_INFO
+#include "sql/lex_symbol.h"     // LEX_SYMBOL
+#include "sql/lexer_yystype.h"  // Lexer_yystype
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/opt_hints.h"
@@ -96,10 +95,13 @@
 #include "violite.h"   // SSL_type
 
 class Item_cond;
+class Item_exists_subselect;
+class Item_subselect;
 class Item_sum;
 class Event_parse_data;
 class Item_func_match;
 class Parse_tree_root;
+class Query_result_interceptor;
 class Window;
 class sp_pcontext;
 enum class enum_jt_column;
@@ -939,23 +941,14 @@ class SELECT_LEX_UNIT {
     Item_subselect, a derived TABLE_LIST), adds to this object a map
     of tables of the upper level which the unit references.
   */
-  void accumulate_used_tables(table_map map) {
-    DBUG_ASSERT(outer_select());
-    if (item)
-      item->accumulate_used_tables(map);
-    else if (m_lateral_deps)
-      m_lateral_deps |= map;
-  }
+  void accumulate_used_tables(table_map map);
 
   /**
     If unit is a subquery, which forms an object of the upper level (an
     Item_subselect, a derived TABLE_LIST), returns the place of this object
     in the upper level query block.
   */
-  enum_parsing_context place() const {
-    DBUG_ASSERT(outer_select());
-    return item ? item->place() : CTX_DERIVED;
-  }
+  enum_parsing_context place() const;
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);
 
@@ -1965,7 +1958,7 @@ class SELECT_LEX {
     @retval EXEC_EXISTS           In-to-exists execution should be used
     @retval EXEC_EXISTS_OR_MAT    A cost-based decision should be made
   */
-  Item_exists_subselect::enum_exec_method subquery_strategy(THD *thd) const;
+  SubqueryExecMethod subquery_strategy(THD *thd) const;
 
   /**
     Returns whether semi-join is enabled for this query block

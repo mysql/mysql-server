@@ -28,6 +28,7 @@
 %{
 #include "my_inttypes.h"
 #include "sql/derror.h"
+#include "sql/item_subselect.h"
 #include "sql/parse_tree_helpers.h"  // check_resource_group_name_len
 #include "sql/parse_tree_hints.h"
 #include "sql/parser_yystype.h"
@@ -403,8 +404,8 @@ semijoin_strategy:
 
 subquery_strategy:
           MATERIALIZATION_HINT { $$=
-                                   Item_exists_subselect::EXEC_MATERIALIZATION; }
-        | INTOEXISTS_HINT      { $$= Item_exists_subselect::EXEC_EXISTS; }
+                                   static_cast<long>(SubqueryExecMethod::EXEC_MATERIALIZATION); }
+        | INTOEXISTS_HINT      { $$= static_cast<long>(SubqueryExecMethod::EXEC_EXISTS); }
         ;
 
 

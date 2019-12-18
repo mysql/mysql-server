@@ -48,7 +48,6 @@
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
-#include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
 #include "sql/row_iterator.h"
@@ -62,6 +61,7 @@
 #include "sql/temp_table_param.h"
 
 class COND_EQUAL;
+class Item_subselect;
 class Item_sum;
 class Opt_trace_context;
 class THD;
@@ -967,8 +967,7 @@ class JOIN {
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
-  bool compare_costs_of_subquery_strategies(
-      Item_exists_subselect::enum_exec_method *method);
+  bool compare_costs_of_subquery_strategies(SubqueryExecMethod *method);
   ORDER *remove_const(ORDER *first_order, Item *cond, bool change_list,
                       bool *simple_order, bool group_by);
 

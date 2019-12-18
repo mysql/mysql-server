@@ -284,11 +284,11 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
       break;
     }
     case SUBQUERY_HINT_ENUM:
-      switch (args) {
-        case Item_exists_subselect::EXEC_MATERIALIZATION:
+      switch (static_cast<SubqueryExecMethod>(args)) {
+        case SubqueryExecMethod::EXEC_MATERIALIZATION:
           str->append(STRING_WITH_LEN(" MATERIALIZATION"));
           break;
-        case Item_exists_subselect::EXEC_EXISTS:
+        case SubqueryExecMethod::EXEC_EXISTS:
           str->append(STRING_WITH_LEN(" INTOEXISTS"));
           break;
         default:  // Exactly one of above strategies should always be specified

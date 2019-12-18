@@ -376,7 +376,8 @@ bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col) {
 
 bool Item_in_subselect::finalize_exists_transform(THD *thd,
                                                   SELECT_LEX *select_lex) {
-  DBUG_ASSERT(exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS);
+  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
+              exec_method == SubqueryExecMethod::EXEC_EXISTS);
   /*
     Change
       SELECT expr1, expr2
@@ -419,7 +420,7 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
     return true; /* purecov: inspected */
 
   select_lex->join->allow_outer_refs = true;  // for JOIN::set_prefix_tables()
-  exec_method = EXEC_EXISTS;
+  exec_method = SubqueryExecMethod::EXEC_EXISTS;
   return false;
 }
 
@@ -463,7 +464,7 @@ Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
 
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
                                                            JOIN *join) {
-  DBUG_ASSERT(exec_method == EXEC_EXISTS_OR_MAT);
+  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT);
 
   DBUG_ASSERT(join == subquery->single_select_lex()->join);
   // No UNION in materialized subquery so this holds:
@@ -471,7 +472,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   DBUG_ASSERT(join->unit == unit);
   DBUG_ASSERT(unit->global_parameters()->select_limit == nullptr);
 
-  exec_method = EXEC_MATERIALIZATION;
+  exec_method = SubqueryExecMethod::EXEC_MATERIALIZATION;
 
   /*
     We need to undo several changes which IN->EXISTS had done. But we first
@@ -527,19 +528,19 @@ void Item_in_subselect::cleanup() {
   need_expr_cache = true;
 
   switch (exec_method) {
-    case EXEC_MATERIALIZATION:
+    case SubqueryExecMethod::EXEC_MATERIALIZATION:
       if (in2exists_info->dependent_after) {
         unit->first_select()->uncacheable |= UNCACHEABLE_DEPENDENT;
         unit->uncacheable |= UNCACHEABLE_DEPENDENT;
       }
       // fall through
-    case EXEC_EXISTS:
+    case SubqueryExecMethod::EXEC_EXISTS:
       /*
         Back to EXISTS_OR_MAT, so that next execution of this statement can
         choose between the two.
       */
       unit->global_parameters()->select_limit = nullptr;
-      exec_method = EXEC_EXISTS_OR_MAT;
+      exec_method = SubqueryExecMethod::EXEC_EXISTS_OR_MAT;
       break;
     default:
       break;
@@ -552,7 +553,7 @@ RowIterator *Item_in_subselect::root_iterator() const {
   // Only subselect_hash_sj_engine owns its own iterator;
   // for subselect_indexsubquery_engine, the unit still has it, since it's a
   // normally executed query block. Thus, we should never get called otherwise.
-  DBUG_ASSERT(exec_method == EXEC_MATERIALIZATION &&
+  DBUG_ASSERT(exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
               indexsubquery_engine->engine_type() ==
                   subselect_indexsubquery_engine::HASH_SJ_ENGINE);
   return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
@@ -723,8 +724,8 @@ bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
 
 bool Item_in_subselect::exec(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(exec_method != EXEC_MATERIALIZATION ||
-              (exec_method == EXEC_MATERIALIZATION &&
+  DBUG_ASSERT(exec_method != SubqueryExecMethod::EXEC_MATERIALIZATION ||
+              (exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
                indexsubquery_engine->engine_type() ==
                    subselect_indexsubquery_engine::HASH_SJ_ENGINE));
   /*
@@ -741,7 +742,8 @@ bool Item_in_subselect::exec(THD *thd) {
       lookup, the cache hit rate, and the savings per cache hit.
   */
   if (need_expr_cache && !left_expr_cache &&
-      exec_method == EXEC_MATERIALIZATION && init_left_expr_cache(thd))
+      exec_method == SubqueryExecMethod::EXEC_MATERIALIZATION &&
+      init_left_expr_cache(thd))
     return true;
 
   if (left_expr_cache != nullptr) {
@@ -1286,11 +1288,7 @@ bool Query_result_exists_subquery::send_data(THD *, List<Item> &) {
 }
 
 Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
-    : Item_subselect(),
-      value(false),
-      exec_method(EXEC_UNSPECIFIED),
-      sj_convert_priority(0),
-      embedding_join_nest(nullptr) {
+    : Item_subselect() {
   DBUG_TRACE;
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = UINT_MAX;
@@ -1466,7 +1464,7 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   set_data_type_longlong();
   max_length = 1;
   max_columns = unit_cols();
-  if (exec_method == EXEC_EXISTS) {
+  if (exec_method == SubqueryExecMethod::EXEC_EXISTS) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
       We need only 1 row to determine existence.
@@ -2459,7 +2457,8 @@ Item_subselect::trans_res Item_in_subselect::select_in_like_transformer(
     If we didn't choose an execution method up to this point, we choose
     the IN=>EXISTS transformation, at least temporarily.
   */
-  if (exec_method == EXEC_UNSPECIFIED) exec_method = EXEC_EXISTS_OR_MAT;
+  if (exec_method == SubqueryExecMethod::EXEC_UNSPECIFIED)
+    exec_method = SubqueryExecMethod::EXEC_EXISTS_OR_MAT;
 
   /*
     Both transformers call fix_fields() only for Items created inside them,
@@ -2494,7 +2493,8 @@ void Item_in_subselect::print(const THD *thd, String *str,
   const char *tail = Item_bool_func::bool_transform_names[value_transform];
   if (implicit_is_op) tail = "";
   bool paren = false;
-  if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS) {
+  if (exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
+      exec_method == SubqueryExecMethod::EXEC_EXISTS) {
     if (value_transform == BOOL_NEGATED) {  // NOT has low associativity, but
                                             // we're inside Item_in_optimizer,
       // so () are needed only if IS TRUE/FALSE is coming.
@@ -2524,7 +2524,8 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
   abort_on_null =
       value_transform == BOOL_IS_TRUE || value_transform == BOOL_NOT_TRUE;
 
-  if (exec_method == EXEC_SEMI_JOIN) return !((*ref) = new Item_func_true());
+  if (exec_method == SubqueryExecMethod::EXEC_SEMI_JOIN)
+    return !((*ref) = new Item_func_true());
 
   if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       left_expr && !left_expr->fixed) {
@@ -2686,7 +2687,8 @@ bool Item_subselect::is_evaluated() const { return unit->is_executed(); }
 
 void Item_allany_subselect::print(const THD *thd, String *str,
                                   enum_query_type query_type) const {
-  if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
+  if (exec_method == SubqueryExecMethod::EXEC_EXISTS_OR_MAT ||
+      exec_method == SubqueryExecMethod::EXEC_EXISTS)
     str->append(STRING_WITH_LEN("<exists>"));
   else {
     left_expr->print(thd, str, query_type);
