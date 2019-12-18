@@ -2080,6 +2080,35 @@ void PickOutConditionsForTableIndex(int table_idx,
   }
 }
 
+unique_ptr_destroy_only<RowIterator> FinishPendingOperations(
+    THD *thd, unique_ptr_destroy_only<RowIterator> iterator,
+    QEP_TAB *remove_duplicates_loose_scan_qep_tab,
+    const vector<PendingCondition> &pending_conditions,
+    const vector<PendingInvalidator> &pending_invalidators,
+    table_map *conditions_depend_on_outer_tables) {
+  iterator =
+      PossiblyAttachFilterIterator(move(iterator), pending_conditions, thd,
+                                   conditions_depend_on_outer_tables);
+
+  if (remove_duplicates_loose_scan_qep_tab != nullptr) {
+    QEP_TAB *const qep_tab =
+        remove_duplicates_loose_scan_qep_tab;  // For short.
+    KEY *key = qep_tab->table()->key_info + qep_tab->index();
+    iterator = NewIterator<RemoveDuplicatesIterator>(
+        thd, move(iterator), qep_tab->table(), key, qep_tab->loosescan_key_len);
+  }
+
+  // It's highly unlikely that we have more than one pending QEP_TAB here
+  // (the most common case will be zero), so don't bother combining them
+  // into one invalidator.
+  for (const PendingInvalidator &invalidator : pending_invalidators) {
+    iterator =
+        CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
+  }
+
+  return iterator;
+}
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
@@ -2188,6 +2217,19 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   //    the sub-join recursively, and thus move it past the end of said
   //    sub-join.
   for (plan_idx i = first_idx; i < last_idx;) {
+    if (is_top_level_outer_join && i == qep_tabs[first_idx].last_inner() + 1) {
+      // Finished the top level outer join.
+      iterator = FinishPendingOperations(
+          thd, move(iterator), /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
+          top_level_pending_conditions, top_level_pending_invalidators,
+          conditions_depend_on_outer_tables);
+
+      is_top_level_outer_join = false;
+      pending_conditions = nullptr;
+      pending_invalidators = nullptr;
+      pending_join_conditions = nullptr;
+    }
+
     bool add_limit_1;
     plan_idx substructure_end;
     Substructure substructure =
@@ -2429,26 +2471,12 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                                     iterator.get());
       }
 
-      iterator = PossiblyAttachFilterIterator(
-          move(iterator), subtree_pending_conditions, thd,
+      QEP_TAB *remove_duplicates_loose_scan_qep_tab =
+          remove_duplicates_loose_scan ? &qep_tabs[i - 1] : nullptr;
+      iterator = FinishPendingOperations(
+          thd, move(iterator), remove_duplicates_loose_scan_qep_tab,
+          subtree_pending_conditions, subtree_pending_invalidators,
           conditions_depend_on_outer_tables);
-
-      if (remove_duplicates_loose_scan) {
-        QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
-        KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
-        iterator = NewIterator<RemoveDuplicatesIterator>(
-            thd, move(iterator), prev_qep_tab->table(), key,
-            prev_qep_tab->loosescan_key_len);
-      }
-
-      // It's highly unlikely that we have more than one pending QEP_TAB here
-      // (the most common case will be zero), so don't bother combining them
-      // into one invalidator.
-      for (const PendingInvalidator &invalidator :
-           subtree_pending_invalidators) {
-        iterator =
-            CreateInvalidatorIterator(thd, invalidator.qep_tab, move(iterator));
-      }
 
       i = substructure_end;
       continue;
@@ -2666,13 +2694,15 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     }
   }
   if (is_top_level_outer_join) {
-    iterator = PossiblyAttachFilterIterator(move(iterator),
-                                            top_level_pending_conditions, thd,
-                                            conditions_depend_on_outer_tables);
-
     // We can't have any invalidators here, because there's no later table
     // to invalidate.
     DBUG_ASSERT(top_level_pending_invalidators.empty());
+
+    DBUG_ASSERT(last_idx == qep_tabs[first_idx].last_inner() + 1);
+    iterator = FinishPendingOperations(
+        thd, move(iterator), /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
+        top_level_pending_conditions, top_level_pending_invalidators,
+        conditions_depend_on_outer_tables);
   }
   return iterator;
 }
