@@ -451,7 +451,6 @@ INSERT INTO t1 VALUES (1.01, 1.01);
 SELECT * FROM t1 a, t1 b WHERE a.col1 = b.col2;
 DROP TABLE t1;
 
-
 --echo # The point of the following test is to see that if the innermost hash
 --echo # join returns zero rows, the outermost hash join should not scan the
 --echo # probe table.
@@ -1455,4 +1454,202 @@ CREATE TABLE t1 (col1 INT);
 CREATE TABLE t2 (col1 INT);
 ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 < t2.col1;
+DROP TABLE t1, t2;
+
+--echo # Semijoin.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (1);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (col1 INTEGER, col2 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE (t1.col1) IN
+    (SELECT t2.col1 FROM t2 WHERE t2.col2 < 3);
+DROP TABLE t1, t2;
+
+--echo # Test a query where the optimizer will create a semijoin condition that
+--echo # is not an equi-join condition. These kind of conditions must be
+--echo # attached as "extra" conditions in the hash join iterator in order to
+--echo # produce correct results.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (3), (4), (5);
+INSERT INTO t2 VALUES (2), (3), (4), (6);
+ANALYZE TABLE t1, t2;
+
+let $query = SELECT * FROM t1 WHERE 1 IN (SELECT t1.col1 = t2.col1 FROM t2);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1, t2;
+
+--echo # Exercise a test where we get multiple tables in the probe input.
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+CREATE TABLE t3(a INTEGER);
+
+INSERT INTO t1 VALUES (0);
+INSERT INTO t2 VALUES (0);
+INSERT INTO t3 VALUES (0);
+
+ANALYZE TABLE t1, t2, t3;
+
+SET optimizer_switch="materialization=off,duplicateweedout=off";
+let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
+  WHERE (t1.a,t2.a) IN (SELECT a, a FROM t3);
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2, t3;
+
+--echo # See that semijoin with spill to disk works as expected.
+CREATE TABLE t1 (col1 BIGINT, col2 BIGINT);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+let $count=0;
+while ($count < 10)
+{
+  eval INSERT INTO t1
+         SELECT col1 + POW(2, $count), col2 + POW(2, $count) FROM t1;
+  inc $count;
+}
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+
+ANALYZE TABLE t1, t2;
+
+let $query_no_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+    (SELECT t2.col1 FROM t2);
+let $query_with_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+    (SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
+
+SET join_buffer_size = 1024;
+SET optimizer_switch = "materialization=off";
+
+eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
+eval $query_no_extra_conditions;
+
+eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
+eval $query_with_extra_conditions;
+
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+
+--echo # Set up a test case where hash join spills to disk, and the chunk files
+--echo # for the build input is too big to fit into memory. This causes the
+--echo # probe chunk file to be read multiple times. What we want to see is that
+--echo # if a row from the probe chunk file finds a match in the first part of
+--echo # the build chunk file, the row must not be sent to the client the second
+--echo # time the row is read from the probe chunk. Note that it is not trivial
+--echo # to set up a test case that is guaranteed to hit this case.
+CREATE TABLE build (col1 BIGINT);
+CREATE TABLE probe (col1 BIGINT);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 * 2 FROM probe;
+INSERT INTO build SELECT col1 * 3 FROM probe;
+
+let $query = SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
+
+SELECT COUNT(*) AS expected_num_rows FROM probe;
+SET join_buffer_size = 128;
+SET optimizer_switch="materialization=off";
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+DROP TABLE build, probe;
+
+
+--echo # Using LIMIT in the query rejects hash join from spilling to disk,
+--echo # causing the probe input to be read multiple times if the build input
+--echo # does not fit in memory. This test case is somewhat similar to the
+--echo # above; see that we do not output rows from the probe input multiple
+--echo # times even if the probe input is read multiple times.
+CREATE TABLE build (col1 BIGINT);
+CREATE TABLE probe (col1 BIGINT);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 FROM probe ORDER BY col1 DESC;
+
+SET optimizer_switch = "materialization=off";
+SET join_buffer_size = 1024;
+
+# Note that we cannot use ORDER BY in the query, as that will allow hash join to
+# spill to disk even if LIMIT is present. Instead, we use --sorted_result to get
+# a deterministic output.
+let $query = SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
+
+eval EXPLAIN FORMAT=tree $query;
+
+--sorted_result
+eval $query;
+
+--sorted_result
+eval $query LIMIT 1000;
+
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE build, probe;
+
+--echo #
+--echo # Bug#30512118 WL#13476: ASSERTION FAILURE AT
+--echo #              HASHJOINITERATOR::INITPROBEITERATOR()
+--echo #
+--echo # Execute a query that causes the hash join to do everything in memory
+--echo # with multiple refills of the hash table. This can be triggered when the
+--echo # build input does not fit in memory, and the iterator is not allowed to
+--echo # spill to disk due to LIMIT in the query.
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 SELECT UUID();
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+CREATE TABLE t2 AS SELECT UUID() AS col1 FROM t1;
+
+ANALYZE TABLE t1, t2;
+
+SET join_buffer_size = 128;
+let $query = SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+eval EXPLAIN FORMAT=tree $query;
+
+# The results are not interesting. We only want to see that we do not assert.
+--disable_result_log
+eval $query;
+--enable_result_log
+
+SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;

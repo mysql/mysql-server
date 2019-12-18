@@ -53,7 +53,7 @@ struct ChunkPair {
 /// the inputs.
 ///
 /// The iterator starts out by doing everything in-memory. If everything fits
-/// into memory, the joining algorithm works like this:
+/// into memory, the joining algorithm for inner joins works like this:
 ///
 /// 1) Designate one input as the "build" input and one input as the "probe"
 /// input. Ideally, the smallest input measured in total size (not number of
@@ -107,6 +107,46 @@ struct ChunkPair {
 /// partitioned using the same hash function for probe and build inputs, we know
 /// that matching rows must be located in the same pair of chunk files.
 ///
+/// The algorithm for semijoin is quite similar to inner joins:
+///
+/// 1) Designate the inner table (i.e. the IN-side of a semijoin) as the build
+/// input. As semijoins only needs the first matching row from the inner table,
+/// we do not store duplicate keys in the hash table.
+///
+/// 2) Output all rows from the probe input where there is at least one matching
+/// row in the hash table. In case we have degraded into on-disk hash join, we
+/// write the probe row out to chunk file only if we did not find a matching row
+/// in the hash table.
+///
+/// The optimizer may set up semijoins with conditions that are not pure join
+/// conditions, but that must be attached to the hash join iterator anyways.
+/// Consider the following query and (slightly modified) execution plan:
+///
+///   SELECT c FROM t WHERE 1 IN (SELECT t.c = col1 FROM t1);
+///
+///   -> Hash semijoin (no condition), extra conditions: (1 = (t.c = t1.col1))
+///       -> Table scan on t
+///       -> Hash
+///           -> Table scan on t1
+///
+/// In this query, the optimizer has set up the condition (1 = (t.c = t1.col1))
+/// as the semijoin condition. We cannot use this as a join condition, since
+/// hash join only supports equi-join conditions. However, we cannot attach this
+/// as a filter after the join, as that would cause wrong results. We attach
+/// these conditions as "extra" conditions to the hash join iterator, and causes
+/// these notable behaviors:
+///
+/// a. If we have any extra conditions, we cannot reject duplicate keys in the
+///    hash table: the first row matching the join condition could fail the
+///    extra condition(s).
+///
+/// b. We can only output rows if all extra conditions pass. If any of the extra
+///    conditions fail, we must go to the next matching row in the hash table.
+///
+/// c. In case of on-disk hash join, we must write the probe row to disk _after_
+///    we have checked that there are no rows in the hash table that match any
+///    of the extra conditions.
+///
 /// If we are able to execute the hash join in memory (classic hash join),
 /// the output will be sorted the same as the left (probe) input. If we start
 /// spilling to disk, we lose any reasonable ordering properties.
@@ -143,6 +183,69 @@ struct ChunkPair {
 /// input _almost_ fits in memory; it would likely be better to read the probe
 /// input twice instead of writing both inputs out to disk. However, we do not
 /// currently do any such cost based optimization.
+///
+/// There is a concept called "probe row saving" in the iterator. This is a
+/// technique that is enabled in two different scenarios: when a hash join build
+/// chunk does not fit entirely in memory and when hash join is not allowed to
+/// spill to disk. Common for these two scenarios is that a probe row will be
+/// read multiple times. For certain join types (semijoin), we must take care so
+/// that the same probe row is not sent to the client multiple times. Probe row
+/// saving takes care of this by doing the following:
+///
+/// - If we realize that we are going to read the same probe row multiple times,
+///   we enable probe row saving.
+/// - When a probe row is read, we write the row out to a probe row saving write
+///   file, given that it matches certain conditions (for semijoin we only save
+///   unmatched probe rows).
+/// - After the probe input is consumed, we will swap the probe row saving
+///   _write_ file and the probe row saving _read_ file, making the write file
+///   available for writing again.
+/// - When we are to read the probe input again, we read the probe rows from the
+///   probe row saving read file. This ensures that we i.e. do not output the
+///   same probe row twice for semijoin. Note that if the rows we read from the
+///   probe row saving read file will be read again (e.g., we have a big hash
+///   join build chunk that is many times bigger than the available hash table
+///   memory, causing us to process the chunk file in chunks), we will again
+///   write the rows to a new probe row saving write file. This reading from the
+///   read file and writing to a new write file continues until we know that we
+///   are seeing the probe rows for the last time.
+///
+/// We use the same methods as on-disk hash join (HashJoinChunk) for reading and
+/// writing rows to files. Note that probe row saving is never enabled for inner
+/// joins, since we do want to output the same probe row multiple times if it
+/// matches muliple rows from the build input. There are some differences
+/// regarding when probe row saving is enabled, depending on the hash join type
+/// (see enum HashJoinType):
+///
+/// - IN_MEMORY: Probe row saving is never activated, since the probe input is
+///   read only once.
+/// - SPILL_TO_DISK: If a build chunk file does not fit in memory (may happen
+///   with skewed data set), we will have to read the corresponding probe chunk
+///   multiple times. In this case, probe row saving is enabled as soon as we
+///   see that the build chunk does not fit in memory, and remains active until
+///   the entire build chunk is consumed. After the probe chunk is read once,
+///   we swap the probe row saving write file and probe row saving read file so
+///   that probe rows will be read from the probe row saving read file. Probe
+///   row saving is deactivated once we move to the next pair of chunk files.
+/// - IN_MEMORY_WITH_HASH_TABLE_REFILL: Probe row saving is activated when we
+///   see that the build input is too large to fit in memory. Once the probe
+///   iterator has been consumed once, we swap the probe row saving write file
+///   and probe row saving read file so that probe rows will be read from the
+///   probe row saving read file. As long as the build input is not fully
+///   consumed, we write probe rows from the read file out to a new write file,
+///   swapping these files for every hash table refill. Probe row saving is
+///   never deactivated in this hash join type.
+///
+/// Note that we always write the entire row when writing to probe row saving
+/// file. It would be possible to only write the match flag, but this is tricky
+/// as long as we have the hash join type IN_MEMORY_WITH_HASH_TABLE_REFILL. If
+/// we were to write only match flags in this hash join type, we would have to
+/// read the probe iterator multiple times. But there is no guarantee that rows
+/// will come in the same order when reading an iterator multiple times (e.g.
+/// NDB does not guarantee this), so it would require us to store match flags in
+/// a lookup structure using a row ID as the key. Due to this, we will
+/// reconsider this if the hash join type IN_MEMORY_WITH_HASH_TABLE_REFILL goes
+/// away.
 class HashJoinIterator final : public RowIterator {
  public:
   /// Construct a HashJoinIterator.
@@ -160,11 +263,9 @@ class HashJoinIterator final : public RowIterator {
   ///   the hash table and/or the chunk file on disk.
   /// @param probe_input
   ///   the iterator for the probe input
-  /// @param probe_input_table
-  ///   the probe input table. Needed for the same reasons as
-  ///   build_input_tables. We currently assume that this always is a single
-  ///   table, but this is not a limitation per se; the iterator is ready to
-  ///   handle multiple tables as the probe input.
+  /// @param probe_input_tables
+  ///   the probe input tables. Needed for the same reasons as
+  ///   build_input_tables.
   /// @param max_memory_available
   ///   the amount of memory available, in bytes, for this hash join iterator.
   ///   This can be user-controlled by setting the system variable
@@ -174,12 +275,22 @@ class HashJoinIterator final : public RowIterator {
   /// @param allow_spill_to_disk
   ///   whether the hash join can spill to disk. This is set to false in some
   ///   cases where we have a LIMIT in the query
+  /// @param join_type
+  ///   The join type. The iterator currently supports INNER and SEMI.
+  /// @param join
+  ///   The join we are a part of.
+  /// @param extra_conditions
+  ///   A list of extra conditions that the iterator will evaluate after a
+  ///   lookup in the hash table is done, but before the row is returned. The
+  ///   conditions are AND-ed together into a single Item.
   HashJoinIterator(THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
                    qep_tab_map build_input_tables,
                    unique_ptr_destroy_only<RowIterator> probe_input,
-                   QEP_TAB *probe_input_table, size_t max_memory_available,
+                   qep_tab_map probe_input_tables, size_t max_memory_available,
                    const std::vector<Item_func_eq *> &join_conditions,
-                   bool allow_spill_to_disk);
+                   bool allow_spill_to_disk, JoinType join_type,
+                   const JOIN *join,
+                   const std::vector<Item *> &extra_conditions);
 
   bool Init() override;
 
@@ -227,7 +338,7 @@ class HashJoinIterator final : public RowIterator {
   ///
   /// The end condition is that either:
   /// a) a row is ready in the tables' record buffers, and the state will be set
-  ///    to READING_FROM_HASH_TABLE.
+  ///    to READING_FIRST_ROW_FROM_HASH_TABLE.
   /// b) There are no more rows to process from the probe input, so the iterator
   ///    state will be LOADING_NEXT_CHUNK_PAIR.
   ///
@@ -241,12 +352,18 @@ class HashJoinIterator final : public RowIterator {
   /// @retval true in case of error
   bool ReadRowFromProbeChunkFile();
 
+  /// Read a single row from the probe row saving file into the tables' record
+  /// buffers.
+  ///
+  /// @retval true in case of error
+  bool ReadRowFromProbeRowSavingFile();
+
   // Do a lookup in the hash table for matching rows from the build input.
   // The lookup is done by computing the join key from the probe input, and
   // using that join key for doing a lookup in the hash table. If the join key
   // contains one or more SQL NULLs, the row cannot match anything and will be
   // skipped, and the iterator state will be READING_ROW_FROM_PROBE_INPUT. If
-  // not, the iterator state will be READING_FROM_HASH_TABLE.
+  // not, the iterator state will be READING_FIRST_ROW_FROM_HASH_TABLE.
   //
   // After this function is called, ReadJoinedRow() will return false until
   // there are no more matching rows for the computed join key.
@@ -256,7 +373,8 @@ class HashJoinIterator final : public RowIterator {
   /// build tables' record buffers. The function expects that
   /// LookupProbeRowInHashTable() has been called up-front. The user must
   /// call ReadJoinedRow() as long as it returns false, as there may be
-  /// multiple matching rows from the hash table.
+  /// multiple matching rows from the hash table. It is up to the caller to set
+  /// a new state in case of EOF.
   ///
   /// @retval 0 if a match was found and the row is put in the build tables'
   ///         record buffers
@@ -266,11 +384,73 @@ class HashJoinIterator final : public RowIterator {
   // Have we degraded into on-disk hash join?
   bool on_disk_hash_join() const { return !m_chunk_files_on_disk.empty(); }
 
+  /// Write the last row read from the probe input out to chunk files on disk,
+  /// if applicable.
+  ///
+  /// For inner joins, we must write all probe rows to chunk files, since we
+  /// need to match the row against rows from the build input that are written
+  /// out to chunk files. For semijoin, we can only write probe rows that do not
+  /// match any of the rows in the hash table. Writing a probe row with a
+  /// matching row in the hash table could cause the row to be returned multiple
+  /// times.
+  ///
+  /// @retval true in case of errors.
+  bool WriteProbeRowToDiskIfApplicable();
+
+  /// @retval true if the last joined row passes all of the extra conditions.
+  bool JoinedRowPassesExtraConditions() const;
+
+  /// If true, reject duplicate keys in the hash table.
+  ///
+  /// Semijoins are only interested in the first matching row from the hash
+  /// table, so we can avoid storing duplicate keys in order to save some
+  /// memory. However, this cannot be applied if we have any "extra" conditions:
+  /// the first matching row in the hash table may fail the extra condition(s).
+  ///
+  /// @retval true if we can reject duplicate keys in the hash table.
+  bool RejectDuplicateKeys() const {
+    return m_extra_condition == nullptr && m_join_type == JoinType::SEMI;
+  }
+
   /// Clear the row buffer and reset all iterators pointing to it. This may be
   /// called multiple times to re-init the row buffer.
   ///
   /// @retval true in case of error. my_error has been called
   bool InitRowBuffer();
+
+  /// Prepare to read the probe iterator from the beginning, and enable batch
+  /// mode if applicable. The iterator state will remain unchanged.
+  ///
+  /// @retval true in case of error. my_error has been called.
+  bool InitProbeIterator();
+
+  /// Mark that probe row saving is enabled, and prepare the probe row saving
+  /// file for writing.
+  /// @see m_write_to_probe_row_saving
+  ///
+  /// @retval true in case of error. my_error has been called.
+  bool InitWritingToProbeRowSavingFile();
+
+  /// Mark that we should read from the probe row saving file. The probe row
+  /// saving file is rewinded to the beginning.
+  /// @see m_read_from_probe_row_saving
+  ///
+  /// @retval true in case of error. my_error has been called.
+  bool InitReadingFromProbeRowSavingFile();
+
+  /// Set the iterator state to the correct READING_ROW_FROM_PROBE_*-state.
+  /// Which state we end up in depends on which hash join type we are executing
+  /// (in-memory, on-disk or in-memory with hash table refill).
+  void SetReadingProbeRowState();
+
+  /// Read a joined row from the hash table, and see if it passes any extra
+  /// conditions. The last probe row read will also be written do disk if needed
+  /// (see WriteProbeRowToDiskIfApplicable).
+  ///
+  /// @retval -1 There are no more matching rows in the hash table.
+  /// @retval 0 A joined row is ready.
+  /// @retval 1 An error occured.
+  int ReadNextJoinedRowFromHashTable();
 
   enum class State {
     // We are reading a row from the probe input, where the row comes from
@@ -279,10 +459,16 @@ class HashJoinIterator final : public RowIterator {
     // We are reading a row from the probe input, where the row comes from a
     // chunk file.
     READING_ROW_FROM_PROBE_CHUNK_FILE,
+    // We are reading a row from the probe input, where the row comes from a
+    // probe row saving file.
+    READING_ROW_FROM_PROBE_ROW_SAVING_FILE,
     // The iterator is moving to the next pair of chunk files, where the chunk
     // file from the build input will be loaded into the hash table.
     LOADING_NEXT_CHUNK_PAIR,
-    // We are reading the rows returned from the hash table lookup.
+    // We are reading the first row returned from the hash table lookup that
+    // also passes extra conditions.
+    READING_FIRST_ROW_FROM_HASH_TABLE,
+    // We are reading the remaining rows returned from the hash table lookup.
     READING_FROM_HASH_TABLE,
     // No more rows, both inputs are empty.
     END_OF_ROWS
@@ -302,7 +488,7 @@ class HashJoinIterator final : public RowIterator {
   // join. Rows/columns that are not needed are filtered out in the constructor.
   // We need to know which tables that belong to each iterator, so that we can
   // compute the join key when needed.
-  hash_join_buffer::TableCollection m_probe_input_table;
+  hash_join_buffer::TableCollection m_probe_input_tables;
   hash_join_buffer::TableCollection m_build_input_tables;
 
   // An in-memory hash table that holds rows from the build input (directly from
@@ -359,10 +545,10 @@ class HashJoinIterator final : public RowIterator {
   // duration of the iterator, so that we (most likely) avoid reallocations.
   String m_temporary_row_and_join_key_buffer;
 
-  // Determines whether to enable performance schema batch mode when reading
-  // from the probe input. If set to true, we enable batch mode just before we
-  // read the first row from the probe input.
-  bool m_enable_batch_mode_for_probe_input{false};
+  // Whether we should turn on batch mode for the probe input. Batch mode is
+  // enabled if the probe input consists of exactly one table, and
+  // QEP_TAB::pfs_batch_update() returns true for this table.
+  bool m_probe_input_batch_mode{false};
 
   // Whether we are allowed to spill to disk.
   bool m_allow_spill_to_disk{true};
@@ -373,6 +559,58 @@ class HashJoinIterator final : public RowIterator {
   // is false, as we have to see if there are more rows in the build input after
   // the probe input is consumed.
   bool m_build_iterator_has_more_rows{true};
+
+  // What kind of join the iterator should execute.
+  const JoinType m_join_type;
+
+  // If not nullptr, an extra condition that the iterator will evaluate after a
+  // lookup in the hash table is done, but before the row is returned. This is
+  // needed in case we have a semijoin condition that is not an equi-join
+  // condition (i.e. 't1.col1 < t2.col1').
+  Item *m_extra_condition{nullptr};
+
+  // Whether we should write rows from the probe input to the probe row saving
+  // write file. See the class comment on HashJoinIterator for details around
+  // probe row saving.
+  bool m_write_to_probe_row_saving{false};
+
+  // Whether we should read rows from the probe row saving read file. See the
+  // class comment on HashJoinIterator for details around probe row saving.
+  bool m_read_from_probe_row_saving{false};
+
+  // The probe row saving files where unmatched probe rows are written to and
+  // read from.
+  HashJoinChunk m_probe_row_saving_write_file;
+  HashJoinChunk m_probe_row_saving_read_file;
+
+  // Which row we currently are reading from in the probe row saving read file.
+  // Used to know whether we have reached the end of the file. How many files
+  // the probe row saving read file contains is contained in the HashJoinChunk
+  // (see m_probe_row_saving_read_file).
+  ha_rows m_probe_row_saving_read_file_current_row{0};
+
+  // The "type" of hash join we are executing. We currently have three different
+  // types of hash join:
+  // - In memory: We do everything in memory without any refills of the hash
+  //   table. Each input is read only once, and nothing is written to disk.
+  // - Spill to disk: If the build input does not fit in memory, we write both
+  //   inputs out to a set of chunk files. Both inputs are partitioned using a
+  //   hash function over the join attribute, ensuring that matching rows can be
+  //   found in the same set of chunk files. Each pair of chunk file is then
+  //   processed as an in-memory hash join.
+  // - In memory with hash table refill: This is enabled if we are not allowed
+  //   to spill to disk, and the build input does not fit in memory. We read as
+  //   much as possible from the build input into the hash table. We then read
+  //   the entire probe input, probing for matching rows in the hash table.
+  //   When the probe input returns EOF, the hash table is refilled with the
+  //   rows that did not fit the first time. The entire probe input is read
+  //   again, and this is repeated until the entire build input is consumed.
+  enum class HashJoinType {
+    IN_MEMORY,
+    SPILL_TO_DISK,
+    IN_MEMORY_WITH_HASH_TABLE_REFILL
+  };
+  HashJoinType m_hash_join_type{HashJoinType::IN_MEMORY};
 };
 
 /// For each of the given tables, request that the row ID is filled in

@@ -290,13 +290,15 @@ class HashJoinRowBuffer {
   /// holds.
   ///
   /// @param thd the thread handler
+  /// @param reject_duplicate_keys If true, reject rows with duplicate keys.
+  ///        If a row is rejected, the function will still return ROW_STORED.
   ///
   /// @retval ROW_STORED the row was stored.
   /// @retval BUFFER_FULL the row was stored, and the buffer is full.
   /// @retval FATAL_ERROR an unrecoverable error occured (most likely,
   ///         malloc failed). It is the callers responsibility to call
   ///         my_error().
-  StoreRowResult StoreRow(THD *thd);
+  StoreRowResult StoreRow(THD *thd, bool reject_duplicate_keys);
 
   size_t size() const { return m_hash_map->size(); }
 
@@ -311,6 +313,8 @@ class HashJoinRowBuffer {
     return m_hash_map->equal_range(key);
   }
 
+  hash_map_iterator find(const Key &key) const { return m_hash_map->find(key); }
+
   hash_map_iterator begin() const { return m_hash_map->begin(); }
 
   hash_map_iterator end() const { return m_hash_map->end(); }
@@ -321,6 +325,8 @@ class HashJoinRowBuffer {
   }
 
   bool Initialized() const { return m_hash_map.get() != nullptr; }
+
+  bool contains(const Key &key) const { return find(key) != end(); }
 
  private:
   const std::vector<HashJoinCondition> m_join_conditions;

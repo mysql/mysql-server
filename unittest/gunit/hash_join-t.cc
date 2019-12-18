@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 
 #include <random>
+#include <unordered_set>
 #include <vector>
 
 #include "extra/lz4/my_xxhash.h"
@@ -247,6 +248,7 @@ class HashJoinTestHelper {
   QEP_TAB *left_qep_tab;
   QEP_TAB *right_qep_tab;
   Item_func_eq *join_condition;
+  std::vector<Item *> extra_conditions;
 
   HashJoinTestHelper(Server_initializer *initializer,
                      const vector<int> &left_dataset,
@@ -271,7 +273,8 @@ class HashJoinTestHelper {
 
   HashJoinTestHelper(Server_initializer *initializer,
                      const vector<std::string> &left_dataset,
-                     const vector<std::string> &right_dataset) {
+                     const vector<std::string> &right_dataset)
+      : extra_conditions(PSI_NOT_INSTRUMENTED) {
     m_left_table_field.reset(new (&m_mem_root) Mock_field_varstring(
         nullptr, "column1", 255 /* length */, false /* is_nullable */));
     m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
@@ -351,8 +354,10 @@ TEST(HashJoinTest, JoinIntOneToOneMatch) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -372,8 +377,10 @@ TEST(HashJoinTest, JoinIntNoMatch) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   ASSERT_FALSE(hash_join_iterator.Init());
   EXPECT_EQ(-1, hash_join_iterator.Read());
@@ -389,8 +396,10 @@ TEST(HashJoinTest, JoinIntOneToManyMatch) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -414,8 +423,10 @@ TEST(HashJoinTest, JoinStringOneToOneMatch) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   ASSERT_FALSE(hash_join_iterator.Init());
 
@@ -459,8 +470,10 @@ static void BM_HashTableIteratorBuild(size_t num_iterations) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
@@ -502,8 +515,10 @@ static void BM_HashTableIteratorProbe(size_t num_iterations) {
   HashJoinIterator hash_join_iterator(
       initializer.thd(), std::move(test_helper.left_iterator),
       test_helper.left_qep_tab->idx_map(),
-      std::move(test_helper.right_iterator), test_helper.right_qep_tab,
-      10 * 1024 * 1024 /* 10 MB */, {test_helper.join_condition}, true);
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::INNER,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
 
   for (size_t i = 0; i < num_iterations; ++i) {
     ASSERT_FALSE(hash_join_iterator.Init());
@@ -518,5 +533,101 @@ static void BM_HashTableIteratorProbe(size_t num_iterations) {
   initializer.TearDown();
 }
 BENCHMARK(BM_HashTableIteratorProbe)
+
+// Do a benchmark of lookup in the hash table for semijoin. This is to see if
+// there is any difference between equal_range() and find(),
+//
+// The table that the hash table is built from is a single-column table with
+// 10000 uniformly distributed values between [0, 5000). We give the hash table
+// enough memory so that is doesn't spill out to disk.
+static void BM_HashTableIteratorProbeSemiJoin(size_t num_iterations) {
+  StopBenchmarkTiming();
+
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  const int num_value = 10000;
+  const int min_value = 0;
+  const int max_value = 5000;
+  const int seed = 8834245;
+  std::mt19937 generator(seed);
+  std::uniform_int_distribution<> distribution(min_value, max_value);
+
+  vector<int> left_dataset;
+  vector<int> right_dataset;
+  for (int i = 0; i < num_value; ++i) {
+    left_dataset.push_back(distribution(generator));
+    right_dataset.push_back(distribution(generator));
+  }
+  HashJoinTestHelper test_helper(&initializer, left_dataset, right_dataset);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_qep_tab->idx_map(),
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::SEMI,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
+
+  for (size_t i = 0; i < num_iterations; ++i) {
+    ASSERT_FALSE(hash_join_iterator.Init());
+    StartBenchmarkTiming();
+    int result;
+    do {
+      result = hash_join_iterator.Read();
+    } while (result == 0);
+    StopBenchmarkTiming();
+  }
+
+  initializer.TearDown();
+}
+BENCHMARK(BM_HashTableIteratorProbeSemiJoin)
+
+TEST(HashJoinTest, SemiJoinInt) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  // The iterator will execute something that is equivalent to the query
+  // "SELECT * FROM probe_data WHERE a IN (SELECT b FROM build_data);"
+  vector<int> build_data;
+  build_data.push_back(3);
+  build_data.push_back(3);
+  build_data.push_back(4);
+  build_data.push_back(5);
+
+  vector<int> probe_data;
+  probe_data.push_back(3);
+  probe_data.push_back(5);
+  probe_data.push_back(6);
+
+  HashJoinTestHelper test_helper(&initializer, build_data, probe_data);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_qep_tab->idx_map(),
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::SEMI,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  std::unordered_set<longlong> expected_result;
+  expected_result.emplace(3);
+  expected_result.emplace(5);
+
+  EXPECT_EQ(0, hash_join_iterator.Read());
+  longlong result = test_helper.left_qep_tab->table()->field[0]->val_int();
+  EXPECT_EQ(1, expected_result.erase(result));
+
+  EXPECT_EQ(0, hash_join_iterator.Read());
+  result = test_helper.left_qep_tab->table()->field[0]->val_int();
+  EXPECT_EQ(1, expected_result.erase(result));
+
+  EXPECT_EQ(-1, hash_join_iterator.Read());
+  EXPECT_TRUE(expected_result.empty());
+
+  initializer.TearDown();
+}
 
 }  // namespace hash_join_unittest

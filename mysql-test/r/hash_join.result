@@ -1216,7 +1216,7 @@ AND sq2_alias1.col_int > alias2.pk
 EXPLAIN
 -> Remove duplicate (alias2, alias3, alias1) rows using temporary table (weedout)
     -> Nested loop inner join
-        -> Filter: ((sq2_alias1.col_int > alias2.pk) and (sq2_alias1.col_varchar_key <> alias2.col_varchar))
+        -> Filter: ((sq2_alias1.col_varchar_key <> alias2.col_varchar) and (sq2_alias1.col_int > alias2.pk))
             -> Inner hash join (no condition)
                 -> Filter: (sq2_alias1.col_varchar is not null)  (cost=0.43 rows=6)
                     -> Table scan on sq2_alias1  (cost=0.43 rows=20)
@@ -2076,4 +2076,781 @@ EXPLAIN
         -> Hash
             -> Table scan on t1  (cost=0.35 rows=1)
 
+DROP TABLE t1, t2;
+# Semijoin.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+EXPLAIN
+-> Hash semijoin (t2.i = t1.i)  (cost=0.83 rows=2)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Hash
+        -> Table scan on t2  (cost=0.18 rows=2)
+
+SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+i
+1
+DROP TABLE t1, t2;
+CREATE TABLE t1 (col1 INTEGER, col2 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (1, 1), (1, 2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 WHERE (t1.col1) IN
+(SELECT t2.col1 FROM t2 WHERE t2.col2 < 3);
+EXPLAIN
+-> Hash semijoin (t2.col1 = t1.col1)  (cost=0.78 rows=1)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Hash
+        -> Filter: (t2.col2 < 3)  (cost=0.23 rows=1)
+            -> Table scan on t2  (cost=0.23 rows=2)
+
+DROP TABLE t1, t2;
+# Test a query where the optimizer will create a semijoin condition that
+# is not an equi-join condition. These kind of conditions must be
+# attached as "extra" conditions in the hash join iterator in order to
+# produce correct results.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (3), (4), (5);
+INSERT INTO t2 VALUES (2), (3), (4), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 1 IN (SELECT t1.col1 = t2.col1 FROM t2);
+EXPLAIN
+-> Hash semijoin (no condition), extra conditions: (1 = (t1.col1 = t2.col1))  (cost=2.50 rows=16)
+    -> Table scan on t1  (cost=0.65 rows=4)
+    -> Hash
+        -> Table scan on t2  (cost=0.65 rows=4)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 WHERE 1 IN (SELECT t1.col1 = t2.col1 FROM t2);
+col1
+3
+4
+DROP TABLE t1, t2;
+# Exercise a test where we get multiple tables in the probe input.
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+CREATE TABLE t3(a INTEGER);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t2 VALUES (0);
+INSERT INTO t3 VALUES (0);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SET optimizer_switch="materialization=off,duplicateweedout=off";
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
+WHERE (t1.a,t2.a) IN (SELECT a, a FROM t3);
+EXPLAIN
+-> Hash semijoin (t3.a = t1.a)  (cost=0.70 rows=1)
+    -> Inner hash join (t2.a = t1.a)  (cost=0.70 rows=1)
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Hash
+            -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t3  (cost=0.35 rows=1)
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a
+WHERE (t1.a,t2.a) IN (SELECT a, a FROM t3);
+a	a
+0	0
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2, t3;
+# See that semijoin with spill to disk works as expected.
+CREATE TABLE t1 (col1 BIGINT, col2 BIGINT);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+INSERT INTO t1
+SELECT col1 + POW(2, 0), col2 + POW(2, 0) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 1), col2 + POW(2, 1) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 2), col2 + POW(2, 2) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 3), col2 + POW(2, 3) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 4), col2 + POW(2, 4) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 5), col2 + POW(2, 5) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 6), col2 + POW(2, 6) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 7), col2 + POW(2, 7) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 8), col2 + POW(2, 8) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 9), col2 + POW(2, 9) FROM t1;
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 1024;
+SET optimizer_switch = "materialization=off";
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+(SELECT t2.col1 FROM t2);
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Hash semijoin (t2.col1 = t1.col1)  (cost=104883.37 rows=104858)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=3.27 rows=1024)
+
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+(SELECT t2.col1 FROM t2);
+SUM(t1.col1)	SUM(t1.col2)
+524800	525312
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+(SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Hash semijoin (t2.col1 = t1.col1), extra conditions: (t1.col2 <> t2.col2)  (cost=104882.95 rows=94372)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=2.85 rows=1024)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col2' of SELECT #2 was resolved in SELECT #1
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 IN
+(SELECT t2.col1 FROM t2 WHERE t1.col2 <> t2.col2);
+SUM(t1.col1)	SUM(t1.col2)
+262656	263168
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+# Set up a test case where hash join spills to disk, and the chunk files
+# for the build input is too big to fit into memory. This causes the
+# probe chunk file to be read multiple times. What we want to see is that
+# if a row from the probe chunk file finds a match in the first part of
+# the build chunk file, the row must not be sent to the client the second
+# time the row is read from the probe chunk. Note that it is not trivial
+# to set up a test case that is guaranteed to hit this case.
+CREATE TABLE build (col1 BIGINT);
+CREATE TABLE probe (col1 BIGINT);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 * 2 FROM probe;
+INSERT INTO build SELECT col1 * 3 FROM probe;
+SELECT COUNT(*) AS expected_num_rows FROM probe;
+expected_num_rows
+256
+SET join_buffer_size = 128;
+SET optimizer_switch="materialization=off";
+EXPLAIN FORMAT=tree SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
+EXPLAIN
+-> Aggregate: count(0)
+    -> Hash semijoin (build.col1 = probe.col1)  (cost=19669.28 rows=19661)
+        -> Table scan on probe  (cost=25.85 rows=256)
+        -> Hash
+            -> Table scan on build  (cost=3.73 rows=768)
+
+SELECT COUNT(*) FROM probe WHERE col1 IN (SELECT col1 FROM build);
+COUNT(*)
+256
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+DROP TABLE build, probe;
+# Using LIMIT in the query rejects hash join from spilling to disk,
+# causing the probe input to be read multiple times if the build input
+# does not fit in memory. This test case is somewhat similar to the
+# above; see that we do not output rows from the probe input multiple
+# times even if the probe input is read multiple times.
+CREATE TABLE build (col1 BIGINT);
+CREATE TABLE probe (col1 BIGINT);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 FROM probe ORDER BY col1 DESC;
+SET optimizer_switch = "materialization=off";
+SET join_buffer_size = 1024;
+EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
+EXPLAIN
+-> Hash semijoin (build.col1 = probe.col1)  (cost=13109.20 rows=13107)
+    -> Table scan on probe  (cost=25.85 rows=256)
+    -> Hash
+        -> Table scan on build  (cost=1.19 rows=512)
+
+SELECT * FROM probe WHERE col1 IN (SELECT * FROM build);
+col1
+1
+10
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+11
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+12
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+13
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+14
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+15
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+16
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+17
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+18
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+19
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+2
+20
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+21
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+22
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+23
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+24
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+25
+250
+251
+252
+253
+254
+255
+256
+26
+27
+28
+29
+3
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+4
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+5
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+6
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+7
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+8
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+9
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+SELECT * FROM probe WHERE col1 IN (SELECT * FROM build) LIMIT 1000;
+col1
+1
+10
+100
+101
+102
+103
+104
+105
+106
+107
+108
+109
+11
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+12
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+13
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+14
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+15
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+16
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+17
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+18
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+19
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+2
+20
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+21
+210
+211
+212
+213
+214
+215
+216
+217
+218
+219
+22
+220
+221
+222
+223
+224
+225
+226
+227
+228
+229
+23
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+24
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+25
+250
+251
+252
+253
+254
+255
+256
+26
+27
+28
+29
+3
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+4
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+5
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+6
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+7
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+8
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+9
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE build, probe;
+#
+# Bug#30512118 WL#13476: ASSERTION FAILURE AT
+#              HASHJOINITERATOR::INITPROBEITERATOR()
+#
+# Execute a query that causes the hash join to do everything in memory
+# with multiple refills of the hash table. This can be triggered when the
+# build input does not fit in memory, and the iterator is not allowed to
+# spill to disk due to LIMIT in the query.
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 SELECT UUID();
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+CREATE TABLE t2 AS SELECT UUID() AS col1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 128;
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+EXPLAIN
+-> Limit: 1000 row(s)
+    -> Inner hash join (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1907.45 rows=16384)
+        -> Table scan on t2  (cost=2.10 rows=128)
+        -> Hash
+            -> Table scan on t1  (cost=13.05 rows=128)
+
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;

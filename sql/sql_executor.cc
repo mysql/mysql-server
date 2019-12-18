@@ -1385,6 +1385,20 @@ struct PendingInvalidator {
   int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
 };
 
+/// @param item The item we want to see if is a join condition.
+/// @param qep_tab The table we are joining in.
+/// @returns true if 'item' is a join condition for a join involving the given
+///   table (both equi-join and non-equi-join condition).
+static bool IsJoinCondition(const Item *item, const QEP_TAB *qep_tab) {
+  table_map used_tables = item->used_tables();
+  if ((~qep_tab->table_ref->map() & used_tables) != 0) {
+    // This is a join condition (either equi-join or non-equi-join).
+    return true;
+  }
+
+  return false;
+}
+
 /*
   There are three kinds of conditions stored into a table's QEP_TAB object:
 
@@ -1423,8 +1437,10 @@ struct PendingInvalidator {
   after-join conditions to begin with, instead of us having to untangle
   it here.
  */
-void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
-                     vector<PendingCondition> *predicates_above_join) {
+void SplitConditions(Item *condition, QEP_TAB *current_table,
+                     vector<Item *> *predicates_below_join,
+                     vector<PendingCondition> *predicates_above_join,
+                     vector<PendingCondition> *join_conditions) {
   vector<Item *> condition_parts;
   ExtractConditions(condition, &condition_parts);
   for (Item *item : condition_parts) {
@@ -1456,7 +1472,18 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
         predicates_below_join->push_back(item);
       }
     } else {
-      predicates_below_join->push_back(item);
+      if (current_table->match_tab != NO_PLAN_IDX &&
+          join_conditions != nullptr && IsJoinCondition(item, current_table)) {
+        // We are on the inner side of a semijoin, and the item we are looking
+        // at is a join condition. In addition, the join will be executed using
+        // hash join. Move the join condition up to the table we are semijoining
+        // against (where the join iterator is created), so that it can be
+        // attached to the hash join iterator.
+        join_conditions->push_back(
+            PendingCondition{item, current_table->match_tab});
+      } else {
+        predicates_below_join->push_back(item);
+      }
     }
   }
 }
@@ -1717,10 +1744,11 @@ static Substructure FindSubstructure(
 
 /// @cond Doxygen_is_confused
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
-    plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
-    CallingContext calling_context,
+    plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
+    QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
+    vector<PendingCondition> *pending_join_conditions,
     qep_tab_map *unhandled_duplicates);
 /// @endcond
 
@@ -1851,10 +1879,12 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // even though the tables are part of the same JOIN object
     // (so in effect, a “virtual join”).
     qep_tab_map unhandled_duplicates = 0;
-    unique_ptr_destroy_only<RowIterator> subtree_iterator =
-        ConnectJoins(join_start, join_end, qep_tabs, thd, TOP_LEVEL,
-                     /*pending_conditions=*/nullptr,
-                     /*pending_invalidators=*/nullptr, &unhandled_duplicates);
+    unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
+        /*upper_first_idx=*/NO_PLAN_IDX, join_start, join_end, qep_tabs, thd,
+        TOP_LEVEL,
+        /*pending_conditions=*/nullptr,
+        /*pending_invalidators=*/nullptr,
+        /*pending_join_conditions=*/nullptr, &unhandled_duplicates);
 
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated
@@ -2008,17 +2038,62 @@ void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
                                cost_model.row_evaluate_cost(joined_rows));
 }
 
+// Create a hash join iterator with the given build and probe input. We will
+// move conditions from the argument "join_conditions" into two separate lists;
+// one list for equi-join conditions that will be used as normal join conditions
+// in hash join, and one list for non-equi-join conditions that will be attached
+// as "extra" conditions in hash join. The "extra" conditions are conditions
+// that must be evaluated after the hash table lookup, but _before_ returning a
+// row. Conditions that are not moved will be attached as filters after the
+// join. Note that we only attach conditions as "extra" conditions if the join
+// type is not inner join. This gives us more fine-grained output from EXPLAIN
+// ANALYZE, where we can see whether the condition was expensive.
+// This information is lost when we attach conditions as extra conditions inside
+// hash join.
+//
+// The function will also determine whether hash join is allowed to spill to
+// disk. In general, we reject spill to disk if the query has a LIMIT and no
+// aggregation or grouping. See comments inside the function for justification.
 static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> build_iterator,
+    THD *thd, QEP_TAB *qep_tab,
+    unique_ptr_destroy_only<RowIterator> build_iterator,
     qep_tab_map build_tables,
-    unique_ptr_destroy_only<RowIterator> probe_iterator, QEP_TAB *probe_table,
-    const std::vector<Item_func_eq *> &hash_join_conditions) {
-  const bool has_grouping =
-      probe_table->join()->implicit_grouping || probe_table->join()->grouped;
+    unique_ptr_destroy_only<RowIterator> probe_iterator,
+    qep_tab_map probe_tables, JoinType join_type,
+    vector<Item *> *join_conditions) {
+  // Move out equi-join conditions and non-equi-join conditions, so we can
+  // attach them as join condition and extra conditions in hash join.
+  vector<Item_func_eq *> hash_join_conditions;
+  vector<Item *> hash_join_extra_conditions;
+  for (Item *item : *join_conditions) {
+    // See if this is an equi-join condition.
+    if (item->type() == Item::FUNC_ITEM || item->type() == Item::COND_ITEM) {
+      Item_func *func_item = down_cast<Item_func *>(item);
+      if (func_item->contains_only_equi_join_condition()) {
+        hash_join_conditions.push_back(down_cast<Item_func_eq *>(func_item));
+        continue;
+      }
+    }
 
-  const bool has_limit = probe_table->join()->m_select_limit != HA_POS_ERROR;
+    // It was not.
+    hash_join_extra_conditions.push_back(item);
+  }
 
-  const bool has_order_by = probe_table->join()->order.order != nullptr;
+  if (join_type == JoinType::INNER) {
+    // For inner join, attach the extra conditions as filters after the join.
+    // This gives us more detailed output in EXPLAIN ANALYZE since we get an
+    // instrumented FilterIterator on top of the join.
+    *join_conditions = move(hash_join_extra_conditions);
+  } else {
+    join_conditions->clear();
+  }
+
+  const JOIN *join = qep_tab->join();
+  const bool has_grouping = join->implicit_grouping || join->grouped;
+
+  const bool has_limit = join->m_select_limit != HA_POS_ERROR;
+
+  const bool has_order_by = join->order.order != nullptr;
 
   // If we have a limit in the query, do not allow hash join to spill to
   // disk. The effect of this is that hash join will start producing
@@ -2034,72 +2109,45 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
   // table(s) has to be read while we are positioned on the rows from the pushed
   // ancestors which the child depends on. Thus, we can not allow rows from a
   // 'pushed join' to 'spill_to_disk'.
-  if (probe_table->table()->file->member_of_pushed_join()) {
+  if (qep_tab->table()->file->member_of_pushed_join()) {
     allow_spill_to_disk = false;
   }
 
   auto iterator = NewIterator<HashJoinIterator>(
       thd, move(build_iterator), build_tables, move(probe_iterator),
-      probe_table, thd->variables.join_buff_size, hash_join_conditions,
-      allow_spill_to_disk);
-  SetCostOnHashJoinIterator(*thd->cost_model(), probe_table->position(),
+      probe_tables, thd->variables.join_buff_size, hash_join_conditions,
+      allow_spill_to_disk, join_type, join, hash_join_extra_conditions);
+  SetCostOnHashJoinIterator(*thd->cost_model(), qep_tab->position(),
                             iterator.get());
 
   return iterator;
 }
 
-// Move all the hash join conditions from the vector "predicates" over to the
-// vector "hash_join_conditions". Only join conditions that are suitable for
-// hash join are moved. If there are any condition that has to be evaluated
-// after the join (i.e. non equi-join conditions), they are placed in the vector
-// "conditions_after_hash_join" so that they can be attached as filters after
-// the join.
-static void ExtractHashJoinConditions(
-    const QEP_TAB *current_table, qep_tab_map left_tables,
-    vector<Item *> *predicates, vector<Item_func_eq *> *hash_join_conditions,
-    vector<Item *> *conditions_after_hash_join) {
-  table_map left_tables_map = 0;
-  for (QEP_TAB *qep_tab :
-       TablesContainedIn(current_table->join(), left_tables)) {
-    left_tables_map = left_tables_map | qep_tab->table_ref->map();
-  }
-
+// Move all the join conditions from the vector "predicates" over to the
+// vector "join_conditions", while filters are untouched. This is done so that
+// we can attach the join conditions directly to the hash join iterator. Further
+// separation into equi-join and non-equi-join conditions will be done inside
+// CreateHashJoinIterator().
+static void ExtractJoinConditions(const QEP_TAB *current_table,
+                                  vector<Item *> *predicates,
+                                  vector<Item *> *join_conditions) {
+  vector<Item *> real_predicates;
   for (Item *item : *predicates) {
-    if (item->type() != Item::FUNC_ITEM) {
-      continue;
-    }
-
-    // If this Item is an equi-join condition, use it as a join condition in
-    // hash join. Items that are not equi-join conditions will either be
-    // attached as filters after the join (see the end of this function) or
-    // before the join. This is determined by whether they refer to tables from
-    // both sides of the join or not.
-    Item_func *func_item = down_cast<Item_func *>(item);
-    if (func_item->contains_only_equi_join_condition()) {
-      hash_join_conditions->emplace_back(down_cast<Item_func_eq *>(func_item));
+    if (IsJoinCondition(item, current_table)) {
+      join_conditions->emplace_back(item);
+    } else {
+      real_predicates.emplace_back(item);
     }
   }
 
-  // Remove all hash join conditions from the vector "predicates".
-  predicates->erase(remove_if(predicates->begin(), predicates->end(),
-                              [&hash_join_conditions](const Item *item) {
-                                return find(hash_join_conditions->begin(),
-                                            hash_join_conditions->end(),
-                                            item) !=
-                                       hash_join_conditions->end();
-                              }),
-                    predicates->end());
+  *predicates = move(real_predicates);
+}
 
-  // See if any of the remaining conditions should be attached as filter after
-  // the join. If so, place them in a separate vector.
-  for (int i = predicates->size() - 1; i >= 0; --i) {
-    Item *item = predicates->at(i);
-    table_map used_tables = item->used_tables();
-    if ((~current_table->table_ref->map() & used_tables) > 0) {
-      conditions_after_hash_join->emplace_back(item);
-      predicates->erase(predicates->begin() + i);
-    }
-  }
+static bool UseHashJoin(QEP_TAB *qep_tab) {
+  return qep_tab->op != nullptr &&
+         qep_tab->op->type() == QEP_operation::OT_CACHE &&
+         down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() !=
+             JOIN_CACHE::ALG_BKA;
 }
 
 /**
@@ -2134,6 +2182,12 @@ static void ExtractHashJoinConditions(
   condition, but for outer joins, we need to wait until the join has happened.
   See pending_conditions below.
 
+
+  @param upper_first_idx gives us the first table index of the other side of the
+    join. Only valid if we are inside a substructure (outer join, semijoin or
+    antijoin). I.e., if we are processing the right side of the query
+    't1 LEFT JOIN t2', upper_first_idx gives us the table index of 't1'. Used by
+    hash join to determine the table map for each side of the join.
   @param first_idx index of the first table in the slice we are creating a
     tree for (inclusive)
   @param last_idx index of the last table in the slice we are creating a
@@ -2150,15 +2204,21 @@ static void ExtractHashJoinConditions(
   @param pending_invalidators similar to pending_conditions, but for tables
     that should have a CacheInvalidatorIterator synthesized for them;
     NULL-complemented rows must also invalidate materialized lateral derived
-  tables.
+    tables.
+  @param pending_join_conditions if not nullptr, we are at the inner side of
+    semijoin (the IN-side). The join iterator is created at the outer side, so
+    any join conditions at the inner side needs to be pushed to this vector so
+    that they can be attached to the join iterator. Note that this is currently
+    only used by hash join.
   @param[out] unhandled_duplicates list of tables we should have deduplicated
     using duplicate weedout, but could not; append-only.
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
-    plan_idx first_idx, plan_idx last_idx, QEP_TAB *qep_tabs, THD *thd,
-    CallingContext calling_context,
+    plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
+    QEP_TAB *qep_tabs, THD *thd, CallingContext calling_context,
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
+    vector<PendingCondition> *pending_join_conditions,
     qep_tab_map *unhandled_duplicates) {
   DBUG_ASSERT(last_idx > first_idx);
   DBUG_ASSERT((pending_conditions == nullptr) ==
@@ -2204,17 +2264,23 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       unique_ptr_destroy_only<RowIterator> subtree_iterator;
       vector<PendingCondition> subtree_pending_conditions;
       vector<PendingInvalidator> subtree_pending_invalidators;
+      vector<PendingCondition> subtree_pending_join_conditions;
       if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
+        // Send in "subtree_pending_join_conditions", so that any semijoin
+        // conditions are moved up to this level, where they will be attached as
+        // conditions to the hash join iterator.
         subtree_iterator = ConnectJoins(
-            i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_SEMIJOIN,
-            pending_conditions, pending_invalidators, unhandled_duplicates);
+            first_idx, i, substructure_end, qep_tabs, thd,
+            DIRECTLY_UNDER_SEMIJOIN, pending_conditions, pending_invalidators,
+            &subtree_pending_join_conditions, unhandled_duplicates);
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
         // so we need to keep deferring WHERE predicates.
         subtree_iterator = ConnectJoins(
-            i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_OUTER_JOIN,
-            pending_conditions, pending_invalidators, unhandled_duplicates);
+            first_idx, i, substructure_end, qep_tabs, thd,
+            DIRECTLY_UNDER_OUTER_JOIN, pending_conditions, pending_invalidators,
+            pending_join_conditions, unhandled_duplicates);
 
         // Pick out any conditions that should be directly above this join
         // (ie., the ON conditions for this specific join).
@@ -2241,10 +2307,11 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else {
         // We can check the WHERE predicates on this table right away
         // after the join (and similarly, set up invalidators).
-        subtree_iterator =
-            ConnectJoins(i, substructure_end, qep_tabs, thd,
-                         DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
-                         &subtree_pending_invalidators, unhandled_duplicates);
+        subtree_iterator = ConnectJoins(
+            first_idx, i, substructure_end, qep_tabs, thd,
+            DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
+            &subtree_pending_invalidators,
+            /*pending_join_conditions=*/nullptr, unhandled_duplicates);
       }
 
       JoinType join_type;
@@ -2343,6 +2410,31 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
+      } else if (join_type == JoinType::SEMI && UseHashJoin(qep_tab)) {
+        qep_tab_map left_tables = TablesBetween(first_idx, i);
+        qep_tab_map right_tables = TablesBetween(i, substructure_end);
+
+        vector<Item *> join_conditions;
+        // Join conditions that were inside the substructure are placed in the
+        // vector 'subtree_pending_join_conditions'. Find out which of these
+        // conditions that should be attached to this table, and attach them
+        // to the hash join iterator.
+        for (auto it = subtree_pending_join_conditions.begin();
+             it != subtree_pending_join_conditions.end();) {
+          if (it->table_index_to_attach_to == int(i)) {
+            join_conditions.push_back(it->cond);
+            it = subtree_pending_join_conditions.erase(it);
+          } else {
+            ++it;
+          }
+        }
+
+        iterator = CreateHashJoinIterator(
+            thd, qep_tab, move(subtree_iterator), right_tables, move(iterator),
+            left_tables, join_type, &join_conditions);
+
+        iterator =
+            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd);
       } else {
         iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
                                                    move(subtree_iterator),
@@ -2375,8 +2467,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       continue;
     } else if (substructure == Substructure::WEEDOUT) {
       unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
-          i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
-          pending_conditions, pending_invalidators, unhandled_duplicates);
+          first_idx, i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
+          pending_conditions, pending_invalidators, pending_join_conditions,
+          unhandled_duplicates);
       RowIterator *child_iterator = subtree_iterator.get();
       subtree_iterator = CreateWeedoutIterator(thd, move(subtree_iterator),
                                                qep_tab->flush_weedout_table);
@@ -2403,24 +2496,26 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         GetTableIterator(thd, qep_tab, qep_tabs);
     MultiRangeRowIterator *mrr_iterator_ptr = nullptr;
 
-    vector<Item *> predicates_below_join;
-    vector<Item_func_eq *> hash_join_conditions;
-    vector<Item *> conditions_after_hash_join;
-    vector<PendingCondition> predicates_above_join;
-    SplitConditions(qep_tab->condition(), &predicates_below_join,
-                    &predicates_above_join);
-
-    qep_tab_map left_tables = 0;
-
     // If this is a BNL, we should replace it with hash join. We did decide
     // during create_iterators that we actually can replace the BNL with a hash
     // join, so we don't bother checking any further that we actually can
     // replace the BNL with a hash join.
-    const bool replace_with_hash_join =
-        qep_tab->op != nullptr &&
-        qep_tab->op->type() == QEP_operation::OT_CACHE &&
-        down_cast<JOIN_CACHE *>(qep_tab->op)->cache_type() !=
-            JOIN_CACHE::ALG_BKA;
+    const bool replace_with_hash_join = UseHashJoin(qep_tab);
+
+    vector<Item *> predicates_below_join;
+    vector<Item *> join_conditions;
+    vector<PendingCondition> predicates_above_join;
+
+    // If we are on the inner side of a semijoin, pending_join_conditions will
+    // be set. If the semijoin should be executed using hash join,
+    // SplitConditions() will put all semijoin conditions in
+    // pending_join_conditions. These conditions will later be attached to the
+    // hash join iterator when we are done handling the inner side.
+    SplitConditions(qep_tab->condition(), qep_tab, &predicates_below_join,
+                    &predicates_above_join,
+                    replace_with_hash_join ? pending_join_conditions : nullptr);
+
+    qep_tab_map left_tables = 0;
 
     // We can always do BKA. The setup is very similar to hash join.
     const bool is_bka = qep_tab->op != nullptr &&
@@ -2430,7 +2525,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
-      left_tables |= TablesBetween(first_idx, i);
+      if (calling_context == DIRECTLY_UNDER_SEMIJOIN) {
+        // Join buffering (hash join, BKA) supports semijoin with only one inner
+        // table (see setup_join_buffering), so the calling context for a
+        // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
+        left_tables |= TablesBetween(upper_first_idx, first_idx);
+      } else {
+        left_tables |= TablesBetween(first_idx, i);
+      }
 
       if (is_bka) {
         table_iterator = NewIterator<MultiRangeRowIterator>(
@@ -2440,16 +2542,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         mrr_iterator_ptr =
             down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
       } else {
-        // All join conditions are now contained in "predicates_below_join". We
-        // will now take all the hash join conditions (equi-join conditions) and
-        // move them to a separate vector so we can attach them to the hash join
-        // iterator later. Also, "predicates_below_join" might contain
-        // conditions that should be applied after the join (for instance non
-        // equi-join conditions). Put them in a separate vector, and attach them
-        // as a filter after the hash join.
-        ExtractHashJoinConditions(qep_tab, left_tables, &predicates_below_join,
-                                  &hash_join_conditions,
-                                  &conditions_after_hash_join);
+        // We will now take all the join conditions (both equi- and
+        // non-equi-join conditions) and move them to a separate vector so we
+        // can attach them to the hash join iterator later. Conditions that
+        // should be attached after the join remain in "predicates_below_join"
+        // (i.e. filters).
+        ExtractJoinConditions(qep_tab, &predicates_below_join,
+                              &join_conditions);
       }
     }
 
@@ -2541,14 +2640,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (replace_with_hash_join) {
         // The numerically lower QEP_TAB is often (if not always) the smaller
         // input, so use that as the build input.
-        iterator = CreateHashJoinIterator(thd, move(iterator), left_tables,
-                                          move(table_iterator), qep_tab,
-                                          hash_join_conditions);
+        iterator = CreateHashJoinIterator(
+            thd, qep_tab, move(iterator), left_tables, move(table_iterator),
+            qep_tab->idx_map(), JoinType::INNER, &join_conditions);
 
-        // Attach the conditions that must be evaluated after the join, such as
-        // non equi-join conditions.
-        iterator = PossiblyAttachFilterIterator(
-            move(iterator), conditions_after_hash_join, thd);
+        // Attach any remaining non-equi-join conditions as a filter after the
+        // join.
+        iterator =
+            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd);
       } else {
         iterator = CreateNestedLoopIterator(
             thd, move(iterator), move(table_iterator), JoinType::INNER,
@@ -2624,8 +2723,9 @@ void JOIN::create_table_iterators() {
       if (qep_tab->condition()) {
         vector<Item *> predicates_below_join;
         vector<PendingCondition> predicates_above_join;
-        SplitConditions(qep_tab->condition(), &predicates_below_join,
-                        &predicates_above_join);
+        SplitConditions(qep_tab->condition(), qep_tab, &predicates_below_join,
+                        &predicates_above_join,
+                        /*join_conditions=*/nullptr);
 
         iterator = PossiblyAttachFilterIterator(move(iterator),
                                                 predicates_below_join, thd);
@@ -2664,7 +2764,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   // executor:
   //
   //   1. We have a child query expression that needs to run in it.
-  //   2. We have BNL that we cannot rewrite to hash join (non equi-join
+  //   2. We have BNL that we cannot rewrite to hash join (non-equi-join
   //      condition).
   //   3. We have join buffering (BNL/BKA) that is not an inner join
   //      (outer join, semijoin, or antijoin).
@@ -2685,9 +2785,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (qep_tab->next_select == sub_select_op) {
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        if (qep_tab[1].last_inner() != NO_PLAN_IDX ||
-            qep_tab[1].firstmatch_return != NO_PLAN_IDX) {
-          // Outer or semijoin. Not supported for BNL/BKA yet!
+        if (qep_tab[1].last_inner() != NO_PLAN_IDX) {
+          // Outer join. Not supported for BNL/BKA yet!
           return nullptr;
         }
         // See if it's possible to replace the BNL with a hash join,
@@ -2695,6 +2794,12 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
         if (!join_cache->can_be_replaced_with_hash_join() &&
             join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
+          return nullptr;
+        }
+
+        if (join_cache->cache_type() == JOIN_CACHE::ALG_BKA &&
+            qep_tab[1].firstmatch_return != NO_PLAN_IDX) {
+          // Combination of BKA and semijoin is not supported yet.
           return nullptr;
         }
       } else {
@@ -2778,8 +2883,10 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     }
   } else {
     qep_tab_map unhandled_duplicates = 0;
-    iterator = ConnectJoins(const_tables, primary_tables, qep_tab, thd,
-                            TOP_LEVEL, nullptr, nullptr, &unhandled_duplicates);
+    iterator = ConnectJoins(
+        /*upper_first_idx=*/NO_PLAN_IDX, const_tables, primary_tables, qep_tab,
+        thd, TOP_LEVEL, nullptr, nullptr,
+        /*pending_join_conditions=*/nullptr, &unhandled_duplicates);
 
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated
@@ -8678,7 +8785,7 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
   Code for pfs_batch_update
 ******************************************************************************/
 
-bool QEP_TAB::pfs_batch_update(JOIN *join) const {
+bool QEP_TAB::pfs_batch_update(const JOIN *join) const {
   /*
     Use PFS batch mode unless
      1. tab is not an inner-most table, or

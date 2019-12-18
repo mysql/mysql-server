@@ -403,8 +403,6 @@ class PrecomputedAggregateIterator final : public RowIterator {
   int m_output_slice;
 };
 
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
-
 /**
   A simple nested loop join, taking in two iterators (left/outer and
   right/inner) and joining them together. This may, of course, scan the inner

@@ -679,11 +679,6 @@ bool JOIN_CACHE_BNL::can_be_replaced_with_hash_join() const {
     return false;
   }
 
-  if (qep_tab->firstmatch_return != NO_PLAN_IDX) {
-    // Semijoin.
-    return false;
-  }
-
   return true;
 }
 

@@ -69,6 +69,8 @@ class HashJoinChunk {
 
   HashJoinChunk(const HashJoinChunk &obj) = delete;
 
+  HashJoinChunk &operator=(HashJoinChunk &&other);
+
   ~HashJoinChunk();
 
   /// Initialize this HashJoinChunk.

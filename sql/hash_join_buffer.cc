@@ -382,20 +382,30 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   return false;
 }
 
-StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd) {
+StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
+                                           bool reject_duplicate_keys) {
   // Make the key from the join conditions.
   m_buffer.length(0);
   for (const HashJoinCondition &hash_join_condition : m_join_conditions) {
     if (hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer)) {
-      // SQL NULL values will never match in an inner join, so skip the row.
+      // SQL NULL values will never match in an inner join or semijoin, so skip
+      // the row.
       return StoreRowResult::ROW_STORED;
     }
   }
 
-  // Allocate the join key on the same MEM_ROOT that the hash table is allocated
-  // on, so it has the same lifetime as the rest of the contents in the hash map
-  // (until Clear() is called on the HashJoinBuffer).
+  // TODO(efroseth): We should probably use an unordered_map instead of multimap
+  // for these cases so we do not have to hash and lookup twice.
+  if (reject_duplicate_keys &&
+      contains(Key(pointer_cast<const uchar *>(m_buffer.ptr()),
+                   m_buffer.length()))) {
+    return StoreRowResult::ROW_STORED;
+  }
+
+  // Allocate the join key on the same MEM_ROOT that the hash table is
+  // allocated on, so it has the same lifetime as the rest of the contents in
+  // the hash map (until Clear() is called on the HashJoinBuffer).
   const size_t join_key_size = m_buffer.length();
   uchar *join_key_data = nullptr;
   if (join_key_size > 0) {

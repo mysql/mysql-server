@@ -545,7 +545,7 @@ class QEP_TAB : public QEP_shared_owner {
   /// @return the index used for a table in a QEP
   uint effective_index() const;
 
-  bool pfs_batch_update(JOIN *join) const;
+  bool pfs_batch_update(const JOIN *join) const;
 
  public:
   /// Pointer to table reference
@@ -843,9 +843,10 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const std::vector<Item *> &conditions, THD *thd);
 
-void SplitConditions(Item *condition,
+void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<Item *> *predicates_below_join,
-                     std::vector<PendingCondition> *predicates_above_join);
+                     std::vector<PendingCondition> *predicates_above_join,
+                     std::vector<PendingCondition> *join_conditions);
 
 bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                        const bool new_partition_or_eof,

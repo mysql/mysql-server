@@ -42,11 +42,27 @@ HashJoinChunk::HashJoinChunk(HashJoinChunk &&other)
   new (&other.m_file) IO_CACHE();
 }
 
+HashJoinChunk &HashJoinChunk::operator=(HashJoinChunk &&other) {
+  m_tables = std::move(other.m_tables);
+  m_num_rows = other.m_num_rows;
+
+  // Since the file we are replacing will become unreachable, free all resources
+  // used by it.
+  close_cached_file(&m_file);
+  m_file = other.m_file;
+
+  // Reset the IO_CACHE structure so that the destructor doesn't close/clear the
+  // file contents and it's buffers.
+  new (&other.m_file) IO_CACHE();
+  return *this;
+}
+
 HashJoinChunk::~HashJoinChunk() { close_cached_file(&m_file); }
 
 bool HashJoinChunk::Init(const hash_join_buffer::TableCollection &tables) {
   m_tables = tables;
   m_file.file_key = key_file_hash_join;
+  m_num_rows = 0;
   return open_cached_file(&m_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                           MYF(MY_WME));
 }
