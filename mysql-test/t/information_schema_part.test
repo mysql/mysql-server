@@ -8,6 +8,7 @@ partition by list (b*a)
  partition x2 values in (3, 11, 5, 7),
  partition x3 values in (16, 8, 5+19, 70-43));
 
+--sorted_result
 --replace_column 16 # 19 # 20 #
 --sorted_result
 select * from information_schema.partitions where table_schema="test"
@@ -19,6 +20,7 @@ partitions 3
 (partition x1 values less than (5),
  partition x2 values less than (10),
  partition x3 values less than maxvalue);
+--sorted_result
 --replace_column 16 # 19 # 20 #
 --sorted_result
 select * from information_schema.partitions where table_schema="test"
@@ -27,6 +29,7 @@ and table_name="t2";
 create table t3 (f1 date)
 partition by hash(month(f1))
 partitions 3;
+--sorted_result
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"
 and table_name="t3";
@@ -34,6 +37,7 @@ and table_name="t3";
 create table t4 (f1 date, f2 int)
 partition by key(f1,f2)
 partitions 3;
+--sorted_result
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"
 and table_name="t4";
@@ -61,6 +65,7 @@ subpartition by key (a)
   ( subpartition x21,
     subpartition x22)
 );
+--sorted_result
 --replace_column 16 # 19 # 20 #
 --sorted_result
 select * from information_schema.partitions where table_schema="test"; 
@@ -84,6 +89,7 @@ subpartition by hash (a+b)
   subpartition x32 nodegroup 1)
 );
    
+--sorted_result
 --replace_column 16 # 19 # 20 #
 --sorted_result
 select * from information_schema.partitions where table_schema="test";
@@ -91,6 +97,7 @@ show tables;
 drop table t1;
 
 create table t1(f1 int, f2 int);
+--sorted_result
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test";
 drop table t1;
@@ -98,6 +105,7 @@ drop table t1;
 create table t1 (f1 date)
 partition by linear hash(month(f1))
 partitions 3;
+--sorted_result
 --replace_column 16 # 19 # 20 #
 select * from information_schema.partitions where table_schema="test"
 and table_name="t1";
@@ -133,6 +141,7 @@ drop table t1;
 drop table if exists t1;
 --enable_warnings
 create table t1 (f1 int key) partition by key(f1) partitions 2;
+--sorted_result
 select create_options from information_schema.tables where table_schema="test";
 drop table t1;
 

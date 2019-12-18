@@ -475,8 +475,8 @@ ON t2.i = t1.i
 WHERE t3.i IS NULL
 ;
 i	i	i
-3	3	NULL
 2	NULL	NULL
+3	3	NULL
 select TRACE from information_schema.OPTIMIZER_TRACE;
 TRACE
 {

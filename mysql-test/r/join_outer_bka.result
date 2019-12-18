@@ -393,14 +393,14 @@ select t1.name, t2.name, t2.id,t3.id from t1 right join t2 on (t1.id = t2.owner)
 name	name	id	id
 Antonio Paz	El Gato	1	1
 Antonio Paz	Perrito	2	1
-Thimble Smith	Happy	3	3
 NULL	NULL	NULL	2
+Thimble Smith	Happy	3	3
 select t1.name, t2.name, t2.id, t2.owner, t3.id from t1 left join t2 on (t1.id = t2.owner) right join t1 as t3 on t3.id=t2.owner;
 name	name	id	owner	id
 Antonio Paz	El Gato	1	1	1
 Antonio Paz	Perrito	2	1	1
-Thimble Smith	Happy	3	3	3
 NULL	NULL	NULL	NULL	2
+Thimble Smith	Happy	3	3	3
 drop table t1,t2;
 create table t1 (id int not null, str char(10), index(str));
 insert into t1 values (1, null), (2, null), (3, "foo"), (4, "bar");

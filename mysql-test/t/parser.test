@@ -1763,7 +1763,9 @@ INSERT INTO t2 VALUES         (2, 2), (3, 3), (4, 4);
 INSERT INTO t3 VALUES                 (3, 3), (4, 4), (5, 5);
 
 --echo # The two queries below should produce identical result sets.
+--sorted_result
 SELECT * FROM t1 NATURAL LEFT JOIN t2 NATURAL RIGHT JOIN t3;
+--sorted_result
 SELECT * FROM (t1 NATURAL LEFT JOIN t2) NATURAL RIGHT JOIN t3;
 --echo # This result should differ from the result sets above.
 --sorted_result

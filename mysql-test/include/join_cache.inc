@@ -1952,6 +1952,7 @@ let $query=SELECT t2.pk as t2_pk, t4.pk as t4_pk, t4.k as t4_k, t4.i
   LEFT JOIN t4 ON t4.pk = t2.pk;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t3, t4; 
