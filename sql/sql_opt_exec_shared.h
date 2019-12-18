@@ -111,6 +111,13 @@ struct TABLE_REF {
   */
   bool disable_cache;
 
+  /*
+    If non-nullptr, all the fields are hashed together through functions
+    in store_key (with the result being put into this field), as opposed to
+    being matched against individual fields in the associated KEY's key parts.
+   */
+  ulonglong *keypart_hash = nullptr;
+
   TABLE_REF()
       : key_err(true),
         key_parts(0),

@@ -132,8 +132,10 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 
+using std::make_pair;
 using std::max;
 using std::min;
+using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -167,6 +169,8 @@ static bool alloc_group_fields(JOIN *join, ORDER *group);
 static void SetCostOnTableIterator(const Cost_model_server &cost_model,
                                    const POSITION *pos, bool is_after_filter,
                                    RowIterator *iterator);
+static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
+    const TABLE_REF *ref);
 
 /**
    Evaluates HAVING condition
@@ -189,6 +193,21 @@ static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
 
 string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   string ret;
+
+  if (ref.keypart_hash != nullptr) {
+    DBUG_ASSERT(!include_nulls);
+    ret = key->key_part[0].field->field_name;
+    ret += "=hash(";
+    for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
+         ++key_part_idx) {
+      if (key_part_idx != 0) {
+        ret += ", ";
+      }
+      ret += ItemToString(ref.items[key_part_idx]);
+    }
+    ret += ")";
+    return ret;
+  }
 
   const uchar *key_buff = ref.key_buff;
 
@@ -4845,9 +4864,10 @@ int EQRefIterator::Read() {
       return -1;
     }
 
+    pair<uchar *, key_part_map> key_buff_and_map = FindKeyBufferAndMap(m_ref);
     int error = table()->file->ha_index_read_map(
-        table()->record[0], m_ref->key_buff,
-        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+        table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
+        HA_READ_KEY_EXACT);
     if (error) {
       return HandleError(error);
     }
@@ -5021,9 +5041,11 @@ int RefIterator<false>::Read() {  // Forward read.
       table()->set_no_row();
       return -1;
     }
+
+    pair<uchar *, key_part_map> key_buff_and_map = FindKeyBufferAndMap(m_ref);
     int error = table()->file->ha_index_read_map(
-        table()->record[0], m_ref->key_buff,
-        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+        table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
+        HA_READ_KEY_EXACT);
     if (error) {
       return HandleError(error);
     }
@@ -5046,6 +5068,8 @@ int RefIterator<false>::Read() {  // Forward read.
 */
 template <>
 int RefIterator<true>::Read() {  // Reverse read.
+  assert(m_ref->keypart_hash == nullptr);
+
   if (m_first_record_since_init) {
     m_first_record_since_init = false;
 
@@ -5427,15 +5451,17 @@ int RefOrNullIterator::Read() {
     }
   }
 
+  pair<uchar *, key_part_map> key_buff_and_map = FindKeyBufferAndMap(m_ref);
+
   int error;
   if (m_reading_first_row) {
     m_reading_first_row = false;
     error = table()->file->ha_index_read_map(
-        table()->record[0], m_ref->key_buff,
-        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+        table()->record[0], key_buff_and_map.first, key_buff_and_map.second,
+        HA_READ_KEY_EXACT);
   } else {
     error = table()->file->ha_index_next_same(
-        table()->record[0], m_ref->key_buff, m_ref->key_length);
+        table()->record[0], key_buff_and_map.first, key_buff_and_map.second);
   }
 
   if (error == 0) {
@@ -9219,4 +9245,13 @@ int TableValueConstructorIterator::Read() {
 
   ++*m_examined_rows;
   return 0;
+}
+
+static inline pair<uchar *, key_part_map> FindKeyBufferAndMap(
+    const TABLE_REF *ref) {
+  if (ref->keypart_hash != nullptr) {
+    return make_pair(pointer_cast<uchar *>(ref->keypart_hash), key_part_map{1});
+  } else {
+    return make_pair(ref->key_buff, make_prev_keypart_map(ref->key_parts));
+  }
 }

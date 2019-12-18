@@ -3346,6 +3346,10 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
       !(tab->ref().items = (Item **)thd->alloc(sizeof(Item *) * tmp_key_parts)))
     return true;
 
+  if (tmp_table->hash_field) {
+    tab->ref().keypart_hash = &hash;
+  }
+
   uchar *cur_ref_buff = tab->ref().key_buff;
 
   /*
@@ -3399,11 +3403,11 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
       return true;
     }
 
-    if (tmp_table->hash_field)
+    if (tmp_table->hash_field) {
       tab->ref().key_copy[part_no] = new (thd->mem_root) store_key_hash_item(
           thd, field, cur_ref_buff, nullptr, field->pack_length(),
           tab->ref().items[part_no], &hash);
-    else
+    } else {
       tab->ref().key_copy[part_no] = new (thd->mem_root) store_key_item(
           thd, field,
           /* TODO:
@@ -3414,6 +3418,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
            */
           cur_ref_buff + (nullable ? 1 : 0), nullable ? cur_ref_buff : nullptr,
           key_parts[part_no].length, tab->ref().items[part_no]);
+    }
     if (nullable &&  // nullable column in tmp table,
                      // and UNKNOWN should not be interpreted as FALSE
         !item_in->abort_on_null) {
