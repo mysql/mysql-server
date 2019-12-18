@@ -2706,21 +2706,6 @@ trace
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": " `dt`",
-                "in_plan_at_position": 2,
-                "columns": 1,
-                "row_length": 5,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "join_explain": {
               "select#": 2,
               "steps": [

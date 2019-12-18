@@ -2643,7 +2643,7 @@ sum(n)
 5050
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	53
+Created_tmp_disk_tables	48
 # Too long key (>3000 bytes in latin1)
 with recursive cte as
 (
@@ -2697,4 +2697,4 @@ Note	1003	with recursive `qn` as (/* select#2 */ select 1 AS `a` from `test`.`t1
 drop table t1;
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	58
+Created_tmp_disk_tables	51

@@ -4143,16 +4143,10 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                 "table": "`t1`"
               },
               {
-                "table": "`t2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "(`t2`.`c2` = 1)"
-                }
+                "table": "`t2`"
               },
               {
-                "table": "`t2`",
-                "unknown_key_2": {
-                  "constant_condition_in_bnl": "(`t2`.`c2` = 1)"
-                }
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -8721,10 +8715,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                 "table": "`t6`"
               },
               {
-                "table": "`t2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "(`t2`.`s` = 'c')"
-                }
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -9778,10 +9769,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "table": "`t6`"
               },
               {
-                "table": "`t2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "(`t2`.`s` = <cache>(arg@0))"
-                }
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -11972,10 +11960,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "table": "`t6`"
               },
               {
-                "table": "`t2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "(`t2`.`s` = <cache>(arg@0))"
-                }
+                "table": "`t2`"
               }
             ] /* refine_plan */
           }
@@ -13192,21 +13177,6 @@ explain select * from v1 where id="b"	{
       "join_explain": {
         "select#": 1,
         "steps": [
-          {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "`v1`",
-                "in_plan_at_position": 0,
-                "columns": 2,
-                "row_length": 69,
-                "key_length": 64,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
           {
             "join_explain": {
               "select#": 2,

@@ -186,8 +186,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
     unit->set_prepared();
 
-    // select->set_query_result() is for the pre-iterator executor; this one
-    // is for the iterator executor.
     // TODO(sgunders): Get rid of this when we remove Query_result from the
     // SELECT_LEX_UNIT.
     unit->set_query_result(result);
@@ -1595,7 +1593,6 @@ void JOIN::reset() {
   unit->offset_limit_cnt = (ha_rows)(
       select_lex->offset_limit ? select_lex->offset_limit->val_uint() : 0ULL);
 
-  seen_first_record = false;
   group_sent = false;
   recursive_iteration_count = 0;
   executed = false;
@@ -1631,7 +1628,6 @@ void JOIN::reset() {
         new execution (the new filesort will need them when it starts).
       */
       tab->restore_quick_optim_and_condition();
-      tab->m_fetched_rows = 0;
     }
   }
 
@@ -1662,29 +1658,8 @@ bool JOIN::prepare_result() {
   DBUG_TRACE;
 
   error = 0;
-  // Create result tables for materialized views/derived tables
-  // NOTE: This is not relevant for the iterator executor;
-  // materialization iterators create their own tables.
-  if ((select_lex->materialized_derived_table_count > 0 ||
-       select_lex->table_func_count > 0) &&
-      !zero_result_cause) {
-    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
-      if ((tl->is_view_or_derived() || tl->is_table_function()) &&
-          tl->create_materialized_table(thd))
-        goto err; /* purecov: inspected */
-    }
-  }
 
   if (select_lex->query_result()->start_execution(thd)) goto err;
-
-  // Fill information schema tables if needed (handled by
-  // MaterializeInformationSchemaTableIterator in the iterator executor).
-  if (unit->root_iterator() == nullptr &&
-      (select_lex->active_options() & OPTION_SCHEMA_TABLE)) {
-    if (get_schema_tables_result(this, PROCESSED_BY_JOIN_EXEC)) {
-      goto err;
-    }
-  }
 
   return false;
 
@@ -2909,84 +2884,24 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
 }
 
 /**
-  A helper function that allocates appropriate join cache object and
-  sets next_select function of previous tab.
+  A helper function that sets the right op type for join cache (BNL/BKA).
 */
 
 void QEP_TAB::init_join_cache(JOIN_TAB *join_tab) {
-  JOIN *const join_ = join();
   DBUG_ASSERT(idx() > 0);
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join_);
-  DBUG_ASSERT(join_tab == join_->best_ref[idx()]);
+  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
+  DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
 
-  JOIN_CACHE *prev_cache = nullptr;
-  if ((uint)idx() > join_->const_tables) {
-    QEP_TAB *prev_tab = this - 1;
-    /*
-      Link with the previous join cache, but make sure that we do not link
-      join caches of two different operations when the previous operation was
-      MaterializeLookup or MaterializeScan, ie if:
-       1. the previous join_tab has join buffering enabled, and
-       2. the previous join_tab belongs to a materialized semi-join nest, and
-       3. this join_tab represents a regular table, or is part of a different
-          semi-join interval than the previous join_tab.
-    */
-    prev_cache = (JOIN_CACHE *)prev_tab->op;
-    if (prev_cache != nullptr &&                                    // 1
-        sj_is_materialize_strategy(prev_tab->get_sj_strategy()) &&  // 2
-        first_sj_inner() != prev_tab->first_sj_inner())             // 3
-      prev_cache = nullptr;
-  }
   switch (join_tab->use_join_cache()) {
     case JOIN_CACHE::ALG_BNL:
-      op = new (*THR_MALLOC) JOIN_CACHE_BNL(join_, this, prev_cache);
+      op_type = QEP_TAB::OT_BNL;
       break;
     case JOIN_CACHE::ALG_BKA:
-      op = new (*THR_MALLOC)
-          JOIN_CACHE_BKA(join_, this, join_tab->join_cache_flags, prev_cache);
+      op_type = QEP_TAB::OT_BKA;
       break;
     default:
       DBUG_ASSERT(0);
   }
-  DBUG_EXECUTE_IF(
-      "jb_alloc_with_prev_fail", if (prev_cache) {
-        DBUG_SET("+d,jb_alloc_fail");
-        DBUG_SET("-d,jb_alloc_with_prev_fail");
-      });
-  if (!op || op->init()) {
-    /*
-      OOM. If it's in creation of "op" it has thrown error.
-      If it's in init() (allocation of the join buffer) it has not,
-      and there's a chance to execute the query:
-      we remove this join buffer, and all others (as there may be
-      dependencies due to outer joins).
-      @todo Consider sending a notification of this problem (a warning to the
-      client, or to the error log).
-    */
-    for (uint i = join_->const_tables; i < join_->tables; i++) {
-      QEP_TAB *const q = &join_->qep_tab[i];
-      if (!q->position()) continue;
-      JOIN_TAB *const t = join_->best_ref[i];
-      if (t->use_join_cache() == JOIN_CACHE::ALG_NONE) continue;
-      t->set_use_join_cache(JOIN_CACHE::ALG_NONE);
-      /*
-        Detach the join buffer from QEP_TAB so that EXPLAIN doesn't show
-        'Using join buffer'. Destroy the join buffer.
-      */
-      if (q->op) {
-        q->op->mem_free();
-        destroy(q->op);
-        q->op = nullptr;
-      }
-      DBUG_ASSERT(i > 0);
-      /*
-        Make the immediately preceding QEP_TAB channel the work to the
-        non-buffered nested loop algorithm:
-      */
-      q[-1].next_select = sub_select;
-    }
-  } else
-    this[-1].next_select = sub_select_op;
 }
 
 /**
@@ -3036,17 +2951,10 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     */
     if (prep_for_pos) table->prepare_for_position();
 
-    qep_tab->next_select = sub_select; /* normal select */
     qep_tab->cache_idx_cond = nullptr;
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table_ref);
-
-    if (qep_tab->do_loosescan()) {
-      if (!(qep_tab->loosescan_buf =
-                (uchar *)join->thd->alloc(qep_tab->loosescan_key_len)))
-        return true; /* purecov: inspected */
-    }
 
     // Now that we have decided which index to use, it is time to filter away
     // base columns for virtual generated columns from the read_set. This is
@@ -3055,8 +2963,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     // to figure out which records to pack into their buffers) do not try
     // to pack the non-existent base columns. See
     // filter_virtual_gcol_base_cols().
-    //
-    // This must be done before we set up join buffering.
     filter_virtual_gcol_base_cols(qep_tab);
 
     if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE)
@@ -3185,14 +3091,14 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
     // Materialize derived tables prior to accessing them.
     if (table_ref->is_table_function()) {
-      qep_tab->materialize_table = join_materialize_table_function;
+      qep_tab->materialize_table = QEP_TAB::MATERIALIZE_TABLE_FUNCTION;
       if (tab->dependent) qep_tab->rematerialize = true;
     } else if (table_ref->uses_materialization()) {
-      qep_tab->materialize_table = join_materialize_derived;
+      qep_tab->materialize_table = QEP_TAB::MATERIALIZE_DERIVED;
     }
 
     if (qep_tab->sj_mat_exec())
-      qep_tab->materialize_table = join_materialize_semijoin;
+      qep_tab->materialize_table = QEP_TAB::MATERIALIZE_SEMIJOIN;
 
     if (table_ref->is_derived() && table_ref->derived_unit()->m_lateral_deps) {
       auto deps = table_ref->derived_unit()->m_lateral_deps;
@@ -3295,14 +3201,14 @@ void QEP_TAB::cleanup() {
   qs_cleanup();
 
   // Order of qs_cleanup() and this, matters:
-  if (op) {
-    if (op->type() == QEP_operation::OT_TMP_TABLE) {
-      if (t)  // Check tmp table is not yet freed.
-        free_tmp_table(current_thd, t);
-      destroy(tmp_table_param);
-      tmp_table_param = nullptr;
-    }
-    op->mem_free();
+  if (op_type == QEP_TAB::OT_MATERIALIZE ||
+      op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE ||
+      op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE ||
+      op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
+    if (t)  // Check tmp table is not yet freed.
+      free_tmp_table(current_thd, t);
+    destroy(tmp_table_param);
+    tmp_table_param = nullptr;
   }
 }
 
@@ -4401,7 +4307,6 @@ bool JOIN::make_tmp_tables_info() {
     trace_this_outer.add("adding_tmp_table_in_plan_at_position",
                          curr_tmp_table);
     tmp_tables++;
-    if (plan_is_const()) first_select = sub_select_op;
 
     /*
       Make a copy of the base slice in the save slice.
@@ -4642,7 +4547,7 @@ bool JOIN::make_tmp_tables_info() {
         tmp_table_param.func_count = 0;
 
     tmp_table_param.cleanup();
-    seen_first_record = streaming_aggregation = false;
+    streaming_aggregation = false;
 
     if (!group_optimized_away) {
       grouped = false;
@@ -4818,7 +4723,6 @@ bool JOIN::make_tmp_tables_info() {
       if (!tmp_tables) {
         curr_tmp_table = primary_tables;
         tmp_tables++;
-        if (plan_is_const()) first_select = sub_select_op;
 
         if (ref_items[REF_SLICE_SAVED_BASE].is_null()) {
           /*
@@ -4960,8 +4864,7 @@ bool JOIN::make_tmp_tables_info() {
   // Reset before execution
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
   if (qep_tab) {
-    qep_tab[primary_tables + tmp_tables - 1].next_select =
-        get_end_select_func();
+    qep_tab[primary_tables + tmp_tables].op_type = get_end_select_func();
   }
   grouped = has_group_by;
 

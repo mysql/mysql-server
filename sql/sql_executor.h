@@ -68,37 +68,6 @@ class List;
 template <typename Element_type>
 class Mem_root_array;
 
-/**
-   Possible status of a "nested loop" operation (Next_select_func family of
-   functions).
-   All values except NESTED_LOOP_OK abort the nested loop.
-*/
-enum enum_nested_loop_state {
-  /**
-     Thread shutdown was requested while processing the record
-     @todo could it be merged with NESTED_LOOP_ERROR? Why two distinct states?
-  */
-  NESTED_LOOP_KILLED = -2,
-  /// A fatal error (like table corruption) was detected
-  NESTED_LOOP_ERROR = -1,
-  /// Record has been successfully handled
-  NESTED_LOOP_OK = 0,
-  /**
-     Record has been successfully handled; additionally, the nested loop
-     produced the number of rows specified in the LIMIT clause for the query.
-  */
-  NESTED_LOOP_QUERY_LIMIT = 3,
-  /**
-     Record has been successfully handled; additionally, there is a cursor and
-     the nested loop algorithm produced the number of rows that is specified
-     for current cursor fetch operation.
-  */
-  NESTED_LOOP_CURSOR_LIMIT = 4
-};
-
-typedef enum_nested_loop_state (*Next_select_func)(JOIN *, class QEP_TAB *,
-                                                   bool);
-
 /*
   Array of pointers to tables whose rowids compose the temporary table
   record.
@@ -188,120 +157,7 @@ class Semijoin_mat_exec {
   TABLE *table;                  ///< Reference to temporary table
 };
 
-/**
-  QEP_operation is an interface class for operations in query execution plan.
-
-  Currently following operations are implemented:
-    JOIN_CACHE      - caches partial join result and joins with attached table
-    QEP_tmp_table   - materializes join result in attached table
-
-  An operation's life cycle is as follows:
-  .) it is initialized on the init() call
-  .) accumulates records one by one when put_record() is called.
-  .) finalize record sending when end_send() is called.
-  .) free all internal buffers on the free() call.
-
-  Each operation is attached to a join_tab, to which exactly depends on the
-  operation type: JOIN_CACHE is attached to the table following the table
-  being cached, QEP_tmp_buffer is attached to a tmp table.
-*/
-
-class QEP_operation {
- public:
-  // Type of the operation
-  enum enum_op_type { OT_CACHE, OT_TMP_TABLE };
-  /**
-    For JOIN_CACHE : Table to be joined with the partial join records from
-                     the cache
-    For JOIN_TMP_BUFFER : join_tab of tmp table
-  */
-  QEP_TAB *qep_tab;
-
-  QEP_operation() : qep_tab(nullptr) {}
-  QEP_operation(QEP_TAB *qep_tab_arg) : qep_tab(qep_tab_arg) {}
-  virtual ~QEP_operation() {}
-  virtual enum_op_type type() = 0;
-  /**
-    Initialize operation's internal state.  Called once per query execution.
-  */
-  virtual int init() { return 0; }
-  /**
-    Put a new record into the operation's buffer
-    @return
-      return one of enum_nested_loop_state values.
-  */
-  virtual enum_nested_loop_state put_record() = 0;
-  /**
-    Finalize records sending.
-  */
-  virtual enum_nested_loop_state end_send() = 0;
-  /**
-    Internal state cleanup.
-  */
-  virtual void mem_free() {}
-};
-
-/**
-  @brief
-    Class for accumulating join result in a tmp table, grouping them if
-    necessary, and sending further.
-
-  @details
-    Join result records are accumulated on the put_record() call.
-    The accumulation process is determined by the write_func, it could be:
-      end_write          Simply store all records in tmp table.
-      end_write_group    Perform grouping using join->group_fields,
-                         records are expected to be sorted.
-      end_update         Perform grouping using the key generated on tmp
-                         table. Input records aren't expected to be sorted.
-                         Tmp table uses the heap engine
-      end_update_unique  Same as above, but the engine is myisam.
-
-    Lazy table initialization is used - the table will be instantiated and
-    rnd/index scan started on the first put_record() call.
-
-*/
-
-class QEP_tmp_table : public QEP_operation {
- public:
-  QEP_tmp_table(QEP_TAB *qep_tab_arg)
-      : QEP_operation(qep_tab_arg), write_func(nullptr) {}
-  enum_op_type type() { return OT_TMP_TABLE; }
-  enum_nested_loop_state put_record() { return put_record(false); }
-  /*
-    Send the result of operation further (to a next operation/client)
-    This function is called after all records were put into the buffer
-    (determined by the caller).
-
-    @return return one of enum_nested_loop_state values.
-  */
-  enum_nested_loop_state end_send();
-  /** write_func setter */
-  void set_write_func(Next_select_func new_write_func) {
-    write_func = new_write_func;
-  }
-  Next_select_func get_write_func() const { return write_func; }
-
- private:
-  /** Write function that would be used for saving records in tmp table. */
-  Next_select_func write_func;
-  enum_nested_loop_state put_record(bool end_of_records);
-  MY_ATTRIBUTE((warn_unused_result))
-  bool prepare_tmp_table();
-};
-
 void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace);
-enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
-                                     bool end_of_records);
-enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
-                                      bool end_of_records);
-enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *qep_tab,
-                                       bool end_of_records);
-enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *qep_tab,
-                                  bool end_of_records);
-enum_nested_loop_state evaluate_join_record(JOIN *join, QEP_TAB *qep_tab,
-                                            int error);
-enum_nested_loop_state end_send_count(JOIN *join, QEP_TAB *qep_tab);
 
 MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd,
@@ -384,10 +240,6 @@ int report_handler_error(TABLE *table, int error);
 int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
-void join_setup_iterator(QEP_TAB *tab);
-int join_materialize_derived(QEP_TAB *tab);
-int join_materialize_table_function(QEP_TAB *tab);
-int join_materialize_semijoin(QEP_TAB *tab);
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int update_item_cache_if_changed(List<Cached_item> &list);
@@ -424,31 +276,22 @@ class QEP_TAB : public QEP_shared_owner {
         check_weed_out_table(nullptr),
         firstmatch_return(NO_PLAN_IDX),
         loosescan_key_len(0),
-        loosescan_buf(nullptr),
         match_tab(NO_PLAN_IDX),
-        found_match(false),
-        found(false),
-        not_null_compl(false),
         first_unmatched(NO_PLAN_IDX),
         rematerialize(false),
-        materialize_table(nullptr),
-        next_select(nullptr),
         used_null_fields(false),
         used_uneven_bit_fields(false),
         copy_current_rowid(nullptr),
         not_used_in_distinct(false),
         cache_idx_cond(nullptr),
         having(nullptr),
-        op(nullptr),
         tmp_table_param(nullptr),
         filesort(nullptr),
         ref_item_slice(REF_SLICE_SAVED_BASE),
-        send_records(0),
         m_condition_optim(nullptr),
         m_quick_optim(nullptr),
         m_keyread_optim(false),
         m_reversed_access(false),
-        m_fetched_rows(0),
         lateral_derived_tables_depend_on_me(0) {}
 
   /// Initializes the object from a JOIN_TAB
@@ -499,14 +342,6 @@ class QEP_TAB : public QEP_shared_owner {
   /// Return true if join_tab finishes a Duplicate Weedout action
   bool finishes_weedout() const { return check_weed_out_table; }
 
-  bool prepare_scan();
-
-  /**
-     Instructs each lateral derived table depending on this QEP_TAB, to
-     rematerialize itself before emitting rows.
-  */
-  void refresh_lateral();
-
   /**
     A helper function that allocates appropriate join cache object and
     sets next_select function of previous tab.
@@ -528,7 +363,6 @@ class QEP_TAB : public QEP_shared_owner {
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
-  bool remove_duplicates();
 
   /**
      Used to begin a new execution of a subquery. Necessary if this subquery
@@ -564,13 +398,10 @@ class QEP_TAB : public QEP_shared_owner {
   plan_idx firstmatch_return;
 
   /*
-    Length of key tuple (depends on #keyparts used) to store in loosescan_buf.
+    Length of key tuple (depends on #keyparts used) to use for loose scan.
     If zero, means that loosescan is not used.
   */
   uint loosescan_key_len;
-
-  /* Buffer to save index tuple to be able to skip duplicates */
-  uchar *loosescan_buf;
 
   /*
     If doing a LooseScan, this QEP is the first (i.e.  "driving")
@@ -580,39 +411,19 @@ class QEP_TAB : public QEP_shared_owner {
   */
   plan_idx match_tab;
 
-  /*
-    Used by FirstMatch and LooseScan. true <=> there is a matching
-    record combination
-  */
-  bool found_match;
-
-  /**
-    Used to decide whether an inner table of an outer join should produce NULL
-    values. If it is true after a call to evaluate_join_record(), the join
-    condition has been satisfied for at least one row from the inner
-    table. This member is not really manipulated by this class, see sub_select
-    for details on its use.
-  */
-  bool found;
-
-  /**
-    This member is true as long as we are evaluating rows from the inner
-    tables of an outer join. If none of these rows satisfy the join condition,
-    we generated NULL-complemented rows and set this member to false. In the
-    meantime, the value may be read by triggered conditions, see
-    Item_func_trig_cond::val_int().
-  */
-  bool not_null_compl;
-
   plan_idx first_unmatched; /**< used for optimization purposes only   */
 
   /// Dependent table functions have to be materialized on each new scan
   bool rematerialize;
 
-  typedef int (*Setup_func)(QEP_TAB *);
-  Setup_func materialize_table;
+  enum Setup_func {
+    NO_SETUP,
+    MATERIALIZE_TABLE_FUNCTION,
+    MATERIALIZE_DERIVED,
+    MATERIALIZE_SEMIJOIN
+  };
+  Setup_func materialize_table = NO_SETUP;
   bool using_dynamic_range = false;
-  Next_select_func next_select;
   unique_ptr_destroy_only<RowIterator> iterator;
 
   // join-cache-related members
@@ -704,7 +515,26 @@ class QEP_TAB : public QEP_shared_owner {
   /** HAVING condition for checking prior saving a record into tmp table*/
   Item *having;
 
-  QEP_operation *op;
+  // Operation between the previous QEP_TAB and this one.
+  enum enum_op_type {
+    // Regular nested loop.
+    OT_NONE,
+
+    // Aggregate (GROUP BY).
+    OT_AGGREGATE,
+
+    // Various temporary table operations, used at the end of the join.
+    OT_MATERIALIZE,
+    OT_AGGREGATE_THEN_MATERIALIZE,
+    OT_AGGREGATE_INTO_TMP_TABLE,
+    OT_WINDOWING_FUNCTION,
+
+    // Block-nested loop (rewritten to hash join).
+    OT_BNL,
+
+    // Batch key access.
+    OT_BKA
+  } op_type = OT_NONE;
 
   /* Tmp table info */
   Temp_table_param *tmp_table_param;
@@ -717,9 +547,6 @@ class QEP_TAB : public QEP_shared_owner {
     this table.
   */
   uint ref_item_slice;
-
-  /** Number of records saved in tmp table */
-  ha_rows send_records;
 
   /// @see m_quick_optim
   Item *m_condition_optim;
@@ -752,14 +579,6 @@ class QEP_TAB : public QEP_shared_owner {
     True if reversed scan is used. This is the optimizer's decision.
   */
   bool m_reversed_access;
-
-  /**
-    Count of rows fetched from this table; maintained by sub_select() and
-    reset to 0 by JOIN::reset().
-
-    Only used by the pre-iterator executor.
-  */
-  ha_rows m_fetched_rows;
 
   /**
      Maps of all lateral derived tables which should be refreshed when

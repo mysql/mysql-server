@@ -1578,13 +1578,11 @@ bool Explain_join::explain_extra() {
     if (tab->has_guarded_conds() && push_extra(ET_FULL_SCAN_ON_NULL_KEY))
       return true;
 
-    if (tab->op && tab->op->type() == QEP_operation::OT_CACHE) {
-      const JOIN_CACHE::enum_join_cache_type t =
-          static_cast<JOIN_CACHE *>(tab->op)->cache_type();
+    if (tab->op_type == QEP_TAB::OT_BNL || tab->op_type == QEP_TAB::OT_BKA) {
       StringBuffer<64> buff(cs);
-      if (t == JOIN_CACHE::ALG_BNL)
+      if (tab->op_type == QEP_TAB::OT_BNL)
         buff.append("Block Nested Loop");
-      else if (t == JOIN_CACHE::ALG_BKA)
+      else if (tab->op_type == QEP_TAB::OT_BKA)
         buff.append("Batched Key Access");
       else
         DBUG_ASSERT(0); /* purecov: inspected */

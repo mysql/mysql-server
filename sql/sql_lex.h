@@ -613,8 +613,7 @@ class SELECT_LEX_UNIT {
   /**
     An iterator you can read from to get all records for this query.
 
-    May be nullptr even after create_iterators() if the current query
-    is not supported by the iterator executor, or in the case of an
+    May be nullptr even after create_iterators(), or in the case of an
     unfinished materialization (see optimize()).
    */
   unique_ptr_destroy_only<RowIterator> m_root_iterator;
@@ -643,14 +642,6 @@ class SELECT_LEX_UNIT {
     nullptr.
    */
   void create_iterators(THD *thd);
-
-  /**
-    Whether all children use the iterator executor or not.
-
-    Before optimize(), can return false positives. See
-    can_materialize_directly_into_result().
-   */
-  bool all_query_blocks_use_iterator_executor() const;
 
  public:
   /**
@@ -801,15 +792,6 @@ class SELECT_LEX_UNIT {
     return std::move(m_query_blocks_to_materialize);
   }
 
-  /**
-    If this unit is recursive, then this returns the Query_result which holds
-    the rows of the recursive reference read by 'reader':
-    - fake_select_lex reads rows from the union's result
-    - other recursive query blocks read rows from the derived table's result.
-    @param  reader  Recursive query block belonging to this unit
-  */
-  const Query_result *recursive_result(SELECT_LEX *reader) const;
-
   /// Set new query result object for this query expression
   void set_query_result(Query_result *res) { m_query_result = res; }
 
@@ -819,6 +801,9 @@ class SELECT_LEX_UNIT {
     returns true, optimize() can choose later not to do so, since it depends
     on information (in particular, whether the query blocks can run under
     the iterator executor or not) that is not available before optimize time.
+
+    TODO(sgunders): Now that all query blocks can run under the iterator
+    executor, the above may no longer be true. This needs investigation.
    */
   bool can_materialize_directly_into_result() const;
 

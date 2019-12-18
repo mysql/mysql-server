@@ -157,7 +157,6 @@ JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
       // Inner tables may always be considered to be constant:
       const_table_map(INNER_TABLE_BIT),
       found_const_table_map(INNER_TABLE_BIT),
-      first_select(sub_select),
       // Needed in case optimizer short-cuts, set properly in
       // make_tmp_tables_info()
       fields(&select->item_list),
@@ -950,9 +949,9 @@ int JOIN::push_to_engines() {
       }
       const Item *cond = qep_tab[i].condition();
       if (cond != nullptr) {
-        const bool using_join_cache =
-            (qep_tab[i].op != nullptr &&
-             qep_tab[i].op->type() == QEP_operation::OT_CACHE);
+        const bool using_join_cache = qep_tab[i].op_type == QEP_TAB::OT_BNL ||
+                                      qep_tab[i].op_type == QEP_TAB::OT_BKA;
+
         /*
           If a join cache is referred by this table, there is not a single
           specific row from the 'other tables' to compare rows from this table
@@ -1121,7 +1120,8 @@ bool JOIN::alloc_qep(uint n) {
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  qep_tab = new (thd->mem_root) QEP_TAB[n];
+  qep_tab = new (thd->mem_root)
+      QEP_TAB[n + 1];        // The last one holds only the final op_type.
   if (!qep_tab) return true; /* purecov: inspected */
   for (uint i = 0; i < n; ++i) qep_tab[i].init(best_ref[i]);
   return false;

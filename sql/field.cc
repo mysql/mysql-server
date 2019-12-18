@@ -2084,30 +2084,6 @@ type_conversion_status Field_str::store_decimal(const my_decimal *d) {
   return (err != E_DEC_OK) ? decimal_err_to_type_conv_status(err) : res;
 }
 
-uint Field::fill_cache_field(CACHE_FIELD *copy) {
-  uint store_length;
-  copy->str = ptr;
-  copy->length = pack_length();
-  copy->field = this;
-  if (flags & BLOB_FLAG || is_array()) {
-    copy->type = CACHE_BLOB;
-    copy->length -= portable_sizeof_char_ptr;
-    return copy->length;
-  } else if (!zero_pack() && (type() == MYSQL_TYPE_STRING &&
-                              copy->length >= 4 && copy->length < 256)) {
-    copy->type = CACHE_STRIPPED; /* Remove end space */
-    store_length = 2;
-  } else if (type() == MYSQL_TYPE_VARCHAR) {
-    copy->type =
-        pack_length() - row_pack_length() == 1 ? CACHE_VARSTR1 : CACHE_VARSTR2;
-    store_length = 0;
-  } else {
-    copy->type = 0;
-    store_length = 0;
-  }
-  return copy->length + store_length;
-}
-
 bool Field::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const {
   char buff[MAX_DATE_STRING_REP_LENGTH];
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;

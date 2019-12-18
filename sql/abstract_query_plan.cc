@@ -433,10 +433,9 @@ Join_plan::Join_plan(const JOIN *join)
     from the next operation using a join buffer (instead of plain nested loop).
     @return True if using a join buffer. 
   */
-  bool Table_access::uses_join_cache() const
-  {
-    return get_qep_tab()->op &&
-      get_qep_tab()->op->type() == QEP_operation::OT_CACHE;
+  bool Table_access::uses_join_cache() const {
+    return get_qep_tab()->op_type == QEP_TAB::OT_BNL ||
+           get_qep_tab()->op_type == QEP_TAB::OT_BKA;
   }
 
   /**

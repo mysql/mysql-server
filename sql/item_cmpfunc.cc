@@ -6611,18 +6611,14 @@ void Item_equal::print(const THD *thd, String *str,
 
 longlong Item_func_trig_cond::val_int() {
   if (trig_var == nullptr) {
-    DBUG_ASSERT(m_join != nullptr && m_idx >= 0);
-    switch (trig_type) {
-      case IS_NOT_NULL_COMPL:
-        trig_var = &m_join->qep_tab[m_idx].not_null_compl;
-        break;
-      case FOUND_MATCH:
-        trig_var = &m_join->qep_tab[m_idx].found;
-        break;
-      default:
-        DBUG_ASSERT(false); /* purecov: inspected */
-        return 0;
-    }
+    // We don't use trigger conditions for IS_NOT_NULL_COMPL / FOUND_MATCH in
+    // the iterator executor (except for figuring out which conditions are join
+    // conditions and which are from WHERE), so we remove them whenever we can.
+    // However, we don't prune them entirely from the query tree, so they may be
+    // left within e.g. sub-conditions of ORs. Open up the conditions so
+    // that we don't have conditions that are disabled during execution.
+    DBUG_ASSERT(trig_type == IS_NOT_NULL_COMPL || trig_type == FOUND_MATCH);
+    return args[0]->val_int();
   }
   return *trig_var ? args[0]->val_int() : 1;
 }

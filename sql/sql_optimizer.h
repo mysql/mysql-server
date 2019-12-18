@@ -52,7 +52,7 @@
 #include "sql/opt_explain_format.h"  // Explain_sort_clause
 #include "sql/row_iterator.h"
 #include "sql/sql_array.h"
-#include "sql/sql_executor.h"  // Next_select_func
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
@@ -256,8 +256,6 @@ class JOIN {
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool streaming_aggregation{false};
-  /// Whether we've seen at least one row already
-  bool seen_first_record{false};
   /// If query contains GROUP BY clause
   bool grouped;
   /// If true, send produced rows using query_result
@@ -313,7 +311,11 @@ class JOIN {
    */
   /******* Join optimization state members end *******/
 
-  Next_select_func first_select;
+  /// A hook that secondary storage engines can use to override the executor
+  /// completely.
+  using Override_executor_func = bool (*)(JOIN *);
+  Override_executor_func override_executor_func = nullptr;
+
   /**
     The cost of best complete join plan found so far during optimization,
     after optimization phase - cost of picked join order (not taking into
@@ -628,7 +630,6 @@ class JOIN {
 
   bool optimize();
   void reset();
-  void exec();
   bool prepare_result();
   bool destroy();
   bool alloc_func_list();
@@ -693,8 +694,6 @@ class JOIN {
                           Item_sum ***func);
   bool switch_slice_for_rollup_fields(List<Item> &all_fields,
                                       List<Item> &fields);
-  bool rollup_send_data(uint idx);
-  bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
   bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -773,30 +772,13 @@ class JOIN {
   */
   bool fts_index_access(JOIN_TAB *tab);
 
-  Next_select_func get_end_select_func();
+  QEP_TAB::enum_op_type get_end_select_func();
   /**
      Propagate dependencies between tables due to outer join relations.
 
      @returns false if success, true if error
   */
   bool propagate_dependencies();
-
-  /**
-    Returns whether one should send the current row on to the output,
-    or ignore it. (In particular, this implements OFFSET handling
-    in the non-iterator executor.)
-   */
-  bool should_send_current_row() {
-    if (!do_send_rows) {
-      return false;
-    }
-    if (unit->offset_limit_cnt > 0) {
-      --unit->offset_limit_cnt;
-      return false;
-    } else {
-      return true;
-    }
-  }
 
   /**
     Handle offloading of query parts to the underlying engines, when

@@ -1566,8 +1566,6 @@ class Field {
 
   void copy_data(ptrdiff_t src_record_offset);
 
-  uint fill_cache_field(CACHE_FIELD *copy);
-
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) const;
 
   virtual bool get_time(MYSQL_TIME *ltime) const;
