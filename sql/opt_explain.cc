@@ -638,16 +638,12 @@ bool Explain::explain_subqueries() {
          (sl->join && sl->join->get_plan_state() != JOIN::NO_PLAN)) &&
         // Check below requires complete plan
         unit->item &&
-        (unit->item->get_engine_for_explain()->engine_type() ==
-         subselect_engine::HASH_SJ_ENGINE)) {
+        (unit->item->engine_type() == Item_subselect::HASH_SJ_ENGINE)) {
       fmt->entry()->is_materialized_from_subquery = true;
       fmt->entry()->col_table_name.set_const("<materialized_subquery>");
       fmt->entry()->using_temporary = true;
 
-      const subselect_hash_sj_engine *const engine =
-          static_cast<const subselect_hash_sj_engine *>(
-              unit->item->get_engine_for_explain());
-      const QEP_TAB *const tmp_tab = engine->get_qep_tab();
+      const QEP_TAB *const tmp_tab = unit->item->get_qep_tab();
 
       fmt->entry()->col_join_type.set_const(join_type_str[tmp_tab->type()]);
       fmt->entry()->col_key.set_const("<auto_key>");
@@ -1418,8 +1414,7 @@ bool Explain_join::explain_join_type() {
       lookup used for in(subquery)": we do not show "ref/etc", but
       "index_subquery/unique_subquery".
     */
-    if (join->unit->item->get_engine_for_explain()->engine_type() ==
-        subselect_engine::INDEXSUBQUERY_ENGINE)
+    if (join->unit->item->engine_type() == Item_subselect::INDEXSUBQUERY_ENGINE)
       str = (j_t == JT_EQ_REF) ? "unique_subquery" : "index_subquery";
   }
 

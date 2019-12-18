@@ -100,8 +100,6 @@ Item_subselect::Item_subselect()
       traced_before(false),
       substitution(nullptr),
       in_cond_of_tab(NO_PLAN_IDX),
-      engine(nullptr),
-      old_engine(nullptr),
       used_tables_cache(0),
       have_to_be_excluded(false),
       changed(false) {
@@ -120,8 +118,6 @@ Item_subselect::Item_subselect(const POS &pos)
       traced_before(false),
       substitution(nullptr),
       in_cond_of_tab(NO_PLAN_IDX),
-      engine(nullptr),
-      old_engine(nullptr),
       used_tables_cache(0),
       have_to_be_excluded(false),
       changed(false) {
@@ -146,15 +142,10 @@ void Item_subselect::init(SELECT_LEX *select_lex,
   unit = select_lex->master_unit();
 
   if (unit->item) {
-    /*
-      Item can be changed in SELECT_LEX::prepare while engine in
-      JOIN::optimize => we do not copy old_engine here
-    */
-    engine = unit->item->engine;
+    subquery = move(unit->item->subquery);
     parsing_place = unit->item->parsing_place;
-    unit->item->engine = nullptr;
     unit->item = this;
-    engine->change_query_result(current_thd, this, result);
+    subquery->change_query_result(current_thd, this, result);
   } else {
     SELECT_LEX *outer_select = unit->outer_select();
     /*
@@ -163,7 +154,7 @@ void Item_subselect::init(SELECT_LEX *select_lex,
     */
     parsing_place =
         (outer_select->in_sum_expr ? CTX_NONE : outer_select->parsing_place);
-    engine = new (*THR_MALLOC) subselect_iterator_engine(unit, result, this);
+    subquery.reset(new (*THR_MALLOC) SubqueryWithResult(unit, result, this));
   }
   {
     SELECT_LEX *upper = unit->outer_select();
@@ -302,21 +293,39 @@ void Item_subselect::accumulate_join_condition(
 }
 
 void Item_subselect::create_iterators(THD *thd) {
-  engine->create_iterators(thd);
+  if (indexsubquery_engine != nullptr) {
+    indexsubquery_engine->create_iterators(thd);
+  }
+}
+
+Item_subselect::enum_engine_type Item_subselect::engine_type() const {
+  if (indexsubquery_engine != nullptr) {
+    switch (indexsubquery_engine->engine_type()) {
+      case subselect_indexsubquery_engine::INDEXSUBQUERY_ENGINE:
+        return Item_subselect::INDEXSUBQUERY_ENGINE;
+      case subselect_indexsubquery_engine::HASH_SJ_ENGINE:
+        return Item_subselect::HASH_SJ_ENGINE;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
+  return Item_subselect::OTHER_ENGINE;
+}
+
+const QEP_TAB *Item_subselect::get_qep_tab() const {
+  return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
+      ->get_qep_tab();
 }
 
 void Item_subselect::cleanup() {
   DBUG_TRACE;
   Item_result_field::cleanup();
-  if (old_engine) {
-    if (engine) {
-      engine->cleanup(current_thd);
-      destroy(engine);
-    }
-    engine = old_engine;
-    old_engine = nullptr;
+  if (indexsubquery_engine) {
+    indexsubquery_engine->cleanup(current_thd);
+    destroy(indexsubquery_engine);
+    indexsubquery_engine = nullptr;
   }
-  if (engine) engine->cleanup(current_thd);
+  if (subquery) subquery->cleanup(current_thd);
   reset();
   value_assigned = false;
   traced_before = false;
@@ -455,11 +464,8 @@ Item *Item_in_subselect::remove_in2exists_conds(Item *conds) {
 bool Item_in_subselect::finalize_materialization_transform(THD *thd,
                                                            JOIN *join) {
   DBUG_ASSERT(exec_method == EXEC_EXISTS_OR_MAT);
-  DBUG_ASSERT(engine->engine_type() == subselect_engine::ITERATOR_ENGINE);
-  subselect_iterator_engine *old_engine_derived =
-      static_cast<subselect_iterator_engine *>(engine);
 
-  DBUG_ASSERT(join == old_engine_derived->single_select_lex()->join);
+  DBUG_ASSERT(join == subquery->single_select_lex()->join);
   // No UNION in materialized subquery so this holds:
   DBUG_ASSERT(join->select_lex == unit->first_select());
   DBUG_ASSERT(join->unit == unit);
@@ -488,12 +494,12 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1,
-                      old_engine_derived->single_select_lex()->select_number,
+                      subquery->single_select_lex()->select_number,
                       "IN (SELECT)", "materialization");
   oto1.add("chosen", true);
 
   subselect_hash_sj_engine *const new_engine =
-      new (thd->mem_root) subselect_hash_sj_engine(this, old_engine_derived);
+      new (thd->mem_root) subselect_hash_sj_engine(this, unit);
   if (!new_engine) return true;
   if (new_engine->setup(thd, unit->get_unit_column_types())) {
     /*
@@ -504,7 +510,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
     destroy(new_engine);
     return true;
   }
-  if (change_engine(new_engine)) return true;
+  indexsubquery_engine = new_engine;
 
   join->allow_outer_refs = false;  // for JOIN::set_prefix_tables()
   return false;
@@ -547,11 +553,11 @@ RowIterator *Item_in_subselect::root_iterator() const {
   // for subselect_indexsubquery_engine, the unit still has it, since it's a
   // normally executed query block. Thus, we should never get called otherwise.
   DBUG_ASSERT(exec_method == EXEC_MATERIALIZATION &&
-              engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
-  return down_cast<subselect_hash_sj_engine *>(engine)->root_iterator();
+              indexsubquery_engine->engine_type() ==
+                  subselect_indexsubquery_engine::HASH_SJ_ENGINE);
+  return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
+      ->root_iterator();
 }
-
-Item_subselect::~Item_subselect() { destroy(engine); }
 
 bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   char const *save_where = thd->where;
@@ -559,15 +565,16 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   bool res;
 
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(indexsubquery_engine == nullptr);
 
 #ifndef DBUG_OFF
   // Engine accesses THD via its 'item' pointer, check it:
-  DBUG_ASSERT(engine->get_item() == this);
+  DBUG_ASSERT(subquery->get_item() == this);
 #endif
 
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar *)&res)) return true;
 
-  if (!(res = engine->prepare(thd))) {
+  if (!(res = subquery->prepare(thd))) {
     // all transformation is done (used by prepared statements)
     changed = true;
 
@@ -578,13 +585,15 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
       Substitute the current item with an Item_in_optimizer that was
       created by Item_in_subselect::select_in_like_transformer and
       call fix_fields for the substituted item which in turn calls
-      engine->prepare for the subquery predicate.
+      subquery->prepare for the subquery predicate.
     */
     if (substitution) {
       int ret = 0;
       (*ref) = substitution;
       substitution->item_name = item_name;
-      if (have_to_be_excluded) engine->exclude();
+      if (have_to_be_excluded) {
+        unit->exclude_level();
+      }
       substitution = nullptr;
       thd->where = "checking transformed subquery";
       if (!(*ref)->fixed) ret = (*ref)->fix_fields(thd, ref);
@@ -592,7 +601,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
       return ret;
     }
     // Is it one field subselect?
-    if (engine->cols() > max_columns) {
+    if (unit_cols() > max_columns) {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       return true;
     }
@@ -600,7 +609,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref) {
   } else
     goto err;
 
-  if ((uncacheable = engine->uncacheable())) {
+  if ((uncacheable = unit->uncacheable)) {
     if (uncacheable & UNCACHEABLE_RAND) used_tables_cache |= RAND_TABLE_BIT;
   }
 
@@ -681,9 +690,11 @@ bool Item_subselect::exec(THD *thd) {
   if (!unit->is_optimized() &&
       unit->optimize(thd, /*materialize_destination=*/nullptr))
     return true;
-  bool res = engine->exec(thd);
-
-  return res;
+  if (indexsubquery_engine != nullptr) {
+    return indexsubquery_engine->exec(thd);
+  } else {
+    return subquery->exec(thd);
+  }
 }
 
 /// @see SELECT_LEX_UNIT::fix_after_pullout()
@@ -714,7 +725,8 @@ bool Item_in_subselect::exec(THD *thd) {
   DBUG_TRACE;
   DBUG_ASSERT(exec_method != EXEC_MATERIALIZATION ||
               (exec_method == EXEC_MATERIALIZATION &&
-               engine->engine_type() == subselect_engine::HASH_SJ_ENGINE));
+               indexsubquery_engine->engine_type() ==
+                   subselect_indexsubquery_engine::HASH_SJ_ENGINE));
   /*
     Initialize the cache of the left predicate operand. This has to be done as
     late as now, because Cached_item directly contains a resolved field (not
@@ -746,16 +758,17 @@ bool Item_in_subselect::exec(THD *thd) {
     left_expr_cache_filled = true;
   }
 
-  if (unit->is_executed() && engine->uncacheable())
-    null_value = was_null = false;
-  const bool retval = Item_subselect::exec(thd);
-  return retval;
+  if (unit->is_executed()) {
+    null_value = false;
+    was_null = false;
+  }
+  return Item_subselect::exec(thd);
 }
 
 Item::Type Item_subselect::type() const { return SUBSELECT_ITEM; }
 
 bool Item_subselect::resolve_type(THD *) {
-  engine->fix_length_and_dec(nullptr);
+  subquery->fix_length_and_dec(nullptr);
   return false;
 }
 
@@ -771,13 +784,13 @@ Item *Item_subselect::get_tmp_table_item(THD *thd_arg) {
 
 void Item_subselect::update_used_tables() {
   // did all used tables become const?
-  if (!engine->uncacheable())
-    used_tables_cache &= ~engine->upper_select_const_tables();
+  if (!unit->uncacheable)
+    used_tables_cache &= ~subquery->upper_select_const_tables();
 }
 
 void Item_subselect::print(const THD *thd, String *str,
                            enum_query_type query_type) const {
-  if (engine) {
+  if (subquery) {
     str->append('(');
     if (query_type & QT_SUBSELECT_AS_ONLY_SELECT_NUMBER) {
       str->append("select #");
@@ -787,8 +800,10 @@ void Item_subselect::print(const THD *thd, String *str,
       } else {
         str->append_ulonglong(select_number);
       }
+    } else if (indexsubquery_engine != nullptr) {
+      indexsubquery_engine->print(thd, str, query_type);
     } else {
-      engine->print(thd, str, query_type);
+      subquery->print(thd, str, query_type);
     }
     str->append(')');
   } else
@@ -1108,29 +1123,29 @@ void Item_singlerow_subselect::store(uint i, Item *item) {
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const {
-  return engine->type();
+  return subquery->type();
 }
 
 bool Item_singlerow_subselect::resolve_type(THD *thd) {
-  if ((max_columns = engine->cols()) == 1) {
-    engine->fix_length_and_dec(row = &value);
+  if ((max_columns = unit_cols()) == 1) {
+    subquery->fix_length_and_dec(row = &value);
   } else {
     row = thd->mem_root->ArrayAlloc<Item_cache *>(max_columns);
     if (row == nullptr) {
       return true;
     }
-    engine->fix_length_and_dec(row);
+    subquery->fix_length_and_dec(row);
     DBUG_ASSERT(*row != nullptr);
     value = *row;
   }
-  set_data_type(engine->field_type());
+  set_data_type(subquery->field_type());
   unsigned_flag = value->unsigned_flag;
   /*
     Check if NULL values may be returned by the subquery. Either
     because one or more of the columns could be NULL, or because the
     subquery could return an empty result.
   */
-  maybe_null = engine->may_be_null();
+  maybe_null = subquery->may_be_null();
   return false;
 }
 
@@ -1143,10 +1158,8 @@ void Item_singlerow_subselect::no_rows_in_result() {
   if (unit->uncacheable & UNCACHEABLE_DEPENDENT) no_rows = true;
 }
 
-uint Item_singlerow_subselect::cols() const { return engine->cols(); }
-
 bool Item_singlerow_subselect::check_cols(uint c) {
-  if (c != engine->cols()) {
+  if (c != unit_cols()) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), c);
     return true;
   }
@@ -1452,7 +1465,7 @@ Item_allany_subselect::Item_allany_subselect(Item *left_exp,
 bool Item_exists_subselect::resolve_type(THD *thd) {
   set_data_type_longlong();
   max_length = 1;
-  max_columns = engine->cols();
+  max_columns = unit_cols();
   if (exec_method == EXEC_EXISTS) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     /*
@@ -2684,18 +2697,22 @@ void Item_allany_subselect::print(const THD *thd, String *str,
   Item_subselect::print(thd, str, query_type);
 }
 
-void subselect_iterator_engine::cleanup(THD *thd) {
+void SubqueryWithResult::cleanup(THD *thd) {
   DBUG_TRACE;
   item->unit->reset_executed();
   result->cleanup(thd);
 }
 
-subselect_iterator_engine::subselect_iterator_engine(
-    SELECT_LEX_UNIT *u, Query_result_interceptor *result_arg,
-    Item_subselect *item_arg)
-    : subselect_engine(item_arg, result_arg) {
-  unit = u;
-  unit->item = item_arg;
+SubqueryWithResult::SubqueryWithResult(SELECT_LEX_UNIT *u,
+                                       Query_result_interceptor *res,
+                                       Item_subselect *si)
+    : result(res),
+      item(si),
+      res_type(STRING_RESULT),
+      res_field_type(MYSQL_TYPE_VAR_STRING),
+      maybe_null(false),
+      unit(u) {
+  unit->item = si;
 }
 
 /**
@@ -2710,19 +2727,13 @@ subselect_iterator_engine::subselect_iterator_engine(
   @returns false if success, true if error
 */
 
-bool subselect_iterator_engine::prepare(THD *thd) {
+bool SubqueryWithResult::prepare(THD *thd) {
   if (!unit->is_prepared())
     return unit->prepare(thd, result, SELECT_NO_UNLOCK, 0);
 
   DBUG_ASSERT(result == unit->query_result());
 
   return false;
-}
-
-bool subselect_indexsubquery_engine::prepare(THD *) {
-  /* Should never be called. */
-  DBUG_ASSERT(false);
-  return true;
 }
 
 /**
@@ -2733,8 +2744,8 @@ bool subselect_indexsubquery_engine::prepare(THD *) {
   @param row             cache objects to hold the result row of the subquery
   @param possibly_empty  true if the subquery could return empty result
 */
-void subselect_iterator_engine::set_row(List<Item> &item_list, Item_cache **row,
-                                        bool possibly_empty) {
+void SubqueryWithResult::set_row(List<Item> &item_list, Item_cache **row,
+                                 bool possibly_empty) {
   /*
     Empty scalar or row subqueries evaluate to NULL, so if it is
     possibly empty, it is also possibly NULL.
@@ -2778,7 +2789,7 @@ static bool guaranteed_one_row(const SELECT_LEX *select_lex) {
          !select_lex->having_cond() && !select_lex->select_limit;
 }
 
-void subselect_iterator_engine::fix_length_and_dec(Item_cache **row) {
+void SubqueryWithResult::fix_length_and_dec(Item_cache **row) {
   DBUG_ASSERT(row || unit->first_select()->item_list.elements == 1);
 
   // A UNION is possibly empty only if all of its SELECTs are possibly empty.
@@ -2800,12 +2811,7 @@ void subselect_iterator_engine::fix_length_and_dec(Item_cache **row) {
     item->collation.set(row[0]->collation);
 }
 
-void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **) {
-  // this never should be called
-  DBUG_ASSERT(0);
-}
-
-bool subselect_iterator_engine::exec(THD *thd) {
+bool SubqueryWithResult::exec(THD *thd) {
   DBUG_ASSERT(unit->is_optimized());
   char const *save_where = thd->where;
   const bool res = unit->execute(thd);
@@ -2869,29 +2875,20 @@ bool subselect_indexsubquery_engine::exec(THD *thd) {
   if (ExecuteExistsQuery(thd, unit, unit->root_iterator(), &found)) {
     return true;
   }
-  Item_in_subselect *item_in = down_cast<Item_in_subselect *>(item);
-  item_in->value = found;
-  item_in->assigned(true);
+  item->value = found;
+  item->assigned(true);
   return false;
 }
 
-uint subselect_iterator_engine::cols() const {
+uint Item_subselect::unit_cols() const {
   DBUG_ASSERT(unit->is_prepared());  // should be called after fix_fields()
-  return unit->types.elements;
+  return unit->types.size();
 }
 
-uint8 subselect_iterator_engine::uncacheable() const {
-  return unit->uncacheable;
-}
+bool Item_subselect::is_uncacheable() const { return unit->uncacheable; }
 
-void subselect_iterator_engine::exclude() { unit->exclude_level(); }
-
-void subselect_indexsubquery_engine::exclude() {
-  // this never should be called
-  DBUG_ASSERT(0);
-}
-
-table_map subselect_engine::calc_const_tables(TABLE_LIST *table) {
+table_map SubqueryWithResult::upper_select_const_tables() const {
+  TABLE_LIST *table = unit->outer_select()->leaf_tables;
   table_map map = 0;
   for (; table; table = table->next_leaf) {
     TABLE *tbl = table->table;
@@ -2900,12 +2897,8 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table) {
   return map;
 }
 
-table_map subselect_iterator_engine::upper_select_const_tables() const {
-  return calc_const_tables(unit->outer_select()->leaf_tables);
-}
-
-void subselect_iterator_engine::print(const THD *thd, String *str,
-                                      enum_query_type query_type) {
+void SubqueryWithResult::print(const THD *thd, String *str,
+                               enum_query_type query_type) {
   unit->print(thd, str, query_type);
 }
 
@@ -2949,7 +2942,7 @@ void subselect_indexsubquery_engine::print(const THD *thd, String *str,
 }
 
 /**
-  change query result object of engine.
+  change query result object of subquery.
 
   @param thd    thread handle
   @param si		new subselect Item
@@ -2961,32 +2954,17 @@ void subselect_indexsubquery_engine::print(const THD *thd, String *str,
     true  error
 */
 
-bool subselect_iterator_engine::change_query_result(
-    THD *thd, Item_subselect *si, Query_result_subquery *res) {
+bool SubqueryWithResult::change_query_result(THD *thd, Item_subselect *si,
+                                             Query_result_subquery *res) {
   item = si;
   int rc = unit->change_query_result(thd, res, result);
   result = res;
   return rc;
 }
 
-SELECT_LEX *subselect_iterator_engine::single_select_lex() const {
+SELECT_LEX *SubqueryWithResult::single_select_lex() const {
   DBUG_ASSERT(unit->is_simple());
   return unit->first_select();
-}
-
-/**
-  change query result emulation, never should be called.
-
-  @retval
-    false OK
-  @retval
-    true  error
-*/
-
-bool subselect_indexsubquery_engine::change_query_result(
-    THD *, Item_subselect *, Query_result_subquery *) {
-  DBUG_ASSERT(0);
-  return true;
 }
 
 /******************************************************************************
@@ -3023,7 +3001,6 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
   TABLE *tmp_table;
   KEY *tmp_key;       /* The only index on the temporary table. */
   uint tmp_key_parts; /* Number of keyparts in tmp_key. */
-  Item_in_subselect *item_in = (Item_in_subselect *)item;
   uint key_length;
 
   DBUG_TRACE;
@@ -3138,7 +3115,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     Item_field *right_col_item;
     Field *field = tmp_table->visible_field_ptr()[part_no];
     const bool nullable = field->is_nullable();
-    tab->ref().items[part_no] = item_in->left_expr->element_index(part_no);
+    tab->ref().items[part_no] = item->left_expr->element_index(part_no);
 
     if (!(right_col_item = new Item_field(thd, context, field)) ||
         !(eq_cond =
@@ -3167,7 +3144,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     }
     if (nullable &&  // nullable column in tmp table,
                      // and UNKNOWN should not be interpreted as FALSE
-        !item_in->abort_on_null) {
+        !item->abort_on_null) {
       // It must be the single column, or we wouldn't be here
       DBUG_ASSERT(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:
@@ -3193,12 +3170,17 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     Create and optimize the JOIN that will be used to materialize
     the subquery if not yet created.
   */
-  materialize_engine->prepare(thd);
+  if (!unit->is_prepared()) {
+    if (unit->prepare(thd, result, SELECT_NO_UNLOCK, 0)) {
+      return true;
+    }
+  }
+
   return false;
 }
 
 void subselect_hash_sj_engine::create_iterators(THD *thd) {
-  if (materialize_engine->unit->root_iterator() == nullptr) {
+  if (unit->root_iterator() == nullptr) {
     m_iterator = NewIterator<ZeroRowsIterator>(
         thd, "Not optimized, outer query is empty");
     return;
@@ -3233,7 +3215,7 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
         NewIterator<FilterIterator>(thd, move(tab->iterator), having);
   }
 
-  tab->table_ref->set_derived_unit(materialize_engine->unit);
+  tab->table_ref->set_derived_unit(unit);
   unique_ptr_destroy_only<RowIterator> iterator;
   if (tab->table_ref->is_table_function()) {
     iterator = NewIterator<MaterializedTableFunctionIterator>(
@@ -3275,7 +3257,7 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
     // Note that tab->qep_cleanup() is not called
     tab = nullptr;
   }
-  materialize_engine->cleanup(thd);
+  unit->reset_executed();
 }
 
 /**
@@ -3289,7 +3271,6 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
 */
 
 bool subselect_hash_sj_engine::exec(THD *thd) {
-  Item_in_subselect *item_in = (Item_in_subselect *)item;
   TABLE *const table = tab->table();
   DBUG_TRACE;
 
@@ -3298,9 +3279,8 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     the subquery predicate.
   */
   if (!is_materialized) {
-    thd->lex->set_current_select(materialize_engine->single_select_lex());
-    DBUG_ASSERT(
-        materialize_engine->single_select_lex()->master_unit()->is_optimized());
+    thd->lex->set_current_select(unit->first_select());
+    DBUG_ASSERT(unit->first_select()->master_unit()->is_optimized());
 
     // Init() triggers materialization.
     // (It also triggers some unneeded setup of the RefIterator, but it is
@@ -3337,22 +3317,22 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     }
 
     /* Set tmp_param only if its usable, i.e. there are Copy_field's. */
-    tmp_param = &(item_in->unit->outer_select()->join->tmp_table_param);
+    tmp_param = &(item->unit->outer_select()->join->tmp_table_param);
     if (tmp_param && tmp_param->copy_fields.empty()) tmp_param = nullptr;
   }  // if (!is_materialized)
 
   if (has_zero_rows) {
     // The correct answer is FALSE.
-    item_in->value = false;
+    item->value = false;
     return false;
   }
   /*
-    Here we could be brutal and set item_in->null_value. But we prefer to be
+    Here we could be brutal and set item->null_value. But we prefer to be
     well-behaved and rather set the properties which
     Item_in_subselect::val_bool() and Item_in_optimizer::val_int() expect,
     and then those functions will set null_value based on those properties.
   */
-  if (item_in->left_expr->element_index(0)->null_value) {
+  if (item->left_expr->element_index(0)->null_value) {
     /*
       The first outer expression oe1 is NULL. It is the single outer
       expression because if there would be more ((oe1,oe2,...)IN(...)) then
@@ -3362,9 +3342,9 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
       is UNKNOWN. Do as if searching with all triggered conditions disabled:
       this would surely find a row. The caller will translate this to UNKNOWN.
     */
-    DBUG_ASSERT(item_in->left_expr->element_index(0)->maybe_null);
-    DBUG_ASSERT(item_in->left_expr->cols() == 1);
-    item_in->value = true;
+    DBUG_ASSERT(item->left_expr->element_index(0)->maybe_null);
+    DBUG_ASSERT(item->left_expr->cols() == 1);
+    item->value = true;
     return false;
   }
 
@@ -3373,8 +3353,8 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
   if (ExecuteExistsQuery(thd, item->unit, m_iterator.get(), &found)) {
     return true;
   }
-  item_in->value = found;
-  item_in->assigned(true);
+  item->value = found;
+  item->assigned(true);
 
   if (!found &&  // no exact match
       mat_table_has_nulls != NEX_IRRELEVANT_OR_FALSE) {
@@ -3402,8 +3382,8 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
         would not find any match, but Item_is_not_null_test would notice a
         NULL:
       */
-      item_in->value = false;
-      item_in->was_null = true;
+      item->value = false;
+      item->was_null = true;
     }
   }
   return false;
@@ -3416,7 +3396,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
 void subselect_hash_sj_engine::print(const THD *thd, String *str,
                                      enum_query_type query_type) {
   str->append(STRING_WITH_LEN(" <materialize> ("));
-  materialize_engine->print(thd, str, query_type);
+  unit->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" ), "));
   if (tab)
     subselect_indexsubquery_engine::print(thd, str, query_type);

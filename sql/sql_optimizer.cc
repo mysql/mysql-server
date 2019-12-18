@@ -1211,7 +1211,6 @@ int JOIN::replace_index_subquery() {
   // Guaranteed by remove_redundant_subquery_clauses():
   DBUG_ASSERT(order == nullptr && !select_distinct);
 
-  subselect_engine *engine = nullptr;
   Item_in_subselect *const in_subs =
       static_cast<Item_in_subselect *>(unit->item);
   bool found_engine = false;
@@ -1255,13 +1254,12 @@ int JOIN::replace_index_subquery() {
     first_qep_tab->table()->set_keyread(true);
   }
 
-  engine = new (thd->mem_root) subselect_indexsubquery_engine(
-      first_qep_tab, unit->item, first_qep_tab->condition(), having_cond);
-
-  if (!unit->item->change_engine(engine))
-    return 1;
-  else         // error:
-    return -1; /* purecov: inspected */
+  subselect_indexsubquery_engine *engine = new (thd->mem_root)
+      subselect_indexsubquery_engine(first_qep_tab,
+                                     down_cast<Item_in_subselect *>(unit->item),
+                                     first_qep_tab->condition(), having_cond);
+  unit->item->set_indexsubquery_engine(engine);
+  return 1;
 }
 
 bool JOIN::optimize_distinct_group_order() {

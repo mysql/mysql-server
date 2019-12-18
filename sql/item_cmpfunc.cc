@@ -2071,7 +2071,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref) {
 
   if (!args[1]->fixed && args[1]->fix_fields(thd, args + 1)) return true;
   Item_in_subselect *sub = (Item_in_subselect *)args[1];
-  if (args[0]->cols() != sub->engine->cols()) {
+  if (args[0]->cols() != sub->unit_cols()) {
     my_error(ER_OPERAND_COLUMNS, MYF(0), args[0]->cols());
     return true;
   }
