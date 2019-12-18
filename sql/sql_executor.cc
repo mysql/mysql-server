@@ -3293,6 +3293,9 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
           force_sort_positions = true;
         }
 
+        // Switch to the right slice if applicable, so that we fetch out the
+        // correct items from order_arg.
+        Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
         dup_filesort = new (thd->mem_root) Filesort(
             thd, qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
             /*remove_duplicates=*/true, force_sort_positions);

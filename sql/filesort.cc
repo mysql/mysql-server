@@ -682,21 +682,8 @@ Filesort::Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
       m_force_stable_sort(
           force_stable_sort),  // keep relative order of equiv. elts
       m_remove_duplicates(remove_duplicates),
-      m_force_sort_positions(sort_positions) {
-  // Switch to the right slice if applicable, so that we fetch out the correct
-  // items from order_arg.
-  if (qep_tab->join() != nullptr) {
-    DBUG_ASSERT(qep_tab->join()->m_ordered_index_usage !=
-                (order == qep_tab->join()->order
-                     ? JOIN::ORDERED_INDEX_ORDER_BY
-                     : JOIN::ORDERED_INDEX_GROUP_BY));
-    Switch_ref_item_slice slice_switch(qep_tab->join(),
-                                       qep_tab->ref_item_slice);
-    m_sort_order_length = make_sortorder(order);
-  } else {
-    m_sort_order_length = make_sortorder(order);
-  }
-}
+      m_force_sort_positions(sort_positions),
+      m_sort_order_length(make_sortorder(order)) {}
 
 uint Filesort::make_sortorder(ORDER *order) {
   uint count;

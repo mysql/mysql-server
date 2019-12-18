@@ -5041,9 +5041,14 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
 
   explain_flags.set(sort_order->src, ESP_USING_FILESORT);
   QEP_TAB *const tab = &qep_tab[idx];
-  tab->filesort = new (thd->mem_root)
-      Filesort(thd, tab, *sort_order, HA_POS_ERROR, force_stable_sort,
-               /*remove_duplicates=*/false, force_sort_position);
+  {
+    // Switch to the right slice if applicable, so that we fetch out the correct
+    // items from order_arg.
+    Switch_ref_item_slice slice_switch(this, tab->ref_item_slice);
+    tab->filesort = new (thd->mem_root)
+        Filesort(thd, tab, *sort_order, HA_POS_ERROR, force_stable_sort,
+                 /*remove_duplicates=*/false, force_sort_position);
+  }
   if (!tab->filesort) return true;
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);
