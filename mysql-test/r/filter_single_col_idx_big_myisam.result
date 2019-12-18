@@ -1621,7 +1621,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `<materialized_subquery>`.`col3`)))))
 
 # table scan in subq, filter from range access
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col1_idx>2);
@@ -1629,7 +1629,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col1_idx` > 2) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col1_idx` > 2) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `<materialized_subquery>`.`col3`)))))
 
 # table scan subquery, filter SEL(=)
 EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col3=3);
@@ -1637,7 +1637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col3` = 3) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col3` = 3) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `<materialized_subquery>`.`col3`)))))
 
 # range in subquery, no filter
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);

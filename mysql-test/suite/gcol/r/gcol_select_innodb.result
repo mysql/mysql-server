@@ -1376,7 +1376,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `<materialized_subquery>`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1433,7 +1433,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `<materialized_subquery>`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1492,7 +1492,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `<materialized_subquery>`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1560,7 +1560,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `<materialized_subquery>`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 

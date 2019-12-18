@@ -424,7 +424,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	Using where; Not exists
 3	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))) is false)
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN
 (SELECT a FROM t1 t2 WHERE a NOT IN (SELECT a FROM t1 t3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -433,7 +433,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<subquery3>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t2.a	1	100.00	Using where; Not exists
 3	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` anti join (`test`.`t1` `t3`) on((`<subquery3>`.`a` = `test`.`t2`.`a`)) where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 EXPLAIN SELECT * FROM t1 JOIN t1 t2 ON t1.a>t2.a
 AND NOT EXISTS(SELECT * FROM t1 t3, t1 t4 WHERE t3.a=t1.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -837,7 +837,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `<materialized_subquery>`.`col_int`)))))
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2);
 col_int	col_int2
@@ -848,7 +848,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is true)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `<materialized_subquery>`.`col_int`)))) is true)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS TRUE;
 col_int	col_int2
@@ -859,7 +859,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `<materialized_subquery>`.`col_int`)))) is false)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS FALSE;
 col_int	col_int2
@@ -869,7 +869,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`)))) is false)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `<materialized_subquery>`.`col_int`)))) is false)
 SELECT * FROM t1 WHERE
 t1.col_int+1 NOT IN (SELECT col_int FROM t1 t2);
 col_int	col_int2
@@ -879,7 +879,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	index	col_int	col_int	5	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `materialized-subquery`.`col_int`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`col_int2` AS `col_int2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`col_int` + 1),(`test`.`t1`.`col_int` + 1) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>((`test`.`t1`.`col_int` + 1) in <temporary table> on <auto_distinct_key> where (((`test`.`t1`.`col_int` + 1) = `<materialized_subquery>`.`col_int`))))) is null)
 SELECT * FROM t1 WHERE
 t1.col_int+1 IN (SELECT col_int FROM t1 t2) IS UNKNOWN;
 col_int	col_int2

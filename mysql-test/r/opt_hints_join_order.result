@@ -311,7 +311,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `materialized-subquery`.`f1`))))))
+Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `<materialized_subquery>`.`f1`))))))
 SELECT /*+  QB_NAME(q1) JOIN_FIXED_ORDER(@q1) */ count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);
@@ -327,7 +327,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t5	NULL	index	PRIMARY	PRIMARY	4	NULL	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_FIXED_ORDER(@`q1`) */ straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `materialized-subquery`.`f1`))))))
+Note	1003	/* select#1 */ select /*+ QB_NAME(`q1`) JOIN_FIXED_ORDER(@`q1`) */ straight_join count(0) AS `count(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (<in_optimizer>(`test`.`t1`.`f1`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where (<cache>(`test`.`t1`.`f1`) = `test`.`t4`.`f1`))) and <in_optimizer>(`test`.`t2`.`f1`,`test`.`t2`.`f1` in ( <materialize> (/* select#3 */ select /*+ QB_NAME(`subq2`) */ `test`.`t5`.`f1` from `test`.`t5` where true ), <primary_index_lookup>(`test`.`t2`.`f1` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`f1` = `<materialized_subquery>`.`f1`))))))
 SELECT /*+  QB_NAME(q1) */ count(*) FROM t1 JOIN t2 JOIN t3
 WHERE t1.f1 IN (SELECT /*+ QB_NAME(subq1) */ f1 FROM t4)
 AND t2.f1 IN (SELECT /*+ QB_NAME(subq2) */ f1 FROM t5);

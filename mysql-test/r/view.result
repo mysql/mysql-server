@@ -5285,7 +5285,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = 6) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`1`))))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = 6) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`1`))))) AS `s` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, (SELECT COUNT(*) FROM t2) AS c
 FROM t1;
@@ -5398,7 +5398,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t2` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`COUNT(*)`))))) AS `c` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select count(0) from `test`.`t2` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`COUNT(*)`))))) AS `c` from `test`.`t1`
 DROP VIEW v1;
 CREATE VIEW v1 AS SELECT a, b, (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;

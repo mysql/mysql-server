@@ -6159,7 +6159,7 @@ EXPLAIN
       "used_columns": [
         "a"
       ],
-      "attached_condition": "<in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select row_number() OVER ()  from `test`.`t` having true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `materialized-subquery`.`ROW_NUMBER() OVER ()`)))))",
+      "attached_condition": "<in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select row_number() OVER ()  from `test`.`t` having true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`ROW_NUMBER() OVER ()`)))))",
       "attached_subqueries": [
         {
           "table": {
@@ -6209,7 +6209,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select row_number() OVER ()  from `test`.`t` having true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `materialized-subquery`.`ROW_NUMBER() OVER ()`)))))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select row_number() OVER ()  from `test`.`t` having true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`ROW_NUMBER() OVER ()`)))))
 SELECT * FROM t WHERE a = SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 a
 2

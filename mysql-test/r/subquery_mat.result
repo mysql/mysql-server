@@ -44,7 +44,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`)))))
 select * from t1 where a1 in (select b1 from t2 where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -55,7 +55,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`)))))
 select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -66,7 +66,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`b2`)))))
 select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -77,7 +77,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where; Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,min(`test`.`t2`.`b2`) from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`min(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,min(`test`.`t2`.`b2`) from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`min(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -88,7 +88,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`)))))
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -99,7 +99,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i3	it2i1	33	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`)))))
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -110,7 +110,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`b2`)))))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -121,7 +121,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`b2`)))))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -132,7 +132,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`min(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`min(b2)`)))))
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -143,7 +143,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -154,13 +154,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 execute st1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	33	NULL	3	100.00	Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`max(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,max(`test`.`t2i`.`b2`) from `test`.`t2i` group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`max(b2)`)))))
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
 execute st2;
 a1	a2
@@ -176,7 +176,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2i	NULL	range	it2i1,it2i3	it2i3	66	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`min(b2)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,min(`test`.`t2i`.`b2`) from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` having true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`min(b2)`)))))
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -189,7 +189,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`b2`)))))
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -200,7 +200,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1i	NULL	index	NULL	it1i3	66	NULL	3	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where true ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where true ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`b2`)))))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -255,7 +255,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#3 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#3 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`c2`))))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
@@ -274,7 +274,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#3 */ select `test`.`t3i`.`c1`,`test`.`t3i`.`c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3i`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3i`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#3 */ select `test`.`t3i`.`c1`,`test`.`t3i`.`c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3i`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3i`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`c2`))))))
 select * from t1i
 where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
@@ -297,7 +297,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`c2`))))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -322,7 +322,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3c`.`c1`,`test`.`t3c`.`c2` from `test`.`t3` `t3c` where <in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),(`test`.`t3c`.`c1`,`test`.`t3c`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3c`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3c`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3c`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3c`.`c1`,`test`.`t3c`.`c2` from `test`.`t3` `t3c` where <in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),(`test`.`t3c`.`c1`,`test`.`t3c`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3c`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3c`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3c`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`c2`))))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 t3a where c1 = a1) or
@@ -358,7 +358,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 8	SUBQUERY	t2i	NULL	index	it2i1,it2i2,it2i3	it2i3	66	NULL	5	100.00	Using where; Using index
 NULL	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`c2`)))))) union /* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#8 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#9 */ select `test`.`t3i`.`c1`,`test`.`t3i`.`c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (/* select#10 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3i`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3i`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1i`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`b1`,`test`.`t2`.`b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#5 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#6 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`c2`)))))) union /* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#8 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (/* select#9 */ select `test`.`t3i`.`c1`,`test`.`t3i`.`c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (/* select#10 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3i`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3i`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1i`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1i`.`a2` = `<materialized_subquery>`.`c2`))))))
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -387,7 +387,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`c1`) and (`test`.`t1`.`a2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`c1`) and (`test`.`t1`.`a2` = `<materialized_subquery>`.`c2`))))))
 select * from t1
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (a1, a2) in (select c1, c2 from t3
@@ -410,7 +410,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`b1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`b2`))))) ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `materialized-subquery`.`c1`) and (`test`.`t3`.`c2` = `materialized-subquery`.`c2`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1`,`test`.`t3`.`c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (/* select#5 */ select `test`.`t2i`.`b1`,`test`.`t2i`.`b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`b1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`b2`))))) ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`c1` = `<materialized_subquery>`.`c1`) and (`test`.`t3`.`c2` = `<materialized_subquery>`.`c2`))))))
 select * from t1, t3
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (c1, c2) in (select c1, c2 from t3
@@ -456,7 +456,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a2' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#5 */ select 1,1 from `test`.`t3` `t3c` where (<in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),<exists>(<index_lookup>(<cache>(`test`.`t3c`.`c1`) in t2i on it2i3 where ((`test`.`t2i`.`b2` > '0') or (`test`.`t2i`.`b2` = `test`.`t1`.`a2`))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t3c`.`c1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t3c`.`c2`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`b2` = `<materialized_subquery>`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#5 */ select 1,1 from `test`.`t3` `t3c` where (<in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),<exists>(<index_lookup>(<cache>(`test`.`t3c`.`c1`) in t2i on it2i3 where ((`test`.`t2i`.`b2` > '0') or (`test`.`t2i`.`b2` = `test`.`t1`.`a2`))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t3c`.`c1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t3c`.`c2`)))))
 explain
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -505,7 +505,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 2	SUBQUERY	columns	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` group by <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`columns`.`col` from `test`.`columns` where true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `materialized-subquery`.`col`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` group by <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (/* select#2 */ select `test`.`columns`.`col` from `test`.`columns` where true ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a1` = `<materialized_subquery>`.`col`)))))
 select * from t1 group by (a1 in (select col from columns));
 a1	a2
 1 - 00	2 - 00
@@ -545,7 +545,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1bit	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2bit	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select conv(`test`.`t1bit`.`a1`,10,2) AS `bin(a1)`,conv(`test`.`t1bit`.`a2`,10,2) AS `bin(a2)` from `test`.`t1bit` where <in_optimizer>((`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`),(`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2bit`.`b1`,`test`.`t2bit`.`b2` from `test`.`t2bit` where true ), <primary_index_lookup>(`test`.`t1bit`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1bit`.`a1` = `materialized-subquery`.`b1`) and (`test`.`t1bit`.`a2` = `materialized-subquery`.`b2`)))))
+Note	1003	/* select#1 */ select conv(`test`.`t1bit`.`a1`,10,2) AS `bin(a1)`,conv(`test`.`t1bit`.`a2`,10,2) AS `bin(a2)` from `test`.`t1bit` where <in_optimizer>((`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`),(`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`) in ( <materialize> (/* select#2 */ select `test`.`t2bit`.`b1`,`test`.`t2bit`.`b2` from `test`.`t2bit` where true ), <primary_index_lookup>(`test`.`t1bit`.`a1` in <temporary table> on <auto_distinct_key> where ((`test`.`t1bit`.`a1` = `<materialized_subquery>`.`b1`) and (`test`.`t1bit`.`a2` = `<materialized_subquery>`.`b2`)))))
 select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -616,7 +616,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -630,7 +630,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	it1a	4	NULL	7	100.00	Using where; Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -644,7 +644,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	it1a	4	NULL	7	100.00	Using where; Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -657,7 +657,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	it1a	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2
@@ -669,7 +669,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	it1a,iab	it1a	4	NULL	7	100.00	Using index
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`c`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`c`)))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2
@@ -749,7 +749,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,`test`.`t1`.`b` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t1`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`b` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`b`,`test`.`t1`.`b` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t1`.`b` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`b` = `<materialized_subquery>`.`a`)))))
 select a,b from t1 where b in (select a from t1);
 a	b
 prepare st1 from "select a,b from t1 where b in (select a from t1)";
@@ -773,7 +773,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`max(b)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t1`.`b` = `<materialized_subquery>`.`max(b)`)))))
 ALTER TABLE t1 ADD INDEX(a);
 FLUSH STATUS;
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
@@ -789,7 +789,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 2	SUBQUERY	t1	NULL	index	a	a	23	NULL	9	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`max(b)`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t1`.`a`,max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t1`.`b` = `<materialized_subquery>`.`max(b)`)))))
 DROP TABLE t1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
@@ -837,7 +837,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `t1i` from `test`.`t4` where ((`test`.`t4`.`t4i` = '1') and <in_optimizer>('1',<exists>(/* select#2 */ select 1 from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`t2i`,`test`.`t2`.`t2i` in ( <materialize> (/* select#3 */ select `test`.`t3`.`t3i` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t2`.`t2i` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`t2i` = `materialized-subquery`.`t3i`))))) and (<cache>('1') = `test`.`t2`.`t2i`)))))
+Note	1003	/* select#1 */ select '1' AS `t1i` from `test`.`t4` where ((`test`.`t4`.`t4i` = '1') and <in_optimizer>('1',<exists>(/* select#2 */ select 1 from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`t2i`,`test`.`t2`.`t2i` in ( <materialize> (/* select#3 */ select `test`.`t3`.`t3i` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t2`.`t2i` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`t2i` = `<materialized_subquery>`.`t3i`))))) and (<cache>('1') = `test`.`t2`.`t2i`)))))
 DROP TABLE t1,t2,t3,t4;
 #
 # BUG#46680 - Assertion failed in file item_subselect.cc, 
@@ -989,7 +989,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,`test`.`t1`.`pk` in ( <materialize> (/* select#2 */ select 1 from dual where ('1' > 10) ), <primary_index_lookup>(`test`.`t1`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`pk` = `materialized-subquery`.`1`))))) having true
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,`test`.`t1`.`pk` in ( <materialize> (/* select#2 */ select 1 from dual where ('1' > 10) ), <primary_index_lookup>(`test`.`t1`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`pk` = `<materialized_subquery>`.`1`))))) having true
 #
 # Cleanup for BUG#46680
 #
@@ -1235,7 +1235,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 FLUSH STATUS;
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 a
@@ -1362,7 +1362,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`a` = `materialized-subquery`.`a`))))) AS `(a,a) in (select a,a from t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) AS `(a,a) in (select a,a from t2)` from `test`.`t1`
 select a, (a,a) in (select a,a from t2) from t1;
 a	(a,a) in (select a,a from t2)
 1	1
@@ -1376,7 +1376,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`a` = `materialized-subquery`.`a`))))) AS `(t1.a,t1.a) in (select a,a from t2 as t3)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`a`),(`test`.`t1`.`a`,`test`.`t1`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) AS `(t1.a,t1.a) in (select a,a from t2 as t3)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)
 select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 a	a	(t1.a,t1.a) in (select a,a from t2 as t3)
@@ -1426,7 +1426,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`) and (`test`.`t2`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) in (select a,a from t2 as t3);
@@ -1443,7 +1443,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`) and (`test`.`t2`.`a` = `materialized-subquery`.`a`)))) is false) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`) and (`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))) is false) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
@@ -1464,7 +1464,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))) AS `a in (select a from t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) AS `a in (select a from t2)` from `test`.`t1`
 select a, a in (select a from t2) from t1;
 a	a in (select a from t2)
 1	1
@@ -1480,7 +1480,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`))))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`))))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
 select t1.a, t2.a, t2.a in (select * from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 a	a	t2.a in (select * from t2 as t3)
@@ -1515,7 +1515,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `materialized-subquery`.`a`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `<materialized_subquery>`.`a`))))) is null)
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
@@ -1527,7 +1527,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `materialized-subquery`.`a`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `<materialized_subquery>`.`a`))))) is null)
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
@@ -1540,7 +1540,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `materialized-subquery`.`a`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `<materialized_subquery>`.`a`))))) is null)
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
@@ -1555,7 +1555,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `materialized-subquery`.`a`))))) is null)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `z`,sum(`test`.`t1`.`b`) AS `sum(t1.b)` from `test`.`t1` group by `test`.`t1`.`a` having (<in_optimizer>(`z`,`z` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`z` in <temporary table> on <auto_distinct_key> where ((`z` = `<materialized_subquery>`.`a`))))) is null)
 select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 z	sum(t1.b)
@@ -1575,7 +1575,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`))))) AS `(a in (select * from t2))` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`))))) AS `(a in (select * from t2))` from `test`.`t1`
 flush status;
 select a, (a in (select * from t2)) from t1;
 a	(a in (select * from t2))
@@ -1612,7 +1612,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 a
 1
@@ -1624,7 +1624,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t3;
 a
@@ -1638,7 +1638,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1652,7 +1652,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	75.00	Using where
 Warnings:
-Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1669,7 +1669,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
@@ -1713,14 +1713,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	update `test`.`t2` join `test`.`t3` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	update `test`.`t2` join `test`.`t3` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1736,7 +1736,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where
 Warnings:
-Note	1003	delete `test`.`t2` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	delete `test`.`t2` from `test`.`t2` join `test`.`t3` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` <> 2) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`a` = `<materialized_subquery>`.`a`)))))
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1765,7 +1765,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))))
 flush status;
 select * from t1 where a in (select a from t2);
 a
@@ -1927,7 +1927,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	innr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where ((`test`.`innr`.`c4` = `test`.`innr2`.`c4k`) and ((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`))) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `materialized-subquery`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
+Note	1003	/* select#1 */ select `test`.`o`.`c2` AS `x` from `test`.`t1` `o` where ((<in_optimizer>(`test`.`o`.`c1`,`test`.`o`.`c1` in ( <materialize> (/* select#2 */ select `test`.`innr`.`c4` AS `y` from `test`.`t2` `innr2` join `test`.`t3` `innr` where ((`test`.`innr`.`c4` = `test`.`innr2`.`c4k`) and ((`test`.`innr`.`c1` = 6) or (`test`.`innr`.`c1` <> `test`.`innr`.`pk`))) having true ), <primary_index_lookup>(`test`.`o`.`c1` in <temporary table> on <auto_distinct_key> where ((`test`.`o`.`c1` = `<materialized_subquery>`.`y`))))) and (`test`.`o`.`c4` = 7)) xor (`test`.`o`.`pk` = 3)) order by `test`.`o`.`pk`
 SELECT o.c2 AS x FROM t1 AS o
 WHERE o.c1 IN
 (SELECT innr.c4 AS y
@@ -1991,7 +1991,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))) is false)
+Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`alias1`.`col_varchar_key` = `<materialized_subquery>`.`col_varchar_nokey`)))) is false)
 SELECT alias2.col_int_key
 FROM t1 AS alias1 , t2 AS alias2
 WHERE alias1.col_varchar_key NOT IN (
@@ -2089,7 +2089,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`a` = `<materialized_subquery>`.`a`)))) is false)
 SELECT COUNT(*)
 FROM t1
 WHERE t1.a NOT IN (
