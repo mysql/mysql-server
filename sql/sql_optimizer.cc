@@ -893,7 +893,8 @@ void JOIN::create_iterators_for_zero_rows() {
         attach_iterators_for_having_and_limit(move(m_root_iterator));
   } else {
     // Send no row at all (so also no need to check HAVING or LIMIT).
-    m_root_iterator = NewIterator<ZeroRowsIterator>(thd, zero_result_cause);
+    m_root_iterator = NewIterator<ZeroRowsIterator>(thd, zero_result_cause,
+                                                    /*child_iterator=*/nullptr);
   }
 }
 

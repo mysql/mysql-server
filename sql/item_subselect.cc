@@ -3184,7 +3184,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
 void subselect_hash_sj_engine::create_iterators(THD *thd) {
   if (unit->root_iterator() == nullptr) {
     m_iterator = NewIterator<ZeroRowsIterator>(
-        thd, "Not optimized, outer query is empty");
+        thd, "Not optimized, outer query is empty", /*child_iterator=*/nullptr);
     return;
   }
 

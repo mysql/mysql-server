@@ -837,6 +837,18 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     return iterator;
   }
 
+  // See if any of the sub-conditions are known to be always false.
+  for (Item *cond : conditions) {
+    if (cond->const_item() && cond->val_int() == 0) {
+      unique_ptr_destroy_only<RowIterator> zero_iterator =
+          NewIterator<ZeroRowsIterator>(thd, "Impossible filter",
+                                        move(iterator));
+      zero_iterator->set_expected_rows(0.0);
+      zero_iterator->set_estimated_cost(0.0);
+      return zero_iterator;
+    }
+  }
+
   Item *condition = nullptr;
   if (conditions.size() == 1) {
     condition = conditions[0];
@@ -1907,9 +1919,30 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
   } else {
     join_conditions->clear();
 
-    for (Item *cond : hash_join_extra_conditions) {
-      *conditions_depend_on_outer_tables |= cond->used_tables();
+    // The join condition could contain conditions that can be pushed down into
+    // the right side, e.g. “t1 LEFT JOIN t2 ON t2.x > 3” (or simply
+    // “ON FALSE”). For inner joins, the optimizer will have pushed these down
+    // to the right tables, but it is not capable of doing so for outer joins.
+    // As a band-aid, we identify these and push them down onto the build
+    // iterator. This isn't ideal (they will not e.g. give rise to index
+    // lookups, and if there are multiple tables, we don't push the condition
+    // as far down as we should), but it should give reasonable speedups for
+    // many common cases.
+    vector<Item *> build_conditions;
+    for (auto cond_it = hash_join_extra_conditions.begin();
+         cond_it != hash_join_extra_conditions.end();) {
+      Item *cond = *cond_it;
+      if ((cond->used_tables() & (left_table_map | RAND_TABLE_BIT)) == 0) {
+        build_conditions.push_back(cond);
+        cond_it = hash_join_extra_conditions.erase(cond_it);
+      } else {
+        *conditions_depend_on_outer_tables |= cond->used_tables();
+        ++cond_it;
+      }
     }
+    build_iterator =
+        PossiblyAttachFilterIterator(move(build_iterator), build_conditions,
+                                     thd, conditions_depend_on_outer_tables);
   }
 
   const JOIN *join = qep_tab->join();

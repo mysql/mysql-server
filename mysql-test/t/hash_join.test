@@ -1861,7 +1861,7 @@ DROP TABLE t1, t2;
 
 --echo # Run a query where we get a cached outer join condition (i.e. comparison
 --echo # between two constant values. The condition is evaluated once and then
---echo # cached.). This condition must be placed as an "extra" condition on the
+--echo # cached.). This condition must be placed as a condition below the
 --echo # hash join iterator, and not as a filter after it.
 CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -2102,3 +2102,25 @@ eval $query;
 SET optimizer_switch=DEFAULT;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30520749 - REGRESSION: LEFT JOIN WITH IMPOSSIBLE ON CONDITION PERFORMS SLOWLY
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+
+# Conditions referring to no sides should be pushed, and the entire right side
+# should be removed.
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
+
+# Conditions referring to the right side only should be pushed.
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t2.f1 > 3;
+
+# Conditions referring to the left side should _not_ be pushed,
+# but remain as extra conditions.
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 > 3;
+
+DROP TABLE t1, t2;

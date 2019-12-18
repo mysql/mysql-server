@@ -383,11 +383,20 @@ class UnqualifiedCountIterator final : public RowIterator {
   A simple iterator that takes no input and produces zero output rows.
   Used when the optimizer has figured out ahead of time that a given table
   can produce no output (e.g. SELECT ... WHERE 2+2 = 5).
+
+  The child iterator is optional (can be nullptr) if SetNullRowFlag() is
+  not to be called. It is used when a subtree used on the inner side of an
+  outer join is found to be never executable, and replaced with a
+  ZeroRowsIterator; in that case, we need to forward the SetNullRowFlag call
+  to it. This child is not printed as part of the iterator tree.
  */
 class ZeroRowsIterator final : public RowIterator {
  public:
-  ZeroRowsIterator(THD *thd, const char *reason)
-      : RowIterator(thd), m_reason(reason) {}
+  ZeroRowsIterator(THD *thd, const char *reason,
+                   unique_ptr_destroy_only<RowIterator> child_iterator)
+      : RowIterator(thd),
+        m_reason(reason),
+        m_child_iterator(std::move(child_iterator)) {}
 
   bool Init() override { return false; }
 
@@ -397,12 +406,16 @@ class ZeroRowsIterator final : public RowIterator {
     return {std::string("Zero rows (") + m_reason + ")"};
   }
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool is_null_row) override {
+    DBUG_ASSERT(m_child_iterator != nullptr);
+    m_child_iterator->SetNullRowFlag(is_null_row);
+  }
 
   void UnlockRow() override {}
 
  private:
   const char *m_reason;
+  unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
 class SELECT_LEX;

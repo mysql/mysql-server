@@ -2553,3 +2553,24 @@ eval EXPLAIN format=tree $query;
 eval $query;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#30520749 - REGRESSION: LEFT JOIN WITH IMPOSSIBLE ON CONDITION PERFORMS SLOWLY
+--echo #
+
+# Same test as in hash_join.test, just for nested loop join.
+
+set optimizer_switch='block_nested_loop=off';
+
+CREATE TABLE t1 ( f1 INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+
+# Conditions referring to no sides should be pushed, and the entire right side
+# should be removed.
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=2;
+
+DROP TABLE t1, t2;
+
+set optimizer_switch='block_nested_loop=on';
