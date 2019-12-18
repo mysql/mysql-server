@@ -8,7 +8,7 @@ Testing ndb_mgm
 Unable to connect with connect string: nodeid=0,no_such_host:1186
 Retrying every 1 seconds. Attempts left: 2 1, failed.
 Testing ndb_blob_tool
-disconnected
+Disconnected
 
 NDBT_ProgramExit: 1 - Failed
 
