@@ -833,30 +833,32 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const vector<Item *> &conditions, THD *thd,
     table_map *conditions_depend_on_outer_tables) {
-  if (conditions.empty()) {
-    return iterator;
-  }
-
-  // See if any of the sub-conditions are known to be always false.
+  // See if any of the sub-conditions are known to be always false,
+  // and filter out any conditions that are known to be always true.
+  List<Item> items;
   for (Item *cond : conditions) {
-    if (cond->const_item() && cond->val_int() == 0) {
-      unique_ptr_destroy_only<RowIterator> zero_iterator =
-          NewIterator<ZeroRowsIterator>(thd, "Impossible filter",
-                                        move(iterator));
-      zero_iterator->set_expected_rows(0.0);
-      zero_iterator->set_estimated_cost(0.0);
-      return zero_iterator;
+    if (cond->const_item()) {
+      if (cond->val_int() == 0) {
+        unique_ptr_destroy_only<RowIterator> zero_iterator =
+            NewIterator<ZeroRowsIterator>(thd, "Impossible filter",
+                                          move(iterator));
+        zero_iterator->set_expected_rows(0.0);
+        zero_iterator->set_estimated_cost(0.0);
+        return zero_iterator;
+      } else {
+        // Known to be always true, so skip it.
+      }
+    } else {
+      items.push_back(cond);
     }
   }
 
   Item *condition = nullptr;
-  if (conditions.size() == 1) {
-    condition = conditions[0];
+  if (items.size() == 0) {
+    return iterator;
+  } else if (items.size() == 1) {
+    condition = items.head();
   } else {
-    List<Item> items;
-    for (Item *cond : conditions) {
-      items.push_back(cond);
-    }
     condition = new Item_cond_and(items);
     condition->quick_fix_field();
     condition->update_used_tables();

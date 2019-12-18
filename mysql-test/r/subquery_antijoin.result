@@ -918,13 +918,10 @@ EXPLAIN
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Filter: (t1.col_int > (select #2))
         -> Nested loop antijoin
-            -> Filter: true  (cost=0.35 rows=1)
-                -> Table scan on t2  (cost=0.35 rows=1)
-            -> Filter: <cache>((1 = 1))
-                -> Constant row from <subquery3>
-                    -> Materialize with deduplication
-                        -> Filter: <cache>((1 = 1))  (cost=0.35 rows=1)
-                            -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
+            -> Table scan on t2  (cost=0.35 rows=1)
+            -> Constant row from <subquery3>
+                -> Materialize with deduplication
+                    -> Index scan on t4 using PRIMARY  (cost=0.35 rows=1)
         -> Select #2 (subquery in condition; uncacheable)
             -> Index scan on t3 using PRIMARY  (cost=0.35 rows=1)
 

@@ -13128,10 +13128,8 @@ EXPLAIN
             -> Nested loop left join  (cost=4.85 rows=18)
                 -> Nested loop left join  (cost=1.55 rows=6)
                     -> Table scan on t2  (cost=0.45 rows=2)
-                    -> Filter: true  (cost=0.40 rows=3)
-                        -> Table scan on t1  (cost=0.40 rows=3)
-                -> Filter: true  (cost=0.30 rows=3)
-                    -> Table scan on alias1  (cost=0.30 rows=3)
+                    -> Table scan on t1  (cost=0.40 rows=3)
+                -> Table scan on alias1  (cost=0.30 rows=3)
     -> Table scan on t1  (cost=0.55 rows=3)
 
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
