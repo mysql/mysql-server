@@ -547,27 +547,13 @@ class Item_func : public Item_result_field {
     return CACHE_NONE;
   }
 
-  /// Returns true if this Item has at least one condition that can be
-  /// implemented as hash join. A hash join condition is an equi-join condition
-  /// where one side of the condition refers to the right table, and the other
-  /// side of the condition refers to one or more of the left tables.
-  ///
-  /// @param left_tables the left tables in the join
-  /// @param right_table the right table of the join
-  ///
-  /// @retval true if the Item has at least one hash join condition
-  virtual bool has_any_hash_join_condition(
-      const table_map left_tables MY_ATTRIBUTE((unused)),
-      const QEP_TAB &right_table MY_ATTRIBUTE((unused))) const {
-    return false;
-  }
-
-  /// Returns true if this Item has at least one non equi-join condition.
-  /// A non equi-join condition is a condition where both sides refer to at
-  /// least one table, and the operator is not equals '='.
-  ///
-  /// @retval true if the Item has at least one non equi-join condition
-  virtual bool has_any_non_equi_join_condition() const { return false; }
+  /// Whether this Item is an equi-join condition. If this Item is a compound
+  /// item (i.e. multiple condition AND'ed together), it will only return true
+  /// if the Item contains only equi-join conditions AND'ed together. This is
+  /// used to determine whether the condition can be used as a join condition
+  /// for hash join (join conditions in hash join must be equi-join conditions),
+  /// or if it should be placed as a filter after the join.
+  virtual bool contains_only_equi_join_condition() const { return false; }
 
  protected:
   /**

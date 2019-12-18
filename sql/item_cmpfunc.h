@@ -660,7 +660,7 @@ class Item_func_comparison : public Item_bool_func2 {
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
 
-  bool has_any_non_equi_join_condition() const override;
+  bool contains_only_equi_join_condition() const override;
 };
 
 /**
@@ -860,6 +860,8 @@ class Item_func_trig_cond final : public Item_bool_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   plan_idx idx() const { return m_idx; }
+
+  bool contains_only_equi_join_condition() const override;
 };
 
 class Item_func_not_all : public Item_func_not {
@@ -948,9 +950,6 @@ class Item_func_eq : public Item_func_comparison {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-
-  bool has_any_hash_join_condition(const table_map left_tables,
-                                   const QEP_TAB &right_table) const override;
 
   /// Read the value from the join condition, and append it to the output vector
   /// "join_key_buffer". The function will determine which side of the condition
@@ -2517,10 +2516,7 @@ class Item_cond_and final : public Item_cond {
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
 
-  bool has_any_hash_join_condition(const table_map left_tables,
-                                   const QEP_TAB &right_table) const override;
-
-  bool has_any_non_equi_join_condition() const override;
+  bool contains_only_equi_join_condition() const override;
 };
 
 class Item_cond_or final : public Item_cond {

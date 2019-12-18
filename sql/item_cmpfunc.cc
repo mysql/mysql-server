@@ -57,6 +57,7 @@
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/histograms/histogram.h"
+#include "sql/item_func.h"
 #include "sql/item_json_func.h"  // json_value, get_json_atom_wrapper
 #include "sql/item_subselect.h"  // Item_subselect
 #include "sql/item_sum.h"        // Item_sum_hybrid
@@ -6898,74 +6899,58 @@ bool Item_func_any_value::aggregate_check_distinct(uchar *arg) {
   return false;
 }
 
-bool Item_func_comparison::has_any_non_equi_join_condition() const {
+bool Item_cond_and::contains_only_equi_join_condition() const {
+  for (const Item &item : list) {
+    if (item.type() != Item::FUNC_ITEM) {
+      return false;
+    }
+
+    const Item_func *item_func = down_cast<const Item_func *>(&item);
+    if (!item_func->contains_only_equi_join_condition()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool Item_func_comparison::contains_only_equi_join_condition() const {
   DBUG_ASSERT(arg_count == 2);
-  if (args[0]->used_tables() == 0 || args[1]->used_tables() == 0) {
-    // This is a filter.
-    return false;
-  }
-
-  return functype() != EQ_FUNC;
-}
-
-bool Item_cond_and::has_any_non_equi_join_condition() const {
-  for (const Item &item : list) {
-    if (item.type() != Item::FUNC_ITEM) {
-      continue;
-    }
-
-    const Item_func *item_func = down_cast<const Item_func *>(&item);
-    if (item_func->has_any_non_equi_join_condition()) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool Item_cond_and::has_any_hash_join_condition(
-    const table_map left_tables, const QEP_TAB &right_table) const {
-  for (const Item &item : list) {
-    if (item.type() != Item::FUNC_ITEM) {
-      continue;
-    }
-
-    const Item_func *item_func = down_cast<const Item_func *>(&item);
-    if (item_func->has_any_hash_join_condition(left_tables, right_table)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool Item_func_eq::has_any_hash_join_condition(
-    const table_map left_tables, const QEP_TAB &right_table) const {
   const Item *left_arg = arguments()[0];
   const Item *right_arg = arguments()[1];
 
-  const table_map left_arg_used_tables = left_arg->used_tables();
-  const table_map right_arg_used_tables = right_arg->used_tables();
+  const table_map left_arg_used_tables =
+      left_arg->used_tables() & ~PSEUDO_TABLE_BITS;
+  const table_map right_arg_used_tables =
+      right_arg->used_tables() & ~PSEUDO_TABLE_BITS;
 
   if (left_arg_used_tables == 0 || right_arg_used_tables == 0) {
-    // This is a comparison agains a constant, and not a join condition.
+    // This is a filter, and not a join condition.
     return false;
   }
 
-  // See if each side of the condition refers to two different tables
-  // (i.e., it is a join condition). If so, the condition can be used to execute
-  // hash join (we know that this an equality since we are inside Item_func_eq).
-  if (left_arg_used_tables == right_table.table_ref->map() &&
-      (right_arg_used_tables & left_tables) == right_arg_used_tables) {
+  // We may have conditions like (1 = (t1.c = t2.c)), so check that both sides
+  // refer to at most one table.
+  if (my_count_bits(left_arg_used_tables) > 1 ||
+      my_count_bits(right_arg_used_tables) > 1) {
+    return false;
+  }
+
+  return functype() == EQ_FUNC;
+}
+
+bool Item_func_trig_cond::contains_only_equi_join_condition() const {
+  if (args[0]->item_name.ptr() == antijoin_null_cond) {
     return true;
   }
 
-  if (right_arg_used_tables == right_table.table_ref->map() &&
-      (left_arg_used_tables & left_tables) == left_arg_used_tables) {
-    return true;
+  if (args[0]->type() != Item::FUNC_ITEM &&
+      args[0]->type() != Item::COND_ITEM) {
+    return false;
   }
 
-  return false;
+  return down_cast<const Item_func *>(args[0])
+      ->contains_only_equi_join_condition();
 }
 
 // Append a string value to join_key_buffer, extracted from "comparand".

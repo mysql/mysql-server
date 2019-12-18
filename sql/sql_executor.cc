@@ -2029,15 +2029,14 @@ static void ExtractHashJoinConditions(
       continue;
     }
 
+    // If this Item is an equi-join condition, use it as a join condition in
+    // hash join. Items that are not equi-join conditions will either be
+    // attached as filters after the join (see the end of this function) or
+    // before the join. This is determined by whether they refer to tables from
+    // both sides of the join or not.
     Item_func *func_item = down_cast<Item_func *>(item);
-    if (func_item->functype() != Item_func::EQ_FUNC) {
-      continue;
-    }
-
-    Item_func_eq *item_func_eq = down_cast<Item_func_eq *>(func_item);
-    if (item_func_eq->has_any_hash_join_condition(left_tables_map,
-                                                  *current_table)) {
-      hash_join_conditions->emplace_back(item_func_eq);
+    if (func_item->contains_only_equi_join_condition()) {
+      hash_join_conditions->emplace_back(down_cast<Item_func_eq *>(func_item));
     }
   }
 
