@@ -1458,7 +1458,7 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
         // with case #4 above, and need to push it up to exactly the right
         // spot.
         //
-        // There is a special exception here for anti-joins; see the code under
+        // There is a special exception here for antijoins; see the code under
         // qep_tab->table()->reginfo.not_exists_optimize in ConnectJoins().
         Item_func_trig_cond *inner_trig_cond = GetTriggerCondOrNull(inner_cond);
         if (inner_trig_cond != nullptr) {
@@ -1466,7 +1466,22 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
           predicates_above_join->push_back(
               PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
         } else {
-          predicates_below_join->push_back(inner_cond);
+          if (join_conditions != nullptr) {
+            // If join_conditions is set, it indicates that we are on the inner
+            // side of an antijoin (we are dealing with the NOT IN side in the
+            // below example), and the antijoin will be executed using hash
+            // join:
+            //
+            //   SELECT * FROM t1 WHERE t1.col1 NOT IN (SELECT t2.col1 FROM t2);
+            //
+            // In this case, the condition must be moved up to the outer side
+            // where the hash join iterator is created, so it can be attached
+            // to the iterator.
+            join_conditions->push_back(
+                PendingCondition{inner_cond, trig_cond->idx()});
+          } else {
+            predicates_below_join->push_back(inner_cond);
+          }
         }
       } else {
         predicates_below_join->push_back(item);
@@ -2065,18 +2080,25 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
   // attach them as join condition and extra conditions in hash join.
   vector<Item_func_eq *> hash_join_conditions;
   vector<Item *> hash_join_extra_conditions;
-  for (Item *item : *join_conditions) {
-    // See if this is an equi-join condition.
-    if (item->type() == Item::FUNC_ITEM || item->type() == Item::COND_ITEM) {
-      Item_func *func_item = down_cast<Item_func *>(item);
-      if (func_item->contains_only_equi_join_condition()) {
-        hash_join_conditions.push_back(down_cast<Item_func_eq *>(func_item));
-        continue;
-      }
-    }
 
-    // It was not.
-    hash_join_extra_conditions.push_back(item);
+  for (Item *outer_item : *join_conditions) {
+    // We can encounter conditions that are AND'ed together (i.e. a condition
+    // that originally was Item_cond_and inside a Item_trig_cond).
+    vector<Item *> condition_parts;
+    ExtractConditions(outer_item, &condition_parts);
+    for (Item *inner_item : condition_parts) {
+      // See if this is an equi-join condition.
+      if (inner_item->type() == Item::FUNC_ITEM ||
+          inner_item->type() == Item::COND_ITEM) {
+        Item_func *func_item = down_cast<Item_func *>(inner_item);
+        if (func_item->contains_only_equi_join_condition()) {
+          hash_join_conditions.push_back(down_cast<Item_func_eq *>(func_item));
+          continue;
+        }
+      }
+      // It was not.
+      hash_join_extra_conditions.push_back(inner_item);
+    }
   }
 
   if (join_type == JoinType::INNER) {
@@ -2150,6 +2172,11 @@ static bool UseHashJoin(QEP_TAB *qep_tab) {
              JOIN_CACHE::ALG_BKA;
 }
 
+static bool InsideAntiJoin(QEP_TAB *qep_tab) {
+  return qep_tab->last_inner() != NO_PLAN_IDX &&
+         qep_tab->table()->reginfo.not_exists_optimize;
+}
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
@@ -2206,10 +2233,10 @@ static bool UseHashJoin(QEP_TAB *qep_tab) {
     NULL-complemented rows must also invalidate materialized lateral derived
     tables.
   @param pending_join_conditions if not nullptr, we are at the inner side of
-    semijoin (the IN-side). The join iterator is created at the outer side, so
-    any join conditions at the inner side needs to be pushed to this vector so
-    that they can be attached to the join iterator. Note that this is currently
-    only used by hash join.
+    semijoin/antijoin. The join iterator is created at the outer side, so any
+    join conditions at the inner side needs to be pushed to this vector so that
+    they can be attached to the join iterator. Note that this is currently only
+    used by hash join.
   @param[out] unhandled_duplicates list of tables we should have deduplicated
     using duplicate weedout, but could not; append-only.
  */
@@ -2310,14 +2337,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         subtree_iterator = ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
-            &subtree_pending_invalidators,
-            /*pending_join_conditions=*/nullptr, unhandled_duplicates);
+            &subtree_pending_invalidators, &subtree_pending_join_conditions,
+            unhandled_duplicates);
       }
 
       JoinType join_type;
       if (qep_tab->table()->reginfo.not_exists_optimize) {
         // Similar to the comment on SplitConditions (see case #3), we can only
-        // enable anti-join optimizations if we are not already on the right
+        // enable antijoin optimizations if we are not already on the right
         // (inner) side of another outer join. Otherwise, we would cause the
         // higher-up outer join to create NULL rows where there should be none.
         DBUG_ASSERT(substructure != Substructure::SEMIJOIN);
@@ -2328,17 +2355,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // up above some outer join (ie., it's a WHERE, not an ON condition).
         // However, there is one specific case where the optimizer sets up such
         // a trigger with the condition being _the same table as it's posted
-        // on_, namely anti-joins used for NOT IN; here, a FALSE condition is
+        // on_, namely antijoins used for NOT IN; here, a FALSE condition is
         // being used to specify that inner rows should pass by the join, but
         // they should inhibit the null-complemented row. (So in this case,
-        // the anti-join is no longer just an optimization that can be ignored
+        // the antijoin is no longer just an optimization that can be ignored
         // as we rewrite into an outer join.) In this case, there's a condition
         // wrapped in “not_null_compl” and ”found”, with the trigger for both
         // being the same table as the condition is posted on.
         //
         // So, as a special exception, detect this case, removing these
         // conditions (as they would otherwise kill all of our output rows) and
-        // use them to mark the join as _really_ anti-join, even when it's
+        // use them to mark the join as _really_ antijoin, even when it's
         // within an outer join.
         for (auto it = subtree_pending_conditions.begin();
              it != subtree_pending_conditions.end();) {
@@ -2410,7 +2437,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
-      } else if (join_type == JoinType::SEMI && UseHashJoin(qep_tab)) {
+      } else if (UseHashJoin(qep_tab)) {
         qep_tab_map left_tables = TablesBetween(first_idx, i);
         qep_tab_map right_tables = TablesBetween(i, substructure_end);
 
@@ -2506,9 +2533,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     vector<Item *> join_conditions;
     vector<PendingCondition> predicates_above_join;
 
-    // If we are on the inner side of a semijoin, pending_join_conditions will
-    // be set. If the semijoin should be executed using hash join,
-    // SplitConditions() will put all semijoin conditions in
+    // If we are on the inner side of a semi-/antijoin, pending_join_conditions
+    // will be set. If the join should be executed using hash join,
+    // SplitConditions() will put all join conditions in
     // pending_join_conditions. These conditions will later be attached to the
     // hash join iterator when we are done handling the inner side.
     SplitConditions(qep_tab->condition(), qep_tab, &predicates_below_join,
@@ -2525,7 +2552,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
-      if (calling_context == DIRECTLY_UNDER_SEMIJOIN) {
+      if (calling_context == DIRECTLY_UNDER_SEMIJOIN ||
+          InsideAntiJoin(qep_tab)) {
         // Join buffering (hash join, BKA) supports semijoin with only one inner
         // table (see setup_join_buffering), so the calling context for a
         // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
@@ -2785,8 +2813,10 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (qep_tab->next_select == sub_select_op) {
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        if (qep_tab[1].last_inner() != NO_PLAN_IDX) {
-          // Outer join. Not supported for BNL/BKA yet!
+        if (qep_tab[1].last_inner() != NO_PLAN_IDX &&
+            !qep_tab[1].table()->reginfo.not_exists_optimize) {
+          // Reject outer join (not supported for BNL/BKA yet), but allow
+          // antijoin.
           return nullptr;
         }
         // See if it's possible to replace the BNL with a hash join,
@@ -2798,8 +2828,9 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         }
 
         if (join_cache->cache_type() == JOIN_CACHE::ALG_BKA &&
-            qep_tab[1].firstmatch_return != NO_PLAN_IDX) {
-          // Combination of BKA and semijoin is not supported yet.
+            (qep_tab[1].firstmatch_return != NO_PLAN_IDX ||
+             qep_tab[1].last_inner() != NO_PLAN_IDX)) {
+          // Combination of BKA and semi/outer join is not supported yet.
           return nullptr;
         }
       } else {

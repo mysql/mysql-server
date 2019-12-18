@@ -1653,3 +1653,117 @@ eval $query;
 
 SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;
+
+--echo # Antijoin.
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+
+CREATE TABLE t2 (f1 INTEGER NOT NULL);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+DROP TABLE t1,t2;
+
+--echo # Set up a case where we get multiple antijoin conditions AND'ed together
+--echo # inside a is_not_null_compl. We want to see that the server is able to
+--echo # split these conditions and attach them as antijoin conditions to the
+--echo # hash join.
+CREATE TABLE t1 (
+  aid INTEGER NOT NULL,
+  bid INTEGER NOT NULL);
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+INSERT INTO t2 VALUES (1,2),(2,2);
+
+ANALYZE TABLE t1, t2;
+
+let $query = SELECT * FROM t1
+  WHERE t1.aid NOT IN (SELECT aid FROM t2 WHERE bid = t1.bid);
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1, t2;
+
+--echo # Check that hash antijoin can handle NULL values correctly.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (NULL);
+let $query = SELECT * FROM t1
+  WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1, t2;
+
+--echo # See that antijoin with spill to disk works.
+CREATE TABLE t1 (col1 BIGINT NOT NULL, col2 BIGINT NOT NULL);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+let $count=0;
+while ($count < 10)
+{
+  eval INSERT INTO t1
+         SELECT col1 + POW(2, $count), col2 + POW(2, $count) FROM t1;
+  inc $count;
+}
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+
+ANALYZE TABLE t1, t2;
+
+let $query_no_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+    (SELECT t2.col1 FROM t2);
+let $query_with_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+    (SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
+
+SET join_buffer_size = 1024;
+SET optimizer_switch = "materialization=off";
+
+eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
+eval $query_no_extra_conditions;
+
+eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
+eval $query_with_extra_conditions;
+
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+
+--echo # Set up an antijoin that spills to disk, and the probe chunk files are
+--echo # too big to fit in memory. This causes the hash join to read the probe
+--echo # chunk files in several smaller chunks, which in turn enables probe row
+--echo # saving. So this test tries to verify that on-disk antijoin with probe
+--echo # row saving works correctly. This is not the easiest scenario to set up
+--echo # correctly, and it is difficult to show that on-disk antijoin with probe
+--echo # row saving actually is triggered...
+CREATE TABLE build (col1 BIGINT NOT NULL);
+CREATE TABLE probe (col1 BIGINT NOT NULL);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 * 2 FROM probe;
+INSERT INTO build SELECT col1 * 3 FROM probe;
+
+# This value should be the only one returned from the antijoin below.
+DELETE FROM build WHERE col1 = 254;
+
+let $query = SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
+
+SET join_buffer_size = 128;
+SET optimizer_switch="materialization=off";
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+DROP TABLE build, probe;

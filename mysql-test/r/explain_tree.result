@@ -179,7 +179,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 EXPLAIN
 -> Filter: (t2.f1 is null)  (cost=2.80 rows=3)
-    -> Nested loop anti-join  (cost=2.80 rows=3)
+    -> Nested loop antijoin  (cost=2.80 rows=3)
         -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
         -> Filter: (t2.f1 = t1.f1)  (cost=0.48 rows=1)
             -> Table scan on t2  (cost=0.48 rows=3)
@@ -586,7 +586,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
 EXPLAIN
--> Nested loop anti-join
+-> Nested loop antijoin
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Single-row index lookup on <subquery2> using <auto_distinct_key> (b=t1.a)
         -> Materialize with deduplication

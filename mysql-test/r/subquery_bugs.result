@@ -1055,7 +1055,7 @@ SELECT t2.f2 FROM t2 WHERE t3.f3 = 1 HAVING t2.f2 = 'xyz'
      )
 );
 EXPLAIN
--> Nested loop anti-join
+-> Nested loop antijoin
     -> Table scan on t1  (cost=0.55 rows=3)
     -> Constant row from <subquery2>
         -> Materialize with deduplication

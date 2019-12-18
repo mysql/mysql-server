@@ -674,8 +674,9 @@ int JOIN_CACHE_BNL::init() {
 }
 
 bool JOIN_CACHE_BNL::can_be_replaced_with_hash_join() const {
-  if (qep_tab->last_inner() != NO_PLAN_IDX) {
-    // Outer join.
+  if (qep_tab->last_inner() != NO_PLAN_IDX &&
+      !qep_tab->table()->reginfo.not_exists_optimize) {
+    // Reject outer join, but allow antijoin.
     return false;
   }
 

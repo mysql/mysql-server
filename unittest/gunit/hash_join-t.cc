@@ -339,7 +339,7 @@ class HashJoinTestHelper {
   unique_ptr_destroy_only<Field> m_right_table_field;
 };
 
-TEST(HashJoinTest, JoinIntOneToOneMatch) {
+TEST(HashJoinTest, InnerJoinIntOneToOneMatch) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
 
@@ -368,7 +368,7 @@ TEST(HashJoinTest, JoinIntOneToOneMatch) {
   initializer.TearDown();
 }
 
-TEST(HashJoinTest, JoinIntNoMatch) {
+TEST(HashJoinTest, InnerJoinIntNoMatch) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
 
@@ -387,7 +387,7 @@ TEST(HashJoinTest, JoinIntNoMatch) {
   initializer.TearDown();
 }
 
-TEST(HashJoinTest, JoinIntOneToManyMatch) {
+TEST(HashJoinTest, InnerJoinIntOneToManyMatch) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
 
@@ -414,7 +414,7 @@ TEST(HashJoinTest, JoinIntOneToManyMatch) {
   initializer.TearDown();
 }
 
-TEST(HashJoinTest, JoinStringOneToOneMatch) {
+TEST(HashJoinTest, InnerJoinStringOneToOneMatch) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
 
@@ -617,15 +617,51 @@ TEST(HashJoinTest, SemiJoinInt) {
   expected_result.emplace(5);
 
   EXPECT_EQ(0, hash_join_iterator.Read());
-  longlong result = test_helper.left_qep_tab->table()->field[0]->val_int();
+  longlong result = test_helper.right_qep_tab->table()->field[0]->val_int();
   EXPECT_EQ(1, expected_result.erase(result));
 
   EXPECT_EQ(0, hash_join_iterator.Read());
-  result = test_helper.left_qep_tab->table()->field[0]->val_int();
+  result = test_helper.right_qep_tab->table()->field[0]->val_int();
   EXPECT_EQ(1, expected_result.erase(result));
 
   EXPECT_EQ(-1, hash_join_iterator.Read());
   EXPECT_TRUE(expected_result.empty());
+
+  initializer.TearDown();
+}
+
+TEST(HashJoinTest, AntiJoinInt) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  // The iterator will execute something that is equivalent to the query
+  // "SELECT * FROM probe_data WHERE a NOT IN (SELECT b FROM build_data);"
+  vector<int> build_data;
+  build_data.push_back(3);
+  build_data.push_back(3);
+  build_data.push_back(4);
+  build_data.push_back(5);
+
+  vector<int> probe_data;
+  probe_data.push_back(3);
+  probe_data.push_back(5);
+  probe_data.push_back(6);
+
+  HashJoinTestHelper test_helper(&initializer, build_data, probe_data);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.left_iterator),
+      test_helper.left_qep_tab->idx_map(),
+      std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(), 10 * 1024 * 1024 /* 10 MB */,
+      {test_helper.join_condition}, true, JoinType::ANTI,
+      test_helper.left_qep_tab->join(), test_helper.extra_conditions);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  EXPECT_EQ(0, hash_join_iterator.Read());
+  EXPECT_EQ(6, test_helper.right_qep_tab->table()->field[0]->val_int());
+  EXPECT_EQ(-1, hash_join_iterator.Read());
 
   initializer.TearDown();
 }

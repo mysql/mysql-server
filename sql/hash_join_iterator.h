@@ -276,7 +276,7 @@ class HashJoinIterator final : public RowIterator {
   ///   whether the hash join can spill to disk. This is set to false in some
   ///   cases where we have a LIMIT in the query
   /// @param join_type
-  ///   The join type. The iterator currently supports INNER and SEMI.
+  ///   The join type. The iterator currently supports INNER, SEMI and ANTI.
   /// @param join
   ///   The join we are a part of.
   /// @param extra_conditions
@@ -402,14 +402,15 @@ class HashJoinIterator final : public RowIterator {
 
   /// If true, reject duplicate keys in the hash table.
   ///
-  /// Semijoins are only interested in the first matching row from the hash
-  /// table, so we can avoid storing duplicate keys in order to save some
+  /// Semijoins/antijoins are only interested in the first matching row from the
+  /// hash table, so we can avoid storing duplicate keys in order to save some
   /// memory. However, this cannot be applied if we have any "extra" conditions:
   /// the first matching row in the hash table may fail the extra condition(s).
   ///
   /// @retval true if we can reject duplicate keys in the hash table.
   bool RejectDuplicateKeys() const {
-    return m_extra_condition == nullptr && m_join_type == JoinType::SEMI;
+    return m_extra_condition == nullptr &&
+           (m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI);
   }
 
   /// Clear the row buffer and reset all iterators pointing to it. This may be

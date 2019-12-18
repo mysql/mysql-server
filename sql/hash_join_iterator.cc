@@ -89,7 +89,8 @@ HashJoinIterator::HashJoinIterator(
       m_join_type(join_type) {
   DBUG_ASSERT(m_build_input != nullptr);
   DBUG_ASSERT(m_probe_input != nullptr);
-  DBUG_ASSERT(m_join_type == JoinType::INNER || m_join_type == JoinType::SEMI);
+  DBUG_ASSERT(m_join_type == JoinType::INNER || m_join_type == JoinType::SEMI ||
+              m_join_type == JoinType::ANTI);
 
   for (Item_func_eq *join_condition : join_conditions) {
     DBUG_ASSERT(join_condition->arg_count == 2);
@@ -248,7 +249,8 @@ bool HashJoinIterator::Init() {
 
   if (m_state == State::END_OF_ROWS) {
     // BuildHashTable() decided that the join is done (the build input is
-    // empty).
+    // empty, and we are in an inner-/semijoin. Antijoin must output
+    // NULL-complemented rows from the probe input).
     return false;
   }
   return InitProbeIterator();
@@ -443,7 +445,10 @@ bool HashJoinIterator::BuildHashTable() {
 
     if (res == -1) {
       m_build_iterator_has_more_rows = false;
-      if (m_row_buffer.empty()) {
+      // If the build input was empty, the result of inner joins and semijoins
+      // will also be empty. However, if the build input was empty, the output
+      // of antijoins will be all the rows from the probe input.
+      if (m_row_buffer.empty() && m_join_type != JoinType::ANTI) {
         m_state = State::END_OF_ROWS;
         return false;
       }
@@ -473,7 +478,7 @@ bool HashJoinIterator::BuildHashTable() {
         // If we are not allowed to spill to disk, just go on to reading from
         // the probe iterator.
         if (!m_allow_spill_to_disk) {
-          if (m_join_type == JoinType::SEMI) {
+          if (m_join_type != JoinType::INNER) {
             // Enable probe row saving, so that unmatched probe rows are written
             // to the probe row saving file. After the next refill of the hash
             // table, we will read rows from the probe row saving file, ensuring
@@ -630,7 +635,7 @@ bool HashJoinIterator::ReadNextHashJoinChunk() {
   SetReadingProbeRowState();
 
   if (m_build_chunk_current_row < build_chunk.num_rows() &&
-      m_join_type == JoinType::SEMI) {
+      m_join_type != JoinType::INNER) {
     // The build chunk did not fit into memory, causing us to refill the hash
     // table once the probe input is consumed. If we don't take any special
     // action, we can end up outputting the same probe row twice if the probe
@@ -704,8 +709,9 @@ bool HashJoinIterator::ReadRowFromProbeIterator() {
   }
 
   if (m_state == State::END_OF_ROWS) {
-    // BuildHashTable() decided that the join is done (the build input is
-    // empty).
+    // BuildHashTable() decided that the join is done (the build input is empty,
+    // and we are in an inner-/semijoin. Antijoin must output NULL-complemented
+    // rows from the probe input).
     return false;
   }
 
@@ -835,8 +841,15 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
                        m_probe_input_tables.tables_bitmap(),
                        &m_temporary_row_and_join_key_buffer)) {
     // The join condition returned SQL NULL, and will never match in an inner
-    // join or a semijoin.
-    SetReadingProbeRowState();
+    // join or a semijoin. For antijoin, we mark that there is no matching row
+    // in the hash table, causing the hash join to output a row.
+    if (m_join_type == JoinType::ANTI) {
+      m_hash_map_iterator = m_row_buffer.end();
+      m_hash_map_end = m_row_buffer.end();
+      m_state = State::READING_FROM_HASH_TABLE;
+    } else {
+      SetReadingProbeRowState();
+    }
     return;
   }
 
@@ -844,7 +857,8 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
       pointer_cast<const uchar *>(m_temporary_row_and_join_key_buffer.ptr()),
       m_temporary_row_and_join_key_buffer.length());
 
-  if (m_join_type == JoinType::SEMI && m_extra_condition == nullptr) {
+  if ((m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) &&
+      m_extra_condition == nullptr) {
     // find() has a better average complexity than equal_range() (constant vs.
     // linear in the number of matching elements). And for semijoins, we are
     // only interested in the first match anyways, so this may give a nice
@@ -880,13 +894,13 @@ int HashJoinIterator::ReadJoinedRow() {
 bool HashJoinIterator::WriteProbeRowToDiskIfApplicable() {
   // If we are spilling to disk, we need to match the row against rows from
   // the build input that are written out to chunk files. So we need to write
-  // the probe row to chunk files as well. Semijoin has an exception to this;
-  // if the probe input row already got a match in the hash table, we do not
+  // the probe row to chunk files as well. Semijoin/antijoin has an exception to
+  // this; if the probe input already got a match in the hash table, we do not
   // need to write it out to disk.
   if (m_state == State::READING_FIRST_ROW_FROM_HASH_TABLE) {
     const bool found_match = m_hash_map_iterator != m_hash_map_end;
 
-    if (m_join_type != JoinType::SEMI || !found_match) {
+    if (m_join_type == JoinType::INNER || !found_match) {
       if (on_disk_hash_join() && m_current_chunk == -1) {
         if (WriteRowToChunk(thd(), &m_chunk_files_on_disk,
                             false /* write_to_build_chunk */,
@@ -947,10 +961,11 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
   } while (res == 0 && !passes_extra_conditions);
 
   // The row passed all extra conditions (or we are out of rows in the hash
-  // table), so we can now write the row to disk. For inner joins, we write out
-  // all rows from the probe input (given that we have degraded into on-disk
-  // hash join). For semijoin, we write out rows that do not have any matching
-  // row in the hash table.
+  // table), so we can now write the row to disk.
+  // Inner joins: Write out all rows from the probe input (given that we have
+  //   degraded into on-disk hash join).
+  // Semijoin and antijoin: Write out rows that do not have any matching row in
+  //   the hash table.
   if (WriteProbeRowToDiskIfApplicable()) {
     return 1;
   }
@@ -959,16 +974,37 @@ int HashJoinIterator::ReadNextJoinedRowFromHashTable() {
     // No more matching rows in the hash table. Get a new row from the probe
     // input.
     SetReadingProbeRowState();
+
+    // If we did not find a matching row in the hash table, antijoin should
+    // output the last row read from the probe input together with a
+    // NULL-complemented row from the build input. However, in case of on-disk
+    // antijoin, a row from the probe input can match a row from the build input
+    // that has already been written out to disk. So for on-disk antijoin, we
+    // cannot output any rows until we have started reading from chunk files.
+    if (m_join_type == JoinType::ANTI &&
+        (!on_disk_hash_join() || m_current_chunk > -1) &&
+        !m_write_to_probe_row_saving) {
+      m_build_input->SetNullRowFlag(true);
+      return 0;
+    }
     return -1;
   }
 
-  // We have a new row. Semijoin should stop after the first matching row;
-  // inner join should read all matching rows from the hash table.
+  // We have a matching row ready.
   switch (m_join_type) {
     case JoinType::SEMI:
+      // Semijoin should return the first matching row, and then go to the next
+      // row from the probe input.
       SetReadingProbeRowState();
       break;
+    case JoinType::ANTI:
+      // Antijoin should immediately go to the next row from the probe input,
+      // without returning the matching row.
+      SetReadingProbeRowState();
+      return -1;  // Read the next row.
     case JoinType::INNER:
+      // Inner join should return all matching rows from the hash table before
+      // moving to the next row from the probe input.
       m_state = State::READING_FROM_HASH_TABLE;
       break;
     default:
@@ -1017,8 +1053,8 @@ int HashJoinIterator::Read() {
         }
 
         if (res == -1) {
-          // No more matching rows in the hash table, so read a new row from the
-          // probe input.
+          // No more matching rows in the hash table, or antijoin found a
+          // matching row. Read a new row from the probe input.
           continue;
         }
 
@@ -1045,6 +1081,9 @@ std::vector<std::string> HashJoinIterator::DebugString() const {
       break;
     case JoinType::SEMI:
       ret += "Hash semijoin";
+      break;
+    case JoinType::ANTI:
+      ret += "Hash antijoin";
       break;
     default:
       DBUG_ASSERT(false);

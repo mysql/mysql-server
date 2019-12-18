@@ -762,7 +762,7 @@ EXPLAIN
         -> Inner hash join (no condition)  (cost=4.65 rows=27)
             -> Index scan on alias1 using idx_CC_col_varchar_key  (cost=0.18 rows=3)
             -> Hash
-                -> Nested loop anti-join  (cost=1.70 rows=9)
+                -> Nested loop antijoin  (cost=1.70 rows=9)
                     -> Table scan on t1  (cost=0.55 rows=3)
                     -> Filter: (alias2.col_varchar_key >= t1.col_varchar)  (cost=0.55 rows=3)
                         -> Index range scan on alias2 (re-planned for each iteration)  (cost=0.55 rows=3)
@@ -845,7 +845,7 @@ WHERE (NOT EXISTS
 ON alias4.col_varchar = alias3.col_varchar_key)
 WHERE alias3.pk >= table1.pk));
 EXPLAIN
--> Nested loop anti-join  (cost=2.30 rows=8)
+-> Nested loop antijoin  (cost=2.30 rows=8)
     -> Filter: ((table1.pk = table2.pk) or (table1.col_varchar < 'D'))  (cost=1.00 rows=2)
         -> Inner hash join (no condition)  (cost=1.00 rows=2)
             -> Table scan on table1  (cost=0.45 rows=4)
@@ -1943,7 +1943,7 @@ INNER JOIN t1 AS t1_2 ON t1_2.col1 = t1.col1
 WHERE t1.col1 <> t2.col1
 ) AND t2.col1 < 49;
 EXPLAIN
--> Nested loop anti-join
+-> Nested loop antijoin
     -> Inner hash join (no condition)
         -> Filter: (t2.col1 < 49)  (cost=0.98 rows=17)
             -> Index scan on t2 using idx  (cost=0.98 rows=17)
@@ -2854,3 +2854,171 @@ EXPLAIN
 SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 SET join_buffer_size = DEFAULT;
 DROP TABLE t1, t2;
+# Antijoin.
+CREATE TABLE t1 (f1 INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (f1 INTEGER NOT NULL);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+EXPLAIN
+-> Filter: (t2.f1 is null)  (cost=1.97 rows=3)
+    -> Hash antijoin (t2.f1 = t1.f1)  (cost=1.97 rows=3)
+        -> Index scan on t1 using PRIMARY  (cost=0.55 rows=3)
+        -> Hash
+            -> Table scan on t2  (cost=0.22 rows=4)
+
+SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
+f1
+DROP TABLE t1,t2;
+# Set up a case where we get multiple antijoin conditions AND'ed together
+# inside a is_not_null_compl. We want to see that the server is able to
+# split these conditions and attach them as antijoin conditions to the
+# hash join.
+CREATE TABLE t1 (
+aid INTEGER NOT NULL,
+bid INTEGER NOT NULL);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1,1),(1,2),(2,1),(2,2);
+INSERT INTO t2 VALUES (1,2),(2,2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1
+WHERE t1.aid NOT IN (SELECT aid FROM t2 WHERE bid = t1.bid);
+EXPLAIN
+-> Hash antijoin (t2.bid = t1.bid), (t2.aid = t1.aid)  (cost=1.28 rows=8)
+    -> Table scan on t1  (cost=0.65 rows=4)
+    -> Hash
+        -> Table scan on t2  (cost=0.23 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.bid' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1
+WHERE t1.aid NOT IN (SELECT aid FROM t2 WHERE bid = t1.bid);
+aid	bid
+1	1
+2	1
+DROP TABLE t1, t2;
+# Check that hash antijoin can handle NULL values correctly.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (NULL);
+EXPLAIN FORMAT=tree SELECT * FROM t1
+WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
+EXPLAIN
+-> Hash antijoin (t2.col1 = t1.col1)  (cost=0.70 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1
+WHERE 1 IN (SELECT 1 FROM t2 WHERE t1.col1 = t2.col1) IS FALSE;
+col1
+NULL
+DROP TABLE t1, t2;
+# See that antijoin with spill to disk works.
+CREATE TABLE t1 (col1 BIGINT NOT NULL, col2 BIGINT NOT NULL);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+INSERT INTO t1
+SELECT col1 + POW(2, 0), col2 + POW(2, 0) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 1), col2 + POW(2, 1) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 2), col2 + POW(2, 2) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 3), col2 + POW(2, 3) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 4), col2 + POW(2, 4) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 5), col2 + POW(2, 5) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 6), col2 + POW(2, 6) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 7), col2 + POW(2, 7) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 8), col2 + POW(2, 8) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 9), col2 + POW(2, 9) FROM t1;
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 1024;
+SET optimizer_switch = "materialization=off";
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+(SELECT t2.col1 FROM t2);
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Hash antijoin (t2.col1 = t1.col1)  (cost=105002.50 rows=1048576)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=123.65 rows=1024)
+
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+(SELECT t2.col1 FROM t2);
+SUM(t1.col1)	SUM(t1.col2)
+NULL	NULL
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+(SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Hash antijoin (t2.col1 = t1.col1), extra conditions: (t1.col2 < t2.col2)  (cost=105002.50 rows=1048576)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=123.65 rows=1024)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col2' of SELECT #2 was resolved in SELECT #1
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 WHERE t1.col1 NOT IN
+(SELECT t2.col1 FROM t2 WHERE t1.col2 < t2.col2);
+SUM(t1.col1)	SUM(t1.col2)
+524800	525312
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+# Set up an antijoin that spills to disk, and the probe chunk files are
+# too big to fit in memory. This causes the hash join to read the probe
+# chunk files in several smaller chunks, which in turn enables probe row
+# saving. So this test tries to verify that on-disk antijoin with probe
+# row saving works correctly. This is not the easiest scenario to set up
+# correctly, and it is difficult to show that on-disk antijoin with probe
+# row saving actually is triggered...
+CREATE TABLE build (col1 BIGINT NOT NULL);
+CREATE TABLE probe (col1 BIGINT NOT NULL);
+INSERT INTO probe SELECT 1;
+INSERT INTO probe SELECT col1 + POW(2, 0) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 1) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 2) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 3) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 4) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 5) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 6) FROM probe;
+INSERT INTO probe SELECT col1 + POW(2, 7) FROM probe;
+INSERT INTO build SELECT col1 FROM probe;
+INSERT INTO build SELECT col1 * 2 FROM probe;
+INSERT INTO build SELECT col1 * 3 FROM probe;
+DELETE FROM build WHERE col1 = 254;
+SET join_buffer_size = 128;
+SET optimizer_switch="materialization=off";
+EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
+EXPLAIN
+-> Hash antijoin (build.col1 = probe.col1)  (cost=19855.77 rows=196096)
+    -> Table scan on probe  (cost=25.85 rows=256)
+    -> Hash
+        -> Table scan on build  (cost=241.92 rows=766)
+
+SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
+col1
+254
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+DROP TABLE build, probe;

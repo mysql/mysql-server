@@ -917,7 +917,7 @@ EXPLAIN
 -> Nested loop left join
     -> Table scan on t1  (cost=0.35 rows=1)
     -> Filter: (t1.col_int > (select #2))
-        -> Nested loop anti-join
+        -> Nested loop antijoin
             -> Filter: true  (cost=0.35 rows=1)
                 -> Table scan on t2  (cost=0.35 rows=1)
             -> Filter: <cache>((1 = 1))

@@ -675,7 +675,7 @@ vector<string> NestedLoopIterator::DebugString() const {
     case JoinType::OUTER:
       return {"Nested loop left join"};
     case JoinType::ANTI:
-      return {"Nested loop anti-join"};
+      return {"Nested loop antijoin"};
     case JoinType::SEMI:
       return {"Nested loop semijoin"};
     default:

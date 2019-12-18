@@ -317,7 +317,7 @@ EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 
 DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 
-# Same, for a NOT IN query (which then becomes an anti-join).
+# Same, for a NOT IN query (which then becomes an antijoin).
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
 CREATE TABLE t1 ( a INTEGER NOT NULL, b INTEGER NOT NULL );
