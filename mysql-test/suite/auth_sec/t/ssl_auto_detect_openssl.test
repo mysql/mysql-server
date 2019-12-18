@@ -68,3 +68,7 @@ let SEARCH_PATTERN= CA certificate .*ca2.pem is self signed.;
 
 
 #------------------------------------------------------------------------------
+
+# Restore default settings in opt file
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -274,3 +274,7 @@ GRANT ALL on *.* to 'Tanjotuser1'@'localhost';
 # Dropping the created users
 
 DROP USER 'Tanjotuser1'@'localhost';
+
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

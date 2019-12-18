@@ -18,3 +18,4 @@ Pattern "Insecure configuration for --secure-file-priv: Plugin directory is acce
 #-----------------------------------------------------------------------
 # Clean-up
 #-----------------------------------------------------------------------
+# restart:

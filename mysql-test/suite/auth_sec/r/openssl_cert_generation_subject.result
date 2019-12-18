@@ -9,3 +9,4 @@ call mtr.add_suppression("SSL error: SSL_CTX_set_default_verify_paths failed");
 # Restart completed.
 Auto generated certificates have valid CNs with pattern _Auto_Generated_<cert_type>_Certificate as certificate subject
 # cleanup
+# restart:

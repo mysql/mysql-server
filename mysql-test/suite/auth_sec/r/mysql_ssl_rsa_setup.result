@@ -54,3 +54,4 @@ Pattern "MySQL_Server_.*_Auto_Generated_Client_Certificate" found
 # Restart the server
 # Restart completed.
 No ssl errors found after running mysql server with newely created certs.
+# restart:

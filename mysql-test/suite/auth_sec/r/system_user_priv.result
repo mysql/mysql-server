@@ -416,3 +416,5 @@ DROP USER non_sys_usr;
 DROP USER sys_role;
 DROP USER non_sys_role;
 call mtr.add_suppression(".*Cannot set mandatory_roles: AuthId.* privilege.");
+RESET PERSIST mandatory_roles;
+# restart:

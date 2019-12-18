@@ -582,3 +582,6 @@ select (select plugin from mysql.user where User='Tanjotuser3' and Host='localho
 DROP USER 'Tanjotuser2'@'localhost';
 DROP USER 'Tanjotuser3'@'localhost';
 
+# Restore default settings in opt file and clean up
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
