@@ -3298,7 +3298,6 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     the subquery predicate.
   */
   if (!is_materialized) {
-    SELECT_LEX *save_select = thd->lex->current_select();
     thd->lex->set_current_select(materialize_engine->single_select_lex());
     DBUG_ASSERT(
         materialize_engine->single_select_lex()->master_unit()->is_optimized());
@@ -3320,27 +3319,29 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
      */
     is_materialized = true;
 
-    // Calculate row count:
+    // See if we have zero rows or not.
     table->file->info(HA_STATUS_VARIABLE);
-
-    if (!(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT)) {
-      // index must be closed before ha_records() is called
+    if (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) {
+      has_zero_rows = (table->file->stats.records == 0);
+    } else {
+      // Index must be closed before starting to scan.
       if (table->file->inited) table->file->ha_index_or_rnd_end();
-      ha_rows num_rows = 0;
-      table->file->ha_records(&num_rows);
-      table->file->stats.records = num_rows;
-      error = thd->is_error();
+
+      TableScanIterator scan(thd, table, /*qep_tab=*/nullptr,
+                             /*examined_rows=*/nullptr);
+      int ret = scan.Read();
+      if (ret == 1 || thd->is_error()) {
+        return true;
+      }
+      has_zero_rows = (ret == -1);
     }
 
     /* Set tmp_param only if its usable, i.e. there are Copy_field's. */
     tmp_param = &(item_in->unit->outer_select()->join->tmp_table_param);
     if (tmp_param && tmp_param->copy_fields.empty()) tmp_param = nullptr;
-
-    thd->lex->set_current_select(save_select);
-    if (error) return error;
   }  // if (!is_materialized)
 
-  if (table->file->stats.records == 0) {
+  if (has_zero_rows) {
     // The correct answer is FALSE.
     item_in->value = false;
     return false;

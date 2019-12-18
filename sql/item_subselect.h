@@ -849,8 +849,11 @@ inline bool Item_subselect::is_uncacheable() const {
 
 class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
  private:
-  /* TRUE if the subquery was materialized into a temp table. */
+  /* true if the subquery was materialized into a temp table. */
   bool is_materialized;
+  // true if we know for sure that there are zero rows in the table.
+  // Set only after is_materialized is true.
+  bool has_zero_rows = false;
   /**
      Existence of inner NULLs in materialized table:
      By design, other values than IRRELEVANT_OR_FALSE are possible only if the
