@@ -46,7 +46,12 @@ class RefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-              QEP_TAB *qep_tab, ha_rows *examined_rows);
+              QEP_TAB *qep_tab, ha_rows *examined_rows)
+      : TableRowIterator(thd, table),
+        m_ref(ref),
+        m_use_order(use_order),
+        m_qep_tab(qep_tab),
+        m_examined_rows(examined_rows) {}
 
   bool Init() override;
   int Read() override;

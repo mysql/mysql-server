@@ -831,8 +831,8 @@ class SELECT_LEX_UNIT {
     unfinished materialize. This means that it will collect iterators for
     all the query blocks and prepare them for materializing into the given
     table, but not actually create a root iterator for this query expression;
-    the caller is responsible for calling release_tables_to_materialize() and
-    creating the iterator itself.
+    the caller is responsible for calling release_query_blocks_to_materialize()
+    and creating the iterator itself.
 
     Even if materialize_destination is non-nullptr, this function may choose
     to make a regular iterator. The caller is responsible for checking
@@ -844,6 +844,13 @@ class SELECT_LEX_UNIT {
       or nullptr if the caller does not intend to materialize the result.
    */
   bool optimize(THD *thd, TABLE *materialize_destination);
+
+  /**
+    Do everything that would be needed before running Init() on the root
+    iterator. In particular, clear out data from previous execution iterations,
+    if needed.
+   */
+  bool ClearForExecution(THD *thd);
 
   bool ExecuteIteratorQuery(THD *thd);
   bool execute(THD *thd);

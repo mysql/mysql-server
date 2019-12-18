@@ -866,6 +866,8 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
                           int64 rowno, Window_retrieve_cached_row_reason reason,
                           int fno = 0);
 
+unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
+    THD *thd, QEP_TAB *qep_tab);
 void ConvertItemsToCopy(List<Item> *items, Field **fields,
                         Temp_table_param *param, JOIN *join);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,

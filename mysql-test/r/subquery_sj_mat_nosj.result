@@ -4014,10 +4014,14 @@ EXPLAIN
 -> Filter: <in_optimizer>(t3.a,t3.a in (select #2))  (cost=10.54 rows=100)
     -> Table scan on t3  (cost=10.54 rows=100)
     -> Select #2 (subquery in condition; run only once)
-        -> Nested loop inner join  (cost=38.66 rows=48)
-            -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=21.86 rows=48)
-                -> Index range scan on t1 using kp1  (cost=21.86 rows=48)
-            -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
+        -> Filter: ((t3.a = `materialized-subquery`.kp1))
+            -> Limit: 1 row(s)
+                -> Index lookup on materialized-subquery using <auto_distinct_key> (kp1=t3.a)
+                    -> Materialize with deduplication
+                        -> Nested loop inner join  (cost=38.66 rows=48)
+                            -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=21.86 rows=48)
+                                -> Index range scan on t1 using kp1  (cost=21.86 rows=48)
+                            -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -12495,13 +12499,17 @@ EXPLAIN
     -> Filter: <in_optimizer>(t4.col_int_key,t4.col_int_key in (select #2))
         -> Table scan on t4
         -> Select #2 (subquery in condition; run only once)
-            -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
-                -> Nested loop left join  (cost=3.40 rows=7)
-                    -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
-                    -> Nested loop inner join  (cost=1.21 rows=1)
-                        -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
-                        -> Filter: (t3.col_int_key = t2.col_int)  (cost=0.09 rows=1)
-                            -> Table scan on t3  (cost=0.09 rows=4)
+            -> Filter: ((t4.col_int_key = `materialized-subquery`.col_int_key))
+                -> Limit: 1 row(s)
+                    -> Index lookup on materialized-subquery using <auto_distinct_key> (col_int_key=t4.col_int_key)
+                        -> Materialize with deduplication
+                            -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
+                                -> Nested loop left join  (cost=3.40 rows=7)
+                                    -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
+                                    -> Nested loop inner join  (cost=1.21 rows=1)
+                                        -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.26 rows=1)
+                                        -> Filter: (t3.col_int_key = t2.col_int)  (cost=0.09 rows=1)
+                                            -> Table scan on t3  (cost=0.09 rows=4)
 
 SELECT *
 FROM t4

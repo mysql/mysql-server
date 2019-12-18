@@ -853,6 +853,17 @@ bool SELECT_LEX_UNIT::optimize(THD *thd, TABLE *materialize_destination) {
             PrintQueryPlan(0, m_root_iterator.get()).c_str());
   }
   set_optimized();  // All query blocks optimized, update the state
+
+  if (item != nullptr) {
+    // If we're part of an IN subquery, the containing engine may want to
+    // add its own iterators on top, e.g. to materialize us.
+    //
+    // TODO(sgunders): See if we can do away with the engine concept
+    // altogether, now that there's much less execution logic in them.
+    DBUG_ASSERT(!unfinished_materialization());
+    item->create_iterators(thd);
+  }
+
   return false;
 }
 
@@ -1406,18 +1417,7 @@ class Recursive_executor {
   }
 };
 
-bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
-  THD_STAGE_INFO(thd, stage_executing);
-  DEBUG_SYNC(thd, "before_join_exec");
-
-  Opt_trace_context *const trace = &thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
-  Opt_trace_object trace_exec(trace, "join_execution");
-  if (is_simple()) {
-    trace_exec.add_select_number(first_select()->select_number);
-  }
-  Opt_trace_array trace_steps(trace, "steps");
-
+bool SELECT_LEX_UNIT::ClearForExecution(THD *thd) {
   if (is_executed()) {
     if (clear_correlated_query_blocks()) return true;
 
@@ -1448,6 +1448,24 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
         w.reset_all_wf_state();
       }
     }
+  }
+  return false;
+}
+
+bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
+  THD_STAGE_INFO(thd, stage_executing);
+  DEBUG_SYNC(thd, "before_join_exec");
+
+  Opt_trace_context *const trace = &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "join_execution");
+  if (is_simple()) {
+    trace_exec.add_select_number(first_select()->select_number);
+  }
+  Opt_trace_array trace_steps(trace, "steps");
+
+  if (ClearForExecution(thd)) {
+    return true;
   }
 
   List<Item> *fields = get_field_list();
@@ -1728,6 +1746,12 @@ bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
       fake_select_lex->recursive_reference = nullptr;
     }
     error |= fake_select_lex->cleanup(thd, full);
+  }
+
+  // subselect_hash_sj_engine may hold iterators that need to be cleaned up
+  // before the MEM_ROOT goes away.
+  if (item != nullptr) {
+    item->cleanup();
   }
 
   // fake_select_lex's table depends on Temp_table_param inside union_result

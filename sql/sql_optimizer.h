@@ -1025,6 +1025,8 @@ class JOIN {
    */
   void create_iterators_for_zero_rows();
 
+  void create_iterators_for_index_subquery();
+
   /** @{ Helpers for create_iterators. */
   void create_table_iterators();
   unique_ptr_destroy_only<RowIterator> create_root_iterator_for_join();

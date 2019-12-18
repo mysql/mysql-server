@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,9 +202,7 @@ class Sql_cmd_explain_other_thread final : public Sql_cmd {
 std::string PrintQueryPlan(int level, RowIterator *iterator);
 
 // For each subselect within the given item, call the given functor
-// with its SELECT number, dependent/cacheable status and an iterator
-// (or nullptr if none; this may happen if the query is not executable
-// by the iterator executor).
+// with its SELECT number, dependent/cacheable status and an iterator.
 void ForEachSubselect(
     Item *parent_item,
     const std::function<void(int select_number, bool is_dependent,

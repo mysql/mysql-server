@@ -1883,6 +1883,106 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     table_map *conditions_depend_on_outer_tables);
 /// @endcond
 
+unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
+    THD *thd, QEP_TAB *qep_tab) {
+  SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
+  JOIN *subjoin = nullptr;
+  Temp_table_param *tmp_table_param;
+  int select_number;
+
+  // If we have a single query block at the end of the QEP_TAB array,
+  // it may contain aggregation that have already set up fields and items
+  // to copy, and we need to pass those to MaterializeIterator, so reuse its
+  // tmp_table_param. If not, make a new object, so that we don't
+  // disturb the materialization going on inside our own query block.
+  if (unit->is_simple()) {
+    subjoin = unit->first_select()->join;
+    tmp_table_param = &unit->first_select()->join->tmp_table_param;
+    select_number = subjoin->select_lex->select_number;
+  } else if (unit->fake_select_lex != nullptr) {
+    // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
+    // for ROLLUP, and fake_select_lex can't have ROLLUP.
+    subjoin = unit->fake_select_lex->join;
+    tmp_table_param = &unit->fake_select_lex->join->tmp_table_param;
+    select_number = unit->fake_select_lex->select_number;
+  } else {
+    tmp_table_param = new (thd->mem_root) Temp_table_param;
+    select_number = unit->first_select()->select_number;
+  }
+  ConvertItemsToCopy(unit->get_field_list(),
+                     qep_tab->table()->visible_field_ptr(), tmp_table_param,
+                     subjoin);
+  bool copy_fields_and_items_in_materialize = true;
+  if (unit->is_simple()) {
+    // See if AggregateIterator already does this for us.
+    JOIN *join = unit->first_select()->join;
+    copy_fields_and_items_in_materialize =
+        !join->streaming_aggregation ||
+        join->tmp_table_param.precomputed_group_by;
+  }
+
+  MaterializeIterator *materialize = nullptr;
+  unique_ptr_destroy_only<RowIterator> iterator;
+
+  if (unit->unfinished_materialization()) {
+    // The unit is a UNION capable of materializing directly into our result
+    // table. This saves us from doing double materialization (first into
+    // a UNION result table, then from there into our own).
+    //
+    // We will already have set up a unique index on the table if
+    // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
+    iterator = NewIterator<MaterializeIterator>(
+        thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
+        move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(), unit,
+        /*subjoin=*/nullptr,
+        /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt);
+    materialize = down_cast<MaterializeIterator *>(iterator->real_iterator());
+    if (unit->offset_limit_cnt != 0) {
+      // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
+      // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
+      iterator = NewIterator<LimitOffsetIterator>(
+          thd, move(iterator), unit->select_limit_cnt, unit->offset_limit_cnt,
+          /*count_all_rows=*/false,
+          /*skipped_rows=*/nullptr);
+    }
+  } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
+             qep_tab->rematerialize && qep_tab->using_table_scan()) {
+    // We don't actually need the materialization for anything (we would
+    // just reading the rows straight out from the table, never to be used
+    // again), so we can just stream records directly over to the next
+    // iterator. This saves both CPU time and memory (for the temporary
+    // table).
+    //
+    // NOTE: Currently, qep_tab->rematerialize is true only for JSON_TABLE.
+    // We could extend this to other situations, such as the leftmost
+    // table of the join (assuming nested loop only). The test for CTEs is
+    // also conservative; if the CTEs is defined within this join and used
+    // only once, we could still stream without losing performance.
+    iterator = NewIterator<StreamingIterator>(
+        thd, unit->release_root_iterator(), &subjoin->tmp_table_param,
+        qep_tab->table(), copy_fields_and_items_in_materialize);
+  } else {
+    iterator = NewIterator<MaterializeIterator>(
+        thd, unit->release_root_iterator(), tmp_table_param, qep_tab->table(),
+        move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
+        select_number, unit, /*subjoin=*/nullptr,
+        /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
+        qep_tab->rematerialize, tmp_table_param->end_write_records);
+    materialize = down_cast<MaterializeIterator *>(iterator->real_iterator());
+  }
+
+  if (!qep_tab->rematerialize) {
+    if (qep_tab->invalidators != nullptr) {
+      for (const CacheInvalidatorIterator *invalidator :
+           *qep_tab->invalidators) {
+        materialize->AddInvalidator(invalidator);
+      }
+    }
+  }
+
+  return iterator;
+}
+
 /**
   Get the RowIterator used for scanning the given table, with any required
   materialization operations done first.
@@ -1892,101 +1992,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
                                                       QEP_TAB *qep_tabs) {
   unique_ptr_destroy_only<RowIterator> table_iterator;
   if (qep_tab->materialize_table == join_materialize_derived) {
-    SELECT_LEX_UNIT *unit = qep_tab->table_ref->derived_unit();
-    JOIN *subjoin = nullptr;
-    Temp_table_param *tmp_table_param;
-    int select_number;
-
-    // If we have a single query block at the end of the QEP_TAB array,
-    // it may contain aggregation that have already set up fields and items
-    // to copy, and we need to pass those to MaterializeIterator, so reuse its
-    // tmp_table_param. If not, make a new object, so that we don't
-    // disturb the materialization going on inside our own query block.
-    if (unit->is_simple()) {
-      subjoin = unit->first_select()->join;
-      tmp_table_param = &unit->first_select()->join->tmp_table_param;
-      select_number = subjoin->select_lex->select_number;
-    } else if (unit->fake_select_lex != nullptr) {
-      // NOTE: subjoin here is never used, as ConvertItemsToCopy only uses it
-      // for ROLLUP, and fake_select_lex can't have ROLLUP.
-      subjoin = unit->fake_select_lex->join;
-      tmp_table_param = &unit->fake_select_lex->join->tmp_table_param;
-      select_number = unit->fake_select_lex->select_number;
-    } else {
-      tmp_table_param = new (thd->mem_root) Temp_table_param;
-      select_number = unit->first_select()->select_number;
-    }
-    ConvertItemsToCopy(unit->get_field_list(),
-                       qep_tab->table()->visible_field_ptr(), tmp_table_param,
-                       subjoin);
-    bool copy_fields_and_items_in_materialize = true;
-    if (unit->is_simple()) {
-      // See if AggregateIterator already does this for us.
-      JOIN *join = unit->first_select()->join;
-      copy_fields_and_items_in_materialize =
-          !join->streaming_aggregation ||
-          join->tmp_table_param.precomputed_group_by;
-    }
-
-    MaterializeIterator *materialize = nullptr;
-
-    if (unit->unfinished_materialization()) {
-      // The unit is a UNION capable of materializing directly into our result
-      // table. This saves us from doing double materialization (first into
-      // a UNION result table, then from there into our own).
-      //
-      // We will already have set up a unique index on the table if
-      // required; see TABLE_LIST::setup_materialized_derived_tmp_table().
-      table_iterator = NewIterator<MaterializeIterator>(
-          thd, unit->release_query_blocks_to_materialize(), qep_tab->table(),
-          move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
-          unit, /*subjoin=*/nullptr,
-          /*ref_slice=*/-1, qep_tab->rematerialize, unit->select_limit_cnt);
-      materialize =
-          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
-      if (unit->offset_limit_cnt != 0) {
-        // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
-        // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
-        table_iterator = NewIterator<LimitOffsetIterator>(
-            thd, move(table_iterator), unit->select_limit_cnt,
-            unit->offset_limit_cnt, /*count_all_rows=*/false,
-            /*skipped_rows=*/nullptr);
-      }
-    } else if (qep_tab->table_ref->common_table_expr() == nullptr &&
-               qep_tab->rematerialize && qep_tab->using_table_scan()) {
-      // We don't actually need the materialization for anything (we would
-      // just reading the rows straight out from the table, never to be used
-      // again), so we can just stream records directly over to the next
-      // iterator. This saves both CPU time and memory (for the temporary
-      // table).
-      //
-      // NOTE: Currently, qep_tab->rematerialize is true only for JSON_TABLE.
-      // We could extend this to other situations, such as the leftmost
-      // table of the join (assuming nested loop only). The test for CTEs is
-      // also conservative; if the CTEs is defined within this join and used
-      // only once, we could still stream without losing performance.
-      table_iterator = NewIterator<StreamingIterator>(
-          thd, unit->release_root_iterator(), &subjoin->tmp_table_param,
-          qep_tab->table(), copy_fields_and_items_in_materialize);
-    } else {
-      table_iterator = NewIterator<MaterializeIterator>(
-          thd, unit->release_root_iterator(), tmp_table_param, qep_tab->table(),
-          move(qep_tab->iterator), qep_tab->table_ref->common_table_expr(),
-          select_number, unit, /*subjoin=*/nullptr,
-          /*ref_slice=*/-1, copy_fields_and_items_in_materialize,
-          qep_tab->rematerialize, tmp_table_param->end_write_records);
-      materialize =
-          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
-    }
-
-    if (!qep_tab->rematerialize) {
-      if (qep_tab->invalidators != nullptr) {
-        for (const CacheInvalidatorIterator *iterator :
-             *qep_tab->invalidators) {
-          materialize->AddInvalidator(iterator);
-        }
-      }
-    }
+    table_iterator = GetIteratorForDerivedTable(thd, qep_tab);
   } else if (qep_tab->materialize_table == join_materialize_table_function) {
     table_iterator = NewIterator<MaterializedTableFunctionIterator>(
         thd, qep_tab->table_ref->table_function, qep_tab->table(),
@@ -3489,6 +3495,32 @@ JOIN::attach_iterators_for_having_and_limit(
   return iterator;
 }
 
+void JOIN::create_iterators_for_index_subquery() {
+  create_table_iterators();
+
+  QEP_TAB *first_qep_tab = &qep_tab[0];
+  if (first_qep_tab->condition() != nullptr) {
+    first_qep_tab->iterator = NewIterator<FilterIterator>(
+        thd, move(first_qep_tab->iterator), first_qep_tab->condition());
+  }
+
+  TABLE_LIST *const tl = qep_tab->table_ref;
+  if (tl && tl->uses_materialization()) {
+    if (tl->is_table_function()) {
+      m_root_iterator = NewIterator<MaterializedTableFunctionIterator>(
+          thd, tl->table_function, first_qep_tab->table(),
+          move(first_qep_tab->iterator));
+    } else {
+      m_root_iterator = GetIteratorForDerivedTable(thd, first_qep_tab);
+    }
+  } else {
+    m_root_iterator = move(first_qep_tab->iterator);
+  }
+
+  m_root_iterator =
+      attach_iterators_for_having_and_limit(move(m_root_iterator));
+}
+
 // Used only in the specific, odd case of a UNION between a non-iterator
 // and an iterator query block.
 static int ExecuteIteratorQuery(JOIN *join) {
@@ -4980,16 +5012,6 @@ vector<string> PushedJoinRefIterator::DebugString() const {
           " (" + RefToString(*m_ref, key, /*include_nulls=*/false) + ")" +
           table()->file->explain_extra()};
 }
-
-template <bool Reverse>
-RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
-                                  bool use_order, QEP_TAB *qep_tab,
-                                  ha_rows *examined_rows)
-    : TableRowIterator(thd, table),
-      m_ref(ref),
-      m_use_order(use_order),
-      m_qep_tab(qep_tab),
-      m_examined_rows(examined_rows) {}
 
 template <bool Reverse>
 bool RefIterator<Reverse>::Init() {

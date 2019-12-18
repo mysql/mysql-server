@@ -68,6 +68,7 @@
 #include "sql/parse_tree_nodes.h"  // PT_subquery
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/ref_row_iterators.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -86,6 +87,7 @@
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
+#include "sql/timing_iterator.h"
 #include "sql/window.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -297,6 +299,10 @@ void Item_subselect::accumulate_join_condition(
     if (table_ref->nested_join != nullptr)
       accumulate_join_condition(&table_ref->nested_join->join_list);
   }
+}
+
+void Item_subselect::create_iterators(THD *thd) {
+  engine->create_iterators(thd);
 }
 
 void Item_subselect::cleanup() {
@@ -534,6 +540,15 @@ void Item_in_subselect::cleanup() {
   }
 
   Item_subselect::cleanup();
+}
+
+RowIterator *Item_in_subselect::root_iterator() const {
+  // Only subselect_hash_sj_engine owns its own iterator;
+  // for subselect_indexsubquery_engine, the unit still has it, since it's a
+  // normally executed query block. Thus, we should never get called otherwise.
+  DBUG_ASSERT(exec_method == EXEC_MATERIALIZATION &&
+              engine->engine_type() == subselect_engine::HASH_SJ_ENGINE);
+  return down_cast<subselect_hash_sj_engine *>(engine)->root_iterator();
 }
 
 Item_subselect::~Item_subselect() { destroy(engine); }
@@ -1096,14 +1111,16 @@ enum Item_result Item_singlerow_subselect::result_type() const {
   return engine->type();
 }
 
-bool Item_singlerow_subselect::resolve_type(THD *) {
+bool Item_singlerow_subselect::resolve_type(THD *thd) {
   if ((max_columns = engine->cols()) == 1) {
     engine->fix_length_and_dec(row = &value);
   } else {
-    if (!(row = (Item_cache **)(*THR_MALLOC)
-                    ->Alloc(sizeof(Item_cache *) * max_columns)))
+    row = thd->mem_root->ArrayAlloc<Item_cache *>(max_columns);
+    if (row == nullptr) {
       return true;
+    }
     engine->fix_length_and_dec(row);
+    DBUG_ASSERT(*row != nullptr);
     value = *row;
   }
   set_data_type(engine->field_type());
@@ -2797,336 +2814,65 @@ bool subselect_iterator_engine::exec(THD *thd) {
 }
 
 /**
-  Search, using a table scan, for at least one row satisfying select
-  condition.
+  Run a query to see if it returns at least one row (stops after the first
+  has been found, or on error). Unless there was an error, whether the row
+  was found in "found".
 
-  The caller must set item's 'value' to 'false' before calling this
-  function. This function will set it to 'true' if it finds a matching row.
+  @retval true on error
+ */
+bool ExecuteExistsQuery(THD *thd, SELECT_LEX_UNIT *unit, RowIterator *iterator,
+                        bool *found) {
+  Opt_trace_context *const trace = &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object trace_exec(trace, "join_execution");
+  if (unit->is_simple()) {
+    trace_exec.add_select_number(unit->first_select()->select_number);
+  }
+  Opt_trace_array trace_steps(trace, "steps");
 
-  @returns false if ok, true if read error.
-*/
-bool subselect_indexsubquery_engine::scan_table() {
-  int error;
-  TABLE *table = tab->table();
-  DBUG_TRACE;
-
-  // We never need to do a table scan of the materialized table.
-  DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
-
-  if ((table->file->inited && (error = table->file->ha_index_end())) ||
-      (error = table->file->ha_rnd_init(true))) {
-    (void)report_handler_error(table, error);
+  if (unit->ClearForExecution(thd)) {
     return true;
   }
 
-  for (;;) {
-    error = table->file->ha_rnd_next(table->record[0]);
-    if (error && error != HA_ERR_END_OF_FILE) {
-      error = report_handler_error(table, error);
-      break;
-    }
-    /* No more rows */
-    if (!table->has_row()) break;
-
-    if (!cond || cond->val_int()) {
-      static_cast<Item_in_subselect *>(item)->value = true;
-      break;
-    }
+  unit->set_executed();
+  thd->get_stmt_da()->reset_current_row_for_condition();
+  if (iterator->Init()) {
+    return true;
   }
 
-  table->file->ha_rnd_end();
-  return error != 0;
-}
-
-/**
-  Copy ref key and check for null parts in it
-
-  Construct a search tuple to be used for index lookup. If one of the
-  key parts have a NULL value, the following logic applies:
-
-  For top level items, e.g.
-
-     "WHERE <outer_value_list> IN (SELECT <inner_value_list>...)"
-
-  where one of the outer values are NULL, the IN predicate evaluates
-  to false/UNKNOWN (we don't care) and it's not necessary to evaluate
-  the subquery. That shortcut is taken in
-  Item_in_optimizer::val_int(). Thus, if a key part with a NULL value
-  is found here, the NULL is either not outer or this subquery is not
-  top level. Therefore we cannot shortcut subquery execution if a NULL
-  is found here.
-
-  Thus, if one of the key parts have a NULL value there are two
-  possibilities:
-
-  a) The NULL is from the outer_value_list. Since this is not a top
-     level item (see above) we need to check whether this predicate
-     evaluates to NULL or false. That is done by checking if the
-     subquery has a row if the conditions based on outer NULL values
-     are disabled. Index lookup cannot be used for this, so a table
-     scan must be done.
-
-  b) The NULL is local to the subquery, e.g.:
-
-        "WHERE ... IN (SELECT ... WHERE inner_col IS NULL)"
-
-     In this case we're looking for rows with the exact inner_col
-     value of NULL, not rows that match if the "inner_col IS NULL"
-     condition is disabled. Index lookup can be used for this.
-
-  @see subselect_indexsubquery_engine::exec()
-  @see Item_in_optimizer::val_int()
-
-  @param[out] require_scan   true if a NULL value is found that falls
-                             into category a) above, false if index
-                             lookup can be used.
-  @param[out] convert_error  true if an error occurred during conversion
-                             of values from one type to another, false
-                             otherwise.
-
-*/
-void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
-                                                  bool *convert_error) {
-  DBUG_TRACE;
-
-  *require_scan = false;
-  *convert_error = false;
-  for (uint part_no = 0; part_no < tab->ref().key_parts; part_no++) {
-    store_key *s_key = tab->ref().key_copy[part_no];
-    if (s_key == nullptr)
-      continue;  // key is const and does not need to be reevaluated
-
-    const enum store_key::store_key_result store_res = s_key->copy();
-    tab->ref().key_err = store_res;
-
-    if (s_key->null_key) {
-      /*
-        If we have materialized the subquery (HASH_SJ_ENGINE):
-        - this NULL ref item cannot be local to the subquery (any such
-        equality condition is attached to the subquery's JOIN and is thus
-        handled during materialization (by join->exec() in
-        subselect_hash_sj_engine::exec())
-        - The case of an outer NULL ref item is caught in
-        subselect_hash_sj_engine::exec() so shouldn't come here; but this is
-        not guaranteed if the outer expression is not deterministic: this
-        expression is evaluated early in Item_in_subselect::exec() (for
-        left_expr_cache) and then in s_key->copy() just above; so it is
-        possible that it is non-NULL (so, not caught) then NULL (so, coming
-        here). In such case, there is no meaningful value for IN, any value
-        will do.
-      */
-
-      /*
-        NULL value is from the outer_value_list if the key part has a
-        cond guard that deactivates the condition. @see
-        TABLE_REF::cond_guards
-      */
-      if (tab->ref().cond_guards && tab->ref().cond_guards[part_no] &&
-          !*tab->ref().cond_guards[part_no]) {
-        DBUG_ASSERT(!(down_cast<Item_in_subselect *>(item)->abort_on_null));
-
-        *require_scan = true;
-        return;
-      }
-    }
-
-    /*
-      Check if the error is equal to STORE_KEY_FATAL. This is not expressed
-      using the store_key::store_key_result enum because ref().key_err is a
-      boolean and we want to detect both true and STORE_KEY_FATAL from the
-      space of the union of the values of [TRUE, FALSE] and
-      store_key::store_key_result.
-      TODO: fix the variable an return types.
-    */
-    if (store_res == store_key::STORE_KEY_FATAL) {
-      /*
-       Error converting the left IN operand to the column type of the right
-       IN operand.
-      */
-      tab->table()->set_no_row();
-      *convert_error = true;
-      return;
-    }
+  // See if we can get at least one row.
+  int error = iterator->Read();
+  if (error == 1 || thd->is_error()) {
+    return true;
   }
+
+  *found = (error == 0);
+  return false;
 }
 
 /*
   Index-lookup subselect 'engine' - run the subquery
-
-  SYNOPSIS
-    subselect_indexsubquery_engine:exec()
-      full_scan
 
   DESCRIPTION
     The engine is used to resolve subqueries in form
 
       oe IN (SELECT key FROM tbl WHERE subq_where)
 
-    The value of the predicate is calculated as follows:
-    1. If oe IS NULL, this is a special case, do a full table scan on
-       table tbl and search for row that satisfies subq_where. If such
-       row is found, return NULL, otherwise return false.
-    2. Make an index lookup via key=oe, search for a row that satisfies
-       subq_where. If found, return true.
-    3. If check_null==true, make another lookup via key=NULL, search for a
-       row that satisfies subq_where. If found, return NULL, otherwise
-       return false.
-    4. If unique==true, there can be only one row with key=oe and only one row
-       with key=NULL, we use that fact to shorten the search process.
-
-  TODO
-    The step #1 can be optimized further when the index has several key
-    parts. Consider a subquery:
-
-      (oe1, oe2) IN (SELECT keypart1, keypart2 FROM tbl WHERE subq_where)
-
-    and suppose we need to evaluate it for {oe1, oe2}=={const1, NULL}.
-    Current code will do a full table scan and obtain correct result. There
-    is a better option: instead of evaluating
-
-      SELECT keypart1, keypart2 FROM tbl WHERE subq_where            (1)
-
-    and checking if it has produced any matching rows, evaluate
-
-      SELECT keypart2 FROM tbl WHERE subq_where AND keypart1=const1  (2)
-
-    If this query produces a row, the result is NULL (as we're evaluating
-    "(const1, NULL) IN { (const1, X), ... }", which has a value of UNKNOWN,
-    i.e. NULL).  If the query produces no rows, the result is false.
-
-    We currently evaluate (1) by doing a full table scan. (2) can be
-    evaluated by doing a "ref" scan on "keypart1=const1", which can be much
-    cheaper. We can use index statistics to quickly check whether "ref" scan
-    will be cheaper than full table scan.
-
-  RETURN
-    0
-    1
+    by asking the iterator for the inner query for a single row, and then
+    immediately stopping. The iterator would usually do a simple ref lookup,
+    but could in theory be anything.
 */
 
-bool subselect_indexsubquery_engine::exec(THD *) {
-  DBUG_TRACE;
-  int error;
-  bool null_finding = false;
-  TABLE *const table = tab->table();
-  uchar *key;
-  uint key_length;
-  key_part_map key_parts_map;
-  ulonglong tmp_hash;
-  const bool unique = tab->type() == JT_EQ_REF;
-  const bool check_null = tab->type() == JT_REF_OR_NULL;
-
-  // 'tl' is NULL if this is a tmp table created by subselect_hash_sj_engine.
-  TABLE_LIST *const tl = tab->table_ref;
-  Item_in_subselect *const item_in = static_cast<Item_in_subselect *>(item);
-  item_in->value = false;
-
-  if (tl && tl->uses_materialization())  // A derived table with index
-  {
-    /*
-      Table cannot have lateral references (as it's the only table in this
-      query block) but it may have refs to outer queries. As execution of
-      subquery doesn't go through unit::execute() or JOIN::reset(), we have to
-      do manual clearing:
-    */
-    item->unit->clear_correlated_query_blocks();
-    if (!table->materialized) {
-      THD *const thd = table->in_use;
-      bool err = tl->create_materialized_table(thd);
-      if (!err) {
-        if (tl->is_table_function())
-          err = tl->table_function->fill_result_table();
-        else {
-          err = tl->materialize_derived(thd);
-          err |= tl->cleanup_derived(thd);
-        }
-      }
-      if (err) return true; /* purecov: inspected */
-    }
-  }
-
-  if (check_null) {
-    /* We need to check for NULL if there wasn't a matching value */
-    *tab->ref().null_ref_key = 0;  // Search first for not null
-    item_in->was_null = false;
-  }
-
-  /* Copy the ref key and check for nulls... */
-  bool require_scan, convert_error;
-  hash = 0;
-  copy_ref_key(&require_scan, &convert_error);
-  if (convert_error) return false;
-
-  if (require_scan) {
-    const bool scan_result = scan_table();
-    return scan_result;
-  }
-
-  if (!table->file->inited && (error = table->file->ha_index_init(
-                                   tab->ref().key, !unique /* sorted */))) {
-    (void)report_handler_error(table, error);
+bool subselect_indexsubquery_engine::exec(THD *thd) {
+  SELECT_LEX_UNIT *unit = item->unit;
+  bool found;
+  if (ExecuteExistsQuery(thd, unit, unit->root_iterator(), &found)) {
     return true;
   }
-  if (table->hash_field) {
-    /*
-      Create key of proper endianness, hash_field->ptr can't be use directly
-      as it will be overwritten during read.
-    */
-    table->hash_field->store(hash, true);
-    memcpy(&tmp_hash, table->hash_field->ptr, sizeof(ulonglong));
-    key = (uchar *)&tmp_hash;
-    key_length = sizeof(hash);
-    key_parts_map = 1;
-  } else {
-    key = tab->ref().key_buff;
-    key_length = tab->ref().key_length;
-    key_parts_map = make_prev_keypart_map(tab->ref().key_parts);
-  }
-  error = table->file->ha_index_read_map(table->record[0], key, key_parts_map,
-                                         HA_READ_KEY_EXACT);
-  if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error = report_handler_error(table, error);
-  else {
-    for (;;) {
-      error = 0;
-      if (table->has_row()) {
-        if ((!cond || cond->val_int()) && (!having || having->val_int())) {
-          item_in->value = true;
-          if (null_finding) {
-            /*
-              This is dead code; subqueries with check_null==true are always
-              transformed with IN-to-EXISTS and thus their artificial HAVING
-              rejects NULL values...
-            */
-            DBUG_ASSERT(false);
-            item_in->was_null = true;
-          }
-          break;
-        }
-        if (unique) break;
-        error =
-            table->file->ha_index_next_same(table->record[0], key, key_length);
-        if (error && error != HA_ERR_END_OF_FILE) {
-          error = report_handler_error(table, error);
-          break;
-        }
-      } else {
-        if (!check_null || null_finding)
-          break; /* We don't need to check nulls */
-        /*
-          Check if there exists a row with a null value in the index. We come
-          here only if ref_or_null, and ref_or_null is always on a single
-          column (first keypart of the index). So we have only one NULL bit to
-          turn on:
-        */
-        *tab->ref().null_ref_key = 1;
-        null_finding = true;
-        if ((error = (safe_index_read(tab) == 1))) break;
-      }
-    }
-  }
-  item->unit->set_executed();
-  return error != 0;
+  Item_in_subselect *item_in = down_cast<Item_in_subselect *>(item);
+  item_in->value = found;
+  item_in->assigned(true);
+  return false;
 }
 
 uint subselect_iterator_engine::cols() const {
@@ -3439,6 +3185,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
   }
   tab->ref().key_err = true;
   tab->ref().key_parts = tmp_key_parts;
+  tab->table_ref = tmp_table_ref;
 
   if (cond->fix_fields(thd, &cond)) return true;
 
@@ -3447,10 +3194,55 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
     the subquery if not yet created.
   */
   materialize_engine->prepare(thd);
-  /* Let our engine reuse this query plan for materialization. */
-  materialize_engine->unit->change_query_result(thd, result, nullptr);
-
   return false;
+}
+
+void subselect_hash_sj_engine::create_iterators(THD *thd) {
+  if (materialize_engine->unit->root_iterator() == nullptr) {
+    m_iterator = NewIterator<ZeroRowsIterator>(
+        thd, "Not optimized, outer query is empty");
+    return;
+  }
+
+  // We're only ever reading one row from the iterator, and record[1] isn't
+  // properly set up at this point, so we're not using EQRefIterator.
+  // (As a microoptimization, we add a LIMIT 1 if there's a filter and the
+  // index is unique, so that any filter added doesn't try to read a second row
+  // if the condition fails -- there wouldn't be one anyway.)
+  //
+  // Also, note that we never need to worry about searching for NULLs
+  // (which would require the AlternativeIterator); subqueries with
+  // JT_REF_OR_NULL are always transformed with IN-to-EXISTS, and thus,
+  // their artificial HAVING rejects NULL values.
+  DBUG_ASSERT(tab->type() != JT_REF_OR_NULL);
+  tab->iterator =
+      NewIterator<RefIterator<false>>(thd, tab->table(), &tab->ref(),
+                                      /*use_order=*/false, tab,
+                                      /*examined_rows=*/nullptr);
+
+  if (tab->type() == JT_EQ_REF && (cond != nullptr || having != nullptr)) {
+    tab->iterator = NewIterator<LimitOffsetIterator>(
+        thd, move(tab->iterator), /*limit=*/1, /*offset=*/0,
+        /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
+  }
+  if (cond != nullptr) {
+    tab->iterator = NewIterator<FilterIterator>(thd, move(tab->iterator), cond);
+  }
+  if (having != nullptr) {
+    tab->iterator =
+        NewIterator<FilterIterator>(thd, move(tab->iterator), having);
+  }
+
+  tab->table_ref->set_derived_unit(materialize_engine->unit);
+  unique_ptr_destroy_only<RowIterator> iterator;
+  if (tab->table_ref->is_table_function()) {
+    iterator = NewIterator<MaterializedTableFunctionIterator>(
+        thd, tab->table_ref->table_function, tab->table(), move(tab->iterator));
+  } else {
+    iterator = GetIteratorForDerivedTable(thd, tab);
+  }
+
+  m_iterator = move(iterator);
 }
 
 subselect_hash_sj_engine::~subselect_hash_sj_engine() {
@@ -3474,6 +3266,7 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
   if (result != nullptr)
     result->cleanup(thd); /* Resets the temp table as well. */
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
+  m_iterator.reset();
   if (tab != nullptr) {
     TABLE *const table = tab->table();
     if (table->file->inited)
@@ -3510,15 +3303,11 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     DBUG_ASSERT(
         materialize_engine->single_select_lex()->master_unit()->is_optimized());
 
-    bool error;
-    if (materialize_engine->unit->root_iterator() != nullptr) {
-      error = materialize_engine->unit->ExecuteIteratorQuery(thd);
-    } else {
-      JOIN *join = materialize_engine->single_select_lex()->join;
-      join->exec();
-      error = join->error;
-    }
-    if (error || thd->is_fatal_error()) goto err;
+    // Init() triggers materialization.
+    // (It also triggers some unneeded setup of the RefIterator, but it is
+    // cheap.)
+    bool error = m_iterator->Init();
+    if (error || thd->is_fatal_error()) return true;
 
     /*
       TODO:
@@ -3547,7 +3336,6 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     tmp_param = &(item_in->unit->outer_select()->join->tmp_table_param);
     if (tmp_param && tmp_param->copy_fields.empty()) tmp_param = nullptr;
 
-  err:
     thd->lex->set_current_select(save_select);
     if (error) return error;
   }  // if (!is_materialized)
@@ -3579,10 +3367,15 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
     return false;
   }
 
-  if (subselect_indexsubquery_engine::exec(thd))  // Search with index
+  hash = 0;
+  bool found;
+  if (ExecuteExistsQuery(thd, item->unit, m_iterator.get(), &found)) {
     return true;
+  }
+  item_in->value = found;
+  item_in->assigned(true);
 
-  if (!item_in->value &&  // no exact match
+  if (!found &&  // no exact match
       mat_table_has_nulls != NEX_IRRELEVANT_OR_FALSE) {
     /*
       There is only one outer expression. It's not NULL. exec() above has set

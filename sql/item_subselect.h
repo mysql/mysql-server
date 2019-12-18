@@ -38,6 +38,7 @@
 #include "sql/enum_query_type.h"
 #include "sql/item.h"  // Item_result_field
 #include "sql/parse_tree_node_base.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_const.h"
 #include "template_utils.h"
 
@@ -111,6 +112,9 @@ class Item_subselect : public Item_result_field {
 
   /// EXPLAIN needs read-only access to the engine
   const subselect_engine *get_engine_for_explain() const { return engine; }
+
+  void create_iterators(THD *thd);
+  virtual RowIterator *root_iterator() const { return nullptr; }
 
  protected:
   /* engine that perform execution of subselect (single select or union) */
@@ -197,7 +201,6 @@ class Item_subselect : public Item_result_field {
   void update_used_tables() override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  virtual bool have_guarded_conds() { return false; }
   bool change_engine(subselect_engine *eng) {
     old_engine = engine;
     engine = eng;
@@ -575,7 +578,6 @@ class Item_in_subselect : public Item_exists_subselect {
   void set_cond_guard_var(int i, bool v) {
     if (pushed_cond_guards) pushed_cond_guards[i] = v;
   }
-  bool have_guarded_conds() override { return pushed_cond_guards != nullptr; }
 
   Item_in_subselect(Item *left_expr, SELECT_LEX *select_lex);
   Item_in_subselect(const POS &pos, Item *left_expr,
@@ -642,6 +644,8 @@ class Item_in_subselect : public Item_exists_subselect {
   */
   bool finalize_materialization_transform(THD *thd, JOIN *join);
 
+  RowIterator *root_iterator() const override;
+
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
   friend class Item_in_optimizer;
@@ -695,12 +699,13 @@ class subselect_engine {
         res_type(STRING_RESULT),
         res_field_type(MYSQL_TYPE_VAR_STRING),
         maybe_null(false) {}
-  virtual ~subselect_engine() {}  // to satisfy compiler
+  virtual ~subselect_engine() = default;
   /**
     Cleanup engine after complete query execution, free all resources.
   */
   virtual void cleanup(THD *thd) = 0;
 
+  virtual void create_iterators(THD *) {}
   virtual bool prepare(THD *thd) = 0;
   virtual void fix_length_and_dec(Item_cache **row) = 0;
   /*
@@ -790,8 +795,7 @@ class subselect_indexsubquery_engine : public subselect_engine {
   /// Table which is read, using one of eq_ref, ref, ref_or_null.
   QEP_TAB *tab;
   Item *cond;     /* The WHERE condition of subselect */
-  ulonglong hash; /* Hash value calculated by copy_ref_key, when needed. */
- private:
+  ulonglong hash; /* Hash value calculated by RefIterator, when needed. */
   /*
     The "having" clause. This clause (further referred to as "artificial
     having") was inserted by subquery transformation code. It contains
@@ -823,8 +827,6 @@ class subselect_indexsubquery_engine : public subselect_engine {
   table_map upper_select_const_tables() const override { return 0; }
   bool change_query_result(THD *thd, Item_subselect *si,
                            Query_result_subquery *result) override;
-  bool scan_table();
-  void copy_ref_key(bool *require_scan, bool *convert_error);
 };
 
 /*
@@ -871,6 +873,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
     subselect_iterator_engine::[prepare | cols].
   */
   subselect_iterator_engine *materialize_engine;
+  unique_ptr_destroy_only<RowIterator> m_iterator;
   /* Temp table context of the outer select's JOIN. */
   Temp_table_param *tmp_param;
 
@@ -884,6 +887,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   ~subselect_hash_sj_engine() override;
 
   bool setup(THD *thd, List<Item> *tmp_columns);
+  void create_iterators(THD *thd) override;
   void cleanup(THD *thd) override;
   bool prepare(THD *thd) override { return materialize_engine->prepare(thd); }
   bool exec(THD *thd) override;
@@ -892,5 +896,6 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   enum_engine_type engine_type() const override { return HASH_SJ_ENGINE; }
 
   const QEP_TAB *get_qep_tab() const { return tab; }
+  RowIterator *root_iterator() const { return m_iterator.get(); }
 };
 #endif /* ITEM_SUBSELECT_INCLUDED */

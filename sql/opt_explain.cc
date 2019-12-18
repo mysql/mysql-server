@@ -2605,7 +2605,8 @@ void ForEachSubselect(
         callback(select_number, is_dependent, is_cacheable,
                  subselect->unit->root_iterator());
       } else {
-        callback(select_number, is_dependent, is_cacheable, nullptr);
+        callback(select_number, is_dependent, is_cacheable,
+                 subselect->unit->item->root_iterator());
       }
     }
     return false;

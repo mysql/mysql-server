@@ -689,6 +689,7 @@ bool JOIN::optimize() {
 
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
   if (const int ret = replace_index_subquery()) {
+    create_iterators_for_index_subquery();
     set_plan_state(PLAN_READY);
     /*
       We leave optimize() because the rest of it is only about order/group
