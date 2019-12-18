@@ -1180,7 +1180,8 @@ static void ExtractConditions(Item *condition,
  */
 unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
-    const vector<Item *> &conditions, THD *thd) {
+    const vector<Item *> &conditions, THD *thd,
+    table_map *conditions_depend_on_outer_tables) {
   if (conditions.empty()) {
     return iterator;
   }
@@ -1198,6 +1199,7 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     condition->update_used_tables();
     condition->apply_is_true();
   }
+  *conditions_depend_on_outer_tables |= condition->used_tables();
 
   RowIterator *child_iterator = iterator.get();
   unique_ptr_destroy_only<RowIterator> filter_iterator =
@@ -1251,20 +1253,22 @@ static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
   return invalidator;
 }
 
+static table_map ConvertQepTabMapToTableMap(JOIN *join, qep_tab_map tables) {
+  table_map map = 0;
+  for (QEP_TAB *tab : TablesContainedIn(join, tables)) {
+    map |= tab->table_ref->map();
+  }
+  return map;
+}
+
 unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
     THD *thd, JOIN *join, unique_ptr_destroy_only<RowIterator> iterator,
     qep_tab_map left_tables,
     unique_ptr_destroy_only<RowIterator> subtree_iterator,
     qep_tab_map right_tables, TABLE *table, TABLE_LIST *table_list,
     TABLE_REF *ref, MultiRangeRowIterator *mrr_iterator, JoinType join_type) {
-  table_map left_table_map = 0;
-  table_map right_table_map = 0;
-  for (QEP_TAB *tab : TablesContainedIn(join, left_tables)) {
-    left_table_map |= tab->table_ref->map();
-  }
-  for (QEP_TAB *tab : TablesContainedIn(join, right_tables)) {
-    right_table_map |= tab->table_ref->map();
-  }
+  table_map left_table_map = ConvertQepTabMapToTableMap(join, left_tables);
+  table_map right_table_map = ConvertQepTabMapToTableMap(join, right_tables);
 
   // If the BKA join condition (the “ref”) references fields that are outside
   // what we have available for this join, it is because they were
@@ -1320,12 +1324,14 @@ unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
 
 static unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
-    const vector<PendingCondition> &conditions, THD *thd) {
+    const vector<PendingCondition> &conditions, THD *thd,
+    table_map *conditions_depend_on_outer_tables) {
   vector<Item *> stripped_conditions;
   for (const PendingCondition &cond : conditions) {
     stripped_conditions.push_back(cond.cond);
   }
-  return PossiblyAttachFilterIterator(move(iterator), stripped_conditions, thd);
+  return PossiblyAttachFilterIterator(move(iterator), stripped_conditions, thd,
+                                      conditions_depend_on_outer_tables);
 }
 
 static Item_func_trig_cond *GetTriggerCondOrNull(Item *item) {
@@ -1854,7 +1860,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
     vector<PendingCondition> *pending_join_conditions,
-    qep_tab_map *unhandled_duplicates);
+    qep_tab_map *unhandled_duplicates,
+    table_map *conditions_depend_on_outer_tables);
 /// @endcond
 
 /**
@@ -1984,12 +1991,14 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // even though the tables are part of the same JOIN object
     // (so in effect, a “virtual join”).
     qep_tab_map unhandled_duplicates = 0;
+    table_map conditions_depend_on_outer_tables = 0;
     unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, join_start, join_end, qep_tabs, thd,
         TOP_LEVEL,
         /*pending_conditions=*/nullptr,
         /*pending_invalidators=*/nullptr,
-        /*pending_join_conditions=*/nullptr, &unhandled_duplicates);
+        /*pending_join_conditions=*/nullptr, &unhandled_duplicates,
+        &conditions_depend_on_outer_tables);
 
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated
@@ -2018,8 +2027,9 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
         not_null_conditions.push_back(condition);
       }
     }
-    subtree_iterator = PossiblyAttachFilterIterator(move(subtree_iterator),
-                                                    not_null_conditions, thd);
+    subtree_iterator = PossiblyAttachFilterIterator(
+        move(subtree_iterator), not_null_conditions, thd,
+        &conditions_depend_on_outer_tables);
 
     bool copy_fields_and_items_in_materialize =
         true;  // We never have aggregation within semijoins.
@@ -2183,15 +2193,12 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
     qep_tab_map build_tables,
     unique_ptr_destroy_only<RowIterator> probe_iterator,
     qep_tab_map probe_tables, JoinType join_type,
-    vector<Item *> *join_conditions) {
-  table_map left_table_map = 0;
-  table_map right_table_map = 0;
-  for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), probe_tables)) {
-    left_table_map |= tab->table_ref->map();
-  }
-  for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), build_tables)) {
-    right_table_map |= tab->table_ref->map();
-  }
+    vector<Item *> *join_conditions,
+    table_map *conditions_depend_on_outer_tables) {
+  table_map left_table_map =
+      ConvertQepTabMapToTableMap(qep_tab->join(), probe_tables);
+  table_map right_table_map =
+      ConvertQepTabMapToTableMap(qep_tab->join(), build_tables);
 
   // Move out equi-join conditions and non-equi-join conditions, so we can
   // attach them as join condition and extra conditions in hash join.
@@ -2241,6 +2248,10 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
     *join_conditions = move(hash_join_extra_conditions);
   } else {
     join_conditions->clear();
+
+    for (Item *cond : hash_join_extra_conditions) {
+      *conditions_depend_on_outer_tables |= cond->used_tables();
+    }
   }
 
   const JOIN *join = qep_tab->join();
@@ -2372,6 +2383,19 @@ void PickOutConditionsForTableIndex(int table_idx, vector<T> *from,
   }
 }
 
+void PickOutConditionsForTableIndex(int table_idx,
+                                    vector<PendingCondition> *from,
+                                    vector<Item *> *to) {
+  for (auto it = from->begin(); it != from->end();) {
+    if (it->table_index_to_attach_to == table_idx) {
+      to->push_back(it->cond);
+      it = from->erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
@@ -2433,6 +2457,13 @@ void PickOutConditionsForTableIndex(int table_idx, vector<T> *from,
     used by hash join.
   @param[out] unhandled_duplicates list of tables we should have deduplicated
     using duplicate weedout, but could not; append-only.
+  @param[out] conditions_depend_on_outer_tables For each condition we have
+    applied on the inside of these iterators, their dependent tables are
+    appended to this set. Thus, if conditions_depend_on_outer_tables contain
+    something from outside the tables covered by [first_idx,last_idx)
+    (ie., after translation from QEP_TAB indexes to table indexes), we cannot
+    use a hash join, since the returned iterator depends on seeing outer rows
+    when evaluating its conditions.
  */
 static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     plan_idx upper_first_idx, plan_idx first_idx, plan_idx last_idx,
@@ -2440,7 +2471,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     vector<PendingCondition> *pending_conditions,
     vector<PendingInvalidator> *pending_invalidators,
     vector<PendingCondition> *pending_join_conditions,
-    qep_tab_map *unhandled_duplicates) {
+    qep_tab_map *unhandled_duplicates,
+    table_map *conditions_depend_on_outer_tables) {
   DBUG_ASSERT(last_idx > first_idx);
   DBUG_ASSERT((pending_conditions == nullptr) ==
               (pending_invalidators == nullptr));
@@ -2488,6 +2520,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       vector<PendingCondition> subtree_pending_conditions;
       vector<PendingInvalidator> subtree_pending_invalidators;
       vector<PendingCondition> subtree_pending_join_conditions;
+      table_map conditions_depend_on_outer_tables_subtree = 0;
       if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
         if (UseHashJoin(qep_tab) &&
@@ -2498,7 +2531,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
               first_idx, i, substructure_end, qep_tabs, thd,
               DIRECTLY_UNDER_SEMIJOIN, &subtree_pending_conditions,
               &subtree_pending_invalidators, &subtree_pending_join_conditions,
-              unhandled_duplicates);
+              unhandled_duplicates, &conditions_depend_on_outer_tables_subtree);
         } else {
           // Send in "subtree_pending_join_conditions", so that any semijoin
           // conditions are moved up to this level, where they will be attached
@@ -2506,7 +2539,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
           subtree_iterator = ConnectJoins(
               first_idx, i, substructure_end, qep_tabs, thd,
               DIRECTLY_UNDER_SEMIJOIN, pending_conditions, pending_invalidators,
-              &subtree_pending_join_conditions, unhandled_duplicates);
+              &subtree_pending_join_conditions, unhandled_duplicates,
+              &conditions_depend_on_outer_tables_subtree);
         }
       } else if (pending_conditions != nullptr) {
         // We are already on the right (inner) side of an outer join,
@@ -2514,7 +2548,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         subtree_iterator = ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, pending_conditions, pending_invalidators,
-            pending_join_conditions, unhandled_duplicates);
+            pending_join_conditions, unhandled_duplicates,
+            &conditions_depend_on_outer_tables_subtree);
 
         // Pick out any conditions that should be directly above this join
         // (ie., the ON conditions for this specific join).
@@ -2537,8 +2572,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
             &subtree_pending_invalidators, &subtree_pending_join_conditions,
-            unhandled_duplicates);
+            unhandled_duplicates, &conditions_depend_on_outer_tables_subtree);
       }
+      *conditions_depend_on_outer_tables |=
+          conditions_depend_on_outer_tables_subtree;
 
       JoinType join_type;
       if (qep_tab->table()->reginfo.not_exists_optimize) {
@@ -2615,6 +2652,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       const bool pfs_batch_mode = qep_tab->pfs_batch_update(qep_tab->join()) &&
                                   join_type != JoinType::ANTI &&
                                   join_type != JoinType::SEMI;
+
+      // See documentation for conditions_depend_on_outer_tables in
+      // the function comment. Note that this cannot happen for inner joins
+      // (join conditions can always be pulled up for them), so we do not
+      // replicate this check for inner joins below.
+      qep_tab_map left_tables = TablesBetween(first_idx, i);
+      qep_tab_map right_tables = TablesBetween(i, substructure_end);
+      const bool right_side_depends_on_outer =
+          Overlaps(conditions_depend_on_outer_tables_subtree,
+                   ConvertQepTabMapToTableMap(qep_tab->join(), left_tables));
+
       bool remove_duplicates_loose_scan = false;
       if (i != first_idx && qep_tabs[i - 1].do_loosescan() &&
           qep_tabs[i - 1].match_tab != i - 1) {
@@ -2649,25 +2697,16 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
-      } else if ((UseHashJoin(qep_tab) || UseBKA(qep_tab)) &&
+      } else if (((UseHashJoin(qep_tab) && !right_side_depends_on_outer) ||
+                  UseBKA(qep_tab)) &&
                  !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
-        qep_tab_map left_tables = TablesBetween(first_idx, i);
-        qep_tab_map right_tables = TablesBetween(i, substructure_end);
-
-        vector<Item *> join_conditions;
         // Join conditions that were inside the substructure are placed in the
         // vector 'subtree_pending_join_conditions'. Find out which of these
         // conditions that should be attached to this table, and attach them
         // to the hash join iterator.
-        for (auto it = subtree_pending_join_conditions.begin();
-             it != subtree_pending_join_conditions.end();) {
-          if (it->table_index_to_attach_to == int(i)) {
-            join_conditions.push_back(it->cond);
-            it = subtree_pending_join_conditions.erase(it);
-          } else {
-            ++it;
-          }
-        }
+        vector<Item *> join_conditions;
+        PickOutConditionsForTableIndex(i, &subtree_pending_join_conditions,
+                                       &join_conditions);
 
         if (UseBKA(qep_tab)) {
           iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
@@ -2678,12 +2717,27 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         } else {
           iterator = CreateHashJoinIterator(
               thd, qep_tab, move(subtree_iterator), right_tables,
-              move(iterator), left_tables, join_type, &join_conditions);
+              move(iterator), left_tables, join_type, &join_conditions,
+              conditions_depend_on_outer_tables);
         }
 
         iterator =
-            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd);
+            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd,
+                                         conditions_depend_on_outer_tables);
       } else {
+        // Normally, subtree_pending_join_conditions should be empty when we
+        // create a nested loop iterator. However, in the case where we thought
+        // we would be making a hash join but changed our minds (due to
+        // right_side_depends_on_outer), there may be conditions there.
+        // Similar to hash join above, pick out those conditions and add them
+        // here.
+        vector<Item *> join_conditions;
+        PickOutConditionsForTableIndex(i, &subtree_pending_join_conditions,
+                                       &join_conditions);
+        subtree_iterator = PossiblyAttachFilterIterator(
+            move(subtree_iterator), join_conditions, thd,
+            conditions_depend_on_outer_tables);
+
         iterator = NewIterator<NestedLoopIterator>(thd, move(iterator),
                                                    move(subtree_iterator),
                                                    join_type, pfs_batch_mode);
@@ -2691,8 +2745,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                                     iterator.get());
       }
 
-      iterator = PossiblyAttachFilterIterator(move(iterator),
-                                              subtree_pending_conditions, thd);
+      iterator = PossiblyAttachFilterIterator(
+          move(iterator), subtree_pending_conditions, thd,
+          conditions_depend_on_outer_tables);
 
       if (remove_duplicates_loose_scan) {
         QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
@@ -2717,7 +2772,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       unique_ptr_destroy_only<RowIterator> subtree_iterator = ConnectJoins(
           first_idx, i, substructure_end, qep_tabs, thd, DIRECTLY_UNDER_WEEDOUT,
           pending_conditions, pending_invalidators, pending_join_conditions,
-          unhandled_duplicates);
+          unhandled_duplicates, conditions_depend_on_outer_tables);
       RowIterator *child_iterator = subtree_iterator.get();
       subtree_iterator = CreateWeedoutIterator(thd, move(subtree_iterator),
                                                qep_tab->flush_weedout_table);
@@ -2782,12 +2837,24 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       }
 
       if (is_bka) {
+        TABLE_REF &ref = qep_tab->ref();
+
         table_iterator = NewIterator<MultiRangeRowIterator>(
             thd, qep_tab->cache_idx_cond, qep_tab->table(),
-            qep_tab->copy_current_rowid, &qep_tab->ref(),
+            qep_tab->copy_current_rowid, &ref,
             qep_tab->position()->table->join_cache_flags);
         qep_tab->mrr_iterator =
             down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
+
+        if (qep_tab->cache_idx_cond != nullptr) {
+          *conditions_depend_on_outer_tables |=
+              qep_tab->cache_idx_cond->used_tables();
+        }
+        for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
+             ++key_part_idx) {
+          *conditions_depend_on_outer_tables |=
+              ref.items[key_part_idx]->used_tables();
+        }
       } else {
         // We will now take all the join conditions (both equi- and
         // non-equi-join conditions) and move them to a separate vector so we
@@ -2801,14 +2868,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
       double expected_rows = table_iterator->expected_rows();
-      table_iterator = PossiblyAttachFilterIterator(move(table_iterator),
-                                                    predicates_below_join, thd);
+      table_iterator = PossiblyAttachFilterIterator(
+          move(table_iterator), predicates_below_join, thd,
+          conditions_depend_on_outer_tables);
       POSITION *pos = qep_tab->position();
       if (expected_rows >= 0.0 && !predicates_below_join.empty() &&
           pos != nullptr) {
         SetCostOnTableIterator(*thd->cost_model(), pos,
                                /*is_after_filter=*/true, table_iterator.get());
       }
+    } else {
+      *conditions_depend_on_outer_tables |= qep_tab->condition()->used_tables();
     }
 
     // Handle LooseScan that hits this specific table only.
@@ -2886,12 +2956,14 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // input, so use that as the build input.
         iterator = CreateHashJoinIterator(
             thd, qep_tab, move(iterator), left_tables, move(table_iterator),
-            qep_tab->idx_map(), JoinType::INNER, &join_conditions);
+            qep_tab->idx_map(), JoinType::INNER, &join_conditions,
+            conditions_depend_on_outer_tables);
 
         // Attach any remaining non-equi-join conditions as a filter after the
         // join.
         iterator =
-            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd);
+            PossiblyAttachFilterIterator(move(iterator), join_conditions, thd,
+                                         conditions_depend_on_outer_tables);
       } else {
         iterator = CreateNestedLoopIterator(
             thd, move(iterator), move(table_iterator), JoinType::INNER,
@@ -2911,7 +2983,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
   }
   if (is_top_level_outer_join) {
     iterator = PossiblyAttachFilterIterator(move(iterator),
-                                            top_level_pending_conditions, thd);
+                                            top_level_pending_conditions, thd,
+                                            conditions_depend_on_outer_tables);
 
     // We can't have any invalidators here, because there's no later table
     // to invalidate.
@@ -2971,8 +3044,10 @@ void JOIN::create_table_iterators() {
                         &predicates_above_join,
                         /*join_conditions=*/nullptr);
 
-        iterator = PossiblyAttachFilterIterator(move(iterator),
-                                                predicates_below_join, thd);
+        table_map conditions_depend_on_outer_tables = 0;
+        iterator = PossiblyAttachFilterIterator(
+            move(iterator), predicates_below_join, thd,
+            &conditions_depend_on_outer_tables);
         qep_tab->mark_condition_as_pushed_to_sort();
       }
 
@@ -3088,9 +3163,11 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     // the const tables (only inner-joined tables are promoted to
     // const tables in the optimizer).
     iterator = NewIterator<FakeSingleRowIterator>(thd, &examined_rows);
+    qep_tab_map conditions_depend_on_outer_tables = 0;
     if (where_cond != nullptr) {
-      iterator = PossiblyAttachFilterIterator(move(iterator),
-                                              vector<Item *>{where_cond}, thd);
+      iterator = PossiblyAttachFilterIterator(
+          move(iterator), vector<Item *>{where_cond}, thd,
+          &conditions_depend_on_outer_tables);
     }
 
     // Surprisingly enough, we can specify that the const tables are
@@ -3121,10 +3198,12 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     }
   } else {
     qep_tab_map unhandled_duplicates = 0;
+    qep_tab_map conditions_depend_on_outer_tables = 0;
     iterator = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, const_tables, primary_tables, qep_tab,
         thd, TOP_LEVEL, nullptr, nullptr,
-        /*pending_join_conditions=*/nullptr, &unhandled_duplicates);
+        /*pending_join_conditions=*/nullptr, &unhandled_duplicates,
+        &conditions_depend_on_outer_tables);
 
     // If there were any weedouts that we had to drop during ConnectJoins()
     // (ie., the join left some tables that were supposed to be deduplicated

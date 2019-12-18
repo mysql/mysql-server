@@ -152,4 +152,7 @@ constexpr bool is_single_bit(IntType bits) {
 /// @returns true if 'x' is a subset of 'y'.
 static inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }
 
+/// @returns true if 'x' and 'y' share at least one bit.
+static inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
+
 #endif /* MY_BIT_INCLUDED */

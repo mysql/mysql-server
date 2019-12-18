@@ -2000,3 +2000,59 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #30642968: WL#13377: RESULTSET DIFFERENCE WITH HASH ANTIJOIN
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER);
+
+INSERT INTO t1 VALUES ( 100 ), ( 200 );
+
+let $query =
+  SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
+  AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
+
+# Verify that we get a hash antijoin, a nested loop outer join, and that the
+# f1=f1 join condition is properly added (inside the nested loop).
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #30650725: WL13476: RESULTSET DIFFERENCE WITH BKA
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_datetime datetime
+);
+
+INSERT INTO t1 VALUES (9,'1988-02-06 01:32:15');
+
+CREATE TABLE t2 (
+  col_int_key int,
+  col_datetime datetime,
+  KEY idx_N_col_int_key (col_int_key)
+);
+
+INSERT INTO t2 VALUES (9,'2025-01-07 03:12:24');
+
+ANALYZE TABLE t1, t2;
+
+SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
+
+let $query =
+  SELECT * FROM
+   t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
+
+# Like in the previous bug, verify that the outer join is a nested loop
+# (it needs to, because the BKA lookup references it), while the BKA remains
+# a BKA.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2;

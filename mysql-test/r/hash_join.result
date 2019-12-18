@@ -3377,9 +3377,9 @@ test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
 SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
 EXPLAIN
--> Left hash join (no condition)  (cost=840.62 rows=8000)
+-> Nested loop left join  (cost=802.50 rows=8000)
     -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
-    -> Hash
+    -> Filter: true  (cost=40.37 rows=400)
         -> Hash antijoin (no condition), extra conditions: (alias1.pk <> 20)  (cost=40.37 rows=400)
             -> Index scan on alias2 using PRIMARY  (cost=0.11 rows=20)
             -> Hash
@@ -3409,5 +3409,83 @@ pk	pk
 17	NULL
 18	NULL
 19	NULL
-20	NULL
+20	1
+20	2
+20	3
+20	4
+20	5
+20	6
+20	7
+20	8
+20	9
+20	10
+20	11
+20	12
+20	13
+20	14
+20	15
+20	16
+20	17
+20	18
+20	19
+20	20
 DROP TABLE t1;
+#
+# Bug #30642968: WL#13377: RESULTSET DIFFERENCE WITH HASH ANTIJOIN
+#
+CREATE TABLE t1 (f1 INTEGER);
+INSERT INTO t1 VALUES ( 100 ), ( 200 );
+EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
+AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
+EXPLAIN
+-> Nested loop left join  (cost=1.50 rows=8)
+    -> Table scan on alias1  (cost=0.45 rows=2)
+    -> Filter: (true and (alias2.f1 = alias1.f1))  (cost=0.88 rows=4)
+        -> Hash antijoin (no condition), extra conditions: (alias1.f1 <= 1)  (cost=0.88 rows=4)
+            -> Table scan on alias2  (cost=0.23 rows=2)
+            -> Hash
+                -> Table scan on alias3  (cost=0.23 rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.alias1.f1' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias2.f1 = alias1.f1
+AND NOT EXISTS ( SELECT * FROM t1 AS alias3 WHERE alias1.f1 <= 1 );
+f1	f1
+100	100
+200	200
+DROP TABLE t1;
+#
+# Bug #30650725: WL13476: RESULTSET DIFFERENCE WITH BKA
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_datetime datetime
+);
+INSERT INTO t1 VALUES (9,'1988-02-06 01:32:15');
+CREATE TABLE t2 (
+col_int_key int,
+col_datetime datetime,
+KEY idx_N_col_int_key (col_int_key)
+);
+INSERT INTO t2 VALUES (9,'2025-01-07 03:12:24');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET optimizer_switch='mrr=on,mrr_cost_based=off,batched_key_access=on';
+EXPLAIN FORMAT=tree SELECT * FROM
+t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
+EXPLAIN
+-> Nested loop left join
+    -> Table scan on table3  (cost=0.35 rows=1)
+    -> Batched key access inner join
+        -> Batch input rows
+            -> Table scan on table1  (cost=0.35 rows=1)
+        -> Multi-range index lookup on table2 using idx_N_col_int_key (col_int_key=table3.pk)
+
+SELECT * FROM
+t1 AS table3 LEFT JOIN (t1 AS table1, t2 AS table2) ON table2.col_int_key=table3.pk;
+pk	col_datetime	pk	col_datetime	col_int_key	col_datetime
+9	1988-02-06 01:32:15	9	1988-02-06 01:32:15	9	2025-01-07 03:12:24
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2;
