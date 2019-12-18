@@ -33,7 +33,7 @@
 
 class Addon_fields;
 class Field;
-class QEP_TAB;
+class JOIN;
 class RowIterator;
 class Sort_result;
 class THD;
@@ -49,8 +49,11 @@ enum class Addon_fields_status;
 class Filesort {
  public:
   THD *m_thd;
-  /// The QEP entry for the table to be sorted
-  QEP_TAB *const qep_tab;
+  /// The table we are sorting.
+  TABLE *const table;
+  /// If true, do not free the filesort buffers (use if you expect to sort many
+  /// times, like in an uncacheable subquery).
+  const bool keep_buffers;
   /// Maximum number of rows to return
   ha_rows limit;
   /// ORDER BY list with some precalculated info for filesort
@@ -67,11 +70,11 @@ class Filesort {
   // TODO: Consider moving this into private members of Filesort.
   Sort_param m_sort_param;
 
-  Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
-           bool force_stable_sort, bool remove_duplicates,
+  Filesort(THD *thd, TABLE *table, bool keep_buffers, ORDER *order,
+           ha_rows limit_arg, bool force_stable_sort, bool remove_duplicates,
            bool force_sort_positions);
 
-  Addon_fields *get_addon_fields(Field **ptabfield,
+  Addon_fields *get_addon_fields(TABLE *table,
                                  Addon_fields_status *addon_fields_status,
                                  uint *plength, uint *ppackable_length);
 

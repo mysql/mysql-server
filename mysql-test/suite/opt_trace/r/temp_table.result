@@ -1151,7 +1151,7 @@ ORDER BY cc	{
               {
                 "adding_tmp_table_in_plan_at_position": 1,
                 "filesort": {
-                  "adding_sort_to_table_in_plan_at_position": 0
+                  "adding_sort_to_table": "tt"
                 } /* filesort */,
                 "unknown_key_1": {
                   "creating_tmp_table": {
@@ -1171,7 +1171,7 @@ ORDER BY cc	{
                 "write_method": "write_group_row_when_complete"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 1
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -1230,7 +1230,7 @@ ORDER BY cc	{
             } /* materialize */
           },
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "tt",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1258,7 +1258,7 @@ ORDER BY cc	{
             } /* filesort_summary */
           },
           {
-            "sorting_table_in_plan_at_position": 1,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",

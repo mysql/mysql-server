@@ -608,13 +608,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         // Force filesort to sort by position.
-        fsort.reset(new (thd->mem_root)
-                        Filesort(thd, &qep_tab, order, limit,
-                                 /*force_stable_sort=*/false,
-                                 /*remove_duplicates=*/false,
-                                 /*force_sort_positions=*/true));
-        iterator = NewIterator<SortingIterator>(
-            thd, fsort.get(), move(iterator), /*examined_rows=*/nullptr);
+        fsort.reset(new (thd->mem_root) Filesort(
+            thd, qep_tab.table(), /*keep_buffers=*/false, order, limit,
+            /*force_stable_sort=*/false,
+            /*remove_duplicates=*/false,
+            /*force_sort_positions=*/true));
+        iterator = NewIterator<SortingIterator>(thd, &qep_tab, fsort.get(),
+                                                move(iterator),
+                                                /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
         thd->inc_examined_row_count(examined_rows);
 

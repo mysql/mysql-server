@@ -245,7 +245,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -257,7 +257,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -439,7 +439,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -451,7 +451,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -668,7 +668,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -680,7 +680,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "desc",
@@ -919,7 +919,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -931,7 +931,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1160,7 +1160,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -1172,7 +1172,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1356,7 +1356,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -1368,7 +1368,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1519,7 +1519,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -1531,7 +1531,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1677,7 +1677,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 1
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -1689,7 +1689,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 1,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -1866,7 +1866,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -1878,7 +1878,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2095,7 +2095,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -2107,7 +2107,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "desc",
@@ -2346,7 +2346,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -2358,7 +2358,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2587,7 +2587,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -2599,7 +2599,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2783,7 +2783,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -2795,7 +2795,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -2989,7 +2989,7 @@ ORDER BY f1, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -3001,7 +3001,7 @@ ORDER BY f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3161,7 +3161,7 @@ ORDER BY f1, f0 LIMIT 0	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -3173,7 +3173,7 @@ ORDER BY f1, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3385,7 +3385,7 @@ ORDER BY f2, f0 LIMIT 20	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -3397,7 +3397,7 @@ ORDER BY f2, f0 LIMIT 20	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3589,7 +3589,7 @@ ORDER BY f2, f0 LIMIT 0	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -3601,7 +3601,7 @@ ORDER BY f2, f0 LIMIT 0	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -3803,7 +3803,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -3815,7 +3815,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4007,7 +4007,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -4019,7 +4019,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4326,7 +4326,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -4338,7 +4338,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4636,7 +4636,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -4648,7 +4648,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -4955,7 +4955,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -4967,7 +4967,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5333,7 +5333,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -5345,7 +5345,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5577,7 +5577,7 @@ SELECT * FROM v1	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -5681,7 +5681,7 @@ SELECT * FROM v1	{
               "select#": 2,
               "steps": [
                 {
-                  "sorting_table_in_plan_at_position": 0,
+                  "sorting_table": "t1",
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -5889,7 +5889,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -5990,7 +5990,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "v1"
               }
             ]
           }
@@ -6021,7 +6021,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "sorting_table_in_plan_at_position": 0,
+                  "sorting_table": "t1",
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -6058,7 +6058,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "v1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -6300,7 +6300,7 @@ LIMIT 30	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -6405,7 +6405,7 @@ LIMIT 30	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -6724,7 +6724,7 @@ LIMIT 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -6755,7 +6755,7 @@ LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "sorting_table_in_plan_at_position": 0,
+                  "sorting_table": "t1",
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -6792,7 +6792,7 @@ LIMIT 30	{
             }
           },
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -6832,7 +6832,7 @@ LIMIT 30	{
                   "select#": 3,
                   "steps": [
                     {
-                      "sorting_table_in_plan_at_position": 0,
+                      "sorting_table": "t1",
                       "filesort_information": [
                         {
                           "direction": "asc",
@@ -7023,7 +7023,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                 "write_method": "continuously_update_group_row"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 1
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -7056,7 +7056,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             }
           },
           {
-            "sorting_table_in_plan_at_position": 1,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7320,7 +7320,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -7332,7 +7332,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7529,7 +7529,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -7541,7 +7541,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7739,7 +7739,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -7751,7 +7751,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -7953,7 +7953,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -8054,7 +8054,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "v1"
               }
             ]
           }
@@ -8085,7 +8085,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
               "select#": 2,
               "steps": [
                 {
-                  "sorting_table_in_plan_at_position": 0,
+                  "sorting_table": "t1",
                   "filesort_information": [
                     {
                       "direction": "asc",
@@ -8122,7 +8122,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             }
           },
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "v1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -8335,7 +8335,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 {
                   "considering_tmp_tables": [
                     {
-                      "adding_sort_to_table_in_plan_at_position": 0
+                      "adding_sort_to_table": "t1"
                     }
                   ]
                 }
@@ -8536,7 +8536,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               }
             ]
           }
@@ -8548,7 +8548,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "desc",
@@ -8580,7 +8580,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   "select#": 2,
                   "steps": [
                     {
-                      "sorting_table_in_plan_at_position": 0,
+                      "sorting_table": "t1",
                       "filesort_information": [
                         {
                           "direction": "asc",
@@ -8869,7 +8869,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -8889,7 +8889,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                     "select#": 2,
                     "steps": [
                       {
-                        "sorting_table_in_plan_at_position": 0,
+                        "sorting_table": "t1",
                         "filesort_information": [
                           {
                             "direction": "asc",
@@ -12654,7 +12654,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -12674,7 +12674,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                     "select#": 2,
                     "steps": [
                       {
-                        "sorting_table_in_plan_at_position": 0,
+                        "sorting_table": "t1",
                         "filesort_information": [
                           {
                             "direction": "asc",
@@ -12862,7 +12862,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t"
               }
             ]
           }
@@ -12874,7 +12874,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -13044,7 +13044,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t"
               }
             ]
           }
@@ -13056,7 +13056,7 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t",
             "filesort_information": [
               {
                 "direction": "desc",
@@ -13228,7 +13228,7 @@ limit 2 offset 2	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t"
               }
             ]
           }
@@ -13240,7 +13240,7 @@ limit 2 offset 2	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t",
             "filesort_information": [
               {
                 "direction": "asc",

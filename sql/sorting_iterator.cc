@@ -456,11 +456,12 @@ vector<string> SortBufferIndirectIterator::DebugString() const {
           table()->alias};
 }
 
-SortingIterator::SortingIterator(THD *thd, Filesort *filesort,
+SortingIterator::SortingIterator(THD *thd, QEP_TAB *qep_tab, Filesort *filesort,
                                  unique_ptr_destroy_only<RowIterator> source,
                                  ha_rows *examined_rows)
     : RowIterator(thd),
       m_filesort(filesort),
+      m_qep_tab(qep_tab),
       m_source_iterator(move(source)),
       m_examined_rows(examined_rows) {}
 
@@ -491,13 +492,12 @@ void SortingIterator::ReleaseBuffers() {
 }
 
 bool SortingIterator::Init() {
-  QEP_TAB *qep_tab = m_filesort->qep_tab;
   ReleaseBuffers();
 
   // Both empty result and error count as errors. (TODO: Why? This is a legacy
   // choice that doesn't always seem right to me, although it should nearly
   // never happen in practice.)
-  if (DoSort(qep_tab) != 0) return true;
+  if (DoSort() != 0) return true;
 
   /*
     Filesort has filtered rows already (see skip_record() in
@@ -522,12 +522,13 @@ bool SortingIterator::Init() {
     the outer table is constant (so the inner one is first-non-const) and a
     window function requires sorting.
   */
-  qep_tab->set_quick(nullptr);
-  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(nullptr);
+  m_qep_tab->set_quick(nullptr);
+  if (!m_qep_tab->is_inner_table_of_outer_join())
+    m_qep_tab->set_condition(nullptr);
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.
-  TABLE *table = qep_tab->table();
+  TABLE *table = m_filesort->table;
   if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
     if (m_fs_info.using_addon_fields()) {
@@ -596,8 +597,8 @@ bool SortingIterator::Init() {
     1		No records
 */
 
-int SortingIterator::DoSort(QEP_TAB *qep_tab) {
-  JOIN *join = qep_tab->join();
+int SortingIterator::DoSort() {
+  JOIN *join = m_qep_tab->join();
 
   /*
     One row, no need to sort. make_tmp_tables_info should already handle this.
@@ -609,18 +610,19 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
         m_filesort);
   }
 
-  TABLE *table = qep_tab->table();
+  TABLE *table = m_filesort->table;
   DBUG_ASSERT(m_sort_result.io_cache == nullptr);
   m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
   // If table has a range, move it to select
-  if (qep_tab->quick() && qep_tab->ref().key >= 0) {
-    if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
-      DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
+  if (m_qep_tab->quick() && m_qep_tab->ref().key >= 0) {
+    if (m_qep_tab->type() != JT_REF_OR_NULL && m_qep_tab->type() != JT_FT) {
+      DBUG_ASSERT(m_qep_tab->type() == JT_REF ||
+                  m_qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if (construct_lookup_ref(thd(), table, &qep_tab->ref()) &&
+      if (construct_lookup_ref(thd(), table, &m_qep_tab->ref()) &&
           thd()->is_fatal_error())
         return -1;  // out of memory
     }
@@ -636,9 +638,9 @@ int SortingIterator::DoSort(QEP_TAB *qep_tab) {
   ha_rows found_rows;
   bool error = filesort(thd(), m_filesort, m_source_iterator.get(), &m_fs_info,
                         &m_sort_result, &found_rows);
-  qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
-  table->set_keyread(false);         // Restore if we used indexes
-  if (qep_tab->type() == JT_FT)
+  m_qep_tab->set_records(found_rows);  // For SQL_CALC_FOUND_ROWS
+  table->set_keyread(false);           // Restore if we used indexes
+  if (m_qep_tab->type() == JT_FT)
     table->file->ft_end();
   else
     table->file->ha_index_or_rnd_end();

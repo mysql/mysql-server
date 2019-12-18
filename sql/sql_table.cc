@@ -17592,12 +17592,13 @@ static int copy_data_between_tables(
     if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
                     all_fields, order))
       goto err;
-    fsort.reset(new (thd->mem_root) Filesort(thd, &qep_tab, order, HA_POS_ERROR,
+    fsort.reset(new (thd->mem_root) Filesort(thd, from, /*keep_buffers=*/false,
+                                             order, HA_POS_ERROR,
                                              /*force_stable_sort=*/false,
                                              /*remove_duplicates=*/false,
                                              /*force_sort_positions=*/true));
     unique_ptr_destroy_only<RowIterator> sort =
-        NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
+        NewIterator<SortingIterator>(thd, &qep_tab, fsort.get(), move(iterator),
                                      /*examined_rows=*/nullptr);
     if (sort->Init()) {
       error = 1;

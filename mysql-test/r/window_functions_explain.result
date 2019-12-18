@@ -16668,7 +16668,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
-                    "adding_sort_to_table_in_plan_at_position": 1
+                    "adding_sort_to_table": ""
                   }
                 }
               },
@@ -16693,11 +16693,11 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                 "write_method": "write_all_rows",
                 "adding_sort_to_previous_table": {
                   "filesort": {
-                    "adding_sort_to_table_in_plan_at_position": 2
+                    "adding_sort_to_table": ""
                   }
                 },
                 "filesort": {
-                  "adding_sort_to_table_in_plan_at_position": 3
+                  "adding_sort_to_table": ""
                 }
               }
             ]
@@ -16767,7 +16767,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                         }
                       },
                       {
-                        "sorting_table_in_plan_at_position": 1,
+                        "sorting_table": "<temporary>",
                         "filesort_information": [
                           {
                             "direction": "asc",
@@ -16797,7 +16797,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                   }
                 },
                 {
-                  "sorting_table_in_plan_at_position": 2,
+                  "sorting_table": "<temporary>",
                   "filesort_information": [
                     {
                       "direction": "desc",
@@ -16827,7 +16827,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             }
           },
           {
-            "sorting_table_in_plan_at_position": 3,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",

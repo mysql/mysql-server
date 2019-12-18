@@ -1168,7 +1168,7 @@ TRACE
                 "write_method": "write_all_rows"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 3
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -1180,7 +1180,7 @@ TRACE
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 3,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5348,7 +5348,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "write_method": "continuously_update_group_row"
               },
               {
-                "adding_sort_to_table_in_plan_at_position": 2
+                "adding_sort_to_table": ""
               } /* filesort */
             ] /* considering_tmp_tables */
           }
@@ -5381,7 +5381,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             } /* temp_table_aggregate */
           },
           {
-            "sorting_table_in_plan_at_position": 2,
+            "sorting_table": "<temporary>",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -5404,7 +5404,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
+              "unpacked_addon_fields": "skip_heuristic",
+              "sort_mode": "<fixed_sort_key, additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */

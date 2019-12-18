@@ -102,7 +102,6 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // QEP_TAB
 #include "sql/sql_lex.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_sort.h"
@@ -201,9 +200,8 @@ void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
       Get the descriptors of all fields whose values are appended
       to sorted fields and get its total length in m_addon_length.
     */
-    addon_fields =
-        file_sort->get_addon_fields(table->field, &m_addon_fields_status,
-                                    &m_addon_length, &m_packable_length);
+    addon_fields = file_sort->get_addon_fields(
+        table, &m_addon_fields_status, &m_addon_length, &m_packable_length);
   }
 }
 
@@ -379,8 +377,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   IO_CACHE chunk_file;  // For saving Merge_chunk structs.
   IO_CACHE *outfile;    // Contains the final, sorted result.
   Sort_param *param = &filesort->m_sort_param;
-  QEP_TAB *const qep_tab = filesort->qep_tab;
-  TABLE *const table = qep_tab->table();
+  TABLE *const table = filesort->table;
   ha_rows max_rows = filesort->limit;
   uint s_length = 0;
 
@@ -395,10 +392,6 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
     return true; /* purecov: inspected */
 
   DBUG_ASSERT(!table->reginfo.join_tab);
-  DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
-  Item_subselect *const subselect =
-      qep_tab->join() ? qep_tab->join()->select_lex->master_unit()->item
-                      : nullptr;
 
   DEBUG_SYNC(thd, "filesort_start");
 
@@ -424,8 +417,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   */
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
-  if (qep_tab->join())
-    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
+  trace_wrapper.add_alnum("sorting_table", table->alias);
 
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
@@ -630,7 +622,7 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
   error = 0;
 
 err:
-  if (!subselect || !subselect->is_uncacheable()) {
+  if (!filesort->keep_buffers) {
     if (!sort_result->sorted_result_in_fsbuf) fs_info->free_sort_buffer();
     my_free(fs_info->merge_chunks.array());
     fs_info->merge_chunks = Merge_chunk_array(nullptr, 0);
@@ -671,11 +663,12 @@ void filesort_free_buffers(TABLE *table, bool full) {
   }
 }
 
-Filesort::Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
-                   bool force_stable_sort, bool remove_duplicates,
-                   bool sort_positions)
+Filesort::Filesort(THD *thd, TABLE *table_arg, bool keep_buffers_arg,
+                   ORDER *order, ha_rows limit_arg, bool force_stable_sort,
+                   bool remove_duplicates, bool sort_positions)
     : m_thd(thd),
-      qep_tab(tab_arg),
+      table(table_arg),
+      keep_buffers(keep_buffers_arg),
       limit(limit_arg),
       sortorder(nullptr),
       using_pq(false),
@@ -2210,7 +2203,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
   allocates memory for an array of descriptors containing layouts for the values
   of the non-sorted fields in the buffer and fills them.
 
-  @param ptabfield             Array of references to the table fields
+  @param table                 Which table we are reading from
   @param[out] addon_fields_status Reason for *not* using packed addon fields
   @param[out] plength          Total length of appended fields
   @param[out] ppackable_length Total length of appended fields having a
@@ -2227,16 +2220,12 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
 */
 
 Addon_fields *Filesort::get_addon_fields(
-    Field **ptabfield, Addon_fields_status *addon_fields_status, uint *plength,
+    TABLE *table, Addon_fields_status *addon_fields_status, uint *plength,
     uint *ppackable_length) {
-  Field **pfield;
-  Field *field;
   uint total_length = 0;
   uint packable_length = 0;
   uint num_fields = 0;
   uint null_fields = 0;
-  TABLE *const table = qep_tab->table();
-  MY_BITMAP *read_set = table->read_set;
 
   /*
     If there is a reference to a field in the query add it
@@ -2250,8 +2239,9 @@ Addon_fields *Filesort::get_addon_fields(
   *plength = *ppackable_length = 0;
   *addon_fields_status = Addon_fields_status::unknown_status;
 
-  for (pfield = ptabfield; (field = *pfield); pfield++) {
-    if (!bitmap_is_set(read_set, field->field_index)) continue;
+  for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
+    Field *field = *pfield;
+    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
 
     // Having large blobs in addon fields could be very inefficient,
     // but small blobs are OK (where “small” is a bit fuzzy, and relative
@@ -2319,8 +2309,9 @@ Addon_fields *Filesort::get_addon_fields(
   uint length = (null_fields + 7) / 8;
   null_fields = 0;
   Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
-  for (pfield = ptabfield; (field = *pfield); pfield++) {
-    if (!bitmap_is_set(read_set, field->field_index)) continue;
+  for (Field **pfield = table->field; *pfield != nullptr; ++pfield) {
+    Field *field = *pfield;
+    if (!bitmap_is_set(table->read_set, field->field_index)) continue;
     DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
     addonf->field = field;
@@ -2349,8 +2340,7 @@ Addon_fields *Filesort::get_addon_fields(
 bool Filesort::using_addon_fields() {
   if (m_sort_param.m_addon_fields_status ==
       Addon_fields_status::unknown_status) {
-    m_sort_param.decide_addon_fields(this, qep_tab->table(),
-                                     m_force_sort_positions);
+    m_sort_param.decide_addon_fields(this, table, m_force_sort_positions);
   }
   return m_sort_param.using_addon_fields();
 }

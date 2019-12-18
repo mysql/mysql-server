@@ -184,7 +184,7 @@ select * from t1 order by c1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -196,7 +196,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -343,7 +343,7 @@ select * from t1 order by c1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -355,7 +355,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -502,7 +502,7 @@ select * from t1 order by c1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -514,7 +514,7 @@ select * from t1 order by c1	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",
@@ -924,7 +924,7 @@ SELECT * FROM t1 ORDER BY c1	{
           {
             "considering_tmp_tables": [
               {
-                "adding_sort_to_table_in_plan_at_position": 0
+                "adding_sort_to_table": "t1"
               }
             ]
           }
@@ -936,7 +936,7 @@ SELECT * FROM t1 ORDER BY c1	{
         "select#": 1,
         "steps": [
           {
-            "sorting_table_in_plan_at_position": 0,
+            "sorting_table": "t1",
             "filesort_information": [
               {
                 "direction": "asc",

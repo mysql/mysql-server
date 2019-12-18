@@ -3075,7 +3075,7 @@ void JOIN::create_table_iterators() {
       // Wrap the chosen RowIterator in a SortingIterator, so that we get
       // sorted results out.
       qep_tab->iterator = NewIterator<SortingIterator>(
-          qep_tab->join()->thd, qep_tab->filesort, move(iterator),
+          qep_tab->join()->thd, qep_tab, qep_tab->filesort, move(iterator),
           &qep_tab->join()->examined_rows);
       qep_tab->table()->sorting_iterator =
           down_cast<SortingIterator *>(qep_tab->iterator->real_iterator());
@@ -3296,9 +3296,10 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         // Switch to the right slice if applicable, so that we fetch out the
         // correct items from order_arg.
         Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
-        dup_filesort = new (thd->mem_root) Filesort(
-            thd, qep_tab, order, HA_POS_ERROR, /*force_stable_sort=*/false,
-            /*remove_duplicates=*/true, force_sort_positions);
+        dup_filesort = new (thd->mem_root)
+            Filesort(thd, qep_tab->table(), /*keep_buffers=*/false, order,
+                     HA_POS_ERROR, /*force_stable_sort=*/false,
+                     /*remove_duplicates=*/true, force_sort_positions);
       }
     }
 
@@ -3382,14 +3383,14 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
           thd, move(iterator), /*select_limit_cnt=*/1, /*offset_limit_cnt=*/0,
           /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
     } else if (dup_filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, dup_filesort, move(iterator),
-                                              &examined_rows);
+      iterator = NewIterator<SortingIterator>(thd, qep_tab, dup_filesort,
+                                              move(iterator), &examined_rows);
       qep_tab->table()->duplicate_removal_iterator =
           down_cast<SortingIterator *>(iterator->real_iterator());
     }
     if (filesort != nullptr) {
-      iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
-                                              &examined_rows);
+      iterator = NewIterator<SortingIterator>(thd, qep_tab, filesort,
+                                              move(iterator), &examined_rows);
       qep_tab->table()->sorting_iterator =
           down_cast<SortingIterator *>(iterator->real_iterator());
     }
@@ -5249,7 +5250,7 @@ void join_setup_iterator(QEP_TAB *tab) {
 
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
-    tab->iterator = NewIterator<SortingIterator>(tab->join()->thd,
+    tab->iterator = NewIterator<SortingIterator>(tab->join()->thd, tab,
                                                  tab->filesort, move(iterator),
                                                  &tab->join()->examined_rows);
     tab->table()->sorting_iterator =
