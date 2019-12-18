@@ -1212,16 +1212,16 @@ Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #36
@@ -1581,16 +1581,16 @@ Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	5
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #46
@@ -1736,8 +1736,8 @@ Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
 Handler_update	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 
 #
 # query:  DELETE   FROM t1 WHERE c1_idx = 'y' ORDER BY pk DESC LIMIT 2
@@ -1766,8 +1766,8 @@ Handler_delete	2
 Handler_read_key	4
 Handler_read_next	2
 Handler_read_rnd	2
-Sort_range	1
 Sort_rows	2
+Sort_scan	1
 
 DROP TABLE t1;
 #50
@@ -2355,11 +2355,11 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 
 DROP TABLE t1;
 #

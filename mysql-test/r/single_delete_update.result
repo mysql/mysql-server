@@ -315,9 +315,9 @@ NULL	13	13
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
-Sort_range	1
+Sort_range	0
 Sort_rows	4
-Sort_scan	0
+Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -337,9 +337,9 @@ DELETE FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
-Sort_range	1
+Sort_range	0
 Sort_rows	4
-Sort_scan	0
+Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -874,9 +874,9 @@ NULL	13	13
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
-Sort_range	1
+Sort_range	0
 Sort_rows	4
-Sort_scan	0
+Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -896,9 +896,9 @@ UPDATE t2 SET i = 123 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
-Sort_range	1
+Sort_range	0
 Sort_rows	4
-Sort_scan	0
+Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
