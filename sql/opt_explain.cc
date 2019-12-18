@@ -2000,12 +2000,14 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
 vector<string> FullDebugString(const THD *thd, const RowIterator &iterator) {
   vector<string> ret = iterator.DebugString();
   if (iterator.expected_rows() >= 0.0) {
-    // NOTE: We cannot use %.0f, since MSVC and GCC round 0.5 in different
+    // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
     // directions, so tests would not be reproducible between platforms.
-    // Round off using llrint() instead.
-    char str[256];
-    snprintf(str, sizeof(str), "  (cost=%.2f rows=%lld)",
-             iterator.estimated_cost(), llrint(iterator.expected_rows()));
+    // Format/round using my_gcvt() and llrint() instead.
+    char cost_as_string[FLOATING_POINT_BUFFER];
+    my_fcvt(iterator.estimated_cost(), 2, cost_as_string, /*error=*/nullptr);
+    char str[512];
+    snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
+             llrint(iterator.expected_rows()));
     ret.back() += str;
   }
   if (thd->lex->is_explain_analyze) {
