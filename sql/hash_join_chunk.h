@@ -47,20 +47,26 @@ class String;
 // The basic usage goes like this:
 //
 //   HashJoinChunk chunk;
-//   chunk.Init(tables); // Initialize a chunk to hold data from the given
-//                       // tables.
+//   // Initialize a chunk to hold data from the given tables without any match
+//   // flags.
+//   chunk.Init(tables, /*uses_match_flags=*/false);
 //   String buffer; // A buffer that is used when copying data between tables
 //                  // and the chunk file, and vica versa.
 //   while (iterator->Read() == 0) {
-//     chunk.WriteRowToChunk(&buffer); // Write the row that lies in the record
-//                                     // buffers of "tables" to this chunk,
-//                                     // using the provided buffer.
+//     // Write the row that lies in the record buffers of "tables" to this
+//     // chunk, using the provided buffer. If the chunk file was initialized to
+//     // use match flags, we would prefix the row with a match flag saying that
+//     // this row did not have any matching row.
+//     chunk.WriteRowToChunk(&buffer, /*matched=*/false);
 //   };
 //
 //   chunk.Rewind(); // Prepare to read the first row in this chunk.
-//   chunk.LoadRowFromChunk(&buffer); // Put the row from the chunk to the
-//                                    // record buffers of "tables", using the
-//                                    // provided buffer.
+//
+//   bool match_flag,
+//   // Put the row from the chunk to the record buffers of "tables", using the
+//   // provided buffer. If the chunk file was initialized to use match flags,
+//   // the match flag for the row read would be stored in 'match_flag'.
+//   chunk.LoadRowFromChunk(&buffer, &match_flag);
 class HashJoinChunk {
  public:
   HashJoinChunk() = default;  // Constructible.
@@ -75,8 +81,14 @@ class HashJoinChunk {
 
   /// Initialize this HashJoinChunk.
   ///
+  /// @param tables The tables to store row data from. Which column we store in
+  ///   the chunk file is determined by each tables read set.
+  /// @param uses_match_flags Whether each row should be prefixed with a match
+  ///   flag, saying whether the row had a matching row.
+  ///
   /// @returns true if the initialization failed.
-  bool Init(const hash_join_buffer::TableCollection &tables);
+  bool Init(const hash_join_buffer::TableCollection &tables,
+            bool uses_match_flags);
 
   /// @returns the number of rows in this HashJoinChunk
   ha_rows num_rows() const { return m_num_rows; }
@@ -91,9 +103,12 @@ class HashJoinChunk {
   ///
   /// @param buffer a buffer that is used when copying data from the tables to
   ///   the chunk file. Note that any existing data in "buffer" is overwritten.
+  /// @param matched whether this row has seen a matching row from the other
+  ///   input. The flag is only written if 'm_uses_match_flags' is set, and if
+  ///   the row comes from the probe input.
   ///
   /// @retval true on error.
-  bool WriteRowToChunk(String *buffer);
+  bool WriteRowToChunk(String *buffer, bool matched);
 
   /// Read a row from the HashJoinChunk and put it in the record buffer.
   ///
@@ -104,8 +119,11 @@ class HashJoinChunk {
   /// @param buffer a buffer that is used when copying data from the chunk file
   ///   to the tables. Note that any existing data in "buffer" is overwritten.
   ///
+  /// @param[out] matched whether this row has seen a matching row from the
+  ///   other input. The flag is only restored if 'm_uses_match_flags' is set,
+  ///   and if the row comes from the probe input.
   /// @retval true on error.
-  bool LoadRowFromChunk(String *buffer);
+  bool LoadRowFromChunk(String *buffer, bool *matched);
 
   /// Flush the file buffer, and prepare the file for reading.
   ///
@@ -122,6 +140,9 @@ class HashJoinChunk {
 
   // The underlying file that is used when reading data to and from disk.
   IO_CACHE m_file;
+
+  // Whether every row is prefixed with a match flag.
+  bool m_uses_match_flags{false};
 };
 
 #endif  // SQL_HASH_JOIN_CHUNK_H_

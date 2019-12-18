@@ -4322,9 +4322,28 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
     // we have a pair, can generate 'item_field=head'
     if (eq_item) eq_list.push_back(eq_item);
 
-    eq_item = new Item_func_eq(item_field, head);
+    if (head->type() == Item::FIELD_ITEM) {
+      // Allocate a new Item that we attach to the equality instead of re-using
+      // the existing item. We must do this because if this condition is used as
+      // a join condition in a hash join, we may end up in a scenario where we
+      // have to go in and undo the equality propagation. If the field we are
+      // replacing during this operation is the same field that is used in other
+      // conditions, we may end up doing illegal changes. See
+      // Item_func::ensure_multi_equality_fields_are_available for more details.
+      Item_field *new_item_field =
+          new Item_field(thd, down_cast<Item_field *>(head));
+
+      // Store away all fields that were considered equal, so that we are able
+      // to undo this operation later if we have to. See
+      // Item_func::ensure_multi_equality_fields_are_available for more details.
+      new_item_field->set_item_equal(item_equal);
+      eq_item = new Item_func_eq(item_field, new_item_field);
+    } else {
+      eq_item = new Item_func_eq(item_field, head);
+    }
     if (!eq_item || down_cast<Item_func_eq *>(eq_item)->set_cmp_func())
       return nullptr;
+
     eq_item->quick_fix_field();
     if (item_const != nullptr) {
       eq_item->apply_is_true();

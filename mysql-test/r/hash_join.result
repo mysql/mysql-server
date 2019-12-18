@@ -617,7 +617,10 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 EXPLAIN
-<not executable by iterator executor>
+-> Left hash join (t2.col1 = t1.col1)  (cost=0.63 rows=2)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Hash
+        -> Table scan on t2  (cost=0.18 rows=1)
 
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3022,3 +3025,389 @@ col1
 SET join_buffer_size = DEFAULT;
 SET optimizer_switch = DEFAULT;
 DROP TABLE build, probe;
+# Outer join.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Left hash join (t2.col1 = t1.col1)  (cost=0.63 rows=2)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Hash
+        -> Table scan on t2  (cost=0.18 rows=1)
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+col1	col1
+1	1
+2	NULL
+DROP TABLE t1,t2;
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1);
+EXPLAIN FORMAT=tree SELECT t1.col1, t2.col1, t3.col1 FROM t1
+LEFT JOIN (
+t2 LEFT JOIN t3 ON t2.col1 = t3.col1)
+ON t2.col1 = t1.col1
+ORDER BY t1.col1, t2.col1, t3.col1;
+EXPLAIN
+-> Sort: <temporary>.col1, <temporary>.col1, <temporary>.col1
+    -> Stream results
+        -> Left hash join (t2.col1 = t1.col1)  (cost=1.36 rows=6)
+            -> Table scan on t1  (cost=0.55 rows=3)
+            -> Hash
+                -> Left hash join (t3.col1 = t2.col1)  (cost=0.51 rows=2)
+                    -> Table scan on t2  (cost=0.15 rows=2)
+                    -> Hash
+                        -> Table scan on t3  (cost=0.06 rows=1)
+
+SELECT t1.col1, t2.col1, t3.col1 FROM t1
+LEFT JOIN (
+t2 LEFT JOIN t3 ON t2.col1 = t3.col1)
+ON t2.col1 = t1.col1
+ORDER BY t1.col1, t2.col1, t3.col1;
+col1	col1	col1
+1	1	1
+2	2	NULL
+3	NULL	NULL
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (i INTEGER NOT NULL);
+INSERT INTO t1 VALUES (0), (2), (3),(4);
+CREATE TABLE t2 (i INTEGER NOT NULL);
+INSERT INTO t2 VALUES (0), (1), (3),(4);
+CREATE TABLE t3 (i INTEGER NOT NULL);
+INSERT INTO t3 VALUES (0), (1), (2), (4);
+CREATE TABLE t4 (i INTEGER NOT NULL);
+INSERT INTO t4 VALUES (0), (1), (2), (3);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM
+t1 LEFT JOIN
+( t2 LEFT JOIN
+( t3 LEFT JOIN
+t4
+ON t4.i = t3.i
+)
+ON t3.i = t2.i
+)
+ON t2.i = t1.i;
+EXPLAIN
+-> Left hash join (t2.i = t1.i)  (cost=34.36 rows=256)
+    -> Table scan on t1  (cost=0.65 rows=4)
+    -> Hash
+        -> Left hash join (t2.i = t3.i), (t3.i = t2.i)  (cost=8.51 rows=64)
+            -> Table scan on t2  (cost=0.16 rows=4)
+            -> Hash
+                -> Left hash join (t4.i = t3.i)  (cost=1.86 rows=16)
+                    -> Table scan on t3  (cost=0.04 rows=4)
+                    -> Hash
+                        -> Table scan on t4  (cost=0.01 rows=4)
+
+SELECT * FROM
+t1 LEFT JOIN
+( t2 LEFT JOIN
+( t3 LEFT JOIN
+t4
+ON t4.i = t3.i
+)
+ON t3.i = t2.i
+)
+ON t2.i = t1.i;
+i	i	i	i
+0	0	0	0
+2	NULL	NULL	NULL
+3	3	NULL	NULL
+4	4	4	NULL
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (t2 INNER JOIN t3 ON t2.col1 = t3.col1)
+ON t1.col1 = t2.col1;
+EXPLAIN
+-> Left hash join (t2.col1 = t1.col1), (t3.col1 = t1.col1)  (cost=1.05 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (cost=0.70 rows=1)
+            -> Table scan on t3  (cost=0.35 rows=1)
+            -> Hash
+                -> Table scan on t2  (cost=0.35 rows=1)
+
+DROP TABLE t1, t2, t3;
+# Set up a case where the join condition in a left join does not refer
+# to any of the tables (degenerate join predicate). It will be attached
+# as an "extra" condition on the hash join iterator.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (rand() < <cache>(-(1)))  (cost=0.70 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
+col1	col1
+1	NULL
+DROP TABLE t1, t2;
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 1;
+col1	col1	col2
+1	1	1
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 2;
+col1	col1	col2
+1	1	2
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 3;
+col1	col1	col2
+1	1	3
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 4;
+col1	col1	col2
+1	1	4
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 5;
+col1	col1	col2
+1	1	5
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 6;
+col1	col1	col2
+1	NULL	NULL
+DROP TABLE t1, t2;
+# Run a query where we get a cached outer join condition (i.e. comparison
+# between two constant values. The condition is evaluated once and then
+# cached.). This condition must be placed as an "extra" condition on the
+# hash join iterator, and not as a filter after it.
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,1), (2,2);
+EXPLAIN FORMAT=tree SELECT
+tt.t
+FROM
+(SELECT 'crash1' AS t, f2 FROM t1) AS tt
+LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
+WHERE
+tt.t = 'crash1';
+EXPLAIN
+-> Left hash join (t1.f2 = t1.f2), extra conditions: <cache>(('crash1' = 'crash2'))  (cost=0.88 rows=4)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Hash
+        -> Table scan on t1  (cost=0.23 rows=2)
+
+SELECT
+tt.t
+FROM
+(SELECT 'crash1' AS t, f2 FROM t1) AS tt
+LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
+WHERE
+tt.t = 'crash1';
+t
+crash1
+crash1
+DROP TABLE t1;
+# Set up a query where the optimizer will attach an AND condition to ot3,
+# where the AND condition is inside a trigger condition guard.
+# Additionally, one of the conditions inside the AND condition is a join
+# condition while the other is not. What we should see in EXPLAIN is that
+# the hash join iterator uses one of these conditions as a join
+# condition, while the other condition should be attached as an "extra"
+# condition.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND RAND() < RAND();
+EXPLAIN
+-> Left hash join (t2.col1 = t1.col1), extra conditions: (rand() < rand())  (cost=0.70 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+DROP TABLE t1, t2;
+# See that outer join with spill to disk works.
+CREATE TABLE t1 (col1 BIGINT NOT NULL, col2 BIGINT NOT NULL);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+INSERT INTO t1
+SELECT col1 + POW(2, 0), col2 + POW(2, 0) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 1), col2 + POW(2, 1) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 2), col2 + POW(2, 2) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 3), col2 + POW(2, 3) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 4), col2 + POW(2, 4) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 5), col2 + POW(2, 5) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 6), col2 + POW(2, 6) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 7), col2 + POW(2, 7) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 8), col2 + POW(2, 8) FROM t1;
+INSERT INTO t1
+SELECT col1 + POW(2, 9), col2 + POW(2, 9) FROM t1;
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 1024;
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Left hash join (t2.col1 = t1.col1)  (cost=104878.97 rows=1048576)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=0.12 rows=1024)
+
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+SUM(t1.col1)	SUM(t1.col2)
+524800	525312
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1), SUM(t1.col2) FROM t1
+LEFT JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t1.col2)
+    -> Left hash join (t2.col1 = t1.col1), extra conditions: (t1.col2 < t2.col2)  (cost=104878.97 rows=1048576)
+        -> Table scan on t1  (cost=103.65 rows=1024)
+        -> Hash
+            -> Table scan on t2  (cost=0.12 rows=1024)
+
+SELECT SUM(t1.col1), SUM(t1.col2) FROM t1
+LEFT JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+SUM(t1.col1)	SUM(t1.col2)
+524800	525312
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 LEFT JOIN
+(t2 LEFT JOIN t3 ON ABS(t2.i) = t3.i)
+ON t2.i = t1.i;
+EXPLAIN
+-> Left hash join (t2.i = t1.i)  (cost=1.05 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Left hash join (abs(t2.i) = t3.i)  (cost=0.70 rows=1)
+            -> Table scan on t2  (cost=0.35 rows=1)
+            -> Hash
+                -> Table scan on t3  (cost=0.35 rows=1)
+
+DROP TABLE t1, t2, t3;
+# See that we do not attach conditions that are always 'true' to the hash
+# join iterator.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
+EXPLAIN
+-> Left hash join (no condition)  (cost=0.70 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t2  (cost=0.35 rows=1)
+
+DROP TABLE t1, t2;
+# Set up a query where the join condition is an equi-join condition,
+# but it refers to only one side of the hash join (degenerate join
+# predicate). This condition must be attached as an 'extra' condition
+# (proper join conditions must refer to both sides of the join).
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON TRUE) ON t3.i = t2.i;
+EXPLAIN
+-> Left hash join (no condition), extra conditions: (t3.i = t2.i)  (cost=1.05 rows=1)
+    -> Table scan on t1  (cost=0.35 rows=1)
+    -> Hash
+        -> Inner hash join (no condition)  (cost=0.70 rows=1)
+            -> Table scan on t3  (cost=0.35 rows=1)
+            -> Hash
+                -> Table scan on t2  (cost=0.35 rows=1)
+
+DROP TABLE t1, t2, t3;
+# Execute a query that causes the hash join to do everything in memory
+# with multiple refills of the hash table. This can be triggered when the
+# build input does not fit in memory, and the iterator is not allowed to
+# spill to disk due to LIMIT in the query.
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 SELECT UUID();
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+CREATE TABLE t2 AS SELECT UUID() AS col1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 128;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+EXPLAIN
+-> Limit: 1000 row(s)
+    -> Left hash join (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1896.50 rows=16384)
+        -> Table scan on t1  (cost=13.05 rows=128)
+        -> Hash
+            -> Table scan on t2  (cost=2.10 rows=128)
+
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+#
+# Bug #30631730: WL#13377: RESULT DIFF WITH LEFT HASH JOIN
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
+INSERT INTO t1 VALUES
+(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
+SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
+EXPLAIN
+-> Left hash join (no condition)  (cost=840.62 rows=8000)
+    -> Index scan on alias1 using PRIMARY  (cost=2.25 rows=20)
+    -> Hash
+        -> Hash antijoin (no condition), extra conditions: (alias1.pk <> 20)  (cost=40.37 rows=400)
+            -> Index scan on alias2 using PRIMARY  (cost=0.11 rows=20)
+            -> Hash
+                -> Index scan on t1 using PRIMARY  (cost=0.11 rows=20)
+
+Warnings:
+Note	1276	Field or reference 'test.alias1.pk' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
+SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
+pk	pk
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+5	NULL
+6	NULL
+7	NULL
+8	NULL
+9	NULL
+10	NULL
+11	NULL
+12	NULL
+13	NULL
+14	NULL
+15	NULL
+16	NULL
+17	NULL
+18	NULL
+19	NULL
+20	NULL
+DROP TABLE t1;

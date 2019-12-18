@@ -5536,7 +5536,20 @@ EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 EXPLAIN
-<not executable by iterator executor>
+-> Remove duplicate (ot1, ot2, ot3) rows using temporary table (weedout)  (cost=88.33 rows=864)
+    -> Left hash join (ot3.a = ot2.a), (it3.a = ot2.a)  (cost=88.33 rows=864)
+        -> Left hash join (it3.a = ot1.a), (ot2.a = ot1.a)  (cost=12.10 rows=96)
+            -> Table scan on ot1  (cost=1.30 rows=8)
+            -> Hash
+                -> Inner hash join (no condition)  (cost=2.00 rows=12)
+                    -> Table scan on ot2  (cost=0.11 rows=4)
+                    -> Hash
+                        -> Table scan on it3  (cost=0.30 rows=3)
+        -> Hash
+            -> Inner hash join (no condition)  (cost=1.43 rows=9)
+                -> Table scan on it3  (cost=0.03 rows=3)
+                -> Hash
+                    -> Table scan on ot3  (cost=0.03 rows=3)
 
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
@@ -5646,7 +5659,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	ot2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` left join `test`.`ot3` on((`test`.`ot3`.`a` = `test`.`ot1`.`a`)) semi join (`test`.`it1`)) on(((`test`.`it1`.`a` = `test`.`ot1`.`a`) and (`test`.`ot2`.`a` = `test`.`ot1`.`a`))) where true
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` left join `test`.`ot3` on((`test`.`ot3`.`a` = `test`.`it1`.`a`)) semi join (`test`.`it1`)) on(((`test`.`it1`.`a` = `test`.`ot1`.`a`) and (`test`.`ot2`.`a` = `test`.`ot1`.`a`))) where true
 SELECT *
 FROM   ot1
 LEFT JOIN
@@ -12793,7 +12806,17 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
-<not executable by iterator executor>
+-> Inner hash join (no condition)  (cost=9.35 rows=54)
+    -> Table scan on t1  (cost=0.55 rows=3)
+    -> Hash
+        -> Limit: 1 row(s)  (cost=3.70 rows=18)
+            -> Left hash join (no condition)  (cost=3.70 rows=18)
+                -> Left hash join (no condition)  (cost=1.12 rows=6)
+                    -> Table scan on t2  (cost=0.45 rows=2)
+                    -> Hash
+                        -> Table scan on t1  (cost=0.28 rows=3)
+                -> Hash
+                    -> Table scan on alias1  (cost=1.65 rows=3)
 
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2

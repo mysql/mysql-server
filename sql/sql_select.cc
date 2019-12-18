@@ -1129,7 +1129,10 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
       tab->null_bit = jt_null_bits++;
     }
     qep_tab->table()->prepare_for_position();
-    qep_tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
+
+    if (qep_tab->rowid_status == NO_ROWID_NEEDED) {
+      qep_tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
+    }
   }
 
   SJ_TMP_TABLE *sjtbl;

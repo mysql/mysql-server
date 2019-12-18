@@ -1767,3 +1767,236 @@ eval $query;
 SET join_buffer_size = DEFAULT;
 SET optimizer_switch = DEFAULT;
 DROP TABLE build, probe;
+
+--echo # Outer join.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+DROP TABLE t1,t2;
+
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2);
+INSERT INTO t3 VALUES (1);
+
+let $query = SELECT t1.col1, t2.col1, t3.col1 FROM t1
+  LEFT JOIN (
+    t2 LEFT JOIN t3 ON t2.col1 = t3.col1)
+  ON t2.col1 = t1.col1
+  ORDER BY t1.col1, t2.col1, t3.col1;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (i INTEGER NOT NULL);
+INSERT INTO t1 VALUES (0), (2), (3),(4);
+CREATE TABLE t2 (i INTEGER NOT NULL);
+INSERT INTO t2 VALUES (0), (1), (3),(4);
+CREATE TABLE t3 (i INTEGER NOT NULL);
+INSERT INTO t3 VALUES (0), (1), (2), (4);
+CREATE TABLE t4 (i INTEGER NOT NULL);
+INSERT INTO t4 VALUES (0), (1), (2), (3);
+ANALYZE TABLE t1, t2, t3, t4;
+
+let $query = SELECT * FROM
+ t1 LEFT JOIN
+ ( t2 LEFT JOIN
+   ( t3 LEFT JOIN
+     t4
+     ON t4.i = t3.i
+   )
+   ON t3.i = t2.i
+ )
+ ON t2.i = t1.i;
+
+eval EXPLAIN FORMAT=tree $query;
+--sorted_result
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+CREATE TABLE t3 (col1 INTEGER);
+
+let $query = SELECT * FROM t1 LEFT JOIN (t2 INNER JOIN t3 ON t2.col1 = t3.col1)
+  ON t1.col1 = t2.col1;
+
+eval EXPLAIN FORMAT=tree $query;
+DROP TABLE t1, t2, t3;
+
+--echo # Set up a case where the join condition in a left join does not refer
+--echo # to any of the tables (degenerate join predicate). It will be attached
+--echo # as an "extra" condition on the hash join iterator.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+# RAND() always returns a number in the range [0.0, 1.0), so the query is
+# deterministic (the condition will always be false).
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
+SELECT * FROM t1 LEFT JOIN t2 ON RAND() < -1;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5);
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 1;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 2;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 3;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 4;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 5;
+SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND t2.col2 = 6;
+DROP TABLE t1, t2;
+
+--echo # Run a query where we get a cached outer join condition (i.e. comparison
+--echo # between two constant values. The condition is evaluated once and then
+--echo # cached.). This condition must be placed as an "extra" condition on the
+--echo # hash join iterator, and not as a filter after it.
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,1), (2,2);
+let $query = SELECT
+  tt.t
+FROM
+  (SELECT 'crash1' AS t, f2 FROM t1) AS tt
+  LEFT JOIN t1 ON tt.t = 'crash2' AND tt.f2 = t1.f2
+WHERE
+  tt.t = 'crash1';
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1;
+
+--echo # Set up a query where the optimizer will attach an AND condition to ot3,
+--echo # where the AND condition is inside a trigger condition guard.
+--echo # Additionally, one of the conditions inside the AND condition is a join
+--echo # condition while the other is not. What we should see in EXPLAIN is that
+--echo # the hash join iterator uses one of these conditions as a join
+--echo # condition, while the other condition should be attached as an "extra"
+--echo # condition.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 AND RAND() < RAND();
+DROP TABLE t1, t2;
+
+--echo # See that outer join with spill to disk works.
+CREATE TABLE t1 (col1 BIGINT NOT NULL, col2 BIGINT NOT NULL);
+INSERT INTO t1 SELECT POW(2, 0), POW(2, 0);
+let $count=0;
+while ($count < 10)
+{
+  eval INSERT INTO t1
+         SELECT col1 + POW(2, $count), col2 + POW(2, $count) FROM t1;
+  inc $count;
+}
+CREATE TABLE t2 AS SELECT * FROM t1;
+UPDATE t1 SET col2 = col1 + 1 WHERE MOD(col1, 2) = 0;
+
+ANALYZE TABLE t1, t2;
+
+let $query_no_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+let $query_with_extra_conditions =
+  SELECT SUM(t1.col1), SUM(t1.col2) FROM t1
+    LEFT JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+
+SET join_buffer_size = 1024;
+
+eval EXPLAIN FORMAT=tree $query_no_extra_conditions;
+eval $query_no_extra_conditions;
+
+eval EXPLAIN FORMAT=tree $query_with_extra_conditions;
+eval $query_with_extra_conditions;
+
+SET optimizer_switch = DEFAULT;
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 LEFT JOIN
+    (t2 LEFT JOIN t3 ON ABS(t2.i) = t3.i)
+  ON t2.i = t1.i;
+DROP TABLE t1, t2, t3;
+
+--echo # See that we do not attach conditions that are always 'true' to the hash
+--echo # join iterator.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON 1=1;
+DROP TABLE t1, t2;
+
+--echo # Set up a query where the join condition is an equi-join condition,
+--echo # but it refers to only one side of the hash join (degenerate join
+--echo # predicate). This condition must be attached as an 'extra' condition
+--echo # (proper join conditions must refer to both sides of the join).
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON TRUE) ON t3.i = t2.i;
+DROP TABLE t1, t2, t3;
+
+--echo # Execute a query that causes the hash join to do everything in memory
+--echo # with multiple refills of the hash table. This can be triggered when the
+--echo # build input does not fit in memory, and the iterator is not allowed to
+--echo # spill to disk due to LIMIT in the query.
+CREATE TABLE t1 (col1 VARCHAR(255));
+INSERT INTO t1 SELECT UUID();
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+INSERT INTO t1 SELECT UUID() FROM t1;
+CREATE TABLE t2 AS SELECT UUID() AS col1 FROM t1;
+
+ANALYZE TABLE t1, t2;
+
+SET join_buffer_size = 128;
+let $query = SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
+eval EXPLAIN FORMAT=tree $query;
+
+# The results are not interesting. We only want to see that we do not assert.
+--disable_result_log
+eval $query;
+--enable_result_log
+
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #30631730: WL#13377: RESULT DIFF WITH LEFT HASH JOIN
+--echo #
+
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
+
+INSERT INTO t1 VALUES
+  (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+ANALYZE TABLE t1;
+
+let $query =
+  SELECT * FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON NOT EXISTS (
+    SELECT * FROM t1 WHERE alias1.pk NOT IN ( 20 ) );
+
+# Verify that we get a nested loop for the left join (since the inner
+# conditions refer to something on the outside, we cannot use hash join),
+# but that the antijoin stays a hash join.
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;

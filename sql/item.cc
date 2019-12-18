@@ -5595,7 +5595,15 @@ Item *Item_field::replace_equal_field(uchar *) {
     DBUG_ASSERT(subst);
     DBUG_ASSERT(table_ref == subst->table_ref ||
                 table_ref->table != subst->table_ref->table);
-    if (table_ref != subst->table_ref && !field->eq(subst->field)) return subst;
+    if (table_ref != subst->table_ref && !field->eq(subst->field)) {
+      // We may have to undo the substitution that is done here when setting up
+      // hash join; the new field may be a field from a table that is not
+      // reachable from hash join. Store which multi-equality we found the field
+      // substitution in, so that we can go back and find a field that the hash
+      // join can reach.
+      subst->set_item_equal(item_equal);
+      return subst;
+    }
   }
   return this;
 }
@@ -9866,4 +9874,33 @@ string ItemToString(const Item *item) {
       enum_query_type(QT_NO_DEFAULT_DB | QT_SUBSELECT_AS_ONLY_SELECT_NUMBER));
   current_thd->variables.option_bits = save_bits;
   return to_string(str);
+}
+
+bool Item_field::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
+  if (item_equal != nullptr) {
+    // We have established in
+    // 'Item_func_eq::ensure_multi_equality_fields_are_available' that this item
+    // references a field that is outside of our reach. We also have a
+    // multi-equality (item_equal is set), so we go through all fields in the
+    // multi-equality and find the first that is within our reach. The table_map
+    // provided in 'arg' defines the tables within our reach.
+    table_map reachable_tables = *pointer_cast<table_map *>(arg);
+    Item_equal_iterator item_equal_iterator(*item_equal);
+    Item_field *it;
+
+    while ((it = item_equal_iterator++)) {
+      if (it == this) {
+        continue;
+      }
+
+      table_map item_field_used_tables = it->used_tables();
+      if ((item_field_used_tables & reachable_tables) ==
+          item_field_used_tables) {
+        set_field(it->field);
+        return false;
+      }
+    }
+  }
+
+  return false;
 }

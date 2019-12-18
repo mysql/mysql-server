@@ -382,13 +382,17 @@ bool HashJoinRowBuffer::Init(std::uint32_t hash_seed) {
   return false;
 }
 
-StoreRowResult HashJoinRowBuffer::StoreRow(THD *thd,
-                                           bool reject_duplicate_keys) {
+StoreRowResult HashJoinRowBuffer::StoreRow(
+    THD *thd, bool reject_duplicate_keys,
+    bool store_rows_with_null_in_condition) {
   // Make the key from the join conditions.
   m_buffer.length(0);
   for (const HashJoinCondition &hash_join_condition : m_join_conditions) {
-    if (hash_join_condition.join_condition()->append_join_key_for_hash_join(
-            thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer)) {
+    bool null_in_join_condition =
+        hash_join_condition.join_condition()->append_join_key_for_hash_join(
+            thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer);
+
+    if (null_in_join_condition && !store_rows_with_null_in_condition) {
       // SQL NULL values will never match in an inner join or semijoin, so skip
       // the row.
       return StoreRowResult::ROW_STORED;

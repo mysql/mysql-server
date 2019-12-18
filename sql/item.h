@@ -2128,6 +2128,16 @@ class Item : public Parse_tree_node {
     return false;
   }
 
+  /// Traverse the item tree and replace fields that are outside of reach with
+  /// fields that are within reach. This is used by hash join when it detects
+  /// that a join condition refers to a field that is outside of reach, due to
+  /// equality propagation. See
+  /// Item_func::ensure_multi_equality_fields_are_available_walker for more
+  /// details.
+  virtual bool ensure_multi_equality_fields_are_available_walker(uchar *) {
+    return false;
+  }
+
  protected:
   /**
     Helper function for mark_field_in_map(uchar *arg).
@@ -3358,6 +3368,12 @@ class Item_field : public Item_ident {
   Field *result_field{nullptr};
 
  public:
+  void set_item_equal(Item_equal *item_equal_arg) {
+    if (item_equal == nullptr && item_equal_arg != nullptr) {
+      item_equal = item_equal_arg;
+    }
+  }
+
   Item_equal *item_equal;
   bool no_const_subst;
   /*
@@ -3552,6 +3568,8 @@ class Item_field : public Item_ident {
 
   bool replace_field_processor(uchar *arg) override;
   bool strip_db_table_name_processor(uchar *) override;
+
+  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
 };
 
 class Item_null : public Item_basic_constant {

@@ -5525,7 +5525,13 @@ EXPLAIN FORMAT=tree SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
 LEFT JOIN ot3 ON ot2.a=ot3.a AND ot3.a IN (SELECT a FROM it3);
 EXPLAIN
-<not executable by iterator executor>
+-> Left hash join (ot3.a = ot2.a), extra conditions: <in_optimizer>(ot2.a,<exists>(select #3))  (cost=10.13 rows=96)
+    -> Left hash join (ot2.a = ot1.a), extra conditions: <in_optimizer>(ot1.a,<exists>(select #2))  (cost=3.81 rows=32)
+        -> Table scan on ot1  (cost=1.30 rows=8)
+        -> Hash
+            -> Table scan on ot2  (cost=0.11 rows=4)
+    -> Hash
+        -> Table scan on ot3  (cost=0.03 rows=3)
 
 SELECT *
 FROM ot1 LEFT JOIN ot2 ON ot1.a=ot2.a AND ot1.a IN (SELECT a FROM it3)
@@ -5635,7 +5641,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	ot3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	it1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` left join `test`.`ot3` on((`test`.`ot3`.`a` = `test`.`ot1`.`a`))) on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and <in_optimizer>(`test`.`ot1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`it1` where (<cache>(`test`.`ot1`.`a`) = `test`.`it1`.`a`))))) where true
+Note	1003	/* select#1 */ select `test`.`ot1`.`a` AS `a`,`test`.`ot2`.`a` AS `a`,`test`.`ot3`.`a` AS `a` from `test`.`ot1` left join (`test`.`ot2` left join `test`.`ot3` on((`test`.`ot3`.`a` = `test`.`ot2`.`a`))) on(((`test`.`ot2`.`a` = `test`.`ot1`.`a`) and <in_optimizer>(`test`.`ot1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`it1` where (<cache>(`test`.`ot1`.`a`) = `test`.`it1`.`a`))))) where true
 SELECT *
 FROM   ot1
 LEFT JOIN

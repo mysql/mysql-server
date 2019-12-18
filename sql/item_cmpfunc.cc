@@ -42,6 +42,7 @@
 #include "m_string.h"
 #include "mf_wcomp.h"  // wild_one, wild_many
 #include "my_alloc.h"
+#include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_macros.h"
@@ -74,6 +75,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
+#include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
@@ -7203,4 +7205,47 @@ longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
   } else {
     return get_value_b_func(thd, &item_arg, nullptr, item, is_null);
   }
+}
+
+void Item_func_eq::ensure_multi_equality_fields_are_available(
+    table_map left_side_tables, table_map right_side_tables) {
+  table_map left_arg_used_tables = args[0]->used_tables();
+  table_map right_arg_used_tables = args[1]->used_tables();
+
+  if (left_arg_used_tables == 0 || right_arg_used_tables == 0) {
+    // This is a filter, not a join condition.
+    return;
+  }
+
+  if (IsSubset(left_arg_used_tables, left_side_tables) &&
+      !IsSubset(right_arg_used_tables, right_side_tables)) {
+    // The left argument matches the left side tables, so adjust the right side
+    // with an "equal" field from right side tables.
+    args[1]->walk(&Item::ensure_multi_equality_fields_are_available_walker,
+                  enum_walk::POSTFIX,
+                  pointer_cast<uchar *>(&right_side_tables));
+  } else if (IsSubset(left_arg_used_tables, right_side_tables) &&
+             !IsSubset(right_arg_used_tables, left_side_tables)) {
+    // The left argument matches the right side tables, so adjust the right side
+    // with an "equal" field from the left side tables.
+    args[1]->walk(&Item::ensure_multi_equality_fields_are_available_walker,
+                  enum_walk::POSTFIX, pointer_cast<uchar *>(&left_side_tables));
+  } else if (IsSubset(right_arg_used_tables, left_side_tables) &&
+             !IsSubset(left_arg_used_tables, right_side_tables)) {
+    // The right argument matches the left side tables, so adjust the left side
+    // with an "equal" field from the right side tables.
+    args[0]->walk(&Item::ensure_multi_equality_fields_are_available_walker,
+                  enum_walk::POSTFIX,
+                  pointer_cast<uchar *>(&right_side_tables));
+  } else if (IsSubset(right_arg_used_tables, right_side_tables) &&
+             !IsSubset(left_arg_used_tables, left_side_tables)) {
+    // The right argument matches the right side tables, so adjust the left side
+    // with an "equal" field from the left side tables.
+    args[0]->walk(&Item::ensure_multi_equality_fields_are_available_walker,
+                  enum_walk::POSTFIX, pointer_cast<uchar *>(&left_side_tables));
+  }
+
+  // We must update used_tables in case we replaced any of the fields in this
+  // join condition.
+  update_used_tables();
 }

@@ -276,7 +276,7 @@ class HashJoinIterator final : public RowIterator {
   ///   whether the hash join can spill to disk. This is set to false in some
   ///   cases where we have a LIMIT in the query
   /// @param join_type
-  ///   The join type. The iterator currently supports INNER, SEMI and ANTI.
+  ///   The join type.
   /// @param join
   ///   The join we are a part of.
   /// @param extra_conditions
@@ -612,6 +612,18 @@ class HashJoinIterator final : public RowIterator {
     IN_MEMORY_WITH_HASH_TABLE_REFILL
   };
   HashJoinType m_hash_join_type{HashJoinType::IN_MEMORY};
+
+  // The match flag for the last probe row read from chunk file.
+  //
+  // This is needed if a outer join spills to disk; a probe row can match a row
+  // from the build input we haven't seen yet (it's been written out to disk
+  // because the hash table was full). So when reading a probe row from a chunk
+  // file, this variable holds the match flag. This flag must be a class member,
+  // since one probe row may match multiple rows from the hash table; the
+  // execution will go out of HashJoinIterator::Read() between each matching
+  // row, causing any local match flag to lose the match flag info from the last
+  // probe row read.
+  bool m_probe_row_match_flag{false};
 };
 
 /// For each of the given tables, request that the row ID is filled in

@@ -92,6 +92,7 @@
 #include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain_format.h"
+#include "sql/opt_hints.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
@@ -1463,14 +1464,23 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
         Item_func_trig_cond *inner_trig_cond = GetTriggerCondOrNull(inner_cond);
         if (inner_trig_cond != nullptr) {
           Item *inner_inner_cond = inner_trig_cond->arguments()[0];
-          predicates_above_join->push_back(
-              PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
+          if (join_conditions != nullptr) {
+            // If join_conditions is set, it indicates that we are on the right
+            // side of an outer join that will be executed using hash join. The
+            // condition must be moved to the point where the hash join iterator
+            // is created, so the condition can be attached to the iterator.
+            join_conditions->push_back(
+                PendingCondition{inner_inner_cond, trig_cond->idx()});
+          } else {
+            predicates_above_join->push_back(
+                PendingCondition{inner_inner_cond, inner_trig_cond->idx()});
+          }
         } else {
           if (join_conditions != nullptr) {
-            // If join_conditions is set, it indicates that we are on the inner
-            // side of an antijoin (we are dealing with the NOT IN side in the
-            // below example), and the antijoin will be executed using hash
-            // join:
+            // Similar to the left join above: If join_conditions is set,
+            // it indicates that we are on the inner side of an antijoin (we are
+            // dealing with the NOT IN side in the below example), and the
+            // antijoin will be executed using hash join:
             //
             //   SELECT * FROM t1 WHERE t1.col1 NOT IN (SELECT t2.col1 FROM t2);
             //
@@ -1738,6 +1748,19 @@ static Substructure FindSubstructure(
   if (is_semijoin && is_outer_join) {
     DBUG_ASSERT(outer_join_end > semijoin_end);
     is_semijoin = false;
+  }
+
+  // If we found any unhandled duplicates, mark in the QEP_TABs that a row ID is
+  // needed. This will notify iterators (e.g., HashJoinIterator) that they need
+  // to store and restore the row ID.
+  if (*unhandled_duplicates != 0) {
+    qep_tab_map table_range =
+        TablesBetween(first_idx, last_idx) & ~*unhandled_duplicates;
+    for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), table_range)) {
+      if (tab->rowid_status == NO_ROWID_NEEDED) {
+        tab->rowid_status = NEED_TO_CALL_POSITION_FOR_ROWID;
+      }
+    }
   }
 
   DBUG_ASSERT(is_semijoin + is_outer_join + is_weedout <= 1);
@@ -2053,6 +2076,24 @@ void SetCostOnHashJoinIterator(const Cost_model_server &cost_model,
                                cost_model.row_evaluate_cost(joined_rows));
 }
 
+static bool ConditionIsAlwaysTrue(Item *item) {
+  return item->const_item() && item->val_bool();
+}
+
+// Returns true if the item refers to only one side of the join. This is used to
+// determine whether an equi-join conditions need to be attached as an "extra"
+// condition (pure join conditions must refer to both sides of the join).
+static bool ItemRefersToOneSideOnly(Item *item, table_map left_side,
+                                    table_map right_side) {
+  const table_map item_used_tables = item->used_tables();
+
+  if ((left_side & item_used_tables) == 0 ||
+      (right_side & item_used_tables) == 0) {
+    return true;
+  }
+  return false;
+}
+
 // Create a hash join iterator with the given build and probe input. We will
 // move conditions from the argument "join_conditions" into two separate lists;
 // one list for equi-join conditions that will be used as normal join conditions
@@ -2076,6 +2117,15 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
     unique_ptr_destroy_only<RowIterator> probe_iterator,
     qep_tab_map probe_tables, JoinType join_type,
     vector<Item *> *join_conditions) {
+  table_map left_table_map = 0;
+  table_map right_table_map = 0;
+  for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), probe_tables)) {
+    left_table_map |= tab->table_ref->map();
+  }
+  for (QEP_TAB *tab : TablesContainedIn(qep_tab->join(), build_tables)) {
+    right_table_map |= tab->table_ref->map();
+  }
+
   // Move out equi-join conditions and non-equi-join conditions, so we can
   // attach them as join condition and extra conditions in hash join.
   vector<Item_func_eq *> hash_join_conditions;
@@ -2087,11 +2137,27 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
     vector<Item *> condition_parts;
     ExtractConditions(outer_item, &condition_parts);
     for (Item *inner_item : condition_parts) {
+      if (ConditionIsAlwaysTrue(inner_item)) {
+        // The optimizer may leave conditions that are always 'true'. These have
+        // no effect on the query, so we ignore them. Ideally, the optimizer
+        // should not attach these conditions in the first place.
+        continue;
+      }
+
       // See if this is an equi-join condition.
       if (inner_item->type() == Item::FUNC_ITEM ||
           inner_item->type() == Item::COND_ITEM) {
         Item_func *func_item = down_cast<Item_func *>(inner_item);
-        if (func_item->contains_only_equi_join_condition()) {
+
+        if (func_item->functype() == Item_func::EQ_FUNC) {
+          down_cast<Item_func_eq *>(func_item)
+              ->ensure_multi_equality_fields_are_available(left_table_map,
+                                                           right_table_map);
+        }
+
+        if (func_item->contains_only_equi_join_condition() &&
+            !ItemRefersToOneSideOnly(func_item, left_table_map,
+                                     right_table_map)) {
           hash_join_conditions.push_back(down_cast<Item_func_eq *>(func_item));
           continue;
         }
@@ -2172,9 +2238,21 @@ static bool UseHashJoin(QEP_TAB *qep_tab) {
              JOIN_CACHE::ALG_BKA;
 }
 
-static bool InsideAntiJoin(QEP_TAB *qep_tab) {
-  return qep_tab->last_inner() != NO_PLAN_IDX &&
-         qep_tab->table()->reginfo.not_exists_optimize;
+static bool InsideOuterOrAntiJoin(QEP_TAB *qep_tab) {
+  return qep_tab->last_inner() != NO_PLAN_IDX;
+}
+
+template <class T>
+void PickOutConditionsForTableIndex(int table_idx, vector<T> *from,
+                                    vector<T> *to) {
+  for (auto it = from->begin(); it != from->end();) {
+    if (it->table_index_to_attach_to == table_idx) {
+      to->push_back(*it);
+      it = from->erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 /**
@@ -2208,7 +2286,6 @@ static bool InsideAntiJoin(QEP_TAB *qep_tab) {
   inner joins, this is as soon as we've read all tables participating in the
   condition, but for outer joins, we need to wait until the join has happened.
   See pending_conditions below.
-
 
   @param upper_first_idx gives us the first table index of the other side of the
     join. Only valid if we are inside a substructure (outer join, semijoin or
@@ -2261,11 +2338,13 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
   vector<PendingCondition> top_level_pending_conditions;
   vector<PendingInvalidator> top_level_pending_invalidators;
+  vector<PendingCondition> top_level_pending_join_conditions;
   if (is_top_level_outer_join) {
     iterator =
         NewIterator<FakeSingleRowIterator>(thd, /*examined_rows=*/nullptr);
     pending_conditions = &top_level_pending_conditions;
     pending_invalidators = &top_level_pending_invalidators;
+    pending_join_conditions = &top_level_pending_join_conditions;
   }
 
   // NOTE: i is advanced in one of two ways:
@@ -2311,25 +2390,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 
         // Pick out any conditions that should be directly above this join
         // (ie., the ON conditions for this specific join).
-        for (auto it = pending_conditions->begin();
-             it != pending_conditions->end();) {
-          if (it->table_index_to_attach_to == int(i)) {
-            subtree_pending_conditions.push_back(*it);
-            it = pending_conditions->erase(it);
-          } else {
-            ++it;
-          }
-        }
+        PickOutConditionsForTableIndex(i, pending_conditions,
+                                       &subtree_pending_conditions);
 
         // Similarly, for invalidators.
-        for (auto it = pending_invalidators->begin();
-             it != pending_invalidators->end();) {
-          if (it->table_index_to_attach_to == int(i)) {
-            subtree_pending_invalidators.push_back(*it);
-            it = pending_invalidators->erase(it);
-          } else {
-            ++it;
-          }
+        PickOutConditionsForTableIndex(i, pending_invalidators,
+                                       &subtree_pending_invalidators);
+
+        // Similarly, for join conditions.
+        if (pending_join_conditions != nullptr) {
+          PickOutConditionsForTableIndex(i, pending_join_conditions,
+                                         &subtree_pending_join_conditions);
         }
       } else {
         // We can check the WHERE predicates on this table right away
@@ -2374,6 +2445,19 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
             DBUG_ASSERT(nullptr != dynamic_cast<Item_func_false *>(it->cond));
             join_type = JoinType::ANTI;
             it = subtree_pending_conditions.erase(it);
+          } else {
+            ++it;
+          }
+        }
+
+        // Do the same for antijoin-marking conditions.
+        for (auto it = subtree_pending_join_conditions.begin();
+             it != subtree_pending_join_conditions.end();) {
+          if (it->table_index_to_attach_to == int(i) &&
+              it->cond->item_name.ptr() == antijoin_null_cond) {
+            DBUG_ASSERT(nullptr != dynamic_cast<Item_func_false *>(it->cond));
+            join_type = JoinType::ANTI;
+            it = subtree_pending_join_conditions.erase(it);
           } else {
             ++it;
           }
@@ -2553,7 +2637,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     if (replace_with_hash_join || is_bka) {
       // Get the left tables of this join.
       if (calling_context == DIRECTLY_UNDER_SEMIJOIN ||
-          InsideAntiJoin(qep_tab)) {
+          InsideOuterOrAntiJoin(qep_tab)) {
         // Join buffering (hash join, BKA) supports semijoin with only one inner
         // table (see setup_join_buffering), so the calling context for a
         // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
@@ -2771,6 +2855,12 @@ void JOIN::create_table_iterators() {
   }
 }
 
+static bool HashJoinDisabledByHint(const THD *thd,
+                                   const TABLE_LIST *table_list) {
+  return !hint_table_state(thd, table_list, HASH_JOIN_HINT_ENUM,
+                           OPTIMIZER_SWITCH_HASH_JOIN);
+}
+
 unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   if (select_count) {
     return unique_ptr_destroy_only<RowIterator>(
@@ -2813,16 +2903,10 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     if (qep_tab->next_select == sub_select_op) {
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        if (qep_tab[1].last_inner() != NO_PLAN_IDX &&
-            !qep_tab[1].table()->reginfo.not_exists_optimize) {
-          // Reject outer join (not supported for BNL/BKA yet), but allow
-          // antijoin.
-          return nullptr;
-        }
         // See if it's possible to replace the BNL with a hash join,
         // or if it's BKA.
         const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
-        if (!join_cache->can_be_replaced_with_hash_join() &&
+        if (HashJoinDisabledByHint(thd, qep_tab[1].table_ref) &&
             join_cache->cache_type() != JOIN_CACHE::ALG_BKA) {
           return nullptr;
         }

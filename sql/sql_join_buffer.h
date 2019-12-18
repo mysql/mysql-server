@@ -486,13 +486,6 @@ class JOIN_CACHE : public QEP_operation {
   /* Pointer to the next join cache if there is any */
   JOIN_CACHE *next_cache;
 
-  // See if this operation can be replaced with a hash join. In order to be
-  // replaced with hash join, the operation must be a block nested loop,
-  // and the table must have at least one equi-join condition attached. If there
-  // are other conditions that are not equi-join conditions, they will be
-  // attached as filters after the hash join.
-  virtual bool can_be_replaced_with_hash_join() const { return false; }
-
   /**
     Initialize the join cache.
     @retval 0 on success
@@ -593,8 +586,6 @@ class JOIN_CACHE_BNL final : public JOIN_CACHE {
   int init() override;
 
   enum_join_cache_type cache_type() const override { return ALG_BNL; }
-
-  bool can_be_replaced_with_hash_join() const override;
 
  private:
   Item *const_cond;

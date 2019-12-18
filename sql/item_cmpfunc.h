@@ -986,6 +986,36 @@ class Item_func_eq : public Item_func_comparison {
   /// @returns either the argument it was given, or the argument wrapped in a
   ///   typecast
   Item *create_cast_if_needed(MEM_ROOT *mem_root, Item *argument) const;
+
+  /// See if this is a condition where any of the arguments refers to a field
+  /// that is outside the bits marked by 'left_side_tables' and
+  /// 'right_side_tables'.
+  ///
+  /// This is a situation that can happen during equality propagation in the
+  /// optimization phase. Consider the following query:
+  ///
+  ///   SELECT * FROM t1 LEFT JOIN
+  ///     (t2 LEFT JOIN t3 ON t3.i = t2.i) ON t2.i = t1.i;
+  ///
+  /// The optimizer will see that t1.i = t2.i = t3.i. Furthermore, it will
+  /// replace one side of this condition with a field from a table that is as
+  /// early in the join order as possible. However, this will break queries
+  /// executed in the iterator executor. The above query will end up with
+  /// something like this after optimization:
+  ///
+  ///       Left hash join <--- t1.i = t2.i
+  ///       |            |
+  ///      t1     Left hash join  <--- t1.i = t3.i
+  ///             |            |
+  ///             t2           t3
+  ///
+  /// Note that 't2.i = t3.i' has been rewritten to 't1.i = t3.i'. When
+  /// evaluating the join between t2 and t3, t1 is outside our reach!
+  /// To overcome this, we must reverse the changes done by the equality
+  /// propagation. It is possible to do so because during equality propagation,
+  /// we save a list of all of the fields that were considered equal.
+  void ensure_multi_equality_fields_are_available(table_map left_side_tables,
+                                                  table_map right_side_tables);
 };
 
 /**
@@ -2462,6 +2492,7 @@ class Item_equal final : public Item_bool_func {
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
   Item *m_const_folding[2];  ///< temporary area used for constant folding
+
  private:
   void check_covering_prefix_keys();
 };

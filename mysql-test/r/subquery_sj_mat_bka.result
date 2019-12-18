@@ -13129,7 +13129,18 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
-<not executable by iterator executor>
+-> Inner hash join (no condition)
+    -> Table scan on t1  (cost=0.55 rows=3)
+    -> Hash
+        -> Constant row from <subquery2>
+            -> Materialize with deduplication
+                -> Left hash join (no condition)  (cost=2.14 rows=18)
+                    -> Left hash join (no condition)  (cost=1.12 rows=6)
+                        -> Table scan on t2  (cost=0.45 rows=2)
+                        -> Hash
+                            -> Table scan on t1  (cost=0.28 rows=3)
+                    -> Hash
+                        -> Table scan on alias1  (cost=0.09 rows=3)
 
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2
