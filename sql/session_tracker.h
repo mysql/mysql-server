@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,11 @@ enum enum_session_tracker {
 };
 
 #define SESSION_TRACKER_END TRANSACTION_INFO_TRACKER
+
+#define TX_TRACKER_GET(a)                                            \
+  Transaction_state_tracker *a =                                     \
+      (Transaction_state_tracker *)thd->session_tracker.get_tracker( \
+          TRANSACTION_INFO_TRACKER)
 
 /**
   State_tracker
@@ -203,7 +208,8 @@ enum enum_tx_state {
   TX_STMT_UNSAFE = 64,     ///< "unsafe" (non-deterministic like UUID()) stmts
   TX_RESULT_SET = 128,     ///< result-set was sent
   TX_WITH_SNAPSHOT = 256,  ///< WITH CONSISTENT SNAPSHOT was used
-  TX_LOCKED_TABLES = 512   ///< LOCK TABLES is active
+  TX_LOCKED_TABLES = 512,  ///< LOCK TABLES is active
+  TX_STMT_DML = 1024       ///< a DML statement (known before data is accessed)
 };
 
 /**
@@ -258,6 +264,9 @@ class Transaction_state_tracker : public State_tracker {
   /** Helper function: turn table info into table access flag */
   enum_tx_state calc_trx_state(thr_lock_type l, bool has_trx);
 
+  /** Get (possibly still incomplete) state */
+  uint get_trx_state() const { return tx_curr_state; }
+
  private:
   enum enum_tx_changed {
     TX_CHG_NONE = 0,     ///< no changes from previous stmt
@@ -281,7 +290,11 @@ class Transaction_state_tracker : public State_tracker {
 
   inline void update_change_flags(THD *thd) {
     tx_changed &= ~TX_CHG_STATE;
-    tx_changed |= (tx_curr_state != tx_reported_state) ? TX_CHG_STATE : 0;
+    // Flag state changes other than "is DML"
+    tx_changed |=
+        ((tx_curr_state & ~TX_STMT_DML) != (tx_reported_state & ~TX_STMT_DML))
+            ? TX_CHG_STATE
+            : 0;
     if (tx_changed != TX_CHG_NONE) mark_as_changed(thd, NULL);
   }
 };

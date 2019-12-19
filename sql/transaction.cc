@@ -60,11 +60,8 @@
   Helper: Tell tracker (if any) that transaction ended.
 */
 void trans_track_end_trx(THD *thd) {
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->end_trx(thd);
-  }
+  TX_TRACKER_GET(tst);
+  tst->end_trx(thd);
 }
 
 /**
@@ -73,10 +70,7 @@ void trans_track_end_trx(THD *thd) {
 */
 void trans_reset_one_shot_chistics(THD *thd) {
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    Transaction_state_tracker *tst =
-        (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-            TRANSACTION_INFO_TRACKER);
-
+    TX_TRACKER_GET(tst);
     tst->set_read_flags(thd, TX_READ_INHERIT);
     tst->set_isol_level(thd, TX_ISOL_INHERIT);
   }
@@ -129,15 +123,11 @@ bool trans_check_state(THD *thd) {
 
 bool trans_begin(THD *thd, uint flags) {
   bool res = false;
-  Transaction_state_tracker *tst = NULL;
-
   DBUG_TRACE;
 
   if (trans_check_state(thd)) return true;
 
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
-    tst = (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-        TRANSACTION_INFO_TRACKER);
+  TX_TRACKER_GET(tst);
 
   thd->locked_tables_list.unlock_locked_tables(thd);
 

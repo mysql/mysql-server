@@ -107,9 +107,8 @@ bool Locked_tables_list::init_locked_tables(THD *thd) {
   }
 
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state(thd, TX_LOCKED_TABLES);
+    TX_TRACKER_GET(tst);
+    tst->add_trx_state(thd, TX_LOCKED_TABLES);
   }
 
   thd->enter_locked_tables_mode(LTM_LOCK_TABLES);
@@ -150,9 +149,8 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
     thd->leave_locked_tables_mode();
 
     if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-      ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-           TRANSACTION_INFO_TRACKER))
-          ->clear_trx_state(thd, TX_LOCKED_TABLES);
+      TX_TRACKER_GET(tst);
+      tst->clear_trx_state(thd, TX_LOCKED_TABLES);
     }
 
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));

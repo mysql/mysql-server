@@ -513,9 +513,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
       Transaction_ctx::STMT, parent_unsafe_rollback_flags);
 
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state_from_thd(thd);
+    TX_TRACKER_GET(tst);
+    tst->add_trx_state_from_thd(thd);
   }
 
   /* Restore original lex. */

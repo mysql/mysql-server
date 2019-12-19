@@ -2785,9 +2785,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       }
 
       if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-        ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-             TRANSACTION_INFO_TRACKER))
-            ->add_trx_state_from_thd(thd);
+        TX_TRACKER_GET(tst);
+        tst->add_trx_state_from_thd(thd);
       }
     }
 

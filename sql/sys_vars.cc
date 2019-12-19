@@ -4662,9 +4662,7 @@ bool Sys_var_transaction_read_only::session_update(THD *thd, set_var *var) {
     thd->tx_read_only = var->save_result.ulonglong_value;
 
     if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-      Transaction_state_tracker *tst =
-          (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-              TRANSACTION_INFO_TRACKER);
+      TX_TRACKER_GET(tst);
 
       if (var->type == OPT_DEFAULT)
         tst->set_read_flags(thd,
@@ -6161,8 +6159,8 @@ static Sys_var_bool Sys_session_track_schema(
 
 static bool update_session_track_tx_info(sys_var *, THD *thd, enum_var_type) {
   DBUG_TRACE;
-  return thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)
-      ->update(thd);
+  TX_TRACKER_GET(tst);
+  return tst->update(thd);
 }
 
 static const char *session_track_transaction_info_names[] = {

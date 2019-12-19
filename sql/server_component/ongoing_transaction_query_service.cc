@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,14 +40,28 @@ class Get_running_transactions : public Do_THD_Impl {
   virtual void operator()(THD *thd) {
     if (thd->is_killed() || thd->is_error()) return;
 
-    thd->lock_query_plan();
+    TX_TRACKER_GET(tst);
 
-    LEX *lex = thd->query_plan.get_lex();
-    if (lex && lex->m_sql_cmd && lex->m_sql_cmd->is_dml())
-      thread_ids.push_back(thd->thread_id());
-    thd->unlock_query_plan();
+    /*
+      Show we're at least as restrictive detecting transactions as the
+      original code for BUG#28327838 that we're replacing!!
+    */
+    DBUG_ASSERT(((tst->get_trx_state() & TX_EXPLICIT) > 0) >=
+                (thd->in_active_multi_stmt_transaction() > 0));
 
-    if (thd->in_active_multi_stmt_transaction())
+    /*
+      Show we're detecting DML at least in all cases the original code does.
+
+      NB  TX_STMT_DML starts off false, and is turned on if after parsing, the
+          statement self-identifies as DML.  This specifically means that for
+          scenarios that somehow don't actually go through the parser, or
+          haven't gone through the parser yet at the time of examining, results
+          will differ between these two approaches. For the sake of this
+          assertion though, we'll pass it if TX_STMT_DML is not set as long as
+          no query is set on that THD, either.
+    */
+
+    if ((tst->get_trx_state() & (TX_EXPLICIT | TX_STMT_DML)) > 0)
       thread_ids.push_back(thd->thread_id());
   }
 

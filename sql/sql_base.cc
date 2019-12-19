@@ -5147,9 +5147,16 @@ struct schema_key_equal {
  */
 int run_before_dml_hook(THD *thd) {
   int out_value = 0;
+
+  TX_TRACKER_GET(tst);
+  tst->add_trx_state(thd, TX_STMT_DML);
+
   (void)RUN_HOOK(transaction, before_dml, (thd, out_value));
 
-  if (out_value) my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
+  if (out_value) {
+    tst->clear_trx_state(thd, TX_STMT_DML);
+    my_error(ER_BEFORE_DML_VALIDATION_ERROR, MYF(0));
+  }
 
   return out_value;
 }
@@ -6159,9 +6166,7 @@ static bool check_lock_and_start_stmt(THD *thd,
     Record in transaction state tracking
   */
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    Transaction_state_tracker *tst =
-        (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-            TRANSACTION_INFO_TRACKER);
+    TX_TRACKER_GET(tst);
     enum enum_tx_state s;
 
     s = tst->calc_trx_state(lock_type,
