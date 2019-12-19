@@ -296,12 +296,13 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
 
   // expect something like this to appear on STDERR
   // Configuration error: Log level 'unknown' is not valid. Valid values are:
-  // debug, error, fatal, info, and warning
+  // debug, error, fatal, info, note, system, and warning
   const std::string out = router.get_full_output();
   EXPECT_THAT(
       out.c_str(),
-      HasSubstr("Configuration error: Log level 'unknown' is not valid. Valid "
-                "values are: debug, error, fatal, info, and warning"));
+      HasSubstr(
+          "Configuration error: Log level 'unknown' is not valid. Valid "
+          "values are: debug, error, fatal, info, note, system, and warning"));
 }
 
 /**************************************************/
@@ -372,6 +373,9 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   const std::string kInfoLogEntry = "[routing] started: listening on 127.0.0.1";
   const std::string kWarningLogEntry =
       "Can't connect to remote MySQL server for client";
+  // System/Note does not produce unique output today
+  const std::string kNoteLogEntry = "";
+  const std::string kSystemLogEntry = "";
 
   // to trigger the warning entry in the log
   const std::string kRoutingConfig =
@@ -425,6 +429,20 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
         << console_log_txt;
   }
 
+  if (test_params.consolelog_expected_level >= LogLevel::kNote &&
+      test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    // No NOTE output from Router today, so check that we see info
+    EXPECT_THAT(console_log_txt, HasSubstr(kInfoLogEntry)) << "console:\n"
+                                                           << console_log_txt;
+  } else {
+    // No NOTE output from Router today, so disable until Router does
+#if 0
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kInfoLogEntry)))
+        << "console:\n"
+        << console_log_txt;
+#endif
+  }
+
   if (test_params.consolelog_expected_level >= LogLevel::kInfo &&
       test_params.consolelog_expected_level != LogLevel::kNotSet) {
     EXPECT_THAT(console_log_txt, HasSubstr(kInfoLogEntry)) << "console:\n"
@@ -446,6 +464,22 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
         << console_log_txt;
   }
 
+  if (test_params.consolelog_expected_level >= LogLevel::kSystem &&
+      test_params.consolelog_expected_level != LogLevel::kNotSet) {
+    // No SYSTEM output from Router today, so disable until Router does
+#if 0
+    EXPECT_THAT(console_log_txt, HasSubstr(kSystemLogEntry)) << "console:\n"
+                                                             << console_log_txt;
+#endif
+  } else {
+    // No SYSTEM output from Router today, so disable until Router does
+#if 0
+    EXPECT_THAT(console_log_txt, Not(HasSubstr(kSystemLogEntry)))
+        << "console:\n"
+        << console_log_txt;
+#endif
+  }
+
   // check the file log if it contains what's expected
   const std::string file_log_txt =
       router.get_full_logfile("mysqlrouter.log", tmp_dir.name());
@@ -461,6 +495,23 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
+  }
+
+  if (test_params.filelog_expected_level >= LogLevel::kNote &&
+      test_params.filelog_expected_level != LogLevel::kNotSet) {
+    // No NOTE output from Router today, so check that we see info
+    EXPECT_THAT(file_log_txt, HasSubstr(kInfoLogEntry))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+  } else {
+    // No NOTE output from Router today, so disable until Router does
+#if 0
+    EXPECT_THAT(file_log_txt, Not(HasSubstr(kNoteLogEntry)))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+#endif
   }
 
   if (test_params.filelog_expected_level >= LogLevel::kInfo &&
@@ -487,6 +538,25 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
         << "file:\n"
         << file_log_txt << "\nconsole:\n"
         << console_log_txt;
+  }
+
+  if (test_params.filelog_expected_level >= LogLevel::kSystem &&
+      test_params.filelog_expected_level != LogLevel::kNotSet) {
+    // No SYSTEM output from Router today, so disable until Router does
+#if 0
+    EXPECT_THAT(file_log_txt, HasSubstr(kSystemLogEntry))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+#endif
+  } else {
+    // No SYSTEM output from Router today, so disable until Router does
+#if 0    
+    EXPECT_THAT(file_log_txt, Not(HasSubstr(kSystemLogEntry)))
+        << "file:\n"
+        << file_log_txt << "\nconsole:\n"
+        << console_log_txt;
+#endif
   }
 }
 
@@ -731,7 +801,107 @@ INSTANTIATE_TEST_CASE_P(
             "level=error\n",
             /* logging_folder_empty = */ false,
             /* consolelog_expected_level =  */ LogLevel::kWarning,
-            /* filelog_expected_level =  */ LogLevel::kError)));
+            /* filelog_expected_level =  */ LogLevel::kError),
+        // level note to filelog sink (TS_FR1_01)
+        // Note: Router does not log at NOTE now
+        /*19*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=note\n"
+            "sinks=filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kNote),
+        // note level to filelog sink (TS_FR1_02)
+        // Note: Router does not log at NOTE now
+        /*20*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=system\n"
+            "sinks=filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kSystem)));
+
+#ifndef WIN32
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTestUnix, RouterLoggingTestConfig,
+    ::testing::Values(
+        // We can't reliably check if the syslog logging is working with a
+        // component test as this is too operating system intrusive and we are
+        // supposed to run on pb2 environment. Let's at least check that this
+        // sink type is supported
+        // Level note to syslog,filelog (TS_FR1_06)
+        /*0*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=note\n"
+            "sinks=syslog,filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kNote),
+        // Level system to syslog,filelog (TS_FR1_07)
+        /*1*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=system\n"
+            "sinks=syslog,filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kSystem),
+        // All sinks (TS_FR1_08)
+        /*2*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=debug\n"
+            "sinks=syslog,filelog,consolelog\n"
+            "[consolelog]\n"
+            "level=note\n"
+            "[syslog]\n"
+            "level=system\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNote,
+            /* filelog_expected_level =  */ LogLevel::kDebug)));
+#else
+INSTANTIATE_TEST_CASE_P(
+    LoggingConfigTestWindows, RouterLoggingTestConfig,
+    ::testing::Values(
+        // We can't reliably check if the eventlog logging is working with a
+        // component test as this is too operating system intrusive and also
+        // requires admin priviledges to setup and we are supposed to run on pb2
+        // environment. Let's at least check that this sink type is supported.
+        // Level note to eventlog,filelog (TS_FR1_03)
+        /*0*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=note\n"
+            "sinks=eventlog,filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kNote),
+        // Level system to eventlog,filelog (TS_FR1_04)
+        /*1*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=system\n"
+            "sinks=eventlog,filelog\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNotSet,
+            /* filelog_expected_level =  */ LogLevel::kSystem),
+        // All sinks with note and system included (TS_FR1_05)
+        /*2*/
+        LoggingConfigOkParams(
+            "[logger]\n"
+            "level=debug\n"
+            "sinks=eventlog,filelog,consolelog\n"
+            "[consolelog]\n"
+            "level=note\n"
+            "[eventlog]\n"
+            "level=system\n",
+            /* logging_folder_empty = */ false,
+            /* consolelog_expected_level =  */ LogLevel::kNote,
+            /* filelog_expected_level =  */ LogLevel::kDebug)));
+#endif
 
 /**************************************************/
 /* Tests for logger configuration errors          */
@@ -870,7 +1040,7 @@ INSTANTIATE_TEST_CASE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, and warning"),
+            "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Invalid log level in the sink section
         /*8*/
@@ -882,7 +1052,7 @@ INSTANTIATE_TEST_CASE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, and warning"),
+            "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Both level and sinks valuse invalid in the [logger] section
         /*9*/
@@ -894,7 +1064,7 @@ INSTANTIATE_TEST_CASE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, and warning"),
+            "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Logging folder is empty but we request filelog as sink
         /*10*/
@@ -922,7 +1092,7 @@ INSTANTIATE_TEST_CASE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, and warning"),
+            "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Let's also check that the eventlog is NOT supported
         LoggingConfigErrorParams("[logger]\n"
@@ -948,7 +1118,7 @@ INSTANTIATE_TEST_CASE_P(
             /* logging_folder_empty = */ false,
             /* expected_error =  */
             "Configuration error: Log level 'invalid' is not valid. Valid "
-            "values are: debug, error, fatal, info, and warning"),
+            "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Let's also check that the syslog is NOT supported
         LoggingConfigErrorParams("[logger]\n"

@@ -53,9 +53,10 @@ static WORD logger_to_eventlog_severity(LogLevel level) {
     case LogLevel::kWarning:
       return EVENTLOG_WARNING_TYPE;
     default:
-      assert(level == LogLevel::kInfo || level == LogLevel::kDebug);
-      // there is no DEBUG counterpart in the eventlog so we go with
-      // Information for DEBUG too!
+      assert(level == LogLevel::kSystem || level == LogLevel::kInfo ||
+             level == LogLevel::kNote || level == LogLevel::kDebug);
+      // there are no DEBUG, NOTE, or SYSTEM counterparts in the eventlog so we
+      // go with Information for DEBUG, NOTE and SYSTEM too!
       return EVENTLOG_INFORMATION_TYPE;
   }
 }
