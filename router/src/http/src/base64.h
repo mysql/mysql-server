@@ -29,6 +29,7 @@
 
 #include <algorithm>  // min
 #include <array>
+#include <stdexcept>
 #include <string>
 #include <utility>  // index_sequence
 #include <vector>
