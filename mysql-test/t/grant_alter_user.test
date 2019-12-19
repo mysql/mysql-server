@@ -734,3 +734,7 @@ connection default;
 DROP USER bug22205360@localhost;
 --remove_file $MYSQLTEST_VARDIR/tmp/alter_password.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/set_password.sql
+
+# Restart with default from opt file
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

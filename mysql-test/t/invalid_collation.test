@@ -102,3 +102,7 @@ SHOW CREATE VIEW v2;
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
 DROP FUNCTION f1;
+
+# restore default values
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

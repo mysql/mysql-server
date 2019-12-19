@@ -41,3 +41,4 @@ Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 # Create a table using the deleted collation, expected to fail:
 CREATE TABLE t1 (pk INTEGER) COLLATE utf8_phone_ci;
 ERROR HY000: Unknown collation: 'utf8_phone_ci'
+# restart:

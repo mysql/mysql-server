@@ -24,3 +24,7 @@ eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
 SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_plugin_registry %';
 DROP TABLE IF EXISTS t1;
 FLUSH ERROR LOGS;
+
+# restore default options
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

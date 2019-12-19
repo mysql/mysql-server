@@ -613,3 +613,4 @@ CURRENT_USER()
 очень_очень_очень_длинный_юзер__@localhost
 DROP USER очень_очень_очень_длинный_юзер__@localhost;
 SET NAMES default;
+# restart:

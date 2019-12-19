@@ -19,3 +19,4 @@ SELECT COUNT(*) FROM mysql.component;
 COUNT(*)
 1
 UNINSTALL COMPONENT "file://component_example_component1";
+# restart:

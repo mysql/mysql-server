@@ -41,3 +41,7 @@ eval LOAD DATA LOCAL INFILE '$server_log' INTO TABLE t1
    SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
 --enable_warnings ER_WARN_TOO_MANY_RECORDS
 DROP TABLE IF EXISTS t1;
+
+# restore default options
+let $restart_parameters = restart:;
+source include/restart_mysqld.inc;

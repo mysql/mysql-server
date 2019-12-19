@@ -286,3 +286,9 @@ FLUSH LOGS;
 # reset the variables
 --eval SET GLOBAL binlog_expire_logs_seconds= $saved_binlog_expire_logs_seconds
 --eval SET GLOBAL expire_logs_days= $saved_expire_logs_days
+
+# Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_deprecations-output.err
