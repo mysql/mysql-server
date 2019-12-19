@@ -39,7 +39,15 @@ IF(NOT WIN32)
   ADD_DEFINITIONS(-DDEFAULT_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")
 ENDIF()
 ADD_EXECUTABLE(atrt main.cpp setup.cpp files.cpp db.cpp command.cpp)
-TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+IF(WIN32)
+  # All clients will need auth_win_client
+  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static mysqlclient)
+ELSE()
+  # Linking with mysqlclient may fail on macOS, so link individual libs instead.
+  TARGET_LINK_LIBRARIES(atrt ndbNDBT ndbclient_static
+    clientlib vio mysys mysys_ssl)
+ENDIF()
+
 
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 ADD_TEST(NAME check_testcase_files
