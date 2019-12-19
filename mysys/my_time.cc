@@ -55,7 +55,6 @@
 #include "field_types.h"     // enum_field_types
 #include "integer_digits.h"  // count_digits, write_digits, write_two_digits
 #include "my_byteorder.h"    // int3store
-#include "my_dbug.h"         // DBUG_ASSERT
 #include "my_systime.h"      // localtime_r
 #include "myisampack.h"      // mi_int2store
 #include "template_utils.h"  // pointer_cast
@@ -2100,7 +2099,7 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
     case MYSQL_TIMESTAMP_DATE:
       return TIME_to_longlong_date_packed(my_time);
     case MYSQL_TIMESTAMP_DATETIME_TZ:
-      DBUG_ASSERT(false);  // Should not be this type at this point.
+      assert(false);  // Should not be this type at this point.
     case MYSQL_TIMESTAMP_DATETIME:
       return TIME_to_longlong_datetime_packed(my_time);
     case MYSQL_TIMESTAMP_TIME:
