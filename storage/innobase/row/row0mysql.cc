@@ -4414,8 +4414,6 @@ dberr_t row_mysql_parallel_select_count_star(
 
   Parallel_reader reader(max_threads);
 
-  ib::info() << "Parallel scan: " << max_threads;
-
   const Parallel_reader::Scan_range FULL_SCAN;
 
   // clang-format off
@@ -4463,7 +4461,6 @@ dberr_t row_mysql_parallel_select_count_star(
     Counter::for_each(n_recs, [=](const Counter::Type n) {
       if (n > 0) {
         *n_rows += n;
-        ib::info() << "n: " << n;
       }
     });
   }
