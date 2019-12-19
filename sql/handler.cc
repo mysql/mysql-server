@@ -8852,11 +8852,10 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
                        session default after finishing the transaction.
 */
 bool set_tx_isolation(THD *thd, enum_tx_isolation tx_isolation, bool one_shot) {
-  Transaction_state_tracker *tst = nullptr;
+  TX_TRACKER_GET(tst);
 
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
-    tst = (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-        TRANSACTION_INFO_TRACKER);
+  if (thd->variables.session_track_transaction_info <= TX_TRACK_NONE)
+    tst = nullptr;
 
   thd->tx_isolation = tx_isolation;
 

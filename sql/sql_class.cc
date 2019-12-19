@@ -2861,8 +2861,7 @@ void my_eof(THD *thd) {
   thd->set_row_count_func(-1);
   thd->get_stmt_da()->set_eof_status(thd);
   if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    down_cast<Transaction_state_tracker *>(
-        thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER))
-        ->add_trx_state(thd, TX_RESULT_SET);
+    TX_TRACKER_GET(tst);
+    tst->add_trx_state(thd, TX_RESULT_SET);
   }
 }

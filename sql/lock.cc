@@ -269,9 +269,7 @@ static void reset_lock_data(MYSQL_LOCK *sql_lock) {
 */
 
 static void track_table_access(THD *thd, TABLE **tables, size_t count) {
-  Transaction_state_tracker *tst =
-      (Transaction_state_tracker *)thd->session_tracker.get_tracker(
-          TRANSACTION_INFO_TRACKER);
+  TX_TRACKER_GET(tst);
   enum enum_tx_state s;
 
   while (count--) {

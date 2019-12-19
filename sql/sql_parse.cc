@@ -3005,6 +3005,12 @@ int mysql_execute_command(THD *thd, bool first_level) {
     goto error;
   }
 
+  /*
+    We do not flag "is DML" (TX_STMT_DML) here as replication expects us to
+    test for LOCK TABLE etc. first. To rephrase, we try not to set TX_STMT_DML
+    until we have the MDL, and LOCK TABLE could massively delay this.
+  */
+
   switch (lex->sql_command) {
     case SQLCOM_SHOW_STATUS: {
       System_status_var old_status_var = thd->status_var;
@@ -4704,10 +4710,16 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
-  if (thd->variables.session_track_transaction_info > TX_TRACK_NONE) {
-    ((Transaction_state_tracker *)thd->session_tracker.get_tracker(
-         TRANSACTION_INFO_TRACKER))
-        ->add_trx_state_from_thd(thd);
+  // If the client wishes to have transaction state reported, we add whatever
+  // is set on THD to our set here.
+  {
+    TX_TRACKER_GET(tst);
+
+    if (thd->variables.session_track_transaction_info > TX_TRACK_NONE)
+      tst->add_trx_state_from_thd(thd);
+
+    // We're done. Clear "is DML" flag.
+    tst->clear_trx_state(thd, TX_STMT_DML);
   }
 
 #ifdef HAVE_LSAN_DO_RECOVERABLE_LEAK_CHECK

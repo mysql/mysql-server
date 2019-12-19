@@ -1202,10 +1202,9 @@ enum_tx_state Transaction_state_tracker::calc_trx_state(thr_lock_type l,
   @param thd           The thd handle
 */
 void Transaction_state_tracker::end_trx(THD *thd) {
-  DBUG_ASSERT(thd->variables.session_track_transaction_info > TX_TRACK_NONE);
-
-  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-    return;
+  // We no longer test for m_enabled here as we now always track (just don't
+  // always report to the client).
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) return;
 
   if (tx_curr_state != TX_EMPTY) {
     if (tx_curr_state & TX_EXPLICIT) tx_changed |= TX_CHG_CHISTICS;
@@ -1222,8 +1221,7 @@ void Transaction_state_tracker::end_trx(THD *thd) {
   @param clear           The flags to clear
 */
 void Transaction_state_tracker::clear_trx_state(THD *thd, uint clear) {
-  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-    return;
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) return;
 
   tx_curr_state &= ~clear;
   update_change_flags(thd);
@@ -1238,8 +1236,9 @@ void Transaction_state_tracker::clear_trx_state(THD *thd, uint clear) {
   @param add           The flags to add
 */
 void Transaction_state_tracker::add_trx_state(THD *thd, uint add) {
-  if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-    return;
+  // We no longer test for m_enabled here as we now always track (just don't
+  // always report to the client).
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) return;
 
   if (add == TX_EXPLICIT) {
     /*
@@ -1262,7 +1261,8 @@ void Transaction_state_tracker::add_trx_state(THD *thd, uint add) {
   /*
     Only flag state when in transaction or LOCK TABLES is added.
   */
-  if ((tx_curr_state & (TX_EXPLICIT | TX_IMPLICIT)) || (add & TX_LOCKED_TABLES))
+  if ((tx_curr_state & (TX_EXPLICIT | TX_IMPLICIT)) ||
+      (add & TX_LOCKED_TABLES) || (add == TX_STMT_DML))
     tx_curr_state |= add;
 
   update_change_flags(thd);
@@ -1274,11 +1274,7 @@ void Transaction_state_tracker::add_trx_state(THD *thd, uint add) {
   @param thd           The thd handle.
 */
 void Transaction_state_tracker::add_trx_state_from_thd(THD *thd) {
-  if (m_enabled) {
-    if (thd->lex->is_stmt_unsafe()) add_trx_state(thd, TX_STMT_UNSAFE);
-
-    //    update_change_flags(thd); ###
-  }
+  if (thd->lex->is_stmt_unsafe()) add_trx_state(thd, TX_STMT_UNSAFE);
 }
 
 /**
@@ -1290,7 +1286,9 @@ void Transaction_state_tracker::add_trx_state_from_thd(THD *thd) {
 */
 void Transaction_state_tracker::set_read_flags(THD *thd,
                                                enum enum_tx_read_flags flags) {
-  if (m_enabled && (tx_read_flags != flags)) {
+  // We no longer test for m_enabled here as we now always track (just don't
+  // always report to the client).
+  if (tx_read_flags != flags) {
     tx_read_flags = flags;
     tx_changed |= TX_CHG_CHISTICS;
     mark_as_changed(thd, nullptr);
@@ -1305,7 +1303,9 @@ void Transaction_state_tracker::set_read_flags(THD *thd,
 */
 void Transaction_state_tracker::set_isol_level(THD *thd,
                                                enum enum_tx_isol_level level) {
-  if (m_enabled && (tx_isol_level != level)) {
+  // We no longer test for m_enabled here as we now always track (just don't
+  // always report to the client).
+  if (tx_isol_level != level) {
     tx_isol_level = level;
     tx_changed |= TX_CHG_CHISTICS;
     mark_as_changed(thd, nullptr);
