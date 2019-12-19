@@ -347,7 +347,7 @@ class Item_func_bool_const : public Item_bool_func {
   }
   bool fix_fields(THD *, Item **) override { return false; }
   bool basic_const_item() const override { return true; }
-  void cleanup() override {}
+  void cleanup() override { result_field = nullptr; }
 };
 
 /// A predicate that is "always true".
