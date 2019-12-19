@@ -1975,6 +1975,21 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
                                           ib_uint64_t *sample_size,
                                           const char *stat_description,
                                           trx_t *trx) {
+  /* During upgrade, the indexes are loaded in dict_load_index_low and the
+  clustered indexes are renamed as PRIMARY as MySQL understands only
+  PRIMARY indexes. The following condition will be true only if such an index
+  was renamed earlier during upgrade.
+  During upgrade, the existing mysql.innodb_index_stats is backed up as
+  mysql.innodb_index_stats_backup57 and new table mysql.innodb_index_stats
+  is populated from the backup. After the upgrade, any entries missing
+  in the new mysql.innodb_index_stats is populated here. Since, the clustered
+  indexes were renamed to PRIMARY, a new entry in made into innodb_index_stats
+  causing duplicate entries as the backup already has an entry for the
+  corresponding clustered index. */
+  if (strcmp(index->name, "PRIMARY") == 0 && index->type == DICT_CLUSTERED) {
+    return DB_SUCCESS;
+  }
+
   dberr_t ret;
   pars_info_t *pinfo;
   char db_utf8[dict_name::MAX_DB_UTF8_LEN];
