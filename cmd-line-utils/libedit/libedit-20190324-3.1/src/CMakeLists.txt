@@ -140,15 +140,15 @@ TARGET_LINK_LIBRARIES(edit ${CURSES_LIBRARY})
 # converts between pointers to integer types with different sign
 MY_CHECK_C_COMPILER_FLAG("-Wpointer-sign" HAVE_POINTER_SIGN)
 IF(HAVE_POINTER_SIGN)
-  TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-pointer-sign")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-pointer-sign")
 ENDIF()
 
 MY_CHECK_C_COMPILER_FLAG("-Wstringop-overflow" HAVE_STRINGOP_OVERFLOW)
 IF(HAVE_STRINGOP_OVERFLOW)
-  TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-stringop-overflow")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-stringop-overflow")
 ENDIF()
 
 MY_CHECK_C_COMPILER_FLAG("-Wunused-result" HAVE_UNUSED_RESULT)
 IF(HAVE_UNUSED_RESULT)
-  TARGET_COMPILE_OPTIONS(edit PRIVATE "-Wno-unused-result")
+  STRING_APPEND(CMAKE_C_FLAGS " -Wno-unused-result")
 ENDIF()
