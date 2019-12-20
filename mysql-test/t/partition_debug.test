@@ -23,6 +23,7 @@ DROP TABLE t1;
 --echo # Bug #30355485	CRASH WHEN DOING ANY OPERATION ON SUB-PARTITIONED TABLE
 --echo #
 
+--source include/not_embedded.inc
 --let $MYSQLD_DATADIR= `select @@datadir`
 CREATE TABLE t1 (a INT, b INT) ENGINE = INNODB
 PARTITION BY RANGE(a) SUBPARTITION BY HASH(b)
