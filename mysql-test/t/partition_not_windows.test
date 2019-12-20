@@ -4,6 +4,9 @@
 --disable_query_log
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number");
 CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access");
+# Different error messages on MacOS
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Error number 30 means 'Read-only file system'");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* 'mkdir' returned OS error 130");
 --enable_query_log
 
 --error ER_GET_ERRNO,1
