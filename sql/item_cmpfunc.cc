@@ -7093,6 +7093,9 @@ static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
 ///   This is only relevant when we have a PAD SPACE collation and the SQL mode
 ///   PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
 ///   argument to the same length as the longest argument
+/// @param store_full_sort_key if false, will store only a hash of string
+///   fields, instead of the string itself.
+///   @see HashJoinCondition::m_store_full_sort_key
 /// @param[out] join_key_buffer the output buffer where the extracted value
 ///   is appended
 ///
