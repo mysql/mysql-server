@@ -83,6 +83,9 @@ use test;
 
 # clean up
 DROP TABLE tab1;
+--remove_file $MYSQL_TMP_DIR/my_keyfile
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap1.log
+--force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
 
 --echo #
 --echo # bug#29006275 : ENCRYPTION MASTER KEY IS GENERATED WITH BLANK UUID
@@ -90,21 +93,30 @@ DROP TABLE tab1;
 
 LET $MYSQL_DATA_DIR = `select @@datadir`;
 
---echo # Stop the encrypt server
+--echo # Stop the non-encrypted server
 --source include/shutdown_mysqld.inc
 
---echo # Drop existing UNDO tablespaces
---list_files $MYSQL_DATA_DIR/ undo_00*
---remove_file $MYSQL_DATA_DIR/undo_001
---remove_file $MYSQL_DATA_DIR/undo_002
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR1 --init-file=$BOOTSTRAP_SQL --secure-file-priv="" </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
---echo # Drop existing auto.cnf
---list_files $MYSQL_DATA_DIR/ auto*
---remove_file $MYSQL_DATA_DIR/auto.cnf
+--echo # Run the bootstrap command of datadir1
+--exec $NEW_CMD
 
---echo # Restart server with keyring plugin and innodb_undo_log_encrypt=ON
---let $restart_parameters="restart: --log_error_verbosity=3 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_keyfile --innodb_undo_log_encrypt=1"
+--let $restart_parameters="restart: --log_error_verbosity=3 --datadir=$MYSQLD_DATADIR1 --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_keyfile --innodb_undo_log_encrypt=1"
 --source include/start_mysqld_no_echo.inc
 
 --echo # Show that a master key with a blank Server UUID is not used.
 SELECT * FROM performance_schema.keyring_keys where KEY_ID='INNODBKey--1';
+
+--echo # Stop the encrypted server
+--source include/shutdown_mysqld.inc
+
+# Restart with MTR default server
+--let $wait_counter= 3000
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+--let $restart_parameters="restart:"
+--source include/start_mysqld.inc
+
+--remove_file $MYSQL_TMP_DIR/my_keyfile
+--remove_file $MYSQL_TMP_DIR/boot.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
+--force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1

@@ -39,13 +39,10 @@ DROP TABLE tab1;
 #
 # bug#29006275 : ENCRYPTION MASTER KEY IS GENERATED WITH BLANK UUID
 #
-# Stop the encrypt server
-# Drop existing UNDO tablespaces
-undo_001
-undo_002
-# Drop existing auto.cnf
-auto.cnf
-# Restart server with keyring plugin and innodb_undo_log_encrypt=ON
+# Stop the non-encrypted server
+# Run the bootstrap command of datadir1
 # Show that a master key with a blank Server UUID is not used.
 SELECT * FROM performance_schema.keyring_keys where KEY_ID='INNODBKey--1';
 KEY_ID	KEY_OWNER	BACKEND_KEY_ID
+# Stop the encrypted server
+# restart:

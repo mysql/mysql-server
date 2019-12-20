@@ -69,3 +69,4 @@ Warning	1210	InnoDB: Cannot resize buffer pool to lesser than chunk size of 2516
 set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size * 2;
 set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
 set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
+# restart:

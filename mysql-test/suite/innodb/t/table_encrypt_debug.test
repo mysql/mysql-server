@@ -39,13 +39,6 @@ USE tde_db;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-
---echo # Starting server with keyring plugin restart with keying
-let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT ;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
---replace_regex /\.dll/.so/
---source include/restart_mysqld.inc
-
 ##### Set crash ib_crash_during_decrypt_page
 CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
@@ -130,12 +123,14 @@ INSERT INTO tde_db.t1 VALUES(11, "lllll");
 --error ER_TABLESPACE_DISCARDED
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 DROP TABLE tde_db.t1;
-#DROP DATABASE tde_db;
 
 --exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+--remove_files_wildcard $MYSQLD_DATADIR/tde_db/ t1.*
+DROP DATABASE tde_db;
 
 --echo #
 --echo # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
@@ -145,6 +140,8 @@ DROP TABLE tde_db.t1;
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
 --enable_query_log
+
+CREATE DATABASE tde_db;
 
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -167,6 +164,5 @@ SELECT COUNT(*) FROM tde_db.test_tbl;
 DROP TABLE tde_db.test_tbl;
 
 # Cleanup
-#DROP DATABASE tde_db;
+DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
---remove_file $MYSQL_TMP_DIR/mysecret_keyring

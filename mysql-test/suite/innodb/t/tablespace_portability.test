@@ -53,3 +53,5 @@ call mtr.add_suppression("\\[ERROR\\] .* The directory '.*' does not exist");
 # files have been disabled and fil_ibd_open() only looks for a file in one place.
 # --source suite/innodb/include/tablespace_portability.inc
 
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
