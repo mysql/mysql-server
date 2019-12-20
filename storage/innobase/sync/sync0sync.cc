@@ -116,6 +116,7 @@ mysql_pfs_key_t	thread_mutex_key;
 mysql_pfs_key_t zip_pad_mutex_key;
 mysql_pfs_key_t row_drop_list_mutex_key;
 mysql_pfs_key_t	master_key_id_mutex_key;
+mysql_pfs_key_t	analyze_index_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 

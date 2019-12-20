@@ -922,6 +922,43 @@ dict_table_autoinc_unlock(
 {
 	mutex_exit(table->autoinc_mutex);
 }
+
+/** Create and initialize the analyze index lock for a given table.
+This lock is used to serialize two concurrent analyze index operations
+@param[in]	table_void	table whose analyze_index latch to create */
+static
+void
+dict_table_analyze_index_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+	table->analyze_index_mutex = UT_NEW_NOKEY(AnalyzeIndexMutex());
+	ut_a(table->analyze_index_mutex != NULL);
+	mutex_create(LATCH_ID_ANALYZE_INDEX_MUTEX, table->analyze_index_mutex);
+}
+
+/** Acquire the analyze index lock.
+@param[in]	table table whose analyze_index latch to lock */
+void
+dict_table_analyze_index_lock(
+	dict_table_t*	table)
+{
+	os_once::do_or_wait_for_done(
+		&table->analyze_index_mutex_created,
+		dict_table_analyze_index_alloc, table);
+
+	mutex_enter(table->analyze_index_mutex);
+}
+
+/** Release the analyze index lock.
+@param[in]	table table whose analyze_index latch to unlock */
+void
+dict_table_analyze_index_unlock(
+	dict_table_t*	table)
+{
+	ut_a(table->analyze_index_mutex != NULL);
+	mutex_exit(table->analyze_index_mutex);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Looks for column n in an index.
