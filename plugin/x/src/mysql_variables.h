@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #define PLUGIN_X_SRC_MYSQL_VARIABLES_H_
 
 struct CHARSET_INFO;
-struct CHARSET_INFO;
 
 namespace mysqld {
 
@@ -34,7 +33,7 @@ namespace mysqld {
 //    it should be removed after plugin correctly handles dynamic plugin macro
 bool is_terminating();
 const char *get_my_localhost();
-const CHARSET_INFO *get_charset_utf8mb4_general_ci();
+const CHARSET_INFO *get_default_charset();
 
 }  // namespace mysqld
 

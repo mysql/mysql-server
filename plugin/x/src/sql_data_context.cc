@@ -125,9 +125,8 @@ bool Sql_data_context::kill() {
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
           if (!command_service_run_command(
-                  session, COM_QUERY, &data,
-                  mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
-                  deleg.representation(), &deleg)) {
+                  session, COM_QUERY, &data, mysqld::get_default_charset(),
+                  deleg.callbacks(), deleg.representation(), &deleg)) {
             if (!deleg.get_error())
               ok = true;
             else
@@ -233,11 +232,10 @@ ngs::Error_code Sql_data_context::authenticate(
           static_cast<unsigned long>(strlen(db));  // NOLINT(runtime/int)
 
       Callback_command_delegate callback_delegate;
-      if (command_service_run_command(m_mysql_session, COM_INIT_DB, &data,
-                                      mysqld::get_charset_utf8mb4_general_ci(),
-                                      callback_delegate.callbacks(),
-                                      callback_delegate.representation(),
-                                      &callback_delegate))
+      if (command_service_run_command(
+              m_mysql_session, COM_INIT_DB, &data,
+              mysqld::get_default_charset(), callback_delegate.callbacks(),
+              callback_delegate.representation(), &callback_delegate))
         return ngs::Error_code(ER_NO_DB_ERROR, "Could not set database");
       error = callback_delegate.get_error();
     }
@@ -490,10 +488,9 @@ ngs::Error_code Sql_data_context::execute_server_command(
     iface::Resultset *rset) {
   ngs::Command_delegate &deleg = rset->get_callbacks();
   deleg.reset();
-  if (command_service_run_command(m_mysql_session, cmd, &cmd_data,
-                                  mysqld::get_charset_utf8mb4_general_ci(),
-                                  deleg.callbacks(), deleg.representation(),
-                                  &deleg)) {
+  if (command_service_run_command(
+          m_mysql_session, cmd, &cmd_data, mysqld::get_default_charset(),
+          deleg.callbacks(), deleg.representation(), &deleg)) {
     return ngs::Error_code(ER_X_SERVICE_ERROR,
                            "Internal error executing command");
   }
@@ -508,7 +505,7 @@ ngs::Error_code Sql_data_context::reset() {
   COM_DATA data;
   Callback_command_delegate deleg;
   if (command_service_run_command(m_mysql_session, COM_RESET_CONNECTION, &data,
-                                  mysqld::get_charset_utf8mb4_general_ci(),
+                                  mysqld::get_default_charset(),
                                   deleg.callbacks(), deleg.representation(),
                                   &deleg)) {
     return ngs::Error_code(ER_X_SERVICE_ERROR,
