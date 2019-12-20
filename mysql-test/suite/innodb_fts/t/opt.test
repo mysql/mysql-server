@@ -43,7 +43,8 @@ FROM wp;
 --echo No sorting for this query
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
@@ -53,7 +54,8 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No sorting for this query even if MATCH is part of an expression
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
@@ -63,9 +65,11 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No sorting even if there are several MATCH expressions as long as the
 --echo right one is used in ORDER BY
 FLUSH STATUS;
-
-SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
-       MATCH(title, text) AGAINST ('mysql') AS score2
+ 
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score1,
+       MATCH(title, text) AGAINST ('mysql') AS score2,
+       title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
@@ -75,7 +79,8 @@ SHOW SESSION STATUS LIKE 'Sort%';
 --echo No Sorting since FT table is first table in query
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
@@ -85,7 +90,8 @@ SHOW SESSION STATUS LIKE 'Sort_rows%';
 --echo Sorting since there is no WHERE clause
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 ORDER BY score DESC;
 
@@ -114,7 +120,8 @@ SHOW SESSION STATUS LIKE 'Sort_rows%';
 --echo Sorting because one is ordering on a different MATCH expression
 FLUSH STATUS;
 
-SELECT title, MATCH(title, text) AGAINST ('mysql') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('mysql') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
@@ -472,20 +479,20 @@ SHOW STATUS LIKE 'Handler_read%';
 #
 # Check that nothing goes wrong when combining different modes
 #
-SELECT title,
-       MATCH(title, text) AGAINST ('database') AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title,
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('MySQL database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title,
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+--partially_sorted_result 1
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
@@ -673,29 +680,29 @@ LIMIT 3;
 EXPLAIN
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
 EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
 EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 
 EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`

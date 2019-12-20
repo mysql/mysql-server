@@ -256,7 +256,7 @@ Handler_read_prev	0
 Handler_read_rnd	2
 Handler_read_rnd_next	18
 flush status;
-delete from t1 order by a limit 1;
+delete from t1 order by a, b desc limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
@@ -267,7 +267,7 @@ Handler_read_prev	0
 Handler_read_rnd	1
 Handler_read_rnd_next	9
 flush status;
-delete from t1 order by a desc limit 1;
+delete from t1 order by a desc, b desc limit 1;
 show status like 'handler_read%';
 Variable_name	Value
 Handler_read_first	1

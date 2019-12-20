@@ -32,13 +32,13 @@ FTS_DOC_ID	title	score1	score2
 6	MySQL Security	0	0.000000003771856604828372
 No sorting for this query
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
-title	score
-MySQL vs. YourSQL	0.45528939366340637
-MySQL Tutorial	0.22764469683170319
+score	title
+0.45528939366340637	MySQL vs. YourSQL
+0.22764469683170319	MySQL Tutorial
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -47,13 +47,13 @@ Sort_rows	0
 Sort_scan	0
 No sorting for this query even if MATCH is part of an expression
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
-title	score
-MySQL vs. YourSQL	0.45528939366340637
-MySQL Tutorial	0.22764469683170319
+score	title
+0.45528939366340637	MySQL vs. YourSQL
+0.22764469683170319	MySQL Tutorial
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -63,14 +63,15 @@ Sort_scan	0
 No sorting even if there are several MATCH expressions as long as the
 right one is used in ORDER BY
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score1,
-MATCH(title, text) AGAINST ('mysql') AS score2
+SELECT MATCH(title, text) AGAINST ('database') AS score1,
+MATCH(title, text) AGAINST ('mysql') AS score2,
+title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
-title	score1	score2
-MySQL vs. YourSQL	0.45528939366340637	0.000000001885928302414186
-MySQL Tutorial	0.22764469683170319	0.000000003771856604828372
+score1	score2	title
+0.45528939366340637	0.000000001885928302414186	MySQL vs. YourSQL
+0.22764469683170319	0.000000003771856604828372	MySQL Tutorial
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
@@ -79,28 +80,28 @@ Sort_rows	0
 Sort_scan	0
 No Sorting since FT table is first table in query
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
-title	score
-MySQL vs. YourSQL	0.45528939366340637
-MySQL Tutorial	0.22764469683170319
+score	title
+0.45528939366340637	MySQL vs. YourSQL
+0.22764469683170319	MySQL Tutorial
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 Variable_name	Value
 Sort_rows	0
 Sorting since there is no WHERE clause
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('database') AS score
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 ORDER BY score DESC;
-title	score
-MySQL vs. YourSQL	0.45528939366340637
-MySQL Tutorial	0.22764469683170319
-How To Use MySQL Well	0
-Optimizing MySQL	0
-1001 MySQL Tricks	0
-MySQL Security	0
+score	title
+0.45528939366340637	MySQL vs. YourSQL
+0.22764469683170319	MySQL Tutorial
+0	1001 MySQL Tricks
+0	How To Use MySQL Well
+0	MySQL Security
+0	Optimizing MySQL
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 Variable_name	Value
 Sort_rows	6
@@ -130,13 +131,13 @@ Variable_name	Value
 Sort_rows	2
 Sorting because one is ordering on a different MATCH expression
 FLUSH STATUS;
-SELECT title, MATCH(title, text) AGAINST ('mysql') AS score
+SELECT MATCH(title, text) AGAINST ('mysql') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
-title	score
-MySQL Tutorial	0.000000003771856604828372
-MySQL vs. YourSQL	0.000000001885928302414186
+score	title
+0.000000003771856604828372	MySQL Tutorial
+0.000000001885928302414186	MySQL vs. YourSQL
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 Variable_name	Value
 Sort_rows	2
@@ -733,37 +734,34 @@ Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-SELECT title,
-MATCH(title, text) AGAINST ('database') AS score
+SELECT MATCH(title, text) AGAINST ('database') AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
-title	score
-MySQL vs. YourSQL	0.45528939366340637
-MySQL Tutorial	0.22764469683170319
-How To Use MySQL Well	0
-Optimizing MySQL	0
-1001 MySQL Tricks	0
-MySQL Security	0
-SELECT title,
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+score	title
+0.45528939366340637	MySQL vs. YourSQL
+0.22764469683170319	MySQL Tutorial
+0	1001 MySQL Tricks
+0	How To Use MySQL Well
+0	MySQL Security
+0	Optimizing MySQL
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('MySQL database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
-title	score
-MySQL Security	0.000000003771856604828372
-How To Use MySQL Well	0.000000001885928302414186
-Optimizing MySQL	0.000000001885928302414186
-1001 MySQL Tricks	0.000000001885928302414186
-MySQL Tutorial	0
-MySQL vs. YourSQL	0
-SELECT title,
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+score	title
+0.000000003771856604828372	MySQL Security
+0.000000001885928302414186	1001 MySQL Tricks
+0.000000001885928302414186	How To Use MySQL Well
+0.000000001885928302414186	Optimizing MySQL
+0	MySQL Tutorial
+0	MySQL vs. YourSQL
+SELECT MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score, title
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
-title	score
-MySQL Tutorial	0
+score	title
+0	MySQL Tutorial
 ALTER TABLE wp ENGINE=myisam;
 FLUSH STATUS;
 SELECT title, MATCH(title, text) AGAINST ('database') AS score 
@@ -1079,21 +1077,21 @@ FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE M
 ORDER BY `rank`
 LIMIT 3;
 FTS_DOC_ID	rank
-1	0.15835624933242798
 9	0.15835624933242798
 12	0.15835624933242798
+1	0.15835624933242798
 EXPLAIN
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Ft_hints: sorted, limit = 3; Using index
+1	SIMPLE	t1	NULL	fulltext	ft_idx	ft_idx	0	const	1	100.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) order by `rank` desc limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` where (match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) order by `rank` desc,`test`.`t1`.`FTS_DOC_ID` limit 3
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 FTS_DOC_ID	rank
 11	1.5415468215942383
@@ -1101,15 +1099,15 @@ FTS_DOC_ID	rank
 8	0.31671249866485596
 EXPLAIN SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	NULL	ft_idx	262	NULL	15	100.00	Ft_hints: sorted, limit = 3; Using index
+1	SIMPLE	t1	NULL	index	NULL	FTS_DOC_ID_INDEX	8	NULL	15	100.00	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` order by `rank` desc limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) AS `rank` from `test`.`t1` order by `rank` desc,`test`.`t1`.`FTS_DOC_ID` limit 3
 SELECT FTS_DOC_ID,  MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 FTS_DOC_ID	rank
 5	0.47506874799728394
@@ -1117,15 +1115,15 @@ FTS_DOC_ID	rank
 1	0.15835624933242798
 EXPLAIN SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	fulltext	NULL	ft_idx	262	NULL	15	100.00	Ft_hints: sorted, limit = 3; Using index
+1	SIMPLE	t1	NULL	index	NULL	FTS_DOC_ID_INDEX	8	NULL	15	100.00	Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` order by `rank` desc limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID`,(match `test`.`t1`.`title`,`test`.`t1`.`text` against ('fast database')) AS `rank` from `test`.`t1` order by `rank` desc,`test`.`t1`.`FTS_DOC_ID` limit 3
 SELECT FTS_DOC_ID, MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE) as `rank`
 FROM t1
-ORDER BY `rank` DESC
+ORDER BY `rank` DESC, FTS_DOC_ID
 LIMIT 3;
 FTS_DOC_ID	rank
 11	1.5415468215942383

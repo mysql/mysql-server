@@ -177,11 +177,11 @@ update t1 set b=9999 order by a limit 1;
 show status like 'handler_read%';
 
 flush status;
-delete from t1 order by a limit 1;
+delete from t1 order by a, b desc limit 1;
 show status like 'handler_read%';
 
 flush status;
-delete from t1 order by a desc limit 1;
+delete from t1 order by a desc, b desc limit 1;
 show status like 'handler_read%';
 
 alter table t1 disable keys;
