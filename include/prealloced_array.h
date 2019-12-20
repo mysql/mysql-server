@@ -139,6 +139,14 @@ class Prealloced_array {
       this->push_back(*p);
   }
 
+  Prealloced_array(Prealloced_array &&that)
+      : m_size(0),
+        m_capacity(Prealloc),
+        m_array_ptr(cast_rawbuff()),
+        m_psi_key(that.m_psi_key) {
+    *this = std::move(that);
+  }
+
   /**
     Range constructor.
 
@@ -165,6 +173,26 @@ class Prealloced_array {
     if (this->reserve(that.capacity())) return *this;
     for (const Element_type *p = that.begin(); p != that.end(); ++p)
       this->push_back(*p);
+    return *this;
+  }
+
+  Prealloced_array &operator=(Prealloced_array &&that) {
+    this->clear();
+    if (that.m_array_ptr != that.cast_rawbuff()) {
+      if (m_array_ptr != cast_rawbuff()) my_free(m_array_ptr);
+      // The array is on the heap, so we can just grab it.
+      m_array_ptr = that.m_array_ptr;
+      m_capacity = that.m_capacity;
+      m_size = that.m_size;
+    } else {
+      // Move over each element.
+      if (this->reserve(that.capacity())) return *this;
+      for (Element_type *p = that.begin(); p != that.end(); ++p)
+        this->push_back(std::move(*p));
+    }
+    that.m_size = 0;
+    that.m_array_ptr = that.cast_rawbuff();
+    that.m_capacity = Prealloc;
     return *this;
   }
 
