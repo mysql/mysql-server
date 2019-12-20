@@ -1338,6 +1338,16 @@ ok
 connecting...
 Got expected error: Access denied for user 'abc'@'localhost'. Account is locked. (code 3118)
 ok
+show status like 'Mysqlx_connections_closed';
+Variable_name	Value
+Mysqlx_connections_closed	15
+show status like 'Mysqlx_connections_accepted';
+Variable_name	Value
+Mysqlx_connections_accepted	15
+show status like 'Mysqlx_connection_accept_errors';
+Variable_name	Value
+Mysqlx_connection_accept_errors	0
+# restart:
 drop user xplugin@localhost;
 drop user nonblank@localhost;
 drop user blank@localhost;
@@ -1349,13 +1359,4 @@ drop user mysqlcon2@localhost;
 drop user ''@localhost;
 drop user special@localhost;
 drop user session@localhost;
-show status like 'Mysqlx_connections_closed';
-Variable_name	Value
-Mysqlx_connections_closed	15
-show status like 'Mysqlx_connections_accepted';
-Variable_name	Value
-Mysqlx_connections_accepted	15
-show status like 'Mysqlx_connection_accept_errors';
-Variable_name	Value
-Mysqlx_connection_accept_errors	0
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

@@ -137,8 +137,12 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/long_dir
 --exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --rmdir $MYSQL_TMP_DIR/$DIR_NAME
 --rmdir $MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+--remove_file $MYSQL_TMP_DIR/$DIR_NAME.lock
 --remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
 --remove_file $MYSQL_TMP_DIR/check_connection.tmp
 --source include/xplugin_drop_user.inc

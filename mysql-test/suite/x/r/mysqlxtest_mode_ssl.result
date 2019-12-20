@@ -95,3 +95,4 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
 ok
+# restart:

@@ -23,12 +23,15 @@ EOF
 --let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'
 --source ../include/mysqlxtest_mode_ssl.inc
 
-let $restart_parameters=restart: ;
+--let $restart_parameters=restart:
 --source include/restart_mysqld.inc
 
 --let $USE_SOCKET=
 --source ../include/mysqlxtest_mode_ssl.inc
 
 ## Cleanup
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
 --source include/xplugin_drop_user.inc
