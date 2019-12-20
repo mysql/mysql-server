@@ -480,11 +480,6 @@ f2 varchar(10),
 f3 varchar(255)
 );
 INSERT INTO t3 VALUES ('L','2.0');
-ANALYZE TABLE t1,t2,t3;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
-test.t2	analyze	status	OK
-test.t3	analyze	status	OK
 set optimizer_switch='block_nested_loop=off';
 SELECT SUM(t3.f3)
 FROM t1
