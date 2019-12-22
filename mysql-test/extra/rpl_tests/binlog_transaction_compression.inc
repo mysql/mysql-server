@@ -19,6 +19,10 @@ SET @@global.binlog_transaction_compression=FALSE;
 --source include/rpl_connection_master.inc
 --source include/rpl_reset.inc
 
+--let $event_sequence_no_compression=!Gtid_or_anon # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid
+
+--let $event_sequence_compression=!Gtid_or_anon # Transaction_payload # !Begin # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid
+
 --let $i=1
 while($i < 3)
 {
@@ -33,7 +37,7 @@ while($i < 3)
     --echo # compression DISABLED
     --let $compression_enabled = FALSE
     --let $compression_type = 'NONE'
-    --let $event_sequence=Query # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid
+    --let $event_sequence = $event_sequence_no_compression
   }
 
   if ($i==2)
@@ -41,14 +45,38 @@ while($i < 3)
     --echo # ZSTD compression ENABLED
     --let $compression_enabled = TRUE
     --let $compression_type = 'ZSTD'
-    --let $event_sequence=Transaction_payload # Query # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Table_map # Write_rows # Xid
+    --let $event_sequence = $event_sequence_compression
   }
 
   --source include/rpl_connection_master.inc
   --eval SET @@session.binlog_transaction_compression=$compression_enabled
 
-  # 1. on master insert a large transaction
+  --source include/rpl_connection_slave.inc
+  --source include/start_slave_io.inc
+  --source include/rpl_connection_master.inc
+
+  # prepare for the base from where to assert event sequence, i.e., the
+  # CREATE TABLE onwards
+
   CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+  --let $create_table_pos_master = query_get_value(SHOW MASTER STATUS, Position, 1)
+
+  # now get the position where the CREATE TABLE ended up in the relay log
+  --source include/rpl_connection_master.inc
+  --source include/sync_slave_io_with_master.inc
+  --source include/rpl_get_end_of_relay_log.inc
+  --let $relay_log_file_to_read=$relay_log_file
+  --let $start_reading_relay_log_from=$relay_log_size
+
+  # now get the position where the CREATE TABLE ended up in the slave's binlog
+  --source include/start_slave_sql.inc
+  --source include/rpl_connection_master.inc
+  --source include/sync_slave_sql_with_master.inc
+  --let $create_table_pos_slave = query_get_value(SHOW MASTER STATUS, Position, 1)
+  --source include/stop_slave_sql.inc
+
+  # 1. on master insert a large transaction ...
+  --source include/rpl_connection_master.inc
   BEGIN;
   --let $nrows = 10
   while ($nrows > 0)
@@ -59,37 +87,24 @@ while($i < 3)
   COMMIT;
   --let $checksum_master = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
 
-  # assert that SHOW BINLOG EVENTS shows the correct output
+  # ... and assert that SHOW BINLOG EVENTS shows the correct output
   --echo BINLOG EVENTS on master [$compression_type]
-  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $binlog_position = $create_table_pos_master
+  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
   --let $relay_log=0
-  --let $limit= 5, 100
   --let $include_header_events= 0
   --let $include_trx_payload_events=1
   --source include/assert_binlog_events.inc
 
-  --source include/rpl_connection_slave.inc
-  --source include/start_slave_io.inc
-
-  # 2. make sure it is copied fine to the relay log
+  # 2. on slave, make sure it is copied fine to the relay log ...
   --source include/rpl_connection_master.inc
   --source include/sync_slave_io_with_master.inc
 
-  # assert that SHOW RELAYLOG EVENTS shows the correct output
+  # ... and assert that SHOW RELAYLOG EVENTS shows the correct output
   --echo RELAY LOG EVENTS for $compression_type
-  if (`SELECT @@gtid_mode <> 'ON'`)
-  {
-    --let $_skip = 7
-  }
-  if (`SELECT @@gtid_mode = 'ON'`)
-  {
-    --let $_skip = 8
-  }
-
-  --source include/rpl_get_end_of_relay_log.inc
-  --let $binlog_file= $relay_log_file
+  --let $binlog_file = $relay_log_file_to_read
+  --let $binlog_position = $start_reading_relay_log_from
   --let $relay_log=1
-  --let $limit= $_skip, 100
   --let $include_header_events= 0
   --let $include_trx_payload_events=1
   --source include/assert_binlog_events.inc
@@ -99,8 +114,9 @@ while($i < 3)
   --let $relay_log=
   --let $include_trx_payload_events=
   --let $include_header_events=
+  --let $binlog_position=
 
-  # 3. make sure it is applied fine to the slave
+  # 3. one slave, make sure it is applied fine
   --source include/start_slave_sql.inc
   --source include/rpl_connection_master.inc
   --source include/sync_slave_sql_with_master.inc
@@ -116,16 +132,28 @@ while($i < 3)
   --let $assert_text= Assert that master and slave tables have the same content
   --source include/assert.inc
 
-  # assert that SHOW BINLOG EVENTS shows the correct output
+  # 6. on slave, make sure that it logs to its binlog fine...
+  # ... and assert that SHOW BINLOG EVENTS shows the correct output
   --echo BINLOG EVENTS on slave [$compression_type] (no compression, since slave applier has binlog_transaction_compression = NONE)
-  --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
-  --let $keep_transaction_payload_events = 1
-  --source include/show_binlog_events.inc
+  --let $binlog_position = $create_table_pos_slave
+  --let $binlog_file = query_get_value(SHOW MASTER STATUS, File, 1)
+  --let $relay_log=0
+  --let $include_header_events= 0
+  --let $include_trx_payload_events=1
+  --let $event_sequence=$event_sequence_no_compression
+  --source include/assert_binlog_events.inc
 
-  # 6. clean up
+  # 7. clean up
   --source include/rpl_connection_master.inc
   DROP TABLE t1;
   --source include/sync_slave_sql_with_master.inc
+
+  --let $binlog_position =
+  --let $binlog_file =
+  --let $relay_log=
+  --let $include_header_events=
+  --let $include_trx_payload_events=
+  --let $event_sequence=
 
   --inc $i
 }

@@ -44,13 +44,7 @@ DELETE FROM tmp;
 # Proof:
 # the whole group of BEGIN; DELETE...; COMMIT must be present
 #
---let $gtid_event= Gtid
---let $gtid_mode_on= `SELECT @@GLOBAL.GTID_MODE = 'ON'`
-if (!$gtid_mode_on)
-{
-  --let $gtid_event= Anonymous_Gtid
-}
-
+--let $gtid_event=!Gtid_or_anon
 --let $event_sequence= $gtid_event # !Begin # !Q(DELETE.*) # !Commit
 --source include/assert_binlog_events.inc
 --let $dont_print_pattern= 0
