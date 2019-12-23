@@ -3122,13 +3122,20 @@ double Item_func_round::real_op() {
 }
 
 /*
-  Rounds a given value to a power of 10 specified as the 'to' argument,
-  avoiding overflows when the value is close to the ulonglong range boundary.
+  Rounds a given value to a power of 10 specified as the 'to' argument.
 */
-
-static inline ulonglong my_unsigned_round(ulonglong value, ulonglong to) {
+static inline ulonglong my_unsigned_round(ulonglong value, ulonglong to,
+                                          bool *round_overflow) {
   ulonglong tmp = value / to * to;
-  return (value - tmp < (to >> 1)) ? tmp : tmp + to;
+  if (value - tmp < (to >> 1)) {
+    return tmp;
+  } else {
+    if (test_if_sum_overflows_ull(tmp, to)) {
+      *round_overflow = true;
+      return 0;
+    }
+    return tmp + to;
+  }
 }
 
 longlong Item_func_round::int_op() {
@@ -3148,13 +3155,48 @@ longlong Item_func_round::int_op() {
   tmp = log_10_int[abs_dec];
 
   if (truncate)
-    value =
-        (unsigned_flag) ? ((ulonglong)value / tmp) * tmp : (value / tmp) * tmp;
-  else
-    value = (unsigned_flag || value >= 0)
-                ? my_unsigned_round((ulonglong)value, tmp)
-                : -(longlong)my_unsigned_round((ulonglong)-value, tmp);
-  return value;
+    return (unsigned_flag) ? ((ulonglong)value / tmp) * tmp
+                           : (value / tmp) * tmp;
+  else if (unsigned_flag || value >= 0) {
+    bool round_overflow = false;
+    ulonglong rounded_value =
+        my_unsigned_round(static_cast<ulonglong>(value), tmp, &round_overflow);
+    if (!unsigned_flag && rounded_value > LLONG_MAX)
+      return raise_integer_overflow();
+    if (round_overflow) return raise_integer_overflow();
+    return rounded_value;
+  } else {
+    // We round "towards nearest", so
+    // -9223372036854775808 should round to
+    // -9223372036854775810 which underflows, or
+    // -9223372036854775800 which is OK, or
+    // -9223372036854776000 which underflows, and so on ...
+    if (value == LLONG_MIN) {
+      switch (abs_dec) {
+        case 0:
+          return LLONG_MIN;
+        case 1:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 8:
+        case 9:
+        case 10:
+        case 14:
+        case 19:
+          return raise_integer_overflow();
+        default:
+          return (LLONG_MIN / tmp) * tmp;
+      }
+    }
+    bool not_used = false;
+    ulonglong rounded_value =
+        my_unsigned_round(static_cast<ulonglong>(-value), tmp, &not_used);
+    if (rounded_value > LLONG_MAX) return raise_integer_overflow();
+
+    return -static_cast<longlong>(rounded_value);
+  }
 }
 
 my_decimal *Item_func_round::decimal_op(my_decimal *decimal_value) {

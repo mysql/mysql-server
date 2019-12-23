@@ -1094,3 +1094,58 @@ SELECT CAST(COALESCE(t0.c0, -1) AS UNSIGNED) FROM t0;
 DROP TABLE t0;
 
 SELECT CAST(-1.1 AS UNSIGNED);
+
+--echo #
+--echo #
+--echo # Bug #30680384 UBSAN: RUNTIME ERROR: NEGATION
+--echo #               OF -9223372036854775808 IN ITEM_FUNC_ROUND::INT_OP()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+select (round(-9223372036854775808, -4));
+
+delimiter //;
+CREATE PROCEDURE test_round(in arg bigint)
+BEGIN
+  DECLARE i int;
+  SET i = 0;
+  WHILE (i >= -20) DO
+    BEGIN
+      # Ignore SQLSTATE 22003 numeric value out of range
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '22003' SHOW ERRORS;
+      SELECT arg, i, round(arg, i);
+    END;
+    SET i = i - 1;
+  END WHILE;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE PROCEDURE test_round_unsigned(in arg bigint unsigned)
+BEGIN
+  DECLARE i int;
+  SET i = 0;
+  WHILE (i >= -20) DO
+    BEGIN
+      # Ignore SQLSTATE 22003 numeric value out of range
+      DECLARE CONTINUE HANDLER FOR SQLSTATE '22003' SHOW ERRORS;
+      SELECT arg, i, round(arg, i);
+    END;
+    SET i = i - 1;
+  END WHILE;
+END//
+delimiter ;//
+
+CALL test_round(-123456);
+CALL test_round(-9223372036854775807);
+CALL test_round(-9223372036854775808);
+CALL test_round(9223372036854775807);
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL test_round(9223372036854775808);
+
+CALL test_round_unsigned(9223372036854775807);
+CALL test_round_unsigned(9223372036854775808);
+CALL test_round_unsigned(18446744073709551614);
+
+DROP PROCEDURE test_round;
+DROP PROCEDURE test_round_unsigned;
