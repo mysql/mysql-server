@@ -134,6 +134,7 @@ struct row_import {
                               m_flags(),
                               m_n_cols(),
                               m_n_instant_cols(0),
+                              m_n_instant_nullable(0),
                               m_cols(),
                               m_col_names(),
                               m_n_indexes(),
@@ -236,6 +237,8 @@ struct row_import {
   uint16_t m_n_instant_cols; /*!< Number of columns before
                              first instant ADD COLUMN in
                              the meta-data file */
+
+  uint32_t m_n_instant_nullable;
 
   dict_col_t *m_cols; /*!< Column data */
 
@@ -1486,10 +1489,22 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
   uint64_t old_size;
   uint64_t new_size;
 
+  /* If .cfg file indicates no INSTANT column in source table. */
   if (m_n_instant_cols == 0) {
+    /* But if target table has INSTANT columns, report error. */
+    if (m_table->has_instant_cols()) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "The .cfg file indicates no INSTANT column in the source table"
+              " whereas the metadata in data dictionary says there are instant"
+              " columns in the target table");
+
+      return (DB_ERROR);
+    }
+
+    /* All good. Return success. */
     m_table->set_instant_cols(m_table->get_n_user_cols());
     ut_ad(!m_table->has_instant_cols());
-    return (error);
+    return (DB_SUCCESS);
   }
 
   old_size = mem_heap_get_size(m_table->heap);
@@ -1524,19 +1539,14 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
     ++instants;
 
     if (col->instant_default != nullptr) {
-      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "Instant columns read from meta-data file"
-              " mismatch, the column %s in server table"
-              " has already been an instant column with"
-              " default value",
-              col_name);
-
-      error = DB_ERROR;
-      break;
+      /* We shouldn't report error here. Instead, we should compare default
+      values of INSTANT column from source and target table, and if they
+      match, we should continue. But if they don't, we should report error.
+      It will be done in patch for bug#30561144. */
+    } else {
+      col->set_default(cfg_col->instant_default->value,
+                       cfg_col->instant_default->len, m_table->heap);
     }
-
-    col->set_default(cfg_col->instant_default->value,
-                     cfg_col->instant_default->len, m_table->heap);
   }
 
   new_size = mem_heap_get_size(m_table->heap);
@@ -1563,6 +1573,7 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
   m_table->set_instant_cols(m_table->get_n_user_cols() - m_n_instant_cols);
   ut_ad(m_table->has_instant_cols());
   m_table->first_index()->instant_cols = true;
+  m_table->first_index()->n_instant_nullable = m_n_instant_nullable;
   /* FIXME: Force to discard the table, in case of any rollback later. */
   //	m_table->discard_after_ddl = true;
 
@@ -3174,6 +3185,22 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_CORRUPTION);
   }
 
+  if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V5) {
+    /* Read the nullable field before first instant column */
+    if (fread(value, 1, sizeof(value), file) != sizeof(value)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno),
+                  "while reading meta-data nullable column"
+                  " before first instant column.");
+
+      return (DB_IO_ERROR);
+    }
+
+    cfg->m_n_instant_nullable = mach_read_from_4(value);
+  } else {
+    cfg->m_n_instant_nullable = 0;
+  }
+
   return (err);
 }
 
@@ -3257,6 +3284,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
     case IB_EXPORT_CFG_VERSION_V2:
     case IB_EXPORT_CFG_VERSION_V3:
     case IB_EXPORT_CFG_VERSION_V4:
+    case IB_EXPORT_CFG_VERSION_V5:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3269,7 +3297,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
       return (err);
     default:
       my_error(ER_IMP_INCOMPATIBLE_CFG_VERSION, MYF(0), table->name.m_name,
-               unsigned{cfg.m_version}, unsigned{IB_EXPORT_CFG_VERSION_V4});
+               unsigned{cfg.m_version}, unsigned{IB_EXPORT_CFG_VERSION_V5});
   }
 
   return (DB_UNSUPPORTED);
