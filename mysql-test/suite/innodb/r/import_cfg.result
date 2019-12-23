@@ -409,11 +409,207 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 # Restore the descending key IBD and the v99 version of the CFG.
 # Attempt to import the table.
 ALTER TABLE t1 IMPORT TABLESPACE;
-ERROR HY000: Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
+ERROR HY000: Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (5)
 SHOW WARNINGS;
 Level	Code	Message
-Error	3949	Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (4)
+Error	3949	Failed to import test/t1 because the CFG file version (99) is not compatible with the current version (5)
 Warning	1816	InnoDB: ALTER TABLE `test`.`t1` IMPORT TABLESPACE failed with error 48 : 'Unsupported'
 Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
+# Cleanup
+DROP TABLE t1;
+#
+# Bug#30191523 : FLUSH TABLE T FOR EXPORT OR ALTER TABLE T2 IMPORT
+#                TABLESPACE BROKEN IN 8.0.17.
+#
+# ---------------------- Test 1 ----------------------------------
+# Source table has INSTANT columns but target table doesn't
+# ----------------------------------------------------------------
+# Create source table t1 and add a column INSTANTly
+CREATE TABLE t1(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN v1 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+# Insert some data into t1
+SELECT * from t1 limit 10;
+id	v1	v2
+1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+SELECT COUNT(*) from t1;
+COUNT(*)
+1000
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1";
+NAME	N_COLS	INSTANT_COLS
+test/t1	6	1
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+NAME	POS	HAS_DEFAULT
+v1	1	1
+v2	2	1
+# Flush the table and store CFG/IBD files to temp
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Create table t2 without INSTANTly added columns
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should succeed. Target table metadata should have been updated.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+id	v1	v2
+1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+SELECT COUNT(*) from t2;
+COUNT(*)
+1000
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+NAME	N_COLS	INSTANT_COLS
+test/t1	6	1
+test/t2	6	1
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+NAME	POS	HAS_DEFAULT
+v1	1	1
+v2	2	1
+v1	1	1
+v2	2	1
+DROP TABLE t2;
+# Create table t2 with one column added INSTANTly
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255));
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255);
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should succeed. Target table metadata should have been updated.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+id	v1	v2
+1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+SELECT COUNT(*) from t2;
+COUNT(*)
+1000
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+NAME	N_COLS	INSTANT_COLS
+test/t1	6	1
+test/t2	6	1
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+NAME	POS	HAS_DEFAULT
+v1	1	1
+v2	2	1
+v1	1	1
+v2	2	1
+DROP TABLE t2;
+# Create table t2 with two column added INSTANTly
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t2 ADD COLUMN v1 VARCHAR(255);
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255);
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should succeed.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+id	v1	v2
+1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+SELECT COUNT(*) from t2;
+COUNT(*)
+1000
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+NAME	N_COLS	INSTANT_COLS
+test/t1	6	1
+test/t2	6	1
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+NAME	POS	HAS_DEFAULT
+v1	1	1
+v2	2	1
+v1	1	1
+v2	2	1
+DROP TABLE t2;
+DROP TABLE t1;
+# ---------------------- Test 2 ----------------------------------
+# Source table doesn't have INSTANT columns but target table does
+# ----------------------------------------------------------------
+# Create source table t1 and add a column INSTANTly
+CREATE TABLE t1(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255), v2 VARCHAR(255));
+# Insert some data into t1
+SELECT * from t1 limit 10;
+id	v1	v2
+1	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+2	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+3	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+4	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+5	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+6	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+7	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+8	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+9	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+10	aaaaaaaaaaaaa	bbbbbbbbbbbbbb
+SELECT COUNT(*) from t1;
+COUNT(*)
+1000
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1";
+NAME	N_COLS	INSTANT_COLS
+test/t1	6	0
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+NAME	POS	HAS_DEFAULT
+v1	1	0
+v2	2	0
+# Flush the table and store CFG/IBD files to temp
+FLUSH TABLE t1 FOR EXPORT;
+UNLOCK TABLES;
+# Create table t2 with no INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255), v2 VARCHAR(255));
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should succeed.
+ALTER TABLE t2 IMPORT TABLESPACE;
+DROP TABLE t2;
+# Create table t2 with 1 INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255));
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should fail.
+ALTER TABLE t2 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (The .cfg file indicates no INSTANT column in the source table whereas the metadata in data dictionary says there are instant columns in the target table)
+DROP TABLE t2;
+# Create table t2 with 2 INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t2 ADD COLUMN v1 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 DISCARD TABLESPACE;
+# Copy CFG/IBD file from temp
+# IMPORT should fail.
+ALTER TABLE t2 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (The .cfg file indicates no INSTANT column in the source table whereas the metadata in data dictionary says there are instant columns in the target table)
+DROP TABLE t2;
 # Cleanup
 DROP TABLE t1;

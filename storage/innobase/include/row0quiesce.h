@@ -47,6 +47,9 @@ struct trx_t;
 #define IB_EXPORT_CFG_VERSION_V3 3
 /** The v4 .cfg has the is_ascending boolean written for each index column. */
 #define IB_EXPORT_CFG_VERSION_V4 4
+/** The v5 .cfg writes number of nullable column in table before first instant
+ * column. */
+#define IB_EXPORT_CFG_VERSION_V5 5
 /** Future version used to test that the correct error message is returned. */
 #define IB_EXPORT_CFG_VERSION_V99 99
 

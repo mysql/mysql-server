@@ -2314,6 +2314,7 @@ ibool page_validate(
 
     offs = page_offset(rec_get_start(rec, offsets));
     i = rec_offs_size(offsets);
+
     if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
       ib::error(ER_IB_MSG_902) << "Record offset out of bounds";
       goto func_exit;

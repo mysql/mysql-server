@@ -363,7 +363,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   byte value[sizeof(ib_uint32_t)];
 
   /* Write the current meta-data version number. */
-  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V4;
+  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V5;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
@@ -457,6 +457,18 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                 strerror(errno), "while writing table meta-data.");
 
     return (DB_IO_ERROR);
+  }
+
+  if (cfg_version >= IB_EXPORT_CFG_VERSION_V5) {
+    /* write number of nullable column before first instant column */
+    mach_write_to_4(value, table->first_index()->n_instant_nullable);
+
+    if (fwrite(&value, 1, sizeof(value), file) != sizeof(value)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing table meta-data.");
+
+      return (DB_IO_ERROR);
+    }
   }
 
   /* Write the space flags */

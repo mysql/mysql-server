@@ -347,3 +347,172 @@ DROP TABLE t1;
 --remove_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v4
 --remove_file $MYSQLD_DATADIR/$DB/t1.cfg.descend.v99
 
+--echo #
+--echo # Bug#30191523 : FLUSH TABLE T FOR EXPORT OR ALTER TABLE T2 IMPORT
+--echo #                TABLESPACE BROKEN IN 8.0.17.
+--echo #
+
+--echo # ---------------------- Test 1 ----------------------------------
+--echo # Source table has INSTANT columns but target table doesn't
+--echo # ----------------------------------------------------------------
+
+--echo # Create source table t1 and add a column INSTANTly
+CREATE TABLE t1(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t1 ADD COLUMN v1 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t1 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+
+--echo # Insert some data into t1
+--disable_query_log
+let $i=1000;
+while ($i)
+{
+  INSERT INTO t1(v1, v2) VALUES ("aaaaaaaaaaaaa", "bbbbbbbbbbbbbb");
+  dec $i;
+}
+--enable_query_log
+
+SELECT * from t1 limit 10;
+SELECT COUNT(*) from t1;
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1";
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+
+--echo # Flush the table and store CFG/IBD files to temp
+FLUSH TABLE t1 FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+UNLOCK TABLES;
+
+--echo # Create table t2 without INSTANTly added columns
+CREATE TABLE t2 LIKE t1;
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should succeed. Target table metadata should have been updated.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+SELECT COUNT(*) from t2;
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+
+DROP TABLE t2;
+
+--echo # Create table t2 with one column added INSTANTly
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255));
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255);
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should succeed. Target table metadata should have been updated.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+SELECT COUNT(*) from t2;
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+
+DROP TABLE t2;
+
+--echo # Create table t2 with two column added INSTANTly
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t2 ADD COLUMN v1 VARCHAR(255);
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255);
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should succeed.
+ALTER TABLE t2 IMPORT TABLESPACE;
+SELECT * from t2 limit 10;
+SELECT COUNT(*) from t2;
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1" OR NAME="test/t2";
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+
+DROP TABLE t2;
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
+
+--echo # ---------------------- Test 2 ----------------------------------
+--echo # Source table doesn't have INSTANT columns but target table does
+--echo # ----------------------------------------------------------------
+--echo # Create source table t1 and add a column INSTANTly
+CREATE TABLE t1(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255), v2 VARCHAR(255));
+
+--echo # Insert some data into t1
+--disable_query_log
+let $i=1000;
+while ($i)
+{
+  INSERT INTO t1(v1, v2) VALUES ("aaaaaaaaaaaaa", "bbbbbbbbbbbbbb");
+  dec $i;
+}
+--enable_query_log
+
+SELECT * from t1 limit 10;
+SELECT COUNT(*) from t1;
+SELECT NAME, N_COLS, INSTANT_COLS FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME="test/t1";
+SELECT NAME, POS, HAS_DEFAULT from information_Schema.innodb_columns WHERE NAME='v1' OR NAME='v2';
+
+--echo # Flush the table and store CFG/IBD files to temp
+FLUSH TABLE t1 FOR EXPORT;
+--copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+UNLOCK TABLES;
+
+--echo # Create table t2 with no INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255), v2 VARCHAR(255));
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should succeed.
+ALTER TABLE t2 IMPORT TABLESPACE;
+DROP TABLE t2;
+
+--echo # Create table t2 with 1 INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, v1 VARCHAR(255));
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should fail.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t2 IMPORT TABLESPACE;
+DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/test/t2.cfg
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # Create table t2 with 2 INSTANTly added columns
+CREATE TABLE t2(id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY);
+ALTER TABLE t2 ADD COLUMN v1 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN v2 VARCHAR(255), ALGORITHM=INSTANT;
+ALTER TABLE t2 DISCARD TABLESPACE;
+
+--echo # Copy CFG/IBD file from temp
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/test/t2.cfg
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # IMPORT should fail.
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t2 IMPORT TABLESPACE;
+DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/test/t2.cfg
+--remove_file $MYSQLD_DATADIR/test/t2.ibd
+
+--echo # Cleanup
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
+
