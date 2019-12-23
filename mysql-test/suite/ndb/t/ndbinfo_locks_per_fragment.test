@@ -28,6 +28,7 @@ create view frag_locks as
          main_tab, type;     
 
 --echo No locks taken
+--sorted_result
 select * from frag_locks;
 
 create table baseline as select * from frag_locks;

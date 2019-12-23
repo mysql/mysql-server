@@ -236,9 +236,9 @@ t2	p0	1	KEY	`c3`
 t2	p1	2	KEY	`c3`
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
-t3	x1	1	RANGE	`c3`	105
-t3	x2	2	RANGE	`c3`	333
 t3	x3	3	RANGE	`c3`	720
+t3	x2	2	RANGE	`c3`	333
+t3	x1	1	RANGE	`c3`	105
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't4';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION
 t4	p0	1	HASH	`c3`
@@ -249,8 +249,8 @@ t5	p0	1	KEY	`pk1`
 t5	p1	2	KEY	`pk1`
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
-t6	x1	1	RANGE	`pk1`	333
 t6	x2	2	RANGE	`pk1`	720
+t6	x1	1	RANGE	`pk1`	333
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 250
@@ -412,9 +412,9 @@ t2	p0	1	KEY	`c3`
 t2	p1	2	KEY	`c3`
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
-t3	x1	1	RANGE	`c3`	105
-t3	x2	2	RANGE	`c3`	333
 t3	x3	3	RANGE	`c3`	720
+t3	x2	2	RANGE	`c3`	333
+t3	x1	1	RANGE	`c3`	105
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't4';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION
 t4	p0	1	HASH	`c3`
@@ -425,8 +425,8 @@ t5	p0	1	KEY	`pk1`
 t5	p1	2	KEY	`pk1`
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	PARTITION_EXPRESSION	PARTITION_DESCRIPTION
-t6	x1	1	RANGE	`pk1`	333
 t6	x2	2	RANGE	`pk1`	720
+t6	x1	1	RANGE	`pk1`	333
 SELECT COUNT(*) FROM test.t1;
 COUNT(*)
 250

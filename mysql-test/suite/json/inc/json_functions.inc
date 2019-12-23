@@ -2410,6 +2410,7 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', 'all' ),
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 
+--sorted_result
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 select id, doc, json_search( doc, 'all', 'foo%' ) from t_ooa order by id;
@@ -2456,6 +2457,7 @@ insert into tt(i, j)
 insert into tt(i, si)
   select count(*), json_extract('{"key17": {"a": {"b": "c"}}, "key88": 100}',
                                '$.key88');
+--sorted_result
 select * from tt order by i;
 
 # This exercises Item_copy_json::val_real

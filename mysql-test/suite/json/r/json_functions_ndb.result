@@ -7180,9 +7180,9 @@ insert into t_ooa values
 ( 1, '{ "a": "foot", "b": "fool", "c": "food" }', null );
 select id, doc, one_or_all, json_search( doc, one_or_all, 'foo%' ) from t_ooa order by id;
 id	doc	one_or_all	json_search( doc, one_or_all, 'foo%' )
-1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
-1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
 1	{"a": "foot", "b": "fool", "c": "food"}	NULL	NULL
+1	{"a": "foot", "b": "fool", "c": "food"}	all	["$.a", "$.b", "$.c"]
+1	{"a": "foot", "b": "fool", "c": "food"}	one	"$.a"
 select id, doc, json_search( doc, 'one', 'foo%' ) from t_ooa order by id;
 id	doc	json_search( doc, 'one', 'foo%' )
 1	{"a": "foot", "b": "fool", "c": "food"}	"$.a"
