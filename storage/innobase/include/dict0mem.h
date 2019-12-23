@@ -452,6 +452,9 @@ struct dict_col_default_t {
   byte *value;
   /** Length of default value */
   size_t len;
+
+  bool operator==(const dict_col_default_t &other);
+  bool operator!=(const dict_col_default_t &other);
 };
 
 /** Data structure for a column in a table */
