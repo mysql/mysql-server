@@ -255,6 +255,7 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
+# restart:
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 # restart: --tls_version=TLSv1,TLSv1.1
@@ -513,5 +514,6 @@ Mysqlx.Ok {
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
 ok
+# restart:
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

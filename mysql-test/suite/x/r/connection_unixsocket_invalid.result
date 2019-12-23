@@ -49,3 +49,4 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '\(.+\)' fai
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: UNIX Socket file name too long, size should be less or equal LENGTH (code 2005)
 not ok
+# restart:

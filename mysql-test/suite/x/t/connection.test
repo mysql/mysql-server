@@ -708,7 +708,14 @@ source ../include/connection_test_helpers.inc;
 --exec $MYSQLXTEST -uabc --no-auth --file=$MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp 2>&1
 --sleep 2
 
+show status like 'Mysqlx_connections_closed';
+show status like 'Mysqlx_connections_accepted';
+show status like 'Mysqlx_connection_accept_errors';
+
 ## Cleanup
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 drop user xplugin@localhost;
 drop user nonblank@localhost;
 drop user blank@localhost;
@@ -721,9 +728,6 @@ drop user ''@localhost;
 drop user special@localhost;
 drop user session@localhost;
 
-show status like 'Mysqlx_connections_closed';
-show status like 'Mysqlx_connections_accepted';
-show status like 'Mysqlx_connection_accept_errors';
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp

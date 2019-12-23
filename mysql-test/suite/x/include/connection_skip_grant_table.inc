@@ -78,6 +78,9 @@ exec $MYSQLXTEST $USER_CIPHER
 #
 # Cleanup
 #
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
 

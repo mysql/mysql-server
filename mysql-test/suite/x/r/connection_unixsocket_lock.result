@@ -16,3 +16,4 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of socket: '..+/mysqlx.
 # restart: --loose-mysqlx-socket=SOCKET
 in main, line 0:ERROR: No such file or directory, while connecting to SOCKET (code 2002)
 not ok
+# restart:
