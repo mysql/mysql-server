@@ -1539,17 +1539,17 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
     ++instants;
 
     /* If the data dictionary does not contain a default for this column set
-     the value from .cfg file. */
+    the value from .cfg file. */
     if (col->instant_default == nullptr) {
       col->set_default(cfg_col->instant_default->value,
                        cfg_col->instant_default->len, m_table->heap);
     }
     /* If the instant_default field is equal in the .cfg and DD just continue,
-      through the loop. Otherwise there's a collision, return an error here. */
+    through the loop. Otherwise there's a collision, return an error here. */
     else if (*col->instant_default != *cfg_col->instant_default) {
       ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              "The metadata in the data dictionary and the .cfg file contain "
-              "different default values for column %s!",
+              "The metadata in the data dictionary and the .cfg file contain"
+              " different default values for column %s!",
               col_name);
 
       error = DB_ERROR;
