@@ -623,7 +623,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
                    be skipped and @c false otherwise (the normal case).
   */
   int ordered_commit(THD *thd, bool all, bool skip_commit = false);
-  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log);
+  void handle_binlog_flush_or_sync_error(THD *thd, bool need_lock_log,
+                                         const char *message);
   bool do_write_cache(Binlog_cache_storage *cache,
                       class Binlog_event_writer *writer);
   void report_binlog_write_error();
