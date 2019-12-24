@@ -1327,10 +1327,21 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;
     }
 
+    ACL_USER *acl_user= find_acl_user(Str->host.str, Str->user.str, TRUE);
+
     /* Create user if needed */
     error= replace_user_table(thd, tables[0].table, Str,
                               0, revoke_grant, create_new_users,
                               what_to_set);
+    /*
+      If the user did not exist and replace_user_table() succeeded and if this
+      is a GRANT statement, then it means that a new user is created.
+
+      So, set the is_partial_execution flag to true.
+    */
+    if (!error)
+      is_partial_execution= (!acl_user && !revoke_grant) || is_partial_execution;
+
     if (error > 0)
     {
       result= TRUE;                             // Remember error
@@ -1647,10 +1658,21 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       continue;
     }
 
+    ACL_USER *acl_user= find_acl_user(Str->host.str, Str->user.str, TRUE);
+
     /* Create user if needed */
     error= replace_user_table(thd, tables[0].table, Str,
                               0, revoke_grant, create_new_users,
                               what_to_set);
+    /*
+      If the user did not exist and replace_user_table() succeeded and if this
+      is a GRANT statement, then it means that a new user is created.
+
+      So, set the is_partial_execution flag to true.
+    */
+    if (!error)
+      is_partial_execution= (!acl_user && !revoke_grant) || is_partial_execution;
+
     if (error > 0)
     {
       result= TRUE;                             // Remember error
@@ -1903,10 +1925,22 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       continue;
     }
 
+    ACL_USER *acl_user= find_acl_user(Str->host.str, Str->user.str, TRUE);
     int ret= replace_user_table(thd, tables[0].table, Str,
                                 (!db ? rights : 0), revoke_grant,
                                 create_new_users,
                                 (what_to_set | ACCESS_RIGHTS_ATTR));
+    /*
+      If the user did not exist and replace_user_table() succeeded and if
+      this is a GRANT statement, then it means that a new user is created.
+      So, set the is_partial_execution flag to true.
+    */
+    if (!ret)
+    {
+      /* In case of GRANT, user creation is partial execution */
+      is_partial_execution= (!acl_user && !revoke_grant) || is_partial_execution;
+    }
+
     if (ret)
     {
       result= -1;
