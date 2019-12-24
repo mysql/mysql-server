@@ -7875,7 +7875,36 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
     DBUG_RETURN(error);
 
   // @todo make this work with the group log. /sven
-  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
+
+  /*
+    thd->cache_mngr may be uninitialized when first transaction resulted in an
+    incident. If there is no cache manager exists for the session, then we
+    create one, so that a GTID is generated and is written prior to flushing
+    the stmt_cache.
+  */
+  if (cache_mngr == NULL)
+  {
+    if (thd->binlog_setup_trx_data() ||
+        DBUG_EVALUATE_IF("simulate_cache_creation_failure", 1, 0))
+    {
+      enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_NONE);
+      if (gtid_mode == GTID_MODE_ON || gtid_mode == GTID_MODE_ON_PERMISSIVE)
+      {
+        const char *mode= gtid_mode == GTID_MODE_ON ? "ON" : "ON_PERMISSIVE";
+        std::ostringstream message;
+
+        message << "Could not create IO cache while writing an incident event "
+                   "to the binary log for query: '"<< thd->query().str <<
+                   "'. Since GTID_MODE= " << mode <<", server is unable "
+                   "to proceed with logging.";
+        handle_binlog_flush_or_sync_error(thd, true, message.str().c_str());
+        DBUG_RETURN(true);
+      }
+    }
+    else
+      cache_mngr= thd_get_cache_mngr(thd);
+  }
 
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
@@ -9381,17 +9410,22 @@ static inline int call_after_sync_hook(THD *queue_head)
                        > Indicates false if LOCK_log is already acquired
                          by the thread (happens when we are handling flush
                          error)
+  @param message Message stating the reason of the failure
 
   @return void
 */
 void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
-                                                      bool need_lock_log)
+                                                      bool need_lock_log,
+                                                      const char* message)
 {
   char errmsg[MYSQL_ERRMSG_SIZE];
-  sprintf(errmsg, "An error occurred during %s stage of the commit. "
-          "'binlog_error_action' is set to '%s'.",
-          thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
-          binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
+  if (!message)
+    sprintf(errmsg, "An error occurred during %s stage of the commit. "
+            "'binlog_error_action' is set to '%s'.",
+            thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
+            binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
+  else
+    strncpy(errmsg, message, MYSQL_ERRMSG_SIZE);
   if (binlog_error_action == ABORT_SERVER)
   {
     char err_buff[MYSQL_ERRMSG_SIZE + 27];
@@ -9615,7 +9649,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     /*
       Handle flush error (if any) after leader finishes it's flush stage.
     */
-    handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */);
+    handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */, NULL);
   }
 
   DEBUG_SYNC(thd, "bgc_after_flush_stage_before_sync_stage");
@@ -9742,7 +9776,7 @@ commit_stage:
     Handle sync error after we release all locks in order to avoid deadlocks
   */
   if (sync_error)
-    handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */);
+    handle_binlog_flush_or_sync_error(thd, true /* need_lock_log */, NULL);
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
