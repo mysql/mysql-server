@@ -9425,7 +9425,10 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
             thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
             binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   else
-    strncpy(errmsg, message, MYSQL_ERRMSG_SIZE);
+  {
+    strncpy(errmsg, message, MYSQL_ERRMSG_SIZE-1);
+    errmsg[MYSQL_ERRMSG_SIZE - 1] = '\0';
+  }
   if (binlog_error_action == ABORT_SERVER)
   {
     char err_buff[MYSQL_ERRMSG_SIZE + 27];
