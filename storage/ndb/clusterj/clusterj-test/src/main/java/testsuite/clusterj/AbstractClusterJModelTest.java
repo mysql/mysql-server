@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,9 +50,6 @@ import testsuite.clusterj.model.Employee;
 import testsuite.clusterj.model.IdBase;
 
 public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
-
-    /** The local system default time zone, which is reset by resetLocalSystemDefaultTimeZone */
-    protected static TimeZone localSystemTimeZone = TimeZone.getDefault();
 
     /** ONE_SECOND is the number of milliseconds in one second. */
     protected static final long ONE_SECOND = 1000L;
@@ -180,40 +177,6 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
 
         if (getModelClass() != null && getCleanupAfterTest()) {
             addTearDownClasses(getModelClass());
-        }
-    }
-
-    /** Reset the local system default time zone to the time zone used
-     * by the MySQL server. This guarantees that there is no time zone
-     * offset between the time zone in the client and the time zone
-     * in the server.
-     * @param connection 
-     */
-    protected static void resetLocalSystemDefaultTimeZone(Connection connection) {
-        try {
-            PreparedStatement statement = connection.prepareStatement("select @@global.time_zone, @@global.system_time_zone, @@session.time_zone");
-            ResultSet rs = statement.executeQuery();
-            // there are two columns in the result
-            rs.next();
-            String globalTimeZone = rs.getString(1);
-            String globalSystemTimeZone = rs.getString(2);
-            String sessionTimeZone = rs.getString(3);
-//            if (debug) System.out.println("Global time zone: " + globalTimeZone + 
-//                    " Global system time zone: " + globalSystemTimeZone +" Session time zone: " + sessionTimeZone);
-            connection.commit();
-            if ("SYSTEM".equalsIgnoreCase(globalTimeZone)) {
-                globalTimeZone = globalSystemTimeZone;
-            } else {
-                globalTimeZone = "GMT" + globalTimeZone;
-            }
-            localSystemTimeZone = TimeZone.getTimeZone(globalTimeZone);
-//            if (debug) System.out.println("Local system time zone set to: " + globalTimeZone + "(" + localSystemTimeZone + ")");
-//            TimeZone.setDefault(localSystemTimeZone);
-            // get a new connection after setting local default time zone
-            // because a connection contains a session calendar used to create Timestamp instances
-            connection.close();
-        } catch (SQLException e) {
-            throw new RuntimeException("setServerTimeZone failed", e);
         }
     }
 
