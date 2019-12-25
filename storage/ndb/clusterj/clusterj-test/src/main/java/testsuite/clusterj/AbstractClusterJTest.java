@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -272,31 +272,11 @@ public abstract class AbstractClusterJTest extends TestCase {
         }
     }
 
-    /** Get a connection with special properties. If the connection is open,
-     * close it and get a new one.
-     * 
-     */
-    protected void getConnection(Properties extraProperties) {
-        // characterEncoding = utf8 property is especially useful
-        Properties properties = new Properties(props);
-        properties.putAll(extraProperties);
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                connection = null;
-            }
-            if (debug) System.out.println("Getting new connection with properties " + properties);
-            connection = DriverManager.getConnection(jdbcURL, properties);
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-            throw new ClusterJException("Exception getting connection to " + jdbcURL + "; username " + jdbcUsername, ex);
-        }
-    }
-
     /** Get a connection with properties from the Properties instance.
      * 
      */
     protected Connection getConnection() {
+        Properties props = modifyProperties();
         if (connection == null) {
             try {
                 Class.forName(jdbcDriverName, true, ABSTRACT_CLUSTERJ_TEST_CLASS_LOADER);
@@ -308,21 +288,6 @@ public abstract class AbstractClusterJTest extends TestCase {
             }
         }
         return connection;
-    }
-
-    /** Get a connection with properties from a file.
-     * 
-     * @param propertiesFileName the name of the properties file
-     */
-    protected void getConnection(String propertiesFileName) {
-        Properties props = getProperties(propertiesFileName);
-        String url = props.getProperty(JDBC_URL);
-        try {
-            connection = DriverManager.getConnection(url, props);
-            setAutoCommit(connection, false);
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not get Connection: " + url, e);
-        }
     }
 
     /**
@@ -612,6 +577,8 @@ System.out.println(this.getClass().getName());
         }
         session = null;
         sessionFactory = null;
+        // close the jdbc connection
+        closeConnection();
     }
 
     protected void removeAll(Class<?> cls) {

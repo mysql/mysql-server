@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package testsuite.clusterj;
 import java.util.Arrays;
 import java.util.Properties;
 
+import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.SessionFactory.State;
 
@@ -44,14 +45,6 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
     @Override
     protected void localTearDown() {
         destroySessionFactory();
-    }
-
-    @Override
-    protected Properties modifyProperties() {
-        Properties modifiedProperties = new Properties();
-        modifiedProperties.putAll(props);
-        modifiedProperties.putAll(testProperties);
-        return modifiedProperties;
     }
 
     /**
@@ -158,6 +151,21 @@ public class RecvThreadCPUTest extends AbstractClusterJTest {
         if (sessionFactory != null) {
             errorIfNotEqual(errorMessage, sessionFactory.currentState(), State.Open);
         }
+    }
+
+    @Override
+    protected void createSessionFactory() {
+        // Verify that the session factory from previous run was cleaned up
+        if (sessionFactory != null) {
+            throw new RuntimeException("Sessionfactory from previous run not cleaned up");
+        }
+        // Use all the properties and create a session factory
+        Properties modifiedProperties = new Properties();
+        loadProperties();
+        modifiedProperties.putAll(props);
+        modifiedProperties.putAll(testProperties);
+        if (debug) System.out.println("createSessionFactory props: " + modifiedProperties);
+        sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
     }
 
     private void destroySessionFactory() {
