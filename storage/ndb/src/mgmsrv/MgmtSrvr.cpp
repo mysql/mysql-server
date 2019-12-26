@@ -3887,6 +3887,7 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
         return NO_CONTACT_WITH_DB_NODES;
       }
 
+      const bool refFromMaster = (refToNode(ref->masterRef) == nodeId);
       if (ref->errorCode == AllocNodeIdRef::NotMaster ||
           ref->errorCode == AllocNodeIdRef::Busy ||
           ref->errorCode == AllocNodeIdRef::NodeFailureHandlingNotCompleted)
@@ -3895,20 +3896,38 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
         nodeId = refToNode(ref->masterRef);
 	if (!getNodeInfo(nodeId).is_confirmed())
 	  nodeId = 0;
-        if (ref->errorCode != AllocNodeIdRef::NotMaster)
+        if (first_attempt && (ref->errorCode != AllocNodeIdRef::NotMaster))
         {
-          if (first_attempt)
-          {
-            first_attempt = false;
-            g_eventLogger->info("Alloc node id %u rejected with error code %u, will retry",
-                                free_node_id,
-                                ref->errorCode);
-          }
-          /* sleep for a while (100ms) before retrying */
-          ss.unlock();
-          NdbSleep_MilliSleep(100);  
-          ss.lock();
+          first_attempt = false;
+          g_eventLogger->info("Alloc node id %u rejected with error code %u, will retry",
+                              free_node_id,
+                              ref->errorCode);
         }
+        /* sleep for a while before retrying */
+        ss.unlock();
+        if (ref->errorCode == AllocNodeIdRef::Busy)
+        {
+          NdbSleep_MilliSleep(100);  
+        }
+        else if (ref->errorCode == AllocNodeIdRef::NotMaster)
+        {
+          if (refFromMaster)
+          {
+            /* AllocNodeIdReq sent to master node, but master not ready
+             * to alloc node ID. Sleep before retrying. */
+            NdbSleep_SecSleep(1);
+          }
+          else
+          {
+            /* AllocNodeIdReq sent to non-master node, retry by sending
+             * AllocNodeIdReq to ref->masterRef. No sleep before retrying */
+          }
+        }
+        else /* AllocNodeIdRef::NodeFailureHandlingNotCompleted */
+        {
+          NdbSleep_SecSleep(1);
+        }
+        ss.lock();
         continue;
       }
       return ref->errorCode;
@@ -4469,7 +4488,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   else
   {
     assert(try_alloc_rc == -2); /* No contact with cluster */
-    error_string.appfmt("Cluster not ready for nodeid allocation.");
+    error_string.assfmt("Cluster not ready for nodeid allocation.");
   }
   return false;
 }
