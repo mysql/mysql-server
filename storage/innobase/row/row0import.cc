@@ -1332,11 +1332,13 @@ row_import::match_schema(
 			but table flag is not set for data_dir or vice versa
 			then return error. */
 			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-				"Table data_dir flag don't match, "
-				"server table has data_dir flag = %lu and"
-				" the meta-data file has data_dir flag = %lu",
-				(ulint)DICT_TF_HAS_DATA_DIR(m_table->flags),
-				(ulint)DICT_TF_HAS_DATA_DIR(m_flags));
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(DICT_TF_HAS_DATA_DIR(m_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(m_table->flags) ? "does"
+				: "does not"));
 		} else {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
 				"Table flags don't match");
@@ -3747,11 +3749,13 @@ row_import_for_mysql(
 			DICT_TF_HAS_DATA_DIR(table->flags)) {
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
-				"Table data_dir flag don't match, "
-				"server table has data_dir flag = %lu "
-				"and .ibd file has data_dir flag = %lu",
-				(ulint)DICT_TF_HAS_DATA_DIR(table->flags),
-				(ulint)FSP_FLAGS_HAS_DATA_DIR(space_flags));
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(FSP_FLAGS_HAS_DATA_DIR(space_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(table->flags) ? "does"
+				: "does not"));
 			err = DB_ERROR;
 			return(row_import_error(prebuilt, trx, err));
 		}
