@@ -274,6 +274,12 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
         }
     }
 
+    /** Check the result instance. Override this in a subclass if needed.
+     *
+     * @param instance the instance to be checked
+     */
+    protected void consistencyCheck(IdBase instance) {}
+
     /** Subclasses usually should not override this method to provide the list of expected results */
     protected List<Object[]> getExpected() {
         return expected;
