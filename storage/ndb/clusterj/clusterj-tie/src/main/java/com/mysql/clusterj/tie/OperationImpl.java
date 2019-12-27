@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,6 +84,9 @@ class OperationImpl implements Operation {
 
     protected BufferManager bufferManager;
 
+    /** Boolean flag that tracks whether this operation is a read operation */
+    protected boolean isReadOp = false;
+
     /** Constructor used for insert and delete operations that do not need to read data.
      * 
      * @param operation the operation
@@ -109,6 +112,9 @@ class OperationImpl implements Operation {
         this.offsets = tableImpl.getOffsets();
         this.lengths = tableImpl.getLengths();
         this.maximumColumnLength = tableImpl.getMaximumColumnLength();
+        // mark this operation as a read and add this to operationsToCheck list
+        this.isReadOp = true;
+        transaction.addOperationToCheck(this);
     }
 
     public void equalBigInteger(Column storeColumn, BigInteger value) {
@@ -331,6 +337,10 @@ class OperationImpl implements Operation {
 
     public void endDefinition() {
         // nothing to do
+    }
+
+    public boolean isReadOperation() {
+        return isReadOp;
     }
 
     public int getErrorCode() {
