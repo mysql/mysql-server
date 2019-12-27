@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,9 @@ public class NdbRecordOperationImpl implements Operation {
 
     /** The autoincrement column id or zero if none */
     protected int autoIncrementColumnId = 0;
+
+    /** Boolean flag that tracks whether this operation is a read operation */
+    protected boolean isReadOp = false;
 
     /** Constructor used for smart value handler for new instances,
      * and the cluster transaction is not yet known. There is only one
@@ -321,6 +324,9 @@ public class NdbRecordOperationImpl implements Operation {
         valueBuffer.limit(valueBufferSize);
         valueBuffer.position(0);
         ndbOperation = clusterTransactionImpl.readTuple(ndbRecordKeys.getNdbRecord(), keyBuffer, ndbRecordValues.getNdbRecord(), valueBuffer, mask, null);
+        // mark this operation as a read and add this to operationsToCheck list
+        isReadOp = true;
+        clusterTransactionImpl.addOperationToCheck(this);
         // for each blob column set, get the blob handle
         for (NdbRecordBlobImpl blob: activeBlobs) {
             // activate the blob by getting the NdbBlob
@@ -926,6 +932,10 @@ public class NdbRecordOperationImpl implements Operation {
 
     public NdbRecordBlobImpl getBlobHandle(int columnId) {
         return (NdbRecordBlobImpl) getBlobHandle(storeColumns[columnId]);
+    }
+
+    public boolean isReadOperation() {
+        return isReadOp;
     }
 
     public int getErrorCode() {
