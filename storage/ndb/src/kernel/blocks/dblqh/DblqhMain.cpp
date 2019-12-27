@@ -6045,7 +6045,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
      (ERROR_INSERTED(5104) &&
       LqhKeyReq::getOperation(Treqinfo) == ZINSERT) ||
      (ERROR_INSERTED(5105) &&
-      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE))
+      LqhKeyReq::getOperation(Treqinfo) == ZUPDATE) ||
+      ERROR_INSERTED(5098))
   {
     jam();
     releaseSections(handle);

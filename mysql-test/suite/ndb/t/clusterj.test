@@ -22,6 +22,12 @@
 --let JAVA_CLASS= testsuite.clusterj.AllTests
 --let JAVA_ARGUMENTS= $CLUSTERJ_TEST_JAR
 
+# Enable debug tests if this is a debug build
+--source include/check_ndb_debug.inc
+if ($have_ndb_debug) {
+  --let JAVA_ARGUMENTS= $JAVA_ARGUMENTS --enable-debug-tests
+}
+
 --source suite/ndb/include/run_java.inc
 
 --echo Clean up the temporary clusterj.properties file.

@@ -32,7 +32,7 @@ import com.mysql.clusterj.SessionFactory;
 
 import testsuite.clusterj.model.AutoPKInt;
 
-public class Reconnect2Test extends AbstractClusterJModelTest {
+public class Reconnect2Test extends AbstractClusterJTest {
 
     @Override
     protected boolean getDebug() {
