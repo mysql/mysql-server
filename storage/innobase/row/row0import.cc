@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -645,6 +645,13 @@ struct FetchIndexRootPages : public AbstractCallback {
 	virtual ulint get_space_id() const UNIV_NOTHROW
 	{
 		return(m_space);
+	}
+
+	/**
+	@retval the space flags of the tablespace being iterated over */
+	virtual ulint get_space_flags() const UNIV_NOTHROW
+	{
+		return(m_space_flags);
 	}
 
 	/**
@@ -1354,6 +1361,20 @@ row_import::match_schema(
 				"and the meta-data file has %s",
 				dict_tf_to_row_format_string(m_table->flags),
 				dict_tf_to_row_format_string(m_flags));
+		} else if (DICT_TF_HAS_DATA_DIR(m_flags) !=
+			DICT_TF_HAS_DATA_DIR(m_table->flags)) {
+			/* If the meta-data flag is set for data_dir,
+			but table flag is not set for data_dir or vice versa
+			then return error. */
+			ib_errf(thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(DICT_TF_HAS_DATA_DIR(m_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(m_table->flags) ? "does"
+				: "does not"));
 		} else {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
@@ -3532,6 +3553,7 @@ row_import_for_mysql(
 	rw_lock_s_lock_func(&dict_operation_lock, 0, __FILE__, __LINE__);
 
 	row_import	cfg;
+	ulint		space_flags = 0;
 
 	memset(&cfg, 0x0, sizeof(cfg));
 
@@ -3590,6 +3612,26 @@ row_import_for_mysql(
 			if (err == DB_SUCCESS) {
 				err = cfg.set_root_by_heuristic();
 			}
+		}
+
+		space_flags = fetchIndexRootPages.get_space_flags();
+
+		/* If the fsp flag is set for data_dir, but table flag is not
+		set for data_dir or vice versa then return error. */
+		if (err == DB_SUCCESS
+			&& FSP_FLAGS_HAS_DATA_DIR(space_flags) !=
+			DICT_TF_HAS_DATA_DIR(table->flags)) {
+			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+				ER_TABLE_SCHEMA_MISMATCH,
+				"Table location flags do not match. "
+				"The source table %s a DATA DIRECTORY "
+				"but the destination table %s.",
+				(FSP_FLAGS_HAS_DATA_DIR(space_flags) ? "uses"
+				: "does not use"),
+				(DICT_TF_HAS_DATA_DIR(table->flags) ? "does"
+				: "does not"));
+			err = DB_ERROR;
+			return(row_import_error(prebuilt, trx, err));
 		}
 
 	} else {
