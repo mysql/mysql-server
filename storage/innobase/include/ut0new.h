@@ -1069,6 +1069,29 @@ inline void ut_delete_array(T *ptr) {
   ut_allocator<T>().delete_array(ptr);
 }
 
+/**
+Do not use ut_malloc, ut_zalloc, ut_malloc_nokey, ut_zalloc_nokey,
+ut_zalloc_nokey_nofatal and ut_realloc when allocating memory for
+over-aligned types. We have to use aligned_pointer instead, analogously to how
+we have to use aligned_alloc when working with the standard library to handle
+dynamic allocation for over-aligned types. These macros use ut_allocator to
+allocate raw memory (no type information is passed). This is why ut_allocator
+needs to be instantiated with the byte type. This has implications on the max
+alignment of the objects that are allocated using this API. ut_allocator returns
+memory aligned to alignof(std::max_align_t), similarly to library allocation
+functions. This value is 16 bytes on most x64 machines. A static_assert enforces
+this when using UT_NEW, however, since the ut_allocator template is instantiated
+with byte here the assert will not be hit if using alignment >=
+alignof(std::max_align_t). Not meeting the alignment requirements for a type
+causes undefined behaviour.
+One should avoid using the macros below when writing new code in general,
+and try to remove them when refactoring existing code (in favor of using the
+UT_NEW). The reason behind this lies both in the undefined behaviour problem
+described above, and in the fact that standard C-like malloc use is discouraged
+in c++ (see CppCoreGuidelines - R.10: Avoid malloc() and free()). Using
+ut_malloc has the same problems as the standard library malloc.
+*/
+
 #define ut_malloc(n_bytes, key)                         \
   static_cast<void *>(ut_allocator<byte>(key).allocate( \
       n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
