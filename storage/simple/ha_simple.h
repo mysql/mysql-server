@@ -55,6 +55,9 @@ class Simple_share : public Handler_share {
   THR_LOCK lock;
   Simple_share();
   ~Simple_share() { thr_lock_delete(&lock); }
+
+  const char *data_file_name;
+  bool write_opened;
 };
 
 /** @brief
@@ -63,7 +66,8 @@ class Simple_share : public Handler_share {
 class ha_simple : public handler {
   THR_LOCK_DATA lock;          ///< MySQL lock
   Simple_share *share;        ///< Shared lock info
-  Simple_share *get_share();  ///< Get the share
+  Simple_share *get_share(const char *table_name);  ///< Get the share
+  File data_file;             /// データファイルのdescripter
 
  public:
   ha_simple(handlerton *hton, TABLE_SHARE *table_arg);

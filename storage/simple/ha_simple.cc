@@ -132,15 +132,17 @@ static int simple_init_func(void *p) {
   they are needed to function.
 */
 
-Simple_share *ha_simple::get_share() {
+Simple_share *ha_simple::get_share(const char *table_name) {
   Simple_share *tmp_share;
 
   DBUG_ENTER("ha_simple::get_share()");
 
-  lock_shared_ha_data();
-  if (!(tmp_share = static_cast<Simple_share *>(get_ha_share_ptr()))) {
+  lock_shared_ha_data(); //Simple_share のロック
+  if (!(tmp_share = static_cast<Simple_share *>(get_ha_share_ptr()))) { // すでにあればそれを取得、なければ作成
     tmp_share = new Simple_share;
     if (!tmp_share) goto err;
+    tmp_share->data_file_name = table_name;
+    tmp_share->write_opened = false;
 
     set_ha_share_ptr(static_cast<Handler_share *>(tmp_share));
   }
@@ -216,11 +218,16 @@ static bool simple_is_supported_system_table(const char *db,
   handler::ha_open() in handler.cc
 */
 
-int ha_simple::open(const char *, int, uint, const dd::Table *) {
+int ha_simple::open(const char *name, int, uint, const dd::Table *) {
   DBUG_ENTER("ha_simple::open");
 
-  if (!(share = get_share())) DBUG_RETURN(1);
-  thr_lock_data_init(&share->lock, &lock, NULL);
+  if (!(share = get_share(name))) DBUG_RETURN(1); // Simple_shareの取得
+  thr_lock_data_init(&share->lock, &lock, NULL); // ロックオブジェクトの初期化
+
+  if ((data_file = my_open(share->data_file_name, O_RDONLY, MYF(0))) == -1) {
+      close();
+      DBUG_RETURN(-1);
+  }
 
   DBUG_RETURN(0);
 }
