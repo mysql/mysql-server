@@ -39,6 +39,7 @@
 */
 
 #include <sys/types.h>
+#include <include/sql_string.h>
 
 #include "my_base.h" /* ha_rows */
 #include "my_compiler.h"
@@ -57,6 +58,7 @@ class Simple_share : public Handler_share {
   ~Simple_share() { thr_lock_delete(&lock); }
 
   const char *data_file_name;
+  File write_fd;
   bool write_opened;
 };
 
@@ -68,6 +70,7 @@ class ha_simple : public handler {
   Simple_share *share;        ///< Shared lock info
   Simple_share *get_share(const char *table_name);  ///< Get the share
   File data_file;             /// データファイルのdescripter
+  String buffer;
 
  public:
   ha_simple(handlerton *hton, TABLE_SHARE *table_arg);
@@ -198,6 +201,16 @@ class ha_simple : public handler {
     skip it and and MySQL will treat it as not implemented.
   */
   int write_row(uchar *buf);
+
+  /*
+   *  Added for write_row()
+   */
+  int init_writer();
+
+  /*
+   *  Added for write_row()
+   */
+  int encode_quote();
 
   /** @brief
     We implement this in ha_simple.cc. It's not an obligatory method;

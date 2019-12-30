@@ -98,6 +98,8 @@
 #include "mysql/plugin.h"
 #include "sql/sql_class.h"
 #include "sql/sql_plugin.h"
+#include "sql/table.h"
+#include "sql/field.h"
 #include "typelib.h"
 
 static handler *simple_create_handler(handlerton *hton, TABLE_SHARE *table,
@@ -290,7 +292,66 @@ int ha_simple::write_row(uchar *) {
     probably need to do something with 'buf'. We report a success
     here, to pretend that the insert was successful.
   */
+  int size;
+
+  ha_statistic_increment(&System_status_var::ha_write_count);
+
+  if(!share->write_opened)
+      if(init_writer()) DBUG_RETURN(-1);
+
+  size = encode_quote();
+  if((my_write(share->write_fd, (uchar *)buffer.ptr(), size, MYF(0))) < 0)
+      DBUG_RETURN(-1);
+
+  stats.records++;
   DBUG_RETURN(0);
+}
+
+/**
+ *  Added to write_row
+ */
+int ha_simple::init_writer() {
+    DBUG_ENTER("ha_simple::init_writer");
+
+    if((share->write_fd = my_open(share->data_file_name, O_RDWR | O_APPEND, MYF(0))) == -1) {
+        DBUG_RETURN(-1);
+    }
+    share->write_opened = true;
+
+    DBUG_RETURN(0);
+}
+
+/**
+ * Added to write_row
+ */
+int ha_simple::encode_quote() {
+    char attribute_buffer[1024];
+    String attribute(attribute_buffer, sizeof(attribute_buffer), &my_charset_bin); //??
+
+    my_bitmap_map *org_bitmap = tmp_use_all_columns(table, table->read_set);
+    buffer.length(0);
+
+    for(Field **field = table->field; *field; field++) {
+        const char *p;
+        const char *end;
+
+        (*field)->val_str(&attribute, &attribute); //?? クエリ文字列の実際の長さをattributeにセット
+        p = attribute.ptr(); // 書き込む文字列の先頭にポイインタをセット
+        end = attribute.length() + p;  // 書き込む文字列の終端にポインタをセット
+
+        buffer.append('"');
+        for (; p < end; p++) {
+            buffer.append(*p);
+        }
+        buffer.append('"');
+        buffer.append(',');
+    }
+
+    buffer.length(buffer.length() - 1);
+    buffer.append('\n');
+
+    tmp_restore_column_map(table->read_set, org_bitmap); //?? 読み取りフラグを寝かせる
+    return (buffer.length());
 }
 
 /**
