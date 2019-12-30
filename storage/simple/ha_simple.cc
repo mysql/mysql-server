@@ -748,9 +748,14 @@ int ha_simple::create(const char *name, TABLE *, HA_CREATE_INFO *,
     This is not implemented but we want someone to be able to see that it
     works.
   */
+  File table_file;
+  if((table_file = my_create(name, 0, O_RDWR, MYF(0))) < 0)
+      DBUG_RETURN(-1);
+  if((my_close(table_file, MYF(0))) < 0)
+      DBUG_RETURN(-1);
 
   /*
-    It's just an simple of THDVAR_SET() usage below.
+    It's just an exammple of THDVAR_SET() usage below.
   */
   THD *thd = ha_thd();
   char *buf = (char *)my_malloc(PSI_NOT_INSTRUMENTED, SHOW_VAR_FUNC_BUFF_SIZE,
