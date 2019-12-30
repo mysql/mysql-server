@@ -50,6 +50,7 @@ CALL mtr.add_suppression("Failed to create or recover replication info repositor
 CALL mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
 CALL mtr.add_suppression("Failed to start slave threads for channel");
 CALL mtr.add_suppression("Could not start slave for channel");
+CALL mtr.add_suppression("file * was not purged because it was being read by thread");
 
 --let $iter =1
 while ($iter < $rpl_number_of_servers)
@@ -75,11 +76,8 @@ while ($iter < $rpl_number_of_servers)
   --inc $iter
 }
 
-# Cleanup time no need to create sample data now.
---let $no_sample_data=1
---source extra/rpl_tests/rpl_create_msr_channels.inc
-# channel_1 is expected by rpl_end.inc.
---replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= $SERVER_MYPORT_1, MASTER_HOST='localhost' FOR CHANNEL 'channel_1'
+#End MSR setup
+--let $rpl_skip_delete_channels= 1
+--let $rpl_skip_stop_slave= 1
 --let $rpl_skip_sync= 1
 --source include/rpl_end.inc

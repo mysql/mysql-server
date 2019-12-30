@@ -7,6 +7,7 @@ CALL mtr.add_suppression("Failed to create or recover replication info repositor
 CALL mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
 CALL mtr.add_suppression("Failed to start slave threads for channel");
 CALL mtr.add_suppression("Could not start slave for channel");
+CALL mtr.add_suppression("file * was not purged because it was being read by thread");
 [connection server_1]
 RESET MASTER;
 [connection server_4]
@@ -598,37 +599,4 @@ Channel_Name = 'channel_3'
 RESET SLAVE FOR CHANNEL 'channel_3';
 ===== Executing RESET SLAVE ALL FOR CHANNEL on channel 'channel_3'.
 RESET SLAVE ALL FOR CHANNEL 'channel_3';
-[connection server_1]
-RESET MASTER;
-[connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL '';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL '']
-[connection server_2]
-RESET MASTER;
-[connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_2';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_2']
-[connection server_3]
-RESET MASTER;
-[connection server_4]
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= port, MASTER_HOST='localhost' FOR CHANNEL 'channel_3';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc [FOR CHANNEL 'channel_3']
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT= SERVER_1_PORT, MASTER_HOST='localhost' FOR CHANNEL 'channel_1';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/rpl_end.inc
-Warnings:
-Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
-RESET SLAVE ALL FOR CHANNEL 'channel_1';
-RESET SLAVE ALL FOR CHANNEL 'channel_2';
-RESET SLAVE ALL FOR CHANNEL 'channel_3';
