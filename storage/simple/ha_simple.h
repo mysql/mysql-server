@@ -20,22 +20,22 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file ha_example.h
+/** @file ha_simple.h
 
     @brief
-  The ha_example engine is a stubbed storage engine for example purposes only;
+  The ha_simple engine is a stubbed storage engine for simple purposes only;
   it does nothing at this point. Its purpose is to provide a source
   code illustration of how to begin writing new storage engines; see also
-  /storage/example/ha_example.cc.
+  /storage/simple/ha_simple.cc.
 
     @note
-  Please read ha_example.cc before reading this file.
-  Reminder: The example storage engine implements all methods that are
+  Please read ha_simple.cc before reading this file.
+  Reminder: The simple storage engine implements all methods that are
   *required* to be implemented. For a full list of all methods that you can
   implement, see handler.h.
 
    @see
-  /sql/handler.h and /storage/example/ha_example.cc
+  /sql/handler.h and /storage/simple/ha_simple.cc
 */
 
 #include <sys/types.h>
@@ -47,32 +47,32 @@
 #include "thr_lock.h"    /* THR_LOCK, THR_LOCK_DATA */
 
 /** @brief
-  Example_share is a class that will be shared among all open handlers.
-  This example implements the minimum of what you will probably need.
+  Simple_share is a class that will be shared among all open handlers.
+  This simple implements the minimum of what you will probably need.
 */
-class Example_share : public Handler_share {
+class Simple_share : public Handler_share {
  public:
   THR_LOCK lock;
-  Example_share();
-  ~Example_share() { thr_lock_delete(&lock); }
+  Simple_share();
+  ~Simple_share() { thr_lock_delete(&lock); }
 };
 
 /** @brief
   Class definition for the storage engine
 */
-class ha_example : public handler {
+class ha_simple : public handler {
   THR_LOCK_DATA lock;          ///< MySQL lock
-  Example_share *share;        ///< Shared lock info
-  Example_share *get_share();  ///< Get the share
+  Simple_share *share;        ///< Shared lock info
+  Simple_share *get_share();  ///< Get the share
 
  public:
-  ha_example(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_example() {}
+  ha_simple(handlerton *hton, TABLE_SHARE *table_arg);
+  ~ha_simple() {}
 
   /** @brief
     The name that will be used for display purposes.
    */
-  const char *table_type() const { return "EXAMPLE"; }
+  const char *table_type() const { return "SIMPLE"; }
 
   /**
     Replace key algorithm with one supported by SE, return the default key
@@ -173,67 +173,67 @@ class ha_example : public handler {
   }
 
   /*
-    Everything below are methods that we implement in ha_example.cc.
+    Everything below are methods that we implement in ha_simple.cc.
 
     Most of these methods are not obligatory, skip them and
     MySQL will treat them as not implemented
   */
   /** @brief
-    We implement this in ha_example.cc; it's a required method.
+    We implement this in ha_simple.cc; it's a required method.
   */
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def);  // required
 
   /** @brief
-    We implement this in ha_example.cc; it's a required method.
+    We implement this in ha_simple.cc; it's a required method.
   */
   int close(void);  // required
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int write_row(uchar *buf);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int update_row(const uchar *old_data, uchar *new_data);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int delete_row(const uchar *buf);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                      enum ha_rkey_function find_flag);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_next(uchar *buf);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_prev(uchar *buf);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_first(uchar *buf);
 
   /** @brief
-    We implement this in ha_example.cc. It's not an obligatory method;
+    We implement this in ha_simple.cc. It's not an obligatory method;
     skip it and and MySQL will treat it as not implemented.
   */
   int index_last(uchar *buf);
