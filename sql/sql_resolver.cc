@@ -2934,6 +2934,17 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
         nested_join->sj_inner_exprs.push_back(subq_select->base_ref_items[i]);
       }
     }
+  } else {  // this is EXISTS
+    // Expressions from the SELECT list will not be used; unlike in the case of
+    // IN, they are not part of sj_inner_exprs.
+    // @todo in WL#6570, move this to resolve_subquery().
+    Item::Cleanup_after_removal_context ctx(this);
+    List_iterator<Item> li(subq_select->fields_list);
+    Item *item;
+    while ((item = li++)) {
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+                 pointer_cast<uchar *>(&ctx));
+    }
   }
 
   /*
