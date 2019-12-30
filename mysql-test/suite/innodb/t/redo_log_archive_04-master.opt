@@ -1,0 +1,4 @@
+--secure-file-priv=$MYSQL_TMP_DIR
+--local-infile=ON
+--skip-log-bin
+--loose-innodb_redo_log_archive_dirs='command_line_label:/'

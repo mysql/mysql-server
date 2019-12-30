@@ -239,7 +239,7 @@ int xpl_plugin_init(MYSQL_PLUGIN p) {
   check_exit_hook();
   xpl_init_performance_schema();
 
-  return xpl::Server::main(p);
+  return xpl::Server::plugin_main(p);
 }
 
 /*
@@ -255,7 +255,7 @@ int xpl_plugin_init(MYSQL_PLUGIN p) {
  */
 int xpl_plugin_deinit(MYSQL_PLUGIN p) {
   check_exit_hook();
-  int res = xpl::Server::exit(p);
+  int res = xpl::Server::plugin_exit(p);
 
   return res;
 }

@@ -1,0 +1,38 @@
+--source include/have_debug.inc
+# This test crashes MySQL Server on purpose.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+# Connect to all
+--source connect.inc
+
+--echo #
+--echo # Test participant crash during schema operation
+--echo #
+
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+--echo # Setup participant to crash when schema operation starts
+connection mysqld6;
+set GLOBAL debug="+d,ndb_schema_op_start_crash";
+--echo # Write file to make mtr.pl restart the server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.6.1.expect
+
+--echo # Run schema operation to trigger participant failure
+connection mysqld1;
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+ALTER TABLE t1 ALGORITHM=copy, ADD COLUMN b int;
+
+--echo # Check that schema operation suceeded on another MySQL Server
+connection mysqld2;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # Wait for failed participant to finish restarting
+connection mysqld6;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect

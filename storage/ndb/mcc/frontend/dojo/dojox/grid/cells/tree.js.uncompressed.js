@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/cells/tree", [
 	"dojo/_base/kernel",
 	"../../main",

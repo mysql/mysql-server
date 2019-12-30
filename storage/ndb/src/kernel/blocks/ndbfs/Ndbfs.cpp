@@ -1252,8 +1252,12 @@ Ndbfs::createAsyncFile()
 #else
   AsyncFile* file = new PosixAsyncFile(* this);
 #endif
-
-  if (file->init())
+  int err = file->init();
+  if (err == -1)
+  {
+    ERROR_SET(fatal, NDBD_EXIT_AFS_ZLIB_INIT_FAIL, "", " Ndbfs::createAsyncFile: Zlib init failure");
+  }
+  else if(err)
   {
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }

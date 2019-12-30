@@ -1,7 +1,9 @@
 --echo # This test scripts covers upgrade of tables, views, tablespaces,
 --echo # events, stored routines and triggers from 5.7 to 8.0.
 
+--source include/big_test.inc
 --source include/no_valgrind_without_big.inc
+--source include/have_myisam.inc
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Parent table of FTS auxiliary table.*");
@@ -384,6 +386,17 @@ SHOW CREATE VIEW view_with_column_names.v3;
 SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
+
+--echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
+--echo # MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
+--echo # of coverage resides in foreign_key test.
+SHOW CREATE TABLE foreign_keys.t9;
+SHOW CREATE TABLE foreign_keys.ta;
+SHOW CREATE TABLE foreign_keys.tb;
+SHOW CREATE TABLE foreign_keys.tc;
+SHOW CREATE TABLE foreign_keys.td;
+SHOW CREATE TABLE foreign_keys.te;
+SHOW CREATE TABLE foreign_keys.tf;
 
 --echo # Restart on the upgraded data dir
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
@@ -794,5 +807,47 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 --echo # Remove copied files
 --remove_file $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
 --force-rmdir $MYSQL_TMP_DIR/data57_upgrade_innodb_4k
+
+--echo # Restart the server with default options.
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
+
+--echo #
+--echo # Bug#29823053: VERY SMALL TABLE_OPEN_CACHE CAUSES SEGMENTATION FAULT WHEN UPGRADING TO 8.0.16
+--echo #
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log;
+
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_57022.zip $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_57022.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data_57022.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR3 = $MYSQL_TMP_DIR/data_57022;
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server to do upgrade. Without the bugfix, the server will fail.
+--exec echo "restart: --table_open_cache=1 --datadir=$MYSQLD_DATADIR3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 3000
+--source include/wait_until_connected_again.inc
+
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_57022.zip
+--force-rmdir $MYSQLD_DATADIR3
+--echo # Restart the server with default options.
+--source include/start_mysqld.inc
 
 --echo # end of test

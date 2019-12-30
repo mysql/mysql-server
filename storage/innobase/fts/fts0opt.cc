@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,14 +65,11 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
-/** Event to wait for shutdown of the optimize thread */
-static os_event_t fts_opt_shutdown_event = NULL;
-
 /** Initial size of nodes in fts_word_t. */
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
 /** Last time we did check whether system need a sync */
-static ib_time_t last_check_sync_time;
+static ib_time_monotonic_t last_check_sync_time;
 
 #if 0
 /** Check each table in round robin to see whether they'd
@@ -213,12 +210,12 @@ struct fts_slot_t {
   ulint deleted; /*!< Number of doc ids deleted since the
                  last time this table was optimized */
 
-  ib_time_t last_run; /*!< Time last run completed */
+  ib_time_monotonic_t last_run; /*!< Time last run completed */
 
-  ib_time_t completed; /*!< Optimize finish time */
+  ib_time_monotonic_t completed; /*!< Optimize finish time */
 
-  ib_time_t interval_time; /*!< Minimum time to wait before
-                           optimizing the table again. */
+  int64_t interval_time; /*!< Minimum time to wait before
+                         optimizing the table again. */
 };
 
 /** A table remove message for the FTS optimize thread. */
@@ -1416,9 +1413,9 @@ void fts_word_free(fts_word_t *word) /*!< in: instance to free.*/
 /** Optimize the word ilist and rewrite data to the FTS index.
  @return status one of RESTART, EXIT, ERROR */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_compact(
-    fts_optimize_t *optim, /*!< in: optimize state data */
-    dict_index_t *index,   /*!< in: current FTS being optimized */
-    ib_time_t start_time)  /*!< in: optimize start time */
+    fts_optimize_t *optim,          /*!< in: optimize state data */
+    dict_index_t *index,            /*!< in: current FTS being optimized */
+    ib_time_monotonic_t start_time) /*!< in: optimize start time */
 {
   ulint i;
   dberr_t error = DB_SUCCESS;
@@ -1451,7 +1448,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_optimize_compact(
     fts_word_free(word);
 
     if (fts_optimize_time_limit > 0 &&
-        (ut_time() - start_time) > fts_optimize_time_limit) {
+        ut_time_monotonic() - start_time > fts_optimize_time_limit) {
       optim->done = TRUE;
     }
   }
@@ -1609,7 +1606,6 @@ static void fts_optimize_words(
     fts_string_t *word)    /*!< in: the starting word to optimize */
 {
   fts_fetch_t fetch;
-  ib_time_t start_time;
   que_t *graph = NULL;
   CHARSET_INFO *charset = optim->fts_index_table.charset;
 
@@ -1619,7 +1615,7 @@ static void fts_optimize_words(
   fts_optimize_time_limit =
       fts_optimize_get_time_limit(optim->trx, &optim->fts_common_table);
 
-  start_time = ut_time();
+  const auto start_time = ut_time_monotonic();
 
   /* Setup the callback to use for fetching the word ilist etc. */
   fetch.read_arg = optim->words;
@@ -2282,7 +2278,7 @@ static dberr_t fts_optimize_table_bk(
 
   /* Avoid optimizing tables that were optimized recently. */
   if (slot->last_run > 0 &&
-      (ut_time() - slot->last_run) < slot->interval_time) {
+      ut_time_monotonic() - slot->last_run < slot->interval_time) {
     return (DB_SUCCESS);
 
   } else {
@@ -2302,7 +2298,7 @@ static dberr_t fts_optimize_table_bk(
         if (error == DB_SUCCESS) {
           slot->state = FTS_STATE_DONE;
           slot->last_run = 0;
-          slot->completed = ut_time();
+          slot->completed = ut_time_monotonic();
         }
       }
 
@@ -2311,7 +2307,7 @@ static dberr_t fts_optimize_table_bk(
   }
 
   /* Note time this run completed. */
-  slot->last_run = ut_time();
+  slot->last_run = ut_time_monotonic();
 
   return (error);
 }
@@ -2638,11 +2634,10 @@ static ulint fts_optimize_how_many(
                                vector*/
 {
   ulint i;
-  ib_time_t delta;
   ulint n_tables = 0;
-  ib_time_t current_time;
+  ib_time_monotonic_t delta;
 
-  current_time = ut_time();
+  const auto current_time = ut_time_monotonic();
 
   for (i = 0; i < ib_vector_size(tables); ++i) {
     const fts_slot_t *slot;
@@ -2685,18 +2680,17 @@ static ulint fts_optimize_how_many(
 
 /** Check if the total memory used by all FTS table exceeds the maximum limit.
  @return true if a sync is needed, false otherwise */
-static bool fts_is_sync_needed(
-    const ib_vector_t *tables) /*!< in: registered tables
-                               vector*/
+static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
+                                                          tables vector*/
 {
   ulint total_memory = 0;
-  double time_diff = difftime(ut_time(), last_check_sync_time);
+  const auto time_diff = ut_time_monotonic() - last_check_sync_time;
 
   if (fts_need_sync || time_diff < 5) {
     return (false);
   }
 
-  last_check_sync_time = ut_time();
+  last_check_sync_time = ut_time_monotonic();
 
   mutex_enter(&dict_sys->mutex);
 
@@ -2807,7 +2801,6 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
   ulint n_tables = 0;
   ulint n_optimize = 0;
 
-  my_thread_init();
   ut_ad(!srv_read_only_mode);
 
   THD *thd = create_thd(false, true, true, 0);
@@ -2931,10 +2924,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
 
   ib::info(ER_IB_MSG_505) << "FTS optimize thread exiting.";
 
-  os_event_set(fts_opt_shutdown_event);
-
   destroy_thd(thd);
-  my_thread_end();
 }
 
 /** Startup the optimize thread and create the work queue. */
@@ -2945,12 +2935,13 @@ void fts_optimize_init(void) {
   ut_a(fts_optimize_wq == NULL);
 
   fts_optimize_wq = ib_wqueue_create();
-  fts_opt_shutdown_event = os_event_create(0);
   ut_a(fts_optimize_wq != NULL);
-  last_check_sync_time = ut_time();
+  last_check_sync_time = ut_time_monotonic();
 
-  os_thread_create(fts_optimize_thread_key, fts_optimize_thread,
-                   fts_optimize_wq);
+  srv_threads.m_fts_optimize = os_thread_create(
+      fts_optimize_thread_key, fts_optimize_thread, fts_optimize_wq);
+
+  srv_threads.m_fts_optimize.start();
 }
 
 /** Shutdown fts optimize thread. */
@@ -2977,9 +2968,7 @@ void fts_optimize_shutdown() {
 
   ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
-  os_event_wait(fts_opt_shutdown_event);
-
-  os_event_destroy(fts_opt_shutdown_event);
+  srv_threads.m_fts_optimize.join();
 
   ib_wqueue_free(fts_optimize_wq);
   fts_optimize_wq = NULL;

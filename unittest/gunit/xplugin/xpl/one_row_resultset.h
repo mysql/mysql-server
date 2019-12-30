@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <gmock/gmock.h>
 #include <string>
 
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
@@ -33,26 +34,39 @@ namespace test {
 
 class One_row_resultset : public xpl::Collect_resultset {
  public:
+  using Resultset = Buffering_command_delegate::Resultset;
+  using Row_data = Callback_command_delegate::Row_data;
+  using Field_value = Callback_command_delegate::Field_value;
+  using Field_types = Callback_command_delegate::Field_types;
+
   struct Init {
     Init(const int v)  // NOLINT(runtime/explicit)
-        : field(v, true), type(MYSQL_TYPE_LONGLONG) {}
+        : field(static_cast<longlong>(v)) {}
     Init(const bool v)  // NOLINT(runtime/explicit)
-        : field(v, true), type(MYSQL_TYPE_LONGLONG) {}
+        : field(static_cast<longlong>(v)) {}
     Init(const char *v)  // NOLINT(runtime/explicit)
-        : field(v, strlen(v)), type(MYSQL_TYPE_STRING) {}
-    const xpl::Collect_resultset::Field field;
-    const enum_field_types type;
+        : field(v, strlen(v)) {}
+
+    const Field_value field;
   };
+
+ public:
   One_row_resultset(std::initializer_list<Init> values) {
-    xpl::Collect_resultset::Field_types types;
-    xpl::Collect_resultset::Row_list rows(1);
-    for (const Init &v : values) {
-      types.push_back({v.type, 0});
-      rows.begin()->fields.push_back(
-          ngs::allocate_object<Field_value>(v.field));
+    auto &callbacks = get_callbacks();
+    Row_data row;
+    Resultset resultset;
+    Field_types types;
+
+    for (const auto &v : values) {
+      row.fields.push_back(ngs::allocate_object<Field_value>(v.field));
+
+      types.push_back(
+          {v.field.is_string ? MYSQL_TYPE_STRING : MYSQL_TYPE_LONGLONG, 0});
     }
-    set_field_types(types);
-    set_row_list(rows);
+
+    resultset.push_back(row);
+    callbacks.set_resultset(resultset);
+    callbacks.set_field_types(types);
   }
 };
 

@@ -1,0 +1,107 @@
+#
+# Part of test coverage for WL#9826 "Allow RENAME TABLES under
+# LOCK TABLES" which needs debug build and debug_sync facility.
+#
+# The main part of coverage for this WL resides in rename.test.
+# This file only contains subtests which require debug/debug_sync
+# facilities, hence their odd numbering.
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+#
+# 4) Effects of failed RENAME TABLES on set of locked tables and
+#    metadata locks held.
+#
+# 4.1) Atomic RENAME TABLES which fails at late stage should be
+#      fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t0 (m INT) ENGINE=MyISAM;
+#
+# 4.3) Non-atomic RENAME TABLES which fails at late stage and
+#      is NOT fully reverted. Tables involved are removed
+#      from the set of locked tables. Metadata locks on both
+#      old and new table names are kept.
+LOCK TABLES t1 WRITE, t2 WRITE, t0 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+RENAME TABLES t0 TO t00, t1 TO t01;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SET @@debug='-d,injecting_fault_writing';
+# Tables are not available under both old and new names.
+SELECT * FROM t0;
+ERROR HY000: Table 't0' was not locked with LOCK TABLES
+SELECT * FROM t00;
+ERROR HY000: Table 't00' was not locked with LOCK TABLES
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t01;
+ERROR HY000: Table 't01' was not locked with LOCK TABLES
+# Untouched table is still available.
+SELECT * FROM t2;
+j
+connection con1;
+# Access by old and new names from other connections should be
+# blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t00;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t01;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# And access to untouched table too.
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t00, t01, t2;
+#
+# 7) RENAME TABLES under LOCK TABLES which moves tables
+#    between schemas.
+#
+#
+# 7.4) Non-atomic RENAME TABLES which moves table to different chema,
+#      fails at late stage and is NOT fully reverted. Tables involved
+#      are removed from the set of locked tables. Metadata locks on
+#      old, new table name and new schema are kept.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t0 (l INT) ENGINE=MyISAM;
+CREATE DATABASE mysqltest;
+LOCK TABLES t0 WRITE, t1 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+RENAME TABLES t0 TO mysqltest.t0, t1 TO t01;
+ERROR HY000: Error writing file 'binlog' ((errno: #)
+SET @@debug='-d,injecting_fault_writing';
+# Tables are not available under both old and new names.
+SELECT * FROM t0;
+ERROR HY000: Table 't0' was not locked with LOCK TABLES
+SELECT * FROM mysqltest.t0;
+ERROR HY000: Table 't0' was not locked with LOCK TABLES
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t01;
+ERROR HY000: Table 't01' was not locked with LOCK TABLES
+connection con1;
+# Access by old and new names from other connections should be
+# blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM mysqltest.t0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t01;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# New schema is IX locked.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t01;
+DROP DATABASE mysqltest;

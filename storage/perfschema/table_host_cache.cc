@@ -31,7 +31,7 @@
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/hostname.h"
+#include "sql/hostname_cache.h"
 #include "sql/plugin_table.h"
 #include "sql/sql_class.h"
 #include "sql/table.h"
@@ -45,7 +45,7 @@ Plugin_table table_host_cache::m_table_def(
     "host_cache",
     /* Definition */
     "  IP VARCHAR(64) not null,\n"
-    "  HOST VARCHAR(255) collate utf8mb4_bin,\n"
+    "  HOST VARCHAR(255) CHARACTER SET ASCII default null,\n"
     "  HOST_VALIDATED ENUM ('YES', 'NO') not null,\n"
     "  SUM_CONNECT_ERRORS BIGINT not null,\n"
     "  COUNT_HOST_BLOCKED_ERRORS BIGINT not null,\n"

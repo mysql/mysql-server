@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@ INCLUDE (CheckCSourceRuns)
 INCLUDE (CheckSymbolExists)
 INCLUDE (CheckTypeSize)
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   SET(WIN32_CLANG 1)
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_C "/imsvc ")
   SET(CMAKE_INCLUDE_SYSTEM_FLAG_CXX "/imsvc ")
@@ -118,6 +118,8 @@ IF(MSVC)
   #     information for use with the debugger. The symbolic debugging
   #     information includes the names and types of variables, as well as
   #     functions and line numbers. No .pdb file is produced by the compiler.
+  #     We can't use /ZI too since it's causing __LINE__ macros to be non-
+  #     constant on visual studio and hence XCom stops building correctly.
   # - Enable explicit inline:
   #     /Ob1
   #     Expands explicitly inlined functions. By default /Ob0 is used,
@@ -140,6 +142,7 @@ IF(MSVC)
       STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
     ENDIF()
     STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+    STRING(REPLACE "/ZI"  "/Z7" "${flag}" "${${flag}}")
     IF (NOT WIN_DEBUG_NO_INLINE)
       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
     ENDIF()
@@ -161,10 +164,10 @@ IF(MSVC)
     ENDFOREACH()
   ENDFOREACH()
 
-  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(NOT WIN32_CLANG)
     # Speed up multiprocessor build (not supported by the Clang driver)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+    STRING_APPEND(CMAKE_C_FLAGS " /MP")
+    STRING_APPEND(CMAKE_CXX_FLAGS " /MP")
   ENDIF()
 
   #TODO: update the code and remove the disabled warnings
@@ -182,8 +185,8 @@ IF(MSVC)
   STRING_APPEND(CMAKE_CXX_FLAGS " /wd4244")
 
   # Enable stricter standards conformance when using Visual Studio
-  IF(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
+  IF(NOT WIN32_CLANG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " /permissive-")
   ENDIF()
 ENDIF()
 

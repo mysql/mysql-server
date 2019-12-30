@@ -1,0 +1,144 @@
+########################################################################
+#
+# This test validate that service do not have restriction on size of
+# message.
+#
+# Test:
+#   0. This test requires two servers with GR
+#   1. Load plugin replication observers example on server1
+#   2. Load plugin replication observers example on server2
+#   3. Create a string with more than 4k characters
+#   4. On server 1 execute UDF that will transmit tag and a big message
+#      over GR send service
+#   5. Execute UDF that will transmit a big tag and a message over GR
+#      send service
+#   6. Execute UDF that will transmit a big tag and a big message over GR
+#      send service
+#   7. To decrease failure rate on assert_grep we do a transaction with
+#      AFTER consistency to add some rounds on GCS communication and stop GR on
+#      server1, which will make it wait for the delivery of new view, and
+#      that will happen only after delivery of service message. This will
+#      give some time to server to receive and write it to error log.
+#   8. Assert server1 received all the messages transmitted by GR message
+#      delivery
+#   9. Assert server2 received all the messages transmitted by GR message
+#      delivery
+#  10. Cleanup
+#
+########################################################################
+
+--source include/have_replication_observers_example_plugin.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Load plugin replication observers example on server1
+
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo # 2. Load plugin replication observers example on server2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/install_replication_observers_example.inc
+
+--echo
+--echo # 3. Create a string with more than 4k characters
+
+--let $big_string=`SELECT REPEAT('A', 4001)`
+
+--echo
+--echo # 4. On server 1 execute UDF that will transmit tag and a big message
+--echo #    over GR send service
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--eval SELECT group_replication_service_message_send("tag", "$big_string")
+
+--echo
+--echo # 5. Execute UDF that will transmit a big tag and a message over GR
+--echo #    send service
+
+--eval SELECT group_replication_service_message_send("$big_string", "message")
+
+--echo
+--echo # 6. Execute UDF that will transmit a big tag and a big message over GR
+--echo #    send service
+
+--eval SELECT group_replication_service_message_send("$big_string", "$big_string")
+
+--echo
+--echo # 7. To decrease failure rate on assert_grep we do a transaction with
+--echo #    AFTER consistency to add some rounds on GCS communication and stop GR on
+--echo #    server1, which will make it wait for the delivery of new view, and
+--echo #    that will happen only after delivery of service message. This will
+--echo #    give some time to server to receive and write it to error log.
+
+SET @@SESSION.group_replication_consistency= 'AFTER';
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
+DROP TABLE test.t1;
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 8. Assert server1 received all the messages transmitted by GR message
+--echo #    delivery
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.1.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: "tag", TAG_SIZE: 3, MSG: over 4k bytes, MSG_SIZE: 4001.'
+--let $assert_text = Server 1 received message from itself.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.1.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: over 4k bytes, TAG_SIZE: 4001, MSG: "message", MSG_SIZE: 7.'
+--let $assert_text = Server 1 received message from itself.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.1.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: over 4k bytes, TAG_SIZE: 4001, MSG: over 4k bytes, MSG_SIZE: 4001.'
+--let $assert_text = Server 1 received message from itself.
+--source include/assert_grep.inc
+
+--echo
+--echo # 9. Assert server2 received all the messages transmitted by GR message
+--echo #    delivery
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.2.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: "tag", TAG_SIZE: 3, MSG: over 4k bytes, MSG_SIZE: 4001.'
+--let $assert_text = Server 2 received message from server 1.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.2.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: over 4k bytes, TAG_SIZE: 4001, MSG: "message", MSG_SIZE: 7.'
+--let $assert_text = Server 2 received message from server 1.
+--source include/assert_grep.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_message_service_big_message.2.err
+--let $assert_count = 1
+--let $assert_select = Plugin replication_observers_example reported: 'Service message recv TAG: over 4k bytes, TAG_SIZE: 4001, MSG: over 4k bytes, MSG_SIZE: 4001.'
+--let $assert_text = Server 2 received message from server 1.
+--source include/assert_grep.inc
+
+--echo
+--echo # 10. Cleanup
+
+--source include/uninstall_replication_observers_example.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--source include/uninstall_replication_observers_example.inc
+
+--source include/group_replication_end.inc

@@ -114,17 +114,17 @@ static inline int is_directory_separator(char c) {
 #endif
 }
 
-  /*
-    MY_FILE_MIN is  Windows speciality and is used to quickly detect
-    the mismatch of CRT and mysys file IO usage on Windows at runtime.
-    CRT file descriptors can be in the range 0-2047, whereas descriptors
-    returned by my_open() will start with 2048. If a file descriptor with value
-    less then MY_FILE_MIN is passed to mysys IO function, chances are it stemms
-    from open()/fileno() and not my_open()/my_fileno.
+/*
+  MY_FILE_MIN is  Windows speciality and is used to quickly detect
+  the mismatch of CRT and mysys file IO usage on Windows at runtime.
+  CRT file descriptors can be in the range 0-2047, whereas descriptors
+  returned by my_open() will start with 2048. If a file descriptor with value
+  less then MY_FILE_MIN is passed to mysys IO function, chances are it stemms
+  from open()/fileno() and not my_open()/my_fileno.
 
-    For Posix,  mysys functions are light wrappers around libc, and MY_FILE_MIN
-    is logically 0.
-  */
+  For Posix,  mysys functions are light wrappers around libc, and MY_FILE_MIN
+  is logically 0.
+*/
 
 #ifdef _WIN32
 #define MY_FILE_MIN 2048

@@ -40,10 +40,8 @@
 ##########################################################################
 --source include/rpl_connection_master.inc
 
-create table t1(a int not null auto_increment, b int, primary key(a)) engine=myisam;
 create table t2(a int not null auto_increment, b int, primary key(a)) engine=innodb;
 
-load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 start transaction;
   insert into t2(b) values (1);
@@ -71,9 +69,6 @@ commit;
 
 --source include/start_slave.inc
 
-let $diff_tables= master:t1, slave:t1;
-source include/diff_tables.inc;
-
 let $diff_tables= master:t2, slave:t2;
 source include/diff_tables.inc;
 
@@ -82,7 +77,6 @@ source include/diff_tables.inc;
 ##########################################################################
 --source include/rpl_connection_master.inc
 
-drop table t1;
 drop table t2;
 
 --source include/sync_slave_sql_with_master.inc

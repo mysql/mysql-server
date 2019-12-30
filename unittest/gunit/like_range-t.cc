@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,8 +77,6 @@ static const char *charset_list[] = {
     "utf8_general_ci",    "utf8_unicode_ci", "utf8_bin",
 };
 
-#if defined(GTEST_HAS_PARAM_TEST)
-
 class LikeRangeTest : public ::testing::TestWithParam<const char *> {
  protected:
   virtual void SetUp() {
@@ -95,7 +93,5 @@ INSTANTIATE_TEST_CASE_P(Foo1, LikeRangeTest, ::testing::ValuesIn(charset_list));
 TEST_P(LikeRangeTest, TestLikeRange) {
   test_like_range_for_charset(m_charset, "abc%", 4);
 }
-
-#endif
 
 }  // namespace like_range_unittest

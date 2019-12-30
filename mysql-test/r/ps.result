@@ -122,8 +122,12 @@ _utf8 'A' collate utf8_bin = ?
 DEALLOCATE PREPARE stmt1;
 create table t1 (id int);
 prepare stmt1 from "select FOUND_ROWS()";
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select SQL_CALC_FOUND_ROWS * from t1;
 id
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt1;
 FOUND_ROWS()
 0
@@ -131,6 +135,8 @@ insert into t1 values (1);
 select SQL_CALC_FOUND_ROWS * from t1;
 id
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt1;
 FOUND_ROWS()
 1
@@ -169,7 +175,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or ((`test`.`t2`.`c6` + 0.3e+1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or ((`test`.`t2`.`c9` + 4.0) is null)), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or ((`test`.`t2`.`c10` + 40e-1) is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 execute stmt1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -181,7 +187,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or ((`test`.`t2`.`c6` + 0.3e+1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or ((`test`.`t2`.`c9` + 4.0) is null)), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or ((`test`.`t2`.`c10` + 40e-1) is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -193,7 +199,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or ((`test`.`t2`.`c6` + 0.3e+1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or ((`test`.`t2`.`c9` + 4.0) is null)), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or ((`test`.`t2`.`c10` + 40e-1) is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 deallocate prepare stmt1;
 drop tables t1,t2;
 set @arg00=1;
@@ -213,6 +219,8 @@ drop table t1;
 create table t1 (id int(10) unsigned NOT NULL default '0',
 name varchar(64) NOT NULL default '',
 PRIMARY KEY  (id), UNIQUE KEY `name` (`name`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5'),(6,'6'),(7,'7');
 prepare stmt1 from 'select name from t1 where id=? or id=?';
 set @id1=1,@id2=6;
@@ -296,6 +304,8 @@ a
 deallocate prepare stmt;
 drop table t1;
 create table t1 (a bigint(20) not null primary key auto_increment);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (a) values (null);
 select * from t1;
 a
@@ -458,6 +468,8 @@ deallocate prepare stmt;
 create table t1 (a int);
 insert into t1 (a) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 prepare stmt from "select sql_calc_found_rows * from t1 limit 2";
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt;
 a
 1
@@ -465,6 +477,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 a
 1
@@ -472,6 +486,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 a
 1
@@ -479,6 +495,8 @@ a
 select found_rows();
 found_rows()
 10
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 deallocate prepare stmt;
 drop table t1;
 CREATE TABLE t1 (N int, M tinyint);
@@ -540,22 +558,31 @@ prepare stmt2 FROM 'SELECT not_a_function (a) FROM t1';
 ERROR 42000: FUNCTION test.not_a_function does not exist
 drop table t1;
 prepare stmt from "SELECT SQL_CALC_FOUND_ROWS 'foo' UNION SELECT 'bar' LIMIT 0";
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 execute stmt;
 foo
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 execute stmt;
 foo
 SELECT FOUND_ROWS();
 FOUND_ROWS()
 2
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 deallocate prepare stmt;
 drop table if exists t1;
 Warnings:
 Note	1051	Unknown table 'test.t1'
 create table t1 (c1 int(11) not null, c2 int(11) not null,
 primary key  (c1,c2), key c2 (c2), key c1 (c1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (200887, 860);
 insert into t1 values (200887, 200887);
 select * from t1 where (c1=200887 and c2=200887) or c2=860;
@@ -586,10 +613,12 @@ start_date datetime default null,
 primary key  (id), unique key code (code)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (
 id bigint(20) not null auto_increment,
 email varchar(250) character set utf8 collate utf8_bin default null,
@@ -602,12 +631,16 @@ primary key  (id), unique key email (email), key t1_id (t1_id),
 constraint t2_fk1 foreign key (t1_id) references t1 (id)
 );
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (1, 'demo', 'demo s', 0, current_date()),
 (2, 'code2', 'name 2', 0, current_date()),
@@ -637,6 +670,9 @@ id int(11) unsigned not null primary key auto_increment,
 partner_id varchar(35) not null,
 t1_status_id int(10) unsigned
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
 ("3", "partner3", "10"), ("4", "partner4", "10");
 create table t2 (
@@ -646,6 +682,10 @@ article_id varchar(20),
 sequence int(11) not null default '0',
 primary key  (id,t1_line_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
 ("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
 ("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
@@ -655,6 +695,9 @@ id int(11) not null default '0',
 preceding_id int(11) not null default '0',
 primary key  (id,preceding_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t4 (
 user_id varchar(50) not null,
 article_id varchar(20) not null,
@@ -776,6 +819,8 @@ create table t1 (
 word_id mediumint(8) unsigned not null default '0',
 formatted varchar(20) not null default ''
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values
 (80,'pendant'), (475,'pretendants'), (989,'tendances'),
 (1019,'cependant'),(1022,'abondance'),(1205,'independants'),
@@ -865,7 +910,7 @@ Warnings:
 Warning	1292	Truncated incorrect max_prepared_stmt_count value: '10000000000000000'
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
-1048576
+4194304
 set global max_prepared_stmt_count=default;
 select @@max_prepared_stmt_count;
 @@max_prepared_stmt_count
@@ -988,6 +1033,8 @@ PRIMARY KEY (ID),
 KEY Action (Action),
 KEY Action_Date (Action_Date)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(Member_ID, Action, Action_Date, Track) VALUES
 ('111111', 'Disenrolled', '2006-03-01', 'CAD' ),
 ('111111', 'Enrolled', '2006-03-01', 'CAD' ),
@@ -1745,6 +1792,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 prepare stmt from "insert into t1 values (?,?)";
 set @a= 9999999999999999;
 set @b= 14632475938453979136;
@@ -2480,13 +2529,13 @@ union all
 create procedure proc_1() show create view v1;
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 call proc_1();
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create view v1; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2497,13 +2546,13 @@ ERROR 42000: FUNCTION test.func_1 does not exist
 prepare abc from "show create view v1";
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 execute abc;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS (select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a`) union all (select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`)	utf8mb4	utf8mb4_0900_ai_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a`,count(0) AS `count(*)` from `t1` group by `t1`.`a` union all select `t1`.`b` AS `b`,count(0) AS `count(*)` from `t1` group by `t1`.`b`	utf8mb4	utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop view v1;
 drop table t1;
@@ -2908,13 +2957,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(1) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t2` left join `test`.`t1` on(true) where true
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 #
@@ -2929,14 +2978,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
@@ -2974,6 +3023,10 @@ SET v1 = 12.34;
 SET v2 = 98.67;
 SET v3 = 56.78;
 END|
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 CREATE PROCEDURE p_int(
 IN v0 CHAR(10),
@@ -3300,6 +3353,8 @@ FLOAT(7, 4)
 
 CREATE PROCEDURE p1(OUT v FLOAT(7, 4))
 SET v = 123.4567;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt1 FROM 'CALL p1(?)';
 EXECUTE stmt1 USING @a;
 CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;
@@ -3318,6 +3373,8 @@ DOUBLE(8, 5)
 
 CREATE PROCEDURE p1(OUT v DOUBLE(8, 5))
 SET v = 123.45678;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt1 FROM 'CALL p1(?)';
 EXECUTE stmt1 USING @a;
 CREATE TEMPORARY TABLE tmp1 AS SELECT @a AS c1;

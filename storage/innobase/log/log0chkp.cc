@@ -69,6 +69,20 @@ the file COPYING.Google.
 
 #ifndef UNIV_HOTBACKUP
 
+/** Updates free_check_limit in the log. Needs log_limits_mutex prior calling.
+@param[in,out]  log   redo log */
+static void log_update_limits_low(log_t &log);
+
+/** Updates lsn available for checkpoint.
+@param[in,out]  log redo log
+@return the updated lsn value */
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log);
+
+/** Calculates margin which has to be used in log_free_check() call,
+when checking if user thread should wait for more space in redo log.
+@return size of the margin to use */
+static lsn_t log_free_check_margin(const log_t &log);
+
 /** Checks if checkpoint should be written. Checks time elapsed since the last
 checkpoint, age of the last checkpoint and if there was any extra request to
 write the checkpoint (e.g. coming from log_make_latest_checkpoint()).
@@ -106,13 +120,14 @@ static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn);
 @param[in]	lsn	lsn up to which we are waiting */
 static void log_wait_for_checkpoint(const log_t &log, lsn_t lsn);
 
-/** Requests to flush dirty pages, to advance oldest_lsn
-in flush lists to provided value. Wakes up page cleaners
-and waits until the flush is finished.
-@param[in]	log		redo log
-@param[in]	new_oldest	expected oldest_lsn */
-static void log_preflush_pool_modified_pages(const log_t &log,
-                                             lsn_t new_oldest);
+/** Requests for urgent flush of dirty pages, to advance oldest_lsn
+in flush lists to provided value. This should force page cleaners
+to perform the sync-flush in which case the innodb_max_io_capacity
+is not respected. This should be called when we are close to running
+out of space in redo log (close to free_check_limit_sn).
+@param[in]  log         redo log
+@param[in]  new_oldest  oldest_lsn to stop flush at (or greater) */
+static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest);
 
 /**************************************************/ /**
 
@@ -137,9 +152,7 @@ It is guaranteed, that the returned value will not be smaller than
 the log.last_checkpoint_lsn.
 
 @return lsn for which we might write the checkpoint */
-static lsn_t log_get_available_for_checkpoint_lsn(const log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
-
+static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   /* The log_buffer_dirty_pages_added_up_to_lsn() can only increase,
   and that happens only after all related dirty pages have been added
   to the flush lists.
@@ -160,7 +173,8 @@ static lsn_t log_get_available_for_checkpoint_lsn(const log_t &log) {
 
   const lsn_t dpa_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
 
-  ut_a(dpa_lsn >= log.last_checkpoint_lsn.load());
+  ut_ad(dpa_lsn >= log.last_checkpoint_lsn.load() ||
+        !log_checkpointer_mutex_own(log));
 
   LOG_SYNC_POINT("log_get_available_for_chkp_lsn_before_buf_pool");
 
@@ -227,26 +241,36 @@ static lsn_t log_get_available_for_checkpoint_lsn(const log_t &log) {
 
   lsn = std::max(lsn, log.last_checkpoint_lsn.load());
 
-  ut_a(lsn >= log.last_checkpoint_lsn.load());
+  ut_ad(lsn >= log.last_checkpoint_lsn.load() ||
+        !log_checkpointer_mutex_own(log));
+
   ut_a(lsn <= log.flushed_to_disk_lsn.load());
 
   return (lsn);
 }
 
-/** Calculates and updates lsn at which we might write a next checkpoint. */
-static void log_update_available_for_checkpoint_lsn(log_t &log) {
-  ut_ad(log_checkpointer_mutex_own(log));
-
+static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
   /* Update lsn available for checkpoint. */
-  const lsn_t oldest_lsn = log_get_available_for_checkpoint_lsn(log);
+  const lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn(log);
 
-  /* oldest_lsn can decrease in case previously buffer pool flush lists
-  were empty and now a new dirty page appeared, which causes a maximum
-  delay of log.recent_closed_size being suddenly subtracted. */
+  log_limits_mutex_enter(log);
+
+  /* 1. The oldest_lsn can decrease in case previously buffer pool flush
+        lists were empty and now a new dirty page appeared, which causes
+        a maximum delay of log.recent_closed_size being suddenly subtracted.
+
+     2. Race between concurrent log_update_available_for_checkpoint_lsn is
+        also possible. */
 
   if (oldest_lsn > log.available_for_checkpoint_lsn) {
     log.available_for_checkpoint_lsn = oldest_lsn;
   }
+
+  const lsn_t result = log.available_for_checkpoint_lsn;
+
+  log_limits_mutex_exit(log);
+
+  return (result);
 }
 
 /* @} */
@@ -302,7 +326,7 @@ void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn) {
 
 void log_files_header_read(log_t &log, uint32_t header) {
   ut_a(srv_is_being_started);
-  ut_a(!log.checkpointer_thread_alive.load());
+  ut_a(!log_checkpointer_is_active());
 
   const auto page_no =
       static_cast<page_no_t>(header / univ_page_size.physical());
@@ -342,7 +366,7 @@ void meb_log_print_file_hdr(byte *block) {
 
 void log_files_downgrade(log_t &log) {
   ut_ad(srv_is_being_shutdown);
-  ut_a(!log.checkpointer_thread_alive.load());
+  ut_a(!log_checkpointer_is_active());
 
   const uint32_t nth_file = 0;
 
@@ -377,10 +401,17 @@ void log_files_downgrade(log_t &log) {
 /* @{ */
 
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
+  ut_ad(log_checkpointer_mutex_own(log));
+
+  log_limits_mutex_enter(log);
+
   const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
+
   const lsn_t dict_lsn = log.dict_max_allowed_checkpoint_lsn;
 
-  ut_a(dict_lsn == 0 || dict_lsn >= log.last_checkpoint_lsn);
+  log_limits_mutex_exit(log);
+
+  ut_a(dict_lsn == 0 || dict_lsn >= log.last_checkpoint_lsn.load());
 
   if (dict_lsn == 0) {
     return (oldest_lsn);
@@ -464,9 +495,10 @@ void log_files_write_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
 
   LOG_SYNC_POINT("log_before_checkpoint_limits_update");
 
-  log_update_limits(log);
-
+  log_limits_mutex_enter(log);
+  log_update_limits_low(log);
   log.dict_max_allowed_checkpoint_lsn = 0;
+  log_limits_mutex_exit(log);
 
   log_writer_mutex_exit(log);
 }
@@ -475,6 +507,13 @@ static void log_checkpoint(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_checkpoint_disabled);
+
+  /* Read the comment from log_should_checkpoint() from just before
+  acquiring the limits mutex. It is ok if available_for_checkpoint_lsn
+  is advanced just after we released limits_mutex here. It can only be
+  increaed. Also, if the value for which we will write checkpoint is
+  higher than the value for which we decided that it is worth to write
+  checkpoint (in log_should_checkpoint) - it is even better for us. */
 
   const lsn_t checkpoint_lsn = log_determine_checkpoint_lsn(log);
 
@@ -573,8 +612,13 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
   log_block_set_flush_bit(block, true);
   log_block_set_data_len(block, LOG_BLOCK_HDR_SIZE);
   log_block_set_checkpoint_no(block, 0);
-  log_block_set_first_rec_group(block, 0);
+  log_block_set_first_rec_group(block, lsn % OS_FILE_LOG_BLOCK_SIZE);
   log_block_store_checksum(block);
+
+  std::memcpy(log.buf + block_lsn % log.buf_size, block,
+              OS_FILE_LOG_BLOCK_SIZE);
+
+  ut_d(log.first_block_is_correct_for_lsn = lsn);
 
   block_page_no =
       static_cast<page_no_t>(block_offset / univ_page_size.physical());
@@ -596,67 +640,67 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
 
 static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
   ut_a(requested_lsn < LSN_MAX);
-  ut_ad(log_checkpointer_mutex_own(log));
-
-#ifdef UNIV_DEBUG
-  if (srv_checkpoint_disabled) {
-    /* Checkpoints are disabled. Pretend it succeeded. */
-    ib::info(ER_IB_MSG_1233) << "Checkpoint explicitly disabled!";
-    return;
-  }
-#endif /* UNIV_DEBUG */
+  ut_ad(log_limits_mutex_own(log));
 
   ut_a(requested_lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
 
   ut_a(requested_lsn % OS_FILE_LOG_BLOCK_SIZE <
        OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
 
-  requested_lsn = std::max(requested_lsn, log.last_checkpoint_lsn.load());
-
   /* Update log.requested_checkpoint_lsn only to greater value. */
 
   if (requested_lsn > log.requested_checkpoint_lsn) {
     log.requested_checkpoint_lsn = requested_lsn;
 
-    os_event_set(log.checkpointer_event);
+    if (requested_lsn > log.last_checkpoint_lsn.load()) {
+      os_event_set(log.checkpointer_event);
+    }
   }
 }
 
 static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
-  log_background_threads_active_validate(log);
+  ut_d(log_background_threads_active_validate(log));
 
   auto stop_condition = [&log, requested_lsn](bool) {
-
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
   };
 
   ut_wait_for(0, 100, stop_condition);
 }
 
-void log_request_checkpoint(log_t &log, bool sync, lsn_t lsn) {
-  log_preflush_pool_modified_pages(log, lsn);
+static bool log_request_checkpoint_validate(const log_t &log) {
+  ut_ad(log_limits_mutex_own(log));
 
-  log_checkpointer_mutex_enter(log);
+#ifdef UNIV_DEBUG
+  if (srv_checkpoint_disabled) {
+    /* Checkpoints are disabled. Pretend it succeeded. */
+    ib::info(ER_IB_MSG_1233) << "Checkpoint explicitly disabled!";
 
-  log_request_checkpoint_low(log, lsn);
-
-  log_checkpointer_mutex_exit(log);
-
-  if (sync) {
-    log_wait_for_checkpoint(log, lsn);
+    return (false);
   }
+#endif /* UNIV_DEBUG */
+
+  return (true);
 }
 
 void log_request_checkpoint(log_t &log, bool sync) {
-  log_checkpointer_mutex_enter(log);
-
   log_update_available_for_checkpoint_lsn(log);
+
+  log_limits_mutex_enter(log);
+
+  if (!log_request_checkpoint_validate(log)) {
+    log_limits_mutex_exit(log);
+    if (sync) {
+      ut_error;
+    }
+    return;
+  }
 
   const lsn_t lsn = log.available_for_checkpoint_lsn;
 
   log_request_checkpoint_low(log, lsn);
 
-  log_checkpointer_mutex_exit(log);
+  log_limits_mutex_exit(log);
 
   if (sync) {
     log_wait_for_checkpoint(log, lsn);
@@ -666,18 +710,20 @@ void log_request_checkpoint(log_t &log, bool sync) {
 bool log_make_latest_checkpoint(log_t &log) {
   const lsn_t lsn = log_get_lsn(log);
 
-  log_preflush_pool_modified_pages(log, lsn);
-
-  log_checkpointer_mutex_enter(log);
-
   if (lsn <= log.last_checkpoint_lsn.load()) {
-    log_checkpointer_mutex_exit(log);
     return (false);
+  }
+
+  log_limits_mutex_enter(log);
+
+  if (!log_request_checkpoint_validate(log)) {
+    log_limits_mutex_exit(log);
+    ut_error;
   }
 
   log_request_checkpoint_low(log, lsn);
 
-  log_checkpointer_mutex_exit(log);
+  log_limits_mutex_exit(log);
 
   log_wait_for_checkpoint(log, lsn);
 
@@ -688,10 +734,9 @@ bool log_make_latest_checkpoint() {
   return (log_make_latest_checkpoint(*log_sys));
 }
 
-static void log_preflush_pool_modified_pages(const log_t &log,
-                                             lsn_t new_oldest) {
+static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
   if (log_test != nullptr) {
-    return;
+    return (false);
   }
 
   /* A flush is urgent: we have to do a synchronous flush,
@@ -703,58 +748,72 @@ static void log_preflush_pool_modified_pages(const log_t &log,
   if (new_oldest == LSN_MAX
       /* Forced flush request is processed by page_cleaner, if
       it's not active, then we must do flush ourselves. */
-      || !buf_page_cleaner_is_active
+      || !buf_flush_page_cleaner_is_active()
       /* Reason unknown. */
       || srv_is_being_started) {
     buf_flush_sync_all_buf_pools();
 
-  } else {
-    new_oldest += log_buffer_flush_order_lag(log);
+    return (true);
 
+  } else if (srv_flush_sync) {
     /* Wake up page cleaner asking to perform sync flush
     (unless user explicitly disabled sync-flushes). */
-    if (srv_flush_sync) {
-      buf_flush_request_force(new_oldest);
-    }
+    new_oldest += log_buffer_flush_order_lag(log);
+
+    return (buf_flush_request_force(new_oldest));
+
+  } else {
+    return (false);
   }
 }
 
 static bool log_consider_sync_flush(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
 
-  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
+  /* We acquire limits mutex only for a short period. Afterwards these
+  values might be changed (advanced to higher values). However, in the
+  worst case we would request sync flush for too small value, and the
+  function which requests the sync flush is safe to be used with any
+  lsn value. It ensures itself that maximum of all requested lsn values
+  is taken. In next iteration of log_checkpointer we would notice the
+  higher values and re-request the sync flush if needed (or user threads
+  waiting in log_free_check() would request it themselves mean while). */
 
-  lsn_t current_lsn = log_get_lsn(log);
+  log_limits_mutex_enter(log);
+  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
+  const lsn_t requested_checkpoint_lsn = log.requested_checkpoint_lsn;
+  log_limits_mutex_exit(log);
 
   lsn_t flush_up_to = oldest_lsn;
 
-  ut_a(oldest_lsn <= current_lsn);
+  lsn_t current_lsn = log_get_lsn(log);
 
-  if (current_lsn == oldest_lsn) {
+  ut_a(flush_up_to <= current_lsn);
+
+  if (current_lsn == flush_up_to) {
     return (false);
   }
 
-  const sn_t margin = log_free_check_margin(log);
+  const lsn_t margin = log_free_check_margin(log);
 
-  current_lsn =
-      log_translate_sn_to_lsn(log_translate_lsn_to_sn(current_lsn) + margin);
+  if (current_lsn + margin - oldest_lsn > log.max_modified_age_sync) {
+    ut_a(current_lsn + margin > log.max_modified_age_sync);
 
-  if (current_lsn - oldest_lsn > log.max_modified_age_sync) {
-    ut_a(current_lsn > log.max_modified_age_sync);
-
-    flush_up_to = current_lsn - log.max_modified_age_sync;
+    flush_up_to = current_lsn + margin - log.max_modified_age_sync;
   }
-
-  const lsn_t requested_checkpoint_lsn = log.requested_checkpoint_lsn;
 
   if (requested_checkpoint_lsn > flush_up_to) {
     flush_up_to = requested_checkpoint_lsn;
   }
 
+  if (flush_up_to > current_lsn) {
+    flush_up_to = current_lsn;
+  }
+
   if (flush_up_to > oldest_lsn) {
     log_checkpointer_mutex_exit(log);
 
-    log_preflush_pool_modified_pages(log, flush_up_to);
+    const bool result = log_request_sync_flush(log, flush_up_to);
 
     log_checkpointer_mutex_enter(log);
 
@@ -763,7 +822,7 @@ static bool log_consider_sync_flush(log_t &log) {
     it to not wait for next checkpointer loop. */
     log_update_available_for_checkpoint_lsn(log);
 
-    return (true);
+    return (result);
   }
 
   return (false);
@@ -790,8 +849,9 @@ static bool log_should_checkpoint(log_t &log) {
   lsn_t oldest_lsn;
   lsn_t current_lsn;
   lsn_t requested_checkpoint_lsn;
-  uint64_t checkpoint_age;
+  lsn_t checkpoint_age;
   uint64_t checkpoint_time_elapsed;
+  bool periodical_checkpoints_enabled;
 
   ut_ad(log_checkpointer_mutex_own(log));
 
@@ -803,25 +863,38 @@ static bool log_should_checkpoint(log_t &log) {
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
 
+  /* We read the values under log_limits mutex and release the mutex.
+  The values might be changed just afterwards and that's fine. Note,
+  they can only become increased. Either we decided to write chkp on
+  too small value or we did not decide and we could decide in next
+  iteration of the thread's loop. The only risk is that checkpointer
+  could go waiting on event and miss the signaled requirement to write
+  checkpoint at higher lsn, which was requested just after we released
+  the mutex. This is impossible, because we read sig_count of the event
+  when we reset the event which happens before this point and then pass
+  the sig_count to the function responsible for waiting. If sig_count
+  is changed it means new notifications are there and we instantly start
+  next iteration. The event is signaled under the limits_mutex in the
+  same critical section in which requirements are updated. */
+
+  log_limits_mutex_enter(log);
   oldest_lsn = log.available_for_checkpoint_lsn;
+  requested_checkpoint_lsn = log.requested_checkpoint_lsn;
+  periodical_checkpoints_enabled = log.periodical_checkpoints_enabled;
+  log_limits_mutex_exit(log);
 
   if (oldest_lsn <= last_checkpoint_lsn) {
     return (false);
   }
-
-  requested_checkpoint_lsn = log.requested_checkpoint_lsn;
 
   current_lsn = log_get_lsn(log);
 
   ut_a(last_checkpoint_lsn <= oldest_lsn);
   ut_a(oldest_lsn <= current_lsn);
 
-  const sn_t margin = log_free_check_margin(log);
+  const lsn_t margin = log_free_check_margin(log);
 
-  current_lsn =
-      log_translate_sn_to_lsn(log_translate_lsn_to_sn(current_lsn) + margin);
-
-  checkpoint_age = current_lsn - last_checkpoint_lsn;
+  checkpoint_age = current_lsn + margin - last_checkpoint_lsn;
 
   checkpoint_time_elapsed = log_checkpoint_time_elapsed(log);
 
@@ -831,12 +904,10 @@ static bool log_should_checkpoint(log_t &log) {
           c) it was requested to have greater checkpoint_lsn,
              and oldest_lsn allows to satisfy the request */
 
-  bool periodical_checkpoint_disabled = false;
-
   DBUG_EXECUTE_IF("periodical_checkpoint_disabled",
-                  periodical_checkpoint_disabled = true;);
+                  periodical_checkpoints_enabled = false;);
 
-  if ((log.periodical_checkpoints_enabled && !periodical_checkpoint_disabled &&
+  if ((periodical_checkpoints_enabled &&
        checkpoint_time_elapsed >= srv_log_checkpoint_every * 1000ULL) ||
       checkpoint_age >= log.max_checkpoint_age_async ||
       (requested_checkpoint_lsn > last_checkpoint_lsn &&
@@ -883,7 +954,6 @@ static bool log_consider_checkpoint(log_t &log) {
 
 void log_checkpointer(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->checkpointer_thread_alive.load());
 
   log_t &log = *log_ptr;
 
@@ -891,7 +961,6 @@ void log_checkpointer(log_t *log_ptr) {
 
   while (true) {
     auto do_some_work = [&log] {
-
       ut_ad(log_checkpointer_mutex_own(log));
 
       /* We will base our next decisions on maximum lsn
@@ -911,6 +980,12 @@ void log_checkpointer(log_t *log_ptr) {
 
       if (sync_flushed || checkpointed) {
         return (true);
+      }
+
+      if (log.should_stop_threads.load()) {
+        if (!log_closer_is_active()) {
+          return (true);
+        }
       }
 
       return (false);
@@ -934,12 +1009,12 @@ void log_checkpointer(log_t *log_ptr) {
     }
 
     /* Check if we should close the thread. */
-    if (log.should_stop_threads.load() && !log.closer_thread_alive.load()) {
-      break;
+    if (log.should_stop_threads.load()) {
+      if (!log_closer_is_active()) {
+        break;
+      }
     }
   }
-
-  log.checkpointer_thread_alive.store(false);
 
   log_checkpointer_mutex_exit(log);
 }
@@ -954,9 +1029,7 @@ void log_checkpointer(log_t *log_ptr) {
 
 /* @{ */
 
-static bool log_calc_concurrency_margin(log_t &log) {
-  ut_ad(log_writer_mutex_own(log));
-
+bool log_calc_concurrency_margin(log_t &log) {
   uint64_t concurrency_margin;
 
   /* Single thread, which keeps latches of dirty pages, that block
@@ -987,42 +1060,21 @@ static bool log_calc_concurrency_margin(log_t &log) {
     success = true;
   }
 
-  MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, concurrency_margin);
+  log_limits_mutex_enter(log);
+
   log.concurrency_margin.store(concurrency_margin);
-  return success;
+
+  MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, concurrency_margin);
+
+  log.concurrency_margin_ok = true;
+
+  log_limits_mutex_exit(log);
+
+  return (success);
 }
 
-void log_update_limits(log_t &log) {
-  const sn_t sn_file_limit = log_translate_lsn_to_sn(
-      log.last_checkpoint_lsn.load() + log.lsn_capacity_for_free_check);
-
-  LOG_SYNC_POINT("log_update_limits_middle_1");
-
-  const lsn_t write_lsn = log.write_lsn.load();
-
-  LOG_SYNC_POINT("log_update_limits_middle_2");
-
-  const sn_t limit_for_end = log_translate_lsn_to_sn(write_lsn) +
-                             log.buf_size_sn.load() -
-                             2 * OS_FILE_LOG_BLOCK_SIZE;
-
-  log.sn_limit_for_end.store(limit_for_end);
-
-  LOG_SYNC_POINT("log_update_limits_middle_3");
-
-  sn_t limit_for_start = std::min(sn_file_limit, limit_for_end);
-
-  const sn_t margins = log_free_check_margin(log);
-
-  if (margins >= limit_for_start) {
-    limit_for_start = 0;
-  } else {
-    limit_for_start -= margins;
-  }
-  log.sn_limit_for_start.store(limit_for_start);
-}
-
-bool log_calc_max_ages(log_t &log) {
+void log_calc_max_ages(log_t &log) {
+  ut_ad(log_checkpointer_mutex_own(log));
   ut_ad(log_writer_mutex_own(log));
 
   log.lsn_real_capacity =
@@ -1050,28 +1102,38 @@ bool log_calc_max_ages(log_t &log) {
   log.lsn_capacity_for_free_check =
       log.lsn_capacity_for_writer - log.extra_margin;
 
+  ut_a(log.lsn_capacity_for_free_check >= 2 * OS_FILE_LOG_BLOCK_SIZE);
+
   log.max_concurrency_margin = ut_uint64_align_up(
       log.lsn_capacity_for_writer / 2, OS_FILE_LOG_BLOCK_SIZE);
-
-  const bool success = log_calc_concurrency_margin(log);
-
-  log.concurrency_margin_ok = true;
 
   /* Set limits used in flushing and checkpointing mechanism. */
 
   const lsn_t limit = log.lsn_capacity_for_free_check;
 
-  log.max_modified_age_sync = limit - limit / LOG_POOL_PREFLUSH_RATIO_SYNC;
-
   log.max_modified_age_async = limit - limit / LOG_POOL_PREFLUSH_RATIO_ASYNC;
+
+  log.max_modified_age_sync = limit - limit / LOG_POOL_PREFLUSH_RATIO_SYNC;
 
   log.max_checkpoint_age_async =
       limit - limit / LOG_POOL_CHECKPOINT_RATIO_ASYNC;
 
-  return success;
+  /* Round limits to equal size of OS_FILE_LOG_BLOCK_SIZE, not to risk
+  inproper lsn computations (we.g. value % OS_FILE_LOG_BLOCK_SIZE == 1) */
+
+  log.max_modified_age_async =
+      ut_uint64_align_up(log.max_modified_age_async, OS_FILE_LOG_BLOCK_SIZE);
+
+  log.max_modified_age_sync =
+      ut_uint64_align_up(log.max_modified_age_sync, OS_FILE_LOG_BLOCK_SIZE);
+
+  log.max_checkpoint_age_async =
+      ut_uint64_align_up(log.max_checkpoint_age_async, OS_FILE_LOG_BLOCK_SIZE);
 }
 
 void log_increase_concurrency_margin(log_t &log) {
+  log_limits_mutex_enter(log);
+
   /* Increase margin by 20% but do not exceed maximum allowed size. */
   const auto new_size =
       std::min(log.max_concurrency_margin,
@@ -1082,8 +1144,100 @@ void log_increase_concurrency_margin(log_t &log) {
   log.concurrency_margin.store(new_size);
 
   MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, new_size);
+
+  log_update_limits_low(log);
+
+  log_limits_mutex_exit(log);
 }
 
-  /* @} */
+static void log_update_limits_low(log_t &log) {
+  ut_ad(log_limits_mutex_own(log));
+
+  const lsn_t log_capacity = log_get_free_check_capacity(log);
+
+  const lsn_t limit_lsn = log.last_checkpoint_lsn.load() + log_capacity;
+
+  const sn_t limit_sn = log_translate_lsn_to_sn(limit_lsn);
+
+  if (limit_sn > log.free_check_limit_sn.load()) {
+    log.free_check_limit_sn.store(limit_sn);
+  }
+}
+
+void log_update_limits(log_t &log) {
+  log_limits_mutex_enter(log);
+  log_update_limits_low(log);
+  log_limits_mutex_exit(log);
+}
+
+void log_set_dict_persist_margin(log_t &log, sn_t margin) {
+  log_limits_mutex_enter(log);
+  log.dict_persist_margin.store(margin);
+  log_update_limits_low(*log_sys);
+  log_limits_mutex_exit(log);
+}
+
+void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn) {
+  log_limits_mutex_enter(log);
+  log.dict_max_allowed_checkpoint_lsn = max_lsn;
+  log_limits_mutex_exit(log);
+}
+
+static lsn_t log_free_check_margin(const log_t &log) {
+  sn_t margins = log.concurrency_margin.load();
+
+  margins += log.dict_persist_margin.load();
+
+  return (log_translate_sn_to_lsn(margins));
+}
+
+lsn_t log_get_free_check_capacity(const log_t &log) {
+  const lsn_t log_margin = log_free_check_margin(log);
+
+  ut_a(log_margin < log.lsn_capacity_for_free_check);
+
+  return (ut_uint64_align_down(log.lsn_capacity_for_free_check - log_margin,
+                               OS_FILE_LOG_BLOCK_SIZE));
+}
+
+void log_free_check_wait(log_t &log) {
+  const lsn_t log_capacity = log_get_free_check_capacity(log);
+
+  const lsn_t current_lsn = log_get_lsn(log);
+
+  bool request_chkp = true;
+#ifdef UNIV_DEBUG
+  request_chkp = !srv_checkpoint_disabled;
+#endif
+
+  if (request_chkp) {
+    log_limits_mutex_enter(log);
+
+    if (current_lsn > LOG_START_LSN + log_capacity) {
+      log_request_checkpoint_low(log, current_lsn - log_capacity);
+    }
+
+    log_limits_mutex_exit(log);
+  }
+
+  auto stop_condition = [&log, current_lsn, log_capacity](bool) {
+    const lsn_t limit_lsn = log.last_checkpoint_lsn.load() + log_capacity;
+
+    return (current_lsn <= limit_lsn);
+  };
+
+  const auto wait_stats = ut_wait_for(0, 100, stop_condition);
+
+  MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FILE_SPACE_, wait_stats);
+}
+
+lsn_t log_get_max_modified_age_async(const log_t &log) {
+  const lsn_t free_check_margin = log_free_check_margin(log);
+  ut_a(free_check_margin < log.max_modified_age_async);
+  return (ut_uint64_align_down(log.max_modified_age_async - free_check_margin,
+                               OS_FILE_LOG_BLOCK_SIZE));
+}
+
+/* @} */
 
 #endif /* !UNIV_HOTBACKUP */

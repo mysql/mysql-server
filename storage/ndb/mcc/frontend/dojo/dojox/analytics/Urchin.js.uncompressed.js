@@ -1,10 +1,9 @@
-//>>built
 define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/window",
         "dojo/_base/config", "dojo/dom-construct"
 ], function(lang, declare, window, config, construct){
 
 	/*=====
-	dojo.mixin(djConfig,{
+	lang.mixin(config,{
 		// urchin: String
 		//		Used by `dojox.analytics.Urchin` as the default UA-123456-7 account
 		//		number used when being created. Alternately, you can pass an acct:""
@@ -14,9 +13,9 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 	=====*/
 
 	return declare("dojox.analytics.Urchin", null, {
-		// summary: A Google-analytics helper, for post-onLoad inclusion of the tracker, and
+		// summary:
+		//		A Google-analytics helper, for post-onLoad inclusion of the tracker, and
 		//		dynamic tracking during long-lived page cycles.
-		//
 		// description:
 		//		A small class object will allows for lazy-loading the Google Analytics API
 		//		at any point during a page lifecycle. Most commonly, Google-Analytics is loaded
@@ -33,12 +32,11 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 		//		This module will not work simultaneously with the core dojox.analytics
 		//		package. If you need the ability to run Google Analytics AND your own local
 		//		analytics system, you MUST include dojox.analytics._base BEFORE dojox.analytics.Urchin
-		//
-		//	example:
+		// example:
 		//	|	// create the tracker programatically:
 		//	|	var tracker = new dojox.analytics.Urchin({ acct:"UA-123456-7" });
 		//
-		//	example:
+		// example:
 		//	|	// define the urchin djConfig option:
 		//	|	var djConfig = { urchin: "UA-123456-7" };
 		//	|
@@ -47,10 +45,10 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 		//	|	// or code:
 		//	|	new dojox.analytics.Urchin();
 		//
-		//	example:
+		// example:
 		//	|	// create and define all analytics with one tag.
 		//	|	<div dojoType="dojox.analytics.Urchin" acct="UA-12345-67"></div>
-		//
+
 		// acct: String
 		//		your GA urchin tracker account number. Overrides `djConfig.urchin`
 		acct: "",
@@ -82,7 +80,8 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 		},
 
 		_gotGA: function(){
-			// summary: initialize the tracker
+			// summary:
+			//		initialize the tracker
 			this.tracker = _gat._getTracker(this.acct);
 			this.GAonLoad.apply(this, arguments);
 		},
@@ -90,15 +89,15 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 		GAonLoad: function(){
 			// summary:
 			//		Stub function to fire when urchin is complete
-			//	description:
+			// description:
 			//		This function is executed when the tracker variable is
 			//		complete and initialized. The initial trackPageView (with
 			//		no arguments) is called here as well, so remeber to call
 			//		manually if overloading this method.
 			//
-			//	example:
-			//	Create an Urchin tracker that will track a specific page on init
-			//	after page load (or parsing, if parseOnLoad is true)
+			// example:
+			//		Create an Urchin tracker that will track a specific page on init
+			//		after page load (or parsing, if parseOnLoad is true)
 			//	|	dojo.addOnLoad(function(){
 			//	|		new dojox.ananlytics.Urchin({
 			//	|			acct:"UA-12345-67",
@@ -112,14 +111,13 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 		},
 
 		trackPageView: function(/* string */url){
-			// summary: A public API attached to this widget instance, allowing you
+			// summary:
+			//		A public API attached to this widget instance, allowing you
 			//		Ajax-like notification of updates.
-			//
-			//	url: String
+			// url: String
 			//		A location to tell the tracker to track, eg: "/my-ajaxy-endpoint"
-			//
-			//	example:
-			//	Track clicks from a container of anchors and populate a `ContentPane`
+			// example:
+			//		Track clicks from a container of anchors and populate a `ContentPane`
 			//	|	// 'tracker' is our `Urchin` instance, pane is the `ContentPane` ref.
 			//	|	dojo.connect(container, "onclick", function(e){
 			//	|		var ref = dojo.attr(e.target, "href");
@@ -127,7 +125,7 @@ define("dojox/analytics/Urchin", ["dojo/_base/lang", "dojo/_base/declare", "dojo
 			//	|		pane.attr("href", ref);
 			//	|	});
 			
-			this.tracker._trackPageview.apply(this, arguments);
+			this.tracker._trackPageview.apply(this.tracker, arguments);
 		}
 
 	});

@@ -1,38 +1,33 @@
-.nihilo .dijitSelect .dijitButtonNode {
-	padding: 0;
-}
-.nihilo .dijitSelect .dijitButtonContents {
-	padding-top: 1px;
-    background:#fff url("../images/validationInputBg.png") repeat-x top left;
-    #background:#fff url('../images/validationInputBg.gif') repeat-x top left;
-}
-.nihilo .dijitSelectHover .dijitButtonContents,
-.nihilo .dijitSelectActive .dijitButtonContents,
-.nihilo .dijitSelectOpened .dijitButtonContents,
-.nihilo .dijitSelectDisabled .dijitButtonContents,
-.nihilo .dijitSelectReadOnly .dijitButtonContents{
+.nihilo .dijitSelectError .dijitButtonContents,
+.nihilo .dijitSelectHover .dijitArrowButton,
+.nihilo .dijitSelectActive .dijitArrowButton,
+.nihilo .dijitSelectOpened .dijitArrowButton,
+.nihilo .dijitSelectDisabled .dijitArrowButton,
+.nihilo .dijitSelectReadOnly .dijitArrowButton {
 	background: transparent none;
 }
-.dj_ie .nihilo .dijitSelect .dijitButtonContents {
-	padding-top: 0;
-}
 .nihilo .dijitSelect .dijitArrowButton {
-	padding: 0 2px;
+	background: #bcd5f0 url("../images/buttonEnabled.png") repeat-x top left;
+	border-width: 0;
 }
-.nihilo .dijitSelectDisabled .dijitButtonNode {
-    border-color: #dedede;
+.nihilo .dijitSelectDisabled,
+.nihilo .dijitSelectDisabled TD {
+    border-color: #dedede !important;
     background:#fafafa url("../images/buttonDisabled.png") top repeat-x;
 }
-.dj_ie .nihilo .dijitSelectDisabled  .dijitButtonNode * {
+.dj_ie .nihilo .dijitSelectDisabled  TD * {
 	filter: gray() alpha(opacity=50);
 }
-.nihilo .dijitSelectHover .dijitButtonNode {
+.nihilo .dijitSelectHover,
+.nihilo .dijitSelectHover TD {
     color:#000;
     background:#fcfcfc url("../images/buttonHover.png") repeat-x top left;
 }
-.nihilo .dijitSelectActive .dijitButtonNode,
-.nihilo .dijitSelectOpened .dijitButtonNode {
-    border-color:#dedede;
+.nihilo .dijitSelectActive,
+.nihilo .dijitSelectOpened,
+.nihilo .dijitSelectActive TD,
+.nihilo .dijitSelectOpened TD {
+    border-color:#dedede !important;
     background: #f5f5f5 url("../images/buttonActive.png") top left repeat-x;
 }
 .nihilo .dijitSelectMenu td {

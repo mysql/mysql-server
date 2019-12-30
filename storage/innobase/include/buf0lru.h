@@ -144,12 +144,11 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block);
 /** Adds a block to the LRU list. Please make sure that the page_size is
  already set when invoking the function, so that we can get correct
  page_size from the buffer page when adding a block into LRU */
-void buf_LRU_add_block(
-    buf_page_t *bpage, /*!< in: control block */
-    ibool old);        /*!< in: TRUE if should be put to the old
-                       blocks in the LRU list, else put to the
-                       start; if the LRU list is very short, added to
-                       the start regardless of this parameter */
+void buf_LRU_add_block(buf_page_t *bpage, /*!< in: control block */
+                       ibool old); /*!< in: TRUE if should be put to the old
+                                   blocks in the LRU list, else put to the
+                                   start; if the LRU list is very short, added
+                                   to the start regardless of this parameter */
 
 /** Adds a block to the LRU list of decompressed zip pages.
 @param[in]	block	control block

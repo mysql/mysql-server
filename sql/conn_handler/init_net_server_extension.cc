@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ void init_net_server_extension(THD *thd) {
   thd->m_net_server_extension.m_user_data = thd;
   thd->m_net_server_extension.m_before_header = net_before_header_psi;
   thd->m_net_server_extension.m_after_header = net_after_header_psi;
-
+  thd->m_net_server_extension.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
   /* Activate this private extension for the mysqld server. */
   thd->get_protocol_classic()->get_net()->extension =
       &thd->m_net_server_extension;

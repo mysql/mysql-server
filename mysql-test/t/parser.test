@@ -20,9 +20,6 @@ SET @save_sql_mode=@@sql_mode;
 # - an error is the expected result with the current implementation,
 #   and is a limitation.
 
-# Test needs MyISAM for a few subtests
---source include/have_myisam.inc
-
 set SQL_MODE='';
 
 create table ADDDATE(a int);
@@ -431,9 +428,6 @@ select "terminated, space";      $$
 select "non terminated, comment" /* comment */$$
 select "terminated, comment"; /* comment */$$
 
-# Multi queries can not be used in --ps-protocol test mode
---disable_ps_protocol
-
 select "stmt 1";select "stmt 2 non terminated"$$
 select "stmt 1";select "stmt 2 terminated";$$
 select "stmt 1";select "stmt 2 non terminated, space"      $$
@@ -449,8 +443,6 @@ $$
 
 DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() SELECT 1; CALL p26030()
 $$
-
---enable_ps_protocol
 
 delimiter ;$$
 DROP PROCEDURE p26030;
@@ -746,50 +738,6 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # End of 5.1 tests
 --echo #
-
-#
-# Bug#31293 - Incorrect parser errors for create/alter/drop logfile group/tablespace
-#
-
---echo # Should use myisam
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_FEATURE_UNSUPPORTED
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
 
 #
 # Bug#12546960 - 60993: NAME QUOTED WITH QUOTE INSTEAD OF BACKTICK 
@@ -2475,3 +2423,75 @@ CREATE TABLE t4 (
   COLLATE ascii_bin
   COLLATE ascii_bin
 );
+
+--echo #
+--echo # Bug#28961997: REMOVE PARENTHESES INFORMATION FROM AST
+--echo #
+
+CREATE VIEW v1 AS (SELECT 1 ORDER BY 1) UNION (SELECT 3 ORDER BY 1) ORDER BY 1;
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+--echo #
+--echo # Bug#29871803: REQUIRED PARENTHESES NO LONGER PRINTED FOR CERTAIN UNION
+--echo # STATEMENTS
+--echo #
+CREATE TABLE t1(a INTEGER);
+CREATE TABLE t2(a INTEGER);
+CREATE TABLE t3(a INTEGER, b INTEGER, c INTEGER);
+INSERT INTO t3 VALUES(1, 10, 100), (2, 20, 200), (3, 30, 300), (4, 40, 400);
+
+EXPLAIN (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+EXPLAIN SELECT a FROM t1 UNION (SELECT a FROM t2 LIMIT 1);
+
+CREATE VIEW v1 as (SELECT a FROM t1 ORDER BY a LIMIT 1) UNION SELECT a FROM t2;
+SHOW CREATE VIEW v1;
+
+CREATE VIEW v2 as SELECT a FROM t1 UNION (SELECT a FROM t2 ORDER BY a LIMIT 1);
+SHOW CREATE VIEW v2;
+
+EXPLAIN (SELECT * FROM t3 ORDER BY a LIMIT 3) ORDER BY b DESC LIMIT 2;
+EXPLAIN ((SELECT * FROM t3 ORDER BY a LIMIT 3)
+            ORDER BY b DESC LIMIT 2)
+                ORDER BY c LIMIT 1;
+
+DROP VIEW v1;
+DROP VIEW v2;
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30131161: SYNTAX ERROR WITH || WHEN USING PIPES_AS_CONCAT AFTER
+--echo #               UPGRADING TO 8.0.17
+--echo #
+
+SET sql_mode=(SELECT CONCAT(@@sql_mode, ',PIPES_AS_CONCAT'));
+
+# `||` should have higher precedence than `LIKE` and `ESCAPE`:
+
+SELECT 'ab' LIKE 'a%', 'ab' LIKE 'a' || '%';
+SELECT 'ab' NOT LIKE 'a%', 'ab' NOT LIKE 'a' || '%';
+
+SELECT 'ab' LIKE 'ac', 'ab' LIKE 'a' || 'c';
+SELECT 'ab' NOT LIKE 'ac', 'ab' NOT LIKE 'a' || 'c';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!' || '%' ESCAPE '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!' || '%' ESCAPE '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '$', 'a%' LIKE 'a!' || '%' ESCAPE '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '$', 'a%' NOT LIKE 'a!' || '%' ESCAPE '$';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '!', 'a%' LIKE 'a!%' ESCAPE '' || '!';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '!', 'a%' NOT LIKE 'a!%' ESCAPE '' || '!';
+
+SELECT 'a%' LIKE 'a!%' ESCAPE '' || '$', 'a%' LIKE 'a!%' ESCAPE '' || '$';
+SELECT 'a%' NOT LIKE 'a!%' ESCAPE '' || '$', 'a%' NOT LIKE 'a!%' ESCAPE '' || '$';
+
+# `||` should have a higher precedence than `^`:
+
+SELECT 1 ^ 100, 1 ^ '10' || '0';
+
+# `||` should have a lower precedence than the unary `-`:
+
+SELECT -1 || '0';
+
+SET sql_mode=DEFAULT;

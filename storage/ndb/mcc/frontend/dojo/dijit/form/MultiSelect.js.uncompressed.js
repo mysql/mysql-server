@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/MultiSelect", [
 	"dojo/_base/array", // array.indexOf, array.map
 	"dojo/_base/declare", // declare
@@ -7,19 +6,12 @@ define("dijit/form/MultiSelect", [
 	"./_FormValueWidget"
 ], function(array, declare, domGeometry, query, _FormValueWidget){
 
-/*=====
-	var _FormValueWidget = dijit.form._FormValueWidget;
-=====*/
-
 // module:
 //		dijit/form/MultiSelect
-// summary:
-//		Widget version of a <select multiple=true> element,
-//		for selecting multiple options.
 
 return declare("dijit.form.MultiSelect", _FormValueWidget, {
 	// summary:
-	//		Widget version of a <select multiple=true> element,
+	//		Widget version of a `<select multiple=true>` element,
 	//		for selecting multiple options.
 
 	// size: Number
@@ -30,16 +22,19 @@ return declare("dijit.form.MultiSelect", _FormValueWidget, {
 
 	templateString: "<select multiple='true' ${!nameAttrSetting} data-dojo-attach-point='containerNode,focusNode' data-dojo-attach-event='onchange: _onChange'></select>",
 
-	addSelected: function(/*dijit.form.MultiSelect*/ select){
+	addSelected: function(/*dijit/form/MultiSelect*/ select){
 		// summary:
 		//		Move the selected nodes of a passed Select widget
 		//		instance to this Select widget.
 		//
 		// example:
 		// |	// move all the selected values from "bar" to "foo"
-		// | 	dijit.byId("foo").addSelected(dijit.byId("bar"));
+		// |	dijit.byId("foo").addSelected(dijit.byId("bar"));
 
 		select.getSelected().forEach(function(n){
+			if(this.restoreOriginalText){
+				n.text = this.enforceTextDirWithUcc(this.restoreOriginalText(n), n.text);
+			}
 			this.containerNode.appendChild(n);
 			// scroll to bottom to see item
 			// cannot use scrollIntoView since <option> tags don't support all attributes
@@ -58,7 +53,7 @@ return declare("dijit.form.MultiSelect", _FormValueWidget, {
 		//		Access the NodeList of the selected options directly
 		return query("option",this.containerNode).filter(function(n){
 			return n.selected; // Boolean
-		}); // dojo.NodeList
+		}); // dojo/NodeList
 	},
 
 	_getValueAttr: function(){
@@ -113,7 +108,27 @@ return declare("dijit.form.MultiSelect", _FormValueWidget, {
 	postCreate: function(){
 		this._set('value', this.get('value'));
 		this.inherited(arguments);
+	},
+
+	_setTextDirAttr: function(textDir){
+		// to insure the code executed only when _BidiSupport loaded, and only
+		// when there was a change in textDir
+		if((this.textDir != textDir || !this._created) && this.enforceTextDirWithUcc){
+			this._set("textDir", textDir);
+			
+			query("option",this.containerNode).forEach(function(option){
+				// If the value wasn't defined explicitly, it the same object as
+				// option.text. Since the option.text will be modified (by wrapping of UCC)
+				// we want to save the original option.value for form submission.
+				if(!this._created && option.value === option.text){
+					option.value = option.text;
+				}
+				// apply the bidi support
+				option.text =  this.enforceTextDirWithUcc(option, option.originalText || option.text);
+			},this);
+		}
 	}
+	
 });
 
 });

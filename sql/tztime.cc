@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,14 +288,14 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
     size_t abbrs_buf_len = sp->charcnt + 1;
 #endif
 
-    if (!(tzinfo_buf = (char *)alloc_root(
-              storage, ALIGN_SIZE(sp->timecnt * sizeof(my_time_t)) +
-                           ALIGN_SIZE(sp->timecnt) +
-                           ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO)) +
+    if (!(tzinfo_buf = (char *)storage->Alloc(
+              ALIGN_SIZE(sp->timecnt * sizeof(my_time_t)) +
+              ALIGN_SIZE(sp->timecnt) +
+              ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO)) +
 #ifdef ABBR_ARE_USED
-                           ALIGN_SIZE(abbrs_buf_len) +
+              ALIGN_SIZE(abbrs_buf_len) +
 #endif
-                           sp->leapcnt * sizeof(LS_INFO))))
+              sp->leapcnt * sizeof(LS_INFO))))
       return 1;
 
     sp->ats = (my_time_t *)tzinfo_buf;
@@ -532,10 +532,10 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
   revts[sp->revcnt] = end_l;
 
   /* Allocate arrays of proper size in sp and copy result there */
-  if (!(sp->revts = (my_time_t *)alloc_root(
-            storage, sizeof(my_time_t) * (sp->revcnt + 1))) ||
+  if (!(sp->revts = (my_time_t *)storage->Alloc(sizeof(my_time_t) *
+                                                (sp->revcnt + 1))) ||
       !(sp->revtis =
-            (REVT_INFO *)alloc_root(storage, sizeof(REVT_INFO) * sp->revcnt)))
+            (REVT_INFO *)storage->Alloc(sizeof(REVT_INFO) * sp->revcnt)))
     return 1;
 
   memcpy(sp->revts, revts, sizeof(my_time_t) * (sp->revcnt + 1));
@@ -721,7 +721,7 @@ static const TRAN_TYPE_INFO *find_transition_type(my_time_t t,
   TODO
     We can improve this function by creating joined array of transitions and
     leap corrections. This will require adding extra field to TRAN_TYPE_INFO
-    for storing number of "extra" seconds to minute occured due to correction
+    for storing number of "extra" seconds to minute occurred due to correction
     (60th and 61st second, look how we calculate them as "hit" in this
     function).
     Under realistic assumptions about frequency of transitions the same array
@@ -891,9 +891,9 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   uint i;
   int shift = 0;
 
-  DBUG_ENTER("TIME_to_gmt_sec");
+  DBUG_TRACE;
 
-  if (!validate_timestamp_range(*t)) DBUG_RETURN(0);
+  if (!validate_timestamp_range(*t)) return 0;
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -933,7 +933,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       This means that source time can't be represented as my_time_t due to
       limited my_time_t range.
     */
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* binary search for our range */
@@ -947,7 +947,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   if (shift) {
     if (local_t > (my_time_t)(TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
                               sp->revtis[i].rt_offset - saved_seconds)) {
-      DBUG_RETURN(0); /* my_time_t overflow */
+      return 0; /* my_time_t overflow */
     }
     local_t += shift * SECS_PER_DAY;
   }
@@ -967,7 +967,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   /* check for TIMESTAMP_MAX_VALUE was already done above */
   if (local_t < TIMESTAMP_MIN_VALUE) local_t = 0;
 
-  DBUG_RETURN(static_cast<my_time_t>(local_t));
+  return static_cast<my_time_t>(local_t);
 }
 
 /*
@@ -1388,15 +1388,15 @@ static bool time_zone_tables_exist = 1;
   for dynamical loading of time zone descriptions.
 */
 
-static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT] = {
-    {C_STRING_WITH_LEN("time_zone_name")},
-    {C_STRING_WITH_LEN("time_zone")},
-    {C_STRING_WITH_LEN("time_zone_transition_type")},
-    {C_STRING_WITH_LEN("time_zone_transition")}};
+static const LEX_CSTRING tz_tables_names[MY_TZ_TABLES_COUNT] = {
+    {STRING_WITH_LEN("time_zone_name")},
+    {STRING_WITH_LEN("time_zone")},
+    {STRING_WITH_LEN("time_zone_transition_type")},
+    {STRING_WITH_LEN("time_zone_transition")}};
 
 /* Name of database to which those tables belong. */
 
-static const LEX_STRING tz_tables_db_name = {C_STRING_WITH_LEN("mysql")};
+static const LEX_CSTRING tz_tables_db_name = {STRING_WITH_LEN("mysql")};
 
 class Tz_names_entry {
  public:
@@ -1494,9 +1494,9 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   bool return_val = 1;
-  LEX_CSTRING db = {C_STRING_WITH_LEN("mysql")};
+  LEX_CSTRING db = {STRING_WITH_LEN("mysql")};
   int res;
-  DBUG_ENTER("my_tz_init");
+  DBUG_TRACE;
 
 #ifdef HAVE_PSI_INTERFACE
   init_tz_psi_keys();
@@ -1505,7 +1505,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  if (!(thd = new THD)) DBUG_RETURN(1);
+  if (!(thd = new THD)) return 1;
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
@@ -1535,8 +1535,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     leap seconds shared by all time zones.
   */
   thd->set_db(db);
-  tz_tables[0].alias = tz_tables[0].table_name =
-      (char *)"time_zone_leap_second";
+  tz_tables[0].alias = tz_tables[0].table_name = "time_zone_leap_second";
   tz_tables[0].table_name_length = 21;
   tz_tables[0].db = db.str;
   tz_tables[0].db_length = sizeof(db) - 1;
@@ -1570,8 +1569,8 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     records in proper order. Since we share the same MEM_ROOT between
     all time zones we just allocate enough memory for it first.
   */
-  if (!(tz_lsis = (LS_INFO *)alloc_root(&tz_storage,
-                                        sizeof(LS_INFO) * TZ_MAX_LEAPS))) {
+  if (!(tz_lsis =
+            (LS_INFO *)tz_storage.Alloc(sizeof(LS_INFO) * TZ_MAX_LEAPS))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_LEAP_SECOND_TABLE);
     goto end_with_close;
   }
@@ -1647,7 +1646,7 @@ end_with_cleanup:
   default_tz =
       default_tz_name ? global_system_variables.time_zone : my_tz_SYSTEM;
 
-  DBUG_RETURN(return_val);
+  return return_val;
 }
 
 /*
@@ -1720,7 +1719,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   TIME_ZONE_INFO tmp_tz_info;
   memset(&tmp_tz_info, 0, sizeof(TIME_ZONE_INFO));
 
-  DBUG_ENTER("tz_load_from_open_tables");
+  DBUG_TRACE;
 
   /*
     Let us find out time zone id by its name (there is only one index
@@ -1913,10 +1912,10 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   /* Allocate memory for the timezone info and timezone name in tz_storage. */
-  if (!(alloc_buff = (char *)alloc_root(
-            &tz_storage, sizeof(TIME_ZONE_INFO) + tz_name->length() + 1))) {
+  if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
+                                              tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Move the temporary tz_info into the allocated area */
@@ -1932,13 +1931,13 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   /*
     Now we will allocate memory and init TIME_ZONE_INFO structure.
   */
-  if (!(alloc_buff = (char *)alloc_root(
-            &tz_storage, ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt) +
-                             ALIGN_SIZE(tz_info->timecnt) +
+  if (!(alloc_buff = (char *)tz_storage.Alloc(
+            ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt) +
+            ALIGN_SIZE(tz_info->timecnt) +
 #ifdef ABBR_ARE_USED
-                             ALIGN_SIZE(tz_info->charcnt) +
+            ALIGN_SIZE(tz_info->charcnt) +
 #endif
-                             sizeof(TRAN_TYPE_INFO) * tz_info->typecnt))) {
+            sizeof(TRAN_TYPE_INFO) * tz_info->typecnt))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
     goto end;
   }
@@ -1982,7 +1981,7 @@ end:
 
   if (table && table->file->inited) (void)table->file->ha_index_end();
 
-  DBUG_RETURN(return_val);
+  return return_val;
 }
 
 /*
@@ -2098,11 +2097,9 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
 Time_zone *my_tz_find(THD *thd, const String *name) {
   Time_zone *result_tz = 0;
   long offset;
-  DBUG_ENTER("my_tz_find");
-  DBUG_PRINT("enter", ("time zone name='%s'",
-                       name ? ((String *)name)->c_ptr_safe() : "NULL"));
+  DBUG_TRACE;
 
-  if (!name || name->is_empty()) DBUG_RETURN(0);
+  if (!name || name->is_empty()) return 0;
 
   mysql_mutex_lock(&tz_LOCK);
 
@@ -2140,7 +2137,7 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   mysql_mutex_unlock(&tz_LOCK);
 
-  DBUG_RETURN(result_tz);
+  return result_tz;
 }
 
 /**

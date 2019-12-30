@@ -43,7 +43,7 @@
 .dojoxGridHeader .dojoxGridCell { 
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
-	background: url(../../../resources/images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("../../../resources/images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 	padding-bottom: 2px;
 }
 .dojoxGridHeader .dojoxGridCellOver {
@@ -104,7 +104,7 @@
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
 	border-top: none;
-	background: url(../../../resources/images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("../../../resources/images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 }
 .dojoxGridRowbarInner {
 	border-top: 1px solid #F6F4EB;
@@ -168,13 +168,20 @@
 	height: 0;
 	overflow: hidden;
 }
-.dojoxGridCell {
+.dojoxGrid .dojoxGridCell {
 	border: 1px solid;
 	border-color: #EBEADB;
 	border-right-color: #D5CDB5;
 	padding: 3px 3px 3px 3px;
 	text-align: left;
 	overflow: hidden;
+	word-wrap: break-word;
+}
+.dojoxGrid .dojoxGridFixedRowHeight .dojoxGridCell {
+	white-space: nowrap;
+	word-break: keep-all;
+	word-wrap: normal;
+	text-overflow: ellipsis;
 }
 .dojoxGridCellFocus {
 	border: 1px dashed blue;
@@ -224,6 +231,11 @@
 .dijit_a11y .dojoxGridRowSelected {
 	border: 1px solid black !important;
 }
+.dojoxGridRowTable .dojoDndHorizontal th.dojoDndItem {
+	display: table-cell;
+	
+	margin: 0;
+}
 .dojoxGridDndAvatar {
 	font-size: 100%;
 }
@@ -242,7 +254,7 @@
 .dojoxGridDndAvatarItem	td {
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
-	background: url(../../../resources/images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("../../../resources/images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 	padding: 0pt;
 	margin: 0pt;
 }
@@ -255,30 +267,30 @@
 	margin: 0;
 }
 .dojoDndMove .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../../../dojo/resources/images/dndNoMove.png);
+	background-image: url("../../../../../dojo/resources/images/dndNoMove.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndCopy .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../../../dojo/resources/images/dndNoCopy.png);
+	background-image: url("../../../../../dojo/resources/images/dndNoCopy.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndMove .dojoDndAvatarCanDrop .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../../../dojo/resources/images/dndMove.png);
+	background-image: url("../../../../../dojo/resources/images/dndMove.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndCopy .dojoDndAvatarCanDrop .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../../../dojo/resources/images/dndCopy.png);
+	background-image: url("../../../../../dojo/resources/images/dndCopy.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoxGridColPlaceBottom {
-	background: transparent url(../../../resources/images/grid_sort_up.gif) no-repeat scroll left top;
+	background: transparent url("../../../resources/images/grid_sort_up.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop {
-	background: transparent url(../../../resources/images/grid_sort_down.gif) no-repeat scroll left top;
+	background: transparent url("../../../resources/images/grid_sort_down.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop, .dojoxGridColPlaceBottom {
 	font-size:1px;
@@ -309,10 +321,10 @@
 	cursor: col-resize !important;
 }
 .dojoxGridColPlaceBottom {
-	background: transparent url(../../../resources/images/grid_sort_up.gif) no-repeat scroll left top;
+	background: transparent url("../../../resources/images/grid_sort_up.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop {
-	background: transparent url(../../../resources/images/grid_sort_down.gif) no-repeat scroll left top;
+	background: transparent url("../../../resources/images/grid_sort_down.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop, .dojoxGridColPlaceBottom {
 	font-size:1px;
@@ -364,10 +376,10 @@
 	padding-left:0px;
 }
 .tundra .dojoxGridLoading {
-	background-image: url(../../../../../dijit/themes/tundra/images/loading.gif);
+	background-image: url("../../../../../dijit/themes/tundra/images/loading.gif");
 }
 .tundra .dojoxGridError {
-	background-image: url(../../../../../dijit/themes/tundra/images/warning.png);
+	background-image: url("../../../../../dijit/themes/tundra/images/warning.png");
 }
 .tundra .dojoxGridHeader {
 	background-color:  #e9e9e9;
@@ -376,11 +388,11 @@
 	border-width: 1px;
 	padding-bottom: 0px;
 	border-color: transparent #ACA899 #919191 transparent;
-	background: url(../../../../../dijit/themes/tundra/images/tabEnabled.png) #e9e9e9 repeat-x top;
+	background: url("../../../../../dijit/themes/tundra/images/tabEnabled.png") #e9e9e9 repeat-x top;
 	color: #000 !important;
 }
 .tundra .dojoxGridHeader .dojoxGridCellOver {
-	background: url(../../../../../dijit/themes/tundra/images/tabHover.png) #e9e9e9 repeat-x top;
+	background: url("../../../../../dijit/themes/tundra/images/tabHover.png") #e9e9e9 repeat-x top;
 	color: #000 !important;
 }
 .tundra .dojoxGridHeader .dojoxGridCellFocus {
@@ -395,13 +407,13 @@
 	display: block !important;
 	padding-left: 0px;
 	float: right;
-	background:url(../../../../../dijit/themes/tundra/images/spriteArrows.png) no-repeat left center;
+	background:url("../../../../../dijit/themes/tundra/images/spriteArrows.png") no-repeat left center;
 	width: 7px;
 	height: 1em;
 	margin: 2px 4px 0px 5px;
 }
 .dj_ie6 .tundra .dojoxGridArrowButtonNode {
-	background-image:url(../../../../../dijit/themes/tundra/images/spriteArrows.gif);
+	background-image:url("../../../../../dijit/themes/tundra/images/spriteArrows.gif");
 	margin-left: 0px;
 }
 .tundra .dojoxGridSortUp .dojoxGridArrowButtonNode {
@@ -415,7 +427,7 @@
 }
 .tundra .dojoxGridRowbar { 
 	border: none;
-	background: url(../../../resources/images/tabEnabled_rotated.png) #e9e9e9 repeat-y right;
+	background: url("../../../resources/images/tabEnabled_rotated.png") #e9e9e9 repeat-y right;
 	border-right: 1px solid #ccc;
 	padding: 0px;
 }
@@ -424,10 +436,10 @@
 	border-bottom: 1px solid #ccc;
 }
 .tundra .dojoxGridRowbarOver {
-	background: url(../../../resources/images/tabHover_rotated.png) #e9e9e9 repeat-y right;
+	background: url("../../../resources/images/tabHover_rotated.png") #e9e9e9 repeat-y right;
 }
 .tundra .dojoxGridRowbarSelected {
-	background: url(../../../../../dijit/themes/tundra/images/tabDisabled.png) #D8E8F9 no-repeat center;
+	background: url("../../../../../dijit/themes/tundra/images/tabDisabled.png") #D8E8F9 no-repeat center;
 	border-right: 1px solid #ccc;
 }
 .tundra .dojoxGridRow {
@@ -494,6 +506,9 @@
 .tundra .dojoxGridRow-error td {
 	background-color: #F8B8B6;
 }
+.tundra .dojoxGridRowTable .dojoDndHorizontal th.dojoDndItem {
+	padding: 3px;
+}
 .tundra .dojoxGrid .dojoDndItemBefore {
 	border-left-color: #3559ac;
 }
@@ -515,20 +530,20 @@
 }
 .tundra .dojoxGridExpandoNode {
 	height: 18px;
-	background-image: url(../../../../../dijit/themes/tundra/images/treeExpand_plus.gif);
+	background-image: url("../../../../../dijit/themes/tundra/images/treeExpand_plus.gif");
 }
 .tundra .dojoxGridExpandoOpened .dojoxGridExpandoNode {
-	background-image: url(../../../../../dijit/themes/tundra/images/treeExpand_minus.gif);		
+	background-image: url("../../../../../dijit/themes/tundra/images/treeExpand_minus.gif");		
 }
 .tundra .dojoxGridExpandoLoading .dojoxGridExpandoNode {
-	background-image: url(../../../../../dijit/themes/tundra/images/treeExpand_loading.gif);		
+	background-image: url("../../../../../dijit/themes/tundra/images/treeExpand_loading.gif");		
 }
 .tundra .dojoxGridTreeModel .dojoxGridNoChildren .dojoxGridExpando {
 	visibility: visible !important;
 	width: 18px !important;
 }
 .tundra .dojoxGridTreeModel .dojoxGridNoChildren .dojoxGridExpandoNode {
-	background-image: url(../../../../../dijit/themes/tundra/images/treeExpand_leaf.gif);
+	background-image: url("../../../../../dijit/themes/tundra/images/treeExpand_leaf.gif");
 	background-position: -3px;
 }
 .tundra .dojoxGridExpandoNodeInner {
@@ -603,7 +618,7 @@
 	padding-right: 2px;
 }
 .dojoxGridFBarDefFilterBtnIcon {
-	background: url(../images/sprite_icons.png) no-repeat;
+	background: url("../images/sprite_icons.png") no-repeat;
 	background-position: -100px -18px;
 	width: 14px;
 	height: 14px;
@@ -648,7 +663,7 @@
 	right: 0;
 }
 .dojoxGridFBarCloseBtnIcon {
-	background: url(../images/sprite_icons.png) no-repeat;
+	background: url("../images/sprite_icons.png") no-repeat;
 	background-position: -119px -20px;
 	width: 14px;
 	height: 14px;
@@ -716,7 +731,7 @@
 	position: relative;
 }
 .dojoxGridFCBoxRemoveCBoxBtnIcon {
-	background-image: url(../images/sprite_icons.png);
+	background-image: url("../images/sprite_icons.png");
 	background-position: -198px -18px;
 	width: 16px;
 	height: 16px;
@@ -746,7 +761,7 @@
 	margin-top: 9px;
 }
 .dojoxGridFDPaneAddCBoxBtnIcon {
-	background-image: url(../images/sprite_icons.png);
+	background-image: url("../images/sprite_icons.png");
 	background-position: -218px 2px;
 	width: 16px;
 	height: 16px;
@@ -826,7 +841,7 @@
 	right:0;
 }
 .dojoxGridFStatusTipDelRuleBtnIcon {
-	background-image: url(../images/sprite_icons.png);
+	background-image: url("../images/sprite_icons.png");
 	background-position: -198px -18px;
 	height: 16px;
 	width: 16px;
@@ -899,18 +914,18 @@
 	width: 12px!important;
 	height: 16px!important;
 	margin: 0 6px 0 2px;
-	background: url(../images/sprite_icons.png) no-repeat -77px 4px;
+	background: url("../images/sprite_icons.png") no-repeat -77px 4px;
 }
 .dojoxGridPaginatorGotoDivDisabled {
 	cursor: not-allowed;
-	background: url(../images/sprite_icons.png) no-repeat -77px -16px;
+	background: url("../images/sprite_icons.png") no-repeat -77px -16px;
 }
 .dojoxGridWardButton {
 	margin-top: 2px;
 	width: 12px!important;
 	height: 12px!important;
 	float: left;
-	background: url(../images/sprite_icons.png) no-repeat;
+	background: url("../images/sprite_icons.png") no-repeat;
 }
 .dojoxGridWardButtonInner {
 	visibility: hidden;
@@ -1041,7 +1056,7 @@
 	border-color: transparent gray gray transparent;
 }
 .dojoxGridDnDItemIcon {
-	background-image: url(../images/sprite_icons.png);
+	background-image: url("../images/sprite_icons.png");
 }
 .dojoxGridDnDIconRowSingle {
 	background-position: -256px 5px;
@@ -1079,16 +1094,16 @@
 	height: 16px;
 }
 .dojoDndMove .dojoxGridDnDIcon {
-	background: url(../../../../../dojo/resources/images/dndNoMove.png) no-repeat center center;
+	background: url("../../../../../dojo/resources/images/dndNoMove.png") no-repeat center center;
 }
 .dojoDndCopy .dojoxGridDnDIcon {
-	background: url(../../../../../dojo/resources/images/dndNoCopy.png) no-repeat center center;
+	background: url("../../../../../dojo/resources/images/dndNoCopy.png") no-repeat center center;
 }
 .dojoDndMove .dojoDndAvatarCanDrop .dojoxGridDnDIcon {
-	background: url(../../../../../dojo/resources/images/dndMove.png) no-repeat center center;
+	background: url("../../../../../dojo/resources/images/dndMove.png") no-repeat center center;
 }
 .dojoDndCopy .dojoDndAvatarCanDrop .dojoxGridDnDIcon {
-	background: url(../../../../../dojo/resources/images/dndCopy.png) no-repeat center center;
+	background: url("../../../../../dojo/resources/images/dndCopy.png") no-repeat center center;
 }
 .dojoxGrid .dojoxGridSortNode {
 	position: relative;
@@ -1112,7 +1127,7 @@
 	display:block;
 	position: absolute;
 	color: #000;
-	background: #DFEAF1 url(../images/sprite_icons.png) no-repeat 100px 0;
+	background: #DFEAF1 url("../images/sprite_icons.png") no-repeat 100px 0;
 	text-decoration: none;
 	outline: none;
 	right: 0;
@@ -1240,39 +1255,6 @@ html > body .dojoxGridSorted .dojoxGridCellSortFocus .dojoxGridSortBtnNested {
 .dojoxGridCellSortFocus .dojoxGridSortBtnFocus {
 	border: 1px dashed #666;
 }
-.dijitToasterContent {
-	padding:1em;
-	padding-top:0.25em;
-	background:#73c74a;
-}
-.dijitToasterMessage{ 
-	color:#fff;
-}
-.dijitToasterWarning{ }
-.dijitToasterError,
-.dijitToasterFatal{
-	font-weight:bold;
-	color:#fff;
-}
-.dijitToasterWarning .dijitToasterContent{
-	background:#d4d943;
-} 
-.dijitToasterError .dijitToasterContent{
-	background:#c46600;
-}
- 
-.dijitToasterClip {
-	position: absolute;
-	z-index: 5000;
-	overflow: hidden;
-}
-.dijitToasterContainer {
-	display: block;
-	position: absolute;
-	width: 17.5em;
-	margin: 0px;
-	font:0.75em;
-}
 .dojoxEllipsis,
 .dojoxEllipsisShown {
 	white-space: nowrap;
@@ -1307,7 +1289,7 @@ html > body .dojoxGridSorted .dojoxGridCellSortFocus .dojoxGridSortBtnNested {
 	content: "\2026"
 }
 .tundra .dojoxGridHeader .dojoxGridCell{
-	background: #fafafa url(../../../../../dijit/themes/tundra/images/titleBar.png) repeat-x bottom left;
+	background: #fafafa url("../../../../../dijit/themes/tundra/images/titleBar.png") repeat-x bottom left;
 	border-top: 1px solid #bfbfbf;
 	
 }
@@ -1331,21 +1313,21 @@ html > body .dojoxGridSorted .dojoxGridCellSortFocus .dojoxGridSortBtnNested {
 .tundra .dojoxGridCellOver .dojoxGridSortNode,
 .tundra .dojoxGridCellSortFocus .dojoxGridSortNode {
 	cursor:pointer;
-	background: #f8fafd url(../../../../../dijit/themes/tundra/images/accordionItemHover.gif) bottom repeat-x;
+	background: #f8fafd url("../../../../../dijit/themes/tundra/images/accordionItemHover.gif") bottom repeat-x;
 }
 .dj_webkit .tundra .dojoxGridCell,
 .dj_webkit .tundra .dojoxGridCellFocus {
 	outline: none;
 }
 .tundra .dojoxGridPaginator {
-	background: url(../../../../../dijit/themes/tundra/images/titleBar.png) repeat-x top left;
+	background: url("../../../../../dijit/themes/tundra/images/titleBar.png") repeat-x top left;
 }
 .tundra .dojoxGridFBar {
 	background-color: #eeeeee;
 	border: 1px solid #bfbfbf;
 }
 .tundra .dojoxGridFBarFiltered {
-	background: #fafafa url(../../../../../dijit/themes/tundra/images/titleBar.png) repeat-x bottom left;
+	background: #fafafa url("../../../../../dijit/themes/tundra/images/titleBar.png") repeat-x bottom left;
 }
 .tundra .dojoxGridFBarHover {
 	background-color: #cccccc;
@@ -1355,7 +1337,7 @@ html > body .dojoxGridSorted .dojoxGridCellSortFocus .dojoxGridSortBtnNested {
 	border: 1px solid #eeeeee;
 }
 .tundra .dojoxGridFStatusTip th {
-	background: #fafafa url(../../../../../dijit/themes/tundra/images/titleBar.png) repeat-x bottom left;
+	background: #fafafa url("../../../../../dijit/themes/tundra/images/titleBar.png") repeat-x bottom left;
 	border-bottom: 1px solid #eeeeee;
 }
 .tundra .dojoxGridFStatusTip th div {

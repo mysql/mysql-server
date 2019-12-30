@@ -637,6 +637,8 @@ CREATE TABLE `test`(
 `dt` DATETIME DEFAULT NULL,
 `ge` GEOMETRY DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `test` VALUES
 (1, '2007-05-08 12:10:55', ST_GeomFromText('POINT(1 1)')),
 (2, NULL, NULL), (3, NULL, NULL),

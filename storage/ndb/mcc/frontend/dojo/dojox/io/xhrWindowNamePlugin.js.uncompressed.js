@@ -1,4 +1,3 @@
-//>>built
 define("dojox/io/xhrWindowNamePlugin", [
 	"dojo/_base/kernel",
 	"dojo/_base/json",
@@ -14,10 +13,11 @@ dojox.io.xhrWindowNamePlugin = function(/*String*/url, /*Function?*/httpAdapter,
 	// summary:
 	//		Adds the windowName transport as an XHR plugin for the given site. See
 	//		dojox.io.windowName for more information on the transport.
-	//	url:
+	// url:
 	//		Url prefix of the site which can handle windowName requests.
-	// 	httpAdapter: This allows for adapting HTTP requests that could not otherwise be
-	// 		sent with window.name, so you can use a convention for headers and PUT/DELETE methods.
+	// httpAdapter:
+	//		This allows for adapting HTTP requests that could not otherwise be
+	//		sent with window.name, so you can use a convention for headers and PUT/DELETE methods.
 	xhrPlugins.register(
 		"windowName",
 		function(method,args){
@@ -37,7 +37,7 @@ dojox.io.xhrWindowNamePlugin = function(/*String*/url, /*Function?*/httpAdapter,
 						// convert the hash to an object to act like response headers
 						return dojo.queryToObject(ioArgs.hash.match(/[^#]*$/)[0])[name];
 					}
-				}
+				};
 				// use the XHR content handlers for handling
 				if(ioArgs.handleAs == 'json'){
 					// use a secure json verifier, using object capability validator for now

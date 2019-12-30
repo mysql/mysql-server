@@ -97,6 +97,8 @@ select @t5;
 @t5
 1.23456
 CREATE TABLE t1 (c_id INT(4) NOT NULL, c_name CHAR(20), c_country CHAR(3), PRIMARY KEY(c_id));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'Bozo','USA'),(2,'Ronald','USA'),(3,'Kinko','IRE'),(4,'Mr. Floppy','GB');
 SELECT @min_cid:=min(c_id), @max_cid:=max(c_id) from t1;
 @min_cid:=min(c_id)	@max_cid:=max(c_id)
@@ -1552,6 +1554,8 @@ Warning	1292	Truncated incorrect key_cache_block_size value: '0'
 # Bug#11766424  59527: DECIMAL_BIN_SIZE: ASSERTION `SCALE >= 0 && PRECISION > 0 && SCALE <= PRE
 #
 CREATE TABLE t1(f1 DECIMAL(1,1) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (0.2),(0.1);
 SELECT 1 FROM t1 GROUP BY @a:= (SELECT ROUND(f1) FROM t1 WHERE @a=f1);
 1
@@ -1925,6 +1929,8 @@ ERROR HY000: Variable 'relay_log_info_file' is a GLOBAL variable
 SELECT @@global.relay_log_info_file;
 @@global.relay_log_info_file
 relay-log.info
+Warnings:
+Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SET @@session.relay_log_info_file= 'x';
 ERROR HY000: Variable 'relay_log_info_file' is a read only variable
 SET @@global.relay_log_info_file= 'x';
@@ -2022,6 +2028,7 @@ SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
 SET SESSION rand_seed1 = @@session.rand_seed1;
 SET SESSION rand_seed2 = @@session.rand_seed2;
 SET SESSION resultset_metadata = @@session.resultset_metadata;
+SET SESSION show_create_table_skip_secondary_engine = @@session.show_create_table_skip_secondary_engine;
 SET SESSION sql_log_bin = @@session.sql_log_bin;
 SET SESSION timestamp = @@session.timestamp;
 SET SESSION transaction_allow_batching = @@session.transaction_allow_batching;

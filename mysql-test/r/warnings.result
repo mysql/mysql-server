@@ -243,16 +243,22 @@ BEGIN
 DECLARE x NUMERIC ZEROFILL;
 SELECT f1 INTO x FROM t1 LIMIT 1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CREATE PROCEDURE sp2()
 BEGIN
 DECLARE x NUMERIC ZEROFILL;
 SELECT f1 INTO x FROM t2 LIMIT 1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CREATE PROCEDURE sp3()
 BEGIN
 DECLARE x NUMERIC ZEROFILL;
 SELECT f1 INTO x FROM t3 LIMIT 1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 Warnings:
 Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
@@ -268,6 +274,9 @@ BEGIN
 declare x numeric unsigned zerofill;
 SELECT f1 into x from t2 limit 1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 Warnings:
 Warning	1366	Incorrect decimal value: 'a`' for column 'x' at row 1
@@ -339,6 +348,7 @@ ERROR 23000: Duplicate entry '11' for key 'a'
 SHOW WARNINGS;
 Level	Code	Message
 Error	1062	Duplicate entry '11' for key 'a'
+Error	1028	Sort aborted: Duplicate entry '11' for key 'a'
 
 DROP TABLE t1;
 DROP FUNCTION f1;

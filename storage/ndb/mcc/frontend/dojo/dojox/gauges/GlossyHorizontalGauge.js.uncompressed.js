@@ -1,13 +1,5 @@
-//>>built
 define("dojox/gauges/GlossyHorizontalGauge", ["dojo/_base/declare","dojo/_base/connect","dojo/_base/lang","dojo/_base/Color","dojox/gfx","./BarGauge","./BarCircleIndicator","./GlossyHorizontalGaugeMarker"],
   function(declare, connect, lang, Color, gfx, BarGauge, BarCircleIndicator, GlossyHorizontalGaugeMarker) {
-
-
-var NumberUtils
-
-/*=====
-	BarGauge = dojox.gauges.BarGauge;
-=====*/
 
 return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	// summary:
@@ -39,55 +31,55 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	_defaultIndicator: BarCircleIndicator,
 	
 	// color: String
-	// 		The main color of the gauge.
+	//		The main color of the gauge.
 	color: 'black',
 	
 	// needleColor: Color
-	// 		The main color of the needle.
+	//		The main color of the needle.
 	markerColor: 'black',
 	
 	// majorTicksInterval: Number
-	// 		Interval between major ticks
+	//		Interval between major ticks
 	majorTicksInterval: 10,
 	
 	// _majorTicksLength: Number
-	// 		Major tick size, at design
+	//		Major tick size, at design
 	_majorTicksLength: 10,
 	
 	// majorTicksColor: Color
-	// 		Color of major tick marks
+	//		Color of major tick marks
 	majorTicksColor: '#c4c4c4',
 	
 	// minorTicksInterval: Number
-	// 		Interval between minor ticks
+	//		Interval between minor ticks
 	minorTicksInterval: 5,
 	
 	// _minorTicksLength: Number
-	// 		Minor tick size, at design
+	//		Minor tick size, at design
 	_minorTicksLength: 6,
 	
 	// minorTicksColor: Color
-	// 		Color of minor tick marks
+	//		Color of minor tick marks
 	minorTicksColor: '#c4c4c4',
 	
 	// value: Number
-	// 		The value of the gauge.
+	//		The value of the gauge.
 	value: 0,
 	
 	// noChange: Boolean
-	// 		Indicates if the gauge reacts to touch events
+	//		Indicates if the gauge reacts to touch events
 	noChange: false,
 	
 	// title: String
-	// 		The title displayed in the needle's tooltip
+	//		The title displayed in the needle's tooltip
 	title: "",
 	
 	// font: Object
-	// 		The font of the gauge
+	//		The font of the gauge
 	font: "normal normal normal 10pt serif",
 	
 	// scalePrecision: Number
-	// 		The precision for the formatting of numbers in the scale (default is 0)
+	//		The precision for the formatting of numbers in the scale (default is 0)
 	scalePrecision: 0,
 	
 	_font: null,
@@ -168,7 +160,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_layoutGauge: function(){
-		// summary: 
+		// summary:
 		//		Layout the gauge elements depending on the various parameters (size, font, tick length..)
 		
 		if (!this._gaugeStarted) 
@@ -214,7 +206,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_computeDataRectangle: function(){
-		// summary: 
+		// summary:
 		//		Computes the rectangle that defines the data area of the gauge.
 		
 		
@@ -241,13 +233,13 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_getBorderWidth: function(){
-		// summary: 
+		// summary:
 		//		Computes the width of the border surrounding the gauge
 		return Math.max(this._minBorderWidth, Math.min(this._maxBorderWidth, this._maxBorderWidth * this.height / this._designHeight));
 	},
 	
 	drawBackground: function(group){
-		// summary: 
+		// summary:
 		//		Draws the background of the gauge
 		// group: dojox.gfx.Group
 		//		The GFX group where the background must be drawn
@@ -374,10 +366,10 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	//*******************************************************************************************
 	
 	_setColorAttr: function(color){
-		// summary: 
+		// summary:
 		//		Sets the main color of the gauge
 		// color: String
-		//      The color		
+		//		The color
 		this.color = color ? color : 'black';
 		if (this._gaugeBackground && this._gaugeBackground.parent) 
 			this._gaugeBackground.parent.remove(this._gaugeBackground);
@@ -387,10 +379,10 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setMarkerColorAttr: function(color){
-		// summary: 
+		// summary:
 		//		Sets the main color of the marker
 		// color: String
-		//      The color
+		//		The color
 		this.markerColor = color;
 		if (this._needle){
 			this.removeIndicator(this._needle);
@@ -401,7 +393,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setMajorTicksIntervalAttr: function(interval){
-		// summary: 
+		// summary:
 		//		Sets the interval between major ticks
 		this.majorTicksInterval = interval;
 		this._setMajorTicksProperty({
@@ -410,7 +402,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	setMajorTicksLength: function(length){
-		// summary: 
+		// summary:
 		//		Sets the size of the major ticks.
 		this._majorTicksLength = length;
 		this._layoutGauge();
@@ -419,13 +411,13 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	getMajorTicksLength: function(){
-		// summary: 
+		// summary:
 		//		Returns the size of the major ticks.
 		return this._majorTicksLength;
 	},
 	
 	_setMajorTicksColorAttr: function(color){
-		// summary: 
+		// summary:
 		//		Sets the color of the major ticks.
 		this.majorTicksColor = color;
 		this._setMajorTicksProperty({
@@ -442,7 +434,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setMinorTicksIntervalAttr: function(interval){
-		// summary: 
+		// summary:
 		//		Sets the interval between minor ticks
 		this.minorTicksInterval = interval;
 		this._setMinorTicksProperty({
@@ -451,7 +443,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	setMinorTicksLength: function(length){
-		// summary: 
+		// summary:
 		//		Sets the size of the minor ticks.
 		this._minorTicksLength = length;
 		this._layoutGauge();
@@ -459,13 +451,13 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	getMinorTicksLength: function(){
-		// summary: 
+		// summary:
 		//		Gets the size of the minor ticks.
 		return this._minorTicksLength;
 	},
 	
 	_setMinorTicksColorAttr: function(color){
-		// summary: 
+		// summary:
 		//		Sets the color of the minor ticks.
 		this.minorTicksColor = color;
 		this._setMinorTicksProperty({
@@ -502,7 +494,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setValueAttr: function(value){
-		// summary: 
+		// summary:
 		//		Changes the value of the gauge
 		// value: Number
 		//		The new value for the gauge.			
@@ -520,7 +512,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setScalePrecisionAttr: function(value){
-		// summary: 
+		// summary:
 		//		Changes precision of the numbers in the scale of the gauge
 		// value: Number
 		//		The new value
@@ -529,7 +521,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setNoChangeAttr: function(value){
-		// summary: 
+		// summary:
 		//		Indicates if the value of the gauge can be changed or not
 		// value: boolean
 		//		true indicates that the gauge's value cannot be changed	
@@ -539,7 +531,7 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setTitleAttr: function(value){
-		// summary: 
+		// summary:
 		//		Sets the title displayed by the needle's tooltip .
 		// value: String
 		//		the title
@@ -551,13 +543,10 @@ return declare("dojox.gauges.GlossyHorizontalGauge", [BarGauge], {
 	},
 	
 	_setFontAttr: function(font){
-		// summary: 
-		//		Sets the font of the gauge
-		// summary: 
+		// summary:
 		//		Sets the font of the gauge
 		// font: String
 		//		An string representing the font such as 'normal normal normal 10pt Helvetica,Arial,sans-serif'	
-		// 
 		
 		this.font = font;
 		this._font = gfx.splitFontString(font);

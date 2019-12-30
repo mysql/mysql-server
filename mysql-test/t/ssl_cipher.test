@@ -6,7 +6,6 @@
 --echo # BUG#11760210 - SSL_CIPHER_LIST NOT SET OR RETURNED FOR "SHOW STATUS LIKE 'SSL_CIPHER_LIST'"
 --echo #
 
--- source include/have_ssl.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

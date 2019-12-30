@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/sql/_crypto"],function(_1,_2,_3){
-_2.provide("dojox.sql._base");
-_2.require("dojox.sql._crypto");
-_2.mixin(_3.sql,{dbName:null,debug:(_2.exists("dojox.sql.debug")?_3.sql.debug:false),open:function(_4){
+define("dojox/sql/_base",["dojo","dijit","dojox","dojo/require!dojox/sql/_crypto"],function(_1,_2,_3){
+_1.provide("dojox.sql._base");
+_1.require("dojox.sql._crypto");
+_1.mixin(_3.sql,{dbName:null,debug:(_1.exists("dojox.sql.debug")?_3.sql.debug:false),open:function(_4){
 if(this._dbOpen&&(!_4||_4==this.dbName)){
 return;
 }
@@ -24,7 +24,7 @@ catch(exp){
 throw exp.message||exp;
 }
 },close:function(_5){
-if(_2.isIE){
+if(_1.isIE){
 return;
 }
 if(!this._dbOpen&&(!_5||_5==this.dbName)){
@@ -50,7 +50,7 @@ this._autoClose=true;
 var _7=null;
 var _8=null;
 var _9=null;
-var _a=_2._toArray(_6);
+var _a=_1._toArray(_6);
 _7=_a.splice(0,1)[0];
 if(this._needsEncrypt(_7)||this._needsDecrypt(_7)){
 _8=_a.splice(_a.length-1,1)[0];
@@ -94,7 +94,7 @@ try{
 this.db=google.gears.factory.create("beta.database","1.0");
 }
 catch(exp){
-_2.setObject("google.gears.denied",true);
+_1.setObject("google.gears.denied",true);
 if(_3.off){
 _3.off.onFrameworkEvent("coreOperationFailed");
 }
@@ -133,7 +133,7 @@ return /encrypt\([^\)]*\)/i.test(sql);
 },_needsDecrypt:function(sql){
 return /decrypt\([^\)]*\)/i.test(sql);
 }});
-_2.declare("dojox.sql._SQLCrypto",null,{constructor:function(_12,sql,_13,_14,_15){
+_1.declare("dojox.sql._SQLCrypto",null,{constructor:function(_12,sql,_13,_14,_15){
 if(_12=="encrypt"){
 this._execEncryptSQL(sql,_13,_14,_15);
 }else{
@@ -219,7 +219,7 @@ if(_2b[i]){
 var _2d=_2a[i];
 var _2e=i;
 this._totalCrypto++;
-_3.sql._crypto.encrypt(_2d,_29,_2.hitch(this,function(_2f){
+_3.sql._crypto.encrypt(_2d,_29,_1.hitch(this,function(_2f){
 this._finalArgs[_2e]=_2f;
 this._finishedCrypto++;
 if(this._finishedCrypto>=this._totalCrypto&&this._finishedSpawningCrypto){
@@ -296,7 +296,7 @@ var _46=new String(RegExp.lastMatch);
 var _47=_46.replace(/DECRYPT\(/i,"");
 _47=_47.replace(/\)/,"");
 _47=_47.split(/\s*,\s*/);
-_2.forEach(_47,function(_48){
+_1.forEach(_47,function(_48){
 if(/\s*\w* AS (\w*)/i.test(_48)){
 _48=_48.match(/\s*\w* AS (\w*)/i)[1];
 }
@@ -307,7 +307,7 @@ _45=_44.exec(sql);
 }
 return _43;
 },_decryptSingleColumn:function(_49,_4a,_4b,_4c,_4d){
-_3.sql._crypto.decrypt(_4a,_4b,_2.hitch(this,function(_4e){
+_3.sql._crypto.decrypt(_4a,_4b,_1.hitch(this,function(_4e){
 this._finalResultSet[_4c][_49]=_4e;
 this._finishedCrypto++;
 if(this._finishedCrypto>=this._totalCrypto&&this._finishedSpawningCrypto){
@@ -318,6 +318,6 @@ _4d(this._finalResultSet);
 (function(){
 var _4f=_3.sql;
 _3.sql=new Function("return dojox.sql._exec(arguments);");
-_2.mixin(_3.sql,_4f);
+_1.mixin(_3.sql,_4f);
 })();
 });

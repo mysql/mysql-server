@@ -55,7 +55,8 @@ ERROR 42000: Incorrect locking service lock name ''.
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 TRUNCATE TABLE performance_schema.events_waits_current;
 TRUNCATE TABLE performance_schema.events_waits_history_long;
-UPDATE performance_schema.setup_instruments SET enabled = 'YES';
+UPDATE performance_schema.setup_instruments SET enabled = 'YES'
+WHERE name = 'wait/lock/metadata/sql/mdl';
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
@@ -79,11 +80,6 @@ SELECT service_release_locks('pfs_check');
 service_release_locks('pfs_check')
 1
 SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.metadata_locks
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
@@ -115,13 +111,6 @@ SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
-#      Per performance_schema no historic wait for getting a service lock
-#      because TRUNCATE of events_waits_history_long
-SELECT COUNT(*) = 0 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
 # 4.1: Test that another connection gets blocked.
 SELECT service_get_write_locks("namespace1", "lock1", "lock2", 60);
 service_get_write_locks("namespace1", "lock1", "lock2", 60)
@@ -149,9 +138,9 @@ OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
 namespace1	lock1	LOCKING SERVICE	metadata lock
 namespace1	lock1	LOCKING SERVICE	metadata lock
 namespace1	lock2	LOCKING SERVICE	metadata lock
-#      Per performance_schema there is no current wait for getting a
-#      service lock because our attempt already timed out.
-SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
+#      Per performance_schema keeps the last monitored wait for
+#      service lock even after our attempt timed out.
+SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
@@ -170,12 +159,6 @@ FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
 namespace1	lock1	LOCKING SERVICE	metadata lock
-#      Per performance_schema six waits in history
-SELECT COUNT(*) = 3 AS expect_1
-FROM performance_schema.events_waits_history_long
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
 # 4.4: Show the impact of releasing and getting a service lock on
 #      content of the processlist and performance_schema
 SELECT service_release_locks("namespace1");
@@ -189,14 +172,9 @@ SELECT COUNT(*) = 0 AS expect_1 FROM information_schema.processlist
 WHERE state = 'Waiting for locking service lock';
 expect_1
 1
-#      Per performance_schema no current wait for getting a service lock
-SELECT COUNT(*) = 0 AS expect_1 FROM performance_schema.events_waits_current
-WHERE OBJECT_TYPE = 'LOCKING SERVICE';
-expect_1
-1
-#      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 4 AS expect_1
-FROM performance_schema.events_waits_history_long
+#      performance_schema keeps the last monitored wait for
+#      service lock even if no current wait
+SELECT COUNT(*) = 1 AS expect_1 FROM performance_schema.events_waits_current
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
@@ -918,3 +896,4 @@ service_release_locks('holder_name_space')
 DROP FUNCTION service_get_read_locks;
 DROP FUNCTION service_get_write_locks;
 DROP FUNCTION service_release_locks;
+UPDATE performance_schema.setup_instruments SET enabled = 'YES';

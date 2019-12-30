@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 std::shared_ptr<MetaData> get_instance(
     const std::string &user, const std::string &password, int connect_timeout,
     int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options);
+    const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_gr_notifications);
 
 #endif  // METADATA_CACHE_METADATA_FACTORY_INCLUDED

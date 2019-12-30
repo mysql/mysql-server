@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 
 int my_rename(const char *from, const char *to, myf MyFlags) {
   int error = 0;
-  DBUG_ENTER("my_rename");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("from %s to %s MyFlags %d", from, to, MyFlags));
 
 #if defined(_WIN32)
@@ -68,5 +68,5 @@ int my_rename(const char *from, const char *to, myf MyFlags) {
         (strcmp(from, to) && my_sync_dir_by_file(to, MyFlags)))
       error = -1;
   }
-  DBUG_RETURN(error);
+  return error;
 } /* my_rename */

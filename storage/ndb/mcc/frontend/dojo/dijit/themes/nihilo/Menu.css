@@ -24,6 +24,7 @@
 	padding:1px;
 }
 .nihilo .dijitMenuPassive .dijitMenuItemHover,
+.nihilo .dijitComboBoxMenu .dijitMenuItemHover,
 .nihilo .dijitMenuItemSelected {
 	background-color: #ffe284; 
 	color: #243C5F;

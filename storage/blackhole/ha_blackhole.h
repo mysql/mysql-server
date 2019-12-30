@@ -68,7 +68,7 @@ class ha_blackhole : public handler {
                 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE | HA_READ_ORDER |
                       HA_KEYREAD_ONLY);
   }
-    /* The following defines can be increased if necessary */
+  /* The following defines can be increased if necessary */
 #define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
 #define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
 #define BLACKHOLE_MAX_KEY_LENGTH 1000

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define PLUGIN_X_CLIENT_MYSQLXCLIENT_MYSQLXCLIENT_ERROR_H_
 
 #define CR_X_ERROR_FIRST 2500
+
 #define CR_X_READ_TIMEOUT 2500
 #define CR_X_WRITE_TIMEOUT 2501
 #define CR_X_INTERNAL_ABORTED 2502
@@ -35,7 +36,10 @@
 #define CR_X_LAST_COMMAND_UNFINISHED 2508
 #define CR_X_RECEIVE_BUFFER_TO_SMALL 2509
 #define CR_X_AUTH_PLUGIN_ERROR 2510
-#define CR_X_ERROR_LAST 2510
 #define CR_X_SESSION_CONNECT_TIMEOUT 2511
+#define CR_X_COMPRESSION_NOT_CONFIGURED 2512
+#define CR_X_REQUIRED_COMPRESSION_NOT_SUPPORTED 2513
+
+#define CR_X_ERROR_LAST 2513
 
 #endif  // PLUGIN_X_CLIENT_MYSQLXCLIENT_MYSQLXCLIENT_ERROR_H_

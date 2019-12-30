@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 
 #ifndef NDB_MATH_H
 #define NDB_MATH_H
+
+#include <type_traits>
 
 /**
  * Greatest common divisor, gcd.
@@ -51,6 +53,22 @@ template<typename Int>
 inline Int lcm(Int x, Int y)
 {
   return (x / gcd(x, y)) * y;
+}
+
+/**
+ * Integer division rounding up.
+ */
+
+template<typename T>
+static constexpr inline T ndb_ceil_div(const T p, const T q)
+{
+  static_assert(std::is_integral<T>::value,
+                "Integral type required for ndb_ceil_div().");
+  if (p == 0)
+  {
+    return 0;
+  }
+  return 1 + (p - 1) / q;
 }
 
 #endif

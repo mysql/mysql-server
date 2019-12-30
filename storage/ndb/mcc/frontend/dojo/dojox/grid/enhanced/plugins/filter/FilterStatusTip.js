@@ -1,28 +1,29 @@
 //>>built
-define("dojox/grid/enhanced/plugins/filter/FilterStatusTip",["dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/query","dojo/cache","dojo/string","dojo/date/locale","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dijit/TooltipDialog","dijit/form/Button","dijit/_base/popup","dojo/i18n!../../nls/Filter"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
+require({cache:{"url:dojox/grid/enhanced/templates/FilterStatusPane.html":"<div class=\"dojoxGridFStatusTip\"\n\t><div class=\"dojoxGridFStatusTipHead\"\n\t\t><span class=\"dojoxGridFStatusTipTitle\" dojoAttachPoint=\"statusTitle\"></span\n\t\t><span class=\"dojoxGridFStatusTipRel\" dojoAttachPoint=\"statusRel\"></span\n\t></div\n\t><div class=\"dojoxGridFStatusTipDetail\" dojoAttachPoint=\"statusDetailNode\"\n\t></div\n></div>\n"}});
+define("dojox/grid/enhanced/plugins/filter/FilterStatusTip",["dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/query","dojo/string","dojo/date/locale","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dijit/TooltipDialog","dijit/form/Button","dijit/_base/popup","dojo/text!../../templates/FilterStatusPane.html","dojo/i18n!../../nls/Filter"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
 var _e="",_f="",_10="",_11="",_12="dojoxGridFStatusTipOddRow",_13="dojoxGridFStatusTipHandle",_14="dojoxGridFStatusTipCondition",_15="dojoxGridFStatusTipDelRuleBtnIcon",_16="</tbody></table>";
-var _17=_1("dojox.grid.enhanced.plugins.filter.FilterStatusPane",[_8,_9],{templateString:_5("dojox.grid","enhanced/templates/FilterStatusPane.html")});
+var _17=_1("dojox.grid.enhanced.plugins.filter.FilterStatusPane",[_7,_8],{templateString:_d});
 return _1("dojox.grid.enhanced.plugins.filter.FilterStatusTip",null,{constructor:function(_18){
 var _19=this.plugin=_18.plugin;
 this._statusHeader=["<table border='0' cellspacing='0' class='",_e,"'><thead><tr class='",_f,"'><th class='",_10,"'><div>",_19.nls["statusTipHeaderColumn"],"</div></th><th class='",_10," lastColumn'><div>",_19.nls["statusTipHeaderCondition"],"</div></th></tr></thead><tbody>"].join("");
 this._removedCriterias=[];
 this._rules=[];
 this.statusPane=new _17();
-this._dlg=new _b({"class":"dojoxGridFStatusTipDialog",content:this.statusPane,autofocus:false});
+this._dlg=new _a({"class":"dijitTooltipBelow dojoxGridFStatusTipDialog",content:this.statusPane,autofocus:false});
 this._dlg.connect(this._dlg.domNode,"onmouseleave",_3.hitch(this,this.closeDialog));
 this._dlg.connect(this._dlg.domNode,"click",_3.hitch(this,this._modifyFilter));
 },destroy:function(){
 this._dlg.destroyRecursive();
 },showDialog:function(_1a,_1b,_1c){
 this._pos={x:_1a,y:_1b};
-_d.close(this._dlg);
+_c.close(this._dlg);
 this._removedCriterias=[];
 this._rules=[];
 this._updateStatus(_1c);
-_d.open({popup:this._dlg,parent:this.plugin.filterBar,onCancel:function(){
+_c.open({popup:this._dlg,parent:this.plugin.filterBar,onCancel:function(){
 },x:_1a-12,y:_1b-3});
 },closeDialog:function(){
-_d.close(this._dlg);
+_c.close(this._dlg);
 if(this._removedCriterias.length){
 this.plugin.filterDefDialog.removeCriteriaBoxes(this._removedCriterias);
 this._removedCriterias=[];
@@ -35,7 +36,7 @@ sp.statusTitle.innerHTML=nls["statusTipTitleNoFilter"];
 sp.statusRel.innerHTML="";
 var _1e=p.grid.layout.cells[_1d];
 var _1f=_1e?"'"+(_1e.name||_1e.field)+"'":nls["anycolumn"];
-res=_6.substitute(nls["statusTipMsg"],[_1f]);
+res=_5.substitute(nls["statusTipMsg"],[_1f]);
 }else{
 sp.statusTitle.innerHTML=nls["statusTipTitleHasFilter"];
 sp.statusRel.innerHTML=fdg._relOpCls=="logicall"?nls["statusTipRelAll"]:nls["statusTipRelAny"];
@@ -57,7 +58,7 @@ return this._getCriteriaStr(_20,i);
 },_addButtonForRules:function(){
 if(this._rules.length>1){
 _4("."+_13,this.statusPane.statusDetailNode).forEach(_3.hitch(this,function(nd,idx){
-(new _c({label:this.plugin.nls["removeRuleButton"],showLabel:false,iconClass:_15,onClick:_3.hitch(this,function(e){
+(new _b({label:this.plugin.nls["removeRuleButton"],showLabel:false,iconClass:_15,onClick:_3.hitch(this,function(e){
 e.stopPropagation();
 this._removedCriterias.push(this._rules[idx].index);
 this._rules.splice(idx,1);
@@ -74,5 +75,4 @@ this.closeDialog();
 var p=this.plugin;
 p.filterDefDialog.showDialog(p.filterBar.getColumnIdx(this._pos.x));
 }});
-return FilterStatusTip;
 });

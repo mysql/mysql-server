@@ -60,7 +60,7 @@ SET(STRINGS_SOURCES
 # Aliasing bug in union in Clang
 # Bug#26161442 MAIN.SELECT* TESTS ARE FAILING WITH CLANG 4.0
 # Problem: wrong results for some corner cases when converting string to double.
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
+IF(MY_COMPILER_IS_CLANG AND
     CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL "4.0")
   ADD_COMPILE_FLAGS(dtoa.cc COMPILE_FLAGS "-fno-strict-aliasing")
 ENDIF()

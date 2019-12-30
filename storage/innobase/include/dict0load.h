@@ -157,10 +157,9 @@ const rec_t *dict_startscan_system(
     dict_system_id_t system_id); /*!< in: which system table to open */
 /** This function get the next system table record as we scan the table.
  @return the record if found, NULL if end of scan. */
-const rec_t *dict_getnext_system(
-    btr_pcur_t *pcur, /*!< in/out: persistent cursor
-                      to the record */
-    mtr_t *mtr);      /*!< in: the mini-transaction */
+const rec_t *dict_getnext_system(btr_pcur_t *pcur, /*!< in/out: persistent
+                                                   cursor to the record */
+                                 mtr_t *mtr); /*!< in: the mini-transaction */
 
 /** This function parses a SYS_TABLESPACES record, extracts necessary
  information from the record and returns to caller.

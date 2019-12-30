@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -196,10 +196,11 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
 
   err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
 
-  DBUG_EXECUTE_IF("stats_index_error", if (!trx_started) {
-    err = DB_STATS_DO_NOT_EXIST;
-    trx->error_state = DB_STATS_DO_NOT_EXIST;
-  });
+  DBUG_EXECUTE_IF(
+      "stats_index_error", if (!trx_started) {
+        err = DB_STATS_DO_NOT_EXIST;
+        trx->error_state = DB_STATS_DO_NOT_EXIST;
+      });
 
   if (!trx_started && err == DB_SUCCESS) {
     return (DB_SUCCESS);
@@ -729,7 +730,7 @@ static void dict_stats_update_transient(
   table->stat_sum_of_other_index_sizes =
       sum_of_index_sizes - index->stat_index_size;
 
-  table->stats_last_recalc = ut_time();
+  table->stats_last_recalc = ut_time_monotonic();
 
   table->stat_modified_counter = 0;
 
@@ -1001,8 +1002,8 @@ static void dict_stats_analyze_index_level(
     }
   }
 
-    /* now in n_diff_boundaries[i] there are exactly n_diff[i] integers,
-    for i=0..n_uniq-1 */
+  /* now in n_diff_boundaries[i] there are exactly n_diff[i] integers,
+  for i=0..n_uniq-1 */
 
 #ifdef UNIV_STATS_DEBUG
   for (i = 0; i < n_uniq; i++) {
@@ -1613,14 +1614,14 @@ static void dict_stats_analyze_index(
   ib_uint64_t total_pages;
   mtr_t mtr;
   ulint size;
-  DBUG_ENTER("dict_stats_analyze_index");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("index: %s, online status: %d", index->name(),
                       dict_index_get_online_status(index)));
 
   /* Disable update statistic for Rtree */
   if (dict_index_is_spatial(index)) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name());
@@ -1644,7 +1645,7 @@ static void dict_stats_analyze_index(
   switch (size) {
     case ULINT_UNDEFINED:
       dict_stats_assert_initialized_index(index);
-      DBUG_VOID_RETURN;
+      return;
     case 0:
       /* The root node of the tree is a leaf */
       size = 1;
@@ -1697,7 +1698,7 @@ static void dict_stats_analyze_index(
     mtr_commit(&mtr);
 
     dict_stats_assert_initialized_index(index);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /* For each level that is being scanned in the btree, this contains the
@@ -1879,7 +1880,6 @@ static void dict_stats_analyze_index(
   UT_DELETE_ARRAY(n_diff_data);
 
   dict_stats_assert_initialized_index(index);
-  DBUG_VOID_RETURN;
 }
 
 /** Calculates new estimates for table and index statistics. This function
@@ -1942,7 +1942,7 @@ static dberr_t dict_stats_update_persistent(
     table->stat_sum_of_other_index_sizes += index->stat_index_size;
   }
 
-  table->stats_last_recalc = ut_time();
+  table->stats_last_recalc = ut_time_monotonic();
 
   table->stat_modified_counter = 0;
 
@@ -2658,7 +2658,7 @@ static dberr_t dict_stats_fetch_from_ps(
 /** Fetches or calculates new estimates for index statistics. */
 void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 {
-  DBUG_ENTER("dict_stats_update_for_index");
+  DBUG_TRACE;
 
   ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2668,14 +2668,12 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     dict_table_stats_unlock(index->table, RW_X_LATCH);
     index_id_t index_id(index->space, index->id);
     dict_stats_save(index->table, &index_id);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   dict_table_stats_lock(index->table, RW_X_LATCH);
   dict_stats_update_transient_for_index(index);
   dict_table_stats_unlock(index->table, RW_X_LATCH);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Calculates new estimates for table and index statistics. The statistics
@@ -3680,7 +3678,7 @@ void test_dict_stats_all() {
 
   test_dict_stats_fetch_from_ps();
 }
-  /* @} */
+/* @} */
 
 #endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 /* @} */

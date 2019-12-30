@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "destination.h"
 #include "mysql_routing_common.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/routing_component.h"
 #include "tcp_address.h"
 
 class MySQLRoutingConnection;
@@ -53,6 +54,7 @@ class concurrent_map {
   using key_type = Key;
   using mapped_type = Value;
   using hash_type = Hash;
+  using value_type = typename std::map<Key, Value>::value_type;
 
   concurrent_map(unsigned num_buckets = kDefaultNumberOfBucket,
                  const Hash &hasher = Hash())
@@ -87,6 +89,13 @@ class concurrent_map {
     return result;
   }
 
+  bool empty() const {
+    for (const auto &each_bucket : buckets_) {
+      if (!each_bucket.empty()) return false;
+    }
+    return true;
+  }
+
  private:
   static const unsigned kDefaultNumberOfBucket = 127;
 
@@ -118,6 +127,11 @@ class concurrent_map {
     std::size_t size() const {
       std::lock_guard<std::mutex> lock(data_mutex_);
       return data_.size();
+    }
+
+    bool empty() const {
+      std::lock_guard<std::mutex> lock(data_mutex_);
+      return data_.empty();
     }
 
    private:
@@ -155,6 +169,27 @@ class ConnectionContainer {
       connections_;
 
  public:
+  using ConnData = MySQLRoutingAPI::ConnData;
+
+  std::vector<ConnData> get_all_connections_info() {
+    std::vector<ConnData> connection_datas;
+
+    auto l =
+        [&connection_datas](const decltype(connections_)::value_type &conn) {
+          connection_datas.push_back({
+              conn.second->get_client_address(),
+              conn.second->get_server_address().str(),
+              conn.second->get_bytes_up(),
+              conn.second->get_bytes_down(),
+              conn.second->get_started(),
+              conn.second->get_connected_to_server(),
+              conn.second->get_last_sent_to_server(),
+              conn.second->get_last_received_from_server(),
+          });
+        };
+    connections_.for_each(l);
+    return connection_datas;
+  }
   /**
    * @brief Adds new connection to container.
    *
@@ -186,6 +221,18 @@ class ConnectionContainer {
    * @param connection The connection to remove from container
    */
   void remove_connection(MySQLRoutingConnection *connection);
+
+  /** number of active client threads. */
+  std::condition_variable connection_removed_cond_;
+  std::mutex connection_removed_cond_m_;
+
+  /**
+   * check if container is empty.
+   *
+   * as the map is concurrent, empty() only gives a reasonable result if it is
+   * ensured no other thread is currently adding connections.
+   */
+  bool empty() const { return connections_.empty(); }
 };
 
 #endif /* ROUTING_CONNECTION_CONTAINER_INCLUDED */

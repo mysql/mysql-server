@@ -313,7 +313,7 @@ eventOperation(Ndb* pNdb, const NdbDictionary::Table &tab, void* pstats, int rec
 	    last_inconsitant_gci = gci;
 	    stats.n_inconsistent_gcis++;
 	  }
-	  g_warning << "A node failure has occured and events might be missing\n";	
+	  g_warning << "A node failure has occurred and events might be missing\n";	
 	}
 	g_info << function << "GCI " << gci << ": " << count;
 	struct receivedEvent* recEvent;
@@ -1695,7 +1695,7 @@ static int copy_events(Ndb *ndb)
       }
       
       if (!pOp->isConsistent()) {
-	g_err << "A node failure has occured and events might be missing\n";
+	g_err << "A node failure has occurred and events might be missing\n";
 	DBUG_RETURN(-1);
       }
 	

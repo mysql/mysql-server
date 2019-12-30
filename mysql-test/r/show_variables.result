@@ -10,3 +10,36 @@ SHOW VARIABLES WHERE Variable_name LIKE "abc";
 Variable_name	Value
 SHOW VARIABLES LIKE "abc";
 Variable_name	Value
+#
+# Bug#29664758: REGRESSION: ASSERTION FAILED: M_WHERE_COND->IS_BOOL_FUNC()
+#
+CREATE TABLE t1 (i INT);
+SHOW DATABASES WHERE 0;
+Database
+SHOW TABLES WHERE 0;
+Tables_in_test
+SHOW TRIGGERS WHERE 0;
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+SHOW EVENTS WHERE 0;
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+SHOW TABLE STATUS WHERE 0;
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+SHOW OPEN TABLES WHERE 0;
+Database	Table	In_use	Name_locked
+SHOW COLUMNS FROM t1 WHERE 0;
+Field	Type	Null	Key	Default	Extra
+SHOW KEYS FROM t1 WHERE 0;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+SHOW STATUS WHERE 0;
+Variable_name	Value
+SHOW VARIABLES WHERE 0;
+Variable_name	Value
+SHOW CHARACTER SET WHERE 0;
+Charset	Description	Default collation	Maxlen
+SHOW COLLATION WHERE 0;
+Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
+SHOW PROCEDURE STATUS WHERE 0;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+SHOW FUNCTION STATUS WHERE 0;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+DROP TABLE t1;

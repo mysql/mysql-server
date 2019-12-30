@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,7 @@ void Primary_election_secondary_process::set_stop_wait_timeout(ulong timeout) {
 int Primary_election_secondary_process::launch_secondary_election_process(
     enum_primary_election_mode mode, std::string &primary_to_elect,
     std::vector<Group_member_info *> *group_members_info) {
-  DBUG_ENTER(
-      "Primary_election_secondary_process::launch_secondary_election_process");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&election_lock);
 
@@ -69,7 +68,7 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   DBUG_ASSERT(election_process_thd_state.is_thread_dead());
   if (election_process_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&election_lock); /* purecov: inspected */
-    DBUG_RETURN(2);                     /* purecov: inspected */
+    return 2;                           /* purecov: inspected */
   }
 
   election_mode = mode;
@@ -103,7 +102,7 @@ int Primary_election_secondary_process::launch_secondary_election_process(
     /* purecov: begin inspected */
     group_events_observation_manager->unregister_group_event_observer(this);
     mysql_mutex_unlock(&election_lock);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -115,14 +114,13 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   }
   mysql_mutex_unlock(&election_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 
   return 0;
 }
 
 int Primary_election_secondary_process::secondary_election_process_handler() {
-  DBUG_ENTER(
-      "Primary_election_secondary_process::secondary_election_process_handler");
+  DBUG_TRACE;
   int error = 0;
   std::string err_msg;
 
@@ -154,7 +152,7 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   if (election_process_aborted) goto end;
 
   if (enable_read_mode_on_server()) {
-    if (!election_process_aborted && !server_shutdown_status) {
+    if (!election_process_aborted && !get_server_shutdown_status()) {
       abort_plugin_process(
           "Cannot enable the super read only mode on a secondary member.");
       error = 1;
@@ -234,7 +232,7 @@ end:
     group_events_observation_manager->after_primary_election(
         primary_uuid, true, election_mode, error); /* purecov: inspected */
     kill_transactions_and_leave_on_election_error(
-        err_msg, stop_wait_timeout); /* purecov: inspected */
+        err_msg); /* purecov: inspected */
   }
 
   stage_handler->end_stage();
@@ -244,6 +242,7 @@ end:
 
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
+  delete thd;
 
   mysql_mutex_lock(&election_lock);
   election_process_thd_state.set_terminated();
@@ -254,9 +253,8 @@ end:
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
-  delete thd;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Primary_election_secondary_process::is_election_process_running() {
@@ -264,26 +262,33 @@ bool Primary_election_secondary_process::is_election_process_running() {
 }
 
 bool Primary_election_secondary_process::enable_read_mode_on_server() {
-  mysql_mutex_lock(&election_lock);
-  Sql_service_command_interface *sql_command_interface =
-      new Sql_service_command_interface();
-  int error = sql_command_interface->establish_session_connection(
-      PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
-  if (!error) {
-    read_mode_session_id =
-        sql_command_interface->get_sql_service_interface()->get_session_id();
-    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
-  }
-  mysql_mutex_unlock(&election_lock);
+  int error = 0;
+  remote_clone_handler->lock_gr_clone_read_mode_lock();
 
-  if (!error && !election_process_aborted) {
-    error = enable_super_read_only_mode(sql_command_interface);
+  if (!plugin_is_group_replication_cloning()) {
+    mysql_mutex_lock(&election_lock);
+    Sql_service_command_interface *sql_command_interface =
+        new Sql_service_command_interface();
+    error = sql_command_interface->establish_session_connection(
+        PSESSION_USE_THREAD, GROUPREPL_USER, get_plugin_pointer());
+    if (!error) {
+      read_mode_session_id =
+          sql_command_interface->get_sql_service_interface()->get_session_id();
+      is_read_mode_set = SECONDARY_ELECTION_READ_MODE_BEING_SET;
+    }
+    mysql_mutex_unlock(&election_lock);
+
+    if (!error && !election_process_aborted) {
+      error = enable_super_read_only_mode(sql_command_interface);
+    }
+
+    mysql_mutex_lock(&election_lock);
+    delete sql_command_interface;
+    is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
+    mysql_mutex_unlock(&election_lock);
   }
 
-  mysql_mutex_lock(&election_lock);
-  delete sql_command_interface;
-  is_read_mode_set = SECONDARY_ELECTION_READ_MODE_IS_SET;
-  mysql_mutex_unlock(&election_lock);
+  remote_clone_handler->unlock_gr_clone_read_mode_lock();
 
   return error != 0;
 }

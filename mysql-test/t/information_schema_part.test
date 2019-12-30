@@ -131,3 +131,44 @@ drop table if exists t1;
 create table t1 (f1 int key) partition by key(f1) partitions 2;
 select create_options from information_schema.tables where table_schema="test";
 drop table t1;
+
+--echo # Bug #29870919  INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+--echo # STATS FOR PARTITIONED TABLES
+--echo #
+--echo # Without the fix the cardinality values by SHOW INDEXES is invalid.
+--echo #
+
+CREATE TABLE t1
+(f1 INT NOT NULL AUTO_INCREMENT,
+ f2 INT NOT NULL,
+ PRIMARY KEY (f1,f2)) ENGINE=InnoDB
+PARTITION BY RANGE (f2)
+  (PARTITION p0 VALUES LESS THAN (100),
+   PARTITION p1 VALUES LESS THAN (200),
+   PARTITION p2 VALUES LESS THAN (300),
+   PARTITION p3 VALUES LESS THAN (MAXVALUE));
+
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 SELECT NULL, 3
+                FROM t1 a, t1 b, t1 c, t1 d, t1 e, t1 f, t1 g;
+
+--echo # This SELECT caches the cardinality, as there is non cached yet.
+SHOW INDEXES IN t1;
+
+--echo # We do not account INSERTed rows into cardinality
+--echo # because the cached value is not expired yet.
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SHOW INDEXES IN t1;
+
+--echo # We force update cache by calling ANALYZE TABLE.
+ANALYZE TABLE t1;
+SHOW INDEXES IN t1;
+
+--echo # We do see INSERTed rows accounted into cardinality
+--echo # because we ignore cache with expiry seconds set to 0.
+SET session information_schema_stats_expiry = 0;
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SHOW INDEXES IN t1;
+
+DROP TABLE t1;

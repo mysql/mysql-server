@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ void thr_set_sync_wait_callback(void (*before_wait)(void),
 
 int my_sync(File fd, myf my_flags) {
   int res;
-  DBUG_ENTER("my_sync");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("Fd: %d  my_flags: %d", fd, my_flags));
 
   if (before_sync_wait) (*before_sync_wait)();
@@ -121,7 +121,7 @@ int my_sync(File fd, myf my_flags) {
   } else {
     if (after_sync_wait) (*after_sync_wait)();
   }
-  DBUG_RETURN(res);
+  return res;
 } /* my_sync */
 
 /*
@@ -147,7 +147,7 @@ int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
   File dir_fd;
   int res = 0;
   const char *correct_dir_name;
-  DBUG_ENTER("my_sync_dir");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("Dir: '%s'  my_flags: %d", dir_name, my_flags));
   /* Sometimes the path does not contain an explicit directory */
   correct_dir_name = (dir_name[0] == 0) ? cur_dir_name : dir_name;
@@ -160,7 +160,7 @@ int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
     if (my_close(dir_fd, MYF(my_flags))) res = 3;
   } else
     res = 1;
-  DBUG_RETURN(res);
+  return res;
 #else
   return 0;
 #endif

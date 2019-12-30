@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ std::string Document_id_aggregator::generate_id(const Variables &vars) {
 
 ngs::Error_code Document_id_aggregator::configue(
     ngs::Sql_session_interface *data_context) {
-  Sql_data_result result(*data_context);
+  Sql_data_result result(data_context);
   try {
     result.query(
         "SELECT @@mysqlx_document_id_unique_prefix,"
@@ -48,7 +48,7 @@ ngs::Error_code Document_id_aggregator::configue(
       return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
     }
     uint16_t prefix = 0, offset = 0, increment = 0;
-    result.get(&prefix).get(&offset).get(&increment);
+    result.get(&prefix, &offset, &increment);
     m_variables = Variables{prefix, offset, increment};
   } catch (const ngs::Error_code &e) {
     log_debug("Unable to get document id variables; exception message: '%s'",

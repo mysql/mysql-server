@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -786,7 +786,7 @@ Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx)
 */
 bool Srv_session::open() {
   char stack_start;
-  DBUG_ENTER("Srv_session::open");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("Session=%p  THD=%p  DA=%p", this, &thd, &da));
   DBUG_ASSERT(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
@@ -807,7 +807,7 @@ bool Srv_session::open() {
                                ER_OUT_OF_RESOURCES,
                                ER_DEFAULT(ER_OUT_OF_RESOURCES));
     Connection_handler_manager::dec_connection_count();
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd.update_charset();
@@ -838,10 +838,10 @@ bool Srv_session::open() {
   if (mysql_audit_notify(
           &thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE))) {
     Connection_handler_manager::dec_connection_count();
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -853,21 +853,21 @@ bool Srv_session::open() {
 */
 bool Srv_session::attach() {
   const bool first_attach = (state == SRV_SESSION_CREATED);
-  DBUG_ENTER("Srv_session::attach");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
 
   if (is_attached()) {
     if (!my_thread_equal(thd.real_id, my_thread_self())) {
       DBUG_PRINT("error", ("Attached to different thread. Detach in it"));
-      DBUG_RETURN(true);
+      return true;
     }
     /* As it is attached, no need to do anything */
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Since we now set current_thd during open(), we need to do complete
   // attach the first time in any case.
-  if (!first_attach && &thd == current_thd) DBUG_RETURN(false);
+  if (!first_attach && &thd == current_thd) return false;
 
   THD *old_thd = current_thd;
   DBUG_PRINT("info", ("current_thd=%p", current_thd));
@@ -909,7 +909,7 @@ bool Srv_session::attach() {
       and this will report corect information.
     */
     if (mysql_audit_notify(&thd, AUDIT_EVENT(MYSQL_AUDIT_CONNECTION_CONNECT)))
-      DBUG_RETURN(true);
+      return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(notify_session_connect)(thd.get_psi());
@@ -918,7 +918,7 @@ bool Srv_session::attach() {
     query_logger.general_log_print(&thd, COM_CONNECT, NullS);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -929,13 +929,13 @@ bool Srv_session::attach() {
     true  failure
 */
 bool Srv_session::detach() {
-  DBUG_ENTER("Srv_session::detach");
+  DBUG_TRACE;
 
-  if (!is_attached()) DBUG_RETURN(false);
+  if (!is_attached()) return false;
 
   if (!my_thread_equal(thd.real_id, my_thread_self())) {
     DBUG_PRINT("error", ("Attached to a different thread. Detach in it"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   DBUG_PRINT("info",
@@ -963,7 +963,7 @@ bool Srv_session::detach() {
     nulled by set_detached()
   */
   set_detached();
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -974,7 +974,7 @@ bool Srv_session::detach() {
     true  No such session exists / Session is attached to a different thread
 */
 bool Srv_session::close() {
-  DBUG_ENTER("Srv_session::close");
+  DBUG_TRACE;
 
   DBUG_PRINT("info",
              ("Session=%p THD=%p current_thd=%p", this, &thd, current_thd));
@@ -990,7 +990,7 @@ bool Srv_session::close() {
 
   Srv_session::Session_backup_and_attach backup(this, true);
 
-  if (backup.attach_error) DBUG_RETURN(true);
+  if (backup.attach_error) return true;
 
   state = SRV_SESSION_CLOSED;
 
@@ -1032,7 +1032,7 @@ bool Srv_session::close() {
 
   Connection_handler_manager::dec_connection_count();
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1059,14 +1059,14 @@ int Srv_session::execute_command(enum enum_server_command command,
                                  const struct st_command_service_cbs *callbacks,
                                  enum cs_text_or_binary text_or_binary,
                                  void *callbacks_context) {
-  DBUG_ENTER("Srv_session::execute_command");
+  DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
     if (err_protocol_ctx.handler)
       err_protocol_ctx.handler(err_protocol_ctx.handler_context,
                                ER_SESSION_WAS_KILLED,
                                ER_DEFAULT(ER_SESSION_WAS_KILLED));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (thd.killed) {
@@ -1074,7 +1074,7 @@ int Srv_session::execute_command(enum enum_server_command command,
       err_protocol_ctx.handler(err_protocol_ctx.handler_context,
                                ER_SESSION_WAS_KILLED,
                                ER_DEFAULT(ER_SESSION_WAS_KILLED));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
@@ -1082,11 +1082,11 @@ int Srv_session::execute_command(enum enum_server_command command,
   // RAII:the destructor restores the state
   Srv_session::Session_backup_and_attach backup(this, false);
 
-  if (backup.attach_error) DBUG_RETURN(1);
+  if (backup.attach_error) return 1;
 
   if (client_cs && thd.variables.character_set_results != client_cs &&
       thd_init_client_charset(&thd, client_cs->number))
-    DBUG_RETURN(1);
+    return 1;
 
   /* Switch to different callbacks */
   Protocol_callback client_proto(callbacks, text_or_binary, callbacks_context);
@@ -1109,7 +1109,7 @@ int Srv_session::execute_command(enum enum_server_command command,
 
   thd.pop_protocol();
   DBUG_ASSERT(thd.get_protocol() == &protocol_error);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**

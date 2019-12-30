@@ -2004,6 +2004,64 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Scenario 24:
+# Create a small table, and add stored and(or) virtual columns
+# after last stored column in the table
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+SELECT * FROM t1;
+a	b	c	h	d	e
+1	1	2	0	3	2
+2	2	3	0	5	6
+3	3	4	0	7	12
+4	4	5	0	9	20
+5	5	6	0	11	30
+6	6	20	40	26	120
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+Table id did not change
+SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+SELECT * FROM t1;
+a	b	c	h	i	f	d	e
+1	1	2	0	ABCD EFGH	9	3	2
+2	2	3	0	ABCD EFGH	9	5	6
+3	3	4	0	ABCD EFGH	9	7	12
+4	4	5	0	ABCD EFGH	9	9	20
+5	5	6	0	ABCD EFGH	9	11	30
+6	6	20	40	ABCD EFGH	9	26	120
+7	20	30	50	qwerty	6	50	600
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `h` int(11) NOT NULL,
+  `i` varchar(100) DEFAULT 'ABCD EFGH',
+  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+DROP TABLE t1;
 ############################################
 # Test instant ADD COLUMN for DYNAMIC format
 ############################################
@@ -4010,6 +4068,64 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1;
 DROP TABLE t2;
+#
+# Scenario 24:
+# Create a small table, and add stored and(or) virtual columns
+# after last stored column in the table
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+SELECT * FROM t1;
+a	b	c	h	d	e
+1	1	2	0	3	2
+2	2	3	0	5	6
+3	3	4	0	7	12
+4	4	5	0	9	20
+5	5	6	0	11	30
+6	6	20	40	26	120
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+Table id did not change
+SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+SELECT * FROM t1;
+a	b	c	h	i	f	d	e
+1	1	2	0	ABCD EFGH	9	3	2
+2	2	3	0	ABCD EFGH	9	5	6
+3	3	4	0	ABCD EFGH	9	7	12
+4	4	5	0	ABCD EFGH	9	9	20
+5	5	6	0	ABCD EFGH	9	11	30
+6	6	20	40	ABCD EFGH	9	26	120
+7	20	30	50	qwerty	6	50	600
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `h` int(11) NOT NULL,
+  `i` varchar(100) DEFAULT 'ABCD EFGH',
+  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1;
 ############################################
 # Test instant ADD COLUMN for COMPACT format
 ############################################
@@ -6017,6 +6133,64 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t1;
 DROP TABLE t2;
 #
+# Scenario 24:
+# Create a small table, and add stored and(or) virtual columns
+# after last stored column in the table
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=COMPACT;
+INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
+ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+SELECT * FROM t1;
+a	b	c	h	d	e
+1	1	2	0	3	2
+2	2	3	0	5	6
+3	3	4	0	7	12
+4	4	5	0	9	20
+5	5	6	0	11	30
+6	6	20	40	26	120
+ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+Table id did not change
+SELECT 3 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+SELECT * FROM t1;
+a	b	c	h	i	f	d	e
+1	1	2	0	ABCD EFGH	9	3	2
+2	2	3	0	ABCD EFGH	9	5	6
+3	3	4	0	ABCD EFGH	9	7	12
+4	4	5	0	ABCD EFGH	9	9	20
+5	5	6	0	ABCD EFGH	9	11	30
+6	6	20	40	ABCD EFGH	9	26	120
+7	20	30	50	qwerty	6	50	600
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `h` int(11) NOT NULL,
+  `i` varchar(100) DEFAULT 'ABCD EFGH',
+  `f` int(11) GENERATED ALWAYS AS (length(`i`)) VIRTUAL,
+  `d` int(11) GENERATED ALWAYS AS ((`b` + `c`)) VIRTUAL,
+  `e` int(11) GENERATED ALWAYS AS ((`b` * `c`)) VIRTUAL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+DROP TABLE t1;
+#
 # Test cases which don't care about row format start here
 #
 #
@@ -6038,4 +6212,41 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT NOT NULL DEFAULT 5, e INT GENERATED ALWAYS AS ((c + 2)) VIRTUAL) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION p2 VALUES LESS THAN (20), PARTITION p3 VALUES LESS THAN (30));
 ALTER TABLE t1 REORGANIZE PARTITION p1 INTO (PARTITION p1_a VALUES LESS THAN (5), PARTITION p1_b VALUES LESS THAN (10));
 ALTER TABLE t1 ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
+DROP TABLE t1;
+#
+# Check adding a stored columns(along with virtual columns)
+# after the last stored column of a table with functional index
+# should be fine
+#
+CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
+INSERT INTO t1(col1) VALUES(10), (20), (30), (40);
+ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
+SELECT * FROM t1;
+col1	new_col	col2
+10	NULL	20
+20	NULL	40
+30	NULL	60
+40	NULL	80
+ALTER TABLE t1 ADD COLUMN new_col_1 INT AFTER new_col, ADD COLUMN new_col_2 INT GENERATED ALWAYS AS (new_col * 3), ALGORITHM=INSTANT;
+INSERT INTO t1(col1, new_col, new_col_1) VALUES(100, 200, 300);
+SELECT * FROM t1;
+col1	new_col	new_col_1	col2	new_col_2
+10	NULL	NULL	20	NULL
+20	NULL	NULL	40	NULL
+30	NULL	NULL	60	NULL
+40	NULL	NULL	80	NULL
+100	200	300	200	600
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) DEFAULT NULL,
+  `new_col` int(11) DEFAULT NULL,
+  `new_col_1` int(11) DEFAULT NULL,
+  `col2` int(11) GENERATED ALWAYS AS ((`col1` + `col1`)) VIRTUAL,
+  `new_col_2` int(11) GENERATED ALWAYS AS ((`new_col` * 3)) VIRTUAL,
+  KEY `col2` (`col2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
 DROP TABLE t1;

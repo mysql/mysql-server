@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,14 +37,14 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx) {
   int error, changed;
   uint flag;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_rprev");
+  DBUG_TRACE;
 
-  if ((inx = _mi_check_index(info, inx)) < 0) DBUG_RETURN(my_errno());
+  if ((inx = _mi_check_index(info, inx)) < 0) return my_errno();
   flag = SEARCH_SMALLER; /* Read previous */
   if (info->lastpos == HA_OFFSET_ERROR && info->update & HA_STATE_NEXT_FOUND)
     flag = 0; /* Read last */
 
-  if (fast_mi_readinfo(info)) DBUG_RETURN(my_errno());
+  if (fast_mi_readinfo(info)) return my_errno();
   changed = _mi_test_if_changed(info);
   if (share->concurrent_insert) mysql_rwlock_rdlock(&share->key_root_lock[inx]);
   if (!flag)
@@ -78,7 +78,7 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx) {
         mysql_rwlock_unlock(&share->key_root_lock[inx]);
       info->lastpos = HA_OFFSET_ERROR;
       set_my_errno(HA_ERR_END_OF_FILE);
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
+      return HA_ERR_END_OF_FILE;
     }
   }
 
@@ -100,10 +100,10 @@ int mi_rprev(MI_INFO *info, uchar *buf, int inx) {
   if (error) {
     if (my_errno() == HA_ERR_KEY_NOT_FOUND) set_my_errno(HA_ERR_END_OF_FILE);
   } else if (!buf) {
-    DBUG_RETURN(info->lastpos == HA_OFFSET_ERROR ? my_errno() : 0);
+    return info->lastpos == HA_OFFSET_ERROR ? my_errno() : 0;
   } else if (!(*info->read_record)(info, info->lastpos, buf)) {
     info->update |= HA_STATE_AKTIV; /* Record is read */
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(my_errno());
+  return my_errno();
 } /* mi_rprev */

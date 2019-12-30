@@ -1,8 +1,7 @@
-//>>built
 define("dojox/gfx3d/lighting", [
 	"dojo/_base/lang",
 	"dojo/_base/Color",	// dojo.Color
-	"dojo/_base/declare",	// dojo.declare
+	"dojo/_base/declare",	// declare
 	"dojox/gfx/_base",
 	"./_base"
 ],function(lang,Color,declare,gfx,gfx3d) {

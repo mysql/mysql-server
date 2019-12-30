@@ -753,6 +753,9 @@ SET NAMES latin1;
 CREATE TABLE t1(a TINYINT, b SMALLINT, c MEDIUMINT, d INT, e BIGINT);
 CREATE TABLE t2(a DECIMAL(5,2));
 CREATE TABLE t3(a FLOAT(5,2), b DOUBLE(5,2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(1, 2, 3, 4, 100);
 INSERT INTO t1 VALUES(2, 3, 4, 100, 1);
 INSERT INTO t1 VALUES(3, 4, 100, 1, 2);

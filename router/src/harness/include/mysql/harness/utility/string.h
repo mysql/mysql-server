@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,26 @@ namespace utility {
 std::vector<std::string> HARNESS_EXPORT wrap_string(const std::string &to_wrap,
                                                     std::size_t width,
                                                     std::size_t indent_size);
-}
+
+/** @brief Checks whether string ends with the specified suffix
+ *
+ * Returns true if the string ends with the given suffix.
+ *
+ * @return bool
+ */
+bool HARNESS_EXPORT ends_with(const std::string &str,
+                              const std::string &suffix);
+
+/** @brief Checks whether string starts with the specified prefix
+ *
+ * Returns true if the string begins with the given prefix.
+ *
+ * @return bool
+ */
+bool HARNESS_EXPORT starts_with(const std::string &str,
+                                const std::string &prefix);
+
+}  // namespace utility
 
 namespace detail {
 template <class Container, class T>

@@ -22,3 +22,217 @@ show table types;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'types' at line 1
 show mutex status;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mutex status' at line 1
+# WL#13070 Deprecate && as synonym for AND and || as synonym for OR in SQL statements
+set sql_mode=pipes_as_concat;
+select 2 || 3;
+2 || 3
+23
+select 2 or 3;
+2 or 3
+1
+select concat(2,3);
+concat(2,3)
+23
+set sql_mode='';
+select 2 || 3;
+2 || 3
+1
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
+select 2 or 3;
+2 or 3
+1
+set sql_mode=default;
+# WL#13068 Deprecate BINARY keyword for specifying _bin collations
+# (I) Those statements SHOULD WARN
+create table t1 (v varchar(10) binary);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) character set latin1 binary);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) binary character set latin1);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) binary ascii);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) ascii binary);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) binary unicode);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET ucs2 COLLATE ucs2_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10) unicode binary);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET ucs2 COLLATE ucs2_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 modify v varchar(10) binary character set latin1;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 modify v varchar(10) unicode binary;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET ucs2 COLLATE ucs2_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 modify v varchar(10) binary ascii;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+select collation(cast('a' as char(2))), collation(cast('a' as char(2) binary));
+collation(cast('a' as char(2)))	collation(cast('a' as char(2) binary))
+utf8mb4_0900_ai_ci	utf8mb4_bin
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+select collation(convert('a', char(2))), collation(convert('a', char(2) binary));
+collation(convert('a', char(2)))	collation(convert('a', char(2) binary))
+utf8mb4_0900_ai_ci	utf8mb4_bin
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+select collation(convert('a',char(2) ascii)), collation(convert('a',char(2) ascii binary));
+collation(convert('a',char(2) ascii))	collation(convert('a',char(2) ascii binary))
+latin1_swedish_ci	latin1_bin
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+# (II) Those statements SHOULDN'T WARN, as they do make
+# "binary" charset, not just a "_bin" collation of another charset.
+create table t1 (v binary(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` binary(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+create table t1 (v varchar(10)) character set binary;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varbinary(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=binary
+drop table t1;
+create table t1 (v varchar(10));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+alter table t1 character set binary;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=binary
+drop table t1;
+create database mysqltest2 default character set = binary;
+show create database mysqltest2 ;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET binary */ /*!80016 DEFAULT ENCRYPTION='N' */
+drop database mysqltest2;
+create database mysqltest2 default character set = latin1;
+show create database mysqltest2 ;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
+alter database mysqltest2 default character set = binary;
+show create database mysqltest2 ;
+Database	Create Database
+mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET binary */ /*!80016 DEFAULT ENCRYPTION='N' */
+drop database mysqltest2;
+select @@character_set_client;
+@@character_set_client
+utf8mb4
+set character set binary;
+select @@character_set_client;
+@@character_set_client
+binary
+set character set default;
+select @@character_set_client;
+@@character_set_client
+utf8mb4
+set names binary;
+select @@character_set_client;
+@@character_set_client
+binary
+set names default;
+select convert("123" using binary);
+convert("123" using binary)
+123
+select char(123 using binary);
+char(123 using binary)
+{
+select collation(char(123)), collation(char(123 using binary));
+collation(char(123))	collation(char(123 using binary))
+binary	binary
+create table t1 (v varchar(10) byte);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `v` varbinary(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into t1 values("xyz");
+select * from t1 into outfile 'tmp1.txt' character set binary;
+load data infile 'tmp1.txt' into table t1 character set binary;
+select * from t1;
+v
+xyz
+xyz
+drop table t1;

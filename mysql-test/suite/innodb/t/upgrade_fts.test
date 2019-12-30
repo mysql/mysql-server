@@ -1,0 +1,87 @@
+##################################################################################
+# Bug#29992589 MYSQL UPGRADE TO 8.X FAILS IF TABLE NAME CONTAINS 'FTS' AND ' TFTS'
+##################################################################################
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+--source include/have_case_sensitive_file_system.inc
+
+--echo #
+--echo # This test upgrades a 5.7 database with tables having "FTS"
+--echo # in their names to 8.0
+--echo #
+
+--echo # Stop the running server
+--source include/shutdown_mysqld.inc
+
+--echo ##############################################################
+--echo # Copy and unzip the datadir created with lctn=0
+--echo ##############################################################
+
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_fts_nolctn.zip $MYSQL_TMP_DIR/data57_fts_nolctn.zip
+--file_exists $MYSQL_TMP_DIR/data57_fts_nolctn.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data57_fts_nolctn.zip -d $MYSQL_TMP_DIR
+let $DATADIR1 = $MYSQL_TMP_DIR/data57_fts_nolctn;
+
+--echo # Restart the server with the unzipped datadir
+--replace_result $DATADIR1 DATADIR
+--let $wait_counter=3000
+--let $restart_parameters = restart: --datadir=$DATADIR1 --innodb_page_size=16k
+--source include/start_mysqld.inc
+
+--echo # Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data57_fts_nolctn.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_fts_nolctn
+--remove_file $MYSQL_TMP_DIR/data57_fts_nolctn.zip
+
+--echo ##############################################################
+--echo # Copy and unzip the datadir created with lctn=1
+--echo ##############################################################
+
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_fts_lctn.zip $MYSQL_TMP_DIR/data57_fts_lctn.zip
+--file_exists $MYSQL_TMP_DIR/data57_fts_lctn.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data57_fts_lctn.zip -d $MYSQL_TMP_DIR
+let $DATADIR2 = $MYSQL_TMP_DIR/data57_fts_lctn;
+
+--echo # Restart the server with the unzipped datadir
+--replace_result $DATADIR2 DATADIR
+--let $wait_counter=3000
+--let $restart_parameters = restart: --datadir=$DATADIR2 --innodb_page_size=16k
+--source include/start_mysqld.inc
+
+--echo # Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+  WHERE name LIKE '%test%'
+  ORDER BY name;
+
+--echo # Cleanup
+--echo # Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--file_exists $MYSQL_TMP_DIR/data57_fts_lctn.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_fts_lctn
+--remove_file $MYSQL_TMP_DIR/data57_fts_lctn.zip
+
+--echo # Restart the server
+let $restart_parameters =;
+--source include/start_mysqld.inc

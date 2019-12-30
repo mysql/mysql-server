@@ -7,6 +7,9 @@ type int(11) DEFAULT '0' NOT NULL,
 event_id int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (event_date,type,event_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('1999-07-10',100100,24), ('1999-07-11',100100,25),
 ('1999-07-13',100600,0), ('1999-07-13',100600,4), ('1999-07-13',100600,26),
 ('1999-07-14',100600,10), ('1999-07-15',100600,16), ('1999-07-15',100800,45),
@@ -32,8 +35,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where ((`test`.`t1`.`event_date` >= DATE'1999-07-01') and (`test`.`t1`.`event_date` < DATE'1999-07-15') and ((`test`.`t1`.`type` = 100600) or (`test`.`t1`.`type` = 100100))) order by `test`.`t1`.`event_date`
 explain format=tree select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 EXPLAIN
--> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))
-    -> Index range scan on t1 using PRIMARY
+-> Filter: ((t1.event_date >= DATE'1999-07-01') and (t1.event_date < DATE'1999-07-15') and ((t1.`type` = 100600) or (t1.`type` = 100100)))  (cost=1.50 rows=1)
+    -> Index range scan on t1 using PRIMARY  (cost=1.50 rows=6)
 
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date < "1999-07-15" AND (type=100600 OR type=100100) ORDER BY event_date;
 event_date	type	event_id
@@ -47,7 +50,7 @@ explain select event_date,type,event_id from t1 WHERE type = 100601 and event_da
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where 0 order by `test`.`t1`.`event_date`
+Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where false order by `test`.`t1`.`event_date`
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND (type=100600 OR type=100100) or event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND type=100099;
 event_date	type	event_id
 1999-07-10	100100	24
@@ -66,6 +69,11 @@ CLOSED tinyint(4) DEFAULT '0' NOT NULL,
 ISS_DATE date DEFAULT '0000-00-00' NOT NULL,
 PRIMARY KEY (PAPER_ID,YEAR,ISSUE)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (3,1999,34,0,'1999-07-12'), (1,1999,111,0,'1999-03-23'),
 (1,1999,222,0,'1999-03-23'), (3,1999,33,0,'1999-07-12'),
 (3,1999,32,0,'1999-07-12'), (3,1999,31,0,'1999-07-12'),
@@ -105,6 +113,10 @@ PRIMARY KEY (id),
 KEY parent_id (parent_id),
 KEY level (level)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0), (3,1,1), (4,1,1), (8,2,2), (9,2,2), (17,3,2),
 (22,4,2), (24,4,2), (28,5,2), (29,5,2), (30,5,2), (31,6,2), (32,6,2), (33,6,2),
 (203,7,2), (202,7,2), (20,3,2), (157,0,0), (193,5,2), (40,7,2), (2,1,1),
@@ -175,6 +187,8 @@ KEY IdxArt (art),
 KEY IdxKnr (KNR),
 KEY IdxArtnr (ARTNR)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (art) VALUES ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
 ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
 ('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),('j'),('J'),
@@ -283,8 +297,12 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where (`test`.`t1`.`x` in (1,2))
 drop table t1;
 CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
 CREATE TABLE t2 (keya int(11) NOT NULL default '0', KEY j1 (keya));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -306,6 +324,9 @@ b int(11) default NULL,
 KEY a (a),
 KEY b (b)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,1),(2,1),(3,1),(4,1),(5,1),(6,1),(7,1),(8,1),(9,1),(10,2),(10,2),
 (13,2),(14,2),(15,2),(16,2),(17,3),(17,3),(16,3),(17,3),(19,3),(20,3),
@@ -358,6 +379,15 @@ KEY `COLUMN` ( owner, columnid, line ) ,
 KEY `LINES` ( owner, tableid, content, id ) ,
 KEY recount( owner, line ) 
 ) ENGINE = MYISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT into t1 (owner,id,columnid,line) values (11,15,15,1),(11,13,13,5);
 SELECT id, columnid, tableid, content, showid, line, ordinal FROM t1 WHERE owner=11 AND ((columnid IN ( 15, 13, 14 ) AND line IN ( 1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 31 )) OR (columnid IN ( 13, 14 ) AND line IN ( 15 ))) LIMIT 0 , 30;
 id	columnid	tableid	content	showid	line	ordinal
@@ -365,6 +395,8 @@ id	columnid	tableid	content	showid	line	ordinal
 15	15	1	188	1	1	0
 drop table t1;
 create  table t1 (id int(10) primary key);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9);
 select id from t1 where id in (2,5,9) ;
 id
@@ -660,7 +692,7 @@ explain select * from t1 where a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
 select * from t1 where a < -1;
 a
 drop table t1;
@@ -721,6 +753,11 @@ pk4 int(11) NOT NULL,
 filler char(82),
 PRIMARY KEY (pk1,pk2,pk3,pk4)
 ) DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t2 select 1, A.a+10*B.a, 432, 44, 'fillerZ' from t1 A, t1 B;
 INSERT INTO t2 VALUES (2621, 2635, 0, 0,'filler'), (2621, 2635, 1, 0,'filler'),
 (2621, 2635, 10, 0,'filler'), (2621, 2635, 11, 0,'filler'),
@@ -938,6 +975,8 @@ status varchar(20),
 PRIMARY KEY  (id),
 KEY (status)
 ) CHARSET utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,'B'), (2,'B'), (3,'B'), (4,'B'), (5,'B'), (6,'B'),
 (7,'B'), (8,'B'), (9,'B'), (10,'B'), (11,'B'), (12,'B'),
@@ -1217,8 +1256,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (0 not between `test`.`t1`.`b` and `test`.`t1`.`c`)
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 EXPLAIN
--> Filter: (0 not between t1.b and t1.c)
-    -> Index range scan on t1 using sort_union(idx1,idx2)
+-> Filter: (0 not between t1.b and t1.c)  (cost=2.27 rows=4)
+    -> Index range scan on t1 using sort_union(idx1,idx2)  (cost=2.27 rows=4)
 
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
@@ -1259,6 +1298,8 @@ dateval date default NULL,
 PRIMARY KEY  (id),
 KEY dateval (dateval)
 ) AUTO_INCREMENT=173;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (1,'2007-01-01'),(2,'2007-01-02'),(3,'2007-01-03'),(4,'2007-01-04'),
 (5,'2007-01-05'),(6,'2007-01-06'),(7,'2007-01-07'),(8,'2007-01-08'),
@@ -1286,6 +1327,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 'b') or (`test`.`t1`.`a` = 'B'))
 DROP TABLE t1;
 CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
 SELECT COUNT(*) FROM t1 WHERE f1 < 256;
 COUNT(*)
@@ -1304,6 +1347,8 @@ COUNT(*)
 5
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
 SELECT COUNT(*) FROM t1 WHERE f1 < 128;
 COUNT(*)
@@ -1816,7 +1861,7 @@ SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where true
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 pk	i4
 1	10
@@ -1825,7 +1870,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where true
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 pk	i4
 1	10
@@ -1865,7 +1910,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where false
 SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
 pk	i4
 EXPLAIN
@@ -1873,7 +1918,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where false
 SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
 pk	i4
 EXPLAIN
@@ -1923,9 +1968,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4
 EXPLAIN FORMAT=tree
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 EXPLAIN
--> Nested loop inner join
-    -> Table scan on t1
-    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)
+-> Nested loop inner join  (cost=1.85 rows=3)
+    -> Table scan on t1  (cost=0.80 rows=3)
+    -> Single-row index lookup on t2 using PRIMARY (pk=t1.i4), with index condition: (t2.pk between t1.i4 and t1.i4)  (cost=0.28 rows=1)
 
 SELECT * FROM t1, t1 as t2 WHERE t2.pk BETWEEN t1.i4 AND t1.i4;
 pk	i4	pk	i4
@@ -2199,10 +2244,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join
-    -> Filter: (t1.col_int is not null)
-        -> Table scan on t1
-    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)
+-> Nested loop inner join  (cost=1.55 rows=2)
+    -> Filter: (t1.col_int is not null)  (cost=0.45 rows=2)
+        -> Table scan on t1  (cost=0.45 rows=2)
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int), with index condition: (t2.pk < t1.pk)  (cost=0.27 rows=1)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -2220,10 +2265,10 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
--> Nested loop inner join
-    -> Table scan on t1
-    -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))
-        -> Index range scan on t2 (re-planned for each iteration)
+-> Nested loop inner join  (cost=1.90 rows=4)
+    -> Table scan on t1  (cost=0.45 rows=2)
+    -> Filter: ((t2.col_int_key = t1.col_int) and (t2.pk < t1.pk))  (cost=0.22 rows=2)
+        -> Index range scan on t2 (re-planned for each iteration)  (cost=0.22 rows=6)
 
 SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
@@ -3617,7 +3662,13 @@ KEY `other_id` (`other_id`,`time_created`)
 ) ENGINE=InnoDB AUTO_INCREMENT=101651329
 DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci ;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 CREATE TABLE t1 (c1 INT);

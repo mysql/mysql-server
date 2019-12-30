@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -73,7 +73,7 @@ It should not be called for the first BLOB page, because it will not
 have a previous BLOB page.
 @return	the previous BLOB block. */
 buf_block_t *BaseInserter::get_previous_blob_block() {
-  DBUG_ENTER("BaseInserter::get_previous_blob_block");
+  DBUG_TRACE;
 
   DBUG_LOG("lob", "m_prev_page_no=" << m_prev_page_no);
   ut_ad(m_prev_page_no != m_ctx->get_page_no());
@@ -87,7 +87,7 @@ buf_block_t *BaseInserter::get_previous_blob_block() {
 
   buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
 
-  DBUG_RETURN(prev_block);
+  return prev_block;
 }
 
 /** Get the previous BLOB page frame.  This will return a BLOB page.

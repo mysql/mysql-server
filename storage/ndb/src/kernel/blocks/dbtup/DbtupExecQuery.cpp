@@ -2105,14 +2105,14 @@ int Dbtup::handleInsertReq(Signal* signal,
   if (ERROR_INSERTED(4014))
   {
     dst = 0;
-    goto undo_buffer_error;
+    goto trans_mem_error;
   }
 
   dst= alloc_copy_tuple(regTabPtr, &regOperPtr.p->m_copy_tuple_location);
 
   if (unlikely(dst == 0))
   {
-    goto undo_buffer_error;
+    goto trans_mem_error;
   }
   tuple_ptr= req_struct->m_tuple_ptr= dst;
   set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
@@ -2491,9 +2491,9 @@ size_change_error:
   terrorCode = ZMEM_NOMEM_ERROR;
   goto exit_error;
   
-undo_buffer_error:
+trans_mem_error:
   jam();
-  terrorCode= ZNO_UNDO_BUFFER_MEMORY_ERROR;
+  terrorCode= ZNO_COPY_TUPLE_MEMORY_ERROR;
   regOperPtr.p->m_undo_buffer_space = 0;
   if (mem_insert)
     regOperPtr.p->m_tuple_location.setNull();
@@ -3760,16 +3760,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  break;
 	}
 
+      case Interpreter::BRANCH_ATTR_OP_ATTR:
       case Interpreter::BRANCH_ATTR_OP_ARG_2:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
-	jamDebug();
-	Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
-	Uint32 ins2 = TcurrentProgram[TprogramCounter];
-	Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
-	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
-        Uint32 step = argLen;
+        jamDebug();
+        const Uint32 ins2 = TcurrentProgram[TprogramCounter];
+        Uint32 attrId = Interpreter::getBranchCol_AttrId(ins2) << 16;
+        const Uint32 opCode = Interpreter::getOpCode(theInstruction);
 
-	if (tmpHabitant != attrId)
+        if (tmpHabitant != attrId)
         {
 	  Int32 TnoDataR = readAttributes(req_struct,
 					  &attrId, 1,
@@ -3784,33 +3783,54 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    return -1;
 	  }
 	  tmpHabitant= attrId;
-	}
+        }
 
         // get type
 	attrId >>= 16;
-	Uint32 TattrDescrIndex = req_struct->tablePtrP->tabDescriptor +
+	const Uint32 TattrDescrIndex = req_struct->tablePtrP->tabDescriptor +
 	  (attrId << ZAD_LOG_SIZE);
-	Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
-	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
-	Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
-	void * cs = 0;
+	const Uint32 TattrDesc1 = tableDescriptor[TattrDescrIndex].tabDescr;
+	const Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
+	const Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
+	const CHARSET_INFO *cs = nullptr;
 	if (AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
-	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
+	  const Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
 	  cs = req_struct->tablePtrP->charsetArray[pos];
 	}
 	const NdbSqlUtil::Type& sqlType = NdbSqlUtil::getType(typeId);
 
-        // get data
-	AttributeHeader ah(tmpArea[0]);
+        // get data for 1st argument, always an ATTR.
+        const AttributeHeader ah(tmpArea[0]);
         const char* s1 = (char*)&tmpArea[1];
-        const char* s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         // fixed length in 5.0
-	Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
-
-        if (Interpreter::getOpCode(theInstruction) ==
-            Interpreter::BRANCH_ATTR_OP_ARG_2)
+        Uint32 attrLen = AttributeDescriptor::getSizeInBytes(TattrDesc1);
+        if (unlikely(typeId == NDB_TYPE_BIT))
         {
+          /* Size in bytes for bit fields can be incorrect due to
+           * rounding down
+           */
+          Uint32 bitFieldAttrLen= (AttributeDescriptor::getArraySize(TattrDesc1)
+                                   + 7) / 8;
+          attrLen= bitFieldAttrLen;
+        }
+
+	// 2'nd argument, literal, parameter or another attribute
+        Uint32 argLen = 0;
+        Uint32 step = 0;
+        const char* s2 = nullptr;
+
+        if (likely(opCode == Interpreter::BRANCH_ATTR_OP_ARG))
+        {
+          // Compare ATTR with a literal value given by interpreter code
+          jamDebug();
+          argLen = Interpreter::getBranchCol_Len(ins2);
+          step = argLen;
+          s2 = (char*)&TcurrentProgram[TprogramCounter+1];
+        }
+        else if (opCode == Interpreter::BRANCH_ATTR_OP_ARG_2)
+        {
+          // Compare ATTR with a parameter
           jamDebug();
           Uint32 paramNo = Interpreter::getBranchCol_ParamNo(ins2);
           const Uint32 * paramptr = lookupInterpreterParameter(paramNo,
@@ -3828,19 +3848,57 @@ int Dbtup::interpreterNextLab(Signal* signal,
           step = 0;
           s2 = (char*)(paramptr + 1);
         }
-        
-        if (typeId == NDB_TYPE_BIT)
+        else if (opCode == Interpreter::BRANCH_ATTR_OP_ATTR)
         {
-          /* Size in bytes for bit fields can be incorrect due to
-           * rounding down
-           */
-          Uint32 bitFieldAttrLen= (AttributeDescriptor::getArraySize(TattrDesc1)
-                                   + 7) / 8;
-          attrLen= bitFieldAttrLen;
-        }
+          // Compare ATTR with another ATTR
+          jamDebug();
+          Uint32 attr2Id = Interpreter::getBranchCol_AttrId2(ins2) << 16;
 
-	bool r1_null = ah.isNULL();
-	bool r2_null = argLen == 0;
+          // Attr2 to be read into tmpArea[] after Attr1.
+          const Uint32 firstAttrWords = attrLen+1;
+          DBUG_ASSERT(tmpAreaSz >= 2*firstAttrWords);
+          Int32 TnoDataR = readAttributes(req_struct,
+                                          &attr2Id, 1,
+                                          &tmpArea[firstAttrWords],
+                                          tmpAreaSz-firstAttrWords,
+                                          false);
+          if (unlikely(TnoDataR < 0))
+          {
+            jam();
+            terrorCode = Uint32(-TnoDataR);
+            tupkeyErrorLab(req_struct);
+            return -1;
+          }
+
+          const AttributeHeader ah2(tmpArea[firstAttrWords]);
+          if (!ah2.isNULL())
+          {
+            // Get type
+            attr2Id >>= 16;
+            const Uint32 Tattr2DescrIndex = req_struct->tablePtrP->tabDescriptor +
+              (attr2Id << ZAD_LOG_SIZE);
+            const Uint32 Tattr2Desc1 = tableDescriptor[Tattr2DescrIndex].tabDescr;
+            const Uint32 type2Id = AttributeDescriptor::getType(Tattr2Desc1);
+
+            argLen = AttributeDescriptor::getSizeInBytes(Tattr2Desc1);
+            if (unlikely(type2Id == NDB_TYPE_BIT))
+            {
+              /* Size in bytes for bit fields can be incorrect due to
+               * rounding down
+               */
+              Uint32 bitFieldAttrLen= (AttributeDescriptor::getArraySize(Tattr2Desc1)
+                                       + 7) / 8;
+              argLen= bitFieldAttrLen;
+            }
+            s2 = (char*)&tmpArea[firstAttrWords+1];
+          }
+          step = 0;
+        } //!ah2.isNULL()
+
+	// Evaluate
+        const Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
+	const bool r1_null = ah.isNULL();
+	const bool r2_null = argLen == 0;
 	int res1;
         if (cond <= Interpreter::GE)
         {
@@ -4641,7 +4699,8 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
     {
       dst_ptr = shrink_dyn_part(dst, dst_ptr, tabPtrP, tabDesc,
                                 order, mm_dynvar, mm_dynfix, MM);
-      ndbassert((char*)dst_ptr <= ((char*)ptr) + 14140); // NDB_MAX_TUPLE_SIZE + header
+      ndbassert((Uint32*)dst_ptr <=
+                 ((Uint32*)ptr) + MAX_EXPANDED_TUPLE_SIZE_IN_WORDS);
       order += mm_dynfix + mm_dynvar;
     }
     

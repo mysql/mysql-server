@@ -2,19 +2,19 @@
 require({cache:{"url:dojox/layout/resources/ScrollPane.html":"<div class=\"dojoxScrollWindow\" dojoAttachEvent=\"onmouseenter: _enter, onmouseleave: _leave\">\n    <div class=\"dojoxScrollWrapper\" style=\"${style}\" dojoAttachPoint=\"wrapper\" dojoAttachEvent=\"onmousemove: _calc\">\n\t<div class=\"dojoxScrollPane\" dojoAttachPoint=\"containerNode\"></div>\n    </div>\n    <div dojoAttachPoint=\"helper\" class=\"dojoxScrollHelper\"><span class=\"helperInner\">|</span></div>\n</div>"}});
 define("dojox/layout/ScrollPane",["dojo/_base/kernel","dojo/_base/declare","dojo/_base/html","dojo/_base/fx","dijit/_Templated","dijit/layout/ContentPane","dojo/dom-class","dojo/text!./resources/ScrollPane.html"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 _1.experimental("dojox.layout.ScrollPane");
-_2("dojox.layout.ScrollPane",[_6,_5],{_line:null,_lo:null,_offset:15,orientation:"vertical",autoHide:true,templateString:_8,resize:function(_9){
-if(_9){
-if(_9.h){
-_3.style(this.domNode,"height",_9.h+"px");
+var _9=_2("dojox.layout.ScrollPane",[_6,_5],{_line:null,_lo:null,_offset:15,orientation:"vertical",autoHide:true,templateString:_8,resize:function(_a){
+if(_a){
+if(_a.h){
+_3.style(this.domNode,"height",_a.h+"px");
 }
-if(_9.w){
-_3.style(this.domNode,"width",_9.w+"px");
+if(_a.w){
+_3.style(this.domNode,"width",_a.w+"px");
 }
 }
-var _a=this._dir,_b=this._vertical,_c=this.containerNode[(_b?"scrollHeight":"scrollWidth")];
+var _b=this._dir,_c=this._vertical,_d=this.containerNode[(_c?"scrollHeight":"scrollWidth")];
 _3.style(this.wrapper,this._dir,this.domNode.style[this._dir]);
 this._lo=_3.coords(this.wrapper,true);
-this._size=Math.max(0,_c-this._lo[(_b?"h":"w")]);
+this._size=Math.max(0,_d-this._lo[(_c?"h":"w")]);
 if(!this._size){
 this.helper.style.display="none";
 this.wrapper[this._scroll]=0;
@@ -23,9 +23,9 @@ return;
 this.helper.style.display="";
 }
 this._line=new _4._Line(0-this._offset,this._size+(this._offset*2));
-var u=this._lo[(_b?"h":"w")],r=Math.min(1,u/_c),s=u*r,c=Math.floor(u-(u*r));
+var u=this._lo[(_c?"h":"w")],r=Math.min(1,u/_d),s=u*r,c=Math.floor(u-(u*r));
 this._helpLine=new _4._Line(0,c);
-_3.style(this.helper,_a,Math.floor(s)+"px");
+_3.style(this.helper,_b,Math.floor(s)+"px");
 },postCreate:function(){
 this.inherited(arguments);
 if(this.autoHide){
@@ -48,7 +48,7 @@ this._hideAnim.play();
 }
 _3.style(this.wrapper,"overflow","hidden");
 },_set:function(n){
-if(!this._size){
+if(!this._size||n==="focused"){
 return;
 }
 this.wrapper[this._scroll]=Math.floor(this._line.getValue(n));
@@ -70,4 +70,5 @@ if(this._hideAnim){
 this._hideAnim.play();
 }
 }});
+return _9;
 });

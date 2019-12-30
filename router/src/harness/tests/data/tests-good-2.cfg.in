@@ -5,21 +5,21 @@ runtime_folder = {prefix}/var/run/{program}
 config_folder = {prefix}/var/run/{program}
 data_folder = {prefix}/var/lib/{program}
 
-[magic]
+[routertestplugin_magic]
 message = It is some kind of magic
 
 # Two instance of the same plugin with different keys and values for
 # the message option. Note that the library option have to be the same
 # for the loader to work.
 
-[example:one]
+[routertestplugin_example:one]
 # No library necessary, default to the section name, that is "example"
 
-[example:two]
+[routertestplugin_example:two]
 # No library necessary, default to the section name, that is "example"
 
-[bad_one]
-library = bad_one
+[routertestplugin_bad_one]
+library = routertestplugin_bad_one
 
-[bad_two]
-library = bad_two
+[routertestplugin_bad_two]
+library = routertestplugin_bad_two

@@ -1,6 +1,5 @@
-//>>built
 require({cache:{
-'url:dijit/templates/TitlePane.html':"<div>\n\t<div data-dojo-attach-event=\"onclick:_onTitleClick, onkeypress:_onTitleKey\"\n\t\t\tclass=\"dijitTitlePaneTitle\" data-dojo-attach-point=\"titleBarNode\">\n\t\t<div class=\"dijitTitlePaneTitleFocus\" data-dojo-attach-point=\"focusNode\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"arrowNode\" class=\"dijitArrowNode\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"arrowNodeInner\" class=\"dijitArrowNodeInner\"></span\n\t\t\t><span data-dojo-attach-point=\"titleNode\" class=\"dijitTitlePaneTextNode\"></span>\n\t\t</div>\n\t</div>\n\t<div class=\"dijitTitlePaneContentOuter\" data-dojo-attach-point=\"hideNode\" role=\"presentation\">\n\t\t<div class=\"dijitReset\" data-dojo-attach-point=\"wipeNode\" role=\"presentation\">\n\t\t\t<div class=\"dijitTitlePaneContentInner\" data-dojo-attach-point=\"containerNode\" role=\"region\" id=\"${id}_pane\">\n\t\t\t\t<!-- nested divs because wipeIn()/wipeOut() doesn't work right on node w/padding etc.  Put padding on inner div. -->\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n"}});
+'url:dijit/templates/TitlePane.html':"<div>\n\t<div data-dojo-attach-event=\"onclick:_onTitleClick, onkeydown:_onTitleKey\"\n\t\t\tclass=\"dijitTitlePaneTitle\" data-dojo-attach-point=\"titleBarNode\" id=\"${id}_titleBarNode\">\n\t\t<div class=\"dijitTitlePaneTitleFocus\" data-dojo-attach-point=\"focusNode\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"arrowNode\" class=\"dijitArrowNode\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"arrowNodeInner\" class=\"dijitArrowNodeInner\"></span\n\t\t\t><span data-dojo-attach-point=\"titleNode\" class=\"dijitTitlePaneTextNode\"></span>\n\t\t</div>\n\t</div>\n\t<div class=\"dijitTitlePaneContentOuter\" data-dojo-attach-point=\"hideNode\" role=\"presentation\">\n\t\t<div class=\"dijitReset\" data-dojo-attach-point=\"wipeNode\" role=\"presentation\">\n\t\t\t<div class=\"dijitTitlePaneContentInner\" data-dojo-attach-point=\"containerNode\" role=\"region\" id=\"${id}_pane\" aria-labelledby=\"${id}_titleBarNode\">\n\t\t\t\t<!-- nested divs because wipeIn()/wipeOut() doesn't work right on node w/padding etc.  Put padding on inner div. -->\n\t\t\t</div>\n\t\t</div>\n\t</div>\n</div>\n"}});
 define("dijit/TitlePane", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
@@ -20,17 +19,8 @@ define("dijit/TitlePane", [
 ], function(array, declare, dom, domAttr, domClass, domGeometry, event, fxUtils, kernel, keys,
 			_CssStateMixin, _TemplatedMixin, ContentPane, template, manager){
 
-/*=====
-	var _Widget = dijit._Widget;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var _CssStateMixin = dijit._CssStateMixin;
-	var ContentPane = dijit.layout.ContentPane;
-=====*/
-
 // module:
 //		dijit/TitlePane
-// summary:
-//		A pane with a title on top, that can be expanded or collapsed.
 
 
 return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin], {
@@ -40,22 +30,22 @@ return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin]
 	// description:
 	//		An accessible container with a title Heading, and a content
 	//		section that slides open and closed. TitlePane is an extension to
-	//		`dijit.layout.ContentPane`, providing all the useful content-control aspects from it.
+	//		`dijit/layout/ContentPane`, providing all the useful content-control aspects from it.
 	//
 	// example:
-	// | 	// load a TitlePane from remote file:
-	// |	var foo = new dijit.TitlePane({ href: "foobar.html", title:"Title" });
-	// |	foo.startup();
+	//	|	// load a TitlePane from remote file:
+	//	|	var foo = new dijit.TitlePane({ href: "foobar.html", title:"Title" });
+	//	|	foo.startup();
 	//
 	// example:
-	// |	<!-- markup href example: -->
-	// |	<div data-dojo-type="dijit.TitlePane" data-dojo-props="href: 'foobar.html', title: 'Title'"></div>
+	//	|	<!-- markup href example: -->
+	//	|	<div data-dojo-type="dijit/TitlePane" data-dojo-props="href: 'foobar.html', title: 'Title'"></div>
 	//
 	// example:
-	// |	<!-- markup with inline data -->
-	// | 	<div data-dojo-type="dijit.TitlePane" title="Title">
-	// |		<p>I am content</p>
-	// |	</div>
+	//	|	<!-- markup with inline data -->
+	//	|	<div data-dojo-type="dijit/TitlePane" title="Title">
+	//	|		<p>I am content</p>
+	//	|	</div>
 
 	// title: String
 	//		Title of the pane
@@ -157,8 +147,6 @@ return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin]
 			}
 		}
 
-		this.arrowNodeInner.innerHTML = open ? "-" : "+";
-
 		this.containerNode.setAttribute("aria-hidden", open ? "false" : "true");
 		this.focusNode.setAttribute("aria-pressed", open ? "true" : "false");
 
@@ -175,11 +163,13 @@ return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin]
 
 		this.focusNode.setAttribute("role", canToggle ? "button" : "heading");
 		if(canToggle){
-			// TODO: if canToggle is switched from true to false shouldn't we remove this setting?
 			this.focusNode.setAttribute("aria-controls", this.id+"_pane");
-			domAttr.set(this.focusNode, "tabIndex", this.tabIndex);
+			this.focusNode.setAttribute("tabIndex", this.tabIndex);
+			this.focusNode.setAttribute("aria-pressed", this.open);
 		}else{
+			domAttr.remove(this.focusNode, "aria-controls");
 			domAttr.remove(this.focusNode, "tabIndex");
+			domAttr.remove(this.focusNode, "aria-pressed");
 		}
 
 		this._set("toggleable", canToggle);
@@ -190,7 +180,7 @@ return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin]
 	_setContentAttr: function(/*String|DomNode|Nodelist*/ content){
 		// summary:
 		//		Hook to make set("content", ...) work.
-		// 		Typically called when an href is loaded.  Our job is to make the animation smooth.
+		//		Typically called when an href is loaded.  Our job is to make the animation smooth.
 
 		if(!this.open || !this._wipeOut || this._wipeOut.status() == "playing"){
 			// we are currently *closing* the pane (or the pane is closed), so just let that continue
@@ -244,15 +234,15 @@ return declare("dijit.TitlePane", [ContentPane, _TemplatedMixin, _CssStateMixin]
 		// tags:
 		//		private
 
-		if(e.charOrCode == keys.ENTER || e.charOrCode == ' '){
+		if(e.keyCode == keys.ENTER || e.keyCode == keys.SPACE){
 			if(this.toggleable){
 				this.toggle();
+				event.stop(e);
 			}
-			event.stop(e);
-		}else if(e.charOrCode == keys.DOWN_ARROW && this.open){
+		}else if(e.keyCode == keys.DOWN_ARROW && this.open){
 			this.containerNode.focus();
 			e.preventDefault();
-	 	}
+		}
 	},
 
 	_onTitleClick: function(){

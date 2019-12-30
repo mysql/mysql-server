@@ -206,18 +206,18 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `1` int(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=MyISAM)*/ 1;
+CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=InnoDB)*/ 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `1` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
-CALL test_hint("SET_VAR(default_tmp_storage_engine=MyISAM)", "default_tmp_storage_engine");
+CALL test_hint("SET_VAR(default_tmp_storage_engine=InnoDB)", "default_tmp_storage_engine");
 VARIABLE_VALUE
 InnoDB
 VARIABLE_VALUE
-MyISAM
+InnoDB
 VARIABLE_VALUE
 InnoDB
 SELECT /*+ SET_VAR(div_precision_increment=12) */ 1/2;
@@ -301,7 +301,7 @@ VARIABLE_VALUE
 128
 VARIABLE_VALUE
 262144
-CREATE TABLE t1(i INT) ENGINE MYISAM;
+CREATE TABLE t1(i INT) ENGINE InnoDB;
 LOCK TABLES t1 WRITE;
 INSERT /*+ SET_VAR(lock_wait_timeout=1) */INTO t1 VALUES (1);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -429,11 +429,11 @@ t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 1	SIMPLE	t2	NULL	ref	a	a	5	test.t1.b	1	100.00	Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	5	test.t1.b	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.b	1	100.00	NULL
 2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery2>`.`b` = `test`.`t1`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery2>`.`b` = `test`.`t1`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ SET_VAR(optimizer_search_depth=1) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -442,7 +442,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; End temporary; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_search_depth=1) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_search_depth=1) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t1`.`b` = `test`.`t3`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 EXPLAIN SELECT /*+ SET_VAR(optimizer_prune_level=0) */ * FROM t1 JOIN t2 ON t1.b = t2.a WHERE
 t2.a IN (SELECT t3.b FROM t3 JOIN t1 t4 ON t3.b = t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -452,7 +452,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	MATERIALIZED	t3	NULL	index	NULL	a	10	NULL	3	100.00	Using index
 2	MATERIALIZED	t4	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_prune_level=0) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t1` `t4`) join `test`.`t2` where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
+Note	1003	/* select#1 */ select /*+ SET_VAR(optimizer_prune_level=0) */ `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t3` join `test`.`t1` `t4`) where ((`test`.`t2`.`a` = `<subquery2>`.`b`) and (`test`.`t1`.`b` = `<subquery2>`.`b`) and (`test`.`t4`.`b` = `test`.`t3`.`b`))
 CALL test_hint("SET_VAR(optimizer_search_depth=1)", "optimizer_search_depth");
 VARIABLE_VALUE
 62
@@ -515,11 +515,11 @@ set optimizer_switch=default;
 DROP TABLE t1;
 CALL test_hint("SET_VAR(optimizer_switch='mrr=off')", "optimizer_switch");
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 VARIABLE_VALUE
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 CALL test_hint("SET_VAR(range_alloc_block_size=8192)", "range_alloc_block_size");
 VARIABLE_VALUE
 4096
@@ -874,3 +874,44 @@ Warning	1064	A size parameter was incorrectly specified, either number or on the
 SELECT /*+ SET_VAR(sql_select_limit = 18446744073709551615) */ 1;
 1
 1
+#
+# Bug#29776464 MAKE 'TIME_ZONE' VARIABLE OPTIMIZER HINT SETTABLE.
+#
+SET time_zone = '-01:00';
+SELECT TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+-01:00:00
+SELECT /*+ SET_VAR(time_zone = '+04:00') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+04:00:00
+SELECT @@time_zone;
+@@time_zone
+-01:00
+SELECT /*+ SET_VAR(time_zone = 'UTC') */ TIMEDIFF(NOW(), UTC_TIMESTAMP);
+TIMEDIFF(NOW(), UTC_TIMESTAMP)
+00:00:00
+SELECT @@time_zone;
+@@time_zone
+-01:00
+CREATE TABLE t1(f1 VARCHAR(10));
+INSERT INTO t1 VALUES (@@time_zone);
+SELECT * FROM t1;
+f1
+-01:00
+UPDATE /*+ SET_VAR(time_zone = 'UTC') */ t1 SET f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+f1
+00:00:00
+INSERT /*+ SET_VAR(time_zone = 'UTC') */ t1 VALUES (TIMEDIFF(NOW(), UTC_TIMESTAMP));
+SELECT * FROM t1;
+f1
+00:00:00
+00:00:00
+DELETE /*+ SET_VAR(time_zone = 'UTC') */ FROM t1 WHERE f1 = TIMEDIFF(NOW(), UTC_TIMESTAMP);
+SELECT * FROM t1;
+f1
+SELECT @@time_zone;
+@@time_zone
+-01:00
+DROP TABLE t1;
+SET time_zone = default;

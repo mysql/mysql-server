@@ -119,6 +119,9 @@ SET PERSIST slave_parallel_workers = @@GLOBAL.slave_parallel_workers;
 SET PERSIST slave_pending_jobs_size_max = @@GLOBAL.slave_pending_jobs_size_max;
 SET PERSIST slave_preserve_commit_order = @@GLOBAL.slave_preserve_commit_order;
 SET PERSIST slave_rows_search_algorithms = @@GLOBAL.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET PERSIST slave_skip_errors = @@GLOBAL.slave_skip_errors;
 ERROR HY000: Variable 'slave_skip_errors' is a read only variable
 SET PERSIST slave_sql_verify_checksum = @@GLOBAL.slave_sql_verify_checksum;

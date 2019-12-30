@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -362,6 +362,8 @@ class Column : virtual public Entity_object {
   */
 
   virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
+
+  virtual bool is_array() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

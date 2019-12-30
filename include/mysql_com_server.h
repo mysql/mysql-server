@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <stddef.h>
 
+#include "compression.h"
 #include "my_inttypes.h"
 
 typedef void (*before_header_callback_fn)(NET *net, void *user_data,
@@ -39,10 +40,27 @@ typedef void (*before_header_callback_fn)(NET *net, void *user_data,
 typedef void (*after_header_callback_fn)(NET *net, void *user_data,
                                          size_t count, bool rc);
 
+/**
+  This structure holds the negotiated compression algorithm and level
+  between client and server.
+*/
+struct compression_attributes {
+  char compress_algorithm[COMPRESSION_ALGORITHM_NAME_LENGTH_MAX];
+  unsigned int compress_level;
+  bool compression_optional;
+  compression_attributes() {
+    compress_algorithm[0] = '\0';
+    compress_level = 0;
+    compression_optional = false;
+  }
+};
+
 typedef struct NET_SERVER {
   before_header_callback_fn m_before_header;
   after_header_callback_fn m_after_header;
   void *m_user_data;
+  struct compression_attributes compression;
+  mysql_compress_context compress_ctx;
 } NET_SERVER;
 
 #endif

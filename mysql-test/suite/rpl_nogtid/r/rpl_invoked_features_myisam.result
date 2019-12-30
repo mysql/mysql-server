@@ -1,0 +1,260 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+USE test;
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP EVENT IF EXISTS e1;
+
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=myisam;
+INSERT INTO t1 VALUES (1,1,'1');
+INSERT INTO t1 VALUES (2,2,UUID());
+CREATE TABLE t2 (a INT UNIQUE, b INT, c VARCHAR(64)) ENGINE=myisam;
+INSERT INTO t2 VALUES (1,1,'1');
+INSERT INTO t2 VALUES (2,2,UUID());
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TRIGGER t1_tr1 BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN
+INSERT INTO t2 VALUES (NEW.a, NEW.b, NEW.c);
+INSERT INTO t3 VALUES (NEW.a, NEW.b, NEW.c);
+END|
+CREATE TRIGGER t1_tr2 BEFORE UPDATE ON t1 FOR EACH ROW 
+BEGIN
+UPDATE t2 SET c = '';
+UPDATE t3 SET c = '';
+END|
+CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO
+BEGIN
+ALTER EVENT e1 DISABLE;
+CALL p1(10, '');  
+END|
+CREATE FUNCTION f1 (x INT) RETURNS VARCHAR(64)
+BEGIN
+IF x > 5 THEN
+RETURN UUID();
+END IF;
+RETURN '';
+END|
+CREATE FUNCTION f2 (x INT) RETURNS VARCHAR(64)
+BEGIN
+RETURN f1(x);
+END|
+CREATE PROCEDURE p1 (IN x INT, IN y VARCHAR(64))
+BEGIN
+INSERT IGNORE INTO t1 VALUES (x,x,y);
+END|
+
+CREATE TABLE t3 SELECT * FROM v1;
+INSERT INTO t1 VALUES (3,3,'');
+UPDATE t1 SET c='2' WHERE a = 1;
+INSERT INTO t1 VALUES(4,4,f1(4));
+INSERT INTO t1 VALUES (100,100,'');
+CALL p1(5, UUID());
+INSERT INTO t1 VALUES (101,101,'');
+INSERT INTO t1 VALUES(6,6,f1(6));
+INSERT INTO t1 VALUES (102,102,'');
+INSERT INTO t1 VALUES(7,7,f2(7));
+INSERT INTO t1 VALUES (103,103,'');
+
+SET @old_event_scheduler= @@global.event_scheduler;
+SET GLOBAL EVENT_SCHEDULER = on;
+ALTER EVENT e1 ENABLE;
+SET @@global.event_scheduler= @old_event_scheduler;
+
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3
+SELECT table_name FROM information_schema.views WHERE table_schema='test';
+TABLE_NAME
+v1
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_TABLE
+t1_tr1	INSERT	t1
+t1_tr2	UPDATE	t1
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+ROUTINE_TYPE	ROUTINE_NAME
+FUNCTION	f1
+FUNCTION	f2
+PROCEDURE	p1
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+EVENT_NAME	STATUS
+e1	DISABLED
+
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+12
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+12
+SELECT a,b FROM t2 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+12
+SELECT a,b FROM t3 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT a,b FROM v1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+include/sync_slave_sql_with_master.inc
+
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
+t2
+t3
+SELECT table_name FROM information_schema.views WHERE table_schema='test';
+TABLE_NAME
+v1
+SELECT trigger_name, event_manipulation, event_object_table FROM information_schema.triggers WHERE trigger_schema='test';
+TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_TABLE
+t1_tr1	INSERT	t1
+t1_tr2	UPDATE	t1
+SELECT routine_type, routine_name FROM information_schema.routines WHERE routine_schema='test';
+ROUTINE_TYPE	ROUTINE_NAME
+FUNCTION	f1
+FUNCTION	f2
+PROCEDURE	p1
+SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
+EVENT_NAME	STATUS
+e1	SLAVESIDE_DISABLED
+
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+12
+SELECT a,b FROM t1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+12
+SELECT a,b FROM t2 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+12
+SELECT a,b FROM t3 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+SELECT a,b FROM v1 ORDER BY a;
+a	b
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+10	10
+100	100
+101	101
+102	102
+103	103
+
+UPDATE t1 SET c='';
+UPDATE t2 SET c='';
+UPDATE t3 SET c='';
+ALTER TABLE t3 ORDER BY a;
+include/sync_slave_sql_with_master.inc
+
+
+
+DROP VIEW IF EXISTS v1;
+DROP TABLE IF EXISTS t1,t2,t3;
+DROP PROCEDURE IF EXISTS p1;
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP EVENT IF EXISTS e1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

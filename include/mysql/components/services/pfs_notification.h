@@ -160,9 +160,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 */
 
-BEGIN_SERVICE_DEFINITION(pfs_notification)
-register_notification_v1_t register_notification;
+/*
+  SERVICE_DEFINITION(pfs_notification)
+  Introduced in MySQL 8.0.2
+  Removed in MySQL 8.0.17
+  Status: Removed, use version 3 instead.
+*/
+
+/*
+  Version 3.
+  Introduced in MySQL 8.0.17
+  Status: active
+*/
+
+BEGIN_SERVICE_DEFINITION(pfs_notification_v3)
+register_notification_v3_t register_notification;
 unregister_notification_v1_t unregister_notification;
-END_SERVICE_DEFINITION(pfs_notification)
+END_SERVICE_DEFINITION(pfs_notification_v3)
+
+#define REQUIRES_PFS_NOTIFICATION_SERVICE REQUIRES_SERVICE(pfs_notification_v3)
 
 #endif

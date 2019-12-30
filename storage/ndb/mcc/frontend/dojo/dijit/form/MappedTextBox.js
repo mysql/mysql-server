@@ -13,7 +13,7 @@ this.valueNode.value=this.toString();
 return this.inherited(arguments);
 },buildRendering:function(){
 this.inherited(arguments);
-this.valueNode=_2.place("<input type='hidden'"+(this.name?" name='"+this.name.replace(/'/g,"&quot;")+"'":"")+"/>",this.textbox,"after");
+this.valueNode=_2.place("<input type='hidden'"+(this.name?" name=\""+this.name.replace(/"/g,"&quot;")+"\"":"")+"/>",this.textbox,"after");
 },reset:function(){
 this.valueNode.value="";
 this.inherited(arguments);

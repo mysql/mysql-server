@@ -1,13 +1,12 @@
-//>>built
 // wrapped by build app
-define("dojox/xmpp/RosterService", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
+define("dojox/xmpp/RosterService", ["dojo","dijit","dojox"], function(dojo,dijit,dojox){
 dojo.provide("dojox.xmpp.RosterService");
 
 dojox.xmpp.roster = {
 	ADDED: 101,
 	CHANGED: 102,
 	REMOVED: 103
-}
+};
 
 dojo.declare("dojox.xmpp.RosterService", null, {
 	constructor: function(xmppSession){

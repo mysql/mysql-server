@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dtl/_DomTemplated", [
 	"dojo/dom-construct",
 	".",
@@ -7,25 +6,24 @@ define("dojox/dtl/_DomTemplated", [
 	"dojo/cache",
 	"dijit/_TemplatedMixin"
 	], function(domConstruct,dtl,ddcd,ddrd,cache,TemplatedMixin){
-	/*=====
-		dtl = dojox.dtl;
-		cache = dojo.cache;
-		TemplatedMixin = dijit._TemplatedMixin
-	=====*/
-	dtl._DomTemplated = function(){};
+
+	dtl._DomTemplated = function(){
+		// summary:
+		//		The base class for DOM-based templating.
+	};
 	dtl._DomTemplated.prototype = {
 		_dijitTemplateCompat: false,
 		buildRendering: function(){
-			//	summary:
-			//		Construct the UI for this widget, setting this.domNode.
-
+			// summary:
+			//		Constructs the DOM representation.
+			
 			//render needs a domNode to work with
-			this.domNode = this.srcNodeRef;
+			this.domNode = this.srcNodeRef || dojo.create('div');
 
 			if(!this._render){
 				var old = ddcd.widgetsInTemplate;
 				ddcd.widgetsInTemplate = this.widgetsInTemplate;
-				this.template = this.template || this._getCachedTemplate(this.templatePath, this.templateString);
+				this.template = this.template && this.template !== true ? this.template : this._getCachedTemplate(this.templatePath, this.templateString);
 				this._render = new ddrd.Render(this.domNode, this.template);
 				ddcd.widgetsInTemplate = old;
 			}
@@ -42,10 +40,11 @@ define("dojox/dtl/_DomTemplated", [
 				delete this.srcNodeRef;
 			}
 		},
-		setTemplate: function(/*String|dojo._Url*/ template, /*dojox.dtl.Context?*/ context){
+		setTemplate: function(/*String|dojo/url*/ template, /*dojox/dtl/Context?*/ context){
 			// summary:
 			//		Quickly switch between templated by location
-			// template: The new template.
+			// template:
+			//		The new template.
 			// context:
 			//		The runtime context.
 			if(dojox.dtl.text._isTemplate(template)){
@@ -55,7 +54,7 @@ define("dojox/dtl/_DomTemplated", [
 			}
 			this.render(context);
 		},
-		render: function(/*dojox.dtl.Context?*/ context, /*dojox.dtl.DomTemplate?*/ tpl){
+		render: function(/*dojox/dtl/Context?*/ context, /*dojox/dtl/DomTemplate?*/ tpl){
 			// summary:
 			//		Renders this template.
 			// context:
@@ -95,6 +94,6 @@ define("dojox/dtl/_DomTemplated", [
 			));
 		}
 	};
-	return dojox.dtl._DomTemplated;
+	return dtl._DomTemplated;
 });
 

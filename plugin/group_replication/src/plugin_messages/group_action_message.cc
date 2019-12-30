@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ Group_action_message::Group_action_message(const uchar *buf, size_t len)
 
 void Group_action_message::decode_payload(const unsigned char *buffer,
                                           const unsigned char *end) {
-  DBUG_ENTER("Group_action_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -108,13 +108,11 @@ void Group_action_message::decode_payload(const unsigned char *buffer,
         break;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Group_action_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Recovery_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 group_action_message_type_aux = (uint16)group_action_type;
   encode_payload_item_int2(buffer, PIT_ACTION_TYPE,
@@ -138,8 +136,6 @@ void Group_action_message::encode_payload(
                              PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION,
                              static_cast<uint16>(gcs_protocol));
   }
-
-  DBUG_VOID_RETURN;
 }
 
 Group_action_message::enum_action_message_type

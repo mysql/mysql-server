@@ -1,15 +1,14 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/CompositeWire", ["dijit","dojo","dojox","dojo/require!dojox/wire/_base,dojox/wire/Wire"], function(dijit,dojo,dojox){
+define("dojox/wire/CompositeWire", ["dojo","dijit","dojox","dojo/require!dojox/wire/_base,dojox/wire/Wire"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.CompositeWire");
 
 dojo.require("dojox.wire._base");
 dojo.require("dojox.wire.Wire");
 
 dojo.declare("dojox.wire.CompositeWire", dojox.wire.Wire, {
-	//	summary:
+	// summary:
 	//		A Wire for composite values in object or array
-	//	description:
+	// description:
 	//		This class has multiple child Wires for object properties or array
 	//		elements.
 	//		When an object with Wires is specified to 'children' property, they
@@ -20,29 +19,29 @@ dojo.declare("dojox.wire.CompositeWire", dojox.wire.Wire, {
 	_wireClass: "dojox.wire.CompositeWire",
 
 	constructor: function(/*Object*/args){
-		//	summary:
+		// summary:
 		//		Initialize properties
-		//	description:
+		// description:
 		//		If object properties or array elements specified in 'children'
 		//		property are not Wires, Wires are created from them as
 		//		arguments, with 'parent' property set to this Wire instance.
-		//	args:
-		//		Arguments to initialize properties
-		//		children:
-		//			An object or array containing child Wires
+		// args:
+		//		Arguments to initialize properties.
+		//
+		//		- children: An object or array containing child Wires
 		this._initializeChildren(this.children);
 	},
 	_getValue: function(/*Object||Array*/object){
-		//	summary:
+		// summary:
 		//		Return an object with property values or an array with element
 		//		values
-		//	description:
+		// description:
 		//		This method calls getValue() method of the child Wires with
 		//		'object' argument and returns an object with the values as
 		//		properties or an arary of the values as elements.
-		//	object:
+		// object:
 		//		A root object
-		//	returns:
+		// returns:
 		//		An object or array with values
 		if(!object || !this.children){
 			return object; //Object||Array
@@ -56,17 +55,17 @@ dojo.declare("dojox.wire.CompositeWire", dojox.wire.Wire, {
 	},
 
 	_setValue: function(/*Object||Array*/object, /*Object||Array*/value){
-		//	summary:
+		// summary:
 		//		Set an object properties or an array elements to an object
-		//	desription:
+		// description:
 		//		This method calls setValues() method of the child Wires with
 		//		a corresponding property or element in 'value' argument and
 		//		'object' argument.
-		//	object:
+		// object:
 		//		A root object
-		//	value:
+		// value:
 		//		An object or array with values to set
-		//	returns:
+		// returns:
 		//		'object'
 		if(!object || !this.children){
 			return object; //Object||Array
@@ -79,13 +78,13 @@ dojo.declare("dojox.wire.CompositeWire", dojox.wire.Wire, {
 	},
 
 	_initializeChildren: function(/*Object||Array*/children){
-		//	summary:
+		// summary:
 		//		Initialize child Wires
-		//	description:
+		// description:
 		//		If object properties or array elements specified in 'children'
 		//		argument are not Wires, Wires are created from them as
 		//		arguments, with 'parent' property set to this Wire instance.
-		//	children:
+		// children:
 		//		An object or array containing child Wires
 		if(!children){
 			return; //undefined

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ public:
   int                   setSignal(int NdbSignalType, Uint32 receiverBlockNo);
   int 			readSignalNumber() const;	// Read signal number
   Uint32             	getLength() const;
+  Uint32             	getNoOfSections() const;
   void	             	setLength(Uint32 aLength);
   void 			next(NdbApiSignal* anApiSignal);  
   NdbApiSignal* 	next();
@@ -81,7 +82,7 @@ public:
    const Uint32 *       getConstDataPtrSend() const;
    STATIC_CONST(        MaxSignalWords = 25);
 
-  NodeId                get_sender_node();
+  NodeId                get_sender_node() const;
 
   /**
    * Fragmentation
@@ -96,6 +97,11 @@ public:
     return (m_fragmentInfo == 0 ? 0 : getDataPtr()[theLength - 1]); 
   }
 
+  Uint32 getFragmentSectionNumber(Uint32 i) const
+  {
+    return getDataPtr()[theLength - 1 - m_noOfSections + i];
+  }
+
   NdbApiSignal& operator=(const NdbApiSignal& src) {
     copyFrom(&src);
     return *this;
@@ -104,6 +110,7 @@ public:
 private:
   void setDataPtr(Uint32 *);
   
+  friend class AssembleBatchedFragments;
   friend class NdbTransaction;
   friend class NdbScanReceiver;
   friend class Table;
@@ -123,7 +130,7 @@ Remark:        Get the node id of the sender
 ***********************************************************************/
 inline
 NodeId
-NdbApiSignal::get_sender_node()
+NdbApiSignal::get_sender_node() const
 {
   return refToNode(theSendersBlockRef);
 }
@@ -136,6 +143,14 @@ inline
 Uint32
 NdbApiSignal::getLength() const{
   return theLength;
+}
+
+/* Get number of sections in signal */
+inline
+Uint32
+NdbApiSignal::getNoOfSections() const
+{
+  return m_noOfSections;
 }
 
 /**********************************************************************

@@ -1,31 +1,14 @@
-//>>built
 define("dijit/form/RangeBoundTextBox", [
 	"dojo/_base/declare", // declare
 	"dojo/i18n", // i18n.getLocalization
 	"./MappedTextBox"
 ], function(declare, i18n, MappedTextBox){
 
-/*=====
-	var MappedTextBox = dijit.form.MappedTextBox;
-=====*/
-
 	// module:
 	//		dijit/form/RangeBoundTextBox
-	// summary:
-	//		Base class for textbox form widgets which defines a range of valid values.
 
-	/*=====
-		dijit.form.RangeBoundTextBox.__Constraints = function(){
-			// min: Number
-			//		Minimum signed value.  Default is -Infinity
-			// max: Number
-			//		Maximum signed value.  Default is +Infinity
-			this.min = min;
-			this.max = max;
-		}
-	=====*/
 
-	return declare("dijit.form.RangeBoundTextBox", MappedTextBox, {
+	var RangeBoundTextBox = declare("dijit.form.RangeBoundTextBox", MappedTextBox, {
 		// summary:
 		//		Base class for textbox form widgets which defines a range of valid values.
 
@@ -34,11 +17,11 @@ define("dijit/form/RangeBoundTextBox", [
 		rangeMessage: "",
 
 		/*=====
-		// constraints: dijit.form.RangeBoundTextBox.__Constraints
+		// constraints: RangeBoundTextBox.__Constraints
 		constraints: {},
 		======*/
 
-		rangeCheck: function(/*Number*/ primitive, /*dijit.form.RangeBoundTextBox.__Constraints*/ constraints){
+		rangeCheck: function(/*Number*/ primitive, /*dijit/form/RangeBoundTextBox.__Constraints*/ constraints){
 			// summary:
 			//		Overridable function used to validate the range of the numeric input value.
 			// tags:
@@ -60,39 +43,37 @@ define("dijit/form/RangeBoundTextBox", [
 			//		Returns true if the value is out of range and will remain
 			//		out of range even if the user types more characters
 			var val = this.get('value');
-			var isTooLittle = false;
-			var isTooMuch = false;
+			if(val == null){ return false; } // not yet valid enough to compare to
+			var outOfRange = false;
 			if("min" in this.constraints){
 				var min = this.constraints.min;
-				min = this.compare(val, ((typeof min == "number") && min >= 0 && val !=0) ? 0 : min);
-				isTooLittle = (typeof min == "number") && min < 0;
+				outOfRange = this.compare(val, ((typeof min == "number") && min >= 0 && val != 0) ? 0 : min) < 0;
 			}
-			if("max" in this.constraints){
+			if(!outOfRange && ("max" in this.constraints)){
 				var max = this.constraints.max;
-				max = this.compare(val, ((typeof max != "number") || max > 0) ? max : 0);
-				isTooMuch = (typeof max == "number") && max > 0;
+				outOfRange = this.compare(val, ((typeof max != "number") || max > 0) ? max : 0) > 0;
 			}
-			return isTooLittle || isTooMuch;
+			return outOfRange;
 		},
 
 		_isValidSubset: function(){
 			// summary:
-			//		Overrides `dijit.form.ValidationTextBox._isValidSubset`.
+			//		Overrides `dijit/form/ValidationTextBox._isValidSubset()`.
 			//		Returns true if the input is syntactically valid, and either within
 			//		range or could be made in range by more typing.
 			return this.inherited(arguments) && !this._isDefinitelyOutOfRange();
 		},
 
 		isValid: function(/*Boolean*/ isFocused){
-			// Overrides dijit.form.ValidationTextBox.isValid to check that the value is also in range.
+			// Overrides dijit/form/ValidationTextBox.isValid() to check that the value is also in range.
 			return this.inherited(arguments) &&
 				((this._isEmpty(this.textbox.value) && !this.required) || this.isInRange(isFocused)); // Boolean
 		},
 
 		getErrorMessage: function(/*Boolean*/ isFocused){
-			// Overrides dijit.form.ValidationTextBox.getErrorMessage to print "out of range" message if appropriate
+			// Overrides dijit/form/ValidationTextBox.getErrorMessage() to print "out of range" message if appropriate
 			var v = this.get('value');
-			if(v !== null && v !== '' && v !== undefined && (typeof v != "number" || !isNaN(v)) && !this.isInRange(isFocused)){ // don't check isInRange w/o a real value
+			if(v != null /* and !undefined */ && v !== '' && (typeof v != "number" || !isNaN(v)) && !this.isInRange(isFocused)){ // don't check isInRange w/o a real value
 				return this.rangeMessage; // String
 			}
 			return this.inherited(arguments);
@@ -106,30 +87,6 @@ define("dijit/form/RangeBoundTextBox", [
 			}
 		},
 
-		_setConstraintsAttr: function(/*Object*/ constraints){
-			this.inherited(arguments);
-			if(this.focusNode){ // not set when called from postMixInProperties
-				if(this.constraints.min !== undefined){
-					this.focusNode.setAttribute("aria-valuemin", this.constraints.min);
-				}else{
-					this.focusNode.removeAttribute("aria-valuemin");
-				}
-				if(this.constraints.max !== undefined){
-					this.focusNode.setAttribute("aria-valuemax", this.constraints.max);
-				}else{
-					this.focusNode.removeAttribute("aria-valuemax");
-				}
-			}
-		},
-
-		_setValueAttr: function(/*Number*/ value, /*Boolean?*/ priorityChange){
-			// summary:
-			//		Hook so set('value', ...) works.
-
-			this.focusNode.setAttribute("aria-valuenow", value);
-			this.inherited(arguments);
-		},
-
 		applyTextDir: function(/*===== element, text =====*/){
 			// summary:
 			//		The function overridden in the _BidiSupport module,
@@ -141,4 +98,13 @@ define("dijit/form/RangeBoundTextBox", [
 			//		protected.
 		}
 	});
+	/*=====
+	RangeBoundTextBox.__Constraints = declare(null, {
+		// min: Number
+		//		Minimum signed value.  Default is -Infinity
+		// max: Number
+		//		Maximum signed value.  Default is +Infinity
+	});
+	=====*/
+	return RangeBoundTextBox;
 });

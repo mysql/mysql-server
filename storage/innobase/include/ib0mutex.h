@@ -798,7 +798,7 @@ struct PolicyMutex {
     }
 
 #ifdef UNIV_PFS_MUTEX
-    pfs_end(locker, 0);
+    pfs_end(locker, ret);
 #endif /* UNIV_PFS_MUTEX */
 
     return (ret);

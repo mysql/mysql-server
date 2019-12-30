@@ -1,14 +1,16 @@
 
 .claro .dijitTitlePaneTitle {
   background-color: #efefef;
-  background-image: url("images/titlebar.png");
+  background-image: url("images/standardGradient.png");
   background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   border: 1px solid #b5bcc7;
   padding: 0 7px 3px 7px;
   min-height: 17px;
-}
-.dj_ie6 .claro .dijitTitlePaneTitle {
-  background-image: none;
 }
 .claro .dijitTitlePaneTitleHover {
   background-color: #abd6ff;
@@ -17,7 +19,13 @@
 .claro .dijitTitlePaneTitleActive {
   background-color: #7dbdfa;
   border-color: #759dc0;
-  background-position: 0 -136px;
+  background-image: url("images/activeGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
 }
 .claro .dijitTitlePaneTitleFocus {
   margin-top: 3px;

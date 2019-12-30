@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,16 +25,59 @@ SET_TARGET_PROPERTIES(master_key_test_writer PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
-add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
+FOREACH(test_file
+    test_bootstrap.cc
+    test_bootstrap_system_deployment.cc
+    test_component_test_framework.cc
+    test_config.cc
+    test_gr_notifications.cc
+    test_http_server.cc
+    test_logging.cc
+    test_logging_eventlog.cc
+    test_master_key_reader_writer.cc
+    test_metadata_ttl.cc
+    test_mock_server.cc
+    test_rest_api.cc
+    test_rest_metadata_cache.cc
+    test_rest_mock_server.cc
+    test_rest_router.cc
+    test_rest_routing.cc
+    test_router_configuration_errors.cc
+    test_routing.cc
+    test_routing_connection.cc
+    test_routing_strategy.cc
+    test_shutdown.cc
+    test_state_file.cc
+    test_user_option.cc
+    )
+add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
-  LIB_DEPENDS mock_server_rest_client;http_client;http_common
-  DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
-          routing;metadata_cache;http_auth_realm;http_auth_backend
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+                      ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
+  LIB_DEPENDS
+  http_client
+  http_common
+  mock_server_rest_client
+
+  DEPENDS
+  http_auth_backend
+  http_auth_realm
+  http_server
+  master_key_test_writer
+  metadata_cache
+  mock_server
+  mysql_server_mock
+  mysqlrouter
+  rest_api
+  rest_metadata_cache
+  rest_router
+  rest_routing
+  routing
   )
+ENDFOREACH()
 
 # When system deployment bootstrap is executed, files are
 # created in locations specified by deployment layout.

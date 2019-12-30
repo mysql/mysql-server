@@ -95,7 +95,7 @@ static PSI_thread_service_t *initialize_performance_schema_helper(
   pfs_initialized = true;
 
   thread_service = (PSI_thread_service_t *)pfs_thread_bootstrap.get_interface(
-      PSI_THREAD_VERSION_2);
+      PSI_CURRENT_THREAD_VERSION);
   thread_service->register_thread("test", all_thread, 1);
   return (thread_service);
 }

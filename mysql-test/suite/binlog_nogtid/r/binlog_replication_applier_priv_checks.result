@@ -1,0 +1,80 @@
+CREATE USER 'u1'@'localhost' IDENTIFIED BY 'pass';
+GRANT CREATE, SELECT ON *.* TO 'u1'@'localhost';
+CREATE DATABASE rpl_priv;
+USE rpl_priv;
+CREATE TABLE t1 (a INT);
+CALL mtr.add_suppression("INSERT command denied to user 'u1'@'localhost' for table 't1'");
+#
+# TC1. Apply a `Format_description_event` without any privileges
+# --------------------------------------------------------------
+#
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+ERROR 42000: Access denied; you need (at least one of) the SUPER, BINLOG_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
+GRANT REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
+#
+# TC2. Apply a `Write_row_event` without any privileges needed by the
+#      event
+# -------------------------------------------------------------------
+#
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+ERROR HY000: Unknown error
+GRANT INSERT ON *.* TO 'u1'@'localhost';
+#
+# TC3. Apply a `Write_row_event` with `INSERT` privilege
+# ------------------------------------------------------
+#
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+include/assert.inc [INSERT succeeded]
+DELETE FROM t1;
+REVOKE INSERT, REPLICATION_APPLIER ON *.* FROM 'u1'@'localhost';
+GRANT BINLOG_ADMIN ON *.* TO 'u1'@'localhost';
+#
+# TC4. Apply a `Write_row_event` with `BINLOG_ADMIN` privilege
+# ------------------------------------------------------------
+#
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+include/assert.inc [INSERT succeeded]
+DELETE FROM t1;
+REVOKE BINLOG_ADMIN ON *.* FROM 'u1'@'localhost';
+GRANT SUPER ON *.* TO 'u1'@'localhost';
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+#
+# TC5. Apply a `Write_row_event` with `SUPER` privilege
+# -----------------------------------------------------
+#
+BINLOG '
+jbMGXQ8BAAAAeAAAAHwAAAAAAAQAOC4wLjE4LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACNswZdEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgGQNwbk';
+BINLOG '
+g2YSXRMBAAAANAAAAG0BAAAAAJoAAAAAAAEACHJwbF9wcml2AAJ0MQABAwABAQEAdXCMmg==
+g2YSXR4BAAAAMgAAAJ8BAAAAAJoAAAAAAAEAAgAB/wAKAAAAAAsAAAAADAAAAGmCVP4=
+';
+include/assert.inc [INSERT succeeded]
+DROP DATABASE rpl_priv;
+DROP USER 'u1'@'localhost';

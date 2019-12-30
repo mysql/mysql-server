@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "ציטוט"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/he/Blockquote",({"blockquote":"ציטוט"}));

@@ -35,25 +35,28 @@
 @import "variables";
 
 .claro .dijitCalendar {
-	border:solid 1px @border-color;
+	border: solid 1px @border-color;
+	border-collapse: separate;	// in case user CSS has set border-collapse: collapse for tables
+	.border-radius(4px);
+
+	// Background color and alpha-gradient
 	background-color: @calendar-background-color;
-	background-image:url(@image-calendar-container);
-	background-position:0 -448px;
-	background-repeat:repeat-x;
+	background-image: url("images/calendar.png");	// fallback for browsers that don't support CSS gradients
+	background-repeat: repeat-x;	// so bottom of calendar isn't affected by gradient image repeating
+	.alpha-white-gradient(1, 0px, 0.4, 2px, 0, 100%);
+
 	text-align:center;
 	padding:6px 5px 3px 5px;
-	.border-radius(4px);
-	border-collapse: separate;	// in case user CSS has set border-collapse: collapse for tables
 }
 .dj_ie6 .claro .dijitCalendar {
-	background-image:none;
+	background-image:none;	// because on IE6 background-image overrides background-color
 }
 .claro .dijitCalendar img {
 	border:none;
 }
 .claro .dijitCalendarHover, .claro .dijitCalendar:hover,
 .claro .dijitCalendarActive {
-	/* treat dijitCalenderActive like hover since there's
+	/* treat dijitCalendarActive like hover since there's
 	 * no concept of clicking a Calendar as a whole (although you can click things inside the calendar)
 	 */
 	background-color: @hovered-background-color;
@@ -120,9 +123,6 @@
 .claro .dijitCalendarDateTemplate {
 	text-align:center;
 	background-color:@calendar-currentmonth-background-color;
-	background-image:url(@image-calendar-container);
-	background-position:0 0;
-	background-repeat:repeat-x;
 	border-bottom: 1px solid @minor-border-color;
 	padding-top:0;
 	font-size:0.909em;
@@ -209,8 +209,6 @@
 }
 .claro .dijitCalendarActiveDate .dijitCalendarDateLabel,
 .claro .dijitCalendarEnabledDate:active .dijitCalendarDateLabel {
-	background-image:url(@image-calendar-container);
-	background-position:0 -300px;
 	background-color: @calendar-date-pressed-background-color;
 	border:solid 1px @calendar-date-pressed-border-color;
 	.transition-duration(.1s);
@@ -244,11 +242,13 @@
 	margin-right:-4px;
 }
 .claro .dijitCalendar .dijitDropDownButton .dijitButtonNode {
-	background-color: transparent;
-	background-image: none;
 	padding: 0 3px 0 2px;
 	border:solid 1px @border-color;
 	.box-shadow(0 0 0 rgba(0,0,0,0));
+
+    // Override background settings from vanilla .dijitButtonNode.   We want to inherit background of Calendar.
+	background-color: transparent;
+	background-image: none;
 }
 .claro .dijitCalendar .dijitDropDownButtonHover .dijitButtonNode,
 .claro .dijitCalendar .dijitDropDownButton:hover .dijitButtonNode {
@@ -271,9 +271,7 @@
 }
 .claro .dijitCalendarMonthMenu .dijitCalendarMonthLabelHover,
 .claro .dijitCalendarMonthMenu .dijitCalendarMonthLabel:hover {
-	background-color: @hovered-background-color;
 	border-color: @hovered-border-color;
 	border-width:1px 0;
-	background-image: url(@image-common-highlight);
-	background-repeat:repeat-x;
+	.gradient-and-filter(@hovered-background-color, 70, 0);
 }

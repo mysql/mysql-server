@@ -1,10 +1,10 @@
 //>>built
-define("dijit/_editor/plugins/FullScreen",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/dom-geometry","dojo/dom-style","dojo/_base/event","dojo/i18n","dojo/keys","dojo/_base/lang","dojo/on","dojo/_base/sniff","dojo/_base/window","dojo/window","../../focus","../_Plugin","../../form/ToggleButton","../../registry","dojo/i18n!../nls/commands"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,on,_a,_b,_c,_d,_e,_f,_10){
+define("dijit/_editor/plugins/FullScreen",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/dom-geometry","dojo/dom-style","dojo/_base/event","dojo/i18n","dojo/keys","dojo/_base/lang","dojo/on","dojo/sniff","dojo/_base/window","dojo/window","../../focus","../_Plugin","../../form/ToggleButton","../../registry","dojo/i18n!../nls/commands"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,on,_a,_b,_c,_d,_e,_f,_10){
 var _11=_2("dijit._editor.plugins.FullScreen",_e,{zIndex:500,_origState:null,_origiFrameState:null,_resizeHandle:null,isFullscreen:false,toggle:function(){
 this.button.set("checked",!this.button.get("checked"));
 },_initButton:function(){
 var _12=_7.getLocalization("dijit._editor","commands"),_13=this.editor;
-this.button=new _f({label:_12["fullScreen"],dir:_13.dir,lang:_13.lang,showLabel:false,iconClass:this.iconClassPrefix+" "+this.iconClassPrefix+"FullScreen",tabIndex:"-1",onChange:_9.hitch(this,"_setFullScreen")});
+this.button=new _f({label:_12["fullScreen"],ownerDocument:_13.ownerDocument,dir:_13.dir,lang:_13.lang,showLabel:false,iconClass:this.iconClassPrefix+" "+this.iconClassPrefix+"FullScreen",tabIndex:"-1",onChange:_9.hitch(this,"_setFullScreen")});
 },setEditor:function(_14){
 this.editor=_14;
 this._initButton();
@@ -46,7 +46,7 @@ ed._fullscreen_oldOnKeyDown(e);
 }
 }
 },_resizeEditor:function(){
-var vp=_c.getBox();
+var vp=_c.getBox(this.editor.ownerDocument);
 _4.setMarginBox(this.editor.domNode,{w:vp.w,h:vp.h});
 var _15=this.editor.getHeaderHeight();
 var _16=this.editor.getFooterHeight();
@@ -58,13 +58,13 @@ _4.setMarginBox(this.editor.iframe.parentNode,{h:_1a,w:vp.w});
 _4.setMarginBox(this.editor.iframe,{h:_1a-(_18.h+_19.h)});
 },_getAltViewNode:function(){
 },_setFullScreen:function(_1b){
-var vp=_c.getBox();
 var ed=this.editor;
-var _1c=_b.body();
+var _1c=ed.ownerDocumentBody;
 var _1d=ed.domNode.parentNode;
+var vp=_c.getBox(ed.ownerDocument);
 this.isFullscreen=_1b;
 if(_1b){
-while(_1d&&_1d!==_b.body()){
+while(_1d&&_1d!==_1c){
 _3.add(_1d,"dijitForceStatic");
 _1d=_1d.parentNode;
 }
@@ -103,7 +103,7 @@ _5.set(_1c.parentNode,"overflow","hidden");
 }
 _5.set(_1c,"overflow","hidden");
 var _22=function(){
-var vp=_c.getBox();
+var vp=_c.getBox(ed.ownerDocument);
 if("_prevW" in this&&"_prevH" in this){
 if(vp.w===this._prevW&&vp.h===this._prevH){
 return;
@@ -150,7 +150,7 @@ if(this._rst){
 clearTimeout(this._rst);
 this._rst=null;
 }
-while(_1d&&_1d!==_b.body()){
+while(_1d&&_1d!==_1c){
 _3.remove(_1d,"dijitForceStatic");
 _1d=_1d.parentNode;
 }

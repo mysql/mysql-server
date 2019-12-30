@@ -98,6 +98,7 @@ class Gcs_suspicions_manager {
                                     m_suspicions
     @param[in] is_killer_node Indicates if node should remove suspect members
                               from the group
+    @param[in] max_synode XCom max synode
   */
 
   void process_view(
@@ -248,6 +249,7 @@ class Gcs_suspicions_manager {
                                         m_suspicions
     @param[in] member_suspect_nodes List of previously active nodes to add to
                                     m_suspicions
+    @param[in] max_synode XCom max synode
     @return Indicates if new suspicions were added
   */
 
@@ -437,6 +439,7 @@ class Gcs_xcom_control : public Gcs_control_interface {
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                             to deliver the message
     @param[in] same_view  Whether this global view was already delivered.
+    @param[in] max_synode XCom max synode
   */
 
   bool xcom_receive_global_view(synode_no message_id,
@@ -453,6 +456,8 @@ class Gcs_xcom_control : public Gcs_control_interface {
 
     @param[in] xcom_nodes Set of nodes that participated in the consensus
                           to deliver the message
+    @param[in] max_synode XCom max synode
+
     @return   True if the view was processed;
               False otherwise.
   */
@@ -470,7 +475,9 @@ class Gcs_xcom_control : public Gcs_control_interface {
     to the state exchange.
 
     @param[in] msg message
-    @param[in] protocol_version protocol version in use by control message,
+    @param[in] maximum_supported_protocol_version maximum supported protocol
+    version
+    @param[in] used_protocol_version protocol version in use by control message,
                                 i.e. state exchange message
   */
 
@@ -652,7 +659,6 @@ class Gcs_xcom_control : public Gcs_control_interface {
     Cycle through peers_list and try to open a connection to the peer, if it
     isn't the node itself.
 
-    @param[in] local_node_ip String with the IP and port of the local node
     @param[in] peers_list list of the peers
 
     @return connection descriptor to a peer

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,5 +271,11 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   // REMOVE_DD_PROPERTY_KEY()
   CREATE_ITEM(Item_func_remove_dd_property_key, TWO_NULL_ARGS);
   EXPECT_EQ(nullptr, item->val_str(&str));
+
+  // INTERNAL_GET_DD_COLUMN_EXTRA()
+  CREATE_ITEM(Item_func_internal_get_dd_column_extra,
+              prepare_null_list(null_list, null, 6));
+  item->val_str(&str);
+  EXPECT_EQ(1, item->null_value);
 }
 }  // namespace dd_info_schema_native_func

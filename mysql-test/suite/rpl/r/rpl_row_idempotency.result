@@ -9,7 +9,11 @@ call mtr.add_suppression("Cannot add or update a child row: a foreign key constr
 call mtr.add_suppression("Duplicate entry .1. for key .PRIMARY.* Error_code: MY-001062");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 set @old_slave_exec_mode= @@global.slave_exec_mode;
 set @@global.slave_exec_mode= IDEMPOTENT;
 create table ti1 (b int primary key) engine = innodb;
@@ -187,6 +191,8 @@ include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 include/rpl_reset.inc
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 set @old_slave_exec_mode= @@global.slave_exec_mode;
 set @@global.slave_exec_mode= IDEMPOTENT;
 create table ti1 (b int primary key) engine = innodb;
@@ -363,5 +369,7 @@ drop table t1,t2,ti2,ti1;
 include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= @old_slave_exec_mode;
 set @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 *** end of tests
 include/rpl_end.inc

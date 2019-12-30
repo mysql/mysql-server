@@ -1,7 +1,7 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.UserService");
-_2.declare("dojox.xmpp.UserService",null,{constructor:function(_4){
+define("dojox/xmpp/UserService",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.UserService");
+_1.declare("dojox.xmpp.UserService",null,{constructor:function(_4){
 this.session=_4;
 },getPersonalProfile:function(){
 var _5={id:this.session.getNextIqId(),type:"get"};

@@ -23,16 +23,19 @@
 */
 
 #include "../router_app.h"
+
+#include <cstring>
+#include <fstream>
+#include <iostream>
+
+#include <windows.h>
+#include <winsock2.h>
+
 #include "harness_assert.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
 #include "nt_servc.h"
 #include "utils.h"
-
-#include <windows.h>
-#include <winsock2.h>
-#include <fstream>
-#include <iostream>
 
 // forward declarations
 std::string get_logging_folder(const std::string &conf_file);
@@ -95,7 +98,7 @@ std::string &add_quoted_string(std::string &to, const char *from) noexcept {
   return to;
 }
 
-int router_service(void *p) {
+int router_service(void * /* p */) {
   g_real_main(g_service.my_argc, g_service.my_argv,
               true);  // true = log initially to Windows Eventlog
   g_service.Stop();   // signal NTService to exit its thread, so we can exit the
@@ -361,7 +364,7 @@ int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
         BOOL ok = g_service.Init(kRouterServiceName, (void *)router_service,
                                  request_application_shutdown);
         if (!ok) {
-          DWORD WINAPI err = GetLastError();
+          DWORD err = GetLastError();
 
           char err_msg[512];
           FormatMessage(

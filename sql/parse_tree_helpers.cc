@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@
 
   @return An Item_splocal object representing the SP variable, or NULL on error.
 */
-Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
+Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
                                      sp_variable *spv,
                                      const char *query_start_ptr,
                                      const char *start, const char *end) {
@@ -75,7 +75,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
 
   /* If necessary, look for the variable. */
-  if (pctx && !spv) spv = pctx->find_variable(name, false);
+  if (pctx && !spv) spv = pctx->find_variable(name.str, name.length, false);
 
   if (!spv) {
     my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
@@ -114,7 +114,7 @@ bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp) {
   if (tmp->var == NULL)
     my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), tmp->base_name.str);
   else
-    tmp->base_name = null_lex_str;
+    tmp->base_name = NULL_CSTR;
 
   return thd->is_error();
 }
@@ -160,7 +160,7 @@ bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   }
 
   set_var *var = new (thd->mem_root)
-      set_var(var_type, var_with_base->var, &var_with_base->base_name, val);
+      set_var(var_type, var_with_base->var, var_with_base->base_name, val);
   if (var == nullptr) return true;
 
   return lex->var_list.push_back(var);
@@ -173,19 +173,13 @@ bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   @param start_ptr  start of the new string.
   @param end_ptr    end of the new string.
 
-  @return LEX_STRING object, containing a pointer to a newly
+  @return LEX_CSTRING object, containing a pointer to a newly
   constructed/allocated string, and its length. The pointer is NULL
   in case of out-of-memory error.
 */
-LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
-  LEX_STRING s;
-
-  s.length = end_ptr - start_ptr;
-  s.str = (char *)thd->alloc(s.length + 1);
-
-  if (s.str) strmake(s.str, start_ptr, s.length);
-
-  return s;
+LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
+  size_t length = end_ptr - start_ptr;
+  return {strmake_root(thd->mem_root, start_ptr, length), length};
 }
 
 /**
@@ -200,8 +194,8 @@ LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
   @return error status (true if error, false otherwise).
 */
 
-bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
-                         Item *expr_item, LEX_STRING expr_query) {
+bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
+                         Item *expr_item, LEX_CSTRING expr_query) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
@@ -330,20 +324,20 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr) {
 
     const char *expr_start_ptr = sp->m_parser_data.get_option_start_ptr();
 
-    LEX_STRING expr;
-    expr.str = (char *)expr_start_ptr;
-    expr.length = expr_end_ptr - expr_start_ptr;
+    LEX_CSTRING expr{expr_start_ptr,
+                     static_cast<size_t>(expr_end_ptr - expr_start_ptr)};
 
     /* Construct SET-statement query. */
 
-    LEX_STRING set_stmt_query;
+    LEX_CSTRING set_stmt_query;
 
     set_stmt_query.length = expr.length + 3;
-    set_stmt_query.str = (char *)thd->alloc(set_stmt_query.length + 1);
+    char *c = static_cast<char *>(thd->alloc(set_stmt_query.length + 1));
 
-    if (!set_stmt_query.str) return true;
+    if (!c) return true;
 
-    strmake(strmake(set_stmt_query.str, "SET", 3), expr.str, expr.length);
+    strmake(strmake(c, "SET", 3), expr.str, expr.length);
+    set_stmt_query.str = c;
 
     /*
       We have assignment to user or system variable or option setting, so we
@@ -382,7 +376,7 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr) {
   @note **) If @c strict if false and engine is unknown, the function outputs
             a warning, sets @c ret to NULL and returns false (success).
 */
-bool resolve_engine(THD *thd, const LEX_STRING &name, bool is_temp_table,
+bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
                     bool strict, handlerton **ret) {
   plugin_ref plugin = ha_resolve_by_name(thd, &name, is_temp_table);
   if (plugin) {
@@ -515,10 +509,17 @@ bool check_resource_group_support() {
   return false;
 }
 
-bool check_resource_group_name_len(const LEX_CSTRING &name) {
-  if (name.length > NAME_CHAR_LEN) {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
-    return true;
+bool check_resource_group_name_len(
+    const LEX_CSTRING &name, Sql_condition::enum_severity_level severity) {
+  if (name.length <= NAME_CHAR_LEN) {
+    return false;
   }
-  return false;
+  if (severity == Sql_condition::SL_ERROR) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), name.str);
+  } else {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_TOO_LONG_IDENT,
+                        ER_THD(current_thd, ER_TOO_LONG_IDENT), name.str);
+  }
+  return true;
 }

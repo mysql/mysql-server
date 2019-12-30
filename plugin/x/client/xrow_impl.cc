@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ std::string floating_point_as_string(const Column_metadata &m,
                                      const double &value) {
   char buffer[100];
 
-  if (m.fractional_digits < NOT_FIXED_DEC) {
+  if (m.fractional_digits < DECIMAL_NOT_SPECIFIED) {
     my_fcvt(value, m.fractional_digits, buffer, NULL);
 
     return buffer;
@@ -116,6 +116,7 @@ bool XRow_impl::is_null(const int32_t field_index) const {
 }
 
 bool XRow_impl::get_int64(const int32_t field_index, int64_t *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::SINT != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -125,6 +126,7 @@ bool XRow_impl::get_int64(const int32_t field_index, int64_t *out_data) const {
 
 bool XRow_impl::get_uint64(const int32_t field_index,
                            uint64_t *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::UINT != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -133,6 +135,7 @@ bool XRow_impl::get_uint64(const int32_t field_index,
 }
 
 bool XRow_impl::get_double(const int32_t field_index, double *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::DOUBLE != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -141,6 +144,7 @@ bool XRow_impl::get_double(const int32_t field_index, double *out_data) const {
 }
 
 bool XRow_impl::get_float(const int32_t field_index, float *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::FLOAT != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -180,6 +184,7 @@ bool XRow_impl::get_enum(const int32_t field_index, const char **out_data,
 
 bool XRow_impl::get_decimal(const int32_t field_index,
                             Decimal *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::DECIMAL != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -200,6 +205,7 @@ bool XRow_impl::get_string(const int32_t field_index, const char **out_data,
 }
 
 bool XRow_impl::get_time(const int32_t field_index, Time *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::TIME != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -209,6 +215,7 @@ bool XRow_impl::get_time(const int32_t field_index, Time *out_data) const {
 
 bool XRow_impl::get_datetime(const int32_t field_index,
                              DateTime *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::DATETIME != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -230,6 +237,7 @@ bool XRow_impl::get_datetime(const int32_t field_index,
 
 bool XRow_impl::get_set(const int32_t field_index,
                         std::set<std::string> *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::SET != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -238,6 +246,7 @@ bool XRow_impl::get_set(const int32_t field_index,
 }
 
 bool XRow_impl::get_bit(const int32_t field_index, bool *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::BIT != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -251,6 +260,7 @@ bool XRow_impl::get_bit(const int32_t field_index, bool *out_data) const {
 }
 
 bool XRow_impl::get_bit(const int32_t field_index, uint64_t *out_data) const {
+  if (m_metadata->empty()) return false;
   if (Column_type::BIT != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);
@@ -260,6 +270,7 @@ bool XRow_impl::get_bit(const int32_t field_index, uint64_t *out_data) const {
 
 bool XRow_impl::get_field_as_string(const int32_t field_index,
                                     std::string *out_data) const {
+  if (m_metadata->empty()) return false;
   const auto &col = (*m_metadata)[field_index];
 
   if (is_null(field_index)) {
@@ -381,6 +392,7 @@ bool XRow_impl::get_string_based_field(const Column_type expected_type,
                                        const int32_t field_index,
                                        const char **out_data,
                                        size_t *out_data_length) const {
+  if (m_metadata->empty()) return false;
   if (expected_type != (*m_metadata)[field_index].type) return false;
 
   const std::string &field = m_row->field(field_index);

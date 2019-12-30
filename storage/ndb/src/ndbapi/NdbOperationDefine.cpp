@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1118,6 +1118,33 @@ NdbOperation::prepareGetLockHandleNdbRecord()
   return 0;
 }
 
+int
+NdbOperation::setNoWait()
+{
+  if (theStatus == UseNdbRecord)
+  {
+    /**
+     * Method not allowed for NdbRecord, use OperationOptions or
+     * ScanOptions structure instead
+     */
+    setErrorCodeAbort(4515);
+    return -1;
+  }
+
+  if ((! ((theOperationType == ReadRequest) ||
+          (theOperationType == ReadExclusive))) ||
+      theDirtyIndicator)
+  {
+    /* Only allowed for locking reads */
+    setErrorCodeAbort(4108); /* Faulty operation type */
+    return -1;
+  }
+
+  m_flags |= OF_NOWAIT;
+
+  return 0;
+}
+
 /*
  * handleOperationOptions
  * static member for setting operation options
@@ -1420,6 +1447,19 @@ NdbOperation::handleOperationOptions (const OperationType type,
   if (opts->optionsPresent & OperationOptions::OO_DISABLE_FK)
   {
     op->m_flags |= OF_DISABLE_FK;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_NOWAIT)
+  {
+    if ((! ((type == ReadRequest) ||
+            (type == ReadExclusive))) ||
+        (op->theLockMode == LM_CommittedRead))
+    {
+      /* Only allowed for locking reads */
+      return 4108; /* Faulty operation type */
+    }
+
+    op->m_flags |= OF_NOWAIT;
   }
 
   return 0;

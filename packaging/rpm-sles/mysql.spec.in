@@ -31,19 +31,12 @@
 %{?with_mecab: %global mecab 1}
 
 # Pass path to the AWS SDK install
-%{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
+%{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
-
-# Pass path to the libcurl "lib" directory
-%{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
-
-# Pass alternative ssl setting if provided. Needed for e.g. wolfssl.
-%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
-%{!?with_systemd:                %global systemd 0}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
@@ -73,11 +66,6 @@
 %global license_type          GPLv2
 %endif
 
-%if 0%{?suse_version} == 1110
-%global dist                  .sles11
-%global sles11                1
-%endif
-
 %if 0%{?suse_version} == 1315
 %global dist                  .sles12
 %global sles12                1
@@ -94,10 +82,7 @@
 %endif
 
 # https://en.opensuse.org/openSUSE:Systemd_packaging_guidelines
-%{?sles12:                %global systemd 1}
-%{?sles15:                %global systemd 1}
-%{?sles16:                %global systemd 1}
-%{!?_tmpfilesdir:         %global _tmpfilesdir /usr/lib/tmpfiles.d}
+%{!?_tmpfilesdir:             %global _tmpfilesdir /usr/lib/tmpfiles.d}
 
 %global min                   8.0.11
 
@@ -112,9 +97,8 @@ URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
-Source90:       filter-provides.sh
-Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
+BuildRequires:  bison >= 2.1
 BuildRequires:  perl
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -134,32 +118,26 @@ BuildRequires:  perl(IO::Socket::INET)
 BuildRequires:  perl(JSON)
 BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
+%if 0%{?commercial}
+BuildRequires:  libcurl-devel
+%endif
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
-BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles11:BuildRequires: gcc48 gcc48-c++}
 %{?sles12:BuildRequires: gcc7 gcc7-c++}
 %{?sles16:BuildRequires: rpcgen pkgconfig(libtirpc)}
-%if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
-%endif
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  openldap2-devel
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-%if 0%{?rhel} > 6
-# For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global __requires_exclude ^perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
-%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so)$
-%else
-# https://fedoraproject.org/wiki/EPEL:Packaging#Generic_Filtering_on_EPEL6
-%global __perl_provides %{SOURCE90}
-%global __perl_requires %{SOURCE91}
-%endif
+%global _privatelibs libprotobuf.*
+%global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
+%global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
+%global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*)$
 
 %description
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
@@ -233,12 +211,7 @@ Obsoletes:      mariadb-server
 Obsoletes:      mariadb-tools
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
-%if 0%{?systemd}
 Requires:       systemd >= 228
-%{?systemd_requires}
-%else
-PreReq:         insserv
-%endif
 PreReq:         sed
 PreReq:         pwdutils
 Conflicts:      otherproviders(mysql)
@@ -586,9 +559,6 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-%{?sles11:export CC=/usr/bin/gcc-4.8}
-%{?sles11:export CXX=/usr/bin/g++-4.8}
-
 # Build debug versions of mysqld
 mkdir debug
 (
@@ -604,11 +574,9 @@ mkdir debug
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
-%if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
-%endif
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -620,10 +588,10 @@ mkdir debug
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin/debug" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -631,9 +599,6 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -654,11 +619,9 @@ mkdir release
            -DWITH_BOOST=.. \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
-%if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
            -DSYSTEMD_SERVICE_NAME="mysql" \
            -DSYSTEMD_PID_DIR="/var/run/mysql" \
-%endif
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
 %endif
@@ -670,10 +633,10 @@ mkdir release
 %endif
 %if 0%{?commercial}
            -DWITH_MEB=1 \
+           -DWITH_CURL=system \
+           %{?aws_sdk_option} \
 %endif
            -DWITH_INNODB_MEMCACHED=1 \
-           -DINSTALL_LIBDIR="%{_lib}/mysql" \
-           -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
            -DROUTER_INSTALL_LIBDIR="%{_lib}" \
            -DROUTER_INSTALL_PLUGINDIR="%{_lib}/mysqlrouter" \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
@@ -681,9 +644,6 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_NUMA=ON \
            %{?mecab_option} \
-           %{?aws_sdk_option} \
-           %{?curl_lib_option} \
-           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -710,10 +670,6 @@ make DESTDIR=%{buildroot} install
 install -D -m 0644 packaging/rpm-common/mysql.logrotate %{buildroot}%{_sysconfdir}/logrotate.d/mysql
 install -D -m 0644 packaging/rpm-common/my.cnf %{buildroot}%{_sysconfdir}/my.cnf
 install -d %{buildroot}%{_sysconfdir}/my.cnf.d
-%if 0%{?systemd}
-%else
-install -D -m 0755 packaging/rpm-sles/mysql.init %{buildroot}%{_sysconfdir}/init.d/mysql
-%endif
 
 # Make library links
 install -d -m 0755 %{buildroot}%{_sysconfdir}/ld.so.conf.d
@@ -723,12 +679,8 @@ echo "%{_libdir}/mysql" > %{buildroot}%{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}
 install -d -m 0755 %{buildroot}/var/log/mysqlrouter
 install -d -m 0755 %{buildroot}/var/run/mysqlrouter
 
-%if 0%{?systemd}
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.service %{buildroot}%{_unitdir}/mysqlrouter.service
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.tmpfiles.d %{buildroot}%{_tmpfilesdir}/mysqlrouter.conf
-%else
-install -D -p -m 0755 packaging/rpm-common/mysqlrouter.init %{buildroot}%{_sysconfdir}/init.d/mysqlrouter
-%endif
 install -D -p -m 0644 packaging/rpm-common/mysqlrouter.conf %{buildroot}%{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 
 # Remove files pages we explicitly do not want to package
@@ -751,11 +703,7 @@ rm -rf %{buildroot}/%{_libdir}/libmysqlrouter_http.so
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
-%if 0%{?systemd}
 ln -sf %{_sbindir}/service %{buildroot}%{_sbindir}/rcmysql
-%else
-ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
-%endif
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -778,41 +726,19 @@ rm -r $(readlink var) var
 /usr/sbin/groupadd -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -g mysql -o -r -d /var/lib/mysql -s /bin/false \
     -c "MySQL Server" -u 60 mysql >/dev/null 2>&1 || :
-%if 0%{?systemd}
 %service_add_pre mysql.service
-%endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
-/bin/chmod 0751 "$datadir"
-/bin/touch /var/log/mysql/mysqld.log
-/bin/chown mysql:mysql /var/log/mysql/mysqld.log >/dev/null 2>&1 || :
-%if 0%{?systemd}
+[ -e /var/log/mysqld.log ] || install -m0640 -omysql -gmysql /dev/null /var/log/mysqld.log >/dev/null 2>&1 || :
 %service_add_post mysql.service
 /usr/bin/systemd-tmpfiles --create %{_tmpfilesdir}/mysql.conf >/dev/null 2>&1 || :
 /bin/systemctl enable mysql.service >/dev/null 2>&1 || :
-%else
-/sbin/insserv /etc/init.d/mysql
-%endif
 
 %preun server
-%if 0%{?systemd}
 %service_del_preun mysql.service
-%else
-if [ "$1" -eq 0 ]; then
-    /usr/sbin/rcmysql stop >/dev/null 2>&1 || :
-    /sbin/insserv /etc/init.d
-fi
-%endif
 
 %postun server
-%if 0%{?systemd}
 %service_del_postun mysql.service
-%else
-if [ $1 -ge 1 ]; then
-    /usr/sbin/rcmysql condrestart >/dev/null 2>&1 || :
-fi
-%endif
 
 %post libs -p /sbin/ldconfig
 
@@ -831,31 +757,14 @@ fi
 
 %post -n mysql-router-%{product_suffix}
 /sbin/ldconfig
-%if 0%{?systemd}
 %systemd_post mysqlrouter.service
-%else
-/sbin/chkconfig --add mysqlrouter
-%endif # systemd
 
 %preun -n mysql-router-%{product_suffix}
-%if 0%{?systemd}
 %systemd_preun mysqlrouter.service
-%else
-if [ "$1" = 0 ]; then
-    /sbin/service mysqlrouter stop >/dev/null 2>&1 || :
-    /sbin/chkconfig --del mysqlrouter
-fi
-%endif # systemd
 
 %postun -n mysql-router-%{product_suffix}
 /sbin/ldconfig
-%if 0%{?systemd}
 %systemd_postun_with_restart mysqlrouter.service
-%else
-if [ $1 -ge 1 ]; then
-    /sbin/service mysqlrouter condrestart >/dev/null 2>&1 || :
-fi
-%endif # systemd
 
 %files server
 %defattr(-, root, root, -)
@@ -870,13 +779,8 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
-%if 0%{?systemd}
 %exclude %{_mandir}/man1/mysqld_multi.1*
 %exclude %{_mandir}/man1/mysqld_safe.1*
-%else
-%attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
-%attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
-%endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
@@ -906,15 +810,14 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/lz4_decompress
 %attr(755, root, root) %{_bindir}/zlib_decompress
-%if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_pre_systemd
-%else
-%attr(755, root, root) %{_bindir}/mysqld_multi
-%attr(755, root, root) %{_bindir}/mysqld_safe
-%endif
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+
+%dir %{_libdir}/mysql/private
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.6.1
+%attr(755, root, root) %{_libdir}/mysql/private/libprotobuf.so.3.6.1
 
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
@@ -924,6 +827,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
@@ -936,6 +840,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
@@ -951,6 +856,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_syseventlog.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_json.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_filter_dragnet.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
@@ -963,6 +869,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
@@ -984,11 +891,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
 %attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
@@ -997,11 +903,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/data_masking.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_encrypted_file.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_clone.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_hashicorp.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
@@ -1012,13 +917,9 @@ fi
 %attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
 %attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
 %attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
-%if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysql.service
 %attr(644, root, root) %{_unitdir}/mysql@.service
 %attr(644, root, root) %{_tmpfilesdir}/mysql.conf
-%else
-%attr(755, root, root) %{_sysconfdir}/init.d/mysql
-%endif
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysql
@@ -1192,6 +1093,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_backup_lock_service.so
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_page_track_component.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_string_service.so
@@ -1202,6 +1106,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
@@ -1266,6 +1171,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_example_component3.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_log_sink_test.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_backup_lock_service.so
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_page_track_component.so
+%endif
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_charset.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service_long.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_string_service.so
@@ -1276,6 +1184,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_pfs_resource_group.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_udf_registration.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_host_application_signal.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so
@@ -1402,23 +1311,30 @@ fi
 %dir %{_sysconfdir}/mysqlrouter
 %config(noreplace) %{_sysconfdir}/mysqlrouter/mysqlrouter.conf
 %{_bindir}/mysqlrouter
+%{_bindir}/mysqlrouter_keyring
 %{_bindir}/mysqlrouter_passwd
 %{_bindir}/mysqlrouter_plugin_info
-%if 0%{?systemd}
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_passwd.1*
+%attr(644, root, root) %{_mandir}/man1/mysqlrouter_plugin_info.1*
 %{_unitdir}/mysqlrouter.service
 %{_tmpfilesdir}/mysqlrouter.conf
-%else
-%{_sysconfdir}/init.d/mysqlrouter
-%endif
 %{_libdir}/libmysqlharness.so.*
 %{_libdir}/libmysqlrouter.so.*
 %{_libdir}/libmysqlrouter_http.so.*
 %dir %{_libdir}/mysqlrouter
-%{_libdir}/mysqlrouter/*.so
+%{_libdir}/mysqlrouter/*.so*
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/log/mysqlrouter
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Wed Jun 26 2019 Maheedhar PV <maheedhar.panchalamarri.venka@oracle.com> - 8.0.18-1
+- Add component_mysqlbackup component
+
+* Mon May 13 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.17-1
+- Add router man pages
+- Remove support for System V init
+
 * Mon Feb 18 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.16-1
 - Add back support for alternative with_ssl
 
@@ -1437,7 +1353,7 @@ fi
 - Add support for SLES 15
 - Add Router
 
-* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

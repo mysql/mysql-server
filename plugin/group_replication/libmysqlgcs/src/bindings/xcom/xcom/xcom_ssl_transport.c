@@ -24,22 +24,17 @@
 #ifdef XCOM_HAVE_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include <openssl/dh.h>
 #include <openssl/opensslv.h>
-
-#include <wolfssl_fix_namespace_pollution.h>
+#include <openssl/x509v3.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "openssl/engine.h"
-
-#include <wolfssl_fix_namespace_pollution.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
@@ -184,18 +179,27 @@ SSL_CTX *client_ctx = NULL;
 static long process_tls_version(const char *tls_version) {
   const char *separator = ", ";
   char *token = NULL;
+#ifdef HAVE_TLSv13
+  const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2",
+                                         "TLSv1.3"};
+#else
   const char *tls_version_name_list[] = {"TLSv1", "TLSv1.1", "TLSv1.2"};
+#endif /* HAVE_TLSv13 */
 #define TLS_VERSIONS_COUNTS \
   (sizeof(tls_version_name_list) / sizeof(*tls_version_name_list))
   unsigned int tls_versions_count = TLS_VERSIONS_COUNTS;
+#ifdef HAVE_TLSv13
+  const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
+      SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2, SSL_OP_NO_TLSv1_3};
+  const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2,TLSv1.3";
+  long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 |
+                      SSL_OP_NO_TLSv1_3;
+#else
   const long tls_ctx_list[TLS_VERSIONS_COUNTS] = {
       SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
   const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
-#ifdef HAVE_TLSv13
-  /* Disable TLS 1.3 support. */
-  tls_ctx_flag |= SSL_OP_NO_TLSv1_3;
-#endif
+#endif /* HAVE_TLSv13 */
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
@@ -233,12 +237,16 @@ static int PasswordCallBack(char *passwd, int sz, int rw MY_ATTRIBUTE((unused)),
 }
 /* purecov: end */
 
-static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
-                                    const char *tls_version) {
+static int configure_ssl_algorithms(
+    SSL_CTX *ssl_ctx, const char *cipher, const char *tls_version,
+    const char *tls_ciphersuites MY_ATTRIBUTE((unused))) {
   DH *dh = NULL;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
   long ssl_ctx_flags = -1;
+#ifdef HAVE_TLSv13
+  int tlsv1_3_enabled = 0;
+#endif /* HAVE_TLSv13 */
 
   SSL_CTX_set_default_passwd_cb(ssl_ctx, PasswordCallBack);
   SSL_CTX_set_session_cache_mode(ssl_ctx, SSL_SESS_CACHE_OFF);
@@ -249,23 +257,47 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
     goto error;
   }
 
+#ifdef HAVE_TLSv13
+  ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
+                    (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+                     SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3);
+#else
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
                     (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
                      SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
-#ifdef HAVE_TLSv13
-  /* Disable TLS 1.3 support. */
-  ssl_ctx_options |= SSL_OP_NO_TLSv1_3;
-#endif
+#endif /* HAVE_TLSv13 */
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
 
 #ifdef HAVE_TLSv13
-  /* Set invalid TLSv1.3 ciphersuites. */
-  if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
-    G_ERROR("Failed to disable TLSv1.3 ciphers.");
-    goto error;
+  tlsv1_3_enabled = ((ssl_ctx_options & SSL_OP_NO_TLSv1_3) == 0);
+  if (tlsv1_3_enabled) {
+    /* Set OpenSSL TLS v1.3 ciphersuites.
+       If the ciphersuites are unspecified, i.e. tls_ciphersuites == NULL, then
+       we use whatever OpenSSL uses by default. Note that an empty list is
+       permissible; it disallows all ciphersuites. */
+    if (tls_ciphersuites != NULL) {
+      /*
+        Note: if TLSv1.3 is enabled but TLSv1.3 ciphersuite list is empty
+        (that's permissible and mentioned in the documentation),
+        the connection will fail with "no ciphers available" error.
+      */
+      if (SSL_CTX_set_ciphersuites(ssl_ctx, tls_ciphersuites) == 0) {
+        G_ERROR(
+            "Failed to set the list of ciphersuites. Check if the values "
+            "configured for ciphersuites are correct and valid and if the list "
+            "is not empty");
+        goto error;
+      }
+    }
+  } else {
+    /* Disable OpenSSL TLS v1.3 ciphersuites. */
+    if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
+      G_DEBUG("Failed to set empty ciphersuites with TLS v1.3 disabled.");
+      goto error;
+    }
   }
-#endif
+#endif /* HAVE_TLSv13 */
 
   /*
     Set the ciphers that can be used. Note, howerver, that the
@@ -297,7 +329,6 @@ error:
   return 1;
 }
 
-#ifndef HAVE_WOLFSSL
 #define OPENSSL_ERROR_LENGTH 512
 static int configure_ssl_fips_mode(const uint fips_mode) {
   int rc = -1;
@@ -321,7 +352,6 @@ static int configure_ssl_fips_mode(const uint fips_mode) {
 EXIT:
   return rc;
 }
-#endif
 
 static int configure_ssl_ca(SSL_CTX *ssl_ctx, const char *ca_file,
                             const char *ca_path) {
@@ -354,7 +384,6 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
                                     const char *crl_path) {
   int retval = 0;
   if (crl_file || crl_path) {
-#ifndef HAVE_WOLFSSL
     X509_STORE *store = SSL_CTX_get_cert_store(ssl_ctx);
     /* Load crls from the trusted ca */
     if (X509_STORE_load_locations(store, crl_file, crl_path) == 0 ||
@@ -363,7 +392,6 @@ static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
       G_ERROR("X509_STORE_load_locations for CRL error");
       retval = 1;
     }
-#endif
   }
   return retval;
 }
@@ -418,7 +446,7 @@ static int init_ssl(const char *key_file, const char *cert_file,
                     const char *ca_file, const char *ca_path,
                     const char *crl_file, const char *crl_path,
                     const char *cipher, const char *tls_version,
-                    SSL_CTX *ssl_ctx) {
+                    const char *tls_ciphersuites, SSL_CTX *ssl_ctx) {
   G_DEBUG(
       "Initializing SSL with key_file: '%s'  cert_file: '%s'  "
       "ca_file: '%s'  ca_path: '%s'",
@@ -431,7 +459,12 @@ static int init_ssl(const char *key_file, const char *cert_file,
       cipher ? cipher : "NULL", crl_file ? crl_file : "NULL",
       crl_path ? crl_path : "NULL");
 
-  if (configure_ssl_algorithms(ssl_ctx, cipher, tls_version)) goto error;
+  G_DEBUG("TLS configuration is version: '%s', ciphersuites: '%s'",
+          tls_version ? tls_version : "NULL",
+          tls_ciphersuites ? tls_ciphersuites : "NULL");
+
+  if (configure_ssl_algorithms(ssl_ctx, cipher, tls_version, tls_ciphersuites))
+    goto error;
 
   if (configure_ssl_ca(ssl_ctx, ca_file, ca_path)) goto error;
 
@@ -517,16 +550,15 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                   const char *client_key_file, const char *client_cert_file,
                   const char *ca_file, const char *ca_path,
                   const char *crl_file, const char *crl_path,
-                  const char *cipher, const char *tls_version) {
+                  const char *cipher, const char *tls_version,
+                  const char *tls_ciphersuites) {
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
 
-#ifndef HAVE_WOLFSSL
   if (configure_ssl_fips_mode(ssl_fips_mode) != 1) {
     G_ERROR("Error setting the ssl fips mode");
     goto error;
   }
-#endif
 
   SSL_library_init();
   SSL_load_error_strings();
@@ -542,13 +574,18 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   }
 
   G_DEBUG("Configuring SSL for the server")
+#ifdef HAVE_TLSv13
+  server_ctx = SSL_CTX_new(TLS_server_method());
+#else
   server_ctx = SSL_CTX_new(SSLv23_server_method());
+#endif /* HAVE_TLSv13 */
+
   if (!server_ctx) {
     G_ERROR("Error allocating SSL Context object for the server");
     goto error;
   }
   if (init_ssl(server_key_file, server_cert_file, ca_file, ca_path, crl_file,
-               crl_path, cipher, tls_version, server_ctx))
+               crl_path, cipher, tls_version, tls_ciphersuites, server_ctx))
     goto error;
 
   if (ssl_mode != SSL_REQUIRED)
@@ -556,13 +593,17 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   SSL_CTX_set_verify(server_ctx, verify_server, NULL);
 
   G_DEBUG("Configuring SSL for the client")
+#ifdef HAVE_TLSv13
+  client_ctx = SSL_CTX_new(TLS_client_method());
+#else
   client_ctx = SSL_CTX_new(SSLv23_client_method());
+#endif /* HAVE_TLSv13 */
   if (!client_ctx) {
     G_ERROR("Error allocating SSL Context object for the client");
     goto error;
   }
   if (init_ssl(client_key_file, client_cert_file, ca_file, ca_path, crl_file,
-               crl_path, cipher, tls_version, client_ctx))
+               crl_path, cipher, tls_version, tls_ciphersuites, client_ctx))
     goto error;
 
   if (ssl_mode != SSL_REQUIRED) verify_client = SSL_VERIFY_PEER;
@@ -581,11 +622,9 @@ error:
 void xcom_cleanup_ssl() {
   if (!xcom_use_ssl()) return;
 
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
 }
 
 void xcom_destroy_ssl() {
@@ -605,9 +644,7 @@ void xcom_destroy_ssl() {
     client_ctx = NULL;
   }
 
-#if defined(HAVE_WOLFSSL) && defined(WITH_SSL_STANDALONE)
-  yaSSL_CleanUp();
-#elif defined(WITH_SSL_STANDALONE)
+#if defined(WITH_SSL_STANDALONE)
   ENGINE_cleanup();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
@@ -621,12 +658,15 @@ void xcom_destroy_ssl() {
 
 int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
   X509 *server_cert = NULL;
-  char *cn = NULL;
+  int ret_validation = 1;
+
+#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
   int cn_loc = -1;
+  char *cn = NULL;
   ASN1_STRING *cn_asn1 = NULL;
   X509_NAME_ENTRY *cn_entry = NULL;
   X509_NAME *subject = NULL;
-  int ret_validation = 1;
+#endif
 
   G_DEBUG("Verifying server certificate and expected host name: %s",
           server_hostname);
@@ -653,16 +693,27 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
     are what we expect.
   */
 
-  /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check
-   in common name.
-   Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may
-   need to start using
-   X509_check_host in the future.
+  /* Use OpenSSL certificate matching functions instead of our own if we
+     have OpenSSL. The X509_check_* functions return 1 on success.
   */
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
+  if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
+                       0) != 1) &&
+      (X509_check_ip_asc(server_cert, server_hostname, 0) != 1)) {
+    G_ERROR(
+        "Failed to verify the server certificate via X509 certificate "
+        "matching functions");
+    goto error;
 
+  } else {
+    /* Success */
+    ret_validation = 0;
+  }
+#else  /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+  /*
+     OpenSSL prior to 1.0.2 do not support X509_check_host() function.
+     Use deprecated X509_get_subject_name() instead.
+  */
   subject = X509_get_subject_name((X509 *)server_cert);
   /* Find the CN location in the subject */
   cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
@@ -687,11 +738,7 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
     goto error;
   }
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
   cn = (char *)ASN1_STRING_data(cn_asn1);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn = (char *)ASN1_STRING_get0_data(cn_asn1);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   /* There should not be any NULL embedded in the CN */
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
@@ -710,6 +757,7 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
         "server certificate",
         cn, server_hostname);
   }
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10002000L */
 
 error:
   if (server_cert) X509_free(server_cert);

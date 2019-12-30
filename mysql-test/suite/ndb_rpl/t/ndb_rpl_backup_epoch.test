@@ -1,0 +1,219 @@
+--source include/have_multi_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/master-slave.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+--echo Test to show that combination of Backup + Restore and
+--echo Binlog positioning correctly recovers a slave
+
+# A new MTR testcase (ndb_rpl_backup_epoch) is added, which does a more
+# end-to-end test of Backup, ndb_restore --restore-epoch and replication
+# to check that the --restore-epoch is correct.
+#
+# Basic idea :
+#  - Stop replication
+#  - Create a table
+#  - Start up a stored procedure performing regular inserts to
+#    the table on the Master (~10 per second) for some duration
+#  - Wait a while
+#  - Perform a backup (SNAPSHOTEND)
+#  - Wait a while
+#  - Perform a backup (SNAPSHOTSTART)
+#  - Wait for inserts to finish
+#  - Count rows (n)
+#  - Replicate to slave
+#  - Count rows (n) (basic replication test)
+#  - For each of SNAPSHOTEND backup, SNAPSHOTSTART backup :
+#    1 Truncate table on slave
+#    2 Restore backup including --restore-epoch
+#    3 Count rows restored by backup (b < n)
+#    4 Use restored epoch to position slave
+#    5 Start replication
+#    6 Count rows restored by backup + log (bl == n)
+#      (Basic check that we can get a consistent final state)
+#    7 Stop replication
+#    8 Truncate table on slave
+#    9 Use epoch position from 4 to position slave
+#   10 Start replication
+#   11 Count rows applied by log (l < n)
+#   12 Check that (b + l == n)
+#      (Basic check that we are not applying duplicate entries)
+#
+# Failure modes
+#  - If the restore epoch were too high, some entries could be
+#    missing and the test would fail @ 6 (and @12)
+#  - If the restore epoch were too low, some entries could be
+#    applied twice and the test would fail @12.
+
+--connection slave
+stop slave;
+
+--connection master
+use test;
+create table ticker (a int primary key) engine=ndb;
+reset master;
+
+--connection server2
+
+use test;
+
+delimiter %;
+
+create procedure tick(times int)
+begin
+  set @x = 1;
+  repeat
+    insert into test.ticker values (@x);
+    select sleep(0.1);
+    set @x = @x + 1;
+  until @x > times
+  end repeat;
+end %
+
+delimiter ;%
+
+--echo Insert ticks into the table every 100 millis for 20s
+--send call tick(200);
+
+--connection master
+select sleep(2);
+
+--echo Run backup snapshotend
+--source suite/ndb/t/ndb_backup_nowait_start.inc
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+--let $first_backup_id = $the_backup_id
+
+select sleep(2);
+
+--echo Run backup snapshotstart
+--source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
+
+--let $second_backup_id = $the_backup_id
+
+--echo Wait for ticker to stop
+--connection server2
+--disable_query_log
+--disable_result_log
+--reap
+--enable_result_log
+--enable_query_log
+
+--echo Expect 200 entries on Master
+select count(1) from test.ticker;
+select max(a) from test.ticker;
+
+--echo Replicate as normal
+--connection slave
+
+use test;
+create table ticker (a int primary key) engine=ndb;
+
+start slave;
+
+--connection master
+--sync_slave_with_master
+--connection slave
+
+--echo Expect 200 entries on Slave
+select count(1) from test.ticker;
+select max(a) from test.ticker;
+
+--echo Verify backup restoration is correct wrt binlog positions
+
+--let $backup_count=2
+--let $backup_id = $first_backup_id
+
+while($backup_count)
+{
+--echo Restore backup on the slave
+--connection slave
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+
+--let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
+--exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 1 -r --restore-epoch $NDB_BACKUPS-$backup_id > $outfile 2>&1
+--exec $NDB_RESTORE -c$NDB_CONNECTSTRING_SLAVE -b $backup_id -n 2 -r $NDB_BACKUPS-$backup_id >> $outfile 2>&1
+
+--disable_result_log
+select @backup_rows:=count(1) from test.ticker;
+select @backup_max_val:=max(a) from test.ticker;
+--enable_result_log
+
+# Expect both to be the same here
+select @backup_rows - @backup_max_val;
+
+--let $first_backup_epoch=query_get_value(select epoch from mysql.ndb_apply_status where server_id=0, epoch, 1)
+
+#--echo First backup epoch is $first_backup_epoch
+
+--let $the_epoch = $first_backup_epoch
+--source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
+
+--connection slave
+
+start slave;
+
+--connection master
+--sync_slave_with_master
+--connection slave
+
+--echo Expect 200 rows when backup and binlog subset combined on slave
+select count(1) from test.ticker;
+select max(a) from test.ticker;
+
+# REMOVE
+#select * from test.ticker order by a;
+
+--echo Now check Binlog apply alone
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+
+--let $the_epoch = $first_backup_epoch
+--source suite/ndb_rpl/t/ndb_rpl_change_master_to_epoch.inc
+
+--connection slave
+
+start slave;
+
+--connection master
+--sync_slave_with_master
+--connection slave
+
+--disable_result_log
+select @log_rows:=count(1) from test.ticker;
+select @log_max_val:=max(a) from test.ticker;
+--enable_result_log
+
+--echo Expect 200 when adding backup and log rows
+select @backup_rows + @log_rows;
+select @log_max_val;
+
+--dec $backup_count
+--let $backup_id = $second_backup_id
+
+}
+
+
+
+--echo Cleanup
+
+--connection server2
+drop procedure tick;
+drop table ticker;
+
+--connection master
+reset master;
+
+--connection slave
+#start slave;
+
+--remove_file $outfile
+--remove_file $NDB_TOOLS_OUTPUT
+
+--connection master
+--source suite/ndb/include/backup_restore_cleanup.inc
+--source include/rpl_end.inc

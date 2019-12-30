@@ -1,6 +1,4 @@
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
-set @save_storage_engine= @@default_storage_engine;
-set default_storage_engine=MyISAM;
 set end_markers_in_json=on;
 # new "FORMAT" keyword doesn't conflict with the FORMAT() function name:
 SELECT FORMAT(1, 2), FORMAT(1, 2, 3);
@@ -511,7 +509,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2` union all /* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`)
 EXPLAIN FORMAT=JSON (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
 EXPLAIN
 {
@@ -578,7 +576,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2`) union all (/* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2` union all /* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`)
 # UNION with subquery in outer ORDER BY
 EXPLAIN             (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -588,7 +586,7 @@ NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using tempor
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #1
-Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` order by (/* select#3 */ select `<union temporary>`.`i` limit 1)
 EXPLAIN FORMAT=JSON (SELECT * FROM t1) UNION (SELECT * FROM t2) ORDER BY (SELECT i LIMIT 1);
 EXPLAIN
 {
@@ -669,7 +667,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'i' of SELECT #3 was resolved in SELECT #1
-Note	1003	(/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) union (/* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2`) order by (/* select#3 */ select `i` limit 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /* select#2 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` order by (/* select#3 */ select `<union temporary>`.`i` limit 1)
 # optimizer-time subquery
 EXPLAIN SELECT * FROM t1 ORDER BY (SELECT LENGTH(1) FROM t2 LIMIT 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -830,7 +828,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 EXPLAIN
 {
@@ -882,7 +880,7 @@ EXPLAIN
               "used_columns": [
                 "i"
               ] /* used_columns */,
-              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true)"
             } /* table */
           } /* query_block */
         },
@@ -909,7 +907,7 @@ EXPLAIN
               "used_columns": [
                 "i"
               ] /* used_columns */,
-              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+              "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true)"
             } /* table */
           } /* query_block */
         }
@@ -918,7 +916,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or (`test`.`t2`.`i` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
 # subquery in the SELECT list
 EXPLAIN SELECT (SELECT i + 1 FROM t1 ORDER BY RAND() LIMIT 1), i FROM t1;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -993,7 +991,7 @@ EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
@@ -1003,7 +1001,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DROP TABLE t1;
 # complex subqueries
 CREATE TABLE t1 (a INT, b INT);
@@ -1022,7 +1020,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
 EXPLAIN
 {
@@ -1049,7 +1047,7 @@ EXPLAIN
             "a",
             "b"
           ] /* used_columns */,
-          "attached_condition": "<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true))))",
+          "attached_condition": "<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true))))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -1074,7 +1072,7 @@ EXPLAIN
                   "used_columns": [
                     "e"
                   ] /* used_columns */,
-                  "attached_condition": "(`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
+                  "attached_condition": "((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true))"
                 } /* table */
               } /* query_block */
             },
@@ -1133,7 +1131,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and <nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))))
 DROP TABLE t1, t2, t3, t4;
 # semi-join materialization (if enabled)
 CREATE TABLE t1 (a INT);
@@ -1177,7 +1175,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery3>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"
@@ -1235,7 +1233,7 @@ EXPLAIN
         "table": {
           "table_name": "<subquery2>",
           "access_type": "eq_ref",
-          "key": "<auto_key>",
+          "key": "<auto_distinct_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"
@@ -1269,7 +1267,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t4` join `test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t4`.`a`) and (`test`.`t4`.`a` > 0) and (`test`.`t2`.`a` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t3` join `test`.`t4`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`a`) and (`<subquery2>`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t4`.`a`) and (`test`.`t4`.`a` > 0) and (`test`.`t2`.`a` > 0))
 DROP TABLE t1, t2, t3, t4;
 # the same subquery is associated with two different JOIN_TABs
 CREATE TABLE t1 (
@@ -1459,7 +1457,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ref	c_key	c_key	5	test.t4.c_key	1	100.00	Using index
 1	SIMPLE	t1	NULL	ref	c_key	c_key	5	test.t2.c_key	2	100.00	Using index; End temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
+Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
 EXPLAIN FORMAT=JSON SELECT * FROM t5 
 WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
@@ -1598,7 +1596,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
+Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
 DROP TABLE t1, t2, t3, t4, t5;
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (i INT);
@@ -2155,7 +2153,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
 EXPLAIN
 {
@@ -2213,7 +2211,7 @@ EXPLAIN
 }
 Warnings:
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DROP TABLE t1;
 #
 CREATE TABLE t1 (i INT);
@@ -2488,7 +2486,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 group by `test`.`t1`.`a` order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true group by `test`.`t1`.`a` order by `test`.`t1`.`b`
 DROP TABLE t1;
 DROP TABLE t2;
 #
@@ -2584,7 +2582,7 @@ s
 SHOW SESSION STATUS WHERE (Variable_name LIKE 'Sort_%' OR Variable_name LIKE 'Created_%_tables') AND Value > 0;
 Variable_name	Value
 Created_tmp_tables	1
-Sort_rows	2
+Sort_rows	3
 Sort_scan	1
 DROP TABLE t1;
 # "buffer_result" node
@@ -2729,5 +2727,4 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`b` <> 30))
 DROP TABLE t1, t2;
-set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

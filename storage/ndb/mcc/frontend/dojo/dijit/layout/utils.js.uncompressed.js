@@ -1,20 +1,22 @@
-//>>built
 define("dijit/layout/utils", [
 	"dojo/_base/array", // array.filter array.forEach
 	"dojo/dom-class", // domClass.add domClass.remove
 	"dojo/dom-geometry", // domGeometry.marginBox
 	"dojo/dom-style", // domStyle.getComputedStyle
 	"dojo/_base/lang", // lang.mixin
-	".."	// for exporting symbols to dijit, remove in 2.0
+	"../main"	// for exporting symbols to dijit, remove in 2.0
 ], function(array, domClass, domGeometry, domStyle, lang, dijit){
 
 	// module:
 	//		dijit/layout/utils
-	// summary:
-	//		marginBox2contentBox() and layoutChildren()
 
 	var layout = lang.getObject("layout", true, dijit);
-	/*===== layout = dijit.layout =====*/
+	/*=====
+	layout = {
+		 // summary:
+		 //		marginBox2contentBox() and layoutChildren()
+	 };
+	 =====*/
 
 	layout.marginBox2contentBox = function(/*DomNode*/ node, /*Object*/ mb){
 		// summary:
@@ -61,11 +63,12 @@ define("dijit/layout/utils", [
 		// dim:
 		//		{l, t, w, h} object specifying dimensions of container into which to place children
 		// children:
-		//		an array of Widgets or at least objects containing:
-		//			* domNode: pointer to DOM node to position
-		//			* region or layoutAlign: position to place DOM node
-		//			* resize(): (optional) method to set size of node
-		//			* id: (optional) Id of widgets, referenced from resize object, below.
+		//		An array of Widgets or at least objects containing:
+		//
+		//		- domNode: pointer to DOM node to position
+		//		- region or layoutAlign: position to place DOM node
+		//		- resize(): (optional) method to set size of node
+		//		- id: (optional) Id of widgets, referenced from resize object, below.
 		// changedRegionId:
 		//		If specified, the slider for the region with the specified id has been dragged, and thus
 		//		the region's height or width should be adjusted according to changedRegionSize

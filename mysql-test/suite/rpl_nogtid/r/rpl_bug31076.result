@@ -27,6 +27,10 @@ KEY `ip` (`ip`),
 KEY `time` (`time`),
 KEY `user_id` (`user_id`)
 ) AUTO_INCREMENT=21293381 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET sql_mode = default;
 CREATE TABLE `visits_events` (
 `event_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
@@ -40,6 +44,10 @@ KEY `event_id` (`event_id`),
 KEY `visit_id` (`visit_id`),
 KEY `data` (`data`)
 ) AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 Warnings:

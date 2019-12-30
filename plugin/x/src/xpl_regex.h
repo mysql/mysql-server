@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 #define PLUGIN_X_SRC_XPL_REGEX_H_
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "unicode/regex.h"
 
@@ -31,8 +33,11 @@ namespace xpl {
 
 class Regex {
  public:
+  using Group_list = std::vector<std::string>;
   explicit Regex(const char *const pattern);
   bool match(const char *value) const;
+  bool match_groups(const char *value, Group_list *groups,
+                    const bool skip_empty_group = true) const;
 
  private:
   UErrorCode m_status;

@@ -1,8 +1,8 @@
 //>>built
 define("dojox/gfx/canvasWithEvents",["dojo/_base/lang","dojo/_base/declare","dojo/_base/connect","dojo/_base/Color","dojo/dom","dojo/dom-geometry","./_base","./canvas","./shape","./matrix"],function(_1,_2,_3,_4,_5,_6,g,_7,_8,m){
 var _9=g.canvasWithEvents={};
-_2("dojox.gfx.canvasWithEvents.Shape",_7.Shape,{_testInputs:function(_a,_b){
-if(!this.canvasFill&&this.strokeStyle){
+_9.Shape=_2("dojox.gfx.canvasWithEvents.Shape",_7.Shape,{_testInputs:function(_a,_b){
+if(this.clip||(!this.canvasFill&&this.strokeStyle)){
 this._hitTestPixel(_a,_b);
 }else{
 this._renderShape(_a);
@@ -57,6 +57,13 @@ this.inherited(arguments);
 },getEventSource:function(){
 return this.surface.getEventSource();
 },connect:function(_13,_14,_15){
+if(_13.indexOf("mouse")===0){
+_13="on"+_13;
+}else{
+if(_13.indexOf("ontouch")===0){
+_13=_13.slice(2);
+}
+}
 this.surface._setupEvents(_13);
 return arguments.length>2?_3.connect(this,_13,_14,_15):_3.connect(this,_13,_14);
 },disconnect:function(_16){
@@ -80,22 +87,22 @@ _3.disconnect(_16);
 },onkeydown:function(){
 },onkeyup:function(){
 }});
-_2("dojox.gfx.canvasWithEvents.Group",[_9.Shape,_7.Group],{_testInputs:function(ctx,pos){
-var _17=this.children,t=this.getTransform(),i,j;
-if(_17.length==0){
+_9.Group=_2("dojox.gfx.canvasWithEvents.Group",[_9.Shape,_7.Group],{_testInputs:function(ctx,pos){
+var _17=this.children,t=this.getTransform(),i,j,_18;
+if(_17.length===0){
 return;
 }
-var _18=[];
+var _19=[];
 for(i=0;i<pos.length;++i){
-var _19=pos[i];
-_18[i]={x:_19.x,y:_19.y};
-if(_19.target){
+_18=pos[i];
+_19[i]={x:_18.x,y:_18.y};
+if(_18.target){
 continue;
 }
-var x=_19.x,y=_19.y;
+var x=_18.x,y=_18.y;
 var p=t?m.multiplyPoint(m.invert(t),x,y):{x:x,y:y};
-_19.x=p.x;
-_19.y=p.y;
+_18.x=p.x;
+_18.y=p.y;
 }
 for(i=_17.length-1;i>=0;--i){
 _17[i]._testInputs(ctx,pos);
@@ -110,12 +117,30 @@ if(_1a){
 break;
 }
 }
+if(this.clip){
 for(i=0;i<pos.length;++i){
-pos[i].x=_18[i].x;
-pos[i].y=_18[i].y;
+_18=pos[i];
+_18.x=_19[i].x;
+_18.y=_19[i].y;
+if(_18.target){
+ctx.clearRect(0,0,1,1);
+ctx.save();
+ctx.translate(-_18.x,-_18.y);
+this._render(ctx,true);
+if(!ctx.getImageData(0,0,1,1).data[0]){
+_18.target=null;
+}
+ctx.restore();
+}
+}
+}else{
+for(i=0;i<pos.length;++i){
+pos[i].x=_19[i].x;
+pos[i].y=_19[i].y;
+}
 }
 }});
-_2("dojox.gfx.canvasWithEvents.Image",[_9.Shape,_7.Image],{_renderShape:function(ctx){
+_9.Image=_2("dojox.gfx.canvasWithEvents.Image",[_9.Shape,_7.Image],{_renderShape:function(ctx){
 var s=this.shape;
 if(ctx.pickingMode){
 ctx.fillRect(s.x,s.y,s.width,s.height);
@@ -126,20 +151,20 @@ this.inherited(arguments);
 var s=this.shape;
 return x>=s.x&&x<=s.x+s.width&&y>=s.y&&y<=s.y+s.height?this:null;
 }});
-_2("dojox.gfx.canvasWithEvents.Text",[_9.Shape,_7.Text],{_testInputs:function(ctx,pos){
+_9.Text=_2("dojox.gfx.canvasWithEvents.Text",[_9.Shape,_7.Text],{_testInputs:function(ctx,pos){
 return this._hitTestPixel(ctx,pos);
 }});
-_2("dojox.gfx.canvasWithEvents.Rect",[_9.Shape,_7.Rect],{});
-_2("dojox.gfx.canvasWithEvents.Circle",[_9.Shape,_7.Circle],{});
-_2("dojox.gfx.canvasWithEvents.Ellipse",[_9.Shape,_7.Ellipse],{});
-_2("dojox.gfx.canvasWithEvents.Line",[_9.Shape,_7.Line],{});
-_2("dojox.gfx.canvasWithEvents.Polyline",[_9.Shape,_7.Polyline],{});
-_2("dojox.gfx.canvasWithEvents.Path",[_9.Shape,_7.Path],{});
-_2("dojox.gfx.canvasWithEvents.TextPath",[_9.Shape,_7.TextPath],{});
+_9.Rect=_2("dojox.gfx.canvasWithEvents.Rect",[_9.Shape,_7.Rect],{});
+_9.Circle=_2("dojox.gfx.canvasWithEvents.Circle",[_9.Shape,_7.Circle],{});
+_9.Ellipse=_2("dojox.gfx.canvasWithEvents.Ellipse",[_9.Shape,_7.Ellipse],{});
+_9.Line=_2("dojox.gfx.canvasWithEvents.Line",[_9.Shape,_7.Line],{});
+_9.Polyline=_2("dojox.gfx.canvasWithEvents.Polyline",[_9.Shape,_7.Polyline],{});
+_9.Path=_2("dojox.gfx.canvasWithEvents.Path",[_9.Shape,_7.Path],{});
+_9.TextPath=_2("dojox.gfx.canvasWithEvents.TextPath",[_9.Shape,_7.TextPath],{});
 var _1b={onmouseenter:"onmousemove",onmouseleave:"onmousemove",onmouseout:"onmousemove",onmouseover:"onmousemove",touchstart:"ontouchstart",touchend:"ontouchend",touchmove:"ontouchmove"};
 var _1c={ontouchstart:"touchstart",ontouchend:"touchend",ontouchmove:"touchmove"};
 var _1d=navigator.userAgent.toLowerCase(),_1e=_1d.search("iphone")>-1||_1d.search("ipad")>-1||_1d.search("ipod")>-1;
-_2("dojox.gfx.canvasWithEvents.Surface",_7.Surface,{constructor:function(){
+_9.Surface=_2("dojox.gfx.canvasWithEvents.Surface",_7.Surface,{constructor:function(){
 this._pick={curr:null,last:null};
 this._pickOfMouseDown=null;
 this._pickOfMouseUp=null;
@@ -187,7 +212,7 @@ this._eventsH["onmouseup"]=_3.connect(this.getEventSource(),"onmouseup",_8.fixCa
 }
 }
 },destroy:function(){
-_7.Surface.destroy.apply(this);
+this.inherited(arguments);
 for(var i in this._eventsH){
 _3.disconnect(this._eventsH[i]);
 }

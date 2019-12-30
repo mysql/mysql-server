@@ -1,22 +1,20 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/tools/Rect", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.tools.Rect");
+define("dojox/drawing/tools/Rect", ["dojo/_base/lang", "../util/oo", "../manager/_registry", "../stencil/Rect"],
+function(lang, oo, registry, StencilRect){
 
-dojox.drawing.tools.Rect = dojox.drawing.util.oo.declare(
-	// summary:
-	// 		Class for a drawable rectangle
-	//
-	dojox.drawing.stencil.Rect,
+//dojox.drawing.tools.Rect 
+var Rect = oo.declare(
+	StencilRect,
 	function(){
-		// summary: constructor
+		// summary:
+		//		constructor
 	},
 	{
+		// summary:
+		//		Class for a drawable rectangle
+
 		draws:true,
 		
 		onDrag: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onDrag
-			//
 			var s = obj.start, e = obj;
 			var	x = s.x < e.x ? s.x : e.x,
 				y = s.y < e.y ? s.y : e.y,
@@ -40,8 +38,6 @@ dojox.drawing.tools.Rect = dojox.drawing.util.oo.declare(
 		},
 		
 		onUp: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onUp
-			//
 			if(this.created || !this._downOnCanvas){ return; }
 			this._downOnCanvas = false;
 			
@@ -71,13 +67,14 @@ dojox.drawing.tools.Rect = dojox.drawing.util.oo.declare(
 	}
 );
 
-dojox.drawing.tools.Rect.setup = {
-	// summary: See stencil._Base ToolsSetup
-	//
+lang.setObject("dojox.drawing.tools.Rect", Rect);
+Rect.setup = {
 	name:"dojox.drawing.tools.Rect",
 	tooltip:'<span class="drawingTipTitle">Rectangle Tool</span><br/>'
 		+ '<span class="drawingTipDesc">SHIFT - constrain to square</span>',
 	iconClass:"iconRect"
 };
-dojox.drawing.register(dojox.drawing.tools.Rect.setup, "tool");
+registry.register(Rect.setup, "tool");
+
+return Rect;
 });

@@ -1,0 +1,4 @@
+--initialize=--lower_case_table_names=1
+--lower_case_table_names=1
+--initialize=--innodb_page_size=16k
+--innodb_page_size=16k

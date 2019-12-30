@@ -53,13 +53,14 @@ set session sql_log_bin=0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Maximum number of retries when*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is OFFLINE.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
 
 --disable_warnings

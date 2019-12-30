@@ -309,8 +309,8 @@ bool Window::setup_range_expressions(THD *thd) {
           exactly one oe-1 LT (for the one ORDER BY expession allowed for such
           queries).
         */
-        cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
-        inv_cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
+        cmp = new Item_func_false();
+        inv_cmp = new Item_func_false();
 
         // Build OR tree from bottom up, so left most expression ends up on top
         for (int i = o->value.elements - 1; i >= 0; i--) {
@@ -480,7 +480,7 @@ bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window) {
 }
 
 void Window::check_partition_boundary() {
-  DBUG_ENTER("check_partition_boundary");
+  DBUG_TRACE;
   bool anything_changed = false;
 
   if (m_part_row_number == 0)  // first row in first partition
@@ -507,12 +507,10 @@ void Window::check_partition_boundary() {
   } else {
     m_part_row_number++;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Window::reset_order_by_peer_set() {
-  DBUG_ENTER("reset_order_by_peer_set");
+  DBUG_TRACE;
 
   List_iterator<Cached_item> li(m_order_by_items);
   Cached_item *item;
@@ -524,12 +522,10 @@ void Window::reset_order_by_peer_set() {
     */
     (void)item->cmp();
   }
-
-  DBUG_VOID_RETURN;
 }
 
 bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
-  DBUG_ENTER("in_new_order_by_peer_set");
+  DBUG_TRACE;
   bool anything_changed = false;
 
   List_iterator<Cached_item> li(m_order_by_items);
@@ -540,7 +536,7 @@ bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
     if (!compare_all_order_by_items) break;
   }
 
-  DBUG_RETURN(anything_changed);
+  return anything_changed;
 }
 
 bool Window::before_or_after_frame(bool before) {
@@ -690,9 +686,8 @@ bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
 
   for (ORDER *order = o->value.first; order; order = order->next) {
     if (partition_order) {
-      Item_ref *ir =
-          new Item_ref(&select->context, order->item, (char *)"<no matter>",
-                       (char *)"<window partition by>");
+      Item_ref *ir = new Item_ref(&select->context, order->item, "<no matter>",
+                                  "<window partition by>");
       if (ir == nullptr) return true;
 
       Cached_item *ci = new_Cached_item(thd, ir);
@@ -700,9 +695,8 @@ bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
 
       m_partition_items.push_back(ci);
     } else {
-      Item_ref *ir =
-          new Item_ref(&select->context, order->item, (char *)"<no matter>",
-                       (char *)"<window order by>");
+      Item_ref *ir = new Item_ref(&select->context, order->item, "<no matter>",
+                                  "<window order by>");
       if (ir == nullptr) return true;
 
       Cached_item *ci = new_Cached_item(thd, ir);
@@ -718,7 +712,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
                                      TABLE_LIST *tables, List<Item> &fields,
                                      List<Item> &all_fields, ORDER *o,
                                      bool partition_order) {
-  DBUG_ENTER("resolve_window_ordering");
+  DBUG_TRACE;
   DBUG_ASSERT(o);
 
   const char *sav_where = thd->where;
@@ -730,12 +724,12 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
     /* Order by position is not allowed for windows: legacy SQL 1992 only */
     if (oi->type() == Item::INT_ITEM && oi->basic_const_item()) {
       my_error(ER_WINDOW_ILLEGAL_ORDER_BY, MYF(0), printable_name());
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
                            all_fields, false, true))
-      DBUG_RETURN(true);
+      return true;
     oi = *order->item;
 
     if (order->used_alias) {
@@ -745,10 +739,10 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
         argument of a window function, or any function.
       */
       my_error(ER_BAD_FIELD_ERROR, MYF(0), oi->item_name.ptr(), thd->where);
-      DBUG_RETURN(true);
+      return true;
     }
 
-    if (!oi->fixed && oi->fix_fields(thd, order->item)) DBUG_RETURN(true);
+    if (!oi->fixed && oi->fix_fields(thd, order->item)) return true;
     oi = *order->item;  // fix_fields() may have changed *order->item
 
     /*
@@ -758,7 +752,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
     if (oi->has_wf()) {
       my_error(ER_WINDOW_NESTED_WINDOW_FUNC_USE_IN_WINDOW_SPEC, MYF(0),
                printable_name());
-      DBUG_RETURN(true);
+      return true;
     }
 
     /*
@@ -767,12 +761,12 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
     */
     if (oi->has_aggregation() && oi->type() != Item::SUM_FUNC_ITEM) {
       oi->split_sum_func(thd, ref_item_array, all_fields);
-      if (thd->is_error()) DBUG_RETURN(true);
+      if (thd->is_error()) return true;
     }
   }
 
   thd->where = sav_where;
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Window::equal_sort(Window *w1, Window *w2) {
@@ -1214,6 +1208,18 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
   while ((w = w_it++)) {
     const PT_frame *f = w->frame();
     const PT_order_list *o = w->effective_order_by();
+
+    if (w->m_order_by == nullptr && o != nullptr &&
+        w->m_frame->m_originally_absent) {
+      /*
+        Since we had an empty frame specification, but inherit an ORDER BY (we
+        cannot inherit a frame specification), we need to adjust the a priori
+        border type now that we know what we inherit (not known before binding
+        above).
+      */
+      DBUG_ASSERT(w->m_frame->m_unit == WFU_RANGE);
+      w->m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
+    }
 
     if (first_exec && w->check_unique_name(windows)) return true;
 

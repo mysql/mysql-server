@@ -16,8 +16,7 @@
   height: 6px;
   font-size: 1px;
   background-color: #949294;
-  -webkit-border-radius: 3px;
-  -moz-border-radius: 3px;
+  border-radius: 3px;
 }
 .mblPageIndicatorDotSelected {
   background-color: white;

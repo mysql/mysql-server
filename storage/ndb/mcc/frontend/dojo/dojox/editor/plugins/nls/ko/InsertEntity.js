@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	insertEntity: "기호 삽입"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/ko/InsertEntity",({insertEntity:"기호 삽입"}));

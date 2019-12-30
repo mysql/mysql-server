@@ -1,11 +1,11 @@
 //>>built
-define("dijit/_editor/plugins/AlwaysShowToolbar",["dojo/_base/declare","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/_base/lang","dojo/_base/sniff","dojo/_base/window","../_Plugin"],function(_1,_2,_3,_4,_5,_6,_7,_8){
+define("dijit/_editor/plugins/AlwaysShowToolbar",["dojo/_base/declare","dojo/dom-class","dojo/dom-construct","dojo/dom-geometry","dojo/_base/lang","dojo/sniff","dojo/_base/window","../_Plugin"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 return _1("dijit._editor.plugins.AlwaysShowToolbar",_8,{_handleScroll:true,setEditor:function(e){
 if(!e.iframe){
 return;
 }
 this.editor=e;
-e.onLoadDeferred.addCallback(_5.hitch(this,this.enable));
+e.onLoadDeferred.then(_5.hitch(this,this.enable));
 },enable:function(d){
 this._updateHeight();
 this.connect(window,"onscroll","globalOnScrollHandler");
@@ -49,7 +49,7 @@ if(!this._scrollSetUp){
 this._scrollSetUp=true;
 this._scrollThreshold=_4.position(_c,true).y;
 }
-var _d=_4.docScroll().y;
+var _d=_4.docScroll(this.editor.ownerDocument).y;
 var s=_c.style;
 if(_d>this._scrollThreshold&&_d<this._scrollThreshold+this._lastHeight){
 if(!this._fixEnabled){
@@ -66,7 +66,7 @@ this._IEOriginalPos=["before",_c.nextSibling];
 this._IEOriginalPos=["last",_c.parentNode];
 }
 }
-_7.body().appendChild(_c);
+this.editor.ownerDocumentBody.appendChild(_c);
 _2.add(_c,"dijitIEFixedToolbar");
 }else{
 s.position="fixed";

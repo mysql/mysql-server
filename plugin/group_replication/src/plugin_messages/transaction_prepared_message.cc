@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ Transaction_prepared_message::~Transaction_prepared_message() {}
 
 void Transaction_prepared_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_prepared_message::encode_payload");
+  DBUG_TRACE;
 
   uint64 gno_aux = static_cast<uint64>(m_gno);
   encode_payload_item_int8(buffer, PIT_TRANSACTION_PREPARED_GNO, gno_aux);
@@ -54,13 +54,11 @@ void Transaction_prepared_message::encode_payload(
     encode_payload_item_bytes(buffer, PIT_TRANSACTION_PREPARED_SID, m_sid.bytes,
                               m_sid.BYTE_LENGTH);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
                                                   const unsigned char *end) {
-  DBUG_ENTER("Transaction_prepared_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -84,8 +82,6 @@ void Transaction_prepared_message::decode_payload(const unsigned char *buffer,
         break;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 const rpl_sid *Transaction_prepared_message::get_sid() {

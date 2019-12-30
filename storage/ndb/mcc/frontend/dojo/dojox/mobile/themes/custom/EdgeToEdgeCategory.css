@@ -1,19 +1,19 @@
 
 .mblEdgeToEdgeCategory {
   position: relative;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   margin: 0;
-  padding: 0 8px;
-  height: 30px;
-  border-bottom: 1px solid #b5bcc7;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(2.5%, #ffffff), color-stop(2.5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.14)), color-stop(5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.52)), color-stop(7.5%, rgba(255, 255, 255, 0.68)), color-stop(10%, rgba(255, 255, 255, 0.68)), color-stop(1, rgba(255, 255, 255, 0)));
-  font-size: 18px;
+  padding: 0 10px;
+  overflow: hidden;
   font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: rgba(0, 0, 0, 0.2) 0px 1px 2px;
-  color: #000000;
-  line-height: 32px;
+  font-size: 16px;
+  font-weight: bold;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 22px;
+  background-color: #dedede;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#f6f6f6), to(#dedede));
+  border-bottom: 1px solid #bfbfbf;
+  color: black;
+  text-shadow: rgba(255, 255, 255, 0.5) 0 1px 0;
+  line-height: 22px;
 }

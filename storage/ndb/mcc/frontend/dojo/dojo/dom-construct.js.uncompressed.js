@@ -1,203 +1,13 @@
-//>>built
-define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_base/window", "./dom", "./dom-attr", "./on"],
+define("dojo/dom-construct", ["exports", "./_base/kernel", "./sniff", "./_base/window", "./dom", "./dom-attr", "./on"],
 		function(exports, dojo, has, win, dom, attr, on){
 	// module:
 	//		dojo/dom-construct
 	// summary:
 	//		This module defines the core dojo DOM construction API.
 
-	/*=====
-	dojo.toDom = function(frag, doc){
-		// summary:
-		//		instantiates an HTML fragment returning the corresponding DOM.
-		// frag: String
-		//		the HTML fragment
-		// doc: DocumentNode?
-		//		optional document to use when creating DOM nodes, defaults to
-		//		dojo.doc if not specified.
-		// returns: DocumentFragment
-		//
-		// example:
-		//		Create a table row:
-		//	|	var tr = dojo.toDom("<tr><td>First!</td></tr>");
-	};
-	=====*/
+	// TODOC: summary not showing up in output, see https://github.com/csnover/js-doc-parse/issues/42
 
-	/*=====
-	dojo._toDom = function(frag, doc){
-		// summary:
-		//		Existing alias for `dojo.toDom`. Deprecated, will be removed in 2.0.
-	};
-	=====*/
-
-	/*=====
-	dojo.place = function(node, refNode, position){
-		// summary:
-		//		Attempt to insert node into the DOM, choosing from various positioning options.
-		//		Returns the first argument resolved to a DOM node.
-		//
-		// node: DOMNode|String
-		//		id or node reference, or HTML fragment starting with "<" to place relative to refNode
-		//
-		// refNode: DOMNode|String
-		//		id or node reference to use as basis for placement
-		//
-		// position: String|Number?
-		//		string noting the position of node relative to refNode or a
-		//		number indicating the location in the childNodes collection of refNode.
-		//		Accepted string values are:
-		//	|	* before
-		//	|	* after
-		//	|	* replace
-		//	|	* only
-		//	|	* first
-		//	|	* last
-		//		"first" and "last" indicate positions as children of refNode, "replace" replaces refNode,
-		//		"only" replaces all children.  position defaults to "last" if not specified
-		//
-		// returns: DOMNode
-		//		Returned values is the first argument resolved to a DOM node.
-		//
-		//		.place() is also a method of `dojo.NodeList`, allowing `dojo.query` node lookups.
-		//
-		// example:
-		//		Place a node by string id as the last child of another node by string id:
-		//	|	dojo.place("someNode", "anotherNode");
-		//
-		// example:
-		//		Place a node by string id before another node by string id
-		//	|	dojo.place("someNode", "anotherNode", "before");
-		//
-		// example:
-		//		Create a Node, and place it in the body element (last child):
-		//	|	dojo.place("<div></div>", dojo.body());
-		//
-		// example:
-		//		Put a new LI as the first child of a list by id:
-		//	|	dojo.place("<li></li>", "someUl", "first");
-	};
-	=====*/
-
-	/*=====
-	dojo.create = function(tag, attrs, refNode, pos){
-		// summary:
-		//		Create an element, allowing for optional attribute decoration
-		//		and placement.
-		//
-		// description:
-		//		A DOM Element creation function. A shorthand method for creating a node or
-		//		a fragment, and allowing for a convenient optional attribute setting step,
-		//		as well as an optional DOM placement reference.
-		//|
-		//		Attributes are set by passing the optional object through `dojo.setAttr`.
-		//		See `dojo.setAttr` for noted caveats and nuances, and API if applicable.
-		//|
-		//		Placement is done via `dojo.place`, assuming the new node to be the action
-		//		node, passing along the optional reference node and position.
-		//
-		// tag: DOMNode|String
-		//		A string of the element to create (eg: "div", "a", "p", "li", "script", "br"),
-		//		or an existing DOM node to process.
-		//
-		// attrs: Object
-		//		An object-hash of attributes to set on the newly created node.
-		//		Can be null, if you don't want to set any attributes/styles.
-		//		See: `dojo.setAttr` for a description of available attributes.
-		//
-		// refNode: DOMNode?|String?
-		//		Optional reference node. Used by `dojo.place` to place the newly created
-		//		node somewhere in the dom relative to refNode. Can be a DomNode reference
-		//		or String ID of a node.
-		//
-		// pos: String?
-		//		Optional positional reference. Defaults to "last" by way of `dojo.place`,
-		//		though can be set to "first","after","before","last", "replace" or "only"
-		//		to further control the placement of the new node relative to the refNode.
-		//		'refNode' is required if a 'pos' is specified.
-		//
-		// returns: DOMNode
-		//
-		// example:
-		//		Create a DIV:
-		//	|	var n = dojo.create("div");
-		//
-		// example:
-		//		Create a DIV with content:
-		//	|	var n = dojo.create("div", { innerHTML:"<p>hi</p>" });
-		//
-		// example:
-		//		Place a new DIV in the BODY, with no attributes set
-		//	|	var n = dojo.create("div", null, dojo.body());
-		//
-		// example:
-		//		Create an UL, and populate it with LI's. Place the list as the first-child of a
-		//		node with id="someId":
-		//	|	var ul = dojo.create("ul", null, "someId", "first");
-		//	|	var items = ["one", "two", "three", "four"];
-		//	|	dojo.forEach(items, function(data){
-		//	|		dojo.create("li", { innerHTML: data }, ul);
-		//	|	});
-		//
-		// example:
-		//		Create an anchor, with an href. Place in BODY:
-		//	|	dojo.create("a", { href:"foo.html", title:"Goto FOO!" }, dojo.body());
-		//
-		// example:
-		//		Create a `dojo.NodeList()` from a new element (for syntatic sugar):
-		//	|	dojo.query(dojo.create('div'))
-		//	|		.addClass("newDiv")
-		//	|		.onclick(function(e){ console.log('clicked', e.target) })
-		//	|		.place("#someNode"); // redundant, but cleaner.
-	};
-	=====*/
-
-	/*=====
-	dojo.empty = function(node){
-			// summary:
-			//		safely removes all children of the node.
-			// node: DOMNode|String
-			//		a reference to a DOM node or an id.
-			// example:
-			//		Destroy node's children byId:
-			//	|	dojo.empty("someId");
-			//
-			// example:
-			//		Destroy all nodes' children in a list by reference:
-			//	|	dojo.query(".someNode").forEach(dojo.empty);
-	}
-	=====*/
-
-	/*=====
-	dojo.destroy = function(node){
-		// summary:
-		//		Removes a node from its parent, clobbering it and all of its
-		//		children.
-		//
-		// description:
-		//		Removes a node from its parent, clobbering it and all of its
-		//		children. Function only works with DomNodes, and returns nothing.
-		//
-		// node: DOMNode|String
-		//		A String ID or DomNode reference of the element to be destroyed
-		//
-		// example:
-		//		Destroy a node byId:
-		//	|	dojo.destroy("someId");
-		//
-		// example:
-		//		Destroy all nodes in a list by reference:
-		//	|	dojo.query(".someNode").forEach(dojo.destroy);
-	};
-	=====*/
-
-	/*=====
-	dojo._destroyElement = function(node){
-		// summary:
-		//		Existing alias for `dojo.destroy`. Deprecated, will be removed in 2.0.
-	};
-	=====*/
-
-	// support stuff for dojo.toDom
+	// support stuff for toDom()
 	var tagWrap = {
 			option: ["select"],
 			tbody: ["table"],
@@ -228,14 +38,14 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_
 		}
 	}
 
-	function _insertBefore(/*DomNode*/node, /*DomNode*/ref){
+	function _insertBefore(/*DomNode*/ node, /*DomNode*/ ref){
 		var parent = ref.parentNode;
 		if(parent){
 			parent.insertBefore(node, ref);
 		}
 	}
 
-	function _insertAfter(/*DomNode*/node, /*DomNode*/ref){
+	function _insertAfter(/*DomNode*/ node, /*DomNode*/ ref){
 		// summary:
 		//		Try to insert node after ref
 		var parent = ref.parentNode;
@@ -248,13 +58,20 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_
 		}
 	}
 
-	var _destroyContainer = null,
-		_destroyDoc;
-		on(window, "unload", function(){
-		_destroyContainer = null; //prevent IE leak
-	});
-	
 	exports.toDom = function toDom(frag, doc){
+		// summary:
+		//		instantiates an HTML fragment returning the corresponding DOM.
+		// frag: String
+		//		the HTML fragment
+		// doc: DocumentNode?
+		//		optional document to use when creating DOM nodes, defaults to
+		//		dojo.doc if not specified.
+		// returns:
+		//		Document fragment, unless it's a single node in which case it returns the node itself
+		// example:
+		//		Create a table row:
+		//	|	var tr = dojo.toDom("<tr><td>First!</td></tr>");
+
 		doc = doc || win.doc;
 		var masterId = doc[masterName];
 		if(!masterId){
@@ -287,13 +104,51 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_
 
 		// return multiple nodes as a document fragment
 		df = doc.createDocumentFragment();
-		while(fc = master.firstChild){ // intentional assignment
+		while((fc = master.firstChild)){ // intentional assignment
 			df.appendChild(fc);
 		}
-		return df; // DOMNode
+		return df; // DocumentFragment
 	};
 
-	exports.place = function place(/*DOMNode|String*/node, /*DOMNode|String*/refNode, /*String|Number?*/position){
+	exports.place = function place(/*DOMNode|String*/ node, /*DOMNode|String*/ refNode, /*String|Number?*/ position){
+		// summary:
+		//		Attempt to insert node into the DOM, choosing from various positioning options.
+		//		Returns the first argument resolved to a DOM node.
+		// node: DOMNode|String
+		//		id or node reference, or HTML fragment starting with "<" to place relative to refNode
+		// refNode: DOMNode|String
+		//		id or node reference to use as basis for placement
+		// position: String|Number?
+		//		string noting the position of node relative to refNode or a
+		//		number indicating the location in the childNodes collection of refNode.
+		//		Accepted string values are:
+		//
+		//		- before
+		//		- after
+		//		- replace
+		//		- only
+		//		- first
+		//		- last
+		//
+		//		"first" and "last" indicate positions as children of refNode, "replace" replaces refNode,
+		//		"only" replaces all children.  position defaults to "last" if not specified
+		// returns: DOMNode
+		//		Returned values is the first argument resolved to a DOM node.
+		//
+		//		.place() is also a method of `dojo/NodeList`, allowing `dojo.query` node lookups.
+		// example:
+		//		Place a node by string id as the last child of another node by string id:
+		//	|	dojo.place("someNode", "anotherNode");
+		// example:
+		//		Place a node by string id before another node by string id
+		//	|	dojo.place("someNode", "anotherNode", "before");
+		// example:
+		//		Create a Node, and place it in the body element (last child):
+		//	|	dojo.place("<div></div>", dojo.body());
+		// example:
+		//		Put a new LI as the first child of a list by id:
+		//	|	dojo.place("<li></li>", "someUl", "first");
+
 		refNode = dom.byId(refNode);
 		if(typeof node == "string"){ // inline'd type check
 			node = /^\s*</.test(node) ? exports.toDom(node, refNode.ownerDocument) : dom.byId(node);
@@ -333,7 +188,68 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_
 		return node; // DomNode
 	};
 
-	exports.create = function create(/*DOMNode|String*/tag, /*Object*/attrs, /*DOMNode?|String?*/refNode, /*String?*/pos){
+	exports.create = function create(/*DOMNode|String*/ tag, /*Object*/ attrs, /*DOMNode|String?*/ refNode, /*String?*/ pos){
+		// summary:
+		//		Create an element, allowing for optional attribute decoration
+		//		and placement.
+		// description:
+		//		A DOM Element creation function. A shorthand method for creating a node or
+		//		a fragment, and allowing for a convenient optional attribute setting step,
+		//		as well as an optional DOM placement reference.
+		//
+		//		Attributes are set by passing the optional object through `dojo.setAttr`.
+		//		See `dojo.setAttr` for noted caveats and nuances, and API if applicable.
+		//
+		//		Placement is done via `dojo.place`, assuming the new node to be the action
+		//		node, passing along the optional reference node and position.
+		// tag: DOMNode|String
+		//		A string of the element to create (eg: "div", "a", "p", "li", "script", "br"),
+		//		or an existing DOM node to process.
+		// attrs: Object
+		//		An object-hash of attributes to set on the newly created node.
+		//		Can be null, if you don't want to set any attributes/styles.
+		//		See: `dojo.setAttr` for a description of available attributes.
+		// refNode: DOMNode|String?
+		//		Optional reference node. Used by `dojo.place` to place the newly created
+		//		node somewhere in the dom relative to refNode. Can be a DomNode reference
+		//		or String ID of a node.
+		// pos: String?
+		//		Optional positional reference. Defaults to "last" by way of `dojo.place`,
+		//		though can be set to "first","after","before","last", "replace" or "only"
+		//		to further control the placement of the new node relative to the refNode.
+		//		'refNode' is required if a 'pos' is specified.
+		// example:
+		//		Create a DIV:
+		//	|	var n = dojo.create("div");
+		//
+		// example:
+		//		Create a DIV with content:
+		//	|	var n = dojo.create("div", { innerHTML:"<p>hi</p>" });
+		//
+		// example:
+		//		Place a new DIV in the BODY, with no attributes set
+		//	|	var n = dojo.create("div", null, dojo.body());
+		//
+		// example:
+		//		Create an UL, and populate it with LI's. Place the list as the first-child of a
+		//		node with id="someId":
+		//	|	var ul = dojo.create("ul", null, "someId", "first");
+		//	|	var items = ["one", "two", "three", "four"];
+		//	|	dojo.forEach(items, function(data){
+		//	|		dojo.create("li", { innerHTML: data }, ul);
+		//	|	});
+		//
+		// example:
+		//		Create an anchor, with an href. Place in BODY:
+		//	|	dojo.create("a", { href:"foo.html", title:"Goto FOO!" }, dojo.body());
+		//
+		// example:
+		//		Create a `dojo/NodeList()` from a new element (for syntactic sugar):
+		//	|	dojo.query(dojo.create('div'))
+		//	|		.addClass("newDiv")
+		//	|		.onclick(function(e){ console.log('clicked', e.target) })
+		//	|		.place("#someNode"); // redundant, but cleaner.
+
 		var doc = win.doc;
 		if(refNode){
 			refNode = dom.byId(refNode);
@@ -347,31 +263,75 @@ define("dojo/dom-construct", ["exports", "./_base/kernel", "./_base/sniff", "./_
 		return tag; // DomNode
 	};
 
-	exports.empty =
-				has("ie") ? function(node){
-			node = dom.byId(node);
-			for(var c; c = node.lastChild;){ // intentional assignment
-				exports.destroy(c);
+	function _empty(/*DomNode*/ node){
+		if(node.canHaveChildren){
+			try{
+				// fast path
+				node.innerHTML = "";
+				return;
+			}catch(e){
+				// innerHTML is readOnly (e.g. TABLE (sub)elements in quirks mode)
+				// Fall through (saves bytes)
 			}
-		} :
-				function(node){
-			dom.byId(node).innerHTML = "";
-		};
-
-	exports.destroy = function destroy(/*DOMNode|String*/node){
-		node = dom.byId(node);
-		try{
-			var doc = node.ownerDocument;
-			// cannot use _destroyContainer.ownerDocument since this can throw an exception on IE
-			if(!_destroyContainer || _destroyDoc != doc){
-				_destroyContainer = doc.createElement("div");
-				_destroyDoc = doc;
-			}
-			_destroyContainer.appendChild(node.parentNode ? node.parentNode.removeChild(node) : node);
-			// NOTE: see http://trac.dojotoolkit.org/ticket/2931. This may be a bug and not a feature
-			_destroyContainer.innerHTML = "";
-		}catch(e){
-			/* squelch */
 		}
+		// SVG/strict elements don't support innerHTML/canHaveChildren, and OBJECT/APPLET elements in quirks node have canHaveChildren=false
+		for(var c; c = node.lastChild;){ // intentional assignment
+			_destroy(c, node); // destroy is better than removeChild so TABLE subelements are removed in proper order
+		}
+	}
+
+	exports.empty = function empty(/*DOMNode|String*/ node){
+		 // summary:
+		 //		safely removes all children of the node.
+		 // node: DOMNode|String
+		 //		a reference to a DOM node or an id.
+		 // example:
+		 //		Destroy node's children byId:
+		 //	|	dojo.empty("someId");
+		 //
+		 // example:
+		 //		Destroy all nodes' children in a list by reference:
+		 //	|	dojo.query(".someNode").forEach(dojo.empty);
+
+		_empty(dom.byId(node));
+	};
+
+
+	function _destroy(/*DomNode*/ node, /*DomNode*/ parent){
+		// in IE quirks, node.canHaveChildren can be false but firstChild can be non-null (OBJECT/APPLET)
+		if(node.firstChild){
+			_empty(node);
+		}
+		if(parent){
+			// removeNode(false) doesn't leak in IE 6+, but removeChild() and removeNode(true) are known to leak under IE 8- while 9+ is TBD.
+			// In IE quirks mode, PARAM nodes as children of OBJECT/APPLET nodes have a removeNode method that does nothing and
+			// the parent node has canHaveChildren=false even though removeChild correctly removes the PARAM children.
+			// In IE, SVG/strict nodes don't have a removeNode method nor a canHaveChildren boolean.
+			has("ie") && parent.canHaveChildren && "removeNode" in node ? node.removeNode(false) : parent.removeChild(node);
+		}
+	}
+	exports.destroy = function destroy(/*DOMNode|String*/ node){
+		// summary:
+		//		Removes a node from its parent, clobbering it and all of its
+		//		children.
+		//
+		// description:
+		//		Removes a node from its parent, clobbering it and all of its
+		//		children. Function only works with DomNodes, and returns nothing.
+		//
+		// node: DOMNode|String
+		//		A String ID or DomNode reference of the element to be destroyed
+		//
+		// example:
+		//		Destroy a node byId:
+		//	|	dojo.destroy("someId");
+		//
+		// example:
+		//		Destroy all nodes in a list by reference:
+		//	|	dojo.query(".someNode").forEach(dojo.destroy);
+
+		node = dom.byId(node);
+		if(!node){ return; }
+		_destroy(node, node.parentNode);
 	};
 });

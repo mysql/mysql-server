@@ -78,6 +78,9 @@ LANG_ID smallint(5) unsigned DEFAULT '0' NOT NULL,
 NAME varchar(80) DEFAULT '' NOT NULL,
 PRIMARY KEY (GROUP_ID,LANG_ID),
 KEY NAME (NAME));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
 SHOW FULL COLUMNS FROM t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -104,9 +107,16 @@ user_id int(11) unsigned NOT NULL default '0',
 status enum('new','old') NOT NULL default 'new',
 PRIMARY KEY (id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
 DROP TABLE t1;
 CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (null,"hello");
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 ADD Column new_col int not null;
@@ -332,6 +342,9 @@ Host varchar(16) binary NOT NULL default '',
 User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 ALTER TABLE t1 DISABLE KEYS;
 LOCK TABLES t1 WRITE;
 INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
@@ -351,6 +364,9 @@ User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User),
 KEY  (Host)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
@@ -388,6 +404,9 @@ User varchar(16) binary NOT NULL default '',
 PRIMARY KEY  (Host,User),
 KEY  (Host)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 LOCK TABLES t1 WRITE;
 ALTER TABLE t1 DISABLE KEYS;
 SHOW INDEX FROM t1;
@@ -846,12 +865,16 @@ alter table table_24562 order by no_such_col;
 ERROR 42S22: Unknown column 'no_such_col' in 'order clause'
 drop table table_24562;
 create table t1 (mycol int(10) not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 alter table t1 alter column mycol set default 0;
 desc t1;
 Field	Type	Null	Key	Default	Extra
 mycol	int(10)	NO		0	
 drop table t1;
 create table t1(id int(8) primary key auto_increment) engine=heap;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (null);
 insert into t1 values (null);
 select * from t1;
@@ -987,11 +1010,15 @@ ALTER TABLE t1 ADD e GEOMETRY NOT NULL, ADD SPATIAL KEY (e(30));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 DROP TABLE t1;
 CREATE TABLE t1 (s CHAR(8) BINARY);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES ('test');
 SELECT LENGTH(s) FROM t1;
 LENGTH(s)
 4
 ALTER TABLE t1 MODIFY s CHAR(10) BINARY;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SELECT LENGTH(s) FROM t1;
 LENGTH(s)
 4
@@ -1365,6 +1392,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
 f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
 this should affect no rows as there is no real change
@@ -3487,9 +3515,9 @@ t_gen	CREATE TABLE `t_gen` (
   `b` double GENERATED ALWAYS AS (sqrt(`c`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_gen CHANGE COLUMN c a INT;
-ERROR 42S22: Unknown column 'c' in 'generated column function'
+ERROR HY000: Column 'c' has a generated column dependency.
 ALTER TABLE t_gen RENAME COLUMN c TO a;
-ERROR 42S22: Unknown column 'c' in 'generated column function'
+ERROR HY000: Column 'c' has a generated column dependency.
 DROP TABLE t_gen;
 CREATE TABLE foo (col1 INT);
 INSERT INTO foo VALUES (1), (2);
@@ -4362,3 +4390,10 @@ c
 a
 DROP TABLE t1;
 SET NAMES default;
+#
+# Bug #29501324	ADD VIRTUAL FIRST + ADD COLUMN CAUSES ASSERTION FAILURE.
+#
+CREATE TABLE t1 (b INT);
+# The below ALTER TABLE causes assertion failure without the fix.
+ALTER TABLE t1 ADD gcol INT AS (b + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+DROP TABLE t1;

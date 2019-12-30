@@ -1,45 +1,45 @@
-//>>built
 define("dojox/fx/Shadow", ["dojo/_base/kernel", "dojo/_base/query" ,"dojo/_base/lang", "dojo/_base/declare", "dojo/_base/sniff",
 		"dojo/dom-construct", "dojo/dom-class", "dojo/dom-geometry", "dojo/_base/fx", "dojo/fx", "dijit/_Widget",
 		"dojo/NodeList-fx"], 
   function(kernel, query, lang, declare, has, domConstruct, domClass, domGeom, baseFx, coreFx, Widget, NodeListFx){
 kernel.experimental("dojox.fx.Shadow");
 declare("dojox.fx.Shadow", Widget,{
-		// summary: Adds a drop-shadow to a node.
-		//
+		// summary:
+		//		Adds a drop-shadow to a node.
 		// example:
 		// |	// add drop shadows to all nodes with class="hasShadow"
 		// |	dojo.query(".hasShadow").forEach(function(n){
 		// |		var foo = new dojox.fx.Shadow({ node: n });
 		// |		foo.startup();
 		// |	});
-		//
+
 		// shadowPng: String
-		// 	Base location for drop-shadow images
+		//		Base location for drop-shadow images
 		shadowPng: kernel.moduleUrl("dojox.fx", "resources/shadow"),
 	
 		// shadowThickness: Integer
-		// 	How wide (in px) to make the shadow
+		//		How wide (in px) to make the shadow
 		shadowThickness: 7,
 	
 		// shadowOffset: Integer
-		//	How deep to make the shadow appear to be
+		//		How deep to make the shadow appear to be
 		shadowOffset: 3,
 	
 		// opacity: Float
-		//	Overall opacity of the shadow
+		//		Overall opacity of the shadow
 		opacity: 0.75,
 	
 		// animate: Boolean
-		// 	A toggle to disable animated transitions
+		//		A toggle to disable animated transitions
 		animate: false,
 	
 		// node: DomNode
-		// 	The node we will be applying this shadow to
+		//		The node we will be applying this shadow to
 		node: null,
 	
 		startup: function(){
-			// summary: Initializes the shadow.
+			// summary:
+			//		Initializes the shadow.
 	
 			this.inherited(arguments);
 			this.node.style.position = "relative";
@@ -64,7 +64,8 @@ declare("dojox.fx.Shadow", Widget,{
 		},
 	
 		_makePiece: function(name, vertAttach, vertCoord, horzAttach, horzCoord, sizing){
-			// summary: append a shadow pieces to the node, and position it
+			// summary:
+			//		append a shadow pieces to the node, and position it
 			var img;
 			var url = this.shadowPng + name.toUpperCase() + ".png";
 			if(has("ie") < 7){
@@ -87,8 +88,11 @@ declare("dojox.fx.Shadow", Widget,{
 		},
 	
 		setOpacity: function(/* Float */n,/* Object? */animArgs){
-			// summary: set the opacity of the underlay
+			// summary:
+			//		set the opacity of the underlay
+
 			// note: does not work in IE? FIXME.
+
 			if(has("ie")){ return; }
 			if(!animArgs){ animArgs = {}; }
 			if(this.animate){
@@ -104,7 +108,8 @@ declare("dojox.fx.Shadow", Widget,{
 		},
 	
 		setDisabled: function(/* Boolean */disabled){
-			// summary: enable / disable the shadow
+			// summary:
+			//		enable / disable the shadow
 			if(disabled){
 				if(this.disabled){ return; }
 				if(this.animate){ this.nodeList.fadeOut().play();
@@ -119,7 +124,8 @@ declare("dojox.fx.Shadow", Widget,{
 		},
 	
 		resize: function(/* dojox.fx._arg.ShadowResizeArgs */args){
-			// summary: Resizes the shadow based on width and height.
+			// summary:
+			//		Resizes the shadow based on width and height.
 			var x; var y;
 			if(args){ x = args.x; y = args.y;
 			}else{

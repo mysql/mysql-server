@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +64,10 @@ struct AlterTableReq {
   U = Reorg Suma filter flag
   F = Fragment count type flag
   R = Changed Read Backup flag
-
+  m = Modified attribute
            1111111111222222222233
  01234567890123456789012345678901
- nfdrtsafrcCuUFR-----------------
+ nfdrtsafrcCuUFRm----------------
 */
 #define NAME_SHIFT        (0)
 #define FRM_SHIFT         (1)
@@ -84,6 +84,7 @@ struct AlterTableReq {
 #define REORG_SUMA_FILTER (12)
 #define PARTITION_BALANCE_SHIFT (13)
 #define READ_BACKUP_SHIFT (14)
+#define MODIFY_ATTR_SHIFT (15)
 
  /**
    * Getters and setters
@@ -95,6 +96,7 @@ struct AlterTableReq {
    * We can change the name of a table,
    * we can change the frm file of a table,
    * we can change the read backup flag of a table,
+   * we can change the name of an attribute of a table and
    * we can add attributes to a table and
    * we can change the partition balance of a table,
    * we can add fragments to the table.
@@ -109,6 +111,8 @@ struct AlterTableReq {
   static void setRangeListFlag(UintR &  changeMask, Uint32 rangeFlg);
   static Uint8 getAddAttrFlag(const UintR & changeMask);
   static void setAddAttrFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getModifyAttrFlag(const UintR & changeMask);
+  static void setModifyAttrFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getAddFragFlag(const UintR & changeMask);
   static void setAddFragFlag(UintR &  changeMask, Uint32 tsFlg);
   static void setReadBackupFlag(UintR & changeMask, Uint32 tsFlg);
@@ -248,6 +252,18 @@ inline
 void
 AlterTableReq::setAddAttrFlag(UintR & changeMask, Uint32 addAttrFlg){
   changeMask |= (addAttrFlg << ADD_ATTR_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getModifyAttrFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> MODIFY_ATTR_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setModifyAttrFlag(UintR & changeMask, Uint32 addAttrFlg){
+  changeMask |= (addAttrFlg << MODIFY_ATTR_SHIFT);
 }
 
 inline

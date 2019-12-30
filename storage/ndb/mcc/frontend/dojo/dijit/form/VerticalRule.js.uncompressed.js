@@ -1,21 +1,14 @@
-//>>built
 define("dijit/form/VerticalRule", [
 	"dojo/_base/declare", // declare
 	"./HorizontalRule"
 ], function(declare, HorizontalRule){
 
-/*=====
-	var HorizontalRule = dijit.form.HorizontalRule;
-=====*/
-
 	// module:
 	//		dijit/form/VerticalRule
-	// summary:
-	//		Hash marks for the `dijit.form.VerticalSlider`
 
 	return declare("dijit.form.VerticalRule", HorizontalRule, {
 		// summary:
-		//		Hash marks for the `dijit.form.VerticalSlider`
+		//		Hash marks for the `dijit/form/VerticalSlider`
 
 		templateString: '<div class="dijitRuleContainer dijitRuleContainerV"></div>',
 		_positionPrefix: '<div class="dijitRuleMark dijitRuleMarkV" style="top:',

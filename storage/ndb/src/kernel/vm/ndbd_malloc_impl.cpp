@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -578,6 +578,7 @@ Ndbd_mem_manager::ndb_log2(Uint32 input)
 
 Ndbd_mem_manager::Ndbd_mem_manager()
 : m_base_page(NULL),
+  m_dump_on_alloc_fail(false),
   m_mapped_pages_count(0),
   m_mapped_pages_new_count(0)
 {
@@ -647,6 +648,48 @@ Ndbd_mem_manager::get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const
     return true;
   }
   return false;
+}
+
+Uint32
+Ndbd_mem_manager::get_allocated() const
+{
+  return m_resource_limits.get_allocated();
+}
+
+Uint32
+Ndbd_mem_manager::get_reserved() const
+{
+  return m_resource_limits.get_reserved();
+}
+
+Uint32
+Ndbd_mem_manager::get_shared() const
+{
+  return m_resource_limits.get_shared();
+}
+
+Uint32
+Ndbd_mem_manager::get_spare() const
+{
+  return m_resource_limits.get_spare();
+}
+
+Uint32
+Ndbd_mem_manager::get_in_use() const
+{
+  return m_resource_limits.get_in_use();
+}
+
+Uint32
+Ndbd_mem_manager::get_reserved_in_use() const
+{
+  return m_resource_limits.get_reserved_in_use();
+}
+
+Uint32
+Ndbd_mem_manager::get_shared_in_use() const
+{
+  return m_resource_limits.get_shared_in_use();
 }
 
 int
@@ -971,9 +1014,31 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
   for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
     if (m_used_bitmap_pages[i] == start_bmp)
     {
-      m_mapped_pages[m_mapped_pages_new_count].start = start;
-      m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
-      m_mapped_pages_new_count++;
+      /* m_mapped_pages should contain the ranges of allocated pages.
+       * In release build there will typically be one big range.
+       * In debug build there are typically four ranges, one per allocation
+       * zone.
+       * Not all ranges passed to grow() may be used, but for a big range it
+       * is only the first partial range that can not be used.
+       * This part of code will be called with the range passed to top call to
+       * grow() broken up in 8GB regions by recursion above, and the ranges
+       * will always be passed with increasing addresses, and the start will
+       * match end of previous calls range.
+       * To keep use as few entries as possible in m_mapped_pages these
+       * adjacent ranges are combined.
+       */
+      if (m_mapped_pages_new_count > 0 &&
+          m_mapped_pages[m_mapped_pages_new_count - 1].end == start)
+      {
+        m_mapped_pages[m_mapped_pages_new_count - 1].end = start + cnt;
+      }
+      else
+      {
+        require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+        m_mapped_pages[m_mapped_pages_new_count].start = start;
+        m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+        m_mapped_pages_new_count++;
+      }
       goto found;
     }
 
@@ -997,11 +1062,18 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
   ndbout_c("creating bitmap page %d", start_bmp);
 #endif
 
-  require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
-
-  m_mapped_pages[m_mapped_pages_new_count].start = start;
-  m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
-  m_mapped_pages_new_count++;
+  if (m_mapped_pages_new_count > 0 &&
+      m_mapped_pages[m_mapped_pages_new_count - 1].end == start)
+  {
+    m_mapped_pages[m_mapped_pages_new_count - 1].end = start + cnt;
+  }
+  else
+  {
+    require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+    m_mapped_pages[m_mapped_pages_new_count].start = start;
+    m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+    m_mapped_pages_new_count++;
+  }
 
   {
     Alloc_page* bmp = m_base_page + start;
@@ -1127,7 +1199,18 @@ Ndbd_mem_manager::alloc(AllocZone zone,
       return;
     }
     if (z == 0)
+    {
+      if (unlikely(m_dump_on_alloc_fail))
+      {
+        printf("%s: Page allocation failed: zone=%u pages=%u (at least %u)\n",
+               __func__,
+               zone,
+               save,
+               min);
+        dump();
+      }
       return;
+    }
     * pages = save;
   }
 }
@@ -1294,6 +1377,12 @@ Ndbd_mem_manager::dump() const
     m_resource_limits.dump();
   }
   mt_mem_manager_unlock();
+}
+
+void
+Ndbd_mem_manager::dump_on_alloc_fail(bool on)
+{
+  m_dump_on_alloc_fail = on;
 }
 
 void

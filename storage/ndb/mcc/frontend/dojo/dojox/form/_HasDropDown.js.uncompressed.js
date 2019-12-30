@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/_HasDropDown", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",

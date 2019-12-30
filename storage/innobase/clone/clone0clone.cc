@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -30,6 +30,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "clone0clone.h"
+#include <string>
+#ifdef UNIV_DEBUG
+#include "current_thd.h" /* current_thd */
+#include "debug_sync.h"  /* debug_sync_set_action */
+#endif                   /* UNIV_DEBUG */
 
 /** Global Clone System */
 Clone_Sys *clone_sys = nullptr;
@@ -39,6 +44,9 @@ Clone_Sys_State Clone_Sys::s_clone_sys_state = {CLONE_SYS_INACTIVE};
 
 /** Number of active abort requests */
 uint Clone_Sys::s_clone_abort_count = 0;
+
+/** Number of active wait requests */
+uint Clone_Sys::s_clone_wait_count = 0;
 
 Clone_Sys::Clone_Sys()
     : m_clone_arr(),
@@ -143,8 +151,8 @@ int Clone_Sys::find_free_index(Clone_Handle_Type hdl_type, uint &free_index) {
       (hdl_type == CLONE_HDL_COPY && m_num_clones == MAX_CLONES) ||
       (hdl_type == CLONE_HDL_APPLY && m_num_apply_clones == MAX_CLONES)) {
     if (target_clone == nullptr) {
-      my_error(ER_TOO_MANY_CONCURRENT_CLONES, MYF(0), MAX_CLONES);
-      return (ER_TOO_MANY_CONCURRENT_CLONES);
+      my_error(ER_CLONE_TOO_MANY_CONCURRENT_CLONES, MYF(0), MAX_CLONES);
+      return (ER_CLONE_TOO_MANY_CONCURRENT_CLONES);
     }
   } else {
     return (0);
@@ -170,39 +178,39 @@ int Clone_Sys::find_free_index(Clone_Handle_Type hdl_type, uint &free_index) {
   auto err = Clone_Sys::wait(
       sleep_time, time_out, alert_interval,
       [&](bool alert, bool &result) {
-
         ut_ad(mutex_own(clone_sys->get_mutex()));
         auto current_clone = m_clone_arr[target_index];
         result = (current_clone != nullptr);
 
         if (thd_killed(nullptr)) {
-          ib::info(ER_IB_MSG_151)
+          ib::info(ER_IB_CLONE_START_STOP)
               << "Clone Begin Master wait for abort interrupted";
           my_error(ER_QUERY_INTERRUPTED, MYF(0));
           return (ER_QUERY_INTERRUPTED);
 
         } else if (Clone_Sys::s_clone_sys_state == CLONE_SYS_ABORT) {
-          ib::info(ER_IB_MSG_151)
+          ib::info(ER_IB_CLONE_START_STOP)
               << "Clone Begin Master wait for abort interrupted by DDL";
-          my_error(ER_DDL_IN_PROGRESS, MYF(0));
-          return (ER_DDL_IN_PROGRESS);
+          my_error(ER_CLONE_DDL_IN_PROGRESS, MYF(0));
+          return (ER_CLONE_DDL_IN_PROGRESS);
 
         } else if (result) {
           ut_ad(current_clone->is_abort());
         }
 
         if (!result) {
-          ib::info(ER_IB_MSG_151) << "Clone Master aborted idle task";
+          ib::info(ER_IB_CLONE_START_STOP) << "Clone Master aborted idle task";
 
         } else if (alert) {
-          ib::info(ER_IB_MSG_151) << "Clone Master waiting for idle task abort";
+          ib::info(ER_IB_CLONE_TIMEOUT)
+              << "Clone Master waiting for idle task abort";
         }
         return (0);
       },
       clone_sys->get_mutex(), is_timeout);
 
   if (err == 0 && is_timeout) {
-    ib::info(ER_IB_MSG_151) << "Clone Master wait for abort timed out";
+    ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master wait for abort timed out";
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Innodb Clone Copy failed to abort idle clone [timeout]");
     err = ER_INTERNAL_ERROR;
@@ -314,8 +322,8 @@ int Clone_Sys::attach_snapshot(Clone_Handle_Type hdl_type,
   if (free_idx == SNAPSHOT_ARR_SIZE ||
       (hdl_type == CLONE_HDL_COPY && m_num_snapshots == MAX_SNAPSHOTS) ||
       (hdl_type == CLONE_HDL_APPLY && m_num_apply_snapshots == MAX_SNAPSHOTS)) {
-    my_error(ER_TOO_MANY_CONCURRENT_CLONES, MYF(0), MAX_SNAPSHOTS);
-    return (ER_TOO_MANY_CONCURRENT_CLONES);
+    my_error(ER_CLONE_TOO_MANY_CONCURRENT_CLONES, MYF(0), MAX_SNAPSHOTS);
+    return (ER_CLONE_TOO_MANY_CONCURRENT_CLONES);
   }
 
   /* Create a new snapshot. */
@@ -388,7 +396,7 @@ bool Clone_Sys::check_active_clone(bool print_alert) {
   }
 
   if (active_clone && print_alert) {
-    ib::info(ER_IB_MSG_149) << "DDL waiting for CLONE to abort";
+    ib::info(ER_IB_CLONE_TIMEOUT) << "DDL waiting for CLONE to abort";
   }
   return (active_clone);
 }
@@ -426,21 +434,20 @@ bool Clone_Sys::mark_abort(bool force) {
 
     bool is_timeout = false;
 
-    wait(sleep_time, time_out, alert_time,
-         [&](bool alert, bool &result) {
+    wait(
+        sleep_time, time_out, alert_time,
+        [&](bool alert, bool &result) {
+          ut_ad(mutex_own(&m_clone_sys_mutex));
+          result = check_active_clone(alert);
 
-           ut_ad(mutex_own(&m_clone_sys_mutex));
-           result = check_active_clone(alert);
-
-           return (0);
-
-         },
-         &m_clone_sys_mutex, is_timeout);
+          return (0);
+        },
+        &m_clone_sys_mutex, is_timeout);
 
     if (is_timeout) {
       ut_ad(false);
-      ib::warn(ER_IB_MSG_150) << "DDL wait for CLONE abort timed out"
-                                 ", Continuing DDL.";
+      ib::warn(ER_IB_CLONE_TIMEOUT) << "DDL wait for CLONE abort timed out"
+                                       ", Continuing DDL.";
     }
   }
   return (true);
@@ -455,6 +462,74 @@ void Clone_Sys::mark_active() {
   if (s_clone_abort_count == 0) {
     s_clone_sys_state = CLONE_SYS_ACTIVE;
   }
+}
+
+bool Clone_Sys::mark_wait() {
+  ut_ad(mutex_own(&m_clone_sys_mutex));
+
+  /* Check for active clone operations. */
+  auto active_clone = check_active_clone(false);
+
+  /* If active clone is running return. */
+  if (active_clone) {
+    return (false);
+  }
+
+  /* Let any new clone operation wait till mark_free is called. */
+  ++s_clone_wait_count;
+  return (true);
+}
+
+void Clone_Sys::mark_free() {
+  ut_ad(mutex_own(&m_clone_sys_mutex));
+  ut_ad(s_clone_wait_count > 0);
+  --s_clone_wait_count;
+}
+
+int Clone_Sys::wait_for_free(THD *thd) {
+  ut_ad(mutex_own(&m_clone_sys_mutex));
+
+  if (s_clone_wait_count == 0) {
+    return (0);
+  }
+
+  auto wait_condition = [&](bool alert, bool &result) {
+    ut_ad(mutex_own(&m_clone_sys_mutex));
+    result = (s_clone_wait_count == 0);
+    if (alert) {
+      ib::info(ER_IB_CLONE_OPERATION)
+          << "CLONE waiting for redo/undo encryption";
+    }
+    if (thd_killed(thd)) {
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
+      return (ER_QUERY_INTERRUPTED);
+    }
+    return (0);
+  };
+
+  /* Sleep for 100 milliseconds */
+  Clone_Msec sleep_time(100);
+  /* Generate alert message 5 second. */
+  Clone_Sec alert_time(5);
+  /* Timeout in 5 minutes - safeguard against hang, should not happen */
+  Clone_Sec time_out(Clone_Min(5));
+
+  bool is_timeout = false;
+  auto err = wait(sleep_time, time_out, alert_time, wait_condition,
+                  &m_clone_sys_mutex, is_timeout);
+
+  if (err != 0) {
+    return (err);
+  }
+
+  if (is_timeout) {
+    ut_ad(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Innodb Clone timeout waiting for background");
+    return (ER_INTERNAL_ERROR);
+  }
+
+  return (0);
 }
 
 ib_uint64_t Clone_Sys::get_next_id() {
@@ -475,6 +550,13 @@ void Clone_Task_Manager::debug_wait(uint chunk_num, Clone_Task *task) {
   }
 
   if (state == CLONE_SNAPSHOT_FILE_COPY) {
+    DBUG_EXECUTE_IF(
+        "gr_clone_wait",
+        ut_ad(!debug_sync_set_action(
+            current_thd, STRING_WITH_LEN("now  "
+                                         "SIGNAL gr_clone_paused "
+                                         "WAIT_FOR gr_clone_continue "))););
+
     DEBUG_SYNC_C("clone_file_copy");
 
   } else if (state == CLONE_SNAPSHOT_PAGE_COPY) {
@@ -688,7 +770,7 @@ int Clone_Task_Manager::handle_error_other_task(bool set_error) {
   char errbuf[MYSYS_STRERROR_SIZE];
 
   if (set_error && m_saved_error != 0) {
-    ib::info(ER_IB_MSG_151)
+    ib::info(ER_IB_CLONE_OPERATION)
         << "Clone error from other task code: " << m_saved_error;
   }
 
@@ -705,12 +787,12 @@ int Clone_Task_Manager::handle_error_other_task(bool set_error) {
   /* Check if DDL has marked for abort. Ignore for client apply. */
   if ((m_clone_snapshot == nullptr || m_clone_snapshot->is_copy()) &&
       Clone_Sys::s_clone_sys_state == CLONE_SYS_ABORT) {
-    my_error(ER_DDL_IN_PROGRESS, MYF(0));
-    return (ER_DDL_IN_PROGRESS);
+    my_error(ER_CLONE_DDL_IN_PROGRESS, MYF(0));
+    return (ER_CLONE_DDL_IN_PROGRESS);
   }
 
   switch (m_saved_error) {
-    case ER_DDL_IN_PROGRESS:
+    case ER_CLONE_DDL_IN_PROGRESS:
     case ER_QUERY_INTERRUPTED:
       my_error(m_saved_error, MYF(0));
       break;
@@ -723,6 +805,7 @@ int Clone_Task_Manager::handle_error_other_task(bool set_error) {
     case ER_NET_READ_INTERRUPTED:
     case ER_NET_ERROR_ON_WRITE:
     case ER_NET_WRITE_INTERRUPTED:
+    case ER_NET_WAIT_ERROR:
       my_error(m_saved_error, MYF(0));
       break;
 
@@ -749,7 +832,7 @@ int Clone_Task_Manager::handle_error_other_task(bool set_error) {
       my_error(m_saved_error, MYF(0), "file path", m_err_file_name);
       break;
 
-    case ER_CLONE_REMOTE_ERROR:
+    case ER_CLONE_DONOR:
       /* Will get the error message from remote */
       break;
 
@@ -816,20 +899,11 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
     return (err);
   }
 
-  if (m_num_tasks == CLONE_MAX_TASKS) {
-    err = ER_TOO_MANY_CONCURRENT_CLONES;
-    my_error(err, MYF(0), CLONE_MAX_TASKS);
-
-    mutex_exit(&m_state_mutex);
-    return (err);
-  }
-
   if (wait_before_add(ref_loc, loc_len)) {
     bool is_timeout = false;
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = wait_before_add(ref_loc, loc_len);
 
@@ -840,8 +914,8 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_151) << "Clone Add task waiting "
-                                         "for state change";
+              ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Add task waiting "
+                                               "for state change";
             }
           }
           return (err);
@@ -856,7 +930,7 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
       ut_ad(false);
       mutex_exit(&m_state_mutex);
 
-      ib::info(ER_IB_MSG_151) << "Clone Add task timed out";
+      ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Add task timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone Add task failed: "
@@ -867,6 +941,14 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
 
   /* We wait for state transition before adding new task. */
   ut_ad(!in_transit_state());
+
+  if (m_num_tasks == CLONE_MAX_TASKS) {
+    err = ER_CLONE_TOO_MANY_CONCURRENT_CLONES;
+    my_error(err, MYF(0), CLONE_MAX_TASKS);
+
+    mutex_exit(&m_state_mutex);
+    return (err);
+  }
 
   reserve_task(thd, task_id);
   ut_ad(task_id <= m_num_tasks);
@@ -910,7 +992,6 @@ bool Clone_Task_Manager::drop_task(THD *thd, uint task_id, bool &is_master) {
     int alert_count = 0;
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_num_tasks > 0);
 
@@ -918,14 +999,14 @@ bool Clone_Task_Manager::drop_task(THD *thd, uint task_id, bool &is_master) {
             return (ER_QUERY_INTERRUPTED);
 
           } else if (Clone_Sys::s_clone_sys_state == CLONE_SYS_ABORT) {
-            return (ER_DDL_IN_PROGRESS);
+            return (ER_CLONE_DDL_IN_PROGRESS);
           }
           if (alert && result) {
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_154) << "Clone Master drop task waiting "
-                                         "for other tasks";
+              ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master drop task waiting "
+                                               "for other tasks";
             }
           }
           return (0);
@@ -938,7 +1019,7 @@ bool Clone_Task_Manager::drop_task(THD *thd, uint task_id, bool &is_master) {
 
     } else if (is_timeout) {
       ut_ad(false);
-      ib::info(ER_IB_MSG_154) << "Clone Master drop task timed out";
+      ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master drop task timed out";
 
       mutex_exit(&m_state_mutex);
       return (false);
@@ -1109,17 +1190,17 @@ void Clone_Task_Manager::add_incomplete_chunk(Clone_Task *task) {
 
   chunks[task_meta.m_chunk_num] = task_meta.m_block_num;
 
-  ib::info(ER_IB_MSG_151) << "Clone Apply add inclomple Chunk = "
-                          << task_meta.m_chunk_num
-                          << " Block = " << task_meta.m_block_num
-                          << " Task = " << task_meta.m_task_index;
+  ib::info(ER_IB_CLONE_RESTART)
+      << "Clone Apply add incomplete Chunk = " << task_meta.m_chunk_num
+      << " Block = " << task_meta.m_block_num
+      << " Task = " << task_meta.m_task_index;
 }
 
 /** Print completed chunk information
 @param[in]	chunk_info	chunk information */
 static void print_chunk_info(Chunk_Info *chunk_info) {
   for (auto &chunk : chunk_info->m_incomplete_chunks) {
-    ib::info(ER_IB_MSG_151)
+    ib::info(ER_IB_CLONE_RESTART)
         << "Incomplete: Chunk = " << chunk.first << " Block = " << chunk.second;
   }
 
@@ -1128,14 +1209,15 @@ static void print_chunk_info(Chunk_Info *chunk_info) {
 
   auto size = chunk_info->m_reserved_chunks.size_bits();
 
-  ib::info(ER_IB_MSG_151) << "Number of Chunks: " << size << " Min = " << min
-                          << " Max = " << max;
+  ib::info(ER_IB_CLONE_RESTART)
+      << "Number of Chunks: " << size << " Min = " << min << " Max = " << max;
 
   ut_ad(min != max);
 
   if (max > min) {
-    ib::info(ER_IB_MSG_151) << "Reserved Chunk Information : " << min << " - "
-                            << max << " Chunks: " << max - min + 1;
+    ib::info(ER_IB_CLONE_RESTART)
+        << "Reserved Chunk Information : " << min << " - " << max
+        << " Chunks: " << max - min + 1;
 
     for (uint32_t index = min; index <= max;) {
       uint32_t ind = 0;
@@ -1152,7 +1234,7 @@ static void print_chunk_info(Chunk_Info *chunk_info) {
       ut_ad(ind <= STR_SIZE);
       str[ind] = '\0';
 
-      ib::info(ER_IB_MSG_151) << str;
+      ib::info(ER_IB_CLONE_RESTART) << str;
     }
   }
 }
@@ -1183,23 +1265,26 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
 
   switch (m_current_state) {
     case CLONE_SNAPSHOT_INIT:
-      ib::info(ER_IB_MSG_151) << "Clone Apply Restarting State: INIT";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Apply Restarting State: INIT";
       break;
 
     case CLONE_SNAPSHOT_FILE_COPY:
-      ib::info(ER_IB_MSG_151) << "Clone Apply Restarting State: FILE COPY";
+      ib::info(ER_IB_CLONE_OPERATION)
+          << "Clone Apply Restarting State: FILE COPY";
       break;
 
     case CLONE_SNAPSHOT_PAGE_COPY:
-      ib::info(ER_IB_MSG_152) << "Clone Apply Restarting State: PAGE COPY";
+      ib::info(ER_IB_CLONE_OPERATION)
+          << "Clone Apply Restarting State: PAGE COPY";
       break;
 
     case CLONE_SNAPSHOT_REDO_COPY:
-      ib::info(ER_IB_MSG_153) << "Clone Apply Restarting State: REDO COPY";
+      ib::info(ER_IB_CLONE_OPERATION)
+          << "Clone Apply Restarting State: REDO COPY";
       break;
 
     case CLONE_SNAPSHOT_DONE:
-      ib::info(ER_IB_MSG_151) << "Clone Apply Restarting State: DONE";
+      ib::info(ER_IB_CLONE_OPERATION) << "Clone Apply Restarting State: DONE";
       break;
 
     case CLONE_SNAPSHOT_NONE:
@@ -1246,7 +1331,8 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
     len = CLONE_DESC_MAX_BASE_LEN;
     ut_ad(len >= temp_locator.m_header.m_length);
 
-    len += static_cast<uint>(m_chunk_info.get_serialized_length(64));
+    len += static_cast<uint>(m_chunk_info.get_serialized_length(
+        static_cast<uint32_t>(CLONE_MAX_TASKS)));
 
     auto heap = m_clone_snapshot->lock_heap();
 
@@ -1279,23 +1365,23 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
 
   switch (m_current_state) {
     case CLONE_SNAPSHOT_INIT:
-      ib::info(ER_IB_MSG_151) << "Clone Restarting State: INIT";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Restarting State: INIT";
       break;
 
     case CLONE_SNAPSHOT_FILE_COPY:
-      ib::info(ER_IB_MSG_151) << "Clone Restarting State: FILE COPY";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Restarting State: FILE COPY";
       break;
 
     case CLONE_SNAPSHOT_PAGE_COPY:
-      ib::info(ER_IB_MSG_152) << "Clone Restarting State: PAGE COPY";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Restarting State: PAGE COPY";
       break;
 
     case CLONE_SNAPSHOT_REDO_COPY:
-      ib::info(ER_IB_MSG_153) << "Clone Restarting State: REDO COPY";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Restarting State: REDO COPY";
       break;
 
     case CLONE_SNAPSHOT_DONE:
-      ib::info(ER_IB_MSG_151) << "Clone Restarting State: DONE";
+      ib::info(ER_IB_CLONE_RESTART) << "Clone Restarting State: DONE";
       break;
 
     case CLONE_SNAPSHOT_NONE:
@@ -1389,7 +1475,8 @@ void Clone_Task_Manager::ack_state(const Clone_Desc_State *state_desc) {
 
   m_ack_state = state_desc->m_state;
   ut_ad(m_current_state == m_ack_state);
-  ib::info(ER_IB_MSG_151) << "Clone set state change ACK: " << m_ack_state;
+  ib::info(ER_IB_CLONE_OPERATION)
+      << "Clone set state change ACK: " << m_ack_state;
 
   mutex_exit(&m_state_mutex);
 }
@@ -1415,7 +1502,6 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_current_state != m_ack_state);
 
@@ -1426,21 +1512,20 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_151) << "Clone Master waiting "
-                                         "for state change ACK ";
+              ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master waiting "
+                                               "for state change ACK ";
             }
             err = clone->send_keep_alive(task, callback);
           }
           return (err);
-
         },
         &m_state_mutex, is_timeout);
 
     /* Wait too long */
     if (err == 0 && is_timeout) {
       ut_ad(false);
-      ib::info(ER_IB_MSG_151) << "Clone Master wait for state change ACK"
-                                 " timed out";
+      ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Master wait for state change ACK"
+                                       " timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Innodb clone state ack wait too long");
@@ -1451,7 +1536,7 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
   mutex_exit(&m_state_mutex);
 
   if (err == 0) {
-    ib::info(ER_IB_MSG_151) << "Clone Master received state change ACK";
+    ib::info(ER_IB_CLONE_OPERATION) << "Clone Master received state change ACK";
   }
 
   return (err);
@@ -1501,7 +1586,6 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_num_tasks_finished < m_num_tasks);
 
@@ -1512,10 +1596,11 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_151) << "Clone Apply Master waiting for "
-                                         "workers before sending ACK."
-                                      << " Total = " << m_num_tasks
-                                      << " Finished = " << m_num_tasks_finished;
+              ib::info(ER_IB_CLONE_TIMEOUT)
+                  << "Clone Apply Master waiting for "
+                     "workers before sending ACK."
+                  << " Total = " << m_num_tasks
+                  << " Finished = " << m_num_tasks_finished;
             }
           }
           return (err);
@@ -1524,7 +1609,7 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
 
     if (err == 0 && is_timeout) {
       ut_ad(false);
-      ib::info(ER_IB_MSG_151) << "Clone Apply Master wait timed out";
+      ib::info(ER_IB_CLONE_TIMEOUT) << "Clone Apply Master wait timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone Apply Master wait timed out before sending ACK");
@@ -1539,7 +1624,8 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
 
 int Clone_Task_Manager::change_state(Clone_Task *task,
                                      Clone_Desc_State *state_desc,
-                                     Snapshot_State new_state, uint &num_wait) {
+                                     Snapshot_State new_state,
+                                     Clone_Alert_Func cbk, uint &num_wait) {
   mutex_enter(&m_state_mutex);
 
   num_wait = 0;
@@ -1589,16 +1675,16 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
   uint num_pending = 0;
 
   if (m_clone_snapshot->is_copy()) {
-    ib::info(ER_IB_MSG_151)
+    ib::info(ER_IB_CLONE_OPERATION)
         << "Clone State Change : Number of tasks = " << m_num_tasks;
   } else {
-    ib::info(ER_IB_MSG_151)
+    ib::info(ER_IB_CLONE_OPERATION)
         << "Clone Apply State Change : Number of tasks = " << m_num_tasks;
   }
 
-  err = m_clone_snapshot->change_state(state_desc, m_next_state,
-                                       task->m_current_buffer,
-                                       task->m_buffer_alloc_len, num_pending);
+  err = m_clone_snapshot->change_state(
+      state_desc, m_next_state, task->m_current_buffer,
+      task->m_buffer_alloc_len, cbk, num_pending);
   if (err != 0) {
     return (err);
   }
@@ -1609,7 +1695,6 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           num_pending = m_clone_snapshot->check_state(m_next_state, false);
           result = (num_pending > 0);
 
@@ -1622,7 +1707,7 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_151)
+              ib::info(ER_IB_CLONE_TIMEOUT)
                   << "Clone: master state change waiting for other clone";
             }
           }
@@ -1640,7 +1725,7 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
       num_pending = m_clone_snapshot->check_state(m_next_state, true);
       if (num_pending != 0) {
         ut_ad(false);
-        ib::info(ER_IB_MSG_151) << "Clone: master state change timed out";
+        ib::info(ER_IB_CLONE_TIMEOUT) << "Clone: master state change timed out";
         my_error(ER_INTERNAL_ERROR, MYF(0),
                  "Clone: master state change wait for other clones timed out: "
                  "Wait too long for state transition");
@@ -1765,57 +1850,42 @@ Clone_Handle::~Clone_Handle() {
   ut_ad(m_ref_count == 0);
 }
 
-void Clone_Handle::delete_clone_file() {
-  ut_ad(!is_copy_clone());
-  /* Delete clone in progress file on successful completion */
-  char file_name[FN_REFLEN + CLONE_FILE_LEN + 1];
-
-  snprintf(file_name, FN_REFLEN + CLONE_FILE_LEN + 1, "%s%c%s", m_clone_dir,
-           OS_PATH_SEPARATOR, CLONE_IN_PROGRESS_FILE);
-
-  os_file_delete(innodb_clone_file_key, file_name);
-}
-
 int Clone_Handle::create_clone_directory() {
   ut_ad(!is_copy_clone());
+  dberr_t db_err = DB_SUCCESS;
+  std::string file_name;
 
-  char errbuf[MYSYS_STRERROR_SIZE];
-  char file_name[FN_REFLEN + CLONE_FILE_LEN + 1];
-
-  /* Create data directory for clone. */
-  auto db_err = os_file_create_subdirs_if_needed(m_clone_dir);
-
-  if (db_err == DB_SUCCESS) {
-    auto status = os_file_create_directory(m_clone_dir, false);
-
-    if (status) {
-      /* Mark clone in progress */
-      snprintf(file_name, FN_REFLEN + CLONE_FILE_LEN + 1, "%s%c%s", m_clone_dir,
-               OS_PATH_SEPARATOR, CLONE_IN_PROGRESS_FILE);
-
-      auto file =
-          os_file_create(innodb_clone_file_key, file_name,
-                         OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
-                         OS_FILE_NORMAL, OS_CLONE_LOG_FILE, false, &status);
+  if (!replace_datadir()) {
+    /* Create data directory, if we not replacing the current one. */
+    db_err = os_file_create_subdirs_if_needed(m_clone_dir);
+    if (db_err == DB_SUCCESS) {
+      auto status = os_file_create_directory(m_clone_dir, false);
+      /* Create mysql schema directory. */
+      file_name.assign(m_clone_dir);
+      file_name.append(OS_PATH_SEPARATOR_STR);
       if (status) {
-        os_file_close(file);
+        file_name.append("mysql");
+        status = os_file_create_directory(file_name.c_str(), true);
+      }
+      if (!status) {
+        db_err = DB_ERROR;
       }
     }
+    file_name.assign(m_clone_dir);
+    file_name.append(OS_PATH_SEPARATOR_STR);
+  }
 
-    /* Create mysql schema directory. */
-    if (status) {
-      snprintf(file_name, FN_REFLEN + CLONE_FILE_LEN + 1, "%s%cmysql",
-               m_clone_dir, OS_PATH_SEPARATOR);
-
-      status = os_file_create_directory(file_name, true);
-    }
-
+  /* Create clone status directory. */
+  if (db_err == DB_SUCCESS) {
+    file_name.append(CLONE_FILES_DIR);
+    auto status = os_file_create_directory(file_name.c_str(), false);
     if (!status) {
       db_err = DB_ERROR;
     }
   }
-
+  /* Check and report error. */
   if (db_err != DB_SUCCESS) {
+    char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_CANT_CREATE_DB, MYF(0), m_clone_dir, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
 
@@ -1844,6 +1914,11 @@ int Clone_Handle::init(const byte *ref_loc, uint ref_len, Ha_clone_type type,
     }
 
   } else {
+    /* We don't provision instance on which active clone is running. */
+    if (replace_datadir() && clone_sys->check_active_clone(false)) {
+      my_error(ER_CLONE_TOO_MANY_CONCURRENT_CLONES, MYF(0), MAX_CLONES);
+      return (ER_CLONE_TOO_MANY_CONCURRENT_CLONES);
+    }
     /* Return keeping the clone in INIT state. The locator
     would only have the version information. */
     if (ref_loc == nullptr) {
@@ -1955,10 +2030,6 @@ bool Clone_Handle::drop_task(THD *thd, uint task_id, int in_err,
     return (true);
   }
 
-  /* Delete clone in progress file if successful. */
-  if (!is_copy_clone() && is_master && in_err == 0) {
-    delete_clone_file();
-  }
   return (false);
 }
 
@@ -1969,10 +2040,20 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
   auto next_state =
       is_copy_clone() ? snapshot->get_next_state() : state_desc->m_state;
 
+  Clone_Alert_Func alert_callback;
+
+  if (is_copy_clone()) {
+    /* Send Keep alive to recipient during long wait. */
+    alert_callback = [&]() {
+      auto err = send_keep_alive(task, callback);
+      return (err);
+    };
+  }
+
   /* Move to new state */
   uint num_wait = 0;
-  auto err =
-      m_clone_task_manager.change_state(task, state_desc, next_state, num_wait);
+  auto err = m_clone_task_manager.change_state(task, state_desc, next_state,
+                                               alert_callback, num_wait);
 
   /* Need to wait for all other tasks to move over, if any. */
   if (num_wait > 0) {
@@ -1980,11 +2061,10 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           /* For multi threaded clone, master task does the state change. */
           if (task->m_is_master) {
-            err = m_clone_task_manager.change_state(task, state_desc,
-                                                    next_state, num_wait);
+            err = m_clone_task_manager.change_state(
+                task, state_desc, next_state, alert_callback, num_wait);
           } else {
             err = m_clone_task_manager.check_state(task, next_state, false, 0,
                                                    num_wait);
@@ -1995,8 +2075,8 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
             /* Print messages every 1 minute - default is 5 seconds. */
             if (++alert_count == 12) {
               alert_count = 0;
-              ib::info(ER_IB_MSG_151) << "Clone: master state change "
-                                         "waiting for workers";
+              ib::info(ER_IB_CLONE_TIMEOUT) << "Clone: master state change "
+                                               "waiting for workers";
             }
             if (is_copy_clone()) {
               err = send_keep_alive(task, callback);
@@ -2021,8 +2101,8 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
 
     if (err == 0 && is_timeout) {
       ut_ad(false);
-      ib::info(ER_IB_MSG_151) << "Clone: state change: "
-                                 "wait for other tasks timed out";
+      ib::info(ER_IB_CLONE_TIMEOUT) << "Clone: state change: "
+                                       "wait for other tasks timed out";
 
       my_error(ER_INTERNAL_ERROR, MYF(0),
                "Clone: state change wait for other tasks timed out: "
@@ -2131,7 +2211,8 @@ int Clone_Handle::close_file(Clone_Task *task) {
   return (0);
 }
 
-int Clone_Handle::file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len
+int Clone_Handle::file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len,
+                                bool buf_cbk, uint64_t offset
 #ifdef UNIV_PFS_IO
                                 ,
                                 const char *name, uint line
@@ -2164,8 +2245,20 @@ int Clone_Handle::file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len
 
   /* Call appropriate callback to transfer data. */
   if (is_copy_clone()) {
+    /* Send data from file. */
     err = cbk->file_cbk(file, len);
+
+  } else if (buf_cbk) {
+    unsigned char *data_buf = nullptr;
+    uint32_t data_len = 0;
+    /* Get data buffer */
+    err = cbk->apply_buffer_cbk(data_buf, data_len);
+    if (err == 0) {
+      /* Modify and write data buffer to file. */
+      err = modify_and_write(task, offset, data_buf, data_len);
+    }
   } else {
+    /* Write directly to file. */
     err = cbk->apply_file_cbk(file);
   }
 

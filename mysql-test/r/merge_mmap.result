@@ -1,5 +1,3 @@
-SET GLOBAL default_storage_engine = MyISAM;
-SET SESSION default_storage_engine = MyISAM;
 DROP TABLE IF EXISTS t1, t2, m1, m2;
 CREATE TABLE t1 (c1 INT);
 CREATE TABLE t2 (c1 INT);

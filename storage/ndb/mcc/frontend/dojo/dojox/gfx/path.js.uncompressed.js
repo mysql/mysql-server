@@ -1,22 +1,16 @@
-//>>built
 define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./matrix", "./shape"], 
-  function(g, lang, declare, matrix, shapeLib){
-/*===== 
-	dojox.gfx.path = {
-		// summary:
-		//		This module contains the core graphics Path API.
-		//		Path command format follows the W3C SVG 1.0 Path api.
-	};
-	g = dojox.gfx;
-	shape.Shape = dojox.gfx.shape.Shape;
-  =====*/
+	function(g, lang, declare, matrix, shapeLib){
+// summary:
+//		This module contains the core graphics Path API.
+//		Path command format follows the W3C SVG 1.0 Path api.
 
-	var path = g.path = {};
 	var Path = declare("dojox.gfx.path.Path", shapeLib.Shape, {
-		// summary: a generalized path shape
+		// summary:
+		//		a generalized path shape
 
 		constructor: function(rawNode){
-			// summary: a path constructor
+			// summary:
+			//		a path constructor
 			// rawNode: Node
 			//		a DOM node to be used by this path object
 			this.shape = lang.clone(g.defaultPath);
@@ -30,7 +24,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 
 		// mode manipulations
 		setAbsoluteMode: function(mode){
-			// summary: sets an absolute or relative mode for path points
+			// summary:
+			//		sets an absolute or relative mode for path points
 			// mode: Boolean
 			//		true/false or "absolute"/"relative" to specify the mode
 			this._confirmSegmented();
@@ -38,20 +33,23 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		getAbsoluteMode: function(){
-			// summary: returns a current value of the absolute mode
+			// summary:
+			//		returns a current value of the absolute mode
 			this._confirmSegmented();
 			return this.absolute; // Boolean
 		},
 
 		getBoundingBox: function(){
-			// summary: returns the bounding box {x, y, width, height} or null
+			// summary:
+			//		returns the bounding box {x, y, width, height} or null
 			this._confirmSegmented();
-			return (this.bbox && ("l" in this.bbox)) ? {x: this.bbox.l, y: this.bbox.t, width: this.bbox.r - this.bbox.l, height: this.bbox.b - this.bbox.t} : null; // dojox.gfx.Rectangle
+			return (this.bbox && ("l" in this.bbox)) ? {x: this.bbox.l, y: this.bbox.t, width: this.bbox.r - this.bbox.l, height: this.bbox.b - this.bbox.t} : null; // dojox/gfx.Rectangle
 		},
 
 		_getRealBBox: function(){
-			// summary: returns an array of four points or null
-			//	four points represent four corners of the untransformed bounding box
+			// summary:
+			//		returns an array of four points or null
+			//		four points represent four corners of the untransformed bounding box
 			this._confirmSegmented();
 			if(this.tbbox){
 				return this.tbbox;	// Array
@@ -73,7 +71,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 		},
 
 		getLastPosition: function(){
-			// summary: returns the last point in the path, or null
+			// summary:
+			//		returns the last point in the path, or null
 			this._confirmSegmented();
 			return "x" in this.last ? this.last : null; // Object
 		},
@@ -85,7 +84,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 
 		// segment interpretation
 		_updateBBox: function(x, y, m){
-			// summary: updates the bounding box of path with new point
+			// summary:
+			//		updates the bounding box of path with new point
 			// x: Number
 			//		an x coordinate
 			// y: Number
@@ -108,7 +108,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			}
 		},
 		_updateWithSegment: function(segment, matrix){
-			// summary: updates the bounding box of path with new segment
+			// summary:
+			//		updates the bounding box of path with new segment
 			// segment: Object
 			//		a segment
 			var n = segment.args, l = n.length, i;
@@ -210,7 +211,9 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			if(typeof this.shape.path == "string"){
 				this.shape.path += path.join("");
 			}else{
-				Array.prototype.push.apply(this.shape.path, path); //FIXME: why not simple push()?
+				for(i = 0, l = path.length; i < l; ++i){
+					this.shape.path.push(path[i]);
+				}
 			}
 		},
 
@@ -218,7 +221,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 		_validSegments: {m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0},
 
 		_pushSegment: function(action, args){
-			// summary: adds a segment
+			// summary:
+			//		adds a segment
 			// action: String
 			//		valid SVG code for a segment's type
 			// args: Array
@@ -241,11 +245,12 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 		},
 
 		_collectArgs: function(array, args){
-			// summary: converts an array of arguments to plain numeric values
+			// summary:
+			//		converts an array of arguments to plain numeric values
 			// array: Array
 			//		an output argument (array of numbers)
 			// args: Array
-			//		an input argument (can be values of Boolean, Number, dojox.gfx.Point, or an embedded array of them)
+			//		an input argument (can be values of Boolean, Number, dojox/gfx.Point, or an embedded array of them)
 			for(var i = 0; i < args.length; ++i){
 				var t = args[i];
 				if(typeof t == "boolean"){
@@ -262,7 +267,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 
 		// segments
 		moveTo: function(){
-			// summary: forms a move segment
+			// summary:
+			//		forms a move segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -270,7 +276,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		lineTo: function(){
-			// summary: forms a line segment
+			// summary:
+			//		forms a line segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -278,7 +285,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		hLineTo: function(){
-			// summary: forms a horizontal line segment
+			// summary:
+			//		forms a horizontal line segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -286,7 +294,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		vLineTo: function(){
-			// summary: forms a vertical line segment
+			// summary:
+			//		forms a vertical line segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -294,7 +303,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		curveTo: function(){
-			// summary: forms a curve segment
+			// summary:
+			//		forms a curve segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -302,7 +312,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		smoothCurveTo: function(){
-			// summary: forms a smooth curve segment
+			// summary:
+			//		forms a smooth curve segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -310,7 +321,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		qCurveTo: function(){
-			// summary: forms a quadratic curve segment
+			// summary:
+			//		forms a quadratic curve segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -318,7 +330,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		qSmoothCurveTo: function(){
-			// summary: forms a quadratic smooth curve segment
+			// summary:
+			//		forms a quadratic smooth curve segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -326,7 +339,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		arcTo: function(){
-			// summary: forms an elliptic arc segment
+			// summary:
+			//		forms an elliptic arc segment
 			this._confirmSegmented();
 			var args = [];
 			this._collectArgs(args, arguments);
@@ -334,7 +348,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			return this; // self
 		},
 		closePath: function(){
-			// summary: closes a path
+			// summary:
+			//		closes a path
 			this._confirmSegmented();
 			this._pushSegment("Z", []);
 			return this; // self
@@ -355,7 +370,8 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 
 		// setShape
 		_setPath: function(path){
-			// summary: forms a path using an SVG path string
+			// summary:
+			//		forms a path using an SVG path string
 			// path: String
 			//		an SVG path string
 			var p = lang.isArray(path) ? path : path.match(g.pathSvgRegExp);
@@ -383,9 +399,10 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			this._pushSegment(action, args);
 		},
 		setShape: function(newShape){
-			// summary: forms a path using a shape
+			// summary:
+			//		forms a path using a shape
 			// newShape: Object
-			//		an SVG path string or a path object (see dojox.gfx.defaultPath)
+			//		an SVG path string or a path object (see dojox/gfx.defaultPath)
 			this.inherited(arguments, [typeof newShape == "string" ? {path: newShape} : newShape]);
 
 			this.segmented = false;
@@ -401,10 +418,12 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 	});
 
 	var TextPath = declare("dojox.gfx.path.TextPath", Path, {
-		// summary: a generalized TextPath shape
+		// summary:
+		//		a generalized TextPath shape
 
 		constructor: function(rawNode){
-			// summary: a TextPath shape constructor
+			// summary:
+			//		a TextPath shape constructor
 			// rawNode: Node
 			//		a DOM node to be used by this TextPath object
 			if(!("text" in this)){
@@ -415,22 +434,26 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 			}
 		},
 		getText: function(){
-			// summary: returns the current text object or null
+			// summary:
+			//		returns the current text object or null
 			return this.text;	// Object
 		},
 		setText: function(newText){
-			// summary: sets a text to be drawn along the path
+			// summary:
+			//		sets a text to be drawn along the path
 			this.text = g.makeParameters(this.text,
 				typeof newText == "string" ? {text: newText} : newText);
 			this._setText();
 			return this;	// self
 		},
 		getFont: function(){
-			// summary: returns the current font object or null
+			// summary:
+			//		returns the current font object or null
 			return this.fontStyle;	// Object
 		},
 		setFont: function(newFont){
-			// summary: sets a font for text
+			// summary:
+			//		sets a font for text
 			this.fontStyle = typeof newFont == "string" ?
 				g.splitFontString(newFont) :
 				g.makeParameters(g.defaultFont, newFont);
@@ -439,7 +462,7 @@ define("dojox/gfx/path", ["./_base", "dojo/_base/lang","dojo/_base/declare", "./
 		}
 	});
 
-	return { // our hash of newly defined objects
+	return g.path = { // our hash of newly defined objects
 		Path: Path,
 		TextPath: TextPath
 	};

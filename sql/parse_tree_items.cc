@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,15 +25,53 @@
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/udf_registration_types.h"
+#include "mysql_com.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/item_cmpfunc.h"  // Item_func_eq
 #include "sql/mysqld.h"        // using_udf_functions
 #include "sql/parse_tree_nodes.h"
+#include "sql/protocol.h"
 #include "sql/sp.h"
 #include "sql/sp_pcontext.h"  // sp_pcontext
 #include "sql/sql_udf.h"
 #include "sql/table.h"
 #include "sql/trigger_def.h"
+
+/**
+  Apply a truth test to given expression. Either the expression can implement
+  it itself, or we create an Item node to implement it by wrapping the
+  expression. Expression is possibly an incomplete predicate.
+
+  @param pc   current parse context
+  @param expr expression
+  @param truth_test  test to apply
+
+  @returns the resulting expression, or NULL if error
+*/
+
+static Item *change_truth_value_of_condition(Parse_context *pc, Item *expr,
+                                             Item::Bool_test truth_test) {
+  switch (truth_test) {
+    case Item::BOOL_NEGATED:
+    case Item::BOOL_IS_TRUE:
+    case Item::BOOL_IS_FALSE:
+    case Item::BOOL_NOT_TRUE:
+    case Item::BOOL_NOT_FALSE:
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  // Ensure that all incomplete predicates are made complete:
+  if (!expr->is_bool_func()) {
+    expr = make_condition(pc, expr);
+    if (expr == nullptr) return nullptr;
+  }
+  Item *changed = expr->truth_transformer(pc->thd, truth_test);
+  if (changed != nullptr) return changed;
+  if (truth_test == Item::BOOL_NEGATED)
+    return new (pc->mem_root) Item_func_not(expr);
+  return new (pc->mem_root) Item_func_truth(expr, truth_test);
+}
 
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.
@@ -72,7 +110,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
 
   Item *result;
 
-  DBUG_ENTER("handle_sql2003_note184_exception");
+  DBUG_TRACE;
 
   if (expr->type() == Item::SUBSELECT_ITEM) {
     Item_subselect *expr2 = (Item_subselect *)expr;
@@ -92,9 +130,11 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
       subselect = expr3->invalidate_and_restore_select_lex();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
-      if (!equal) result = negate_expression(pc, result);
+      if (!equal)
+        result =
+            change_truth_value_of_condition(pc, result, Item::BOOL_NEGATED);
 
-      DBUG_RETURN(result);
+      return result;
     }
   }
 
@@ -103,7 +143,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   else
     result = new (pc->mem_root) Item_func_ne(left, expr);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {
@@ -312,7 +352,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   sp_variable *spv;
 
-  if (pctx && (spv = pctx->find_variable(ident, false))) {
+  if (pctx && (spv = pctx->find_variable(ident.str, ident.length, false))) {
     sp_head *sp = lex->sphead;
 
     DBUG_ASSERT(sp);
@@ -337,6 +377,25 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
     if (*res == NULL || (*res)->itemize(pc, res)) return true;
   }
   return *res == NULL;
+}
+
+bool PTI_simple_ident_q_3d::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res)) return true;
+
+  THD *thd = pc->thd;
+  const char *schema =
+      thd->get_protocol()->has_client_capability(CLIENT_NO_SCHEMA) ? nullptr
+                                                                   : db;
+  if (pc->select->no_table_names_allowed) {
+    my_error(ER_TABLENAME_NOT_ALLOWED_HERE, MYF(0), table, thd->where);
+  }
+  if ((pc->select->parsing_place != CTX_HAVING) ||
+      (pc->select->get_in_sum_expr() > 0)) {
+    *res = new (pc->mem_root) Item_field(POS(), schema, table, field);
+  } else {
+    *res = new (pc->mem_root) Item_ref(POS(), schema, table, field);
+  }
+  return *res == nullptr || (*res)->itemize(pc, res);
 }
 
 bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
@@ -388,4 +447,11 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;
   }
   return false;
+}
+
+bool PTI_truth_transform::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+
+  *res = change_truth_value_of_condition(pc, expr, truth_test);
+  return *res == NULL;
 }

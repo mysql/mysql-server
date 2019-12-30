@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include <stddef.h>
 
@@ -54,6 +55,7 @@ PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
 
 void pfs_memory_free_v1(PSI_memory_key key, size_t size, PSI_thread *owner);
 
+#endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_MEMORY_INTERFACE */

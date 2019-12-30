@@ -1,7 +1,7 @@
 //>>built
 define("dojox/av/FLAudio",["dojo","dojox/embed/Flash","dojox/timing/doLater"],function(_1,_2){
 _1.experimental("dojox.av.FLVideo");
-_1.declare("dojox.av.FLAudio",null,{id:"",initialVolume:0.7,initialPan:0,isDebug:false,statusInterval:200,_swfPath:_1.moduleUrl("dojox.av","resources/audio.swf"),allowScriptAccess:"always",allowNetworking:"all",constructor:function(_3){
+return _1.declare("dojox.av.FLAudio",null,{id:"",initialVolume:0.7,initialPan:0,isDebug:false,statusInterval:200,_swfPath:_1.moduleUrl("dojox.av","resources/audio.swf"),allowScriptAccess:"always",allowNetworking:"all",constructor:function(_3){
 _1.global.swfIsInHTML=function(){
 return true;
 };
@@ -16,7 +16,7 @@ this.init();
 },init:function(){
 this._subs=[];
 this.initialVolume=this._normalizeVolume(this.initialVolume);
-var _4={path:this._swfPath.uri,width:"1px",height:"1px",minimumVersion:9,expressInstall:true,params:{wmode:"transparent",allowScriptAccess:this.allowScriptAccess,allowNetworking:this.allowNetworking},vars:{id:this.id,autoPlay:this.autoPlay,initialVolume:this.initialVolume,initialPan:this.initialPan,statusInterval:this.statusInterval,isDebug:this.isDebug}};
+var _4={path:this._swfPath,width:"1px",height:"1px",minimumVersion:9,expressInstall:true,params:{wmode:"transparent",allowScriptAccess:this.allowScriptAccess,allowNetworking:this.allowNetworking},vars:{id:this.id,autoPlay:this.autoPlay,initialVolume:this.initialVolume,initialPan:this.initialPan,statusInterval:this.statusInterval,isDebug:this.isDebug}};
 this._sub("mediaError","onError");
 this._sub("filesProgress","onLoadStatus");
 this._sub("filesAllLoaded","onAllLoaded");
@@ -24,45 +24,42 @@ this._sub("mediaPosition","onPlayStatus");
 this._sub("mediaEnd","onComplete");
 this._sub("mediaMeta","onID3");
 this._flashObject=new dojox.embed.Flash(_4,this.domNode);
-this._flashObject.onError=function(_5){
-console.warn("Flash Error:",_5);
-};
-this._flashObject.onLoad=_1.hitch(this,function(_6){
-this.flashMedia=_6;
+this._flashObject.onError=_1.hitch(this,this.onError);
+this._flashObject.onLoad=_1.hitch(this,function(_5){
+this.flashMedia=_5;
 this.isPlaying=this.autoPlay;
 this.isStopped=!this.autoPlay;
 this.onLoad(this.flashMedia);
 });
-},load:function(_7){
+},load:function(_6){
 if(dojox.timing.doLater(this.flashMedia,this)){
 return false;
 }
-if(!_7.url){
+if(!_6.url){
 throw new Error("An url is required for loading media");
-return false;
 }else{
-_7.url=this._normalizeUrl(_7.url);
+_6.url=this._normalizeUrl(_6.url);
 }
-this.flashMedia.load(_7);
-return _7.url;
-},doPlay:function(_8){
-this.flashMedia.doPlay(_8);
-},pause:function(_9){
-this.flashMedia.pause(_9);
-},stop:function(_a){
-this.flashMedia.doStop(_a);
-},setVolume:function(_b){
-this.flashMedia.setVolume(_b);
-},setPan:function(_c){
-this.flashMedia.setPan(_c);
-},getVolume:function(_d){
-return this.flashMedia.getVolume(_d);
-},getPan:function(_e){
-return this.flashMedia.getPan(_e);
-},getPosition:function(_f){
-return this.flashMedia.getPosition(_f);
-},onError:function(msg){
-console.warn("SWF ERROR:",msg);
+this.flashMedia.load(_6);
+return _6.url;
+},doPlay:function(_7){
+this.flashMedia.doPlay(_7);
+},pause:function(_8){
+this.flashMedia.pause(_8);
+},stop:function(_9){
+this.flashMedia.doStop(_9);
+},setVolume:function(_a){
+this.flashMedia.setVolume(_a);
+},setPan:function(_b){
+this.flashMedia.setPan(_b);
+},getVolume:function(_c){
+return this.flashMedia.getVolume(_c);
+},getPan:function(_d){
+return this.flashMedia.getPan(_d);
+},getPosition:function(_e){
+return this.flashMedia.getPosition(_e);
+},onError:function(_f){
+console.warn("SWF ERROR:",_f);
 },onLoadStatus:function(_10){
 },onAllLoaded:function(){
 },onPlayStatus:function(_11){
@@ -99,5 +96,4 @@ _15=loc+_15;
 }
 return _15;
 }});
-return dojox.av.FLAudio;
 });

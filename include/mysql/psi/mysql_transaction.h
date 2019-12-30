@@ -207,6 +207,6 @@ static inline void inline_mysql_commit_transaction(
 }
 #endif
 
-  /** @} (end of group psi_api_transaction) */
+/** @} (end of group psi_api_transaction) */
 
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -638,7 +638,7 @@ class Certifier : public Certifier_interface {
   /**
     The group GTID assignment block size.
   */
-  ulonglong gtid_assignment_block_size;
+  uint64 gtid_assignment_block_size;
 
   /**
     List of free GTID intervals in group

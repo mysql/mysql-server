@@ -18,6 +18,6 @@ this.GAonLoad.apply(this,arguments);
 },GAonLoad:function(){
 this.trackPageView();
 },trackPageView:function(_8){
-this.tracker._trackPageview.apply(this,arguments);
+this.tracker._trackPageview.apply(this.tracker,arguments);
 }});
 });

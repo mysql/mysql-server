@@ -1,33 +1,29 @@
-//>>built
 define("dijit/registry", [
 	"dojo/_base/array", // array.forEach array.map
-	"dojo/_base/sniff", // has("ie")
+	"dojo/sniff", // has("ie")
 	"dojo/_base/unload", // unload.addOnWindowUnload
 	"dojo/_base/window", // win.body
-	"."	// dijit._scopeName
+	"./main"	// dijit._scopeName
 ], function(array, has, unload, win, dijit){
 
 	// module:
 	//		dijit/registry
-	// summary:
-	//		Registry of existing widget on page, plus some utility methods.
-	//		Must be accessed through AMD api, ex:
-	//		require(["dijit/registry"], function(registry){ registry.byId("foo"); })
 
 	var _widgetTypeCtr = {}, hash = {};
 
 	var registry =  {
 		// summary:
-		//		A set of widgets indexed by id
+		//		Registry of existing widget on page, plus some utility methods.
 
+		// length: Number
+		//		Number of registered widgets
 		length: 0,
 
-		add: function(/*dijit._Widget*/ widget){
+		add: function(widget){
 			// summary:
 			//		Add a widget to the registry. If a duplicate ID is detected, a error is thrown.
-			//
-			// widget: dijit._Widget
-			//		Any dijit._Widget subclass.
+			// widget: dijit/_WidgetBase
+			//		Any dijit/_WidgetBase subclass.
 			if(hash[widget.id]){
 				throw new Error("Tried to register widget with id==" + widget.id + " but that id is already registered");
 			}
@@ -49,13 +45,13 @@ define("dijit/registry", [
 			// summary:
 			//		Find a widget by it's id.
 			//		If passed a widget then just returns the widget.
-			return typeof id == "string" ? hash[id] : id;	// dijit._Widget
+			return typeof id == "string" ? hash[id] : id;	// dijit/_WidgetBase
 		},
 
 		byNode: function(/*DOMNode*/ node){
 			// summary:
 			//		Returns the widget corresponding to the given DOMNode
-			return hash[node.getAttribute("widgetId")]; // dijit._Widget
+			return hash[node.getAttribute("widgetId")]; // dijit/_WidgetBase
 		},
 
 		toArray: function(){
@@ -64,13 +60,13 @@ define("dijit/registry", [
 			//
 			// example:
 			//		Work with the widget .domNodes in a real Array
-			//		|	array.map(dijit.registry.toArray(), function(w){ return w.domNode; });
+			//		|	array.map(registry.toArray(), function(w){ return w.domNode; });
 
 			var ar = [];
 			for(var id in hash){
 				ar.push(hash[id]);
 			}
-			return ar;	// dijit._Widget[]
+			return ar;	// dijit/_WidgetBase[]
 		},
 
 		getUniqueId: function(/*String*/widgetType){
@@ -86,10 +82,14 @@ define("dijit/registry", [
 			return dijit._scopeName == "dijit" ? id : dijit._scopeName + "_" + id; // String
 		},
 
-		findWidgets: function(/*DomNode*/ root){
+		findWidgets: function(root, skipNode){
 			// summary:
 			//		Search subtree under root returning widgets found.
 			//		Doesn't search for nested widgets (ie, widgets inside other widgets).
+			// root: DOMNode
+			//		Node to search under.
+			// skipNode: DOMNode
+			//		If specified, don't search beneath this node (usually containerNode).
 
 			var outAry = [];
 
@@ -102,7 +102,7 @@ define("dijit/registry", [
 							if(widget){	// may be null on page w/multiple dojo's loaded
 								outAry.push(widget);
 							}
-						}else{
+						}else if(node !== skipNode){
 							getChildrenHelper(node);
 						}
 					}
@@ -141,7 +141,7 @@ define("dijit/registry", [
 			//		Returns the widget whose DOM tree contains the specified DOMNode, or null if
 			//		the node is not contained within the DOM tree of any widget
 			while(node){
-				var id = node.getAttribute && node.getAttribute("widgetId");
+				var id = node.nodeType == 1 && node.getAttribute("widgetId");
 				if(id){
 					return hash[id];
 				}
@@ -155,20 +155,6 @@ define("dijit/registry", [
 		_hash: hash
 	};
 
-	if(has("ie")){
-		// Only run _destroyAll() for IE because we think it's only necessary in that case,
-		// and because it causes problems on FF.  See bug #3531 for details.
-		unload.addOnWindowUnload(function(){
-			registry._destroyAll();
-		});
-	}
-
-	/*=====
-	dijit.registry = {
-		// summary:
-		//		A list of widgets on a page.
-	};
-	=====*/
 	dijit.registry = registry;
 
 	return registry;

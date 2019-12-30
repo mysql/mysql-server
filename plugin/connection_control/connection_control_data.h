@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,9 @@ namespace connection_control {
 class Connection_control_variables {
  public:
   /* Various global variables */
-  int64 failed_connections_threshold;
-  int64 min_connection_delay;
-  int64 max_connection_delay;
+  long long failed_connections_threshold;
+  long long min_connection_delay;
+  long long max_connection_delay;
 };
 
 /** Structure to maintain statistics */

@@ -1,16 +1,31 @@
-drop table if exists t1,dummy;
-drop table if exists t1,dummy;
-CREATE TABLE dummy (dummyk INT PRIMARY KEY) ENGINE = NDB;
-DROP TABLE dummy;
+#
+# Tests to test binlogging after mysqld restart
+# This file has tests for the following :
+# 1. WL#12731: Improve database synchronization during mysqld startup
+# 2. Bug#17250994 BAD BINLOG GENERATION AFTER MISMATCH TABLE DISCOVER
+#
+# Reset binlogging for test
 reset master;
 reset master;
+# Setup
 create table t1 (a int unsigned auto_increment not null primary key)
 engine=ndbcluster;
+# Shutdown server 1
+# Run DDLs to be tested on Server1 startup
+# Alter table while server 1 is down (To test Bug#17250994)
 alter table t1 algorithm=inplace, add column b varchar(16);
 Warnings:
 Warning	1478	Converted FIXED field 'b' to DYNAMIC to enable online ADD COLUMN
+# Create databases when server 1 is down (To test WL#12731)
+create database test_db;
+create table test_db.t1(a int) engine ndb;
+# Startup server1
+# Check that the tables are all discovered
 show tables;
 Tables_in_test
+t1
+show tables in test_db;
+Tables_in_test_db
 t1
 show create table t1;
 Table	Create Table
@@ -19,116 +34,42 @@ t1	CREATE TABLE `t1` (
   `b` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table test_db.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Insert into tables and check binlog
 insert into t1 (b) values('String to find');
-CREATE TABLE dummy (dummyk INT PRIMARY KEY) ENGINE = NDB;
-DROP TABLE dummy;
+# Wait for the row to be committed to binlog
+insert into test_db.t1 values (1);
+# Wait for the row to be committed to binlog
+# check that data went in ok
 select * from t1;
 a	b
 1	String to find
+select * from test_db.t1;
+a
+1
+# Verify the row was properly binlogged after alter table
 FLUSH BINARY LOGS;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###   @2='String to find'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# View binlog to verify that INSERTS were written properly
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000003	#	Query	#	#	BEGIN
+binlog.000003	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000003	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000003	#	Write_rows	#	#	table_id: #
+binlog.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000003	#	Query	#	#	COMMIT
+binlog.000003	#	Query	#	#	BEGIN
+binlog.000003	#	Table_map	#	#	table_id: # (test_db.t1)
+binlog.000003	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
+binlog.000003	#	Write_rows	#	#	table_id: #
+binlog.000003	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000003	#	Query	#	#	COMMIT
+binlog.000003	#	Rotate	#	#	binlog.000004;pos=POS
+# Cleanup
+drop database test_db;
 drop table t1;

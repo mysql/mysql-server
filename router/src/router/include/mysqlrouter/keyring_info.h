@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,16 +110,16 @@ class KeyringInfo {
    * @param master_key_file The path to master key file
    */
   KeyringInfo(const std::string &keyring_file,
-              const std::string &master_key_file) noexcept
+              const std::string &master_key_file)
       : keyring_file_(keyring_file), master_key_file_(master_key_file) {}
 
-  void set_keyring_file(const std::string &keyring_file) noexcept {
+  void set_keyring_file(const std::string &keyring_file) {
     keyring_file_ = keyring_file;
   }
 
   const std::string &get_keyring_file() const noexcept { return keyring_file_; }
 
-  void set_master_key_file(const std::string &master_key_file) noexcept {
+  void set_master_key_file(const std::string &master_key_file) {
     master_key_file_ = master_key_file;
   }
 
@@ -127,7 +127,7 @@ class KeyringInfo {
     return master_key_file_;
   }
 
-  void set_master_key_reader(const std::string &master_key_reader) noexcept {
+  void set_master_key_reader(const std::string &master_key_reader) {
     master_key_reader_ = master_key_reader;
   }
 
@@ -135,7 +135,7 @@ class KeyringInfo {
     return master_key_reader_;
   }
 
-  void set_master_key_writer(const std::string &master_key_writer) noexcept {
+  void set_master_key_writer(const std::string &master_key_writer) {
     master_key_writer_ = master_key_writer;
   }
 
@@ -143,7 +143,7 @@ class KeyringInfo {
     return master_key_writer_;
   }
 
-  void set_master_key(const std::string &master_key) noexcept {
+  void set_master_key(const std::string &master_key) {
     master_key_ = master_key;
   }
 
@@ -154,10 +154,8 @@ class KeyringInfo {
    * keyring_file, master_key_file_, master_key_reader_ and master_key_writer.
    *
    * @param config The Config that is used to initialize KeyringInfo
-   * @param bootstrap_directory The path to bootstrap directory
    */
-  void init(mysql_harness::Config &config,
-            const std::string &bootstrap_directory) noexcept;
+  void init(mysql_harness::Config &config);
 
   /**
    * @brief Reads master key using master_key_reader_;
@@ -220,9 +218,7 @@ class KeyringInfo {
    *
    * @return The path to keyring file
    */
-  std::string get_keyring_file(const mysql_harness::Config &config,
-                               const std::string &bootstrap_directory) const
-      noexcept;
+  std::string get_keyring_file(const mysql_harness::Config &config) const;
 };
 
 #endif /* KEYRING_INFO_INCLUDED */

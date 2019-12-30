@@ -42,13 +42,11 @@ INSERT INTO t1 VALUES ('C', 'Cottbus', 0, 0 ,0);
 INSERT INTO t1 VALUES ('H', 'Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t1;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -58,7 +56,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -76,7 +74,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -97,7 +95,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "# Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -114,7 +112,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E,H:\n";
+print "# Here are the memcached results with E,H:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
@@ -153,13 +151,11 @@ INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -169,7 +165,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -188,7 +184,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -209,7 +205,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "# Here are the memcached results with E:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $memd->disconnect_all;
@@ -226,7 +222,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E,H:\n";
+print "# Here are the memcached results with E,H:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
@@ -265,14 +261,13 @@ INSERT INTO containers VALUES ("desc_t2", "junk", "t2",
 			       "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
 
 # even though the plugin can be installed, the initialization will fail
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 perl;
 use DBI;
 use Cache::Memcached;
-print " This will fail, since memcached not initialized \n";
+print "# This will fail, since memcached not initialized\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -310,14 +305,13 @@ ENGINE = INNODB;
 INSERT INTO t2 VALUES (3, 't2_Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
 use Cache::Memcached;
-print " This will success, since memcached support int as key \n";
+print "# This will succeed, since memcached supports int as key\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -345,14 +339,13 @@ INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 
 UNINSTALL PLUGIN daemon_memcached;
 
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-
-SELECT SLEEP(2);
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 perl;
 use DBI;
 use Cache::Memcached;
-print " This will fail, since memcached not initialized \n";
+print "# This will fail, since memcached not initialized\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -389,13 +382,11 @@ CREATE TABLE t2        (c1 VARCHAR(32),
 ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -405,7 +396,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -415,9 +406,15 @@ else {
 $memd->disconnect_all;
 EOF
 
+# This test could fail when run with --repeat>1 because the monotonic
+# counter used for CAS is not reset between runs (it is a static
+# variable inside mci_get_cas() function).
+# To overcome this we take note of baseline cas value first
+# and then subtract it from subsequent queries.
+SELECT MAX(c4) INTO @baseline_cas_value FROM t2;
 # Notice the cas value is updated
 --sorted_result
-SELECT c1, c2, c4 FROM t2;
+SELECT c1, c2, c4-@baseline_cas_value as relative_cas FROM t2;
 
 perl;
 use DBI;
@@ -427,7 +424,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add G|Gossen:\n";
+print "# Add G|Gossen:\n";
 if ($memd->add("G","Gossen")) {
   print "Ok.\n";
 }
@@ -444,7 +441,7 @@ $memd->disconnect_all;
 EOF
 
 --sorted_result
-SELECT c1,c2, c4 FROM t2;
+SELECT c1, c2, c4-@baseline_cas_value as relative_cas FROM t2;
 
 
 #----------------------------------------------------------------
@@ -452,7 +449,7 @@ SELECT c1,c2, c4 FROM t2;
 #----------------------------------------------------------------
 
 --sorted_result
-SELECT * FROM test.t2;
+SELECT c1,c2,c3,c4-@baseline_cas_value as relative_cas,c5 FROM test.t2;
 
 perl;
 use DBI;
@@ -462,7 +459,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add B|Berlin expires in 1 seconds:\n";
+print "# Add B|Berlin expires in 1 seconds:\n";
 if ($memd->add("B","Berlin",1)) {
   print "Ok.\n";
 }
@@ -472,12 +469,13 @@ else {
 $memd->disconnect_all;
 EOF
 
+# This sleep is really neaded to make the key in memcache expire
 select sleep(3);
 
 perl;
 use DBI;
 use Cache::Memcached;
-print " Should not find B|Berlin, since it is expired \n";
+print "# Should not find B|Berlin, since it is expired\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -496,7 +494,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add C|Cottbus, expires 100 seconds:\n";
+print "# Add C|Cottbus, expires 100 seconds:\n";
 if ($memd->add("C","Cottbus", 100)) {
   print "Ok.\n";
 }
@@ -507,7 +505,7 @@ else {
 perl;
 use DBI;
 use Cache::Memcached;
-print " Should be able to find  C|Cottbus, assume it does not take 100s to get here \n";
+print "# Should be able to find  C|Cottbus, assume it does not take 100s to get here\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -528,7 +526,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add J|Jilin\n";
+print "# Add J|Jilin\n";
 if ($memd->add("J","Jilin", 2592001)) {
   print "Ok.\n";
 }
@@ -541,7 +539,7 @@ EOF
 perl;
 use DBI;
 use Cache::Memcached;
-print " Should not find  J|Jilin, it should be expired \n";
+print "# Should not find  J|Jilin, it should be expired\n";
 my $memd = new Cache::Memcached {
   'servers' => [ "127.0.0.1:11250" ],
   'connect_timeout' => 20,
@@ -583,13 +581,11 @@ INSERT INTO t2 VALUES ('C', 't2_Cottbus', 0, 0 ,0);
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_success.inc
 
-# The following select is writing all to  memcache otherwisw memcache is empty.
 --sorted_result
 SELECT c1,c2 FROM t2;
-
-SELECT SLEEP(2);
 
 perl;
 use DBI;
@@ -599,7 +595,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -626,7 +622,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Add E|Essen:\n";
+print "# Add E|Essen:\n";
 if ($memd->add("E","Essen")) {
   print "Ok.\n";
 }
@@ -649,9 +645,9 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E:\n";
+print "# Here are the memcached results with E:\n";
 $val = $memd->get("E");
-if ($val) { print "value of E is $val end. \n"; }
+if ($val) { print "# value of E is $val end.\n"; }
 $memd->disconnect_all;
 EOF
 
@@ -666,7 +662,7 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Here the memcached results with E,H:\n";
+print "# Here are the memcached results with E,H:\n";
 $val = $memd->get("E");
 if ($val) { print "$val\n"; }
 $val = $memd->get("H");
@@ -684,12 +680,13 @@ show create table test.t2;
 
 # This install will not initialize the table mapping, due to column
 # type mismatch
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11250
+--source ../include/load_daemon_memcached_expecting_error.inc
 
 #----------------------------------------------------------------
 DROP TABLE t2;
 
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
- 
+
 SET @@global.transaction_isolation= @transaction_isolation;

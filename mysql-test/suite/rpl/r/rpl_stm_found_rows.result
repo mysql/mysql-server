@@ -18,12 +18,20 @@ INSERT INTO t1 SELECT 2*a+3 FROM t1;
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 a
 7
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS() INTO @a;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 INSERT INTO logtbl VALUES(1,1,@a);
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a < 5 ORDER BY a LIMIT 1;
 a
 1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS() INTO @a;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 INSERT INTO logtbl VALUES(1,2,@a);
 SELECT * FROM logtbl WHERE sect = 1 ORDER BY sect,test;
 sect	test	count
@@ -46,6 +54,11 @@ SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 SELECT FOUND_ROWS() INTO cnt;
 INSERT INTO logtbl VALUES(sect,test+1,cnt);
 END $$
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 CALL calc_and_log(2,1);
 a
 1
@@ -57,7 +70,11 @@ END $$
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 a
 7
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS() INTO @found_rows;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 CALL just_log(2,3,@found_rows);
 SELECT * FROM logtbl WHERE sect = 2 ORDER BY sect,test;
 sect	test	count
@@ -82,7 +99,11 @@ END $$
 SELECT SQL_CALC_FOUND_ROWS * FROM t1 WHERE a > 5 ORDER BY a LIMIT 1;
 a
 7
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 SELECT FOUND_ROWS() INTO @found_rows;
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT log_rows(3,1,@found_rows), log_rows(3,2,@found_rows);
 log_rows(3,1,@found_rows)	log_rows(3,2,@found_rows)
 183	183

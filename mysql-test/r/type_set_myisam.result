@@ -1,0 +1,11 @@
+create table t1 (a set (' ','a','b ') not null default 'b ');
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` set('','a','b') NOT NULL DEFAULT 'b'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+CREATE TABLE t1 (   user varchar(64) NOT NULL default '',   path varchar(255) NOT NULL default '',   privilege   set('select','RESERVED30','RESERVED29','RESERVED28','RESERVED27','RESERVED26',   'RESERVED25','RESERVED24','data.delete','RESERVED22','RESERVED21',   'RESERVED20','data.insert.none','data.insert.approve',   'data.insert.delete','data.insert.move','data.insert.propose',   'data.insert.reject','RESERVED13','RESERVED12','RESERVED11','RESERVED10',   'RESERVED09','data.update','RESERVED07','RESERVED06','RESERVED05',   'RESERVED04','metadata.delete','metadata.put','RESERVED01','RESERVED00')   NOT NULL default '',   KEY user (user)   ) ENGINE=MyISAM CHARSET=utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+DROP TABLE t1;

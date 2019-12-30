@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ class Binlog_encryption_istream : public Basic_seekable_istream {
 
  private:
   /* The decryptor cypher to decrypt the content read from down stream */
-  std::unique_ptr<Rpl_cipher> m_decryptor;
+  std::unique_ptr<Stream_cipher> m_decryptor;
   /* The down stream containing the encrypted content */
   std::unique_ptr<Basic_seekable_istream> m_down_istream;
 };

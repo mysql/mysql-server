@@ -9,6 +9,10 @@ score smallint(5) unsigned,
 lsg char(40),
 date date
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1,1,'','0000-00-00');
 INSERT INTO t1 VALUES (2,2,2,'','0000-00-00');
 INSERT INTO t1 VALUES (2,1,1,'','0000-00-00');
@@ -27,6 +31,8 @@ ort char(35),
 land char(20),
 PRIMARY KEY (userID)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (2,'name','pass','mail','Y','v','n','adr','1','1','1');
 INSERT INTO t2 VALUES (3,'name','pass','mail','Y','v','n','adr','1','1','1');
@@ -40,10 +46,10 @@ EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=
 EXPLAIN
 -> Table scan on <temporary>
     -> Aggregate using temporary table
-        -> Nested loop inner join
-            -> Filter: (t1.userID is not null)
-                -> Table scan on t1
-            -> Single-row index lookup on t2 using PRIMARY (userID=t1.userID)
+        -> Nested loop inner join  (cost=2.05 rows=4)
+            -> Filter: (t1.userID is not null)  (cost=0.65 rows=4)
+                -> Table scan on t1  (cost=0.65 rows=4)
+            -> Single-row index lookup on t2 using PRIMARY (userID=t1.userID)  (cost=0.28 rows=1)
 
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 userid	MIN(t1.score)
@@ -93,6 +99,16 @@ KEY reason (reason),
 KEY method (method),
 KEY payDate (payDate)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'1970-01-01','1997-10-17 00:00:00',2529,1,21000,11886,'check',0,'F',16200,6);
 SELECT COUNT(P.URID),SUM(P.amount),P.method, MIN(PP.recdate+0) > 19980501000000   AS IsNew FROM t1 AS P JOIN t1 as PP WHERE P.URID = PP.URID GROUP BY method,IsNew;
 ERROR 42000: Can't group on 'IsNew'
@@ -103,6 +119,8 @@ firstname varchar(32) DEFAULT '' NOT NULL,
 surname varchar(32) DEFAULT '' NOT NULL,
 PRIMARY KEY (cid)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'That','Guy');
 INSERT INTO t1 VALUES (2,'Another','Gent');
 CREATE TABLE t2 (
@@ -111,6 +129,9 @@ contact_id mediumint(8) DEFAULT '0' NOT NULL,
 PRIMARY KEY (call_id),
 KEY contact_id (contact_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 lock tables t1 read,t2 write;
 INSERT INTO t2 VALUES (10,2);
 INSERT INTO t2 VALUES (18,2);
@@ -166,6 +187,13 @@ KEY target_milestone (target_milestone),
 KEY qa_contact (qa_contact),
 KEY votes (votes)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0,'','normal','','2000-02-10 09:25:12',20000321114747,'','','Linux','P1','TestProduct','PC',3,'other','TestComponent','','M1',0,'',0);
 INSERT INTO t1 VALUES (9,0,0,'','enhancement','','2000-03-10 11:49:36',20000321114747,'','','All','P5','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
 INSERT INTO t1 VALUES (10,0,0,'','enhancement','','2000-03-10 18:10:16',20000321114747,'','','All','P4','AAAAA','PC',3,'2.00 CD - Pre','BBBBBBBBBBBBB - conversion','','',0,'',0);
@@ -275,6 +303,10 @@ score smallint(5) unsigned,
 key (spid),
 key (score)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1,1),(2,2,2),(2,1,1),(3,3,3),(4,3,3),(5,3,3),(6,3,3),(7,3,3);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -521,18 +553,27 @@ value int(11) unsigned NOT NULL default '0',
 UNIQUE KEY pid2 (pid,c1id,c2id),
 UNIQUE KEY pid (pid,value)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
 CREATE TABLE t2 (
 id int(11) unsigned NOT NULL default '0',
 active enum('Yes','No') NOT NULL default 'Yes',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
 CREATE TABLE t3 (
 id int(11) unsigned NOT NULL default '0',
 active enum('Yes','No') NOT NULL default 'Yes',
 PRIMARY KEY  (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (3, 'Yes');
 select * from t1 AS m LEFT JOIN t2 AS c1 ON m.c1id = 
 c1.id AND c1.active = 'Yes' LEFT JOIN t3 AS c2 ON m.c2id = c2.id AND 
@@ -657,6 +698,9 @@ userid int(10) unsigned,
 score smallint(5) unsigned,
 key (score)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1),(2,2),(1,1),(3,3),(3,3),(3,3),(3,3),(3,3);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -676,6 +720,9 @@ CREATE TABLE t1 (
 i int(11) default NULL,
 j int(11) default NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,2),(2,3),(4,5),(3,5),(1,5),(23,5);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
@@ -792,13 +839,14 @@ x3.a,  -- 3
 concat('val-', x3.a + 3*x4.a), -- 12
 concat('val-', @a:=x3.a + 3*x4.a + 12*C.a), -- 120
 concat('val-', @a + 120*D.a)
-from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4;
+from t1 x3, t1 x4, t1 C, t1 D where x3.a < 3 and x4.a < 4 and D.a < 4
+order by x3.a, x4.a, C.a, D.a;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	6	100.00	Using where
+1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a` = 2) and (`test`.`t2`.`b` = 'val-2')) group by `test`.`t2`.`c`
 select c from t2 where a = 2 and b = 'val-2' group by c;
@@ -932,6 +980,8 @@ CREATE TABLE t1 (
 f1 int(10) unsigned NOT NULL auto_increment primary key,
 f2 varchar(100) NOT NULL default ''
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 f1 varchar(10) NOT NULL default '',
 f2 char(3) NOT NULL default '',
@@ -967,9 +1017,14 @@ show warnings;
 Level	Code	Message
 drop table t1, t2;
 CREATE TABLE t1 (a tinyint(3), b varchar(255), PRIMARY KEY  (a));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'-----'), (6,'Allemagne'), (17,'Autriche'), 
 (25,'Belgique'), (54,'Danemark'), (62,'Espagne'), (68,'France');
 CREATE TABLE t2 (a tinyint(3), b tinyint(3), PRIMARY KEY  (a), KEY b (b));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,1), (2,1), (6,6), (18,17), (15,25), (16,25),
 (17,25), (10,54), (5,62),(3,68);
 CREATE VIEW v1 AS select t1.a, concat(t1.b,'') AS b, t1.b as real_b from t1;
@@ -1439,6 +1494,10 @@ PRIMARY KEY (pk),
 KEY int_key (int_key),
 KEY varchar_key (varchar_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (1,5,5, 'h','h'),
 (2,1,1, '{','{'),
@@ -1457,7 +1516,7 @@ explain SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 Warnings:
-Note	1003	/* select#1 */ select count(`test`.`t1`.`varchar_key`) AS `x` from `test`.`t1` where multiple equal(8, `test`.`t1`.`pk`) having 0
+Note	1003	/* select#1 */ select count(`test`.`t1`.`varchar_key`) AS `x` from `test`.`t1` where multiple equal(8, `test`.`t1`.`pk`) having false
 SELECT COUNT(varchar_key) AS x FROM t1 WHERE pk = 8 having 'foo'='bar';
 x
 drop table t1;
@@ -1748,7 +1807,7 @@ EXPLAIN SELECT 1 FROM t1 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY,i2	PRIMARY	4	NULL	144	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t1.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` semi join (`test`.`t1` IGNORE INDEX (`i2`) USE INDEX (`i2`)) where (`<subquery2>`.`a` = `test`.`t1`.`a`)
@@ -1771,7 +1830,7 @@ EXPLAIN SELECT 1 FROM t2 WHERE a IN
 (SELECT a FROM t1 USE INDEX (i2) IGNORE INDEX (i2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	a	a	5	NULL	4	100.00	Using where; Using index
-1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t2.a	1	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	4	test.t2.a	1	100.00	NULL
 2	MATERIALIZED	t1	NULL	ALL	NULL	NULL	NULL	NULL	144	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` semi join (`test`.`t1` IGNORE INDEX (`i2`) USE INDEX (`i2`)) where (`<subquery2>`.`a` = `test`.`t2`.`a`)
@@ -2360,7 +2419,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	#	90.00	Using where; Using temporary; Using filesort
 1	SIMPLE	alias2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.alias1.col_int_key	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where ((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`) and `test`.`alias1`.`pk`) group by `field2` order by `test`.`alias1`.`col_int_key`
+Note	1003	/* select#1 */ select sum(`test`.`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`test`.`alias2`.`pk` AS `field2` from `test`.`t1` `alias1` straight_join `test`.`t2` `alias2` where ((`test`.`alias2`.`pk` = `test`.`alias1`.`col_int_key`) and (0 <> `test`.`alias1`.`pk`)) group by `field2` order by `test`.`alias1`.`col_int_key`
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
@@ -2439,7 +2498,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select sql_buffer_result `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where `test`.`t1`.`col1` group by `test`.`t2`.`col2`
+Note	1003	/* select#1 */ select sql_buffer_result `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where (0 <> `test`.`t1`.`col1`) group by `test`.`t2`.`col2`
 SELECT SQL_BUFFER_RESULT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 col2
 8
@@ -2449,7 +2508,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where `test`.`t1`.`col1` group by `test`.`t2`.`col2`
+Note	1003	/* select#1 */ select `test`.`t2`.`col2` AS `col2` from `test`.`t2` join `test`.`t1` where (0 <> `test`.`t1`.`col1`) group by `test`.`t2`.`col2`
 SELECT t2.col2 FROM t2 JOIN t1 ON t1.col1 GROUP BY t2.col2;
 col2
 8
@@ -2551,6 +2610,9 @@ pk int(11) NOT NULL,
 col_int_nokey int(11) NOT NULL,
 PRIMARY KEY (pk)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO ot VALUES (10,8);
 
 SELECT col_int_nokey, MAX( pk ) 
@@ -2586,6 +2648,8 @@ CREATE TABLE t2 (
 a varchar(1),
 b int(11)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('a',1);
 ANALYZE TABLE t1,t2;
 Table	Op	Msg_type	Msg_text
@@ -2762,16 +2826,22 @@ PRIMARY KEY (pk),
 KEY col_datetime_key (col_datetime_key),
 KEY col_varchar_key (col_varchar_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (  
 pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (  
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_varchar_key varchar(1) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE VIEW view1 AS SELECT * FROM t1;
 ANALYZE TABLE t1,t2,t3;
 Table	Op	Msg_type	Msg_text
@@ -2798,7 +2868,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_datetime_key` AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where 0 group by `field1`
+Note	1003	/* select#1 */ select `test`.`t1`.`col_datetime_key` AS `field1` from `test`.`t1` join `test`.`t3` `alias2` where false group by `field1`
 DROP TABLE t1,t2,t3;
 DROP VIEW view1;
 CREATE TABLE t1 (
@@ -2808,6 +2878,8 @@ col_varchar_nokey varchar(1) DEFAULT NULL,
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 col_int_key int(11) DEFAULT NULL,
 col_varchar_key varchar(1) DEFAULT NULL,
@@ -2815,6 +2887,8 @@ col_varchar_nokey varchar(1) DEFAULT NULL,
 KEY col_int_key (col_int_key),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE ALGORITHM=MERGE VIEW view1 AS
 SELECT CONCAT( table1.col_varchar_nokey , table2.col_varchar_key ) AS
 field1
@@ -2882,10 +2956,16 @@ CREATE TABLE t1 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
 NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
 NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
 (col_varchar_key,col_int_key));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
 NULL, col_varchar_key varchar(1) NOT NULL, col_varchar_nokey varchar(1) NOT
 NULL, PRIMARY KEY (pk), KEY col_int_key (col_int_key), KEY col_varchar_key
 (col_varchar_key,col_int_key));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT SUM(alias2.col_varchar_nokey) , alias2.pk AS field2 FROM t1 AS alias1
 STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 group by field2 ORDER BY alias1.col_int_key,alias2.pk ;
@@ -2896,11 +2976,17 @@ NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
 NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
 col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
 col_varchar_key (col_varchar_key,col_int_key));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (pk int(11) NOT NULL AUTO_INCREMENT, col_int_key int(11) NOT
 NULL, col_datetime_key datetime NOT NULL, col_varchar_key varchar(1) NOT
 NULL, col_varchar_nokey varchar(1) NOT NULL, PRIMARY KEY (pk), KEY
 col_int_key (col_int_key), KEY col_datetime_key (col_datetime_key), KEY
 col_varchar_key (col_varchar_key,col_int_key));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT alias2.col_varchar_key AS field1 ,
 COUNT(DISTINCT alias1.col_varchar_nokey), alias2.pk AS field4
 FROM t1 AS alias1
@@ -3824,10 +3910,9 @@ INSERT INTO t1 VALUES ( 3, 5 );
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
 -> Sort: <temporary>.x
-    -> Table scan on <temporary>
-        -> Temporary table
-            -> Group aggregate: count(distinct t1.f2)
-                -> Index scan on t1 using k1
+    -> Stream results
+        -> Group aggregate: count(distinct t1.f2)
+            -> Index scan on t1 using k1  (cost=0.85 rows=6)
 
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 f1	f1 + 1	x
@@ -3861,3 +3946,14 @@ SELECT COUNT(pk) FROM d WHERE EXISTS (SELECT col_varchar FROM c);
 COUNT(pk)
 5
 DROP TABLE c, d;
+#
+# Bug #29396628: SIG 6 AT LIST<ITEM>::END | SQL_LIST.H
+#
+CREATE TABLE t1 (
+f1 integer,
+f2 integer,
+f3 integer
+);
+SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
+f1	f2	f3
+DROP TABLE t1;

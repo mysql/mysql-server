@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -29,26 +29,20 @@
 #include <string>
 
 #include "decimal.h"
+
 #include "plugin/x/client/mysqlxclient/xdatetime.h"
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
 #include "plugin/x/client/mysqlxclient/xrow.h"
 #include "plugin/x/client/xrow_impl.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_buffer.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
+#include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
-#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
-namespace xpl {
+namespace protocol {
 namespace test {
 
-using ngs::Page_output_stream;
-using ngs::Page_pool;
-using ngs::Row_builder;
-
-const ngs::Pool_config default_pool_config = {0, 0, BUFFER_PAGE_SIZE};
-
-static std::vector<std::shared_ptr<ngs::Page>> page_del;
+using ::xpl::test::message_with_header_from_buffer;
 
 template <typename Expected_value_type, typename Method_type>
 void assert_row_getter(const Expected_value_type &expected_value,
@@ -61,140 +55,136 @@ void assert_row_getter(const Expected_value_type &expected_value,
   ASSERT_EQ(expected_value, value);
 }
 
-TEST(row_builder, row_start) {
-  Row_builder rb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+class Row_builder_testsuite : public testing::Test {
+ public:
+  std::string get_buffer_as_string() {
+    std::string result;
+    auto page = m_buffer.m_front;
 
-  rb.start_row(obuffer.get());
+    while (page) {
+      result += std::string(reinterpret_cast<const char *>(page->m_begin_data),
+                            page->get_used_bytes());
+      page = page->m_next_page;
+    }
 
-  rb.add_null_field();
-  rb.add_null_field();
+    return result;
+  }
 
-  rb.start_row(obuffer.get());
-  rb.end_row();
+  ngs::Memory_block_pool m_memory_block_pool{{20, k_minimum_page_size}};
+  Encoding_pool m_pool{10, &m_memory_block_pool};
+  Encoding_buffer m_buffer{&m_pool};
+  XMessage_encoder m_encoder{&m_buffer};
+  XRow_encoder m_row{&m_encoder};
+};
 
-  ASSERT_EQ(0u, rb.get_num_fields());
-  ASSERT_FALSE(NULL == obuffer);
+TEST_F(Row_builder_testsuite, row_start) {
+  m_row.begin_row();
+
+  m_row.field_null();
+  m_row.field_null();
+
+  ASSERT_EQ(2u, m_row.get_num_fields());
+
+  m_row.begin_row();
+  m_row.end_row();
+
+  ASSERT_EQ(0u, m_row.get_num_fields());
 }
 
-TEST(row_builder, row_msg_size) {
-  Row_builder rb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+TEST_F(Row_builder_testsuite, row_msg_size) {
+  m_row.begin_row();
+  m_row.field_null();
+  m_row.end_row();
 
-  rb.start_row(obuffer.get());
-  rb.add_null_field();
-  rb.end_row();
-
-  auto pages = get_pages_from_stream(obuffer.get());
+  auto row_data = get_buffer_as_string();
   // 1 byte for msg tag + 1 byte for field header + 1 byte
   // for field value (NULL)
-  ASSERT_EQ(7, pages[0].second);
-  ASSERT_EQ(3u, pages[0].first[0]);
-  ASSERT_EQ(0u, pages[0].first[1]);
-  ASSERT_EQ(0u, pages[0].first[2]);
-  ASSERT_EQ(0u, pages[0].first[3]);
+  ASSERT_EQ(7, row_data.length());
+  ASSERT_EQ(3u, row_data[0]);
+  ASSERT_EQ(0u, row_data[1]);
+  ASSERT_EQ(0u, row_data[2]);
+  ASSERT_EQ(0u, row_data[3]);
 
-  rb.start_row(obuffer.get());
-  rb.add_null_field();
-  rb.add_null_field();
-  rb.end_row();
+  m_row.begin_row();
+  m_row.field_null();
+  m_row.field_null();
+  m_row.end_row();
 
   // offset of the size is 7 (3 bytes for prev msg + 4 for its size)
-  pages = get_pages_from_stream(obuffer.get());
+  auto two_row_data = get_buffer_as_string();
   // 1 byte for msg tag + 2*(1 byte for field header + 1 byte
   // for field value (NULL))
-  ASSERT_EQ(16, pages[0].second);
-  ASSERT_EQ(5u, pages[0].first[7]);
-  ASSERT_EQ(0u, pages[0].first[8]);
-  ASSERT_EQ(0u, pages[0].first[9]);
-  ASSERT_EQ(0u, pages[0].first[10]);
+  ASSERT_EQ(16, two_row_data.length());
+  ASSERT_EQ(5u, two_row_data[7]);
+  ASSERT_EQ(0u, two_row_data[8]);
+  ASSERT_EQ(0u, two_row_data[9]);
+  ASSERT_EQ(0u, two_row_data[10]);
 }
 
-TEST(row_builder, row_abort) {
-  Row_builder rb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+TEST_F(Row_builder_testsuite, row_abort) {
+  m_row.begin_row();
 
-  rb.start_row(obuffer.get());
+  m_row.field_null();
+  m_row.field_null();
 
-  rb.add_null_field();
-  rb.add_null_field();
+  m_row.abort_row();
+  m_row.end_row();
 
-  rb.abort_row();
-  ASSERT_EQ(0u, rb.get_num_fields());
-
-  rb.end_row();
+  auto row_data = get_buffer_as_string();
+  ASSERT_EQ(0u, row_data.length());
 }
 
-TEST(row_builder, fields_qty) {
-  Row_builder rb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+TEST_F(Row_builder_testsuite, fields_qty) {
+  m_row.begin_row();
 
-  rb.start_row(obuffer.get());
+  ASSERT_EQ(0u, m_row.get_num_fields());
 
-  ASSERT_EQ(0u, rb.get_num_fields());
+  m_row.field_null();
+  m_row.field_null();
 
-  rb.add_null_field();
-  rb.add_null_field();
+  ASSERT_EQ(2u, m_row.get_num_fields());
 
-  ASSERT_EQ(2u, rb.get_num_fields());
+  m_row.field_unsigned_longlong(0);
+  m_row.field_float(0.0f);
+  m_row.field_float(0.0f);
 
-  rb.add_longlong_field(0, true);
-  rb.add_float_field(0.0f);
-  rb.add_float_field(0.0f);
+  ASSERT_EQ(5u, m_row.get_num_fields());
 
-  ASSERT_EQ(5u, rb.get_num_fields());
-
-  rb.end_row();
-
-  ASSERT_EQ(0u, rb.get_num_fields());
+  m_row.end_row();
 }
 
-TEST(row_builder, null_field) {
-  Row_builder rb;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+TEST_F(Row_builder_testsuite, null_field) {
+  m_row.begin_row();
 
-  rb.start_row(obuffer.get());
+  m_row.field_null();
 
-  rb.add_null_field();
-
-  rb.end_row();
+  m_row.end_row();
 
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
-  ASSERT_EQ(0u, row->mutable_field(0)->length());
+  ASSERT_EQ(1, row->field_size());
+  ASSERT_EQ(0u, row->field(0).length());
 }
 
-TEST(row_builder, unsigned64_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, unsigned64_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_longlong_field(0, true);
-  rb.add_longlong_field(500, true);
-  rb.add_longlong_field(10000000, true);
-  rb.add_longlong_field(0x7fffffffffffffffLL, true);
-  rb.add_longlong_field(1, true);
-  rb.add_longlong_field(0xffffffffffffffffLL, true);
+  m_row.field_unsigned_longlong(0);
+  m_row.field_unsigned_longlong(500);
+  m_row.field_unsigned_longlong(10000000);
+  m_row.field_unsigned_longlong(0x7fffffffffffffffLL);
+  m_row.field_unsigned_longlong(1);
+  m_row.field_unsigned_longlong(0xffffffffffffffffLL);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   assert_row_getter<uint64_t>(static_cast<uint64_t>(0),
@@ -214,25 +204,22 @@ TEST(row_builder, unsigned64_field) {
                               &xcl::row_decoder::buffer_to_u64, *buffer);
 }
 
-TEST(row_builder, signed64_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, signed64_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_longlong_field(0, false);
-  rb.add_longlong_field(-500, false);
-  rb.add_longlong_field(-10000000, false);
-  rb.add_longlong_field(0x7fffffffffffffffLL, false);
-  rb.add_longlong_field(-1, false);
+  m_row.field_signed_longlong(0);
+  m_row.field_signed_longlong(-500);
+  m_row.field_signed_longlong(-10000000);
+  m_row.field_signed_longlong(0x7fffffffffffffffLL);
+  m_row.field_signed_longlong(-1);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   assert_row_getter<int64_t>(0, &xcl::row_decoder::buffer_to_s64, *buffer);
@@ -248,26 +235,23 @@ TEST(row_builder, signed64_field) {
   assert_row_getter<int64_t>(-1, &xcl::row_decoder::buffer_to_s64, *buffer);
 }
 
-TEST(row_builder, float_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, float_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_float_field(0.0f);
-  rb.add_float_field(0.0001f);
-  rb.add_float_field(-10000000.1f);
-  rb.add_float_field(9999.91992f);
-  rb.add_float_field(std::numeric_limits<float>::min());
-  rb.add_float_field(std::numeric_limits<float>::max());
+  m_row.field_float(0.0f);
+  m_row.field_float(0.0001f);
+  m_row.field_float(-10000000.1f);
+  m_row.field_float(9999.91992f);
+  m_row.field_float(std::numeric_limits<float>::min());
+  m_row.field_float(std::numeric_limits<float>::max());
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   assert_row_getter<float>(0.0f, &xcl::row_decoder::buffer_to_float, *buffer);
@@ -290,26 +274,23 @@ TEST(row_builder, float_field) {
                            &xcl::row_decoder::buffer_to_float, *buffer);
 }
 
-TEST(row_builder, double_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, double_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_double_field(0.0);
-  rb.add_double_field(0.0001);
-  rb.add_double_field(-10000000.1);
-  rb.add_double_field(9999.91992);
-  rb.add_double_field(std::numeric_limits<double>::min());
-  rb.add_double_field(std::numeric_limits<double>::max());
+  m_row.field_double(0.0);
+  m_row.field_double(0.0001);
+  m_row.field_double(-10000000.1);
+  m_row.field_double(9999.91992);
+  m_row.field_double(std::numeric_limits<double>::min());
+  m_row.field_double(std::numeric_limits<double>::max());
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   assert_row_getter<double>(0.0, &xcl::row_decoder::buffer_to_double, *buffer);
@@ -330,25 +311,21 @@ TEST(row_builder, double_field) {
                             &xcl::row_decoder::buffer_to_double, *buffer);
 }
 
-TEST(row_builder, string_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, string_field) {
   std::string *buffer;
   int idx = 0;
   const char *pstr;
   size_t len;
   const char *const STR1 = "ABBABABBBAAA-09-0900--==0,\0\0\0\0\0";
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+  m_row.begin_row();
 
-  rb.start_row(obuffer.get());
+  m_row.field_string("", 0);
+  m_row.field_string(STR1, strlen(STR1));
 
-  rb.add_string_field("", 0);
-  rb.add_string_field(STR1, strlen(STR1));
-
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   ASSERT_TRUE(xcl::row_decoder::buffer_to_string(*buffer, &pstr, &len));
@@ -363,26 +340,23 @@ TEST(row_builder, string_field) {
   ASSERT_EQ(len, strlen(STR1));
 }
 
-TEST(row_builder, date_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, date_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
   MYSQL_TIME time;
   time.year = 2006;
   time.month = 3;
   time.day = 24;
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_date_field(&time);
+  m_row.field_date(&time);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
@@ -393,13 +367,9 @@ TEST(row_builder, date_field) {
   ASSERT_EQ(time.day, xtime.day());
 }
 
-TEST(row_builder, time_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, time_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
   MYSQL_TIME time;
   time.neg = false;
@@ -422,15 +392,16 @@ TEST(row_builder, time_field) {
   time3.second = 0;
   time3.second_part = 0;
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_time_field(&time, 0);
-  rb.add_time_field(&time2, 0);
-  rb.add_time_field(&time3, 0);
+  m_row.field_time(&time);
+  m_row.field_time(&time2);
+  m_row.field_time(&time3);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
 
   buffer = row->mutable_field(idx++);
   xcl::Time xtime;
@@ -459,13 +430,9 @@ TEST(row_builder, time_field) {
   ASSERT_EQ(time3.second_part, xtime.useconds());
 }
 
-TEST(row_builder, datetime_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, datetime_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
   MYSQL_TIME time;
   time.year = 2016;
@@ -487,14 +454,15 @@ TEST(row_builder, datetime_field) {
   time2.second_part = 0;
   time2.time_type = MYSQL_TIMESTAMP_DATETIME;
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_datetime_field(&time, 0);
-  rb.add_datetime_field(&time2, 0);
+  m_row.field_datetime(&time);
+  m_row.field_datetime(&time2);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
@@ -519,28 +487,25 @@ TEST(row_builder, datetime_field) {
   ASSERT_EQ(time2.second_part, xtime.useconds());
 }
 
-TEST(row_builder, decimal_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, decimal_field) {
   std::string *buffer;
   int idx = 0;
   xcl::Decimal xdecimal;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
   decimal_digit_t arr1[] = {1, 0};
   decimal_t dec1 = {1, 1, 2, 1, arr1};
-  rb.add_decimal_field(&dec1);
+  m_row.field_decimal(&dec1);
 
   decimal_digit_t arr2[] = {1, 0};
   decimal_t dec2 = {1, 1, 2, 0, arr2};
-  rb.add_decimal_field(&dec2);
+  m_row.field_decimal(&dec2);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
 
   buffer = row->mutable_field(idx++);
   ASSERT_TRUE(xcl::row_decoder::buffer_to_decimal(*buffer, &xdecimal));
@@ -551,23 +516,21 @@ TEST(row_builder, decimal_field) {
   ASSERT_EQ("1.0", xdecimal.to_string());
 }
 
-TEST(row_builder, set_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, set_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
+  m_row.begin_row();
 
-  rb.start_row(obuffer.get());
+  const char *const str_abcd = "A,B,C,D";
+  const char *const str_a = "A";
+  m_row.field_set(str_abcd, strlen(str_abcd));
+  m_row.field_set("", 0);  // empty SET case
+  m_row.field_set(str_a, strlen(str_a));
 
-  rb.add_set_field("A,B,C,D", strlen("A,B,C,D"));
-  rb.add_set_field("", strlen(""));  // empty SET case
-  rb.add_set_field("A", strlen("A"));
-
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row(
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get()));
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string()));
 
   buffer = row->mutable_field(idx++);
   std::set<std::string> elems;
@@ -595,25 +558,22 @@ TEST(row_builder, set_field) {
   ASSERT_STREQ("A", elems_string.c_str());
 }
 
-TEST(row_builder, bit_field) {
-  Row_builder rb;
+TEST_F(Row_builder_testsuite, bit_field) {
   std::string *buffer;
   int idx = 0;
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
 
-  rb.start_row(obuffer.get());
+  m_row.begin_row();
 
-  rb.add_bit_field("\x00", 1);
-  rb.add_bit_field("\x01", 1);
-  rb.add_bit_field("\xff\x00", 2);
-  rb.add_bit_field("\x00\x00\x00\x00\x00\x00\x00\x00", 8);
-  rb.add_bit_field("\xff\xff\xff\xff\xff\xff\xff\xff", 8);
+  m_row.field_bit("\x00", 1);
+  m_row.field_bit("\x01", 1);
+  m_row.field_bit("\xff\x00", 2);
+  m_row.field_bit("\x00\x00\x00\x00\x00\x00\x00\x00", 8);
+  m_row.field_bit("\xff\xff\xff\xff\xff\xff\xff\xff", 8);
 
-  rb.end_row();
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
 
   buffer = row->mutable_field(idx++);
   assert_row_getter<uint64_t>(0x0u, &xcl::row_decoder::buffer_to_u64, *buffer);
@@ -630,7 +590,7 @@ TEST(row_builder, bit_field) {
                               &xcl::row_decoder::buffer_to_u64, *buffer);
 }
 
-TEST(row_builder, datetime_content_type_set) {
+TEST_F(Row_builder_testsuite, datetime_content_type_set) {
   xcl::XRow_impl::Metadata metadata;
   xcl::XRow_impl::Metadata::value_type metadata_row;
   metadata_row.type = xcl::Column_type::DATETIME;
@@ -644,10 +604,6 @@ TEST(row_builder, datetime_content_type_set) {
 
   ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
 
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
-
   MYSQL_TIME time;
   time.year = 2016;
   time.month = 12;
@@ -658,12 +614,12 @@ TEST(row_builder, datetime_content_type_set) {
   time.second_part = 999999;
   time.time_type = MYSQL_TIMESTAMP_DATETIME;
 
-  Row_builder rb;
-  rb.start_row(obuffer.get());
-  rb.add_datetime_field(&time, 0);
-  rb.end_row();
+  m_row.begin_row();
+  m_row.field_datetime(&time);
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
   row_mock.set_row(std::move(row));
 
   xcl::DateTime result;
@@ -678,7 +634,7 @@ TEST(row_builder, datetime_content_type_set) {
   EXPECT_EQ(result.useconds(), time.second_part);
 }
 
-TEST(row_builder, datetime_content_type_not_set_and_has_time_part) {
+TEST_F(Row_builder_testsuite, datetime_content_type_not_set_and_has_time_part) {
   xcl::XRow_impl::Metadata metadata;
   xcl::XRow_impl::Metadata::value_type metadata_row;
   metadata_row.type = xcl::Column_type::DATETIME;
@@ -690,10 +646,6 @@ TEST(row_builder, datetime_content_type_not_set_and_has_time_part) {
 
   ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
 
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
-
   MYSQL_TIME time;
   time.year = 2016;
   time.month = 12;
@@ -704,12 +656,12 @@ TEST(row_builder, datetime_content_type_not_set_and_has_time_part) {
   time.second_part = 0;
   time.time_type = MYSQL_TIMESTAMP_DATETIME;
 
-  Row_builder rb;
-  rb.start_row(obuffer.get());
-  rb.add_datetime_field(&time, 0);
-  rb.end_row();
+  m_row.begin_row();
+  m_row.field_datetime(&time);
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
   row_mock.set_row(std::move(row));
 
   xcl::DateTime result;
@@ -725,7 +677,8 @@ TEST(row_builder, datetime_content_type_not_set_and_has_time_part) {
   EXPECT_EQ(result.useconds(), time.second_part);
 }
 
-TEST(row_builder, datetime_content_type_not_set_and_not_contains_time_part) {
+TEST_F(Row_builder_testsuite,
+       datetime_content_type_not_set_and_not_contains_time_part) {
   xcl::XRow_impl::Metadata metadata;
   xcl::XRow_impl::Metadata::value_type metadata_row;
   metadata_row.type = xcl::Column_type::DATETIME;
@@ -737,10 +690,6 @@ TEST(row_builder, datetime_content_type_not_set_and_not_contains_time_part) {
 
   ::testing::StrictMock<xcl::XRow_impl> row_mock(&metadata, &context);
 
-  std::unique_ptr<Page_pool> page_pool(new Page_pool(default_pool_config));
-  std::unique_ptr<Page_output_stream> obuffer(
-      new Page_output_stream(*page_pool));
-
   MYSQL_TIME time;
   time.year = 2016;
   time.month = 12;
@@ -751,12 +700,12 @@ TEST(row_builder, datetime_content_type_not_set_and_not_contains_time_part) {
   time.second_part = 0;
   time.time_type = MYSQL_TIMESTAMP_DATE;
 
-  Row_builder rb;
-  rb.start_row(obuffer.get());
-  rb.add_datetime_field(&time, 0);
-  rb.end_row();
+  m_row.begin_row();
+  m_row.field_datetime(&time);
+  m_row.end_row();
   std::unique_ptr<Mysqlx::Resultset::Row> row{
-      message_from_buffer<Mysqlx::Resultset::Row>(obuffer.get())};
+      message_with_header_from_buffer<Mysqlx::Resultset::Row>(
+          get_buffer_as_string())};
   row_mock.set_row(std::move(row));
 
   xcl::DateTime result;
@@ -774,4 +723,4 @@ TEST(row_builder, datetime_content_type_not_set_and_not_contains_time_part) {
 
 }  // namespace test
 
-}  // namespace xpl
+}  // namespace protocol

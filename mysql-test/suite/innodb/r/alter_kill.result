@@ -29,7 +29,7 @@ SELECT COUNT(*) FROM bug16720368;
 COUNT(*)
 8
 INSERT INTO bug16720368 VALUES(0,1);
-ERROR HY000: Operation not allowed when innodb_forced_recovery > 0.
+ERROR HY000: Operation not allowed when innodb_force_recovery > 0.
 # Shut down the server cleanly to hide the corruption.
 # restart
 # The table is accessible, because after a clean shutdown we will

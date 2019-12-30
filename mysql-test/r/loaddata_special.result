@@ -14,8 +14,7 @@ Warning	1301	Result of load_file() was larger than max_allowed_packet (1024) - t
 SET GLOBAL max_allowed_packet = @old_max_allowed_packet;
 SET GLOBAL net_buffer_length = @old_net_buffer_length;
 select load_file("/proc/self/fd/0");
-load_file("/proc/self/fd/0")
-NULL
+ERROR HY000: The file '/proc/self/fd/0' must be in the database directory or be readable by all
 select load_file("/proc/uptime");
 load_file("/proc/uptime")
 <num> <num>

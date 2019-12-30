@@ -46,12 +46,12 @@ Warnings:
 Warning	1292	Truncated incorrect max_prepared_stmt_count value: '100000000000'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 SET @@global.max_prepared_stmt_count = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 SET @@global.max_prepared_stmt_count = -1024;
 Warnings:
 Warning	1292	Truncated incorrect max_prepared_stmt_count value: '-1024'
@@ -59,32 +59,40 @@ SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
 0
 SET @@global.max_prepared_stmt_count = 1048577;
-Warnings:
-Warning	1292	Truncated incorrect max_prepared_stmt_count value: '1048577'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+1048577
+SET @@global.max_prepared_stmt_count = 4194304;
+SELECT @@global.max_prepared_stmt_count;
+@@global.max_prepared_stmt_count
+4194304
+SET @@global.max_prepared_stmt_count = 4194305;
+Warnings:
+Warning	1292	Truncated incorrect max_prepared_stmt_count value: '4194305'
+SELECT @@global.max_prepared_stmt_count;
+@@global.max_prepared_stmt_count
+4194304
 SET @@global.max_prepared_stmt_count = 104857612;
 Warnings:
 Warning	1292	Truncated incorrect max_prepared_stmt_count value: '104857612'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 SET @@global.max_prepared_stmt_count = ON;
 ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 SET @@global.max_prepared_stmt_count = 'test';
 ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 SET @@global.max_prepared_stmt_count = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
-1048576
+4194304
 '#-------------------FN_DYNVARS_081_05----------------------------#'
 SET @@session.max_prepared_stmt_count = 4096;
 ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL

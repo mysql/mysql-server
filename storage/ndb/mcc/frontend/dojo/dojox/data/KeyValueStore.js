@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/KeyValueStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/xhr","dojo/_base/window","dojo/data/util/simpleFetch","dojo/data/util/filter"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/data/KeyValueStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/xhr","dojo/_base/kernel","dojo/data/util/simpleFetch","dojo/data/util/filter"],function(_1,_2,_3,_4,_5,_6){
 var _7=_1("dojox.data.KeyValueStore",null,{constructor:function(_8){
 if(_8.url){
 this.url=_8.url;

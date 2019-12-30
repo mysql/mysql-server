@@ -65,7 +65,7 @@ for file in ${LOGFILES} ; do
   oks=`grep -c 'NDBT_ProgramExit: .*OK' "${file}"`
   skips=`grep -c 'NDBT_ProgramExit: .*Skipped' "${file}"`
   fails=`grep -c 'NDBT_ProgramExit: .*Failed' "${file}"`
-  if [ $oks -gt 0 ] ; then
+  if [ $oks -gt 0 ] || [ $skips -gt 0 ] || [ $fails -gt 0 ]; then
     OK=`expr ${OK} + ${oks}`
     SKIP=`expr ${SKIP} + ${skips}`
     FAIL=`expr ${FAIL} + ${fails}`

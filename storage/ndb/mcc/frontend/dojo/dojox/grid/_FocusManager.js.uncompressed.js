@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_FocusManager", [
 	"dojo/_base/array",
 	"dojo/_base/lang",
@@ -14,8 +13,8 @@ define("dojox/grid/_FocusManager", [
 // focus management
 return declare("dojox.grid._FocusManager", null, {
 	// summary:
-	//	Controls grid cell focus. Owned by grid and used internally for focusing.
-	//	Note: grid cell actually receives keyboard input only when cell is being edited.
+	//		Controls grid cell focus. Owned by grid and used internally for focusing.
+	//		Note: grid cell actually receives keyboard input only when cell is being edited.
 	constructor: function(inGrid){
 		this.grid = inGrid;
 		this.cell = null;
@@ -51,13 +50,13 @@ return declare("dojox.grid._FocusManager", null, {
 	},
 	isFocusCell: function(inCell, inRowIndex){
 		// summary:
-		//	states if the given cell is focused
+		//		states if the given cell is focused
 		// inCell: object
-		//	grid cell object
+		//		grid cell object
 		// inRowIndex: int
-		//	grid row index
+		//		grid row index
 		// returns:
-		//	true of the given grid cell is focused
+		//		true of the given grid cell is focused
 		return (this.cell == inCell) && (this.rowIndex == inRowIndex);
 	},
 	isLastFocusCell: function(){
@@ -77,16 +76,16 @@ return declare("dojox.grid._FocusManager", null, {
 	},
 	isNavHeader: function(){
 		// summary:
-		//	states whether currently navigating among column headers.
+		//		states whether currently navigating among column headers.
 		// returns:
-		//	true if focus is on a column header; false otherwise.
+		//		true if focus is on a column header; false otherwise.
 		return (!!this._colHeadNode);
 	},
 	getHeaderIndex: function(){
 		// summary:
-		//	if one of the column headers currently has focus, return its index.
+		//		if one of the column headers currently has focus, return its index.
 		// returns:
-		//	index of the focused column header, or -1 if none have focus.
+		//		index of the focused column header, or -1 if none have focus.
 		if(this._colHeadNode){
 			return array.indexOf(this._findHeaderCells(), this._colHeadNode);
 		}else{
@@ -100,7 +99,7 @@ return declare("dojox.grid._FocusManager", null, {
 			if(inBork){
 				var sl = this.scrollIntoView();
 				try{
-					if(!this.grid.edit.isEditing()){
+					if(has("webkit") || !this.grid.edit.isEditing()){
 						util.fire(n, "focus");
 						if(sl){ this.cell.view.scrollboxNode.scrollLeft = sl; }
 					}
@@ -129,7 +128,7 @@ return declare("dojox.grid._FocusManager", null, {
 	_delayedHeaderFocus: function(){
 		if(this.isNavHeader()){
 			this.focusHeader();
-			this.grid.domNode.focus();
+			//this.grid.domNode.focus();
 		}
 	},
 	_initColumnHeaders: function(){
@@ -228,7 +227,7 @@ return declare("dojox.grid._FocusManager", null, {
 				info.s.scrollLeft = info.n.offsetLeft + info.n.offsetWidth - info.sr.w;
 			}else if(info.n.offsetLeft < info.sr.l){
 				info.s.scrollLeft = info.n.offsetLeft;
-			}else if(has("ie") <= 7 && cell && cell.view.headerNode){
+			}else if(has('ie') <= 7 && cell && cell.view.headerNode){
 				// Trac 7158: scroll dojoxGridHeader for IE7 and lower
 				cell.view.headerNode.scrollLeft = info.s.scrollLeft;
 			}
@@ -258,10 +257,10 @@ return declare("dojox.grid._FocusManager", null, {
 	colSizeAdjust: function (e, colIdx, delta){ // adjust the column specified by colIdx by the specified delta px
 		var headers = this._findHeaderCells();
 		var view = this.focusView;
-		if (!view) {
-			for (var i = 0, cView; (cView = this.grid.views.views[i]); i++) {
+		if(!view || !view.header.tableMap.map){
+			for(var i = 0, cView; (cView = this.grid.views.views[i]); i++){
 				// find first view with a tableMap in order to work with empty grid
-				if(cView.header.tableMap.map ){
+				if(cView.header.tableMap.map){
 					view=cView;
 					break;
 				}
@@ -290,20 +289,20 @@ return declare("dojox.grid._FocusManager", null, {
 	},
 	setFocusIndex: function(inRowIndex, inCellIndex){
 		// summary:
-		//	focuses the given grid cell
+		//		focuses the given grid cell
 		// inRowIndex: int
-		//	grid row index
+		//		grid row index
 		// inCellIndex: int
-		//	grid cell index
+		//		grid cell index
 		this.setFocusCell(this.grid.getCell(inCellIndex), inRowIndex);
 	},
 	setFocusCell: function(inCell, inRowIndex){
 		// summary:
-		//	focuses the given grid cell
+		//		focuses the given grid cell
 		// inCell: object
-		//	grid cell object
+		//		grid cell object
 		// inRowIndex: int
-		//	grid row index
+		//		grid row index
 		if(inCell && !this.isFocusCell(inCell, inRowIndex)){
 			this.tabbingOut = false;
 			if (this._colHeadNode){
@@ -318,7 +317,7 @@ return declare("dojox.grid._FocusManager", null, {
 		}
 		// even if this cell isFocusCell, the document focus may need to be rejiggered
 		// call opera on delay to prevent keypress from altering focus
-		if(has("opera")){
+		if(has('opera')){
 			setTimeout(lang.hitch(this.grid, 'onCellFocus', this.cell, this.rowIndex), 1);
 		}else{
 			this.grid.onCellFocus(this.cell, this.rowIndex);
@@ -377,11 +376,11 @@ return declare("dojox.grid._FocusManager", null, {
 	},
 	move: function(inRowDelta, inColDelta) {
 		// summary:
-		//	focus grid cell or  simulate focus to column header based on position relative to current focus
+		//		focus grid cell or  simulate focus to column header based on position relative to current focus
 		// inRowDelta: int
-		// vertical distance from current focus
+		//		vertical distance from current focus
 		// inColDelta: int
-		// horizontal distance from current focus
+		//		horizontal distance from current focus
 
 		var colDir = inColDelta < 0 ? -1 : 1;
 		// Handle column headers.
@@ -437,7 +436,7 @@ return declare("dojox.grid._FocusManager", null, {
 					}
 					return;
 				}else if((!n || html.style(n, "display") === "none") && inColDelta){
-					if((col + inRowDelta) >= 0 && (col + inRowDelta) <= cc){
+					if((col + inColDelta) >= 0 && (col + inColDelta) <= cc){
 						this.move(inRowDelta, inColDelta > 0 ? ++inColDelta : --inColDelta);
 					}
 					return;

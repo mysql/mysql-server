@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,11 +309,9 @@ static void *handle_connection(void *arg) {
     thd->release_resources();
 
     // Clean up errors now, before possibly waiting for a new connection.
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
     thd_manager->remove_thd(thd);
     Connection_handler_manager::dec_connection_count();
 
@@ -397,13 +395,12 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   int error = 0;
   my_thread_handle id;
 
-  DBUG_ENTER("Per_thread_connection_handler::add_connection");
+  DBUG_TRACE;
 
   // Simulate thread creation for test case before we check thread cache
   DBUG_EXECUTE_IF("fail_thread_create", error = 1; goto handle_error;);
 
-  if (!check_idle_thread_and_enqueue_connection(channel_info))
-    DBUG_RETURN(false);
+  if (!check_idle_thread_and_enqueue_connection(channel_info)) return false;
 
   /*
     There are no idle threads avaliable to take up the new
@@ -424,12 +421,12 @@ handle_error:
     channel_info->send_error_and_close_channel(ER_CANT_CREATE_THREAD, error,
                                                true);
     Connection_handler_manager::dec_connection_count();
-    DBUG_RETURN(true);
+    return true;
   }
 
   Global_THD_manager::get_instance()->inc_thread_created();
   DBUG_PRINT("info", ("Thread created"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint Per_thread_connection_handler::get_max_threads() const {

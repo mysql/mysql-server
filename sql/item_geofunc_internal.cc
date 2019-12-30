@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
-  DBUG_ENTER("lock_srs");
+  DBUG_TRACE;
   DBUG_ASSERT(srid != 0);
 
   char id_str[11];  // uint32 => max 10 digits + \0
@@ -70,11 +70,11 @@ bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
                                       m_thd->variables.lock_wait_timeout)) {
     /* purecov: begin inspected */
     // If locking fails, an error has already been flagged.
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Srs_fetcher::acquire(gis::srid_t srid,
@@ -511,14 +511,14 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
     geout.set_components_no_overlapped(true);
   if (geout.get_ptr() == NULL) return true;
   if (res) {
-    const char *resptr = geout.get_cptr() - GEOM_HEADER_SIZE;
+    char *resptr = geout.get_cptr() - GEOM_HEADER_SIZE;
     size_t len = geout.get_nbytes();
 
     /*
       The resptr buffer is now owned by resbuf_mgr and used by res, resptr
       will be released properly by resbuf_mgr.
      */
-    resbuf_mgr->add_buffer(const_cast<char *>(resptr));
+    resbuf_mgr->add_buffer(resptr);
     /*
       Pass resptr as const pointer so that the memory space won't be reused
       by res object. Reuse is forbidden because the memory comes from BG
@@ -527,8 +527,7 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
     res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
 
     // Prefix the GEOMETRY header.
-    write_geometry_header(const_cast<char *>(resptr), geout.get_srid(),
-                          geout.get_geotype());
+    write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
 
     /*
       Give up ownership because the buffer may have to live longer than

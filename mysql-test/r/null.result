@@ -13,7 +13,7 @@ Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-Note	1003	/* select#1 */ select NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
+Note	1003	/* select#1 */ select NULL AS `NULL`,(NULL is null) AS `isnull(null)`,((1 / 0) is null) AS `isnull(1/0)`,(((1 / 0) = NULL) is null) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,((1 / 0) is null) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
 NULL	NULL	NULL	NULL
@@ -105,6 +105,9 @@ NULL	this is null
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
 Warning	1265	Data truncated for column 'd' at row 1
@@ -195,7 +198,7 @@ explain select * from t1 where i=2 or i is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	i	i	5	const	10	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` = 2) or isnull(`test`.`t1`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` = 2) or (`test`.`t1`.`i` is null))
 select count(*) from t1 where i=2 or i is null;
 count(*)
 10
@@ -260,11 +263,11 @@ t1	CREATE TABLE `t1` (
   `c01` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c02` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c03` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `c04` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `c04` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
   `c05` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c06` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c07` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c08` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `c07` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
+  `c08` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
   `c09` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c10` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c11` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -355,18 +358,27 @@ drop table bug19145c;
 #             precision > 0 && scale <= precision'
 #
 CREATE TABLE t1 (a DECIMAL (1, 0) ZEROFILL, b DECIMAL (1, 0) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 INSERT INTO t1 (a, b) VALUES (0, 0);
 CREATE TABLE t2 SELECT IFNULL(a, b) FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
 IFNULL(a, b)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(a, NULL) FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
 IFNULL(a, NULL)	decimal(1,0) unsigned	YES		NULL	
 DROP TABLE t2;
 CREATE TABLE t2 SELECT IFNULL(NULL, b) FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DESCRIBE t2;
 Field	Type	Null	Key	Default	Extra
 IFNULL(NULL, b)	decimal(1,0) unsigned	YES		NULL	
@@ -377,3 +389,48 @@ DROP TABLE t1, t2;
 #
 SELECT \N;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '\N' at line 1
+#
+# Bug#29337233 'LATE NULLS FILTERING' NEEDED EVEN FOR EQ_REF JOINS KEYS
+#
+create table t1 (
+pk int primary key,
+col_int_unique int,
+c char(255) not null default 'xxxx'
+) engine = innoDb;
+create unique index ix1 ON t1(col_int_unique);
+insert into t1(pk,col_int_unique) values (1,1), (2,NULL);
+insert into t1(pk,col_int_unique) values (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN
+SELECT STRAIGHT_JOIN *
+FROM t1 LEFT OUTER JOIN t1 AS t2
+ON t1.col_int_unique = t2.col_int_unique;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	ix1	ix1	5	test.t1.col_int_unique	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_unique` AS `col_int_unique`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`col_int_unique` AS `col_int_unique`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`col_int_unique` = `test`.`t1`.`col_int_unique`)) where true
+SELECT STRAIGHT_JOIN *
+FROM t1 LEFT OUTER JOIN t1 AS t2
+ON t1.col_int_unique = t2.col_int_unique;
+pk	col_int_unique	c	pk	col_int_unique	c
+1	1	xxxx	1	1	xxxx
+2	NULL	xxxx	NULL	NULL	NULL
+3	3	xxxx	3	3	xxxx
+4	4	xxxx	4	4	xxxx
+5	5	xxxx	5	5	xxxx
+6	6	xxxx	6	6	xxxx
+7	7	xxxx	7	7	xxxx
+8	8	xxxx	8	8	xxxx
+flush status;
+SELECT STRAIGHT_JOIN *
+FROM t1 JOIN t1 AS t2
+ON t1.col_int_unique = t2.col_int_unique
+WHERE t1.pk = 2;
+pk	col_int_unique	c	pk	col_int_unique	c
+show status like 'handler_read_key';
+Variable_name	Value
+Handler_read_key	1
+drop table t1;

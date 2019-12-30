@@ -20,3 +20,18 @@ c1	c2
 g	if
 not	ojgygqcgqi
 DROP TABLE t1, t2;
+#
+# Bug#29660945: SIG 6 AT TEMPTABLE::HANDLER::POSITION | SRC/HANDLER.CC
+#
+SET optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 (
+f1 varchar(255),
+f2 varchar(255)
+);
+INSERT INTO t1 VALUES (NULL,'A');
+INSERT INTO t1 VALUES ('A',NULL);
+SELECT * FROM t1 AS alias1 JOIN t1 AS alias2 ON alias1.f1=alias2.f2 ORDER BY alias2.f1 LIMIT 50;
+f1	f2	f1	f2
+A	NULL	NULL	A
+DROP TABLE t1;
+SET optimizer_switch=DEFAULT;

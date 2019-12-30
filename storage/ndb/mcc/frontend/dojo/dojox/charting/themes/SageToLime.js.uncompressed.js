@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/SageToLime", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.SageToLime=new Theme({
+define("dojox/charting/themes/SageToLime", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.SageToLime = new SimpleTheme({
 		colors: [
 			"#abdbcb",
 			"#435a51",
@@ -15,6 +13,5 @@ define("dojox/charting/themes/SageToLime", ["../Theme", "./common"], function(Th
 			"#68c5ad"
 		]
 	});
-	
 	return themes.SageToLime;
 });

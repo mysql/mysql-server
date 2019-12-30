@@ -1,11 +1,11 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/i18n!dojox/widget/nls/FilePicker","dojo/require!dojox/widget/RollingList,dojo/i18n"],function(_1,_2,_3){
-_2.provide("dojox.widget.FilePicker");
-_2.require("dojox.widget.RollingList");
-_2.require("dojo.i18n");
-_2.requireLocalization("dojox.widget","FilePicker");
-_2.declare("dojox.widget._FileInfoPane",[_3.widget._RollingListPane],{templateString:"",templateString:_2.cache("dojox.widget","FilePicker/_FileInfoPane.html","<div class=\"dojoxFileInfoPane\">\n\t<table>\n\t\t<tbody>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoNameLabel\">${_messages.name}</td>\n\t\t\t\t<td class=\"dojoxFileInfoName\" dojoAttachPoint=\"nameNode\"></td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoPathLabel\">${_messages.path}</td>\n\t\t\t\t<td class=\"dojoxFileInfoPath\" dojoAttachPoint=\"pathNode\"></td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoSizeLabel\">${_messages.size}</td>\n\t\t\t\t<td class=\"dojoxFileInfoSize\" dojoAttachPoint=\"sizeNode\"></td>\n\t\t\t</tr>\n\t\t</tbody>\n\t</table>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none;\"></div>\n</div>"),postMixInProperties:function(){
-this._messages=_2.i18n.getLocalization("dojox.widget","FilePicker",this.lang);
+define("dojox/widget/FilePicker",["dojo","dijit","dojox","dojo/i18n!dojox/widget/nls/FilePicker","dojo/require!dojox/widget/RollingList,dojo/i18n"],function(_1,_2,_3){
+_1.provide("dojox.widget.FilePicker");
+_1.require("dojox.widget.RollingList");
+_1.require("dojo.i18n");
+_1.requireLocalization("dojox.widget","FilePicker");
+_1.declare("dojox.widget._FileInfoPane",[_3.widget._RollingListPane],{templateString:"",templateString:_1.cache("dojox.widget","FilePicker/_FileInfoPane.html","<div class=\"dojoxFileInfoPane\">\n\t<table>\n\t\t<tbody>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoNameLabel\">${_messages.name}</td>\n\t\t\t\t<td class=\"dojoxFileInfoName\" dojoAttachPoint=\"nameNode\"></td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoPathLabel\">${_messages.path}</td>\n\t\t\t\t<td class=\"dojoxFileInfoPath\" dojoAttachPoint=\"pathNode\"></td>\n\t\t\t</tr>\n\t\t\t<tr>\n\t\t\t\t<td class=\"dojoxFileInfoLabel dojoxFileInfoSizeLabel\">${_messages.size}</td>\n\t\t\t\t<td class=\"dojoxFileInfoSize\" dojoAttachPoint=\"sizeNode\"></td>\n\t\t\t</tr>\n\t\t</tbody>\n\t</table>\n\t<div dojoAttachPoint=\"containerNode\" style=\"display:none;\"></div>\n</div>"),postMixInProperties:function(){
+this._messages=_1.i18n.getLocalization("dojox.widget","FilePicker",this.lang);
 this.inherited(arguments);
 },onItems:function(){
 var _4=this.store,_5=this.items[0];
@@ -19,7 +19,7 @@ this.parentWidget.scrollIntoView(this);
 this.inherited(arguments);
 }
 }});
-_2.declare("dojox.widget.FilePicker",_3.widget.RollingList,{className:"dojoxFilePicker",pathSeparator:"",topDir:"",parentAttr:"parentDir",pathAttr:"path",preloadItems:50,selectDirectories:true,selectFiles:true,_itemsMatch:function(_6,_7){
+_1.declare("dojox.widget.FilePicker",_3.widget.RollingList,{className:"dojoxFilePicker",pathSeparator:"",topDir:"",parentAttr:"parentDir",pathAttr:"path",preloadItems:50,selectDirectories:true,selectFiles:true,_itemsMatch:function(_6,_7){
 if(!_6&&!_7){
 return true;
 }else{
@@ -31,7 +31,7 @@ return true;
 }else{
 if(this._isIdentity){
 var _8=[this.store.getIdentity(_6),this.store.getIdentity(_7)];
-_2.forEach(_8,function(i,_9){
+_1.forEach(_8,function(i,_9){
 if(i.lastIndexOf(this.pathSeparator)==(i.length-1)){
 _8[_9]=i.substring(0,i.length-1);
 }else{
@@ -49,7 +49,7 @@ return;
 }
 this.inherited(arguments);
 var _a,_b=this.getChildren()[0];
-var _c=_2.hitch(this,function(){
+var _c=_1.hitch(this,function(){
 if(_a){
 this.disconnect(_a);
 }
@@ -96,7 +96,7 @@ if(!this.selectFiles){
 _15.disabled=true;
 }
 }
-var ret=new _1.MenuItem(_15);
+var ret=new _2.MenuItem(_15);
 return ret;
 },getPaneForItem:function(_16,_17,_18){
 var ret=null;

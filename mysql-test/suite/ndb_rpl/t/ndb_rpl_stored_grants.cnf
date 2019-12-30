@@ -1,0 +1,19 @@
+!include suite/ndb_rpl/my.cnf
+
+# 2 MySQLDs attached to slave cluster
+[cluster_config.slave]
+mysqld=,
+
+[mysqld]
+ndb-cluster-connection-pool=1
+
+# Note binlog on this slave, but not logging slave updates
+[mysqld.2.slave]
+ndb_connectstring= @mysql_cluster.slave.ndb_connectstring
+disable-log-bin
+ndb-log-bin=1
+
+[ENV]
+SLAVE_MYPORT1=         @mysqld.2.slave.port
+SLAVE_MYSOCK1=         @mysqld.2.slave.socket
+

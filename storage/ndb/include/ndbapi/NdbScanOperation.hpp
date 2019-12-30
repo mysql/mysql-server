@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -804,7 +804,7 @@ NdbScanOperation::updateCurrentTuple(NdbTransaction *takeOverTrans,
     the row since we pass type 'UpdateRequest'.
    */
   return takeOverScanOpNdbRecord(NdbOperation::UpdateRequest, takeOverTrans,
-                                 attr_rec, (char *)attr_row, mask,
+                                 attr_rec, const_cast<char *>(attr_row), mask,
                                  opts, sizeOfOptions);
 }
 

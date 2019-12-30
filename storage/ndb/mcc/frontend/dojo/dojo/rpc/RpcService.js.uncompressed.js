@@ -1,18 +1,21 @@
-//>>built
-define("dojo/rpc/RpcService", ["../main", "../_base/url"], function(dojo) {
-	// module:
-	//		dojo/rpc/RpcService
+define("dojo/rpc/RpcService", [
+	"../_base/array", "../_base/declare", "../_base/Deferred", "../_base/kernel","../_base/lang",
+	"../_base/url", "../_base/xhr"
+], function(array, declare, Deferred, kernel, lang, _Url, xhr){
+
+// module:
+//		dojo/rpc/RpcService
+
+return declare("dojo.rpc.RpcService", null, {
 	// summary:
 	//		TODOC
 
-
-dojo.declare("dojo.rpc.RpcService", null, {
 	constructor: function(args){
-		//summary:
-		//Take a string as a url to retrieve an smd or an object that is an smd or partial smd to use
-		//as a definition for the service
+		// summary:
+		//		Take a string as a url to retrieve an smd or an object that is an smd or partial smd to use
+		//		as a definition for the service
 		//
-		//	args: object
+		// args: object
 		//		Takes a number of properties as kwArgs for defining the service.  It also
 		//		accepts a string.  When passed a string, it is treated as a url from
 		//		which it should synchronously retrieve an smd file.  Otherwise it is a kwArgs
@@ -25,32 +28,32 @@ dojo.declare("dojo.rpc.RpcService", null, {
 		//
 		if(args){
 			//if the arg is a string, we assume it is a url to retrieve an smd definition from
-			if( (dojo.isString(args)) || (args instanceof dojo._Url)){
-				if (args instanceof dojo._Url){
+			if( (lang.isString(args)) || (args instanceof _Url)){
+				if (args instanceof _Url){
 					var url = args + "";
 				}else{
 					url = args;
 				}
-				var def = dojo.xhrGet({
+				var def = xhr.get({
 					url: url,
 					handleAs: "json-comment-optional",
 					sync: true
 				});
 
 				def.addCallback(this, "processSmd");
-				def.addErrback(function() {
+				def.addErrback(function(){
 					throw new Error("Unable to load SMD from " + args);
 				});
 
 			}else if(args.smdStr){
-				this.processSmd(dojo.eval("("+args.smdStr+")"));
+				this.processSmd(kernel.eval("("+args.smdStr+")"));
 			}else{
 				// otherwise we assume it's an arguments object with the following
 				// (optional) properties:
-				//      - serviceUrl
-				//      - strictArgChecks
-				//      - smdStr
-				//      - smdObj
+				//		- serviceUrl
+				//		- strictArgChecks
+				//		- smdStr
+				//		- smdObj
 
 				if(args.serviceUrl){
 					this.serviceUrl = args.serviceUrl;
@@ -75,28 +78,28 @@ dojo.declare("dojo.rpc.RpcService", null, {
 		//		parse the results coming back from an rpc request.  this
 		//		base implementation, just returns the full object
 		//		subclasses should parse and only return the actual results
-		//	obj: Object
+		// obj: Object
 		//		Object that is the return results from an rpc request
 		return obj;
 	},
 
-	errorCallback: function(/* dojo.Deferred */ deferredRequestHandler){
+	errorCallback: function(/* dojo/_base/Deferred */ deferredRequestHandler){
 		// summary:
-		//		create callback that calls the Deferres errback method
-		//	deferredRequestHandler: Deferred
+		//		create callback that calls the Deferred errback method
+		// deferredRequestHandler: Deferred
 		//		The deferred object handling a request.
 		return function(data){
 			deferredRequestHandler.errback(data.message);
 		};
 	},
 
-	resultCallback: function(/* dojo.Deferred */ deferredRequestHandler){
+	resultCallback: function(/* dojo/_base/Deferred */ deferredRequestHandler){
 		// summary:
 		//		create callback that calls the Deferred's callback method
-		//	deferredRequestHandler: Deferred
+		// deferredRequestHandler: Deferred
 		//		The deferred object handling a request.
 
-		return dojo.hitch(this,
+		return lang.hitch(this,
 			function(obj){
 				if(obj.error!=null){
 					var err;
@@ -120,15 +123,15 @@ dojo.declare("dojo.rpc.RpcService", null, {
 	generateMethod: function(/*string*/ method, /*array*/ parameters, /*string*/ url){
 		// summary:
 		//		generate the local bind methods for the remote object
-		//	method: string
+		// method: string
 		//		The name of the method we are generating
-		//	parameters: array
+		// parameters: array
 		//		the array of parameters for this call.
-		//	url: string
+		// url: string
 		//		the service url for this call
 
-		return dojo.hitch(this, function(){
-			var deferredRequestHandler = new dojo.Deferred();
+		return lang.hitch(this, function(){
+			var deferredRequestHandler = new Deferred();
 
 			// if params weren't specified, then we can assume it's varargs
 			if( (this.strictArgChecks) &&
@@ -138,7 +141,7 @@ dojo.declare("dojo.rpc.RpcService", null, {
 				// put error stuff here, no enough params
 				throw new Error("Invalid number of parameters for remote method.");
 			}else{
-				this.bind(method, dojo._toArray(arguments), deferredRequestHandler, url);
+				this.bind(method, lang._toArray(arguments), deferredRequestHandler, url);
 			}
 
 			return deferredRequestHandler;
@@ -147,18 +150,18 @@ dojo.declare("dojo.rpc.RpcService", null, {
 
 	processSmd: function(object){
 		// summary:
-		//		callback method for reciept of a smd object.  Parse the smd
+		//		callback method for receipt of a smd object.  Parse the smd
 		//		and generate functions based on the description
-		//	object:
+		// object:
 		//		smd object defining this service.
 
 		if(object.methods){
-			dojo.forEach(object.methods, function(m){
+			array.forEach(object.methods, function(m){
 				if(m && m.name){
 					this[m.name] = this.generateMethod(	m.name,
 										m.parameters,
 										m.url||m.serviceUrl||m.serviceURL);
-					if(!dojo.isFunction(this[m.name])){
+					if(!lang.isFunction(this[m.name])){
 						throw new Error("RpcService: Failed to create" + m.name + "()");
 						/*console.log("RpcService: Failed to create", m.name, "()");*/
 					}
@@ -172,5 +175,4 @@ dojo.declare("dojo.rpc.RpcService", null, {
 	}
 });
 
-return dojo.rpc.RpcService;
 });

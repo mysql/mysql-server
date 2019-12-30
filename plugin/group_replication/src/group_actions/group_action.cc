@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,8 @@ void Group_action_diagnostics::set_warning_message(const char *warning_msg) {
   warning_message.assign(warning_msg);
 }
 
-void Group_action_diagnostics::append_warning_message(const char *warn_msg) {
-  warning_message.append(warn_msg);
+void Group_action_diagnostics::append_warning_message(const char *warning_msg) {
+  warning_message.append(warning_msg);
 }
 
 std::string &Group_action_diagnostics::get_execution_message() {

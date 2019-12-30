@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 #include <unordered_map>
 #include <utility>
 
-#include "helper/multithread/rw_lock.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/helper/multithread/rw_lock.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/auth/i_sha2_password_common.h"
 

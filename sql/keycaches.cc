@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,24 +48,23 @@ static uchar *find_named(I_List<NAMED_ILINK> *list, const char *name,
 
 void NAMED_ILIST::delete_elements() {
   NAMED_ILINK *element;
-  DBUG_ENTER("NAMED_ILIST::delete_elements");
+  DBUG_TRACE;
   while ((element = get())) {
     end_key_cache(pointer_cast<KEY_CACHE *>(element->data),
                   true);  // Can never fail
     my_free(element->data);
     delete element;
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Key cache functions */
 
-LEX_STRING default_key_cache_base = {C_STRING_WITH_LEN("default")};
+LEX_CSTRING default_key_cache_base = {STRING_WITH_LEN("default")};
 
 KEY_CACHE
 zero_key_cache;  ///< @@nonexistent_cache.param->value_ptr() points here
 
-KEY_CACHE *get_key_cache(const LEX_STRING *cache_name) {
+KEY_CACHE *get_key_cache(const LEX_CSTRING *cache_name) {
   if (!cache_name || !cache_name->length) cache_name = &default_key_cache_base;
   return ((KEY_CACHE *)find_named(&key_caches, cache_name->str,
                                   cache_name->length, 0));
@@ -73,7 +72,7 @@ KEY_CACHE *get_key_cache(const LEX_STRING *cache_name) {
 
 KEY_CACHE *create_key_cache(const char *name, size_t length) {
   KEY_CACHE *key_cache;
-  DBUG_ENTER("create_key_cache");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %.*s", static_cast<int>(length), name));
 
   if ((key_cache =
@@ -94,14 +93,14 @@ KEY_CACHE *create_key_cache(const char *name, size_t length) {
       key_cache->param_age_threshold = dflt_key_cache_var.param_age_threshold;
     }
   }
-  DBUG_RETURN(key_cache);
+  return key_cache;
 }
 
 KEY_CACHE *get_or_create_key_cache(const char *name, size_t length) {
-  LEX_STRING key_cache_name;
+  LEX_CSTRING key_cache_name;
   KEY_CACHE *key_cache;
 
-  key_cache_name.str = (char *)name;
+  key_cache_name.str = name;
   key_cache_name.length = length;
   if (!(key_cache = get_key_cache(&key_cache_name)))
     key_cache = create_key_cache(name, length);

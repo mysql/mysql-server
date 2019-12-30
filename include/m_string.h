@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decimal.h"
 #include "lex_string.h"
 #include "my_config.h"
 #include "my_inttypes.h"
@@ -252,14 +253,13 @@ size_t my_fcvt_compact(double x, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
                bool *error);
 
-#define NOT_FIXED_DEC 31
-
 /*
   The longest string my_fcvt can return is 311 + "precision" bytes.
-  Here we assume that we never cal my_fcvt() with precision >= NOT_FIXED_DEC
+  Here we assume that we never call my_fcvt() with precision >=
+  DECIMAL_NOT_SPECIFIED
   (+ 1 byte for the terminating '\0').
 */
-#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+static constexpr int FLOATING_POINT_BUFFER{311 + DECIMAL_NOT_SPECIFIED};
 
 /*
   We want to use the 'e' format in some cases even if we have enough space
@@ -313,7 +313,6 @@ static inline char *ullstr(longlong value, char *buff) {
 }
 
 #define STRING_WITH_LEN(X) (X), ((sizeof(X) - 1))
-#define C_STRING_WITH_LEN(X) ((char *)(X)), ((sizeof(X) - 1))
 
 /**
   Skip trailing space (ASCII spaces only).

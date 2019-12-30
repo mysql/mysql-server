@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	invalidMessage: "Wprowadzona wartość jest niepoprawna.",
-	missingMessage: "Ta wartość jest wymagana.",
-	rangeMessage: "Ta wartość jest spoza zakresu."
-})
-//end v1.x content
-);
+define("dijit/form/nls/pl/validate",({invalidMessage:"Wprowadzona wartość jest nieprawidłowa.",missingMessage:"Ta wartość jest wymagana.",rangeMessage:"Ta wartość jest spoza zakresu."}));

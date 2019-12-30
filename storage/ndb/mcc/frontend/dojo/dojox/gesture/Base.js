@@ -75,7 +75,9 @@ e._locking=e._locking||{};
 if(e._locking[this.defaultEvent]||this.isLocked(e.currentTarget)){
 return;
 }
+if((e.target.tagName!="INPUT"||e.target.type=="radio"||e.target.type=="checkbox")&&e.target.tagName!="TEXTAREA"){
 e.preventDefault();
+}
 e._locking[this.defaultEvent]=true;
 this[_1f](_1e.data,e);
 },press:function(_20,e){

@@ -20285,14 +20285,17 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
                               const char *str_end, const char *wildstr,
                               const char *wildend, int escape, int w_one,
                               int w_many) {
-  uint escape_gb, w_one_gb, w_many_gb;
-
-  escape_gb = unicode_to_gb18030_code(cs, escape);
-  w_one_gb = unicode_to_gb18030_code(cs, w_one);
-  w_many_gb = unicode_to_gb18030_code(cs, w_many);
+  /*
+    w_one is always '_', or -1 when user sets the escape character equal to
+    '_'. w_many is always '%', or -1 when user sets the escape character equal
+    to '%'. And for '_' and '%', their values are same in GB18030 and Unicode,
+    we don't need to do conversion.
+   */
+  DBUG_ASSERT((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
+  uint escape_gb = unicode_to_gb18030_code(cs, escape);
 
   return my_wildcmp_gb18030_impl(cs, str, str_end, wildstr, wildend, escape_gb,
-                                 w_one_gb, w_many_gb, 1);
+                                 w_one, w_many, 1);
 }
 
 /**

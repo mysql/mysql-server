@@ -4,6 +4,9 @@
 --echo #
 --echo # Set up the test with a procedure and a function.
 --echo #
+
+--source include/have_debug.inc
+
 DELIMITER ~~;
 CREATE PROCEDURE insert_n(start int, end int)
 BEGIN
@@ -22,6 +25,11 @@ BEGIN
     RETURN ret;
 END~~
 DELIMITER ;~~
+
+# Stop threads from interfering in the test
+SET GLOBAL innodb_purge_stop_now = ON;
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 
 --echo #
 --echo # Create a table with one record in it and start an RR transaction
@@ -78,3 +86,10 @@ disconnect con3;
 DROP TABLE t1;
 DROP PROCEDURE insert_n;
 DROP FUNCTION num_pages_get;
+# Restore values
+SET GLOBAL innodb_purge_stop_now = default;
+# Force the purge thread to run
+SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_dict_stats_disabled_debug = default;
+SET GLOBAL innodb_checkpoint_disabled = default;
+

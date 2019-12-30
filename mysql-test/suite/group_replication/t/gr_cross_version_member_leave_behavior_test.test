@@ -1,0 +1,120 @@
+################################################################################
+# Group Replication: cross-version policies
+# This test makes sure during view change compatibility is re-checked.
+# If member in multi-primary mode is write-compatible post view change, member
+# resets read_only mode.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap M1.
+# 2. Start GR on M2 with higher patch version.
+# 3. Start GR on M3 with higher minor version.
+# 4. Stop GR on M1.
+#    M2 turns off read_only since its lowest version.
+# 5. Stop GR on M2.
+#    M3 turns off read_only since it is now a single member.
+# 6. Cleanup.
+#
+################################################################################
+
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap M1.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 2. Start GR on M2 with higher patch version.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @debug2_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+--echo
+--echo # 3. Start GR on M3 with higher minor version.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET @debug3_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+--echo
+--echo # 4. Stop GR on M1.
+--echo #    M2 turns off read_only since its lowest version.
+--echo
+
+## STATUS - ASSUMING 8.0.17 is original version
+# Server - State - Version - Weight - R/W
+# M1     - ON    - 8.0.17  - 50     - W
+# M2     - ON    - 8.0.18  - 50     - R
+# M3     - ON    - 8.1.17  - 50     - R
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $skip_reset_read_mode= 1
+--source include/stop_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+--echo
+--echo # 5. Stop GR on M2.
+--echo #    M3 turns off read_only since it is now a single member.
+--echo
+
+# Server - State - Version - Weight - R/W
+# M1     - OFF   - 8.0.17  - 50     - R
+# M2     - ON    - 8.0.18  - 50     - W
+# M3     - ON    - 8.1.17  - 50     - R
+
+# Single member test for any corner case.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= @debug2_save;
+--source include/stop_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+# Server - State - Version - Weight - R/W
+# M1     - OFF   - 8.0.17  - 50     - R
+# M2     - OFF   - 8.0.17  - 50     - R
+# M3     - ON    - 8.1.17  - 50     - W
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET @@GLOBAL.DEBUG= @debug3_save;
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

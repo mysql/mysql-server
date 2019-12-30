@@ -1,11 +1,25 @@
 /* Progress Indicator */
+.mblProgressIndicator {
+	position: relative;
+	top: 0px;
+}
+.mblHeading .mblProgressIndicator {
+	margin: 5px;
+	float: left;
+}
 .mblProgContainer {
 	position: absolute;
-	width: 40px;
-	height: 40px;
+	width: 100%;
+	height: 100%;
+}
+.mblProgressIndicatorCenter {
+	position: absolute;
 	top: 180px;
 	left: 50%;
-	margin: -18px 0px 0px -18px;
+}
+.mblProgressIndicatorCenter .mblProgContainer {
+	left: -50%;
+	-webkit-transform-origin: 50% 0;
 }
 .mblProg {
 	position: absolute;
@@ -16,9 +30,8 @@
 	height: 4px;
 	overflow: hidden;
 	-webkit-transform-origin: 0 2px;
-	background-color: #C0C0C0;
-	-webkit-border-radius: 2px;
-	-moz-border-radius: 2px;
+	background-color: #c0c0c0;
+	border-radius: 2px;
 }
 .mblProg0 {
 	-webkit-transform: translate(18px,10px) rotate(-90.1deg);
@@ -55,4 +68,79 @@
 }
 .mblProg11 {
 	-webkit-transform: translate(14px,11px) rotate(240deg);
+}
+
+.mblProg0Color {
+	background-color: #c0c0c0;
+}
+.mblProg1Color {
+	background-color: #c0c0c0;
+}
+.mblProg2Color {
+	background-color: #c0c0c0;
+}
+.mblProg3Color {
+	background-color: #c0c0c0;
+}
+.mblProg4Color {
+	background-color: #c0c0c0;
+}
+.mblProg5Color {
+	background-color: #c0c0c0;
+}
+.mblProg6Color {
+	background-color: #b8b9b8;
+}
+.mblProg7Color {
+	background-color: #aeafae;
+}
+.mblProg8Color {
+	background-color: #a4a5a4;
+}
+.mblProg9Color {
+	background-color: #9a9a9a;
+}
+.mblProg10Color {
+	background-color: #8e8e8e;
+}
+.mblProg11Color {
+	background-color: #838383;
+}
+
+
+.mblProgWhite .mblProg0Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg1Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg2Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg3Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg4Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg5Color {
+	background-color: #adb9c9;
+}
+.mblProgWhite .mblProg6Color {
+	background-color: #acb9cb;
+}
+.mblProgWhite .mblProg7Color {
+	background-color: #b7c2d2;
+}
+.mblProgWhite .mblProg8Color {
+	background-color: #c4cdda;
+}
+.mblProgWhite .mblProg9Color {
+	background-color: #d1d8e2;
+}
+.mblProgWhite .mblProg10Color {
+	background-color: #dee3ea;
+}
+.mblProgWhite .mblProg11Color {
+	background-color: #eceff3;
 }

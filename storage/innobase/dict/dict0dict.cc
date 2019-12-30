@@ -197,9 +197,9 @@ index.
 @param[in]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v);
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v);
 /** Builds the internal dictionary cache representation for a clustered
  index, containing also system fields not defined by the user.
  @return own: the internal representation of the clustered index */
@@ -231,7 +231,7 @@ static void dict_index_remove_from_cache_low(
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin(void);
 
 /** Removes a table object from the dictionary cache. */
@@ -261,11 +261,10 @@ ib_mutex_t dict_foreign_err_mutex;
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
-ibool dict_tables_have_same_db(
-    const char *name1, /*!< in: table name in the form
-                       dbname '/' tablename */
-    const char *name2) /*!< in: table name in the form
-                       dbname '/' tablename */
+ibool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
+                                                  form dbname '/' tablename */
+                               const char *name2) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   for (; *name1 == *name2; name1++, name2++) {
     if (*name1 == '/') {
@@ -278,9 +277,8 @@ ibool dict_tables_have_same_db(
 
 /** Return the end of table name where we have removed dbname and '/'.
  @return table name */
-const char *dict_remove_db_name(
-    const char *name) /*!< in: table name in the form
-                      dbname '/' tablename */
+const char *dict_remove_db_name(const char *name) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   const char *s = strchr(name, '/');
   ut_a(s);
@@ -548,8 +546,6 @@ void dict_table_close(dict_table_t *table, /*!< in/out: table */
       dict_stats_is_persistent_enabled(table)) {
     dict_stats_deinit(table);
   }
-
-  MONITOR_DEC(MONITOR_TABLE_REFERENCE);
 
   if (!dict_locked) {
     table_id_t table_id = table->id;
@@ -1080,7 +1076,7 @@ dict_table_t *dict_table_open_on_name(
                                   loading a table definition */
 {
   dict_table_t *table;
-  DBUG_ENTER("dict_table_open_on_name");
+  DBUG_TRACE;
   DBUG_PRINT("dict_table_open_on_name", ("table: '%s'", table_name));
 
   if (!dict_locked) {
@@ -1110,7 +1106,7 @@ dict_table_t *dict_table_open_on_name(
       ib::info(ER_IB_MSG_175) << "Table " << table->name
                               << " is corrupted. Please drop the table"
                                  " and recreate it";
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     if (table->can_be_evicted) {
@@ -1118,8 +1114,6 @@ dict_table_t *dict_table_open_on_name(
     }
 
     table->acquire();
-
-    MONITOR_INC(MONITOR_TABLE_REFERENCE);
   }
 
   ut_ad(dict_lru_validate());
@@ -1128,7 +1122,7 @@ dict_table_t *dict_table_open_on_name(
     dict_table_try_drop_aborted_and_mutex_exit(table, try_drop);
   }
 
-  DBUG_RETURN(table);
+  return table;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1504,8 +1498,9 @@ dberr_t dict_table_rename_in_cache(
               ut_ad(table2->cached),
               (ut_strcmp(table2->name.m_name, new_name) == 0));
 
-  DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
-                  if (table2 == NULL) { table2 = (dict_table_t *)-1; });
+  DBUG_EXECUTE_IF(
+      "dict_table_rename_in_cache_failure",
+      if (table2 == NULL) { table2 = (dict_table_t *)-1; });
 
   if (table2 != nullptr) {
     ib::error(ER_IB_MSG_178)
@@ -2356,7 +2351,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   ut_d(mem_heap_validate(index->heap));
   ut_a(!index->is_clustered() || UT_LIST_GET_LEN(table->indexes) == 0);
 
-  if (!dict_index_find_cols(table, index, add_v)) {
+  if (!dict_index_find_and_set_cols(table, index, add_v)) {
     dict_mem_index_free(index);
     return (DB_CORRUPTION);
   }
@@ -2598,7 +2593,7 @@ static void dict_index_remove_from_cache_low(
     if (retries >= 60000) {
       ut_error;
     }
-  } while (srv_shutdown_state == SRV_SHUTDOWN_NONE || !lru_evict);
+  } while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE || !lru_evict);
 
   rw_lock_free(&index->lock);
 
@@ -2662,20 +2657,39 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
   dict_index_remove_from_cache_low(table, index, FALSE);
 }
 
+/** Duplicate a virtual column information
+@param[in]	v_col	virtual column information to duplicate
+@param[in,out]	heap	memory heap
+@return the duplicated virtual column */
+static dict_v_col_t *dict_duplicate_v_col(const dict_v_col_t *v_col,
+                                          mem_heap_t *heap) {
+  dict_v_col_t *new_v_col =
+      static_cast<dict_v_col_t *>(mem_heap_zalloc(heap, sizeof(*v_col)));
+
+  ut_ad(v_col->v_indexes == nullptr);
+
+  /* Currently, only m_col and v_indexes would be cared in future use,
+  and v_indexes is always nullptr. So the memcpy can work for it */
+  memcpy(new_v_col, v_col, sizeof(*v_col));
+
+  return (new_v_col);
+}
+
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]	table	table
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v) {
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v) {
   std::vector<ulint, ut_allocator<ulint>> col_added;
   std::vector<ulint, ut_allocator<ulint>> v_col_added;
 
   ut_ad(table != NULL && index != NULL);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   for (ulint i = 0; i < index->n_fields; i++) {
     ulint j;
@@ -2726,7 +2740,20 @@ static ibool dict_index_find_cols(const dict_table_t *table,
     if (add_v) {
       for (j = 0; j < add_v->n_v_col; j++) {
         if (!strcmp(add_v->v_col_name[j], field->name)) {
-          field->col = const_cast<dict_col_t *>(&add_v->v_col[j].m_col);
+          /* Once add_v is not nullptr, it comes from ALTER TABLE.
+          To make sure the index can work after ALTER TABLE path,
+          which may happen when the ALTER TABLE gets rolled back,
+          it is a must to duplicate the virtual column information,
+          in case the passed in object would be freed after ALTER TABLE. */
+
+          mutex_enter(&dict_sys->mutex);
+          uint64_t old_size = mem_heap_get_size(table->heap);
+          dict_v_col_t *vcol =
+              dict_duplicate_v_col(&add_v->v_col[j], table->heap);
+          field->col = &vcol->m_col;
+          dict_sys->size += mem_heap_get_size(table->heap) - old_size;
+          mutex_exit(&dict_sys->mutex);
+
           goto found;
         }
       }
@@ -3293,7 +3320,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   ibool added_to_referenced_list = FALSE;
   FILE *ef = dict_foreign_err_file;
 
-  DBUG_ENTER("dict_foreign_add_to_cache");
+  DBUG_TRACE;
   DBUG_PRINT("dict_foreign_add_to_cache", ("id: %s", foreign->id));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -3339,7 +3366,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
         mem_heap_free(foreign->heap);
       }
 
-      DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
+      return DB_CANNOT_ADD_CONSTRAINT;
     }
 
     for_in_cache->referenced_table = ref_table;
@@ -3383,7 +3410,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
         mem_heap_free(foreign->heap);
       }
 
-      DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
+      return DB_CANNOT_ADD_CONSTRAINT;
     }
 
     for_in_cache->foreign_table = for_table;
@@ -3408,7 +3435,7 @@ dberr_t dict_foreign_add_to_cache(dict_foreign_t *foreign,
   }
 
   ut_ad(dict_lru_validate());
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Scans from pointer onwards. Stops if is at the start of a copy of
@@ -3814,7 +3841,7 @@ static char *dict_strip_comments(
   char quote = 0;
   bool escape = false;
 
-  DBUG_ENTER("dict_strip_comments");
+  DBUG_TRACE;
 
   DBUG_PRINT("dict_strip_comments", ("%s", sql_string));
 
@@ -3832,7 +3859,7 @@ static char *dict_strip_comments(
       ut_a(ptr <= str + sql_length);
 
       DBUG_PRINT("dict_strip_comments", ("%s", str));
-      DBUG_RETURN(str);
+      return str;
     }
 
     if (*sptr == quote) {
@@ -3915,7 +3942,7 @@ ulint dict_table_get_highest_foreign_id(
   ulint id;
   ulint len;
 
-  DBUG_ENTER("dict_table_get_highest_foreign_id");
+  DBUG_TRACE;
 
   ut_a(table);
 
@@ -3948,7 +3975,7 @@ ulint dict_table_get_highest_foreign_id(
 
   DBUG_PRINT("dict_table_get_highest_foreign_id", ("id: %lu", biggest_id));
 
-  DBUG_RETURN(biggest_id);
+  return biggest_id;
 }
 
 /** Reports a simple foreign key create clause syntax error. */
@@ -4750,7 +4777,7 @@ syntax_error:
   return (DB_CANNOT_DROP_CONSTRAINT);
 }
 
-  /*==================== END OF FOREIGN KEY PROCESSING ====================*/
+/*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
 #ifdef UNIV_DEBUG
 /** Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -4773,16 +4800,15 @@ ibool dict_index_check_search_tuple(
 
 /** Builds a node pointer out of a physical record and a page number.
  @return own: node pointer */
-dtuple_t *dict_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
+dtuple_t *dict_index_build_node_ptr(const dict_index_t *index, /*!< in: index */
+                                    const rec_t *rec,  /*!< in: record for which
+                                                       to build node  pointer */
+                                    page_no_t page_no, /*!< in: page number to
+                                                       put in node pointer */
+                                    mem_heap_t *heap, /*!< in: memory heap where
+                                                      pointer created */
+                                    ulint level) /*!< in: level of rec in tree:
+                                                 0 means leaf level */
 {
   dtuple_t *tuple;
   dfield_t *field;
@@ -5457,7 +5483,7 @@ void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    log_sys->dict_max_allowed_checkpoint_lsn = 0;
+    log_set_dict_max_allowed_checkpoint_lsn(*log_sys, 0);
     return;
   }
 
@@ -5492,7 +5518,7 @@ void dict_persist_to_dd_table_buffer() {
   We must not remove redo which could allow to deduce them.
   Therefore the maximum allowed lsn for checkpoint is the
   current lsn. */
-  log_sys->dict_max_allowed_checkpoint_lsn = persisted_lsn;
+  log_set_dict_max_allowed_checkpoint_lsn(*log_sys, persisted_lsn);
 
   mutex_exit(&dict_persist->mutex);
 
@@ -5507,7 +5533,7 @@ void dict_persist_to_dd_table_buffer() {
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */
@@ -5548,10 +5574,7 @@ static void dict_persist_update_log_margin() {
 
   if (log_sys != nullptr) {
     /* Update margin for redo log */
-    log_sys->dict_persist_margin.store(margin);
-
-    /* Update log.sn_limit_for_start. */
-    log_update_limits(*log_sys);
+    log_set_dict_persist_margin(*log_sys, margin);
   }
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -5592,7 +5615,7 @@ void dict_ind_init(void) {
   dict_table_t *table;
 
   /* create dummy table and index for REDUNDANT infimum and supremum */
-  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0);
+  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0, 0);
   dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
                          DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -5850,6 +5873,7 @@ void dict_resize() {
 
   mutex_exit(&dict_sys->mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Closes the data dictionary module. */
 void dict_close(void) {
@@ -5875,6 +5899,7 @@ void dict_close(void) {
     dict_table_close(dict_sys->ddl_log, true, false);
   }
 
+#ifndef UNIV_HOTBACKUP
   /* Free the hash elements. We don't remove them from the table
   because we are going to destroy the table anyway. */
   for (ulint i = 0; i < hash_get_n_cells(dict_sys->table_id_hash); i++) {
@@ -5891,6 +5916,7 @@ void dict_close(void) {
       dict_table_remove_from_cache(prev_table);
     }
   }
+#endif /* !UNIV_HOTBACKUP */
 
   hash_table_free(dict_sys->table_hash);
 
@@ -5898,7 +5924,9 @@ void dict_close(void) {
   therefore we don't delete the individual elements. */
   hash_table_free(dict_sys->table_id_hash);
 
+#ifndef UNIV_HOTBACKUP
   dict_ind_free();
+#endif /* !UNIV_HOTBACKUP */
 
   mutex_exit(&dict_sys->mutex);
   mutex_free(&dict_sys->mutex);
@@ -5910,10 +5938,12 @@ void dict_close(void) {
 
   mutex_free(&dict_foreign_err_mutex);
 
+#ifndef UNIV_HOTBACKUP
   if (dict_foreign_err_file != NULL) {
     fclose(dict_foreign_err_file);
     dict_foreign_err_file = NULL;
   }
+#endif /* !UNIV_HOTBACKUP */
 
   ut_ad(dict_sys->size == 0);
 
@@ -5921,6 +5951,7 @@ void dict_close(void) {
   dict_sys = NULL;
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Validate the dictionary table LRU list.
  @return true if valid */
@@ -6403,7 +6434,7 @@ void DDTableBuffer::open() {
   }
 
   table = dict_mem_table_create(table_name, dict_sys_t::s_space_id, N_USER_COLS,
-                                0, 0, 0);
+                                0, 0, 0, 0);
 
   table->id = dict_sys_t::s_dynamic_meta_table_id;
   table->is_dd_table = true;
@@ -6702,13 +6733,14 @@ void Persister::write_log(table_id_t id,
                           mtr_t *mtr) const {
   byte *log_ptr;
   ulint size = get_write_size(metadata);
+  /* Both table id and version would be written in a compressed format,
+  each of which would cost 1..11 bytes, and MLOG_TABLE_DYNAMIC_META costs
+  1 byte. Refer to mlog_write_initial_dict_log_record() as well */
+  static constexpr uint8_t metadata_log_header_size = 23;
 
   ut_ad(size > 0);
 
-  /* We will write the id in a much compressed format, which costs
-  1..11 bytes, and the MLOG_TABLE_DYNAMIC_META costs 1 byte,
-  refer to mlog_write_initial_dict_log_record() as well */
-  log_ptr = mlog_open_metadata(mtr, 12 + size);
+  log_ptr = mlog_open_metadata(mtr, metadata_log_header_size + size);
   ut_ad(log_ptr != NULL);
 
   log_ptr = mlog_write_initial_dict_log_record(

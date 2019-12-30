@@ -25,11 +25,11 @@ if(this.rawNode.fill&&!this.rawNode.fill.colors){
 this.rawNode.fill.colors={};
 }
 };
-if(_3.isIE<=8){
-dojox.geo.openlayers.Patch.patchMethod(_4.Line,"setShape",_e,null);
-dojox.geo.openlayers.Patch.patchMethod(_4.Polyline,"setShape",_e,null);
-dojox.geo.openlayers.Patch.patchMethod(_4.Path,"setShape",_e,null);
-dojox.geo.openlayers.Patch.patchMethod(_5.Shape,"setFill",_f,null);
+if(_3.isIE<=8&&_4.renderer==="vml"){
+this.patchMethod(_4.Line,"setShape",_e,null);
+this.patchMethod(_4.Polyline,"setShape",_e,null);
+this.patchMethod(_4.Path,"setShape",_e,null);
+this.patchMethod(_5.Shape,"setFill",_f,null);
 }
 }};
 return _6.Patch;

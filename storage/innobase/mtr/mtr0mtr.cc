@@ -474,6 +474,8 @@ void mtr_t::commit() {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   m_impl.m_state = MTR_STATE_COMMITTING;
 
+  DBUG_EXECUTE_IF("mtr_commit_crash", DBUG_SUICIDE(););
+
   Command cmd(this);
 
   if (m_impl.m_n_log_recs > 0 ||
@@ -744,6 +746,137 @@ void mtr_t::print() const {
   ib::info(ER_IB_MSG_1275) << "Mini-transaction handle: memo size "
                            << m_impl.m_memo.size() << " bytes log size "
                            << get_log()->size() << " bytes";
+}
+
+lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
+  constexpr size_t MAX_PAYLOAD_SIZE = 1024;
+  ut_a(payload <= MAX_PAYLOAD_SIZE);
+
+  /* Create MLOG_TEST record in the memory. */
+  byte record[MLOG_TEST_REC_OVERHEAD + MAX_PAYLOAD_SIZE];
+
+  byte *record_end =
+      Log_test::create_mlog_rec(record, 1, MLOG_TEST_VALUE, payload);
+
+  const size_t rec_len = record_end - record;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  /* Copy the created MLOG_TEST to mtr's local buffer. */
+  byte *dst = mlog_open(&mtr, rec_len);
+  std::memcpy(dst, record, rec_len);
+  mlog_close(&mtr, dst + rec_len);
+
+  mtr.added_rec();
+
+  ut_ad(mtr.get_expected_log_size() == MLOG_TEST_REC_OVERHEAD + payload);
+
+  mtr_commit(&mtr);
+
+  return (mtr.commit_lsn());
+}
+
+static void mtr_commit_mlog_test_filling_block_low(log_t &log,
+                                                   size_t req_space_left,
+                                                   size_t recursive_level) {
+  ut_a(req_space_left <= LOG_BLOCK_DATA_SIZE);
+
+  /* Compute how much free space we have in current log block. */
+  const lsn_t current_lsn = log_get_lsn(log);
+  size_t cur_space_left = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE -
+                          current_lsn % OS_FILE_LOG_BLOCK_SIZE;
+
+  /* Subtract minimum space required for a single MLOG_TEST. */
+  if (cur_space_left < MLOG_TEST_REC_OVERHEAD) {
+    /* Even the smallest MLOG_TEST was not fitting the left space,
+    so we will need to use the next log block too. */
+    cur_space_left += LOG_BLOCK_DATA_SIZE;
+  }
+  cur_space_left -= MLOG_TEST_REC_OVERHEAD;
+
+  /* Compute how big payload is required to leave exactly the provided
+  req_space_left bytes free in last block. */
+  size_t payload;
+  if (cur_space_left < req_space_left) {
+    /* We requested to leave more free bytes, than we have currently
+    in the last block, we need to use the next log block. */
+    payload = cur_space_left + LOG_BLOCK_DATA_SIZE - req_space_left;
+  } else {
+    payload = cur_space_left - req_space_left;
+  }
+
+  /* Check if size of the record fits the maximum allowed size, which
+  is defined by the dyn_buf_t used in mtr_t (mtr_buf_t). */
+
+  if (MLOG_TEST_REC_OVERHEAD + payload <= mtr_buf_t::MAX_DATA_SIZE) {
+    mtr_commit_mlog_test(*log_sys, payload);
+  } else {
+    /* It does not fit, so we need to write as much as possible here,
+    but keep in mind that next record will need to take at least
+    MLOG_TEST_REC_OVERHEAD bytes. Fortunately the MAX_DATA_SIZE is
+    always at least twice larger than the MLOG_TEST_REC_OVERHEAD,
+    so the payload has to be larger than MLOG_TEST_REC_OVERHEAD. */
+    ut_ad(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
+    ut_a(payload > MLOG_TEST_REC_OVERHEAD);
+
+    /* Subtract space which we will consume by usage of next record.
+    The remaining space is maximum we are allowed to consume within
+    this record. */
+    payload -= MLOG_TEST_REC_OVERHEAD;
+
+    if (MLOG_TEST_REC_OVERHEAD + payload > mtr_buf_t::MAX_DATA_SIZE) {
+      /* We still cannot fit mtr_buf_t::MAX_DATA_SIZE bytes, so write
+      as much as possible within this record. */
+      payload = mtr_buf_t::MAX_DATA_SIZE - MLOG_TEST_REC_OVERHEAD;
+    }
+
+    /* Write this MLOG_TEST record. */
+    mtr_commit_mlog_test(*log_sys, payload);
+
+    /* Compute upper bound for maximum level of recursion that is ever possible.
+    This is to verify the guarantee that we don't go to deep.
+
+    We do not want to depend on actual difference between the
+    mtr_buf_t::MAX_DATA_SIZE and LOG_BLOCK_DATA_SIZE.
+
+    Note that mtr_buf_t::MAX_DATA_SIZE is the maximum size of log record we
+    could add. The LOG_BLOCK_DATA_SIZE consists of LOG_BLOCK_DATA_SIZE /
+    mtr_buf_t::MAX_DATA_SIZE records of mtr_buf_t::MAX_DATA_SIZE size each (0 if
+    MAX_DATA_SIZE is larger than the LOG_BLOCK_DATA_SIZE). If we shifted these
+    records then possibly 2 more records are required at boundaries (beginning
+    and ending) to cover the whole range. If the last record would not end at
+    proper offset, we decrease its payload. If we needed to move its end to even
+    smaller offset from beginning of log block than we reach with payload=0,
+    then we subtract up to MLOG_TEST_REC_OVERHEAD bytes from payload of previous
+    record, which is always possible because:
+      MAX_DATA_SIZE - MLOG_TEST_REC_OVERHEAD >= MLOG_TEST_REC_OVERHEAD.
+
+    If the initial free space minus MLOG_TEST_REC_OVERHEAD is smaller than the
+    requested free space, then we need to move forward by at most
+    LOG_BLOCK_DATA_SIZE bytes. For that we need at most LOG_BLOCK_DATA_SIZE /
+    mtr_buf_t::MAX_DATA_SIZE + 2 records shifted in the way described above.
+
+    This solution is reached by the loop of writing MAX_DATA_SIZE records until
+    the distance to target is <= MAX_DATA_SIZE + MLOG_TEST_REC_OVERHEAD, in
+    which case we adjust size of next record to end it exactly
+    MLOG_TEST_REC_OVERHEAD bytes before the target (this is why we subtract
+    MLOG_TEST_REC_OVERHEAD from payload). Then next recursive call will have an
+    easy task of adding record with payload=0. The loop mentioned above is
+    implemented by the recursion. */
+    constexpr auto MAX_REC_N =
+        LOG_BLOCK_DATA_SIZE / mtr_buf_t::MAX_DATA_SIZE + 2;
+
+    ut_a(recursive_level + 1 <= MAX_REC_N);
+
+    /* Write next MLOG_TEST record(s). */
+    mtr_commit_mlog_test_filling_block_low(log, req_space_left,
+                                           recursive_level + 1);
+  }
+}
+
+void mtr_commit_mlog_test_filling_block(log_t &log, size_t req_space_left) {
+  mtr_commit_mlog_test_filling_block_low(log, req_space_left, 1);
 }
 
 #endif /* UNIV_DEBUG */

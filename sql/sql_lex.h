@@ -56,14 +56,14 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "prealloced_array.h"                // Prealloced_array
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/composite_iterators.h"
 #include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::Table_stati...
 #include "sql/dd/info_schema/tablespace_stats.h"  // dd::info_schema::Tablesp...
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"            // Name_resolution_context
-#include "sql/item_create.h"     // Cast_target
 #include "sql/item_subselect.h"  // chooser_compare_func_creator
 #include "sql/key_spec.h"        // KEY_CREATE_INFO
 #include "sql/lex_symbol.h"      // LEX_SYMBOL
@@ -73,89 +73,39 @@
 #include "sql/opt_hints.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/parse_tree_node_base.h"  // enum_parsing_context
-#include "sql/query_options.h"         // OPTION_NO_CONST_TABLES
-#include "sql/resourcegroups/platform/thread_attrs_api.h"   // cpu_id_t
-#include "sql/resourcegroups/resource_group_basic_types.h"  // Type, Range
+#include "sql/parser_yystype.h"
+#include "sql/query_options.h"  // OPTION_NO_CONST_TABLES
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
-#include "sql/sql_admin.h"
 #include "sql/sql_alter.h"  // Alter_info
 #include "sql/sql_array.h"
 #include "sql/sql_connect.h"  // USER_RESOURCES
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"  // enum_duplicates
-#include "sql/sql_exchange.h"
-#include "sql/sql_get_diagnostics.h"  // Diagnostics_information
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_servers.h"  // Server_options
-#include "sql/sql_signal.h"   // enum_condition_item_name
 #include "sql/sql_udf.h"      // Item_udftype
 #include "sql/table.h"        // TABLE_LIST
 #include "sql/thr_malloc.h"
 #include "sql/trigger_def.h"  // enum_trigger_action_time_type
-#include "sql/window_lex.h"
-#include "sql/xa.h"  // xa_option_words
 #include "sql_chars.h"
 #include "sql_string.h"
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
 class Item_cond;
-class Item_func_set_user_var;
 class Item_sum;
+class Event_parse_data;
+class Item_func_match;
 class Parse_tree_root;
-class PT_alter_table_standalone_action;
-class PT_assign_to_keycache;
-class PT_column_attr_base;
-class PT_create_table_option;
-class PT_ddl_table_option;
-class PT_item_list;
-class PT_json_table_column;
-class PT_key_part_specification;
-class PT_part_definition;
-class PT_part_value_item;
-class PT_part_value_item_list_paren;
-class PT_part_values;
-class PT_partition;
-class PT_partition_option;
-class PT_preload_keys;
-class PT_query_expression;
-class PT_role_or_privilege;
-class PT_subpartition;
-class PT_subquery;
-class PT_table_element;
-class PT_table_reference;
-class Protocol;
-class SELECT_LEX_UNIT;
-class Select_lex_visitor;
-class THD;
 class Window;
-struct MEM_ROOT;
-struct Sql_cmd_srs_attributes;
-
+class sp_pcontext;
 enum class enum_jt_column;
 enum class enum_jtc_on : uint16;
-typedef Parse_tree_node_tmpl<struct Alter_tablespace_parse_context>
-    PT_alter_tablespace_option_base;
-
-/* YACC and LEX Definitions */
-
-class Event_parse_data;
-class Item_func;
-class Item_func_match;
-class Query_result_interceptor;
-class SELECT_LEX;
-class Sql_cmd;
-class partition_info;
-class sp_head;
-class sp_name;
-class sp_pcontext;
 struct sql_digest_state;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
-
-enum class partition_type;      // from partition_element.h
-enum class enum_key_algorithm;  // from partition_info.h
 
 /*
   There are 8 different type of table access so there is no more than
@@ -201,21 +151,6 @@ extern uint binlog_unsafe_map[256];
   conditions.
 */
 void binlog_unsafe_map_init();
-
-enum enum_yes_no_unknown { TVL_YES, TVL_NO, TVL_UNKNOWN };
-
-enum class enum_ha_read_modes;
-
-/**
-  used by the parser to store internal variable name
-*/
-struct sys_var_with_base {
-  sys_var *var;
-  LEX_STRING base_name;
-};
-
-#define YYSTYPE_IS_DECLARED 1
-union YYSTYPE;
 
 /*
   If we encounter a diagnostics statement (GET DIAGNOSTICS, or e.g.
@@ -287,23 +222,17 @@ enum class Acl_type {
   PROCEDURE = TYPE_ENUM_PROCEDURE,
 };
 
-const LEX_STRING sp_data_access_name[] = {
-    {C_STRING_WITH_LEN("")},
-    {C_STRING_WITH_LEN("CONTAINS SQL")},
-    {C_STRING_WITH_LEN("NO SQL")},
-    {C_STRING_WITH_LEN("READS SQL DATA")},
-    {C_STRING_WITH_LEN("MODIFIES SQL DATA")}};
+const LEX_CSTRING sp_data_access_name[] = {
+    {STRING_WITH_LEN("")},
+    {STRING_WITH_LEN("CONTAINS SQL")},
+    {STRING_WITH_LEN("NO SQL")},
+    {STRING_WITH_LEN("READS SQL DATA")},
+    {STRING_WITH_LEN("MODIFIES SQL DATA")}};
 
 enum class enum_view_create_mode {
   VIEW_CREATE_NEW,        // check that there are not such VIEW/table
   VIEW_ALTER,             // check that VIEW with such name exists
   VIEW_CREATE_OR_REPLACE  // check only that there are not such table
-};
-
-enum enum_drop_mode {
-  DROP_DEFAULT,  // mode is not specified
-  DROP_CASCADE,  // CASCADE option
-  DROP_RESTRICT  // RESTRICT option
 };
 
 /* Options to add_table_to_list() */
@@ -415,7 +344,19 @@ struct LEX_MASTER_INFO {
   char *public_key_path;
   char *relay_log_name;
   ulong relay_log_pos;
+  char *compression_algorithm;
+  uint zstd_compression_level;
   Prealloced_array<ulong, 2> repl_ignore_server_ids;
+  /**
+    Flag that is set to `true` whenever `PRIVILEGE_CHECKS_USER` is set to `NULL`
+    as a part of a `CHANGE MASTER TO` statement.
+   */
+  bool privilege_checks_none;
+  /**
+    Username and hostname parts of the `PRIVILEGE_CHECKS_USER`, when it's set to
+    a user.
+   */
+  const char *privilege_checks_username, *privilege_checks_hostname;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -441,8 +382,6 @@ enum sub_select_type {
   DERIVED_TABLE_TYPE,
   OLAP_TYPE
 };
-
-enum olap_type { UNSPECIFIED_OLAP_TYPE, ROLLUP_TYPE };
 
 /*
   String names used to print a statement with index hints.
@@ -605,6 +544,7 @@ class JOIN;
 class PT_with_clause;
 class Query_result;
 class Query_result_union;
+class RowIterator;
 struct LEX;
 
 /**
@@ -643,9 +583,56 @@ class SELECT_LEX_UNIT {
 
   TABLE_LIST result_table_list;
   Query_result_union *union_result;
-  TABLE *table; /* temporary table using for appending UNION results */
-  /// Object to which the result for this query expression is sent
+  /// Temporary table using for appending UNION results.
+  /// Not used if we materialize directly into a parent query expression's
+  /// result table (see optimize()).
+  TABLE *table;
+  /// Object to which the result for this query expression is sent.
+  /// Not used if we materialize directly into a parent query expression's
+  /// result table (see optimize()).
   Query_result *m_query_result;
+
+  /**
+    An iterator you can read from to get all records for this query.
+
+    May be nullptr even after create_iterators() if the current query
+    is not supported by the iterator executor, or in the case of an
+    unfinished materialization (see optimize()).
+   */
+  unique_ptr_destroy_only<RowIterator> m_root_iterator;
+
+  /**
+    If there is an unfinished materialization (see optimize()),
+    contains one element for each query block in this query expression.
+   */
+  Mem_root_array<MaterializeIterator::QueryBlock> m_query_blocks_to_materialize;
+
+  /**
+    Sets up each query block in this query expression for materialization
+    into the given table.
+
+    @param thd thread handle
+    @param dst_table the table to materialize into
+    @param union_distinct_only if true, keep only UNION DISTINCT query blocks
+      (any UNION ALL blocks are presumed handled higher up, by AppendIterator)
+   */
+  Mem_root_array<MaterializeIterator::QueryBlock> setup_materialization(
+      THD *thd, TABLE *dst_table, bool union_distinct_only);
+
+  /**
+    If possible, convert the executor structures to a set of row iterators,
+    storing the result in m_root_iterator. If not, m_root_iterator will remain
+    nullptr.
+   */
+  void create_iterators(THD *thd);
+
+  /**
+    Whether all children use the iterator executor or not.
+
+    Before optimize(), can return false positives. See
+    can_materialize_directly_into_result().
+   */
+  bool all_query_blocks_use_iterator_executor() const;
 
  public:
   /**
@@ -780,6 +767,22 @@ class SELECT_LEX_UNIT {
   /// @return the query result object in use for this query expression
   Query_result *query_result() const { return m_query_result; }
 
+  RowIterator *root_iterator() const { return m_root_iterator.get(); }
+  unique_ptr_destroy_only<RowIterator> release_root_iterator() {
+    return move(m_root_iterator);
+  }
+
+  /// See optimize().
+  bool unfinished_materialization() const {
+    return !m_query_blocks_to_materialize.empty();
+  }
+
+  /// See optimize().
+  Mem_root_array<MaterializeIterator::QueryBlock>
+  release_query_blocks_to_materialize() {
+    return std::move(m_query_blocks_to_materialize);
+  }
+
   /**
     If this unit is recursive, then this returns the Query_result which holds
     the rows of the recursive reference read by 'reader':
@@ -792,9 +795,41 @@ class SELECT_LEX_UNIT {
   /// Set new query result object for this query expression
   void set_query_result(Query_result *res) { m_query_result = res; }
 
+  /**
+    Whether there is a chance that optimize() is capable of materializing
+    directly into a result table if given one. Note that even if this function
+    returns true, optimize() can choose later not to do so, since it depends
+    on information (in particular, whether the query blocks can run under
+    the iterator executor or not) that is not available before optimize time.
+   */
+  bool can_materialize_directly_into_result(THD *thd) const;
+
   bool prepare(THD *thd, Query_result *result, ulonglong added_options,
                ulonglong removed_options);
-  bool optimize(THD *thd);
+
+  /**
+    If and only if materialize_destination is non-nullptr, it means that the
+    caller intends to materialize our result into the given table. If it is
+    advantageous (in particular, if this query expression is a UNION DISTINCT),
+    optimize() will not create an iterator by itself, but rather do an
+    unfinished materialize. This means that it will collect iterators for
+    all the query blocks and prepare them for materializing into the given
+    table, but not actually create a root iterator for this query expression;
+    the caller is responsible for calling release_tables_to_materialize() and
+    creating the iterator itself.
+
+    Even if materialize_destination is non-nullptr, this function may choose
+    to make a regular iterator. The caller is responsible for checking
+    unfinished_materialization() if it has given a non-nullptr table.
+
+    @param thd Thread handle.
+
+    @param materialize_destination What table to try to materialize into,
+      or nullptr if the caller does not intend to materialize the result.
+   */
+  bool optimize(THD *thd, TABLE *materialize_destination);
+
+  bool ExecuteIteratorQuery(THD *thd);
   bool execute(THD *thd);
   bool explain(THD *explain_thd, const THD *query_thd);
   bool cleanup(THD *thd, bool full);
@@ -840,6 +875,19 @@ class SELECT_LEX_UNIT {
   List<Item> *get_unit_column_types();
   List<Item> *get_field_list();
 
+  // If we are doing a query with global LIMIT but without fake_select_lex,
+  // we need somewhere to store the record count for FOUND_ROWS().
+  // It can't be in any of the JOINs, since they may have their own
+  // LimitOffsetIterators, which will write to join->send_records
+  // whenever there is an OFFSET. (It also can't be in saved_fake_select_lex,
+  // which has no join.) Thus, we'll keep it here instead.
+  //
+  // If we have a fake_select_lex, we use its send_records instead
+  // (since its LimitOffsetIterator will write there), and if we don't
+  // have a UNION, FOUND_ROWS() refers to the (single) JOIN, and thus,
+  // we use its send_records.
+  ha_rows send_records;
+
   enum_parsing_context get_explain_marker(const THD *thd) const;
   void set_explain_marker(THD *thd, enum_parsing_context m);
   void set_explain_marker_from(THD *thd, const SELECT_LEX_UNIT *u);
@@ -859,7 +907,7 @@ class SELECT_LEX_UNIT {
 
   bool check_materialized_derived_query_blocks(THD *thd);
 
-  bool clear_corr_ctes();
+  bool clear_correlated_query_blocks();
 
   void fix_after_pullout(SELECT_LEX *parent_select, SELECT_LEX *removed_select);
 
@@ -911,6 +959,7 @@ enum class enum_explain_type {
   EXPLAIN_MATERIALIZED,
   // Total:
   EXPLAIN_total  ///< fake type, total number of all valid types
+
   // Don't insert new types below this line!
 };
 
@@ -1161,6 +1210,7 @@ class SELECT_LEX {
     before the full resolver process is complete.
   */
   bool has_sj_nests;
+  bool has_aj_nests;  ///< @see has_sj_nests; counts antijoin nests.
   /// Number of partitioned tables
   uint partitioned_table_count;
 
@@ -1211,7 +1261,11 @@ class SELECT_LEX {
     in an outer query block.
   */
   bool with_sum_func;
-  /// Number of Item_sum-derived objects in this SELECT
+  /**
+    Number of Item_sum-derived objects in this SELECT. Keeps count of
+    aggregate functions and window functions(to allocate items in ref array).
+    See SELECT_LEX::setup_base_ref_items.
+  */
   uint n_sum_items;
   /// Number of Item_sum-derived objects in children and descendant SELECTs
   uint n_child_sum_items;
@@ -1230,7 +1284,7 @@ class SELECT_LEX {
     has 3 wildcards.
   */
   uint with_wild;
-  bool braces;  ///< SELECT ... UNION (SELECT ... ) <- this braces
+
   /// true when having fix field called in processing of this query block
   bool having_fix_field;
   /// true when GROUP BY fix field called in processing of this query block
@@ -1375,6 +1429,9 @@ class SELECT_LEX {
   /// @return true if this query block has a LIMIT clause
   bool has_limit() const { return select_limit != NULL; }
 
+  bool has_explicit_limit_or_order() const {
+    return explicit_limit || order_list.elements > 0;
+  }
   /// @return true if query block references full-text functions
   bool has_ft_funcs() const { return ftfunc_list->elements > 0; }
 
@@ -1386,7 +1443,6 @@ class SELECT_LEX {
 
   void invalidate();
 
-  bool set_braces(bool value);
   uint get_in_sum_expr() const { return in_sum_expr; }
 
   bool add_item_to_list(Item *item);
@@ -1794,7 +1850,8 @@ class SELECT_LEX {
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                      SELECT_LEX *subq_select, table_map outer_tables_map,
                      Item **sj_cond);
-  bool decorrelate_where_cond(TABLE_LIST *sj_nest);
+  bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
+  bool decorrelate_join_conds(TABLE_LIST *sj_nest, List<TABLE_LIST> *join_list);
 
  private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
@@ -1830,7 +1887,7 @@ class SELECT_LEX {
                               Parse_context *pc, bool *found);
 
   /**
-    Pointer to collection of subqueries candidate for semijoin
+    Pointer to collection of subqueries candidate for semi/antijoin
     conversion.
     Template parameter is "true": no need to run DTORs on pointers.
   */
@@ -1909,514 +1966,6 @@ inline bool SELECT_LEX_UNIT::is_union() const {
          first_select()->next_select()->linkage == UNION_TYPE;
 }
 
-struct Cast_type {
-  Cast_target target;
-  const CHARSET_INFO *charset;
-  const char *length;
-  const char *dec;
-};
-
-struct Limit_options {
-  Item *limit;
-  Item *opt_offset;
-  /*
-    true for "LIMIT offset,limit" and false for "LIMIT limit OFFSET offset"
-  */
-  bool is_offset_first;
-};
-
-struct Query_options {
-  ulonglong query_spec_options;
-
-  bool merge(const Query_options &a, const Query_options &b);
-  bool save_to(Parse_context *);
-};
-
-enum delete_option_enum {
-  DELETE_QUICK = 1 << 0,
-  DELETE_LOW_PRIORITY = 1 << 1,
-  DELETE_IGNORE = 1 << 2
-};
-
-enum class Lock_strength { UPDATE, SHARE };
-
-/// We will static_cast this one to thr_lock_type.
-enum class Locked_row_action {
-  DEFAULT = THR_DEFAULT,
-  WAIT = THR_WAIT,
-  NOWAIT = THR_NOWAIT,
-  SKIP = THR_SKIP
-};
-
-/**
-  Internally there is no CROSS JOIN join type, as cross joins are just a
-  special case of inner joins with a join condition that is always true. The
-  only difference is the nesting, and that is handled by the parser.
-*/
-enum PT_joined_table_type {
-  JTT_INNER = 0x01,
-  JTT_STRAIGHT = 0x02,
-  JTT_NATURAL = 0x04,
-  JTT_LEFT = 0x08,
-  JTT_RIGHT = 0x10,
-
-  JTT_STRAIGHT_INNER = JTT_STRAIGHT | JTT_INNER,
-  JTT_NATURAL_INNER = JTT_NATURAL | JTT_INNER,
-  JTT_NATURAL_LEFT = JTT_NATURAL | JTT_LEFT,
-  JTT_NATURAL_RIGHT = JTT_NATURAL | JTT_RIGHT
-};
-
-typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
-
-enum class Ternary_option { DEFAULT, ON, OFF };
-
-enum class On_duplicate { ERROR, IGNORE_DUP, REPLACE_DUP };
-
-enum class Virtual_or_stored { VIRTUAL, STORED };
-
-enum class Field_option : ulong {
-  NONE = 0,
-  UNSIGNED = UNSIGNED_FLAG,
-  ZEROFILL_UNSIGNED = UNSIGNED_FLAG | ZEROFILL_FLAG
-};
-
-enum class Int_type : ulong {
-  INT = MYSQL_TYPE_LONG,
-  TINYINT = MYSQL_TYPE_TINY,
-  SMALLINT = MYSQL_TYPE_SHORT,
-  MEDIUMINT = MYSQL_TYPE_INT24,
-  BIGINT = MYSQL_TYPE_LONGLONG,
-};
-
-enum class Numeric_type : ulong {
-  DECIMAL = MYSQL_TYPE_NEWDECIMAL,
-  FLOAT = MYSQL_TYPE_FLOAT,
-  DOUBLE = MYSQL_TYPE_DOUBLE,
-};
-
-enum class Show_cmd_type {
-  STANDARD,
-  FULL_SHOW,
-  EXTENDED_SHOW,
-  EXTENDED_FULL_SHOW
-};
-
-/**
-  std::optional-like wrapper for simple bitmaps (usually enums of binary flags)
-
-  This template wraps trivial bitmap implementations to add two features:
-
-  * std::optional-like behavior -- the "unset" flag, so we don't have
-    to inject a special "invalid" value into existent enum types, this
-    wrapper class does that for us.
-
-  * the merge() function to merge two bitmap values in a type-safe way.
-
-  @tparam Enum           Usually a enum type which simulates a bit set.
-  @tparam Default_value  A default Enum value for "unset" variables.
-
-*/
-template <typename Enum, Enum Default_value>
-class Enum_parser {
- public:
-  /// Constructor-like function
-  ///
-  /// The Enum_parser<> class is designed for use as a field of restricted
-  /// unions, so it can't have C++ constructors.
-  void init() { m_is_set = false; }
-
-  /// False if the wrapped Enum value is not assigned.
-  bool is_set() const { return m_is_set; }
-
-  /// Return the wrapped Enum value.
-  ///
-  /// @note The wrapped value must be assigned.
-  Enum get() const {
-    DBUG_ASSERT(is_set());
-    return m_enum;
-  }
-
-  /// Return the wrapped Enum value (if any) or the Default_value.
-  Enum get_or_default() const { return is_set() ? get() : Default_value; }
-
-  /// Assign the wrapped Enum value.
-  void set(Enum value) {
-    m_is_set = true;
-    m_enum = value;
-  }
-
-  /// Merge the x bit set into the wrapped Enum value (if any), or replace it
-  void merge(const Enum_parser &x) {
-    if (x.is_set()) set(x.get());
-  }
-
- private:
-  bool m_is_set;  ///< True if m_enum is assigned with some value
-  Enum m_enum;    ///< The wrapped Enum value.
-};
-
-template <typename T>
-struct Value_or_default {
-  bool is_default;
-  T value;  ///< undefined if is_default is true
-};
-
-enum class Explain_format_type { TRADITIONAL, JSON, TREE };
-
-union YYSTYPE {
-  Lexer_yystype lexer;  // terminal values from the lexical scanner
-  /*
-    Hint parser section (sql_hints.yy)
-  */
-  opt_hints_enum hint_type;
-  class PT_hint *hint;
-  class PT_hint_list *hint_list;
-  Hint_param_index_list hint_param_index_list;
-  Hint_param_table hint_param_table;
-  Hint_param_table_list hint_param_table_list;
-
-  /*
-    Main parser section (sql_yacc.yy)
-  */
-  int num;
-  ulong ulong_num;
-  ulonglong ulonglong_number;
-  LEX_CSTRING lex_cstr;
-  LEX_STRING *lex_str_ptr;
-  Table_ident *table;
-  char *simple_string;
-  Item *item;
-  Item_num *item_num;
-  List<Item> *item_list;
-  List<String> *string_list;
-  String *string;
-  Mem_root_array<Table_ident *> *table_list;
-  udf_func *udf;
-  LEX_USER *lex_user;
-  List<LEX_USER> *user_list;
-  struct sys_var_with_base variable;
-  enum enum_var_type var_type;
-  keytype key_type;
-  enum ha_key_alg key_alg;
-  enum row_type row_type;
-  enum ha_rkey_function ha_rkey_mode;
-  enum_ha_read_modes ha_read_mode;
-  enum enum_tx_isolation tx_isolation;
-  const char *c_str;
-  struct {
-    const CHARSET_INFO *charset;
-    bool force_binary;
-  } charset_with_opt_binary;
-  struct {
-    const char *length;
-    const char *dec;
-  } precision;
-  struct Cast_type cast_type;
-  thr_lock_type lock_type;
-  interval_type interval, interval_time_st;
-  enum_mysql_timestamp_type date_time_type;
-  SELECT_LEX *select_lex;
-  chooser_compare_func_creator boolfunc2creator;
-  class sp_condition_value *spcondvalue;
-  struct {
-    int vars, conds, hndlrs, curs;
-  } spblock;
-  sp_name *spname;
-  LEX *lex;
-  sp_head *sphead;
-  enum index_hint_type index_hint;
-  enum enum_filetype filetype;
-  enum fk_option m_fk_option;
-  enum enum_yes_no_unknown m_yes_no_unk;
-  enum_condition_item_name da_condition_item_name;
-  Diagnostics_information::Which_area diag_area;
-  Diagnostics_information *diag_info;
-  Statement_information_item *stmt_info_item;
-  Statement_information_item::Name stmt_info_item_name;
-  List<Statement_information_item> *stmt_info_list;
-  Condition_information_item *cond_info_item;
-  Condition_information_item::Name cond_info_item_name;
-  List<Condition_information_item> *cond_info_list;
-  bool is_not_empty;
-  Set_signal_information *signal_item_list;
-  enum enum_trigger_order_type trigger_action_order_type;
-  struct {
-    enum enum_trigger_order_type ordering_clause;
-    LEX_CSTRING anchor_trigger_name;
-  } trg_characteristics;
-  class Index_hint *key_usage_element;
-  List<Index_hint> *key_usage_list;
-  class PT_subselect *subselect;
-  class PT_item_list *item_list2;
-  class PT_order_expr *order_expr;
-  class PT_order_list *order_list;
-  struct Limit_options limit_options;
-  Query_options select_options;
-  class PT_limit_clause *limit_clause;
-  Parse_tree_node *node;
-  enum olap_type olap_type;
-  class PT_group *group;
-  class PT_window_list *windows;
-  class PT_window *window;
-  class PT_frame *window_frame;
-  enum_window_frame_unit frame_units;
-  class PT_borders *frame_extent;
-  class PT_border *bound;
-  class PT_exclusion *frame_exclusion;
-  enum enum_null_treatment null_treatment;
-  enum enum_from_first_last from_first_last;
-  Item_string *item_string;
-  class PT_order *order;
-  class PT_table_reference *table_reference;
-  class PT_joined_table *join_table;
-  enum PT_joined_table_type join_type;
-  class PT_internal_variable_name *internal_variable_name;
-  class PT_option_value_following_option_type
-      *option_value_following_option_type;
-  class PT_option_value_no_option_type *option_value_no_option_type;
-  class PT_option_value_list_head *option_value_list;
-  class PT_start_option_value_list *start_option_value_list;
-  class PT_transaction_access_mode *transaction_access_mode;
-  class PT_isolation_level *isolation_level;
-  class PT_transaction_characteristics *transaction_characteristics;
-  class PT_start_option_value_list_following_option_type
-      *start_option_value_list_following_option_type;
-  class PT_set *set;
-  Line_separators line_separators;
-  Field_separators field_separators;
-  class PT_into_destination *into_destination;
-  class PT_select_var *select_var_ident;
-  class PT_select_var_list *select_var_list;
-  Mem_root_array_YY<PT_table_reference *> table_reference_list;
-  class Item_param *param_marker;
-  class PTI_text_literal *text_literal;
-  class PT_query_expression *query_expression;
-  class PT_derived_table *derived_table;
-  class PT_query_expression_body *query_expression_body;
-  class PT_query_primary *query_primary;
-  class PT_subquery *subquery;
-  class PT_key_part_specification *key_part;
-
-  XID *xid;
-  enum xa_option_words xa_option_type;
-  struct {
-    Item *column;
-    Item *value;
-  } column_value_pair;
-  struct {
-    class PT_item_list *column_list;
-    class PT_item_list *value_list;
-  } column_value_list_pair;
-  struct {
-    class PT_item_list *column_list;
-    class PT_insert_values_list *row_value_list;
-  } column_row_value_list_pair;
-  struct {
-    class PT_item_list *column_list;
-    class PT_query_expression *insert_query_expression;
-  } insert_query_expression;
-  struct {
-    class Item *offset;
-    class Item *default_value;
-  } lead_lag_info;
-  class PT_insert_values_list *values_list;
-  Parse_tree_root *top_level_node;
-  class Table_ident *table_ident;
-  Mem_root_array_YY<Table_ident *> table_ident_list;
-  delete_option_enum opt_delete_option;
-  enum alter_instance_action_enum alter_instance_action;
-  class PT_create_index_stmt *create_index_stmt;
-  class PT_table_constraint_def *table_constraint_def;
-  List<PT_key_part_specification> *index_column_list;
-  struct {
-    LEX_STRING name;
-    class PT_base_index_option *type;
-  } index_name_and_type;
-  PT_base_index_option *index_option;
-  Mem_root_array_YY<PT_base_index_option *> index_options;
-  Mem_root_array_YY<LEX_STRING> lex_str_list;
-  bool visibility;
-  class PT_with_clause *with_clause;
-  class PT_with_list *with_list;
-  class PT_common_table_expr *common_table_expr;
-  Create_col_name_list simple_ident_list;
-  class PT_partition_option *partition_option;
-  Mem_root_array<PT_partition_option *> *partition_option_list;
-  class PT_subpartition *sub_part_definition;
-  Mem_root_array<PT_subpartition *> *sub_part_list;
-  class PT_part_value_item *part_value_item;
-  Mem_root_array<PT_part_value_item *> *part_value_item_list;
-  class PT_part_value_item_list_paren *part_value_item_list_paren;
-  Mem_root_array<PT_part_value_item_list_paren *> *part_value_list;
-  class PT_part_values *part_values;
-  struct {
-    partition_type type;
-    PT_part_values *values;
-  } opt_part_values;
-  class PT_part_definition *part_definition;
-  Mem_root_array<PT_part_definition *> *part_def_list;
-  List<char> *name_list;  // TODO: merge with string_list
-  enum_key_algorithm opt_key_algo;
-  class PT_sub_partition *opt_sub_part;
-  class PT_part_type_def *part_type_def;
-  class PT_partition *partition_clause;
-  class PT_add_partition *add_partition_rule;
-  struct {
-    decltype(HA_CHECK_OPT::flags) flags;
-    decltype(HA_CHECK_OPT::sql_flags) sql_flags;
-  } mi_type;
-  enum_drop_mode opt_restrict;
-  Ternary_option ternary_option;
-  class PT_create_table_option *create_table_option;
-  Mem_root_array<PT_create_table_option *> *create_table_options;
-  Mem_root_array<PT_ddl_table_option *> *space_separated_alter_table_opts;
-  On_duplicate on_duplicate;
-  class PT_column_attr_base *col_attr;
-  column_format_type column_format;
-  ha_storage_media storage_media;
-  Mem_root_array<PT_column_attr_base *> *col_attr_list;
-  Virtual_or_stored virtual_or_stored;
-  Field_option field_option;
-  Int_type int_type;
-  class PT_type *type;
-  Numeric_type numeric_type;
-  struct {
-    const char *expr_start;
-    Item *expr;
-  } sp_default;
-  class PT_field_def_base *field_def;
-  struct {
-    fk_option fk_update_opt;
-    fk_option fk_delete_opt;
-  } fk_options;
-  fk_match_opt opt_match_clause;
-  List<Key_part_spec> *reference_list;
-  struct {
-    Table_ident *table_name;
-    List<Key_part_spec> *reference_list;
-    fk_match_opt fk_match_option;
-    fk_option fk_update_opt;
-    fk_option fk_delete_opt;
-  } fk_references;
-  class PT_column_def *column_def;
-  class PT_table_element *table_element;
-  Mem_root_array<PT_table_element *> *table_element_list;
-  struct {
-    Mem_root_array<PT_create_table_option *> *opt_create_table_options;
-    PT_partition *opt_partitioning;
-    On_duplicate on_duplicate;
-    PT_query_expression *opt_query_expression;
-  } create_table_tail;
-  Lock_strength lock_strength;
-  Locked_row_action locked_row_action;
-  class PT_locking_clause *locking_clause;
-  class PT_locking_clause_list *locking_clause_list;
-  Mem_root_array<PT_json_table_column *> *jtc_list;
-  struct jt_on_response {
-    enum_jtc_on type;
-    const LEX_STRING *default_str;
-  } jt_on_response;
-  struct {
-    struct jt_on_response error;
-    struct jt_on_response empty;
-  } jt_on_error_or_empty;
-  PT_json_table_column *jt_column;
-  enum_jt_column jt_column_type;
-  struct {
-    LEX_STRING wild;
-    Item *where;
-  } wild_or_where;
-  Show_cmd_type show_cmd_type;
-  struct {
-    Sql_cmd_analyze_table::Histogram_command command;
-    List<String> *columns;
-    int num_buckets;
-  } histogram;
-  Acl_type acl_type;
-  Mem_root_array<LEX_CSTRING> *lex_cstring_list;
-  class PT_role_or_privilege *role_or_privilege;
-  Mem_root_array<PT_role_or_privilege *> *role_or_privilege_list;
-  enum_order order_direction;
-  Alter_info::enum_with_validation with_validation;
-  class PT_alter_table_action *alter_table_action;
-  class PT_alter_table_standalone_action *alter_table_standalone_action;
-  Alter_info::enum_alter_table_algorithm alter_table_algorithm;
-  Alter_info::enum_alter_table_lock alter_table_lock;
-  struct Algo_and_lock {
-    Enum_parser<Alter_info::enum_alter_table_algorithm,
-                Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT>
-        algo;
-    Enum_parser<Alter_info::enum_alter_table_lock,
-                Alter_info::ALTER_TABLE_LOCK_DEFAULT>
-        lock;
-    void init() {
-      algo.init();
-      lock.init();
-    }
-  } opt_index_lock_and_algorithm;
-  struct Algo_and_lock_and_validation {
-    Enum_parser<Alter_info::enum_alter_table_algorithm,
-                Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT>
-        algo;
-    Enum_parser<Alter_info::enum_alter_table_lock,
-                Alter_info::ALTER_TABLE_LOCK_DEFAULT>
-        lock;
-    Enum_parser<Alter_info::enum_with_validation,
-                Alter_info::ALTER_VALIDATION_DEFAULT>
-        validation;
-    void init() {
-      algo.init();
-      lock.init();
-      validation.init();
-    }
-    void merge(const Algo_and_lock_and_validation &x) {
-      algo.merge(x.algo);
-      lock.merge(x.lock);
-      validation.merge(x.validation);
-    }
-  } algo_and_lock_and_validation;
-  struct {
-    Algo_and_lock_and_validation flags;
-    Mem_root_array<PT_ddl_table_option *> *actions;
-  } alter_list;
-  struct {
-    Algo_and_lock_and_validation flags;
-    PT_alter_table_standalone_action *action;
-  } standalone_alter_table_action;
-  class PT_assign_to_keycache *assign_to_keycache;
-  Mem_root_array<PT_assign_to_keycache *> *keycache_list;
-  class PT_adm_partition *adm_partition;
-  class PT_preload_keys *preload_keys;
-  Mem_root_array<PT_preload_keys *> *preload_list;
-  PT_alter_tablespace_option_base *ts_option;
-  Mem_root_array<PT_alter_tablespace_option_base *> *ts_options;
-  struct {
-    resourcegroups::platform::cpu_id_t start;
-    resourcegroups::platform::cpu_id_t end;
-  } vcpu_range_type;
-  Mem_root_array<resourcegroups::Range> *resource_group_vcpu_list_type;
-  Value_or_default<int> resource_group_priority_type;
-  Value_or_default<bool> resource_group_state_type;
-  bool resource_group_flag_type;
-  resourcegroups::Type resource_group_type;
-  Mem_root_array<ulonglong> *thread_id_list_type;
-  Explain_format_type explain_format_type;
-  struct {
-    Item *set_var;
-    Item *set_expr;
-    String *set_expr_str;
-  } load_set_element;
-  struct {
-    PT_item_list *set_var_list;
-    PT_item_list *set_expr_list;
-    List<String> *set_expr_str_list;
-  } load_set_list;
-  ts_alter_tablespace_type alter_tablespace_type;
-  Sql_cmd_srs_attributes *sql_cmd_srs_attributes;
-};
-
-static_assert(sizeof(YYSTYPE) <= 32, "YYSTYPE is too big");
-
 /**
   Utility RAII class to save/modify/restore the
   semijoin_disallowed flag.
@@ -2475,7 +2024,6 @@ struct st_sp_chistics {
 };
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics {
   enum enum_trigger_action_time_type action_time;
@@ -2570,7 +2118,9 @@ class Query_tables_list {
   */
   enum enum_lock_tables_state { LTS_NOT_LOCKED = 0, LTS_LOCKED };
   enum_lock_tables_state lock_tables_state;
-  bool is_query_tables_locked() { return (lock_tables_state == LTS_LOCKED); }
+  bool is_query_tables_locked() const {
+    return (lock_tables_state == LTS_LOCKED);
+  }
 
   /**
     Number of tables which were open by open_tables() and to be locked
@@ -2769,6 +2319,13 @@ class Query_tables_list {
     */
     BINLOG_STMT_UNSAFE_XA,
 
+    /**
+      If a substatement inserts into or updates a table that has a column with
+      an unsafe DEFAULT expression, it may not have the same effect on the
+      slave.
+    */
+    BINLOG_STMT_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
@@ -2804,10 +2361,10 @@ class Query_tables_list {
     BINLOG_STMT_FLAG_UNSAFE_* flags in @c enum_binlog_stmt_flag.
   */
   inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
-    DBUG_ENTER("set_stmt_unsafe");
+    DBUG_TRACE;
     DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
     binlog_stmt_flags |= (1U << unsafe_type);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2819,10 +2376,10 @@ class Query_tables_list {
     where flag is a member of enum_binlog_stmt_unsafe.
   */
   inline void set_stmt_unsafe_flags(uint32 flags) {
-    DBUG_ENTER("set_stmt_unsafe_flags");
+    DBUG_TRACE;
     DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
     binlog_stmt_flags |= flags;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2832,8 +2389,8 @@ class Query_tables_list {
     from this function has bit (1<<flag) set to 1.
   */
   inline uint32 get_stmt_unsafe_flags() const {
-    DBUG_ENTER("get_stmt_unsafe_flags");
-    DBUG_RETURN(binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS);
+    DBUG_TRACE;
+    return binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS;
   }
 
   /**
@@ -2853,10 +2410,10 @@ class Query_tables_list {
     the slave SQL thread.
   */
   inline void set_stmt_row_injection() {
-    DBUG_ENTER("set_stmt_row_injection");
+    DBUG_TRACE;
     binlog_stmt_flags |=
         (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   enum enum_stmt_accessed_table {
@@ -2967,13 +2524,13 @@ class Query_tables_list {
                            e.g. temporary, transactional, non-transactional.
   */
   inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
-    DBUG_ENTER("LEX::set_stmt_accessed_table");
+    DBUG_TRACE;
 
     DBUG_ASSERT(accessed_table >= 0 &&
                 accessed_table < STMT_ACCESS_TABLE_COUNT);
     stmt_accessed_table_flag |= (1U << accessed_table);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2988,12 +2545,12 @@ class Query_tables_list {
       @retval false otherwise
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
-    DBUG_ENTER("LEX::stmt_accessed_table");
+    DBUG_TRACE;
 
     DBUG_ASSERT(accessed_table >= 0 &&
                 accessed_table < STMT_ACCESS_TABLE_COUNT);
 
-    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+    return (stmt_accessed_table_flag & (1U << accessed_table)) != 0;
   }
 
   /*
@@ -3659,14 +3216,16 @@ struct LEX : public Query_tables_list {
   }
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
+  bool is_explain_analyze = false;
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */
-  char *x509_subject, *x509_issuer, *ssl_cipher;
+  const char *x509_subject, *x509_issuer, *ssl_cipher;
   // Widcard from SHOW ... LIKE <wildcard> statements.
   String *wild;
   Query_result *result;
-  LEX_STRING binlog_stmt_arg;  ///< Argument of the BINLOG event statement.
+  LEX_STRING binlog_stmt_arg = {
+      nullptr, 0};  ///< Argument of the BINLOG event statement.
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
@@ -3900,7 +3459,13 @@ struct LEX : public Query_tables_list {
   ulonglong m_statement_options{0};
 
  public:
-  /// @return a bit set of options set for this statement
+  /**
+    Gets the options that have been set for this statement. The options are
+    propagated to the SELECT_LEX objects and should usually be read with
+    #SELECT_LEX::active_options().
+
+    @return a bit set of options set for this statement
+  */
   ulonglong statement_options() { return m_statement_options; }
   /**
     Add options to values of m_statement_options. options is an ORed
@@ -4021,8 +3586,7 @@ struct LEX : public Query_tables_list {
   SELECT_LEX *new_query(SELECT_LEX *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct,
-                              bool check_syntax = true);
+  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();
@@ -4181,6 +3745,13 @@ struct LEX : public Query_tables_list {
   */
   void set_secondary_engine_execution_context(
       Secondary_engine_execution_context *context);
+
+  /**
+    If true, features that would prohibit the iterator executor from
+    being used (BNL/BKA) are turned off.
+    See SELECT_LEX::find_common_table_expr().
+   */
+  bool force_iterator_executor = false;
 };
 
 /**
@@ -4190,12 +3761,21 @@ struct LEX : public Query_tables_list {
 */
 class Yacc_state {
  public:
-  Yacc_state() { reset(); }
+  Yacc_state() : yacc_yyss(NULL), yacc_yyvs(NULL), yacc_yyls(NULL) { reset(); }
 
   void reset() {
-    yacc_yyss = NULL;
-    yacc_yyvs = NULL;
-    yacc_yyls = NULL;
+    if (yacc_yyss != NULL) {
+      my_free(yacc_yyss);
+      yacc_yyss = NULL;
+    }
+    if (yacc_yyvs != NULL) {
+      my_free(yacc_yyvs);
+      yacc_yyvs = NULL;
+    }
+    if (yacc_yyls != NULL) {
+      my_free(yacc_yyls);
+      yacc_yyls = NULL;
+    }
     m_lock_type = TL_READ_DEFAULT;
     m_mdl_type = MDL_SHARED_READ;
   }
@@ -4362,11 +3942,13 @@ class Common_table_expr_parser_state : public Parser_state {
 };
 
 struct st_lex_local : public LEX {
-  static void *operator new(size_t size) noexcept { return sql_alloc(size); }
+  static void *operator new(size_t size) noexcept {
+    return (*THR_MALLOC)->Alloc(size);
+  }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused))) {

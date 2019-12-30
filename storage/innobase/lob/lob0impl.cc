@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -880,7 +880,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
   dict_index_t *index = ctx->index();
   space_id_t space_id = dict_index_get_space(index);
   page_size_t page_size(dict_table_page_size(index->table));
-  DBUG_ENTER("lob::insert");
+  DBUG_TRACE;
 
   if (ref.length() > 0) {
     ref.set_length(0, mtr);
@@ -890,7 +890,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
     /* The LOB is not big enough to build LOB index. Insert the LOB without an
     LOB index. */
     Inserter blob_writer(ctx);
-    DBUG_RETURN(blob_writer.write_one_small_blob(field_j));
+    return blob_writer.write_one_small_blob(field_j);
   }
 
   ut_ad(ref_t::is_big(page_size, len));
@@ -903,7 +903,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 
   if (first_block == nullptr) {
     /* Allocation of the first page of LOB failed. */
-    DBUG_RETURN(DB_OUT_OF_FILE_SPACE);
+    return DB_OUT_OF_FILE_SPACE;
   }
 
   first.set_last_trx_id(trxid);
@@ -1003,7 +1003,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
                   print(trx, index, std::cerr, ref, false););
 
   DBUG_EXECUTE_IF("btr_store_big_rec_extern", ret = DB_OUT_OF_FILE_SPACE;);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /** Fetch a large object (LOB) from the system.
@@ -1014,7 +1014,7 @@ dberr_t insert(InsertContext *ctx, trx_t *trx, ref_t &ref,
 @param[out] buf    the output buffer (owned by caller) of minimum len bytes.
 @return the amount of data (in bytes) that was actually read. */
 ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
-  DBUG_ENTER("lob::read");
+  DBUG_TRACE;
   ut_ad(offset == 0);
   const uint32_t lob_version = ref.version();
 
@@ -1036,13 +1036,13 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
   const ulint avail_lob = ref.length();
 
   if (avail_lob == 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (ref.is_being_modified()) {
     /* This should happen only for READ UNCOMMITTED transactions. */
     ut_ad(ctx->assert_read_uncommitted());
-    DBUG_RETURN(0);
+    return 0;
   }
 
   ut_ad(ctx->m_index->is_clustered());
@@ -1064,7 +1064,7 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
     mtr_commit(&mtr);
     Reader reader(*ctx);
     ulint fetch_len = reader.fetch();
-    DBUG_RETURN(fetch_len);
+    return fetch_len;
   }
 
   ut_ad(page_type == FIL_PAGE_TYPE_LOB_FIRST);
@@ -1182,7 +1182,7 @@ ulint read(ReadContext *ctx, ref_t ref, ulint offset, ulint len, byte *buf) {
 
   mtr_commit(&mtr);
   mtr_commit(&data_mtr);
-  DBUG_RETURN(total_read);
+  return total_read;
 }
 
 buf_block_t *z_index_page_t::alloc(z_first_page_t &first, bool bulk) {

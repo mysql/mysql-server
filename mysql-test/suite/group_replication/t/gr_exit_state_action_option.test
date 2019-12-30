@@ -48,6 +48,10 @@ SET @@GLOBAL.group_replication_exit_state_action = default;
 --echo # 2) Set the sysvar to the possible valid values.
 --echo #########################################################################
 --echo
+SET GLOBAL group_replication_exit_state_action = "OFFLINE_MODE";
+--let $assert_text= The value of group_replication_exit_state_action should be OFFLINE_MODE
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "OFFLINE_MODE"
+--source include/assert.inc
 SET GLOBAL group_replication_exit_state_action = "ABORT_SERVER";
 --let $assert_text= The value of group_replication_exit_state_action should be ABORT_SERVER
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_exit_state_action]" = "ABORT_SERVER"

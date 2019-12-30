@@ -1,6 +1,5 @@
-//>>built
-define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/html", "dojo/_base/window", "dojo/dom-geometry", "dojox/gfx"], 
-	function(lang, html, win, domGeom, g){
+define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/window", "dojo/dom-geometry", "dojox/gfx"],
+	function(lang, win, domGeom, g){
 
 	var common = lang.getObject("dojox.charting.axis2d.common", true);
 	
@@ -30,56 +29,56 @@ define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/html", "d
 	};
 
 	return lang.mixin(common, {
-		//	summary:
+		// summary:
 		//		Common methods to be used by any axis.  This is considered "static".
 		createText: {
 			gfx: function(chart, creator, x, y, align, text, font, fontColor){
-				//	summary:
+				// summary:
 				//		Use dojox.gfx to create any text.
-				//	chart: dojox.charting.Chart
+				// chart: dojox.charting.Chart
 				//		The chart to create the text into.
-				//	creator: dojox.gfx.Surface
+				// creator: dojox.gfx.Surface
 				//		The graphics surface to use for creating the text.
-				//	x: Number
+				// x: Number
 				//		Where to create the text along the x axis (CSS left).
-				//	y: Number
+				// y: Number
 				//		Where to create the text along the y axis (CSS top).
-				//	align: String
+				// align: String
 				//		How to align the text.  Can be "left", "right", "center".
-				//	text: String
+				// text: String
 				//		The text to render.
-				//	font: String
+				// font: String
 				//		The font definition, a la CSS "font".
-				//	fontColor: String|dojo.Color
+				// fontColor: String|dojo.Color
 				//		The color of the resultant text.
-				//	returns: dojox.gfx.Text
+				// returns: dojox.gfx.Text
 				//		The resultant GFX object.
 				return creator.createText({
 					x: x, y: y, text: text, align: align
 				}).setFont(font).setFill(fontColor);	//	dojox.gfx.Text
 			},
 			html: function(chart, creator, x, y, align, text, font, fontColor, labelWidth){
-				//	summary:
+				// summary:
 				//		Use the HTML DOM to create any text.
-				//	chart: dojox.charting.Chart
+				// chart: dojox.charting.Chart
 				//		The chart to create the text into.
-				//	creator: dojox.gfx.Surface
+				// creator: dojox.gfx.Surface
 				//		The graphics surface to use for creating the text.
-				//	x: Number
+				// x: Number
 				//		Where to create the text along the x axis (CSS left).
-				//	y: Number
+				// y: Number
 				//		Where to create the text along the y axis (CSS top).
-				//	align: String
+				// align: String
 				//		How to align the text.  Can be "left", "right", "center".
-				//	text: String
+				// text: String
 				//		The text to render.
-				//	font: String
+				// font: String
 				//		The font definition, a la CSS "font".
-				//	fontColor: String|dojo.Color
+				// fontColor: String|dojo.Color
 				//		The color of the resultant text.
-				//	labelWidth: Number?
+				// labelWidth: Number?
 				//		The maximum width of the resultant DOM node.
-				//	returns: DOMNode
+				// returns: DOMNode
 				//		The resultant DOMNode (a "div" element).
 
 				// setup the text node
@@ -153,7 +152,7 @@ define("dojox/charting/axis2d/common", ["dojo/_base/lang", "dojo/_base/html", "d
 				w.width = "0px";
 				w.height = "0px";
 				// insert nodes
-				wrap.appendChild(p)
+				wrap.appendChild(p);
 				chart.node.insertBefore(wrap, chart.node.firstChild);
 				return wrap;	//	DOMNode
 			}

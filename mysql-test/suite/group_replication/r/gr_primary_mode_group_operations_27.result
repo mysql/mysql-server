@@ -49,7 +49,7 @@ UNLOCK TABLES;
 group_replication_switch_to_single_primary_mode("MEMBER3_UUID")
 Mode switched to single-primary with reported warnings: The appointed primary being elected exited the group. Check the group member list to see who is the primary.
 Warnings:
-Warning	13223	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
+Warning	3910	The appointed primary being elected exited the group. Check the group member list to see who is the primary. There were warnings detected also on other members, check their logs.
 
 # 10. Confirm server2 is the new primary due its weight on member
 #     election

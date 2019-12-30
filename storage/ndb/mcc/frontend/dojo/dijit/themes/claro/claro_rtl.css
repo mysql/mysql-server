@@ -10,6 +10,9 @@
 	
 	float:left;
 }
+.dj_ie .dijitTextBoxRtl .dijitInputContainer {
+	clear: right;
+}
 .dijitTextBoxRtl .dijitValidationContainer,
 .dijitTextBoxRtl .dijitSpinnerButtonContainer,
 .dijitComboBoxRtl .dijitArrowButtonContainer {
@@ -21,14 +24,16 @@
 	right: 0;
 	left: auto;
 }
-.dj_ie7 .dijitInputContainer {
-	
-	display: inline-block;
+.dijitSelectRtl .dijitButtonText {
+	float: right;
 }
 .dijitTextBoxRtl .dijitSpinnerButtonContainer,
-.dijitTextBoxRtl .dijitValidationContainer,
+.dijitValidationTextBoxRtl .dijitValidationContainer,
 .dijitTextBoxRtl .dijitArrowButtonContainer {
 	float: left;
+}
+div.dijitNumberTextBoxRtl {
+	text-align: right;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -76,6 +81,22 @@
 	margin-left: 0;
 	margin-right: 1em;
 }
+.dj_ie6 .dijitTabRtl .tabLabel,
+.dj_ie6 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie6 .dijitTabContainerLeft-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerLeft-tabs .dijitTabRtl {
+	zoom: 1;
+}
+.dj_ie6 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerRight-tabs .dijitTabRtl {
+    left: 0;
+}
+.dj_ie6 .dijitTabContainerRightRtl .dijitTabContainerRight-tabs,
+.dj_ie6 .dijitTabContainerLeftRtl .dijitTabContainerLeft-tabs {
+    
+	width: 1%;
+}
 .dj_ie .dijitTimePickerRtl .dijitTimePickerItem {
 	width:100%;
 }
@@ -85,11 +106,20 @@
 	right: 0;
 }
 .dijitSelectRtl .dijitButtonContents {
+	border-style: none none none solid;
 	text-align: right;
 }
+.dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
+    border-width: 0 2px 0 0;
+    padding: 2px 0 2px 2px;
+}
+.dijitRtl .dojoDndHorizontal .dojoDndItemAfter {
+    border-width: 0 0 0 2px;
+    padding: 2px 2px 2px 0;
+}
 .claro .dijitTextBoxRtlError .dijitValidationContainer {
-  border-left-width: 0;
-  border-right-width: 1px;
+  border-left-width: 0 !important;
+  border-right-width: 1px !important;
 }
 .claro .dijitComboButtonRtl .dijitStretch {
   -moz-border-radius: 0 4px 4px 0;
@@ -105,62 +135,6 @@
 .claro .dijitTabContainerTop-tabs .dijitTabRtl, .claro .dijitTabContainerBottom-tabs .dijitTabRtl {
   margin-right: 0;
   margin-left: 1px;
-}
-.claro .dijitTabRtl {
-  -moz-box-orient: horizontal;
-  text-align: right;
-}
-.dj_ie7 .claro .dijitTabRtl .dijitTabContent {
-  display: block;
-  left: 0;
-}
-.dj_ie7 .claro .dijitTabContainerTop-tabs .dijitTabRtl, .dj_ie7 .claro .dijitTabContainerTop-tabs .dijitTabCheckedRtl {
-  top: 1px;
-}
-.dj_ie7 .claro .tabStripButtonRtl .dijitButtonContents,
-.dj_ie8 .claro .tabStripButtonRtl .dijitButtonContents,
-.dj_ie6 .claro .dijitTabContainerTop-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_ie6 .claro .dijitTabContainerBottom-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_ie7 .claro .dijitTabContainerTop-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_ie7 .claro .dijitTabContainerBottom-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_iequirks .claro .dijitTabContainerTop-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_iequirks .claro .dijitTabContainerBottom-tabs .dijitTabRtl .dijitTabInnerDiv {
-  float: left;
-}
-.dj_ie6 .claro .dijitTabRtl .tabLabel,
-.dj_ie6 .claro .dijitTabContainerRight-tabs .dijitTabRtl,
-.dj_ie6 .claro .dijitTabContainerLeft-tabs .dijitTabRtl,
-.dj_ie7 .claro .dijitTabContainerRight-tabs .dijitTabRtl .dijitTabInnerDiv,
-.dj_ie7 .claro .dijitTabContainerLeft-tabs .dijitTabRtl .dijitTabInnerDiv {
-  
-  zoom: 1;
-}
-.dj_ie6 .claro .dijitTabRtl .dijitTabCloseButton, .dj_ie7 .claro .dijitTabRtl .dijitTabCloseButton, .dj_iequirks .claro .dijitTabRtl .dijitTabCloseButton {
-  margin-right: 5px;
-}
-.dj_ie6 .claro .dijitTabContainerRightRtl .dijitTabContainerRight-tabs, .dj_ie6 .claro .dijitTabContainerLeftRtl .dijitTabContainerLeft-tabs {
-  width: 1%;
-}
-.dj_ie6 .dijitTabContainerTopStrip, .dj_ie6 .dijitTabContainerBottomStrip {
-  position: absolute;
-}
-.dj_iequirks .claro .dijitTabContainerTopRtl .dijitTabContainerTopStrip {
-  padding-top: 10px;
-}
-.dj_ie7 .claro .dijitTabContainerRight-tabs .dijitTabRtlChecked .dijitTabInnerDiv {
-  background-position: -341px -179px;
-}
-.dj_ie6 .dijitTabContainerTopRtl .dijitTabStripIcon, .dj_ie6 .dijitTabContainerBottomRtl .dijitTabStripIcon {
-  position: relative;
-}
-.dj_ie6-rtl .claro .dijitTabContainerTop-tabs {
-  
-  padding-left: 3px;
-}
-.dj_iequirks-rtl .claro .dijitTabListWrapper {
-  
-  border-left: 1px solid #ffffff;
-  border-right: 1px solid #ffffff;
 }
 .claro .dijitSliderRtl .dijitSliderProgressBarH,
 .claro .dijitSliderRtl .dijitSliderRemainingBarH,
@@ -186,10 +160,6 @@
 .claro .dijitSliderRtl .dijitSliderDecrementIconH {
   background-position: -251px 50%;
 }
-.claro .dijitSelectRtl .dijitButtonContents {
-  border-right-width: 0;
-  border-left-width: 1px;
-}
 .claro .dijitDialogRtl .dijitDialogCloseIcon {
   right: auto;
   left: 5px;
@@ -202,13 +172,13 @@
   padding: 3px 10px 1px 3px;
 }
 .dijitEditorRtl .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsEnabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsEnabled_rtl.png"); 
 }
 .dijitEditorRtlDisabled .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsDisabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsDisabled_rtl.png"); 
 }
 .dijitToolbarRtl .dijitToolbarSeparator {
-	background-image: url(../../icons/images/editorIconsEnabled_rtl.png);
+	background-image: url("../../icons/images/editorIconsEnabled_rtl.png");
 }
 .dijitRtl .dijitIconSave,
 .dijitRtl .dijitIconPrint,
@@ -245,7 +215,7 @@
 .dijitRtl .dijitFolderOpened,
 .dijitRtl .dijitIconFolderOpen,
 .dijitRtl .dijitIconError { 
-	background-image: url(../../icons/images/commonIconsObjActEnabled_rtl.png); 
+	background-image: url("../../icons/images/commonIconsObjActEnabled_rtl.png"); 
 	width: 16px;
 	height: 16px;
 }
@@ -284,7 +254,7 @@
 .dj_ie6 .dijitRtl .dijitFolderOpened,
 .dj_ie6 .dijitRtl .dijitIconFolderOpen,
 .dj_ie6 .dijitRtl .dijitIconError {
-	background-image: url(../../icons/images/commonIconsObjActEnabled8bit_rtl.png);
+	background-image: url("../../icons/images/commonIconsObjActEnabled8bit_rtl.png");
 }
 .dijitRtl .dijitDisabled .dijitIconSave,
 .dijitRtl .dijitDisabled .dijitIconPrint,
@@ -321,7 +291,7 @@
 .dijitRtl .dijitDisabled .dijitFolderOpened,
 .dijitRtl .dijitDisabled .dijitIconFolderOpen,
 .dijitRtl .dijitDisabled .dijitIconError {
-	background-image: url(../../icons/images/commonIconsObjActDisabled_rtl.png); 
+	background-image: url("../../icons/images/commonIconsObjActDisabled_rtl.png"); 
 }
 .claro .dijitTitlePaneRtl .dijitClosed .dijitArrowNode {
   background-position: -7px 0;

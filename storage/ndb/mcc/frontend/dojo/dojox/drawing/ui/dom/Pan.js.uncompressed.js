@@ -1,16 +1,13 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/ui/dom/Pan", ["dijit","dojo","dojox","dojo/require!dojox/drawing/plugins/_Plugin"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.ui.dom.Pan");
-dojo.require("dojox.drawing.plugins._Plugin");
+define("dojox/drawing/ui/dom/Pan", ["dojo", "../../util/oo", "../../plugins/_Plugin", "../../manager/_registry"], 
+function(dojo, oo, Plugin, registry){
 dojo.deprecated("dojox.drawing.ui.dom.Pan", "It may not even make it to the 1.4 release.", 1.4);
 
-dojox.drawing.ui.dom.Pan = dojox.drawing.util.oo.declare(
+var Pan = oo.declare(
 	// NOTE:
-	//			dojox.drawing.ui.dom.Pan is DEPRECATED.
-	//			This was a temporary DOM solution. Use the non-dom
-	//			tools for Toobar and Plugins.
-	//
+	//		dojox.drawing.ui.dom.Pan is DEPRECATED.
+	//		This was a temporary DOM solution. Use the non-dom
+	//		tools for Toolbar and Plugins.
+
 	// summary:
 	//		A plugin that allows for a scrolling canvas. An action
 	//		tool is added to the toolbar that allows for panning. Holding
@@ -22,8 +19,8 @@ dojox.drawing.ui.dom.Pan = dojox.drawing.util.oo.declare(
 	//		|		<div tool="dojox.drawing.tools.Line" selected="true">Line</div>
 	//		|		<div plugin="dojox.drawing.ui.dom.Pan" options="{}">Pan</div>
 	//		|	</div>
-	//
-	dojox.drawing.plugins._Plugin,
+
+	Plugin,
 	function(options){
 		
 		this.domNode = options.node;
@@ -62,7 +59,7 @@ dojox.drawing.ui.dom.Pan = dojox.drawing.util.oo.declare(
 			}
 		},
 		
-		onSetPan: function(/*Boolean | Event*/ bool){
+		onSetPan: function(/*Boolean|Event*/ bool){
 			if(bool === true || bool === false){
 				this.selected = !bool;
 			}
@@ -96,17 +93,16 @@ dojox.drawing.ui.dom.Pan = dojox.drawing.util.oo.declare(
 		},
 		
 		checkBounds: function(){
-			
-			//watch("CHECK BOUNDS DISABLED", true); return;
-			
-			
 			// summary:
 			//		Scans all items on the canvas and checks if they are out of
-			// 		bounds. If so, a scroll bar (in Canvas) is shown. If the position
-			// 		is left or top, the canvas is scrolled all items are relocated
-			// 		the distance of the scroll. Ideally, it should look as if the
-			// 		items do not move.
-			
+			//		bounds. If so, a scroll bar (in Canvas) is shown. If the position
+			//		is left or top, the canvas is scrolled all items are relocated
+			//		the distance of the scroll. Ideally, it should look as if the
+			//		items do not move.
+
+			//watch("CHECK BOUNDS DISABLED", true); return;
+
+
 			// logging stuff here so it can be turned on and off. This method is
 			// very high maintenance.
 			var log = function(){
@@ -203,11 +199,14 @@ dojox.drawing.ui.dom.Pan = dojox.drawing.util.oo.declare(
 	}
 );
 
-dojox.drawing.ui.dom.Pan.setup = {
+dojo.setObject("dojox.drawing.ui.dom.Pan", Pan);
+Pan.setup = {
 	name:"dojox.drawing.ui.dom.Pan",
 	tooltip:"Pan Tool",
 	iconClass:"iconPan"
 };
 
-dojox.drawing.register(dojox.drawing.ui.dom.Pan.setup, "plugin");
+registry.register(Pan.setup, "plugin");
+
+return Pan;
 });

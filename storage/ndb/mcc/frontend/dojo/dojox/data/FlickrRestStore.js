@@ -15,7 +15,7 @@ this._handlers={};
 this._prevRequestRanges=[];
 this._maxPhotosPerUser={};
 this._id=_7.prototype._id++;
-},_id:0,_requestCount:0,_flickrRestUrl:"http://www.flickr.com/services/rest/",_apikey:null,_storeRef:"_S",_cache:null,_prevRequests:null,_handlers:null,_sortAttributes:{"date-posted":true,"date-taken":true,"interestingness":true},_fetchItems:function(_9,_a,_b){
+},_id:0,_requestCount:0,_flickrRestUrl:"https://www.flickr.com/services/rest/",_apikey:null,_storeRef:"_S",_cache:null,_prevRequests:null,_handlers:null,_sortAttributes:{"date-posted":true,"date-taken":true,"interestingness":true},_fetchItems:function(_9,_a,_b){
 var _c={};
 if(!_9.query){
 _9.query=_c={};
@@ -237,7 +237,7 @@ return [_28.media.m];
 case "imageUrlThumb":
 return [_28.media.t];
 case "link":
-return ["http://www.flickr.com/photos/"+_28.owner+"/"+_28.id];
+return ["https://www.flickr.com/photos/"+_28.owner+"/"+_28.id];
 case "dateTaken":
 return [_28.datetaken];
 case "datePublished":

@@ -34,4 +34,8 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 change master to master_delay= 0;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
+
+# Verify that `privilege_checks_user` is initialized to `NULL`.
+
+include/assert.inc [Value for Privilege_Checks_User is initialized to NULL]
 include/rpl_end.inc

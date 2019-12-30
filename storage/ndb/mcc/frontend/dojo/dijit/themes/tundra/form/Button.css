@@ -10,6 +10,9 @@
 	text-align: center;
 	padding: 0 0.3em;
 }
+.tundra .dijitInputField {
+	padding: 0; 
+}
 .tundra .dijitDisabled .dijitButtonText {
 	color: #7F7F7F;
 }
@@ -94,12 +97,11 @@
 .tundra .dijitDisabled .dijitUpArrowButton .dijitArrowButtonInner {
 	background-position: -49px center;
 }
-.dj_webkit .tundra .dijitSpinner .dijitUpArrowButton .dijitArrowButtonInner {
-	margin-top: -1px; 
-}
 .dj_ie .tundra .dijitSpinner .dijitDownArrowButton .dijitArrowButtonInner {
 	margin-top: -2px; 
 }
+.dj_webkit .tundra .dijitSpinner .dijitUpArrowButton .dijitArrowButtonInner,
+.dj_iequirks .tundra .dijitSpinner .dijitDownArrowButton .dijitArrowButtonInner,
 .dj_ie8 .tundra .dijitSpinner .dijitDownArrowButton .dijitArrowButtonInner {
 	margin-top: -1px; 
 }

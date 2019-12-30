@@ -62,7 +62,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 
 --connection server3
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*Error when configuring the group recovery connection *.*");
+call mtr.add_suppression(".*Error when configuring the asynchronous recovery channel connection *.*");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING

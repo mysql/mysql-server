@@ -1,29 +1,18 @@
-//>>built
 define("dijit/layout/_LayoutWidget", [
 	"dojo/_base/lang", // lang.mixin
 	"../_Widget",
 	"../_Container",
 	"../_Contained",
+	"../Viewport",
 	"dojo/_base/declare", // declare
 	"dojo/dom-class", // domClass.add domClass.remove
 	"dojo/dom-geometry", // domGeometry.marginBox
-	"dojo/dom-style", // domStyle.getComputedStyle
-	"dojo/_base/sniff", // has("ie")
-	"dojo/_base/window" // win.global
-], function(lang, _Widget, _Container, _Contained,
-	declare, domClass, domGeometry, domStyle, has, win){
-
-/*=====
-	var _Widget = dijit._Widget;
-	var _Container = dijit._Container;
-	var _Contained = dijit._Contained;
-=====*/
+	"dojo/dom-style" // domStyle.getComputedStyle
+], function(lang, _Widget, _Container, _Contained, Viewport,
+	declare, domClass, domGeometry, domStyle){
 
 	// module:
 	//		dijit/layout/_LayoutWidget
-	// summary:
-	//		_LayoutWidget Base class for a _Container widget which is responsible for laying out its children.
-	//		Widgets which mixin this code must define layout() to manage placement and sizing of the children.
 
 
 	return declare("dijit.layout._LayoutWidget", [_Widget, _Container, _Contained], {
@@ -75,10 +64,7 @@ define("dijit/layout/_LayoutWidget", [
 				// Since my parent isn't a layout container, and my style *may be* width=height=100%
 				// or something similar (either set directly or via a CSS class),
 				// monitor when viewport size changes so that I can re-layout.
-				this.connect(win.global, 'onresize', function(){
-					// Using function(){} closure to ensure no arguments passed to resize().
-					this.resize();
-				});
+				this.own(Viewport.on("resize", lang.hitch(this, "resize")));
 			}
 		},
 
@@ -86,32 +72,33 @@ define("dijit/layout/_LayoutWidget", [
 			// summary:
 			//		Call this to resize a widget, or after its size has changed.
 			// description:
-			//		Change size mode:
-			//			When changeSize is specified, changes the marginBox of this widget
-			//			and forces it to relayout its contents accordingly.
-			//			changeSize may specify height, width, or both.
+			//		####Change size mode:
 			//
-			//			If resultSize is specified it indicates the size the widget will
-			//			become after changeSize has been applied.
+			//		When changeSize is specified, changes the marginBox of this widget
+			//		and forces it to re-layout its contents accordingly.
+			//		changeSize may specify height, width, or both.
 			//
-			//		Notification mode:
-			//			When changeSize is null, indicates that the caller has already changed
-			//			the size of the widget, or perhaps it changed because the browser
-			//			window was resized.  Tells widget to relayout its contents accordingly.
+			//		If resultSize is specified it indicates the size the widget will
+			//		become after changeSize has been applied.
 			//
-			//			If resultSize is also specified it indicates the size the widget has
-			//			become.
+			//		####Notification mode:
+			//
+			//		When changeSize is null, indicates that the caller has already changed
+			//		the size of the widget, or perhaps it changed because the browser
+			//		window was resized.  Tells widget to re-layout its contents accordingly.
+			//
+			//		If resultSize is also specified it indicates the size the widget has
+			//		become.
 			//
 			//		In either mode, this method also:
-			//			1. Sets this._borderBox and this._contentBox to the new size of
-			//				the widget.  Queries the current domNode size if necessary.
-			//			2. Calls layout() to resize contents (and maybe adjust child widgets).
 			//
+			//		1. Sets this._borderBox and this._contentBox to the new size of
+			//			the widget.  Queries the current domNode size if necessary.
+			//		2. Calls layout() to resize contents (and maybe adjust child widgets).
 			// changeSize: Object?
 			//		Sets the widget to this margin-box size and position.
 			//		May include any/all of the following properties:
 			//	|	{w: int, h: int, l: int, t: int}
-			//
 			// resultSize: Object?
 			//		The margin-box size of this widget after applying changeSize (if
 			//		changeSize is specified).  If caller knows this size and
@@ -166,7 +153,7 @@ define("dijit/layout/_LayoutWidget", [
 			//		protected extension
 		},
 
-		_setupChild: function(/*dijit._Widget*/child){
+		_setupChild: function(/*dijit/_WidgetBase*/child){
 			// summary:
 			//		Common setup for initial children and children which are added after startup
 			// tags:
@@ -177,7 +164,7 @@ define("dijit/layout/_LayoutWidget", [
 			domClass.add(child.domNode, cls);
 		},
 
-		addChild: function(/*dijit._Widget*/ child, /*Integer?*/ insertIndex){
+		addChild: function(/*dijit/_WidgetBase*/ child, /*Integer?*/ insertIndex){
 			// Overrides _Container.addChild() to call _setupChild()
 			this.inherited(arguments);
 			if(this._started){
@@ -185,7 +172,7 @@ define("dijit/layout/_LayoutWidget", [
 			}
 		},
 
-		removeChild: function(/*dijit._Widget*/ child){
+		removeChild: function(/*dijit/_WidgetBase*/ child){
 			// Overrides _Container.removeChild() to remove class added by _setupChild()
 			var cls = this.baseClass + "-child"
 					+ (child.baseClass ?

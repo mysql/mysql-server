@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,12 +82,12 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags) {
   const size_t initial_count = Count;
   size_t ToWriteCount;
 
-  DBUG_ENTER("my_write");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d", Filedes,
                     Buffer, (ulong)Count, MyFlags));
 
   /* The behavior of write(fd, buf, 0) is not portable */
-  if (unlikely(!Count)) DBUG_RETURN(0);
+  if (unlikely(!Count)) return 0;
 
   DBUG_EXECUTE_IF("simulate_no_free_space_error",
                   { DBUG_SET("+d,simulate_file_write_error"); });
@@ -180,16 +180,16 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags) {
   }
   if (MyFlags & (MY_NABP | MY_FNABP)) {
     if (sum_written == initial_count)
-      DBUG_RETURN(0); /* Want only errors, not bytes written */
+      return 0; /* Want only errors, not bytes written */
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_WRITE, MYF(0), my_filename(Filedes), my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_RETURN(MY_FILE_ERROR);
+    return MY_FILE_ERROR;
   }
 
-  if (sum_written == 0) DBUG_RETURN(MY_FILE_ERROR);
+  if (sum_written == 0) return MY_FILE_ERROR;
 
-  DBUG_RETURN(sum_written);
+  return sum_written;
 } /* my_write */

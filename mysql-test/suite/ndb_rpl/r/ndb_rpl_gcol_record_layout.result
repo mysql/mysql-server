@@ -73,7 +73,8 @@ DROP TABLE  stored_blob_gcol;
 CREATE TABLE virtual_blob_gcol (
 i int primary key,
 j varchar(20),
-k text as (repeat(j,i)) virtual
+k text as (repeat(j,i)) virtual,
+l text as (repeat(j, 2*i)) virtual
 ) engine=ndb;
 insert into virtual_blob_gcol(i,j) values (1,"c__"), (2,"b__"), (3,"a__");
 select i from virtual_blob_gcol order by i;
@@ -91,15 +92,20 @@ k
 c__
 b__b__
 a__a__a__
+select l from virtual_blob_gcol order by i;
+l
+c__c__
+b__b__b__b__
+a__a__a__a__a__a__
 select * from virtual_blob_gcol order by j;
-i	j	k
-3	a__	a__a__a__
-2	b__	b__b__
-1	c__	c__
+i	j	k	l
+3	a__	a__a__a__	a__a__a__a__a__a__
+2	b__	b__b__	b__b__b__b__
+1	c__	c__	c__c__
 delete from virtual_blob_gcol where length(j) = length(k);
 select * from virtual_blob_gcol where i < 3;
-i	j	k
-2	b__	b__b__
+i	j	k	l
+2	b__	b__b__	b__b__b__b__
 DROP TABLE virtual_blob_gcol;
 ####### TEST virtual generated blob with hidden pk
 CREATE TABLE virtual_blob_gcol_hid_pk (

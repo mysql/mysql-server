@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,13 @@
 #include "my_config.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "my_compiler.h"
+#include "mysql/psi/mysql_file.h"
+#include "sql/sql_bootstrap.h"
 #include "welcome_copyright_notice.h"
 /*
   This is an internal tool used during the build process only,
@@ -42,7 +45,6 @@
  so just add the sql_bootstrap.cc code as is.
 */
 #include "sql/sql_bootstrap.cc"
-#include "sql/sql_bootstrap.h"
 
 FILE *in;
 FILE *out;
@@ -71,10 +73,15 @@ static void die(const char *fmt, ...) {
   exit(1);
 }
 
-static char *fgets_fn(char *buffer, size_t size, fgets_input_t input,
+static void parser_die(const char *message) { die("%s", message); }
+
+static char *fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
                       int *error) {
-  char *line = fgets(buffer, (int)size, (FILE *)input);
-  if (error) *error = (line == NULL) ? ferror((FILE *)input) : 0;
+  FILE *real_in = input->m_file;
+  char *line = fgets(buffer, (int)size, real_in);
+  if (error) {
+    *error = (line == NULL) ? ferror(real_in) : 0;
+  }
   return line;
 }
 
@@ -84,7 +91,8 @@ static void print_query(FILE *out, const char *query) {
 
   fprintf(out, "\"");
   while (*ptr) {
-    if (column >= 120) {
+    /* utf-8 encoded characters are always >= 0x80 unsigned */
+    if (column >= 120 && static_cast<uint8_t>(*ptr) < 0x80) {
       /* Wrap to the next line, tabulated. */
       fprintf(out, "\"\n  \"");
       column = 3;
@@ -126,8 +134,7 @@ int main(int argc, char *argv[]) {
   char *outfile_name = argv[3];
   int rc;
   size_t query_length = 0;
-  int error = 0;
-  char *err_ptr;
+  bootstrap_parser_state parser_state;
 
   if (argc != 4)
     die("Usage: comp_sql <struct_name> <sql_filename> <c_filename>");
@@ -146,32 +153,23 @@ int main(int argc, char *argv[]) {
   fprintf(out, "*/\n");
   fprintf(out, "const char* %s[]={\n", struct_name);
 
-  for (;;) {
-    rc = read_bootstrap_query(query, &query_length, (fgets_input_t)in, fgets_fn,
-                              &error);
+  parser_state.init(infile_name);
 
-    if (rc == READ_BOOTSTRAP_EOF) break;
+  /* Craft an non instrumented MYSQL_FILE. */
+  MYSQL_FILE fake_in;
+  fake_in.m_file = in;
+  fake_in.m_psi = nullptr;
+
+  for (;;) {
+    rc = read_bootstrap_query(query, &query_length, &fake_in, fgets_fn,
+                              &parser_state);
+
+    if (rc == READ_BOOTSTRAP_EOF) {
+      break;
+    }
 
     if (rc != READ_BOOTSTRAP_SUCCESS) {
-      /* Get the most recent query text for reference. */
-      err_ptr = query + (query_length <= MAX_BOOTSTRAP_ERROR_LEN
-                             ? 0
-                             : (query_length - MAX_BOOTSTRAP_ERROR_LEN));
-      switch (rc) {
-        case READ_BOOTSTRAP_ERROR:
-          die("Failed to read the bootstrap input file. Return code (%d).\n"
-              "Last query: '%s'\n",
-              error, err_ptr);
-
-        case READ_BOOTSTRAP_QUERY_SIZE:
-          die("Failed to read the bootstrap input file. Query size exceeded %d "
-              "bytes.\n"
-              "Last query: '%s'.\n",
-              MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
-
-        default:
-          die("Failed to read the bootstrap input file. Unknown error.\n");
-      }
+      parser_state.report_error_details(parser_die);
     }
 
     print_query(out, query);

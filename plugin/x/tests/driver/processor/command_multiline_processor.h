@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 #define PLUGIN_X_TESTS_DRIVER_PROCESSOR_COMMAND_MULTILINE_PROCESSOR_H_
 
 #include <string>
-#include "processor/block_processor.h"
-#include "processor/command_processor.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/command_processor.h"
 
 class Command_multiline_processor : public Command_processor {
  public:

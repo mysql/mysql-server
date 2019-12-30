@@ -12,6 +12,9 @@ min(b)
 6
 drop table t1;
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
@@ -288,7 +291,11 @@ drop table t4,t3,t2,t1;
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
 ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
@@ -365,7 +372,11 @@ hex(s1)
 4120
 drop table t2,t1;
 create table t1 (a int primary key,s1 varchar(2) binary not null unique) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t2 (s1 char(2) binary not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values(1,0x4100),(2,0x41);
 insert into t2 values(0x41);
 select hex(s1) from t2;
@@ -606,6 +617,7 @@ a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 a BIGINT(20) NOT NULL,
@@ -617,6 +629,7 @@ CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
 ON DELETE CASCADE
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, 'bar', 'vbar');
@@ -729,6 +742,8 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(
 id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(-10);
 SELECT * FROM t1;
 id
@@ -764,6 +779,7 @@ c2 VARCHAR(128) NOT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -771,6 +787,8 @@ c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text

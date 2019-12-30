@@ -2,9 +2,13 @@
 .claro .dijitToolbar {
   border-bottom: 1px solid #b5bcc7;
   background-color: #efefef;
-  background-image: url("images/commonHighlight.png");
-  background-position: 0 0;
+  background-image: url("images/standardGradient.png");
   background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   padding: 2px 0 2px 4px;
   zoom: 1;
 }
@@ -27,13 +31,12 @@
   -webkit-transition-property: background-color;
   -moz-transition-property: background-color;
   transition-property: background-color;
-  -webkit-transition-duration: 0.3s, 0.35s;
-  -moz-transition-duration: 0.3s, 0.35s;
-  transition-duration: 0.3s, 0.35s;
-  background-image: url("images/commonHighlight.png");
-  background-position: 0 -30px;
-  background-repeat: repeat-x;
+  -webkit-transition-duration: 0.3s;
+  -moz-transition-duration: 0.3s;
+  transition-duration: 0.3s;
   background-color: rgba(171, 214, 255, 0);
+  background-image: none;
+  
 }
 .dj_ie .claro .dijitToolbar .dijitButton .dijitButtonNode,
 .dj_ie .claro .dijitToolbar .dijitDropDownButton .dijitButtonNode,
@@ -41,14 +44,6 @@
 .dj_ie .claro .dijitToolbar .dijitToggleButton .dijitButtonNode,
 .dj_ie .claro .dijitToolbar .dijitComboBox .dijitButtonNode {
   background-color: transparent;
-  
-}
-.dj_ie6 .claro .dijitToolbar .dijitButton .dijitButtonNode,
-.dj_ie6 .claro .dijitToolbar .dijitDropDownButton .dijitButtonNode,
-.dj_ie6 .claro .dijitToolbar .dijitComboButton .dijitButtonNode,
-.dj_ie6 .claro .dijitToolbar .dijitToggleButton .dijitButtonNode,
-.dj_ie6 .claro .dijitToolbar .dijitComboBox .dijitButtonNode {
-  background: none;
   
 }
 .dj_ie .claro .dijitToolbar .dijitButtonHover .dijitButtonNode,
@@ -83,13 +78,18 @@
 .claro .dijitToolbar .dijitDropDownButtonHover .dijitButtonNode,
 .claro .dijitToolbar .dijitToggleButtonHover .dijitButtonNode,
 .claro .dijitToolbar .dijitComboButtonHover .dijitButtonNode {
-  background-position: 0 0;
   border-width: 1px;
   background-color: #abd6ff;
+  background-image: url("images/standardGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   padding: 1px;
 }
 .claro .dijitToolbar .dijitComboButtonHover .dijitButtonNode, .claro .dijitToolbar .dijitComboButtonHover .dijitDownArrowButton {
-  background-position: 0 0;
   background-color: #f3ffff;
 }
 .claro .dijitToolbar .dijitComboButtonHover .dijitButtonNodeHover, .claro .dijitToolbar .dijitComboButtonHover .dijitDownArrowButtonHover {
@@ -98,7 +98,13 @@
 .claro .dijitToolbar .dijitButtonActive .dijitButtonNode, .claro .dijitToolbar .dijitDropDownButtonActive .dijitButtonNode, .claro .dijitToolbar .dijitToggleButtonActive .dijitButtonNode {
   border-width: 1px;
   background-color: #7dbdfa;
-  background-position: 0 -177px;
+  background-image: url("images/activeGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
   padding: 1px;
 }
 .claro .dijitToolbar .dijitComboButtonActive {
@@ -110,14 +116,27 @@
 }
 .claro .dijitToolbar .dijitComboButtonActive .dijitButtonNode, .claro .dijitToolbar .dijitComboButtonActive .dijitDownArrowButton {
   background-color: #f3ffff;
-  background-position: 0 -177px;
   padding: 2px;
 }
 .claro .dijitToolbar .dijitComboButtonActive .dijitButtonNodeActive {
   background-color: #7dbdfa;
+  background-image: url("images/activeGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
 }
 .claro .dijitToolbar .dijitComboButtonActive .dijitDownArrowButtonActive {
   background-color: #7dbdfa;
+  background-image: url("images/activeGradient.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(rgba(190, 190, 190, 0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+  _background-image: none;
 }
 .claro .dijitToolbar .dijitComboButtonHover .dijitDownArrowButton, .claro .dijitToolbar .dijitComboButtonActive .dijitDownArrowButton {
   border-left-width: 0;
@@ -135,9 +154,6 @@
   border-color: #759dc0;
   background-color: #ffffff;
   padding: 1px;
-}
-.dj_ie6 .claro .dijitToolbar {
-  background-image: none;
 }
 .claro .dijitToolbarSeparator {
   

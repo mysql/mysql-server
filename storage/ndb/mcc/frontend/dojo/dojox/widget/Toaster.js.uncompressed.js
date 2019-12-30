@@ -1,4 +1,3 @@
-//>>built
 define("dojox/widget/Toaster", [
 	"dojo/_base/declare", // declare
         "dojo/_base/lang", // lang.getObject...
@@ -18,7 +17,7 @@ define("dojox/widget/Toaster", [
 ], function(declare, lang, connect, baseFx, domStyle, domClass, domGeometry, registry, WidgetBase, Templated, BackgroundIframe, coreFx, has, baseWindow, window){
 
 	lang.getObject("dojox.widget", true);
-	
+
 	var capitalize = function(/* String */w){
 	    return w.substring(0,1).toUpperCase() + w.substring(1);
 	};
@@ -66,10 +65,10 @@ define("dojox/widget/Toaster", [
 
 		// slideDuration: Integer
 		//		Number of milliseconds for the slide animation, increasing will cause the Toaster
-		//    to slide in more slowly.
+		//		to slide in more slowly.
 		slideDuration: 500,
 
-		//separator: String
+		// separator: String
 		//		String used to separate messages if consecutive calls are made to setContent before previous messages go away
 		separator: "<hr></hr>",
 
@@ -102,7 +101,7 @@ define("dojox/widget/Toaster", [
 			//		type of message; possible values in messageTypes enumeration ("message", "warning", "error", "fatal")
 			// duration:
 			//		duration in milliseconds to display message before removing it. Widget has default value.
-			duration = duration||this.duration;
+			duration = (duration === undefined) ? this.duration : duration;
 			// sync animations so there are no ghosted fades and such
 			if(this.slideAnim){
 				if(this.slideAnim.status() != "playing"){
@@ -250,7 +249,9 @@ define("dojox/widget/Toaster", [
 			style.clip = "rect(0px, " + nodeSize.w + "px, " + nodeSize.h + "px, 0px)";
 			if(has("ie")){
 				if(!this.bgIframe){
-					this.clipNode.id = registry.getUniqueId("dojox_widget_Toaster_clipNode");
+					if (!this.clipNode.id) {
+						this.clipNode.id = registry.getUniqueId("dojox_widget_Toaster_clipNode");
+					}
 					this.bgIframe = new BackgroundIframe(this.clipNode);
 				}
 				var iframe = this.bgIframe.iframe;
@@ -259,11 +260,13 @@ define("dojox/widget/Toaster", [
 		},
 
 		onSelect: function(/*Event*/e){
-			// summary: callback for when user clicks the message
+			// summary:
+			//		callback for when user clicks the message
 		},
 
 		show: function(){
-			// summary: show the Toaster
+			// summary:'
+			//		show the Toaster
 			domStyle.set(this.domNode, 'display', 'block');
 
 			this._placeClip();
@@ -274,7 +277,8 @@ define("dojox/widget/Toaster", [
 		},
 
 		hide: function(){
-			// summary: hide the Toaster
+			// summary:
+			//		hide the Toaster
 
 			domStyle.set(this.domNode, 'display', 'none');
 

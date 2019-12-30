@@ -61,6 +61,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <bitset>
 #include <new>
 #include <string>
 
@@ -92,8 +93,6 @@
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
-#include "sql/protocol.h"           // Protocol
-#include "sql/protocol_classic.h"   // Protocol_text
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"  // Rpl_thd_context
 #include "sql/rpl_gtid.h"
@@ -122,6 +121,10 @@ class Query_tables_list;
 class Relay_log_info;
 class THD;
 class partition_info;
+class Protocol;
+class Protocol_binary;
+class Protocol_classic;
+class Protocol_text;
 class sp_rcontext;
 class user_var_entry;
 struct LEX;
@@ -177,7 +180,6 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
   (thd)->enter_stage(&stage, NULL, __func__, __FILE__, __LINE__)
 
 extern char empty_c_string[1];
-extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
@@ -296,10 +298,10 @@ class Query_arena {
   /// @returns true if a regular statement, ie not prepared and not stored proc
   bool is_regular() const { return state == STMT_REGULAR_EXECUTION; }
 
-  void *alloc(size_t size) { return alloc_root(mem_root, size); }
+  void *alloc(size_t size) { return mem_root->Alloc(size); }
   void *mem_calloc(size_t size) {
     void *ptr;
-    if ((ptr = alloc_root(mem_root, size))) memset(ptr, 0, size);
+    if ((ptr = mem_root->Alloc(size))) memset(ptr, 0, size);
     return ptr;
   }
   template <typename T>
@@ -1079,6 +1081,19 @@ class THD : public MDL_context_owner,
   void set_security_context(Security_context *sctx) { m_security_ctx = sctx; }
   List<Security_context> m_view_ctx_list;
 
+  /**
+    @note
+    The optional password validation plugin doesn't have any API for
+    temporally disable its functionality for a particular session.
+    To get around this issue we introduce a boolean variable in the THD
+    which we check before each call to the password validation plugin.
+    Password validation is invoked from within the authentication plugin
+    in the generate_authentication_string() method.
+
+    @see generate_authentication_string
+  */
+  bool m_disable_password_validation;
+
   /*
     Points to info-string that we show in SHOW PROCESSLIST
     You are supposed to update thd->proc_info only if you have coded
@@ -1093,8 +1108,8 @@ class THD : public MDL_context_owner,
   */
   const char *proc_info;
 
-  Protocol_text protocol_text;      // Normal protocol
-  Protocol_binary protocol_binary;  // Binary protocol
+  std::unique_ptr<Protocol_text> protocol_text;      // Normal protocol
+  std::unique_ptr<Protocol_binary> protocol_binary;  // Binary protocol
 
   const Protocol *get_protocol() const { return m_protocol; }
 
@@ -1121,12 +1136,12 @@ class THD : public MDL_context_owner,
   */
   const Protocol_classic *get_protocol_classic() const {
     DBUG_ASSERT(is_classic_protocol());
-    return down_cast<const Protocol_classic *>(m_protocol);
+    return pointer_cast<const Protocol_classic *>(m_protocol);
   }
 
   Protocol_classic *get_protocol_classic() {
     DBUG_ASSERT(is_classic_protocol());
-    return down_cast<Protocol_classic *>(m_protocol);
+    return pointer_cast<Protocol_classic *>(m_protocol);
   }
 
  private:
@@ -2203,15 +2218,14 @@ class THD : public MDL_context_owner,
    */
   /**@{*/
   void set_trans_pos(const char *file, my_off_t pos) {
-    DBUG_ENTER("THD::set_trans_pos");
+    DBUG_TRACE;
     DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
     if (file) {
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file = file + dirname_length(file);
       if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file =
-            (char *)alloc_root(&main_mem_root, FN_REFLEN + 1);
+        m_trans_fixed_log_file = (char *)main_mem_root.Alloc(FN_REFLEN + 1);
       DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     } else {
@@ -2224,27 +2238,27 @@ class THD : public MDL_context_owner,
                ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
                 "m_trans_end_pos: %llu",
                 m_trans_log_file, m_trans_fixed_log_file, m_trans_end_pos));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void get_trans_pos(const char **file_var, my_off_t *pos_var) const {
-    DBUG_ENTER("THD::get_trans_pos");
+    DBUG_TRACE;
     if (file_var) *file_var = m_trans_log_file;
     if (pos_var) *pos_var = m_trans_end_pos;
     DBUG_PRINT("return",
                ("file: %s, pos: %llu", file_var ? *file_var : "<none>",
                 pos_var ? *pos_var : 0));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const {
-    DBUG_ENTER("THD::get_trans_fixed_pos");
+    DBUG_TRACE;
     if (file_var) *file_var = m_trans_fixed_log_file;
     if (pos_var) *pos_var = m_trans_end_pos;
     DBUG_PRINT("return",
                ("file: %s, pos: %llu", file_var ? *file_var : "<none>",
                 pos_var ? *pos_var : 0));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**@}*/
@@ -2512,6 +2526,14 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  /** Check if clone network Vio is active. */
+  inline bool check_clone_vio() {
+    mysql_mutex_lock(&LOCK_thd_data);
+    bool is_active = (clone_vio != nullptr);
+    mysql_mutex_unlock(&LOCK_thd_data);
+    return (is_active);
+  }
+
   /** Shutdown clone vio, if active. */
   void shutdown_clone_vio();
 
@@ -2543,7 +2565,7 @@ class THD : public MDL_context_owner,
                   const PSI_stage_info *stage, PSI_stage_info *old_stage,
                   const char *src_function, const char *src_file,
                   int src_line) {
-    DBUG_ENTER("THD::enter_cond");
+    DBUG_TRACE;
     mysql_mutex_assert_owner(mutex);
     /*
       Sic: We don't lock LOCK_current_cond here.
@@ -2553,12 +2575,12 @@ class THD : public MDL_context_owner,
     current_mutex = mutex;
     current_cond = cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void exit_cond(const PSI_stage_info *stage, const char *src_function,
                  const char *src_file, int src_line) {
-    DBUG_ENTER("THD::exit_cond");
+    DBUG_TRACE;
     /*
       current_mutex must be unlocked _before_ LOCK_current_cond is
       locked (if that would not be the case, you'll get a deadlock if someone
@@ -2570,7 +2592,7 @@ class THD : public MDL_context_owner,
     current_cond = NULL;
     mysql_mutex_unlock(&LOCK_current_cond);
     enter_stage(stage, NULL, src_function, src_file, src_line);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   virtual int is_killed() const final { return killed; }
@@ -2752,7 +2774,7 @@ class THD : public MDL_context_owner,
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                       const char *from, size_t from_length,
-                      const CHARSET_INFO *from_cs);
+                      const CHARSET_INFO *from_cs, bool report_error = false);
 
   int send_explain_fields(Query_result *result);
 
@@ -2764,32 +2786,17 @@ class THD : public MDL_context_owner,
     mechanism. In future this function will be removed.
   */
   inline void clear_error() {
-    DBUG_ENTER("clear_error");
+    DBUG_TRACE;
     if (get_stmt_da()->is_error()) get_stmt_da()->reset_diagnostics_area();
     is_slave_error = false;
-    DBUG_VOID_RETURN;
+    return;
   }
 
-  bool is_classic_protocol() const {
-    return get_protocol()->type() == Protocol::PROTOCOL_BINARY ||
-           get_protocol()->type() == Protocol::PROTOCOL_TEXT;
-  }
+  bool is_classic_protocol() const;
 
   /** Return false if connection to client is broken. */
-  virtual bool is_connected() {
-    /*
-      All system threads (e.g., the slave IO thread) are connected but
-      not using vio. So this function always returns true for all
-      system threads.
-    */
-    if (system_thread) return true;
+  bool is_connected() final;
 
-    if (is_classic_protocol())
-      return get_protocol()->connection_alive() &&
-             vio_is_connected(get_protocol_classic()->get_vio());
-    else
-      return get_protocol()->connection_alive();
-  }
   /**
     Mark the current error as fatal. Warning: this does not
     set any error, it sets a property of the error, so must be
@@ -2875,22 +2882,18 @@ class THD : public MDL_context_owner,
 
     @param protocol Protocol to be inserted.
   */
-  void push_protocol(Protocol *protocol) {
-    DBUG_ASSERT(m_protocol);
-    DBUG_ASSERT(protocol);
-    m_protocol->push_protocol(protocol);
-    m_protocol = protocol;
+  void push_protocol(Protocol *protocol);
+
+  template <typename ProtocolClass>
+  void push_protocol(const std::unique_ptr<ProtocolClass> &protocol) {
+    push_protocol(protocol.get());
   }
 
   /**
     Pops the top protocol of the Protocol stack and sets the previous one
     as the current protocol.
   */
-  void pop_protocol() {
-    DBUG_ASSERT(m_protocol);
-    m_protocol = m_protocol->pop_protocol();
-    DBUG_ASSERT(m_protocol);
-  }
+  void pop_protocol();
 
  public:
   const CHARSET_INFO *charset() const { return variables.character_set_client; }
@@ -2999,7 +3002,7 @@ class THD : public MDL_context_owner,
     decide_logging_format should call them. /Sven
   */
   inline void set_current_stmt_binlog_format_row_if_mixed() {
-    DBUG_ENTER("set_current_stmt_binlog_format_row_if_mixed");
+    DBUG_TRACE;
     /*
       This should only be called from decide_logging_format.
 
@@ -3020,20 +3023,20 @@ class THD : public MDL_context_owner,
     if ((variables.binlog_format == BINLOG_FORMAT_MIXED) && (in_sub_stmt == 0))
       set_current_stmt_binlog_format_row();
 
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void set_current_stmt_binlog_format_row() {
-    DBUG_ENTER("set_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     current_stmt_binlog_format = BINLOG_FORMAT_ROW;
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void clear_current_stmt_binlog_format_row() {
-    DBUG_ENTER("clear_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     current_stmt_binlog_format = BINLOG_FORMAT_STMT;
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void reset_current_stmt_binlog_format_row() {
-    DBUG_ENTER("reset_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("in_sub_stmt: %d, system_thread: %s", in_sub_stmt != 0,
                          show_system_thread(system_thread)));
     if (in_sub_stmt == 0) {
@@ -3042,7 +3045,7 @@ class THD : public MDL_context_owner,
       else
         clear_current_stmt_binlog_format_row();
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -3323,6 +3326,66 @@ class THD : public MDL_context_owner,
   */
   rpl_sid owned_sid;
 
+  /** SE GTID persistence flag types. */
+  enum Se_GTID_flag : size_t {
+    /** Pin owned GTID */
+    SE_GTID_PIN = 0,
+    /** Cleanup GTID during unpin. */
+    SE_GTID_CLEANUP,
+    /** SE would persist GTID for current transaction. */
+    SE_GTID_PERSIST,
+    /** If RESET log in progress. */
+    SE_GTID_RESET_LOG,
+    /** Max element holding the biset size. */
+    SE_GTID_MAX
+  };
+
+  using Se_GTID_flagset = std::bitset<SE_GTID_MAX>;
+
+  /** Flags for SE GTID persistence. */
+  Se_GTID_flagset m_se_gtid_flags;
+
+  /** Defer freeing owned GTID and SID till unpinned. */
+  void pin_gtid() { m_se_gtid_flags.set(SE_GTID_PIN); }
+
+  /** Unpin and free GTID and SID. */
+  void unpin_gtid() {
+    m_se_gtid_flags.reset(SE_GTID_PIN);
+    /* Do any deferred cleanup */
+    if (m_se_gtid_flags[SE_GTID_CLEANUP]) {
+      clear_owned_gtids();
+      m_se_gtid_flags.reset(SE_GTID_CLEANUP);
+    }
+  }
+
+  /** @return true, if single phase XA commit operation. */
+  bool is_one_phase_commit();
+
+  /** Set when binlog reset operation is started. */
+  void set_log_reset() { m_se_gtid_flags.set(SE_GTID_RESET_LOG); }
+
+  /** Cleared after flushing SE logs during binlog reset. */
+  void clear_log_reset() { m_se_gtid_flags.reset(SE_GTID_RESET_LOG); }
+
+  /** @return true, if binlog reset operation. */
+  bool is_log_reset() const { return (m_se_gtid_flags[SE_GTID_RESET_LOG]); }
+
+  /** Set by SE when it guarantees GTID persistence. */
+  void set_gtid_persisted_by_se() { m_se_gtid_flags.set(SE_GTID_PERSIST); }
+
+  /** Reset by SE at transaction end after persisting GTID. */
+  void reset_gtid_persisted_by_se() { m_se_gtid_flags.reset(SE_GTID_PERSIST); }
+
+  /** @return true, if SE persists GTID for current transaction. */
+  bool se_persists_gtid() const {
+    DBUG_EXECUTE_IF("disable_se_persists_gtid", return (false););
+    auto trx = get_transaction();
+    auto xid_state = trx->xid_state();
+    /* XA transactions are always persisted by Innodb. */
+    return (!xid_state->has_state(XID_STATE::XA_NOTR) ||
+            m_se_gtid_flags[SE_GTID_PERSIST]);
+  }
+
 #ifdef HAVE_GTID_NEXT_LIST
   /**
     If this thread owns a set of GTIDs (i.e., GTID_NEXT_LIST != NULL),
@@ -3341,6 +3404,12 @@ class THD : public MDL_context_owner,
   Rpl_thd_context rpl_thd_ctx;
 
   void clear_owned_gtids() {
+    /* Defer GTID cleanup if pinned. Used for XA transactions where
+    SE(Innodb) needs to read GTID. */
+    if (m_se_gtid_flags[SE_GTID_PIN]) {
+      m_se_gtid_flags.set(SE_GTID_CLEANUP);
+      return;
+    }
     if (owned_gtid.sidno == OWNED_SIDNO_GTID_SET) {
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
@@ -3351,6 +3420,14 @@ class THD : public MDL_context_owner,
     owned_gtid.clear();
     owned_sid.clear();
     owned_gtid.dbug_print(NULL, "set owned_gtid in clear_owned_gtids");
+  }
+
+  /** @return true, if owned GTID is empty or waiting for deferred cleanup. */
+  bool owned_gtid_is_empty() {
+    if (m_se_gtid_flags[SE_GTID_CLEANUP]) {
+      return (true);
+    }
+    return (owned_gtid.is_empty());
   }
 
   /*
@@ -3625,6 +3702,13 @@ class THD : public MDL_context_owner,
     Assign a new value to thd->m_query_string.
     Protected with the LOCK_thd_query mutex.
   */
+  void set_query_for_display(const char *query_arg, size_t query_length_arg) {
+    MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg, query_length_arg);
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
+#endif
+  }
+  void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
   void set_query(const char *query_arg, size_t query_length_arg) {
     LEX_CSTRING tmp = {query_arg, query_length_arg};
     set_query(tmp);

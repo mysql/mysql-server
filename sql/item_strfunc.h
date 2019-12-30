@@ -28,8 +28,8 @@
 #include <sys/types.h>
 #include <algorithm>
 
-#include "control_events.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/control_events.h"
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -241,12 +241,12 @@ class Item_func_statement_digest final : public Item_str_ascii_func {
     return (func_arg->source == VGS_GENERATED_COLUMN);
   }
 
-  bool resolve_type(THD *) override {
-    set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 
   String *val_str_ascii(String *) override;
+
+ private:
+  uchar *m_token_buffer{nullptr};
 };
 
 class Item_func_statement_digest_text final : public Item_str_func {
@@ -260,10 +260,7 @@ class Item_func_statement_digest_text final : public Item_str_func {
     The type is always LONGTEXT, just like the digest_text columns in
     Performance Schema
   */
-  bool resolve_type(THD *) override {
-    set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -273,6 +270,9 @@ class Item_func_statement_digest_text final : public Item_str_func {
     return (func_arg->source == VGS_GENERATED_COLUMN);
   }
   String *val_str(String *) override;
+
+ private:
+  uchar *m_token_buffer{nullptr};
 };
 
 class Item_func_from_base64 final : public Item_str_func {
@@ -924,16 +924,16 @@ class Item_func_like_range_max final : public Item_func_like_range {
 };
 #endif
 
-class Item_char_typecast final : public Item_str_func {
+class Item_typecast_char final : public Item_str_func {
   longlong cast_length;
   const CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 
  public:
-  Item_char_typecast(Item *a, longlong length_arg, const CHARSET_INFO *cs_arg)
+  Item_typecast_char(Item *a, longlong length_arg, const CHARSET_INFO *cs_arg)
       : Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
-  Item_char_typecast(const POS &pos, Item *a, longlong length_arg,
+  Item_typecast_char(const POS &pos, Item *a, longlong length_arg,
                      const CHARSET_INFO *cs_arg)
       : Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const override { return TYPECAST_FUNC; }
@@ -943,27 +943,6 @@ class Item_char_typecast final : public Item_str_func {
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-};
-
-class Item_func_binary final : public Item_str_func {
- public:
-  Item_func_binary(const POS &pos, Item *a) : Item_str_func(pos, a) {}
-  String *val_str(String *a) override {
-    DBUG_ASSERT(fixed == 1);
-    String *tmp = args[0]->val_str(a);
-    null_value = args[0]->null_value;
-    if (tmp) tmp->set_charset(&my_charset_bin);
-    return tmp;
-  }
-  bool resolve_type(THD *) override {
-    // Determine binary string length from max length of argument in bytes
-    set_data_type_string(args[0]->max_length, &my_charset_bin);
-    return false;
-  }
-  void print(const THD *thd, String *str,
-             enum_query_type query_type) const override;
-  const char *func_name() const override { return "cast_as_binary"; }
-  enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
 class Item_load_file final : public Item_str_func {
@@ -1635,6 +1614,29 @@ class Item_func_convert_interval_to_user_interval final : public Item_str_func {
 
   const char *func_name() const override {
     return "convert_interval_to_user_interval";
+  }
+
+  String *val_str(String *) override;
+};
+
+class Item_func_internal_get_dd_column_extra final : public Item_str_func {
+ public:
+  Item_func_internal_get_dd_column_extra(const POS &pos, PT_item_list *list)
+      : Item_str_func(pos, list) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null = false;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override {
+    return "internal_get_dd_column_extra";
   }
 
   String *val_str(String *) override;

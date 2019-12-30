@@ -92,6 +92,18 @@ GRANT SUPER, engineering ON *.* TO joan, sally;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
 GRANT engineering,SELECT ON *.* TO joan;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use
+# Revoking a role on SQL objects results in warning indicating that user
+# is trying to revoke a privilege that is not registered with the server
+REVOKE engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+REVOKE wp_administrators, engineering ON *.* FROM joan, sally;
+Warnings:
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
+Warning	3929	Dynamic privilege 'WP_ADMINISTRATORS' is not registered with the server.
+Warning	3929	Dynamic privilege 'ENGINEERING' is not registered with the server.
 # Make sure current_user() works correctly!
 GRANT 'role',engineering TO current_user();
 # WL988.I-6 SET ROLE
@@ -145,7 +157,7 @@ SET ROLE ALL;
 SELECT CURRENT_ROLE();
 CURRENT_ROLE()
 `engineering`@`%`,`role`@`%`
-# Make sure ALL EXCEPT works as an intended reserved word and that all 
+# Make sure ALL EXCEPT works as an intended reserved word and that all
 # granted roles but the exceptions are picked.
 SET ROLE ALL EXCEPT role1;
 SELECT CURRENT_ROLE();
@@ -154,7 +166,7 @@ CURRENT_ROLE()
 SHOW GRANTS FOR current_user() USING `engineering`@`%`,`role`@`%`;
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 GRANT `engineering`@`%`,`role`@`%` TO `root`@`localhost`
 GRANT role1 TO current_user();
@@ -181,7 +193,7 @@ REVOKE engineering FROM managers;
 ERROR HY000: Unknown authorization ID `managers`@`%`
 REVOKE engineering FROM joan;
 REVOKE engineering, role1 FROM root@localhost;
-# List all subgraphs as a graphml document. This should verify that 
+# List all subgraphs as a graphml document. This should verify that
 # revoking worked too.
 # WL988.I-14,R-2.1
 # only count nodes and edges as the sorting order is depending on platform
@@ -429,7 +441,7 @@ SELECT IF (COUNT(*) > 0, "ERROR! There shouldn't be any edges in the table", "AL
 health_check
 ALL OK!
 DROP TABLE t_external;
-# 
+#
 # Verify that all privileges are applied correctly.
 #
 CREATE ROLE maintenance_admin;
@@ -490,7 +502,7 @@ SET ROLE `schema_admin`;
 DROP TABLE t1;
 ++ Global create privileges makes it possible to create schemas!
 CREATE DATABASE joes;
-++ And more tables! All this comes from schema_designer which from which 
+++ And more tables! All this comes from schema_designer which from which
 ++ schema_admin inhert most of its privileges.
 CREATE TABLE joes.t1 (c1 INT);
 DROP TABLE joes.t1;
@@ -768,11 +780,13 @@ DROP ROLE r10;
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
+AUDIT_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 BINLOG_ENCRYPTION_ADMIN	Server Admin	
+CLONE_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles
@@ -790,12 +804,14 @@ Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
+INNODB_REDO_LOG_ARCHIVE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
+REPLICATION_APPLIER	Server Admin	
 REPLICATION_SLAVE_ADMIN	Server Admin	
 RESOURCE_GROUP_ADMIN	Server Admin	
 RESOURCE_GROUP_USER	Server Admin	

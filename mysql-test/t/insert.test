@@ -57,17 +57,6 @@ select a,t>0,c,i from t1;
 drop table t1;
 
 #
-# Test problem with bulk insert and auto_increment on second part keys
-#
-
-create table t1 (sid char(20), id int(2) NOT NULL auto_increment, key(sid, id)) engine=myisam;
-insert into t1 values ('skr',NULL),('skr',NULL),('test',NULL);
-select * from t1;
-insert into t1 values ('rts',NULL),('rts',NULL),('test',NULL);
-select * from t1;
-drop table t1;
-
-#
 #Test of behaviour with INSERT VALUES (NULL)
 #
 
@@ -104,8 +93,6 @@ use test;
 # Test of wrong values for float data (bug #2082)
 #
 
-# PS gives sligthly different numbers for max-float/max-double
---disable_ps_protocol
 create table t1(number int auto_increment primary key, original_value varchar(50), f_double double, f_float float, f_double_7_2 double(7,2), f_float_4_3 float (4,3), f_double_u double unsigned, f_float_u float unsigned, f_double_15_1_u double(15,1) unsigned, f_float_3_1_u float (3,1) unsigned);
 
 set @value= "aa";
@@ -151,7 +138,6 @@ insert into t1 values(null,@value,@value,@value,@value,@value,@value,@value,@val
 --query_vertical select * from t1 where number =last_insert_id()
 
 drop table t1;
---enable_ps_protocol
 
 # End of 4.1 tests
 
@@ -284,15 +270,6 @@ insert into v1 (f1) values (3) on duplicate key update f1= f3 + 10;
 select * from t1;
 drop view v1;
 drop table t1,t2;
-
-# Test of INSERT IGNORE and re-using auto_increment values
-create table t1 (id int primary key auto_increment, data int, unique(data)) engine=myisam;
-insert ignore into t1 values(NULL,100),(NULL,110),(NULL,120);
-insert ignore into t1 values(NULL,10),(NULL,20),(NULL,110),(NULL,120),(NULL,100),(NULL,90);
-insert ignore into t1 values(NULL,130),(NULL,140),(500,110),(550,120),(450,100),(NULL,150);
-select * from t1 order by id;
-
-drop table t1;
 
 #
 # Bug #26788: mysqld (debug) aborts when inserting specific numbers into char
@@ -693,19 +670,6 @@ SELECT * FROM t1;
 DROP VIEW v1, v2;
 DROP TABLE t1;
 
-
---echo #
---echo # Bug#22635253: ASSERTION `THD->IS_ERROR() BOOL
---echo #               SQL_CMD_INSERT::MYSQL_INSERT(THD*, TABLE_LIST*)
---echo #
-
-CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
-CREATE TABLE t2(a INT) ENGINE=MyISAM;
-CREATE TRIGGER trig1 BEFORE INSERT ON t1 FOR EACH ROW INSERT INTO t2 VALUES (1);
-# This statement used to give an assert on debug builds
-INSERT INTO t1(b) VALUES (1);
-DROP TABLE t2, t1;
-
 --echo #
 --echo # BUG#22037930: INSERT IGNORE FAILS TO IGNORE
 --echo #               FOREIGN KEY CONSTRAINT
@@ -943,3 +907,28 @@ INSERT INTO t1(a, a, b, c) VALUES (1, 1, DEFAULT, DEFAULT);
 INSERT INTO t1(b, b) VALUES (DEFAULT, DEFAULT);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #29899614: SIG 6 -`M_PSI_BATCH_MODE == PSI_BATCH_MODE_NONE' | SQL/HANDLER.CC
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER, INDEX ( f1 ) );
+CREATE TABLE t2 ( f1 INTEGER );
+
+INSERT INTO t1 VALUES (10);
+
+INSERT INTO t2
+  SELECT STRAIGHT_JOIN *
+  FROM t1 AS alias1
+  WHERE EXISTS (
+    SELECT * FROM (
+      SELECT * FROM t1 JOIN t1 AS alias2 USING ( f1 )
+    ) AS alias3
+    WHERE alias1.f1 < 20
+  );
+
+# We don't care about the result, but close the tables to make sure that
+# we haven't inadvertedly left any of them in performance schema batch mode.
+FLUSH TABLES;
+
+DROP TABLE t1, t2;

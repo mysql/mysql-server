@@ -95,34 +95,30 @@ Splitters and gutters:
 }
 
 /* hovered splitter */
-.claro .dijitSplitterHHover {
+.claro .dijitSplitterHHover,
+.claro .dijitSplitterVHover {
 	font-size: 1px;
-	background: url("../@{image-layout-splitter-horizontal-hover}") no-repeat center top;
+	background-color: @splitter-hovered-background-color;
 }
 
-
-.claro .dijitSplitterHHover .dijitSplitterThumb {
-	background:@hovered-border-color none;
+.claro .dijitSplitterHHover {
+	.alpha-white-gradient (left, 1,0px,  0,50%, 1,100%);
 }
 
 .claro .dijitSplitterVHover {
-	font-size: 1px;
-	background: url("../@{image-layout-splitter-vertical-hover}") no-repeat center left;
+	.alpha-white-gradient (top, 1,0px,  0,50%, 1,100%);
 }
 
+.claro .dijitSplitterHHover .dijitSplitterThumb,
 .claro .dijitSplitterVHover .dijitSplitterThumb {
 	background:@hovered-border-color none;
 }
 
-.dj_ie6 .dijitSplitterHHover,
-.dj_ie6 .claro .dijitSplitterVHover {
-	background-color: @splitter-hovered-background-color;
-	background-image:none;
-}
 
 /* active splitter */
 .claro .dijitSplitterHActive,
 .claro .dijitSplitterVActive {
 	font-size: 1px;
 	background-color:@splitter-dragged-background-color;
+	background-image: none;		// color all the way across, not gradient like in hover mode
 }

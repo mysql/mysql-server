@@ -1134,7 +1134,12 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
     entry->m_enabled = false; /* disabled by default */
     entry->m_timed = false;
 
-    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_RWLOCK_SX);
+    entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_RWLOCK_SX |
+                               PSI_FLAG_RWLOCK_PR);
+
+    /* One of rwlock, prlock, sxlock */
+    DBUG_ASSERT(((info->m_flags & PSI_FLAG_RWLOCK_SX) == 0) ||
+                ((info->m_flags & PSI_FLAG_RWLOCK_PR) == 0));
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);

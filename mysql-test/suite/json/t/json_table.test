@@ -43,7 +43,7 @@ let $query= select * from
              jpath_i int path '$.a'
                 default '33' on empty
                 default '66' on error,
-             jpath_r real(10,2) path '$.a'
+             jpath_r real path '$.a'
                 default '33.3' on empty
                 default '77.7' on error,
              jsn_path json path '$.a' default '{"x":33}' on empty,
@@ -370,6 +370,7 @@ EXPLAIN SELECT /*+ JOIN_ORDER(jt, t1) */ id, jt.*
   JSON_TABLE(jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
                                  val INT PATH '$')) AS jt;
 
+--sorted_result
 SELECT /*+ JOIN_ORDER(t2,jt) */ t1.id, t2.id, jt.*
   FROM t1,
     JSON_TABLE(t1.jd, '$[*]' COLUMNS (jid FOR ORDINALITY,
@@ -985,6 +986,7 @@ ANALYZE TABLE t1;
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT * FROM t1 as jj1,
   (SELECT tt2.* FROM t1 as tt2,
     JSON_TABLE (f1, "$" COLUMNS (id FOR ORDINALITY)) AS tbl) dt;
@@ -1279,3 +1281,18 @@ SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
 
 SET @@SESSION.character_set_connection = DEFAULT;
+
+--echo #
+--echo # Bug#28851656: JSON_TABLE RETURN "UNKNOWN DATABASE ''" FROM A FUNCTION
+--echo #
+CREATE FUNCTION FN_COUNT_ROWS(X JSON)
+RETURNS INT DETERMINISTIC
+  RETURN (
+    SELECT COUNT(*) FROM JSON_TABLE( X, '$[*]' COLUMNS( I INT PATH '$')) der
+  );
+
+SELECT FN_COUNT_ROWS('[1, 2]') CNT;
+SELECT FN_COUNT_ROWS('[1, 2, 3]') CNT;
+SELECT FN_COUNT_ROWS('[1, 2, 3, 4]') CNT;
+
+DROP FUNCTION FN_COUNT_ROWS;

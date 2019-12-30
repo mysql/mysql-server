@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,18 +31,18 @@
 Applier_handler::Applier_handler() {}
 
 int Applier_handler::initialize() {
-  DBUG_ENTER("Applier_handler::initialize");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int Applier_handler::terminate() {
-  DBUG_ENTER("Applier_handler::terminate");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int Applier_handler::initialize_repositories(bool reset_logs,
                                              ulong plugin_shutdown_timeout) {
-  DBUG_ENTER("Applier_handler::initialize_repositories");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -52,7 +52,7 @@ int Applier_handler::initialize_repositories(bool reset_logs,
     if ((error = channel_interface.purge_logs(true))) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RESET_APPLIER_MODULE_LOGS_ERROR);
-      DBUG_RETURN(error);
+      return error;
       /* purecov: end */
     }
   }
@@ -62,44 +62,44 @@ int Applier_handler::initialize_repositories(bool reset_logs,
   error = channel_interface.initialize_channel(
       const_cast<char *>("<NULL>"), 0, NULL, NULL, false, NULL, NULL, NULL,
       NULL, NULL, NULL, NULL, false, GROUP_REPLICATION_APPLIER_THREAD_PRIORITY,
-      0, true, NULL, false);
+      0, true, NULL, false, NULL, 0);
 
   if (error) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_APPLIER_THD_SETUP_ERROR); /* purecov: inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::start_applier_thread() {
-  DBUG_ENTER("Applier_handler::start_applier_thread");
+  DBUG_TRACE;
 
   int error = channel_interface.start_threads(false, true, NULL, false);
   if (error) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_THD_START_ERROR);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::stop_applier_thread() {
-  DBUG_ENTER("Applier_handler::stop_applier_thread");
+  DBUG_TRACE;
 
   int error = 0;
 
-  if (!channel_interface.is_applier_thread_running()) DBUG_RETURN(0);
+  if (!channel_interface.is_applier_thread_running()) return 0;
 
   if ((error = channel_interface.stop_threads(false, true))) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_APPLIER_THD_STOP_ERROR); /* purecov: inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::handle_event(Pipeline_event *event, Continuation *cont) {
-  DBUG_ENTER("Applier_handler::handle_event");
+  DBUG_TRACE;
   int error = 0;
 
   Data_packet *p = NULL;
@@ -133,11 +133,11 @@ end:
   else
     next(event, cont);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::handle_action(Pipeline_action *action) {
-  DBUG_ENTER("Applier_handler::handle_action");
+  DBUG_TRACE;
   int error = 0;
 
   Plugin_handler_action action_type =
@@ -169,9 +169,9 @@ int Applier_handler::handle_action(Pipeline_action *action) {
       break;
   }
 
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
-  DBUG_RETURN(next(action));
+  return next(action);
 }
 
 bool Applier_handler::is_unique() { return true; }
@@ -179,30 +179,30 @@ bool Applier_handler::is_unique() { return true; }
 int Applier_handler::get_role() { return APPLIER; }
 
 bool Applier_handler::is_applier_thread_waiting() {
-  DBUG_ENTER("Applier_handler::is_applier_thread_waiting");
+  DBUG_TRACE;
 
   bool result = channel_interface.is_applier_thread_waiting();
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int Applier_handler::wait_for_gtid_execution(double timeout) {
-  DBUG_ENTER("Applier_handler::wait_for_gtid_execution");
+  DBUG_TRACE;
 
   int error = channel_interface.wait_for_gtid_execution(timeout);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::wait_for_gtid_execution(std::string &retrieved_set,
                                              double timeout,
                                              bool update_THD_status) {
-  DBUG_ENTER("Applier_handler::wait_for_gtid_execution(gtid_set)");
+  DBUG_TRACE;
 
   int error = channel_interface.wait_for_gtid_execution(retrieved_set, timeout,
                                                         update_THD_status);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_handler::is_partial_transaction_on_relay_log() {

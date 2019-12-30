@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -333,25 +333,35 @@ void trx_undo_mem_free(trx_undo_t *undo); /* in: the undo object to be freed */
 in the corresponding transaction object */
 
 struct trx_undo_t {
+  /* Set undo segment to prepared state and set XID
+  @param[in]	in_xid	transaction XID. */
+  void set_prepared(const XID *in_xid);
+
   /*-----------------------------*/
-  ulint id;             /*!< undo log slot number within the
-                        rollback segment */
-  ulint type;           /*!< TRX_UNDO_INSERT or
-                        TRX_UNDO_UPDATE */
-  ulint state;          /*!< state of the corresponding undo log
-                        segment */
-  ibool del_marks;      /*!< relevant only in an update undo
-                        log: this is TRUE if the transaction may
-                        have delete marked records, because of
-                        a delete of a row or an update of an
-                        indexed field; purge is then
-                        necessary; also TRUE if the transaction
-                        has updated an externally stored
-                        field */
-  trx_id_t trx_id;      /*!< id of the trx assigned to the undo
-                        log */
-  XID xid;              /*!< X/Open XA transaction
-                        identification */
+  ulint id;        /*!< undo log slot number within the
+                   rollback segment */
+  ulint type;      /*!< TRX_UNDO_INSERT or
+                   TRX_UNDO_UPDATE */
+  ulint state;     /*!< state of the corresponding undo log
+                   segment */
+  ibool del_marks; /*!< relevant only in an update undo
+                   log: this is TRUE if the transaction may
+                   have delete marked records, because of
+                   a delete of a row or an update of an
+                   indexed field; purge is then
+                   necessary; also TRUE if the transaction
+                   has updated an externally stored
+                   field */
+  trx_id_t trx_id; /*!< id of the trx assigned to the undo
+                   log */
+  XID xid;         /*!< X/Open XA transaction
+                   identification */
+  ulint flag;      /*!< flag for current transaction XID and GTID.
+                   Persisted in TRX_UNDO_FLAGS flag of undo header. */
+
+  /** Set if space for GTID is allocated. */
+  bool gtid_allocated;
+
   ibool dict_operation; /*!< TRUE if a dict operation trx */
   trx_rseg_t *rseg;     /*!< rseg where the undo log belongs */
   /*-----------------------------*/
@@ -386,6 +396,38 @@ struct trx_undo_t {
   /*!< undo log objects in the rollback
   segment are chained into lists */
 };
+
+/** Write any previous GTIDs to disk. Used for external XA
+Commit and Rollback to write XA prepare GTID to disk table
+before updating undo log GTID with commit/rollback GTID.
+@param[in]	trx	transaction
+@return innodb error code. */
+void trx_undo_gtid_flush_prepare(trx_t *trx);
+
+/** For saving GTID add update undo slot, if required.
+@param[in]	trx		transaction
+@param[in]	prepare		operation is prepare
+@param[in]	rollback	operation is rollback
+@return innodb error code. */
+dberr_t trx_undo_gtid_add_update_undo(trx_t *trx, bool prepare, bool rollback);
+
+/** Set GTID flag in undo if transaction has GTID/
+@param[in,out]	trx		transaction
+@param[in,out]	undo		undo log memory object */
+void trx_undo_gtid_set(trx_t *trx, trx_undo_t *undo);
+
+/** Read and persist GTID from undo header during recovery.
+@param[in]	undo_log	undo log header */
+void trx_undo_gtid_read_and_persist(trx_ulogf_t *undo_log);
+
+/** Write GTID information to undo log header.
+@param[in,out]	trx		transaction
+@param[in,out]	undo_header	undo log header
+@param[in,out]	undo		undo log memory object
+@param[in,out]	mtr		minit transaction for write */
+void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
+                         mtr_t *mtr);
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** The offset of the undo log page header on pages of the undo log */
@@ -476,10 +518,17 @@ page of an update undo log segment. */
      log start, and therefore this is not     \
      necessarily the same as this log         \
      header end offset */
-#define TRX_UNDO_XID_EXISTS                \
-  20 /*!< TRUE if undo log header includes \
-     X/Open XA transaction identification  \
-     XID */
+#define TRX_UNDO_FLAGS                               \
+  20 /*! Transaction UNDO flags in one byte. This is \
+     backward compatible as earlier we were storing  \
+     either 1 or 0 for TRX_UNDO_XID_EXISTS. */
+#define TRX_UNDO_FLAG_XID                    \
+  0x01 /*!< TRUE if undo log header includes \
+       X/Open XA transaction identification  \
+       XID */
+#define TRX_UNDO_FLAG_GTID                   \
+  0x02 /*!< TRUE if undo log header includes \
+       GTID information from replication */
 #define TRX_UNDO_DICT_TRANS                  \
   21 /*!< TRUE if the transaction is a table \
      create, index create, or drop           \
@@ -527,6 +576,23 @@ quite a large overhead. */
 /*!< Total size of the undo log header
 with the XA XID */
 /* @} */
+
+/* GTID is generated by replication when binlog and GTID mode is on. We
+persist GTID with undo record till it is written to gtid_exeuted table.
+GTID information is present when TRX_UNDO_FLAG_GTID set. It follows XID
+information */
+
+/** GTID version offset */
+#define TRX_UNDO_LOG_GTID_VERSION (TRX_UNDO_LOG_XA_HDR_SIZE)
+
+/** GTID offset */
+#define TRX_UNDO_LOG_GTID (TRX_UNDO_LOG_XA_HDR_SIZE + 1)
+
+/** Total length of GTID */
+#define TRX_UNDO_LOG_GTID_LEN 64
+
+/** Total size of GTID information. */
+#define TRX_UNDO_LOG_HDR_SIZE (TRX_UNDO_LOG_GTID + TRX_UNDO_LOG_GTID_LEN)
 
 #include "trx0undo.ic"
 #endif

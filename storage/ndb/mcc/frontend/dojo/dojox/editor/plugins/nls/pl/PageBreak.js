@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"pageBreak": "Podział strony"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/pl/PageBreak",({"pageBreak":"Podział strony"}));

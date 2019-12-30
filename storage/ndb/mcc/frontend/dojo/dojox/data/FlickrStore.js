@@ -121,7 +121,7 @@ return _2b;
 return str.replace(/&amp;/gm,"&").replace(/&lt;/gm,"<").replace(/&gt;/gm,">").replace(/&quot;/gm,"\"").replace(/&#39;/gm,"'");
 }});
 _1.extend(_9,_4);
-var _2d="http://api.flickr.com/services/feeds/";
+var _2d="https://api.flickr.com/services/feeds/";
 var reg=_9.urlRegistry=new _8(true);
 reg.register("group pool",function(_2e){
 return !!_2e.query["groupid"];

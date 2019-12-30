@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/TreeSelection", [
 	"../main",
 	"dojo/_base/declare",

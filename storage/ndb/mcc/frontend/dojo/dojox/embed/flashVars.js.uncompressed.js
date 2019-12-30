@@ -1,11 +1,9 @@
-//>>built
-define("dojox/embed/flashVars", ['dojo'],function(dojo){
+define("dojox/embed/flashVars", ["dojo"], function(dojo){
 
-dojo.getObject("dojox.embed", true);
 dojo.deprecated("dojox.embed.flashVars", "Will be removed in 2.0", "2.0");
 
-dojox.embed.flashVars = {
-	//	summary
+var flashVars = {
+	// summary:
 	//		Handles flashvar serialization
 	//		Converting complex objects into a simple, clear string that can be appended
 	//		to the swf as a query: myMovie.swf?flashvars=foo.
@@ -13,23 +11,23 @@ dojox.embed.flashVars = {
 	//		Therefore this is something of an "internal" class - unless you know how to
 	//		modify or create SWFs.
 	//
-	//	description:
+	// description:
 	//		JSON could be done, but Deft does not yet have a JSON parser, and quotes are
 	//		very problematic since Flash cannot use eval(); JSON parsing was successful
 	//		when it was fully escaped, but that made it very large anyway. flashvar
 	//		serialization at most is 200% larger than JSON.
 	//
-	//	See:
+	// See:
 	//		Deft/common/flashVars.as
 	//
 	serialize: function(/* String */n, /*Object*/o){
 		// summary:
 		//		Key method. Serializes an object.
-		//	n:String
+		// n: String
 		//		The name for the object, such as: "button"
-		//	o:Object
+		// o: Object
 		//		The object to serialize
-		//
+
 		var esc = function(val){
 			//	have to encode certain characters that indicate an object
 			if(typeof val=="string"){
@@ -57,5 +55,8 @@ dojox.embed.flashVars = {
 		return n+":"+o; // String
 	}
 };
-return dojox.embed.flashVars;
+
+dojo.setObject("dojox.embed.flashVars", flashVars);
+
+return flashVars;
 });

@@ -92,7 +92,7 @@ class Upgrade_error_counter {
 };
 
 /**
-  This class keeps a count of all the syntax errors that occured while parsing
+  This class keeps a count of all the syntax errors that occurred while parsing
   views, routines, events or triggers. This count is used along with
   MAX_SERVER_CHECK_FAILS to exit upgrade.
 */

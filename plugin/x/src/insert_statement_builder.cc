@@ -120,7 +120,8 @@ void Insert_statement_builder::add_document(const Field_list &row) const {
       add_document_object(doc.object());
       return;
 
-    default: {}
+    default: {
+    }
   }
   m_builder.put("(").put_expr(doc).put(")");
 }
@@ -165,7 +166,8 @@ bool Insert_statement_builder::add_document_literal(
             .put("))");
       return true;
 
-    default: {}
+    default: {
+    }
   }
   return false;
 }

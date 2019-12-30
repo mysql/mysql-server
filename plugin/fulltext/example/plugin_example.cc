@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,8 @@ static struct st_mysql_ftparser simple_parser_descriptor = {
 */
 
 static SHOW_VAR simple_status[] = {
-    {"static", (char *)"just a static text", SHOW_CHAR, SHOW_SCOPE_GLOBAL},
+    {"static", const_cast<char *>("just a static text"), SHOW_CHAR,
+     SHOW_SCOPE_GLOBAL},
     {"called", (char *)&number_of_calls, SHOW_LONG, SHOW_SCOPE_GLOBAL},
     {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 

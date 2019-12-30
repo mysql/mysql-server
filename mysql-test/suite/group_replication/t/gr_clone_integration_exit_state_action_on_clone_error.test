@@ -1,0 +1,139 @@
+################################################################################
+# Validate both exit state actions on error when clone fails
+#  - Enabling the read only mode
+#  - Shutdown the server
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Commit some data and then purge all binary logs.
+#    Bootstrap a group on server1.
+# 2. Install clone plugin on server2.
+#    Start GR, cloning is the option chosen as recovery
+#    from binary logs is not possible.
+#     But the donor has no plugin installed so it will error out
+# 3. Change the exit state action to ABORT_SERVER on server2
+# 4. See that server 2 aborts when clone fails
+# 5. Cleanup.
+#
+
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo ################################################################
+--echo # 1. Commit some data and then purge all binary logs on server 1
+--echo #    Bootstrap a group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# Purge binary logs.
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+FLUSH BINARY LOGS;
+--let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
+
+--let $assert_text = GTID_PURGED must be equal to GTID_EXECUTED
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_EXECUTED)
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Install clone plugin on server2.
+--echo #    Start GR, cloning is the option chosen as recovery
+--echo #    from binary logs is not possible.
+--echo #    But the donor has no plugin installed so it will error out
+
+# Install the clone plugin
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $member2_uuid= `SELECT @@GLOBAL.server_uuid`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+# Then verify that it enabled super_read_only
+--let $assert_text= super_read_only should be enabled
+--let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Change the exit state action to ABORT_SERVER on server2
+
+# Set the exit state action sysvar to ABORT_SERVER
+SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
+
+--echo
+--echo ############################################################
+--echo # 4. See that server 2 aborts when clone fails
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members = 1
+--source include/gr_wait_for_number_of_members.inc
+
+# Also, the member should not be in the group view of any of the other members
+--let $assert_text = Member 1 should have aborted
+--let $assert_cond = COUNT(*) = 0 FROM performance_schema.replication_group_members WHERE MEMBER_ID = "$member2_uuid"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 5 Cleanup.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/gtid_utils_end.inc
+
+# Inform MTR that it should restart the aborted member
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+UNINSTALL PLUGIN clone;
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
+call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error while Group Replication was provisoning with Clone.");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+SET SESSION sql_log_bin=1;
+
+--source include/group_replication_end.inc

@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	insertEntity: "Wstaw symbol"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/pl/InsertEntity",({insertEntity:"Wstaw symbol"}));

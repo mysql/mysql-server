@@ -114,6 +114,7 @@
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
 
 #define ZLOCAL_KEY_LENGTH_ERROR 634 // From Dbdict via Dblqh
+#define ZNOWAIT_ERROR 635 // Cant lock immediately, and nowait set
 
 #endif
 
@@ -713,6 +714,7 @@ struct Operationrec {
     ,OP_INSERT_IS_DONE      = 0x00800
     ,OP_ELEMENT_DISAPPEARED = 0x01000
     ,OP_PENDING_ABORT       = 0x02000
+    ,OP_NOWAIT              = 0x04000
 
     
     ,OP_STATE_MASK          = 0xF0000

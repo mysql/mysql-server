@@ -441,6 +441,12 @@ CREATE TABLE ndb$test (
   counter int(10) unsigned DEFAULT NULL,
   counter2 bigint(20) unsigned DEFAULT NULL
 ) ENGINE=NDBINFO DEFAULT CHARSET=latin1 COMMENT='for testing';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 select distinct node_id
 from ndbinfo.diskpagebuffer;
@@ -666,24 +672,24 @@ tc_node_id	bigint(21) unsigned	YES		NULL
 tc_block_no	bigint(21) unsigned	YES		NULL	
 tc_block_instance	bigint(21) unsigned	YES		NULL	
 
-select count(*) from table_distribution_status;
-count(*)
-8
-select count(*) from ndb$table_distribution_status_all;
-count(*)
-16
-select count(*) from table_fragments;
-count(*)
-56
-select count(*) from ndb$table_fragments_all;
-count(*)
-112
-select count(*) from table_replicas;
-count(*)
-112
-select count(*) from ndb$table_replicas_all;
-count(*)
-224
+select count(*) > 0 from table_distribution_status;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_distribution_status_all;
+count(*) > 0
+1
+select count(*) > 0 from table_fragments;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_fragments_all;
+count(*) > 0
+1
+select count(*) > 0 from table_replicas;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_replicas_all;
+count(*) > 0
+1
 
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
@@ -1525,6 +1531,8 @@ Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `ndbinfo`.`t2` `tx` join `ndbinfo`.`t2` `ty` where ((`ndbinfo`.`ty`.`a` = `ndbinfo`.`tx`.`b`) and (`ndbinfo`.`tx`.`a` in (1,3,5)))
 
 create table save_counters as select * from frag_ops;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 
 select count(*)
 from t2 as tx, t2 as ty

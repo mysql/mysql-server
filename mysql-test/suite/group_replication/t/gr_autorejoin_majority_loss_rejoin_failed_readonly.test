@@ -45,7 +45,10 @@ call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communic
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
-call mtr.add_suppression("Unable to read the server value for the super_read_only variable");
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 SET SESSION sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -54,7 +57,6 @@ SET SESSION sql_log_bin = 1;
 # 5 minutes...)
 SET @debug_saved = @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
-SET @@GLOBAL.DEBUG='+d,group_replication_fail_rejoin';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin_loop';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 
@@ -125,6 +127,7 @@ while ($tries <= 3)
 }
 
 # Make sure that the auto-rejoin process has stopped
+--let $wait_timeout= 600
 --let $wait_condition = SELECT IS_AUTOREJOIN_RUNNING() = FALSE
 --source include/wait_condition_or_abort.inc
 

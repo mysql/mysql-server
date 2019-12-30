@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -80,35 +80,33 @@ class FailoverTest : public ::testing::Test {
                      });
     m.expect_query(
         "SELECT R.replicaset_name, I.mysql_server_uuid, I.role, I.weight, "
-        "I.version_token, H.location, "
+        "I.version_token, "
         "I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX' FROM "
         "mysql_innodb_cluster_metadata.clusters "
         "AS F JOIN mysql_innodb_cluster_metadata.replicasets AS R ON "
         "F.cluster_id = R.cluster_id "
         "JOIN mysql_innodb_cluster_metadata.instances AS I ON R.replicaset_id "
-        "= I.replicaset_id "
-        "JOIN mysql_innodb_cluster_metadata.hosts AS H ON I.host_id = "
-        "H.host_id WHERE F.cluster_name = 'cluster-1' "
+        "= I.replicaset_id WHERE F.cluster_name = 'cluster-1' "
         "AND R.attributes->>'$.group_replication_group_name' = "
         "'3e4338a1-2c5d-49ac-8baa-e5a25ba61e76';");
     m.then_return(
-        8,
+        7,
         {// replicaset_name, mysql_server_uuid, role, weight, version_token,
          // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
          {m.string_or_null("default"),
           m.string_or_null("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3000"),
+          m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
          {m.string_or_null("default"),
           m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3001"),
+          m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
          {m.string_or_null("default"),
           m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
           m.string_or_null("HA"), m.string_or_null(), m.string_or_null(),
-          m.string_or_null(""), m.string_or_null("localhost:3002"),
+          m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
   }
 

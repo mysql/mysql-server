@@ -34,18 +34,12 @@
 }
 .claro .dijitTimePickerItem{
 	/* dijitTimePickerItem refers to both Tick's (minor values like 2:15, 2:30, 2:45) and Marker's (major values like 2PM, 3PM) */
-	background-image: url(@image-common-highlight);
-	background-position:0 -1px;
-	background-repeat:repeat-x;
+	.standard-gradient;
 	border-top:solid 1px @border-color;
 	border-bottom:solid 1px @border-color;
 	margin-right:-1px;
 	margin-left:-1px;
 	margin-top:-1px;
-}
-/* to make up for lack of alpha transparency in IE6 */
-.dj_ie6 .claro .dijitTimePickerItem {
-	background-image: none;
 }
 .claro .dijitTimePickerTick {
 	/* minor value */
@@ -95,12 +89,7 @@
 	border-right:none;
 	border-color:@border-color;
 	background-color: @unselected-background-color;
-	background-image: url(@image-common-highlight);
-	background-position:0 -1px;
-	background-repeat:repeat-x;
-}
-.dj_ie6 .claro .dijitTimePicker .dijitButtonNode {
-	background-image: none;
+	.standard-gradient;
 }
 .claro .dijitTimePicker .dijitArrowButtonInner{
 	height: 100%; /* hack claro.button.css */
@@ -122,3 +111,5 @@
 .claro .dijitTimePicker .dijitDownArrowHover .dijitArrowButtonInner {
 	background-position:-70px 45%;
 }
+
+// TODO: should have active rule, for clicking a .dijitTimePickerItem

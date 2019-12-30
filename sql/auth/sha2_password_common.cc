@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,14 +69,14 @@ SHA256_digest::~SHA256_digest() { deinit(); }
 */
 
 bool SHA256_digest::update_digest(const void *src, unsigned int length) {
-  DBUG_ENTER("SHA256_digest::update_digest");
+  DBUG_TRACE;
   if (!m_ok || !src) {
     DBUG_PRINT("info", ("Either digest context is not ok or "
                         "source is emptry string"));
-    DBUG_RETURN(true);
+    return true;
   }
   m_ok = EVP_DigestUpdate(md_context, src, length);
-  DBUG_RETURN(!m_ok);
+  return !m_ok;
 }
 
 /**
@@ -94,20 +94,20 @@ bool SHA256_digest::update_digest(const void *src, unsigned int length) {
 
 bool SHA256_digest::retrieve_digest(unsigned char *digest,
                                     unsigned int length) {
-  DBUG_ENTER("SHA256_digest::retrieve_digest");
+  DBUG_TRACE;
   if (!m_ok || !digest || length != CACHING_SHA2_DIGEST_LENGTH) {
     DBUG_PRINT("info", ("Either digest context is not ok or "
                         "digest length is not as expected."));
-    DBUG_RETURN(true);
+    return true;
   }
   m_ok = EVP_DigestFinal_ex(md_context, m_digest, NULL);
-#if defined(HAVE_WOLFSSL) || OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   EVP_MD_CTX_cleanup(md_context);
 #else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   EVP_MD_CTX_reset(md_context);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   memcpy(digest, m_digest, length);
-  DBUG_RETURN(!m_ok);
+  return !m_ok;
 }
 
 /**
@@ -127,12 +127,12 @@ void SHA256_digest::scrub() {
 */
 
 void SHA256_digest::init() {
-  DBUG_ENTER("SHA256_digest::init");
+  DBUG_TRACE;
   m_ok = false;
   md_context = EVP_MD_CTX_create();
   if (!md_context) {
     DBUG_PRINT("info", ("Failed to create digest context"));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   m_ok = (bool)EVP_DigestInit_ex(md_context, EVP_sha256(), NULL);
@@ -142,7 +142,6 @@ void SHA256_digest::init() {
     md_context = NULL;
     DBUG_PRINT("info", ("Failed to initialize digest context"));
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -205,7 +204,7 @@ Generate_scramble::~Generate_scramble() {
 
 bool Generate_scramble::scramble(unsigned char *scramble,
                                  unsigned int scramble_length) {
-  DBUG_ENTER("Generate_scramble::scramble");
+  DBUG_TRACE;
   unsigned char *digest_stage1;
   unsigned char *digest_stage2;
   unsigned char *scramble_stage1;
@@ -214,7 +213,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
     DBUG_PRINT("info", ("Unexpected scrable length"
                         "Expected: %d, Actual: %d",
                         m_digest_length, !scramble ? 0 : scramble_length));
-    DBUG_RETURN(true);
+    return true;
   }
 
   switch (m_digest_type) {
@@ -226,7 +225,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
     }
     default: {
       DBUG_ASSERT(false);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -234,7 +233,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
   if (m_digest_generator->update_digest(m_src.c_str(), m_src.length()) ||
       m_digest_generator->retrieve_digest(digest_stage1, m_digest_length)) {
     DBUG_PRINT("info", ("Failed to generate digest_stage1: SHA2(src)"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* SHA2(digest_stage1) => digest_stage2 */
@@ -243,7 +242,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
       m_digest_generator->retrieve_digest(digest_stage2, m_digest_length)) {
     DBUG_PRINT("info",
                ("Failed to generate digest_stage2: SHA2(digest_stage1)"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* SHA2(digest_stage2, m_rnd) => scramble_stage1 */
@@ -253,14 +252,14 @@ bool Generate_scramble::scramble(unsigned char *scramble,
       m_digest_generator->retrieve_digest(scramble_stage1, m_digest_length)) {
     DBUG_PRINT("info", ("Failed to generate scrmable_stage1: "
                         "SHA2(digest_stage2, m_rnd)"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* XOR(digest_stage1, scramble_stage1) => scramble */
   for (uint i = 0; i < m_digest_length; ++i)
     scramble[i] = (digest_stage1[i] ^ scramble_stage1[i]);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -315,7 +314,7 @@ Validate_scramble::~Validate_scramble() {
 */
 
 bool Validate_scramble::validate() {
-  DBUG_ENTER("Validate_scramble::validate");
+  DBUG_TRACE;
   unsigned char *digest_stage1 = 0;
   unsigned char *digest_stage2 = 0;
   unsigned char *scramble_stage1 = 0;
@@ -329,7 +328,7 @@ bool Validate_scramble::validate() {
     }
     default: {
       DBUG_ASSERT(false);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -339,7 +338,7 @@ bool Validate_scramble::validate() {
       m_digest_generator->retrieve_digest(scramble_stage1, m_digest_length)) {
     DBUG_PRINT("info",
                ("Failed to generate scramble_stage1: SHA2(known, m_rnd)"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* XOR(scramble, scramble_stage1) => digest_stage1 */
@@ -352,13 +351,13 @@ bool Validate_scramble::validate() {
       m_digest_generator->retrieve_digest(digest_stage2, m_digest_length)) {
     DBUG_PRINT("info",
                ("Failed to generate digest_stage2: SHA2(digest_stage1)"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* m_known == digest_stage2 */
-  if (memcmp(m_known, digest_stage2, m_digest_length) == 0) DBUG_RETURN(false);
+  if (memcmp(m_known, digest_stage2, m_digest_length) == 0) return false;
 
-  DBUG_RETURN(true);
+  return true;
 }
 }  // namespace sha2_password
 
@@ -387,17 +386,17 @@ bool Validate_scramble::validate() {
 bool generate_sha256_scramble(unsigned char *scramble, size_t scramble_size,
                               const char *src, size_t src_size, const char *rnd,
                               size_t rnd_size) {
-  DBUG_ENTER("generate_scramble");
+  DBUG_TRACE;
   std::string source(src, src_size);
   std::string random(rnd, rnd_size);
 
   sha2_password::Generate_scramble scramble_generator(source, random);
   if (scramble_generator.scramble(scramble, scramble_size)) {
     DBUG_PRINT("info", ("Failed to generate SHA256 based scramble"));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -438,9 +437,9 @@ bool validate_sha256_scramble(const unsigned char *scramble,
                               const unsigned char *known,
                               size_t known_size MY_ATTRIBUTE((unused)),
                               const unsigned char *rnd, size_t rnd_size) {
-  DBUG_ENTER("validate_scramble");
+  DBUG_TRACE;
 
   sha2_password::Validate_scramble scramble_validator(scramble, known, rnd,
                                                       rnd_size);
-  DBUG_RETURN(scramble_validator.validate());
+  return scramble_validator.validate();
 }

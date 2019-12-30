@@ -1,28 +1,27 @@
-//>>built
 define("dojox/editor/plugins/NormalizeStyle", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/_editor/html",
 	"dijit/_editor/_Plugin",
+	"dijit/_editor/html",
 	"dojo/_base/connect",
 	"dojo/_base/declare"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Plugin, editorHtml) {
 
-dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
+dojo.declare("dojox.editor.plugins.NormalizeStyle", _Plugin,{
 	// summary:
-	//		This plugin provides NormalizeStyle cabability to the editor.  It is
+	//		This plugin provides NormalizeStyle capability to the editor.  It is
 	//		a headless plugin that tries to normalize how content is styled when
 	//		it comes out of th editor ('b' or css).   It also auto-converts
 	//		incoming content to the proper one expected by the browser as well so
 	//		that the native styling buttons work.
 
-	// mode [public] String
+	// mode: [public] String
 	//		A String variable indicating if it should use semantic tags 'b', 'i', etc, or
 	//		CSS styling.  The default is semantic.
 	mode: "semantic",
 
-	// condenseSpans [public] Boolean
+	// condenseSpans: [public] Boolean
 	//		A boolean variable indicating if it should try to condense
 	//		'span''span''span' styles  when in css mode
 	//		The default is true, it will try to combine where it can.
@@ -79,7 +78,7 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 		// tags:
 		//		private
 		if(node){
-			var w = this.editor.window;
+			var doc = this.editor.document;
 			var self = this;
 			var convertNode = function(cNode){
 				if(cNode.nodeType == 1){
@@ -120,14 +119,14 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 								case "700":
 								case "800":
 								case "900":
-									sTag = dojo.withGlobal(w, "create", dojo, ["b", {}] );
+									sTag = doc.createElement("b");
 									cNode.style.fontWeight = "";
 									break;
 							}
 							cNode = wrapNodes(sTag, cNode);
 							sTag = null;
 							if(fs == "italic"){
-								sTag = dojo.withGlobal(w, "create", dojo, ["i", {}] );
+								sTag = doc.createElement("i");
 								cNode.style.fontStyle = "";
 							}
 							cNode = wrapNodes(sTag, cNode);
@@ -138,10 +137,10 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 								dojo.forEach(da, function(s){
 									switch(s){
 										case "underline":
-											sTag = dojo.withGlobal(w, "create", dojo, ["u", {}] );
+											sTag = doc.createElement("u");
 											break;
 										case "line-through":
-											sTag = dojo.withGlobal(w, "create", dojo, ["strike", {}] );
+											sTag = doc.createElement("strike");
 											break;
 									}
 									count++;
@@ -209,7 +208,8 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 								if(!size){
 									size = 3;
 								}
-								sTag = dojo.withGlobal(w, "create", dojo, ["font", {size: size}] );
+								sTag = doc.createElement("font");
+								sTag.setAttribute("size", size);
 								cNode.style.fontSize = "";
 							}
 							cNode = wrapNodes(sTag, cNode);
@@ -219,13 +219,15 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 								// Also, don't move it in if the background color is set on a block style node,
 								// as it won't color properly once put on inline font.
 								bc = new dojo.Color(bc).toHex();
-								sTag = dojo.withGlobal(w, "create", dojo, ["font", {style: {backgroundColor: bc}}] );
+								sTag = doc.createElement("font");
+								sTag.style.backgroundColor = bc;
 								cNode.style.backgroundColor = "";
 							}
 							if(c && tag !== "font"){
 								// IE doesn't like non-font background color crud.
 								c = new dojo.Color(c).toHex();
-								sTag = dojo.withGlobal(w, "create", dojo, ["font", {color: c}] );
+								sTag = doc.createElement("font");
+								sTag.setAttribute("color", c);
 								cNode.style.color = "";
 							}
 							cNode = wrapNodes(sTag, cNode);
@@ -254,35 +256,30 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 		// tags:
 		//		Protected.
 		var w = this.editor.window;
-		var nodes = dojo.withGlobal(w, function() {
-			return dojo.query("em,s,strong", node);
-		});
-		if(nodes && nodes.length){
-			dojo.forEach(nodes, function(n){
-				if(n){
-					var tag = n.tagName?n.tagName.toLowerCase():"";
-					var tTag;
-					switch(tag){
-						case "s":
-								tTag = "strike";
-								break;
-						case "em":
-								tTag = "i";
-								break;
-						case "strong":
-								tTag = "b";
-								break;
-					}
-					if(tTag){
-						var nNode = dojo.withGlobal(w, "create", dojo, [tTag, null, n, "before"] );
-						while(n.firstChild){
-							nNode.appendChild(n.firstChild);
-						}
-						n.parentNode.removeChild(n);
-					}
+		var doc = this.editor.document;
+		dojo.query("em,s,strong", node).forEach(function(n){
+			var tag = n.tagName?n.tagName.toLowerCase():"";
+			var tTag;
+			switch(tag){
+				case "s":
+						tTag = "strike";
+						break;
+				case "em":
+						tTag = "i";
+						break;
+				case "strong":
+						tTag = "b";
+						break;
+			}
+			if(tTag){
+				var nNode = doc.createElement(tTag);
+				dojo.place("<"+tTag+">", n, "before");
+				while(n.firstChild){
+					nNode.appendChild(n.firstChild);
 				}
-			});
-		}
+				n.parentNode.removeChild(n);
+			}
+		});
 		return node;
 	},
 
@@ -296,7 +293,7 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 		// tags:
 		//		private
 		if(node){
-			var w = this.editor.window;
+			var doc = this.editor.document;
 			var convertNode = function(cNode) {
 				if(cNode.nodeType == 1){
 					if(cNode.id !== "dijitEditorBody"){
@@ -306,18 +303,22 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 							switch(tag){
 								case "b":
 								case "strong": // Mainly IE
-									span = dojo.withGlobal(w, "create", dojo, ["span", {style: {"fontWeight": "bold"}}] );
+									span = doc.createElement("span");
+									span.style.fontWeight = "bold";
 									break;
 								case "i":
 								case "em": // Mainly IE
-									span = dojo.withGlobal(w, "create", dojo, ["span", {style: {"fontStyle": "italic"}}] );
+									span = doc.createElement("span");
+									span.style.fontStyle = "italic";
 									break;
 								case "u":
-									span = dojo.withGlobal(w, "create", dojo, ["span", {style: {"textDecoration": "underline"}}] );
+									span = doc.createElement("span");
+									span.style.textDecoration = "underline";
 									break;
 								case "strike":
 								case "s": // Mainly WebKit.
-									span = dojo.withGlobal(w, "create", dojo, ["span", {style: {"textDecoration": "line-through"}}] );
+									span = doc.createElement("span");
+									span.style.textDecoration = "line-through";
 									break;
 								case "font": // Try to deal with colors
 									var styles = {};
@@ -345,7 +346,8 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 									if(dojo.attr(cNode, "size")){
 										styles.fontSize = sizeMap[dojo.attr(cNode, "size")];
 									}
-									span = dojo.withGlobal(w, "create", dojo, ["span", {style: styles}] );
+									span = doc.createElement("span");
+									dojo.style(span, styles);
 									break;
 							}
 							if(span){
@@ -525,10 +527,11 @@ dojo.declare("dojox.editor.plugins.NormalizeStyle",dijit._editor._Plugin,{
 		// tags:
 		//		private
 		if(html){
-			var div = this.editor.document.createElement("div");
+			var doc = this.editor.document;
+			var div = doc.createElement("div");
 			div.innerHTML = html;
 			div = this._browserFilter(div);
-			html = dijit._editor.getChildrenHtml(div);
+			html = editorHtml.getChildrenHtml(div);
 			div.innerHTML = "";
 
 			// Call the over-ride, or if not available, just execute it.

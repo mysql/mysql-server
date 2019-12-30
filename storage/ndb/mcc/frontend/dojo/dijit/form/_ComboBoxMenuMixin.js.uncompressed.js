@@ -1,21 +1,17 @@
-//>>built
 define("dijit/form/_ComboBoxMenuMixin", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
 	"dojo/i18n", // i18n.getLocalization
-	"dojo/_base/window", // win.doc.createTextNode
 	"dojo/i18n!./nls/ComboBox"
-], function(array, declare, domAttr, i18n, win){
+], function(array, declare, domAttr, i18n){
 
 // module:
 //		dijit/form/_ComboBoxMenuMixin
-// summary:
-//		Focus-less menu for internal use in `dijit.form.ComboBox`
 
 return declare( "dijit.form._ComboBoxMenuMixin", null, {
 	// summary:
-	//		Focus-less menu for internal use in `dijit.form.ComboBox`
+	//		Focus-less menu for internal use in `dijit/form/ComboBox`
 	// tags:
 	//		private
 
@@ -79,7 +75,7 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 	_createOption: function(/*Object*/ item, labelFunc){
 		// summary:
 		//		Creates an option to appear on the popup menu subclassed by
-		//		`dijit.form.FilteringSelect`.
+		//		`dijit/form/FilteringSelect`.
 
 		var menuitem = this._createMenuItem();
 		var labelObject = labelFunc(item);
@@ -87,7 +83,7 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 			menuitem.innerHTML = labelObject.label;
 		}else{
 			menuitem.appendChild(
-				win.doc.createTextNode(labelObject.label)
+				menuitem.ownerDocument.createTextNode(labelObject.label)
 			);
 		}
 		// #3250: in blank options, assign a normal height
@@ -98,7 +94,6 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 		// update menuitem.dir if BidiSupport was required
 		this.applyTextDir(menuitem, (menuitem.innerText || menuitem.textContent || ""));
 
-		menuitem.item=item;
 		return menuitem;
 	},
 
@@ -113,6 +108,8 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 		// labelFunc:
 		//		Function to produce a label in the drop down list from a dojo.data item
 
+		this.items = results;
+
 		// display "Previous . . ." button
 		this.previousButton.style.display = (options.start == 0) ? "none" : "";
 		domAttr.set(this.previousButton, "id", this.id + "_prev");
@@ -122,6 +119,7 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 		//		iterate over cache nondestructively
 		array.forEach(results, function(item, i){
 			var menuitem = this._createOption(item, labelFunc);
+			menuitem.setAttribute("item", i);	// index to this.items; use indirection to avoid mem leak
 			domAttr.set(menuitem, "id", this.id + i);
 			this.nextButton.parentNode.insertBefore(menuitem, this.nextButton);
 		}, this);
@@ -145,7 +143,6 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 
 		this.nextButton.style.display = displayMore ? "" : "none";
 		domAttr.set(this.nextButton,"id", this.id + "_next");
-		return this.containerNode.childNodes;
 	},
 
 	clearResultList: function(){
@@ -185,7 +182,7 @@ return declare( "dijit.form._ComboBoxMenuMixin", null, {
 	},
 
 	getHighlightedOption: function(){
-		return this._getSelectedAttr();
+		return this.selected;
 	}
 });
 

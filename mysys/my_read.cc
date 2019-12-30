@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ ssize_t (*mock_read)(int fd, void *buf, size_t count) = nullptr;
 
 size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
   size_t readbytes, savedbytes;
-  DBUG_ENTER("my_read");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d", Filedes,
                     Buffer, (ulong)Count, MyFlags));
   savedbytes = 0;
@@ -119,7 +119,7 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
       }
       if (readbytes == (size_t)-1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))
-        DBUG_RETURN(MY_FILE_ERROR); /* Return with error */
+        return MY_FILE_ERROR; /* Return with error */
       /* readbytes == 0 when EOF. No need to continue in case of EOF */
       if (readbytes != 0 && (MyFlags & MY_FULL_IO)) {
         Buffer += readbytes;
@@ -135,5 +135,5 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
       readbytes += savedbytes;
     break;
   }
-  DBUG_RETURN(readbytes);
+  return readbytes;
 } /* my_read */

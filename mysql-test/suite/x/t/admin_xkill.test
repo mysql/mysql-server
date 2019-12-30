@@ -23,7 +23,9 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad 
 create user sslcon@localhost identified by 'sslcon';
 grant all on *.* to sslcon@localhost;
 --write_file $MYSQL_TMP_DIR/admin_xkill.tmp
--->sql
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 create user abc@localhost identified by 'abc';
 create user xplugin@localhost identified by 'xplugin';
 grant all on *.* to xplugin@localhost;
@@ -33,160 +35,100 @@ create user expire@localhost identified by 'expire';
 grant all on *.* to expire@localhost;
 alter user expire@localhost password expire;
 select sleep(1);
--->endsql
--->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->echo Test data
+-->stmtadmin list_clients
 -->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 -->echo create and activate new session
 -->newsession aux	x_root
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-}
--->recvresult
+callmacro kill_client	2;
 
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 -->echo create and activate new session abc
 -->echo expect only abc user session id
 -->newsession abc	abc	abc
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo killing x_root user session with unprivileged user 'abc' which should be unsuccessful
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1095
--->recvresult
+callmacro kill_client_expect_error	1	ER_KILL_DENIED_ERROR;
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with session abc where list_clients and kill_client executed once
--->sql
-select sleep(0.5);
-show status like 'Mysqlx_stmt%client%';
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 select user(),current_user();
 show grants;
--->endsql
 
 -->echo open another session of abc user and kill first session of abc user,which should be successful
 -->newsession abc1	abc	abc
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 3
-    }
-  }
-}
--->recvresult
+callmacro kill_client	3;
 
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
+
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with new session abc where list_clients executed twice and kill_client executed once
--->sql
-show status like 'Mysqlx_stmt%client%';
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 select user(),current_user();
 show grants;
--->endsql
 
 -->echo killing abc user session with its own session 'abc' which should be successful
 -->echo expect right error instead of End of File
@@ -207,148 +149,77 @@ Mysqlx.Sql.StmtExecute {
 # and switch back to default
 -->recvuntildisc
 
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
 -->echo switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
--->sql
-show status like 'Mysqlx_stmt%client%';
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	4;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 select user(),current_user();
 show grants;
--->endsql
 
 -->echo open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 -->newsession process	process	process
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
+callmacro kill_client_expect_error	1	ER_KILL_DENIED_ERROR;
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1095
--->recvresult
-
--->sleep 1
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
 -->echo checking list of clients after x_root user session killed by xplugin user
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with process user where list_clients executed 2 times and kill_client once
--->sql
 show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
--->endsql
 
 -->echo open privileged user seession and kill x_root user session,expect success
 -->newsession xplugin	xplugin	xplugin
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
+callmacro kill_client	1;
 
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
 -->echo checking list of clients after x_root user session killed by xplugin user
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
--->sql
 show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
--->endsql
 
 -->echo Cleanup
--->sql
 drop schema if exists xtest;
-#show status like 'Mysqlx_stmt%client%';
--->endsql
 EOF
 
 ## killing client with invalid scalar data types
 --write_file $MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect error while killing client with data type other than usinged int
 -->echo try killing xprotocol session with valid sql_session id once xprotocol connetion opened with kill_client,expect error
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1094
--->recvresult
+callmacro kill_client_expect_error	11	ER_NO_SUCH_THREAD;
 
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -363,7 +234,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -377,7 +248,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -391,7 +262,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -405,7 +276,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -419,7 +290,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -433,7 +304,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -447,7 +318,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -460,7 +331,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -474,7 +345,7 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -488,58 +359,46 @@ Mysqlx.Sql.StmtExecute {
      }
   }
 }
--->expecterror 5016
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
 -->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with x_root user even though kill_client returns errors
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	11;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 EOF
 
 --write_file $MYSQL_TMP_DIR/admin_xkill_pwd_expire.tmp
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 -->echo expect error if list_clients and kill_client executed from password expired user session
--->expecterror 1820
--->sql
+-->expecterror ER_MUST_CHANGE_PASSWORD
 show processlist;
--->endsql
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
 }
--->expecterror 1820
+-->expecterror ER_MUST_CHANGE_PASSWORD
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 8
-    }
-  }
-}
--->recverror 1820
-
--->echo expect error for status var executed with password expired user
--->expecterror 1820
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+callmacro kill_client_expect_error	8	ER_MUST_CHANGE_PASSWORD;
 
 EOF
 
 --write_file $MYSQL_TMP_DIR/admin_mixedcase.tmp
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 -->echo checking list_clients and kill_client with mixed case, expect success as these commands are case insensitive
 Mysqlx.Sql.StmtExecute {
   stmt: "LIST_clients"
   namespace: "xplugin"
 }
-
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -554,19 +413,24 @@ Mysqlx.Sql.StmtExecute {
     }
   }
 }
--->recverror 1094
+-->expecterror ER_NO_SUCH_THREAD
+-->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with x_root user when these commads executed with mixed case
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 EOF
 
 ###below script is blind, it can be modified more efficiently by reducing no of lines
 --write_file $MYSQL_TMP_DIR/admin_list_kill_100conns.tmp
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 -->echo checking list_clients and kill_client with default 100 connections, expect success for both list and kill
--->sql
 set @@global.mysqlx_max_connections=60;
 create user xconnection1@localhost identified by  'xconnection1';
 create user xconnection2@localhost identified by  'xconnection2';
@@ -618,20 +482,13 @@ create user xconnection47@localhost identified by  'xconnection47';
 create user xconnection48@localhost identified by  'xconnection48';
 create user xconnection49@localhost identified by  'xconnection49';
 create user xconnection50@localhost identified by  'xconnection50';
--->endsql
--->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->echo Test data
+-->stmtadmin list_clients
 -->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
 show status like 'Mysqlx_stmt%client%';
--->endsql
 
 -->echo create and activate new session xconnection1
 -->newsession xconnection1	xconnection1	xconnection1
@@ -685,702 +542,94 @@ show status like 'Mysqlx_stmt%client%';
 -->newsession xconnection49	xconnection49	xconnection49
 -->newsession xconnection50	xconnection50	xconnection50
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 ## switch back to default session
 -->setsession
 
 -->echo list all connected clients
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
--->sleep 1
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
-show status like 'Mysqlx_sessions%'
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	51;
+noquiet;
+
 
 -->echo killing all newly connected clients except x_root,one by one
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-}
+callmacro kill_client	11;
+callmacro kill_client	12;
+callmacro kill_client	13;
+callmacro kill_client	14;
+callmacro kill_client	15;
+callmacro kill_client	16;
+callmacro kill_client	17;
+callmacro kill_client	18;
+callmacro kill_client	19;
+callmacro kill_client	20;
+callmacro kill_client	21;
+callmacro kill_client	22;
+callmacro kill_client	23;
+callmacro kill_client	24;
+callmacro kill_client	25;
+callmacro kill_client	26;
+callmacro kill_client	27;
+callmacro kill_client	28;
+callmacro kill_client	29;
+callmacro kill_client	30;
+callmacro kill_client	31;
+callmacro kill_client	32;
+callmacro kill_client	33;
+callmacro kill_client	34;
+callmacro kill_client	35;
+callmacro kill_client	36;
+callmacro kill_client	37;
+callmacro kill_client	38;
+callmacro kill_client	39;
+callmacro kill_client	40;
+callmacro kill_client	41;
+callmacro kill_client	42;
+callmacro kill_client	43;
+callmacro kill_client	44;
+callmacro kill_client	45;
+callmacro kill_client	46;
+callmacro kill_client	47;
+callmacro kill_client	48;
+callmacro kill_client	49;
+callmacro kill_client	50;
+callmacro kill_client	51;
+callmacro kill_client	52;
+callmacro kill_client	53;
+callmacro kill_client	54;
+callmacro kill_client	55;
+callmacro kill_client	56;
+callmacro kill_client	57;
+callmacro kill_client	58;
+callmacro kill_client	59;
+callmacro kill_client	60;
 
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 12
-    }
-  }
-}
 
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 13
-    }
-  }
-}
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 14
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 15
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 16
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 17
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 18
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 19
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 20
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 21
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 22
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 23
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 24
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 25
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 26
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 27
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 28
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 29
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 30
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 31
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 32
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 33
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 34
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 35
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 36
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 37
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 38
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 39
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 40
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 41
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 42
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 43
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 44
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 45
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 46
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 47
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 48
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 49
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 50
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 51
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 52
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 53
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 54
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 55
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 56
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 57
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 58
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 59
-    }
-  }
-}
-
--->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 60
-    }
-  }
-}
-
--->recvresult
-
--->sql
-select sleep(0.5);
--->endsql
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=49
--->sql
-show status like 'Mysqlx_stmt%client%';
-show status like 'Mysqlx_sessions%'
--->endsql
+-->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=50
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	50;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions_accepted	60;
+callmacro Assert_status_variable	Mysqlx_sessions_closed	59;
+callmacro Assert_status_variable	Mysqlx_sessions_fatal_error	0;
+callmacro Assert_status_variable	Mysqlx_sessions_killed	54;
+callmacro Assert_status_variable	Mysqlx_sessions_rejected	0;
+noquiet;
 
--->sql
 drop user xconnection1@localhost;
 drop user xconnection2@localhost;
 drop user xconnection3@localhost;
@@ -1431,7 +680,6 @@ drop user xconnection47@localhost;
 drop user xconnection48@localhost;
 drop user xconnection49@localhost;
 drop user xconnection50@localhost;
--->endsql
 
 EOF
 
@@ -1444,7 +692,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1064
+-->expecterror ER_PARSE_ERROR
 -->recvresult client_id user host
 
 Mysqlx.Sql.StmtExecute {
@@ -1460,7 +708,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 5015
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -1476,7 +724,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 5162
+-->expecterror ER_X_INVALID_NAMESPACE
 -->recvresult
 
 Mysqlx.Sql.StmtExecute {
@@ -1492,146 +740,105 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 5162
+-->expecterror ER_X_INVALID_NAMESPACE
 -->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0 as these are not executed on right namespace
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	0;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 EOF
 
 --write_file $MYSQL_TMP_DIR/admin_xkill_ssl.tmp
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 -->echo open xconnection with ssl and kill,expect success
--->sql
 create user con1@localhost identified by 'con1';
 create user con2@localhost identified by 'con2';
 set @@global.mysqlx_max_connections=3;
--->endsql
--->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->echo Test data
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
+
 
 -->echo create and activate new session con1
 -->newsession con1	con1	con1
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
 -->newsession con2	con2	con2
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+-->echo expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	0;
+callmacro Assert_status_variable	Mysqlx_sessions	3;
+noquiet;
 
 ## switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 63
-    }
-  }
-}
+callmacro kill_client	63;
+callmacro kill_client	64;
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 64
-    }
-  }
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
-
--->sql
-select sleep(0.5);
--->endsql
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=2
--->sql
 drop user con1@localhost;
 drop user con2@localhost;
-show status like 'Mysqlx_stmt%client%';
--->endsql
+
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	2;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 EOF
 
 --write_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 -->echo open xconnection with ssl x_root user kill,expect success
--->sql
 create user con1@localhost identified by 'con1';
 create user con2@localhost identified by 'con2';
 set @@global.mysqlx_max_connections=3;
--->endsql
--->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->echo Test data
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
 -->echo create and activate new session con1
 -->newsession con1      con1    con1
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
@@ -1640,62 +847,26 @@ Mysqlx.Sql.StmtExecute {
 ## switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult  client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 66
-    }
-  }
-}
+callmacro kill_client	66;
+callmacro kill_client	67;
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 67
-    }
-  }
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
-
--->sql
-select sleep(0.5);
--->endsql
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
--->sql
 drop user con1@localhost;
 drop user con2@localhost;
--->endsql
 
 EOF
 
 --write_file $MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp
--->sql
+-->import assert_status_variable.macro
+-->import kill_and_restart.macro
+
 create user abc@localhost identified by 'abc';
 create user xplugin@localhost identified by 'xplugin';
 grant all on *.* to xplugin@localhost;
@@ -1704,155 +875,96 @@ grant process on *.* to process@localhost;
 create user expire@localhost identified by 'expire';
 grant all on *.* to expire@localhost;
 alter user expire@localhost password expire;
--->endsql
--->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->echo Test data
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
+
 
 -->echo create and activate new session
 -->newsession aux	x_root
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
+
 
 -->echo switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect error
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-}
--->recvresult
+callmacro kill_client	2;
 
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-#-->recverror 5162
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 -->echo create and activate new session abc
 -->echo expect only abc user session id
 -->newsession abc	abc	abc
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo killing x_root user session with unprivileged user 'abc' which should be unsuccessful
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1095
--->recvresult
+callmacro kill_client_expect_error	1	ER_KILL_DENIED_ERROR;
 
 -->echo expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo open another session of abc user and kill first session of abc user,which should be successful
 -->newsession abc1	abc	abc
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 3
-    }
-  }
-}
+callmacro kill_client	3;
 
--->recvresult
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
--->sql
-select sleep(0.5);
--->endsql
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo killing abc user session with its own session 'abc' which should be successful
 -->echo expect right error instead of End of File
@@ -1873,108 +985,62 @@ Mysqlx.Sql.StmtExecute {
 -->echo switch back to default session
 -->recvuntildisc
 
--->sleep 1
+callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
--->echo expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	4;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
+noquiet;
 
 -->echo open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 -->newsession process	process	process
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
+callmacro kill_client_expect_error	1	ER_KILL_DENIED_ERROR;
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->expecterror 1095
--->recvresult
-
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
 -->echo checking list of clients after x_root user session killed by xplugin user
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect ERROR: SELECT command denied to user 'process'@'localhost' for table 'session_status' (code 1142) for show command
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo open privileged user seession and kill x_root user session,expect success
 -->newsession xplugin	xplugin	xplugin
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-}
+callmacro kill_client	1;
 
--->echo expect Mysqlx.Sql.StmtExecuteOk
--->recvresult
-
--->sql
-select sleep(0.5);
--->endsql
+callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 
 -->echo checking list of clients after x_root user session killed by xplugin user
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
 
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
--->sql
-show status like 'Mysqlx_stmt%client%';
--->endsql
+quiet;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
+callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
+noquiet;
 
 -->echo Cleanup
--->sql
 drop schema if exists xtest;
--->endsql
 
 EOF
 

@@ -49,6 +49,7 @@
 #endif
 #include <algorithm>
 #include <atomic>
+#include <memory>  // std::unique_ptr
 #include <new>
 #include <utility>
 
@@ -61,12 +62,12 @@
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/psi/mysql_thread.h"
 #include "mysqld_error.h"
+#include "sql-common/net_ns.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/channel_info.h"               // Channel_info
 #include "sql/conn_handler/init_net_server_extension.h"  // init_net_server_extension
 #include "sql/log.h"
-#include "sql/mysqld.h"  // key_socket_tcpip
-#include "sql/net_ns.h"
+#include "sql/mysqld.h"     // key_socket_tcpip
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "violite.h"  // Vio
@@ -95,6 +96,25 @@ static std::atomic<ulong> connection_errors_accept{0};
 
 /** Number of connection errors from TCP wrappers. */
 static std::atomic<ulong> connection_errors_tcpwrap{0};
+
+namespace {
+struct FreeAddrInfoDeleter {
+  void operator()(addrinfo *ai) {
+    if (ai != nullptr) {
+      freeaddrinfo(ai);
+    }
+  }
+};
+
+using AddrInfoPtr = std::unique_ptr<addrinfo, FreeAddrInfoDeleter>;
+AddrInfoPtr GetAddrInfoPtr(const char *node, const char *service,
+                           const addrinfo *hints) {
+  addrinfo *p = nullptr;
+  int err = getaddrinfo(node, service, hints, &p);
+  AddrInfoPtr nrv{p};
+  return (err == 0 ? std::move(nrv) : nullptr);
+}
+}  // namespace
 
 ulong get_connection_errors_select() { return connection_errors_select.load(); }
 
@@ -302,7 +322,7 @@ class TCP_socket {
       } else {
         LogErr(INFORMATION_LEVEL, ER_CONN_TCP_CREATED, (const char *)ip_addr);
 
-        *use_addrinfo = (struct addrinfo *)cur_ai;
+        *use_addrinfo = const_cast<addrinfo *>(cur_ai);
         return sock;
       }
     }
@@ -336,7 +356,6 @@ class TCP_socket {
     @retval   valid socket if successful else MYSQL_INVALID_SOCKET on failure.
   */
   MYSQL_SOCKET get_listener_socket() {
-    struct addrinfo *ai;
     const char *bind_address_str = NULL;
 
     LogErr(INFORMATION_LEVEL, ER_CONN_TCP_ADDRESS, m_bind_addr_str.c_str(),
@@ -363,6 +382,9 @@ class TCP_socket {
 #endif
     }
 
+    // Create a RAII guard for addrinfo struct.
+    AddrInfoPtr ai_ptr{nullptr};
+
     if (native_strcasecmp(m_bind_addr_str.c_str(), MY_BIND_ALL_ADDRESSES) ==
         0) {
       /*
@@ -373,7 +395,8 @@ class TCP_socket {
       */
 
       bool ipv6_available = false;
-      if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai)) {
+      ai_ptr = GetAddrInfoPtr(ipv6_all_addresses, port_buf, &hints);
+      if (ai_ptr) {
         /*
           IPv6 might be available (the system might be able to resolve an IPv6
           address, but not be able to create an IPv6-socket). Try to create a
@@ -384,7 +407,8 @@ class TCP_socket {
         ipv6_available = mysql_socket_getfd(s) != INVALID_SOCKET;
         if (ipv6_available) mysql_socket_close(s);
       }
-      if (ipv6_available) {
+      if (ipv6_available &&
+          DBUG_EVALUATE_IF("sim_ipv6_unavailable", false, true)) {
         LogErr(INFORMATION_LEVEL, ER_CONN_TCP_IPV6_AVAILABLE);
 
         // Address info (ai) for IPv6 address is already set.
@@ -394,8 +418,8 @@ class TCP_socket {
         LogErr(INFORMATION_LEVEL, ER_CONN_TCP_IPV6_UNAVAILABLE);
 
         // Retrieve address info (ai) for IPv4 address.
-
-        if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai)) {
+        ai_ptr = GetAddrInfoPtr(ipv4_all_addresses, port_buf, &hints);
+        if (!ai_ptr) {
 #ifdef _WIN32
           Socket_error_message_buf msg_buff;
           FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
@@ -411,12 +435,12 @@ class TCP_socket {
             (void)restore_original_network_namespace();
 #endif
           return MYSQL_INVALID_SOCKET;
-        }
-
+        }  // !ai_ptr
         bind_address_str = ipv4_all_addresses;
       }
     } else {
-      if (getaddrinfo(m_bind_addr_str.c_str(), port_buf, &hints, &ai)) {
+      ai_ptr = GetAddrInfoPtr(m_bind_addr_str.c_str(), port_buf, &hints);
+      if (!ai_ptr) {
 #ifdef _WIN32
         Socket_error_message_buf msg_buff;
         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, socket_errno,
@@ -433,13 +457,12 @@ class TCP_socket {
 #endif
 
         return MYSQL_INVALID_SOCKET;
-      }
-
+      }  // !ai_ptr
       bind_address_str = m_bind_addr_str.c_str();
     }
 
     // Log all the IP-addresses
-    for (struct addrinfo *cur_ai = ai; cur_ai != NULL;
+    for (struct addrinfo *cur_ai = ai_ptr.get(); cur_ai != nullptr;
          cur_ai = cur_ai->ai_next) {
       char ip_addr[INET6_ADDRSTRLEN];
 
@@ -464,10 +487,10 @@ class TCP_socket {
 
     struct addrinfo *a = nullptr;
 
-    MYSQL_SOCKET listener_socket = create_socket(ai, AF_INET, &a);
+    MYSQL_SOCKET listener_socket = create_socket(ai_ptr.get(), AF_INET, &a);
 
     if (mysql_socket_getfd(listener_socket) == INVALID_SOCKET)
-      listener_socket = create_socket(ai, AF_INET6, &a);
+      listener_socket = create_socket(ai_ptr.get(), AF_INET6, &a);
 
 #ifdef HAVE_SETNS
     if (!m_network_namespace.empty() && restore_original_network_namespace())
@@ -539,7 +562,7 @@ class TCP_socket {
       this_wait = retry * retry / 3 + 1;
       sleep(this_wait);
     }
-    freeaddrinfo(ai);
+
     if (ret < 0) {
       DBUG_PRINT("error", ("Got error: %d from bind", socket_errno));
 #ifdef _WIN32
@@ -1019,15 +1042,14 @@ static inline void wait_for_admin_thread_started() {
   Listen to admin interface and accept incoming connection on it.
   This function is run in a separate thread.
 
-  @param admin_socket  pointer to a socket for listening to admin interface
-  @param network_namespace_for_listening_socket  network namespace associated
-                                                 with the socket
   @return operation result. false on success, true on error
 */
 static bool handle_admin_socket(
+    /// pointer to a socket for listening to admin interface
     MYSQL_SOCKET admin_socket
 #ifdef HAVE_SETNS
     ,
+    /// network namespace associated with the socket
     const std::string &network_namespace_for_listening_socket
 #endif
 ) {

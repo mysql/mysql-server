@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,7 +89,7 @@ void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
 
   ((byte *)&lock[1])[byte_index] |= 1 << bit_index;
 
-  ++lock->trx->lock.n_rec_locks;
+  lock->trx->lock.n_rec_locks.fetch_add(1, std::memory_order_relaxed);
 }
 
 /** Gets the first or next record lock on a page.
@@ -276,16 +276,12 @@ ulint lock_mode_compatible(enum lock_mode mode1, /*!< in: lock mode */
   return (lock_compatibility_matrix[mode1][mode2]);
 }
 
-/** Calculates if lock mode 1 is stronger or equal to lock mode 2.
- @return nonzero if mode1 stronger or equal to mode2 */
 UNIV_INLINE
-ulint lock_mode_stronger_or_eq(enum lock_mode mode1, /*!< in: lock mode */
-                               enum lock_mode mode2) /*!< in: lock mode */
-{
+bool lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2) {
   ut_ad((ulint)mode1 < lock_types);
   ut_ad((ulint)mode2 < lock_types);
 
-  return (lock_strength_matrix[mode1][mode2]);
+  return (lock_strength_matrix[mode1][mode2] != 0);
 }
 
 /** Gets the wait flag of a lock.
@@ -307,7 +303,16 @@ void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
   ut_ad(lock_get_wait(lock));
   ut_ad(lock_mutex_own());
 
+  /* We intentionally don't clear trx->lock.blocking_trx here, as
+  lock_reset_lock_and_trx_wait() is called also during movements of locks from
+  one page to another, which does not really change the structure of the
+  wait-for graph. Instead the lock_reset_wait_and_release_thread_if_suspended()
+  is responsible for clearing the blocking_trx field once it is sure that
+  we really want to remove the edge from the wait-for graph.*/
   lock->trx->lock.wait_lock = NULL;
+  /* We intentionally don't clear lock->trx->lock.wait_lock_type here, to make
+  it easier to obtain stats about the last wait in lock_wait_suspend_thread().
+  @see trx_lock_t::wait_lock_type for more detailed explanation. */
   lock->type_mode &= ~LOCK_WAIT;
 }
 
@@ -334,16 +339,15 @@ lock_t *lock_rec_find_similar_on_page(
   return (NULL);
 }
 
-/** Checks if a transaction has the specified table lock, or stronger. This
- function should only be called by the thread that owns the transaction.
- @return lock or NULL */
 UNIV_INLINE
-const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
-                             const dict_table_t *table, /*!< in: table */
-                             lock_mode in_mode)         /*!< in: lock mode */
-{
+bool lock_table_has(const trx_t *trx, const dict_table_t *table,
+                    lock_mode in_mode) {
+  ut_ad(!trx_mutex_own(trx));
+  trx_mutex_enter(trx);
+
   if (trx->lock.table_locks.empty()) {
-    return (NULL);
+    trx_mutex_exit(trx);
+    return (false);
   }
 
   typedef lock_pool_t::const_reverse_iterator iterator;
@@ -355,9 +359,7 @@ const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
   for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
     const lock_t *lock = *it;
 
-    if (lock == NULL) {
-      continue;
-    }
+    ut_ad(lock != nullptr);
 
     lock_mode mode = lock_get_mode(lock);
 
@@ -369,11 +371,13 @@ const lock_t *lock_table_has(const trx_t *trx,          /*!< in: transaction */
         lock_mode_stronger_or_eq(mode, in_mode)) {
       ut_ad(!lock_get_wait(lock));
 
-      return (lock);
+      trx_mutex_exit(trx);
+      return (true);
     }
   }
 
-  return (NULL);
+  trx_mutex_exit(trx);
+  return (false);
 }
 
 /* Check if the rec id matches the lock instance.

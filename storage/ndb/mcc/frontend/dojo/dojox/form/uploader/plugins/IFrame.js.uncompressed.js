@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/uploader/plugins/IFrame", [
 	"dojo/dom-construct",
 	"dojo/_base/declare",
@@ -10,19 +9,19 @@ define("dojox/form/uploader/plugins/IFrame", [
 	
 
 var pluginsIFrame = declare("dojox.form.uploader.plugins.IFrame", [], {
-	//
-	// Version: 1.6
-	//
 	// summary:
 	//		A plugin for dojox.form.Uploader that adds Ajax upload capabilities.
 	//
-	//	description:
-	//		Only supported by IE, due to the specifc iFrame hack used. The
+	// description:
+	//		Only supported by IE, due to the specific iFrame hack used. The
 	//		formUploaderPluginsHTML5 plugin should be used along with this to add HTML5
 	//		capabilities to browsers that support them. Progress events are not supported.
 	//		Inherits all properties from dojox.form.Uploader and formUploaderPluginsHTML5.
 	//
+	//
+	// Version: 1.6
 
+	
 	force:"",
 
 	postMixInProperties: function(){
@@ -37,7 +36,7 @@ var pluginsIFrame = declare("dojox.form.uploader.plugins.IFrame", [], {
 		// summary:
 		//		Internal. You could use this, but you should use upload() or submit();
 		//		which can also handle the post data.
-		//
+
 		var form, destroyAfter = false;
 		if(!this.getForm()){
 			//enctype can't be changed once a form element is created
@@ -57,7 +56,9 @@ var pluginsIFrame = declare("dojox.form.uploader.plugins.IFrame", [], {
 			form: form,
 			handleAs: "json",
 			content: data,
+			method: "POST",
 			error: lang.hitch(this, function(err){
+				console.error('error parsing server result', err);
 				if(destroyAfter){ domConstruct.destroy(form); }
 				this.onError(err);
 			}),

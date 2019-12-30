@@ -1,236 +1,216 @@
 
 .mblSwitch {
-	margin: 0;
-	position: relative;
-	width: 94px;
-	height: 27px;
-	line-height: 29px;
-	overflow: hidden;
-	text-align: left;
-	-webkit-tap-highlight-color: rgba(255,255,255,0);
+  margin: 0;
+  position: relative;
+  display: inline-block;
+  height: 27px;
+  line-height: 29px;
+  overflow: hidden;
+  text-align: left;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
 }
-.mblItemSwitch {
-	position: absolute;
-	right: 12px;
+.mblListItem .mblSwitch {
+  position: absolute;
+  right: 12px;
+  top: 8px;
 }
 .mblSwitchInner {
-	position: absolute;
-	top: 0px;
-	height: 27px;
+  position: absolute;
+  top: 0;
+  height: 27px;
 }
 .mblSwitchAnimation .mblSwitchInner {
-	-webkit-transition-property: left;
-	-webkit-transition-duration: .3s;
+  -webkit-transition-property: left;
+  -webkit-transition-duration: .1s;
 }
 .mblSwitchOn .mblSwitchInner {
-	left: 0px;
-}
-.mblSwitchOff .mblSwitchInner {
-	left: -53px;
+  left: 0;
 }
 .mblSwitchBg {
-	position: absolute;
-	top: 0px;
-	height: 27px;
-	border-width: 1px;
-	border-style: inset;
-	border-color: #9CACC0;
-	font-family: Helvetica;
-	font-size: 16px;
-	font-weight: bold;
-	line-height: 29px;
-	-webkit-box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  width: 94px;
+  height: 27px;
+  font-family: Helvetica;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 29px;
+  -webkit-box-sizing: border-box;
+  border: 1px solid #c0c0c0;
+  border-bottom-color: #9b9b9b;
 }
 .mblSwitchBgLeft {
-	left: 0px;
-	width: 94px;
-	color: white;
-	background-color: #3F84EB;
+  left: 0;
+  color: white;
+  background-color: #3f84eb;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
 }
 .mblSwitchBgRight {
-	left: 53px;
-	width: 94px;
-	color: #7F7F7F;
+  color: #7f7f7f;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#ffffff), to(#e2e2e2));
 }
 .mblSwitchKnob {
-	position: absolute;
-	top: 1px;
-	left: 53px;
-	width: 41px;
-	height: 26px;
-	font-size: 1px;
-	border-width: 1px;
-	border-style: solid;
-	border-color: #EFEFEF #A5A5A5 #969696 #325E9E;
-	-webkit-box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  height: 27px;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#e2e2e2), to(#a4a4a4));
+  font-size: 1px;
+  -webkit-box-sizing: border-box;
+  border: 1px solid #9b9b9b;
+  border-bottom-color: #767676;
 }
 .mblSwitchText {
-	position: relative;
-	top: 0px;
-	width: 53px;
-	height: 27px;
-	padding: 0px;
-	line-height: 28px;
-	text-align: center;
+  position: relative;
+  top: 0;
+  width: 53px;
+  height: 27px;
+  padding: 0;
+  line-height: 28px;
+  text-align: center;
 }
 .mblSwitchTextLeft {
-	left: 0px;
+  left: 0;
 }
 .mblSwitchTextRight {
-	left: 40px;
+  left: 40px;
+}
+.mblSwSquareShape {
+  width: 94px;
+}
+.mblSwSquareShape.mblSwitchOff .mblSwitchInner {
+  left: -53px;
+}
+.mblSwSquareShape .mblSwitchBg {
+  border-radius: 2px;
+}
+.mblSwSquareShape .mblSwitchBgRight {
+  left: 53px;
+}
+.mblSwSquareShape .mblSwitchKnob {
+  left: 53px;
+  width: 41px;
+  border-radius: 2px;
+}
+.mblSwSquareShape .mblSwitchText {
+  width: 53px;
+}
+.mblSwSquareShape .mblSwitchTextRight {
+  left: 40px;
 }
 .mblSwRoundShape1 {
-	height: 28px;
-	-webkit-mask-image: -webkit-canvas(mblSwRoundShape1Mask);
-}
-.mblSwRoundShape1.mblItemSwitch {
-	top: 8px;
-}
-.mblSwRoundShape1 .mblSwitchInner {
-	height: 28px;
+  width: 77px;
 }
 .mblSwRoundShape1.mblSwitchOff .mblSwitchInner {
-	left: -67px;
+  left: -50px;
 }
 .mblSwRoundShape1 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 14px;
-}
-.mblSwRoundShape1 .mblSwitchBgLeft {
+  width: 77px;
+  border-radius: 14px;
 }
 .mblSwRoundShape1 .mblSwitchBgRight {
-	left: 67px;
+  left: 50px;
 }
 .mblSwRoundShape1 .mblSwitchKnob {
-	left: 67px;
-	width: 26px;
-	height: 26px;
-	-webkit-border-radius: 13px;
+  left: 50px;
+  width: 27px;
+  border-radius: 13px;
 }
 .mblSwRoundShape1 .mblSwitchText {
-	width: 67px;
-	height: 26px;
+  width: 50px;
 }
 .mblSwRoundShape1 .mblSwitchTextRight {
-	left: 26px;
+  left: 26px;
 }
 .mblSwRoundShape2 {
-	height: 28px;
-	-webkit-mask-image: -webkit-canvas(mblSwRoundShape2Mask);
-}
-.mblSwRoundShape2.mblItemSwitch {
-	top: 8px;
-}
-.mblSwRoundShape2 .mblSwitchInner {
-	height: 28px;
+  width: 94px;
 }
 .mblSwRoundShape2.mblSwitchOff .mblSwitchInner {
-	left: -51px;
+  left: -51px;
 }
 .mblSwRoundShape2 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 14px;
+  border-radius: 14px;
 }
 .mblSwRoundShape2 .mblSwitchBgRight {
-	left: 51px;
+  left: 51px;
 }
 .mblSwRoundShape2 .mblSwitchKnob {
-	left: 51px;
-	width: 42px;
-	height: 26px;
-	-webkit-border-radius: 13px;
+  left: 51px;
+  width: 43px;
+  border-radius: 13px;
 }
 .mblSwRoundShape2 .mblSwitchText {
-	width: 51px;
-	height: 28px;
+  width: 51px;
 }
 .mblSwRoundShape2 .mblSwitchTextRight {
-	left: 42px;
+  left: 42px;
 }
 .mblSwArcShape1 {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
-}
-.mblSwArcShape1.mblItemSwitch {
-	top: 8px;
-}
-.mblSwArcShape1 .mblSwitchInner {
-	height: 28px;
+  width: 77px;
 }
 .mblSwArcShape1.mblSwitchOff .mblSwitchInner {
-	left: -67px;
+  left: -50px;
 }
 .mblSwArcShape1 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
+  width: 77px;
+  border-radius: 5px/14px;
 }
 .mblSwArcShape1 .mblSwitchBgRight {
-	left: 67px;
+  left: 50px;
 }
 .mblSwArcShape1 .mblSwitchKnob {
-	left: 67px;
-	width: 26px;
-	height: 26px;
-	-webkit-border-radius: 5px/13px;
+  left: 50px;
+  width: 27px;
+  border-radius: 5px/13px;
 }
 .mblSwArcShape1 .mblSwitchText {
-	width: 67px;
-	height: 26px;
+  width: 50px;
 }
 .mblSwArcShape1 .mblSwitchTextRight {
-	left: 26px;
+  left: 26px;
 }
 .mblSwArcShape2 {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
-}
-.mblSwArcShape2.mblItemSwitch {
-	top: 8px;
-}
-.mblSwArcShape2 .mblSwitchInner {
-	height: 28px;
+  width: 94px;
 }
 .mblSwArcShape2.mblSwitchOff .mblSwitchInner {
-	left: -51px;
+  left: -51px;
 }
 .mblSwArcShape2 .mblSwitchBg {
-	height: 28px;
-	-webkit-border-radius: 6px/14px;
+  border-radius: 5px/14px;
 }
 .mblSwArcShape2 .mblSwitchBgRight {
-	left: 51px;
+  left: 51px;
 }
 .mblSwArcShape2 .mblSwitchKnob {
-	left: 51px;
-	width: 42px;
-	height: 26px;
-	-webkit-border-radius: 5px/13px;
+  left: 51px;
+  width: 43px;
+  border-radius: 5px/13px;
 }
 .mblSwArcShape2 .mblSwitchText {
-	width: 51px;
-	height: 26px;
+  width: 51px;
 }
 .mblSwArcShape2 .mblSwitchTextRight {
-	left: 42px;
+  left: 42px;
 }
-.mblItemSwitch {
-  top: 12px;
+.mblSwDefaultShape {
+  width: 94px;
 }
-.mblSwitchBg {
-  border-color: #b5bcc7;
-  -webkit-border-radius: 2px;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
+.mblSwDefaultShape.mblSwitchOff .mblSwitchInner {
+  left: -53px;
 }
-.mblSwitchBgLeft {
-  background-color: #007ef5;
-  color: #131313;
+.mblSwDefaultShape .mblSwitchBg {
+  border-radius: 2px;
 }
-.mblSwitchBgRight {
-  background-color: #8fc9ff;
+.mblSwDefaultShape .mblSwitchBgRight {
+  left: 53px;
 }
-.mblSwitchKnob {
-  border-color: #7b879b;
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-  -webkit-border-radius: 2px;
+.mblSwDefaultShape .mblSwitchKnob {
+  left: 53px;
+  width: 41px;
+  border-radius: 2px;
+}
+.mblSwDefaultShape .mblSwitchText {
+  width: 53px;
+}
+.mblSwDefaultShape .mblSwitchTextRight {
+  left: 40px;
 }

@@ -1,27 +1,17 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/manager/Stencil", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.manager.Stencil");
+define("dojox/drawing/manager/Stencil", ["dojo", "../util/oo", "../defaults"], 
+function(dojo, oo, defaults){
 
-(function(){
 	var surface, surfaceNode;
-	dojox.drawing.manager.Stencil = dojox.drawing.util.oo.declare(
-		// summary:
-		//		The main class for tracking Stencils that are cretaed, added,
-		//		selected, or deleted. Also handles selections, multiple
-		//		selections, adding and removing from selections, and dragging
-		//		selections. It's this class that triggers the anchors to
-		//		appear on a Stencil and whther there are anchor on a multiple
-		//		select or not (currently not)
-		//
+	//dojox.drawing.manager.Stencil = 
+	return oo.declare(
 		function(options){
-			//
+
 			// TODO: mixin props
-			//
+
 			surface = options.surface;
 			this.canvas = options.canvas;
 			
-			this.defaults = dojox.drawing.defaults.copy();
+			//this.defaults = defaults.copy();
 			this.undo = options.undo;
 			this.mouse = options.mouse;
 			this.keys = options.keys;
@@ -36,6 +26,14 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			
 		},
 		{
+			// summary:
+			//		The main class for tracking Stencils that are cretaed, added,
+			//		selected, or deleted. Also handles selections, multiple
+			//		selections, adding and removing from selections, and dragging
+			//		selections. It's this class that triggers the anchors to
+			//		appear on a Stencil and whther there are anchor on a multiple
+			//		select or not (currently not)
+
 			_dragBegun: false,
 			_wasDragged:false,
 			_secondClick:false,
@@ -61,7 +59,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				//		can be added to the canvas without adding
 				//		them to this, but they won't have selection
 				//		or drag ability.
-				//
+
 				console.log("Selection.register ::::::", stencil.id);
 				if(stencil.isText && !stencil.editMode && stencil.deleteEmptyCreate && !stencil.getText()){
 					// created empty text field
@@ -111,8 +109,8 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				// summary:
 				//		Method for removing Stencils from the manager.
 				//		This doesn't delete them, only removes them from
-				// 		the list.
-				//
+				//		the list.
+
 				console.log("Selection.unregister ::::::", stencil.id, "sel:", stencil.selected);
 				if(stencil){
 					stencil.selected && this.onDeselect(stencil);
@@ -122,8 +120,8 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			
 			onArrow: function(/*Key Event*/evt){
 				// summary:
-				// 		Moves selection based on keyboard arrow keys
-				//
+				//		Moves selection based on keyboard arrow keys
+
 				// FIXME: Check constraints
 				if(this.hasSelected()){
 					this.saveThrottledState();
@@ -139,8 +137,8 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			saveMoveState: function(){
 				// summary:
 				//		Internal. Used for the prototype undo stack.
-				// 		Saves selection position.
-				//
+				//		Saves selection position.
+
 				var mx = this.group.getTransform();
 				if(mx.dx == this._lastmxx && mx.dy == this._lastmxy){ return; }
 				this._lastmxx = mx.dx;
@@ -156,7 +154,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				//		Internal. Used for the prototype undo stack.
 				//		Prevents an undo point on every mouse move.
 				//		Only does a point when the mouse hesitates.
-				//
+
 				clearTimeout(this._throttleVrl);
 				clearInterval(this._throttleVrl);
 				this._throttleVrl = setTimeout(dojo.hitch(this, function(){
@@ -172,7 +170,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			unDelete: function(/*Array*/stencils){
 				// summary:
 				//		Undeletes a stencil. Used in undo stack.
-				//
+
 				console.log("unDelete:", stencils);
 				for(var s in stencils){
 					stencils[s].render();
@@ -182,7 +180,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onDelete: function(/*Boolean*/noundo){
 				// summary:
 				//		Event fired on deletion of a stencil
-				//
+
 				console.log("Stencil onDelete", noundo);
 				if(noundo!==true){
 					this.undo.add({
@@ -204,7 +202,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				// summary:
 				//		Deletes a stencil.
 				//		NOTE: supports limited undo.
-				//
+
 				// manipulating the selection to fire onDelete properly
 				if(this.hasSelected()){
 					// there is a selection
@@ -250,7 +248,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				// summary:
 				//		Internal. Creates a new selection group
 				//		used to hold selected stencils.
-				//
+
 				this.withSelected(function(m){
 					this.onDeselect(m, true);
 				});
@@ -273,7 +271,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				//		Internal. Gets all selected stencils' coordinates
 				//		and determines how far left and up the selection
 				//		can go without going below zero
-				//
+
 				var t = Infinity, l = Infinity;
 				this.withSelected(function(m){
 					var o = m.getBounds();
@@ -288,7 +286,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onDeselect: function(stencil, keepObject){
 				// summary:
 				//		Event fired on deselection of a stencil
-				//
+
 				if(!keepObject){
 					delete this.selectedStencils[stencil.id];
 				}
@@ -304,7 +302,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			deselectItem: function(/*Object*/stencil){
 				// summary:
 				//		Deselect passed stencil
-				//
+
 				// note: just keeping with standardized methods
 				this.onDeselect(stencil);
 			},
@@ -312,7 +310,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			deselect: function(){ // all stencils
 				// summary:
 				//		Deselect all stencils
-				//
+
 				this.withSelected(function(m){
 					this.onDeselect(m);
 				});
@@ -323,7 +321,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onSelect: function(/*Object*/stencil){
 				// summary:
 				//		Event fired on selection of a stencil
-				//
+
 				//console.log("stencil.onSelect", stencil);
 				if(!stencil){
 					console.error("null stencil is not selected:", this.stencils)
@@ -352,7 +350,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			selectItem: function(/*String|Object*/ idOrItem){
 				// summary:
 				//		Method used to select a stencil.
-				//
+
 				var id = typeof(idOrItem)=="string" ? idOrItem : idOrItem.id;
 				var stencil = this.stencils[id];
 				this.setSelectionGroup();
@@ -374,7 +372,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onStencilDoubleClick: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired on the double-click of a stencil
-				//
+
 				console.info("mgr.onStencilDoubleClick:", obj);
 				if(this.selectedStencils[obj.id]){
 					if(this.selectedStencils[obj.id].edit){
@@ -399,7 +397,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onStencilDown: function(/*EventObject*/obj, evt){
 				// summary:
 				//		Event fired on mousedown on a stencil
-				//
+
 				console.info(" >>> onStencilDown:", obj.id, this.keys.meta);
 				if(!this.stencils[obj.id]){ return; }
 				this.setRecentStencil(this.stencils[obj.id]);
@@ -454,7 +452,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				this._isBusy = false;
 				
 				// TODO:
-				//  dojo.style(surfaceNode, "cursor", "pointer");
+				//	dojo.style(surfaceNode, "cursor", "pointer");
 				
 				// TODO:
 				this.undo.add({
@@ -472,6 +470,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				//		Event fired on mousedown of a stencil's label
 				//		Because it's an annotation the id will be the
 				//		master stencil.
+				
 				//console.info("===============>>>Label click: ",obj, " evt: ",evt);
 				this.onStencilDown(obj,evt);
 			},
@@ -479,7 +478,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onStencilUp: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired on mouseup off of a stencil
-				//
+
 			},
 			
 			onLabelUp: function(/*EventObject*/obj){
@@ -489,7 +488,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onStencilDrag: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired on every mousemove of a stencil drag
-				//
+
 				if(!this._dragBegun){
 					// bug, in FF anyway - first mouse move shows x=0
 					// the 'else' fixes it
@@ -501,7 +500,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 					var x = obj.x - obj.last.x,
 						y = obj.y - obj.last.y,
 						c = this.constrain,
-						mz = this.defaults.anchors.marginZero;
+						mz = defaults.anchors.marginZero;
 					
 					
 					x = obj.x - this._offx;
@@ -530,20 +529,20 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onDragEnd: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired at the end of a stencil drag
-				//
+
 				this._dragBegun = false;
 			},
 			onBeginDrag: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired at the beginning of a stencil drag
-				//
+
 				this._wasDragged = true;
 			},
 			
 			onDown: function(/*EventObject*/obj){
 				// summary:
 				//		Event fired on mousedown on the canvas
-				//
+
 				this.deselect();
 			},
 						
@@ -552,6 +551,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 				// summary:
 				//		This changes the cursor when hovering over
 				//		a selectable stencil.
+				
 				//console.log("OVER")
 				dojo.style(obj.id, "cursor", "move");
 			},
@@ -559,6 +559,7 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			onStencilOut: function(obj){
 				// summary:
 				//		This restores the cursor.
+				
 				//console.log("OUT")
 				dojo.style(obj.id, "cursor", "crosshair");
 			},
@@ -621,9 +622,9 @@ dojo.provide("dojox.drawing.manager.Stencil");
 			
 			hasSelected: function(){
 				// summary:
-				// 		Returns number of selected (generally used
+				//		Returns number of selected (generally used
 				//		as truthy or falsey)
-				//
+
 				// FIXME: should be areSelected?
 				var ln = 0;
 				for(var m in this.selectedStencils){ ln++; }
@@ -640,6 +641,4 @@ dojo.provide("dojox.drawing.manager.Stencil");
 		}
 		
 	);
-})();
-
 });

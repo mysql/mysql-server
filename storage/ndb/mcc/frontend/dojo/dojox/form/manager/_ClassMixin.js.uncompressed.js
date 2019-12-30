@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/manager/_ClassMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/kernel",
@@ -22,9 +21,9 @@ define("dojox/form/manager/_ClassMixin", [
 		gatherClassState: function(className, names){
 			// summary:
 			//		Gather the presence of a certain class in all controlled elements.
-			// className: String:
+			// className: String
 			//		The class name to test for.
-			// names: Object?:
+			// names: Object?
 			//		If it is an array, it is a list of names to be processed.
 			//		If it is an object, dictionary keys are names to be processed.
 			//		If it is omitted, all known form elements are to be processed.
@@ -39,9 +38,9 @@ define("dojox/form/manager/_ClassMixin", [
 		addClass: function(className, names){
 			// summary:
 			//		Add a class to nodes according to the supplied set of names
-			// className: String:
+			// className: String
 			//		Class name to add.
-			// names: Object?:
+			// names: Object?
 			//		If it is an array, it is a list of names to be processed.
 			//		If it is an object, dictionary keys are names to be processed.
 			//		If it is omitted, all known form elements are to be processed.
@@ -56,9 +55,9 @@ define("dojox/form/manager/_ClassMixin", [
 		removeClass: function(className, names){
 			// summary:
 			//		Remove a class from nodes according to the supplied set of names
-			// className: String:
+			// className: String
 			//		Class name to remove.
-			// names: Object?:
+			// names: Object?
 			//		If it is an array, it is a list of names to be processed.
 			//		If it is an object, dictionary keys are names to be processed.
 			//		If it is omitted, all known form elements are to be processed.

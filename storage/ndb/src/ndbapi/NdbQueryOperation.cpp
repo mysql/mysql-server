@@ -3141,6 +3141,15 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
      * Ordering can then only be guarented by restricting
      * parent batch to contain single rows.
      * (Child scans will have 'normal' batch size).
+     *
+     * Note that this solved the problem only for the 'v1'
+     * version of SPJ requests, and parameter. The v2 protocol
+     * introduced 'batch_size_rows' as part of the parameter,
+     * which took precedence over the batch size set in ScanTabReq.
+     * This resulted in giving not-sorted results even though
+     * sort order was requested. This is now fixed by setting a
+     * 'SFP_SORTED_ORDER' flag in the ScanFragParameter
+     * instead of hacking the batch size on the client side.
      */
     if (root.getOrdering() != NdbQueryOptions::ScanOrdering_unordered &&
         getQueryDef().getQueryType() == NdbQueryDef::MultiScanQuery)
@@ -3305,7 +3314,25 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    int res;
+    const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
+    const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else if (ndbd_frag_tckeyreq(nodeVersion))
+    {
+      res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(nodeVersion));
+    }
+
     if (unlikely(res == -1))
     {
       setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'
@@ -4694,6 +4721,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     {
       requestInfo |= QN_ScanFragParameters::SFP_PRUNE_PARAMS;
     }
+    if (getOrdering() != NdbQueryOptions::ScanOrdering_unordered)
+    {
+      requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
+      // Only supported for root yet.
+      DBUG_ASSERT(this == &getRoot());
+    }
+
     param->requestInfo = requestInfo;
     param->resultData = getIdOfReceiver();
     param->batch_size_rows = batchRows;
@@ -4705,7 +4739,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     break;
   }
   // Check deprecated QueryNode types last:
-  case QueryNodeParameters::QN_SCAN_INDEX_v1:
+  case QueryNodeParameters::QN_SCAN_INDEX_v1: //Deprecated
   {
     QN_ScanIndexParameters_v1* param = 
       reinterpret_cast<QN_ScanIndexParameters_v1*>(attrInfo.addr(startPos)); 
@@ -4737,7 +4771,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     QueryNodeParameters::setOpLen(param->len, paramType, length);
     break;
   }
-  case QueryNodeParameters::QN_SCAN_FRAG_v1:
+  case QueryNodeParameters::QN_SCAN_FRAG_v1: //Deprecated
   {
     assert(paramType == QueryNodeParameters::QN_SCAN_FRAG_v1);
     QN_ScanFragParameters_v1* param =

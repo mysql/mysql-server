@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,11 @@
 
 int mi_is_changed(MI_INFO *info) {
   int result;
-  DBUG_ENTER("mi_is_changed");
-  if (fast_mi_readinfo(info)) DBUG_RETURN(-1);
+  DBUG_TRACE;
+  if (fast_mi_readinfo(info)) return -1;
   (void)_mi_writeinfo(info, 0);
   result = (int)info->data_changed;
   info->data_changed = 0;
   DBUG_PRINT("exit", ("result: %d", result));
-  DBUG_RETURN(result);
+  return result;
 }

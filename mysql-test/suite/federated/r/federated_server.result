@@ -11,6 +11,8 @@ CREATE TABLE first_db.t1 (
 `name` varchar(64) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS first_db.t2;
 Warnings:
 Note	1051	Unknown table 'first_db.t2'
@@ -19,6 +21,8 @@ CREATE TABLE first_db.t2 (
 `name` varchar(64) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 use second_db;
 DROP TABLE IF EXISTS second_db.t1;
 Warnings:
@@ -28,6 +32,8 @@ CREATE TABLE second_db.t1 (
 `name` varchar(64) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE IF EXISTS second_db.t2;
 Warnings:
 Note	1051	Unknown table 'second_db.t2'
@@ -36,6 +42,8 @@ CREATE TABLE second_db.t2 (
 `name` varchar(64) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop server if exists 'server_one';
 create server 'server_one' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
@@ -67,6 +75,8 @@ CREATE TABLE federated.old (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/first_db/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.old (id, name) values (1, 'federated.old-> first_db.t1, url format');
 SELECT * FROM federated.old;
 id	name
@@ -80,6 +90,8 @@ CREATE TABLE federated.old2 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/first_db/t2';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.old2 (id, name) values (1, 'federated.old2-> first_db.t2, url format');
 SELECT * FROM federated.old2;
 id	name
@@ -93,6 +105,8 @@ CREATE TABLE federated.urldb2t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/second_db/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.urldb2t1 (id, name) values (1, 'federated.urldb2t1 -> second_db.t1, url format');
 SELECT * FROM federated.urldb2t1;
 id	name
@@ -106,6 +120,8 @@ CREATE TABLE federated.urldb2t2 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/second_db/t2';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.urldb2t2 (id, name) values (1, 'federated.urldb2t2 -> second_db.t2, url format');
 SELECT * FROM federated.urldb2t2;
 id	name
@@ -119,6 +135,8 @@ CREATE TABLE federated.t1 (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='server_one';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.t1 (id, name) values (1, 'server_one, new scheme, first_db.t1');
 SELECT * FROM federated.t1;
 id	name
@@ -133,6 +151,8 @@ CREATE TABLE federated.whatever (
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='server_one/t1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO federated.whatever (id, name) values (1, 'server_one, new scheme, whatever, first_db.t1');
 SELECT * FROM federated.whatever;
 id	name
@@ -167,6 +187,8 @@ CREATE TABLE db_legitimate.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
     );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO db_legitimate.t1 VALUES ('1','this is legitimate');
 use db_bogus;
 CREATE TABLE db_bogus.t1 (
@@ -174,6 +196,8 @@ CREATE TABLE db_bogus.t1 (
 `name` varchar(64) NOT NULL default ''
     )
 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO db_bogus.t1 VALUES ('2','this is bogus');
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
@@ -195,6 +219,8 @@ CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
     ) ENGINE = FEDERATED CONNECTION = 's1';
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select * from federated.t1;
 id	name
 1	this is legitimate
@@ -286,6 +312,8 @@ CREATE TABLE db_remote.t1 (
 `id` int(20) NOT NULL,
 `name` varchar(64) NOT NULL default ''
     );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO db_remote.t1 VALUES ('1','this is remote');
 SET NAMES utf8;
 Warnings:
@@ -310,6 +338,7 @@ CREATE TABLE federated.t1 (
 `name` varchar(64) NOT NULL default ''
     ) ENGINE = FEDERATED CONNECTION = 's1' CHARACTER SET utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select * from federated.t1;
 id	name

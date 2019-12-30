@@ -157,7 +157,7 @@ if($log_error_ == "stderr")
 let GREP_FILE=$log_error_;
 let GREP_PATTERN=Sort aborted;
 
-CREATE TABLE t1 (a INT,b INT) ENGINE=myisam;
+CREATE TABLE t1 (a INT,b INT);
 INSERT INTO t1 VALUES (2,4),(7,8);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT GROUP_CONCAT(DISTINCT t1.a) a FROM t1 WHERE t1.a =

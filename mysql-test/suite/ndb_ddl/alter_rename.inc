@@ -29,15 +29,17 @@ while ($counter <= $num_tables)
    #echo tx: $tx;
    #echo ty: $ty;
 
+   # By default we don't expect any error
+   let $expected_error = 0;
+
   if ($counter == 2)
   {
-    if (!$skip_test_same_name)
+    # Rename to same name
+    #   i.e t2 -> t2
+    let $ty = $tx;
+    if ($expect_rename_to_same_name_to_fail == 1)
     {
-      ##
-      # Rename to same name
-      #   i.e t2 -> t2
-      #
-      let $ty = $tx;
+      let $expected_error = ER_TABLE_EXISTS_ERROR;
     }
   }
 
@@ -60,21 +62,49 @@ while ($counter <= $num_tables)
     let $ty = ndb_ddl_test2.t4_new_name;
   }
 
+  if ($counter == 5)
+  {
+    ##
+    # Rename to a existing table name
+    #  ie. t5 -> t2
+    let $ty = t2;
+    # This should fail
+    let $expected_error = ER_TABLE_EXISTS_ERROR;
+  }
+
   # Replace ty and tx in the query and run it
   let $replaced_query =
      `select REPLACE(REPLACE('$query', 'tx', '$tx'), 'ty', '$ty')`;
+  if ($expected_error != 0)
+  {
+    # expect the query to fail
+    --error $expected_error
+  }
   eval $replaced_query;
 
   # Check that old name table does not exist
-  # (if it has been renamed to new name)
-  if ($tx != $ty)
-  {
-    --disable_query_log
-    --disable_result_log
-    --error ER_NO_SUCH_TABLE
-    eval SELECT count(*) FROM $tx;
-    --enable_query_log
-    --enable_result_log
+  # (if the rename was not expected to fail
+  #  and the rename is not to the same name)
+  # Note : using multiple ifs as MTR has a weird bug processing
+  #        `if ($expected_error == 0 && $tx != $ty)`
+  if ($expected_error == 0) {
+    if ($tx != $ty) {
+      --disable_query_log
+      --disable_result_log
+      --error ER_NO_SUCH_TABLE
+      eval SELECT count(*) FROM $tx;
+      --enable_query_log
+      --enable_result_log
+    }
+  }
+
+  if ($expected_error != 0){
+    # The rename was expected to fail. Due to this, we can't
+    # verify the new table. Rather, check if the rollback was
+    # proper by verifying that the old table is still intact.
+    # We do this by assigning the old name to $ty and let the
+    # verification continue.
+    let $ty = $tx;
   }
 
   # Check that new name table exists
@@ -141,3 +171,4 @@ while ($counter <= $num_tables)
 
 # Reset parameters which should change between each invocation
 let $sql =;
+let $expect_rename_to_same_name_to_fail =;

@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/_Widget", ["dijit","dojo","dojox","dojo/require!dijit/_WidgetBase"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/_Widget", ["dojo","dijit","dojox","dojo/require!dijit/_WidgetBase"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app._Widget");
 dojo.experimental("dojox.mobile.app._Widget");
 

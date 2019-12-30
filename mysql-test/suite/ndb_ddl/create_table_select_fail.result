@@ -1,0 +1,42 @@
+#
+# WL#12936 Implement DDL transaction context logger in ndbcluster
+# Test failure after the create has been distributed to other servers.
+#
+# Setup
+CREATE TABLE t1 (
+a int,
+b int
+) ENGINE NDB;
+INSERT INTO t1 VALUES (1, NULL);
+# Create should fail when copying rows
+CREATE TABLE t2 (
+a int,
+b int not null
+) ENGINE NDB
+AS SELECT * FROM t1;
+ERROR 23000: Column 'b' cannot be null
+# Verify that table does not exist
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+# Cleanup
+DROP TABLE t1;
+# Verify that the table is not present in any other server
+# and all the shares have been properly dropped.
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;
+SELECT * FROM t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+set global ndb_dbg_check_shares=1;

@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-        nomatchMessage: "Passordene samsvarer ikke.",
-		badPasswordMessage: "Ugyldig passord."
-})
-
-//end v1.x content
-);
+define("dojox/form/nls/nb/PasswordValidator",({nomatchMessage:"Passordene samsvarer ikke.",badPasswordMessage:"Ugyldig passord."}));

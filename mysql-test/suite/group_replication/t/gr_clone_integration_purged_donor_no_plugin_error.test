@@ -1,0 +1,99 @@
+################################################################################
+# Validate that when a member joins a group, and it is missing data that was
+# purged from group binary logs, the joiner member will proceed by cloning a
+# a group member. As the donor has no plugin installed the process will fail
+# and joiner will error out.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. DON'T install the clone plugin on server1.
+#    Commit some data and then purge all binary logs.
+#    Bootstrap a group on server1.
+# 2. Install clone plugin on server2.
+#    Start GR, clone must be executed since recovery
+#    from binary logs is not possible.
+#    As the donor doesn't have the plugin installed the clone
+#    process will fail and the joiner will error out.
+# 3. Cleanup
+#
+
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo ############################################################
+--echo # 1. DON'T install the clone plugin on server1.
+--echo #    Commit some data and then purge all binary logs.
+--echo #    Bootstrap a group on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Add some data for recovery
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+# Purge binary logs.
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+FLUSH BINARY LOGS;
+--let $server_binlog_file_cur= query_get_value(SHOW MASTER STATUS, File, 1)
+--replace_result $server_binlog_file_cur CURRENT_BINLOG_FILE
+--eval PURGE BINARY LOGS TO '$server_binlog_file_cur'
+
+--let $assert_text = GTID_PURGED must be equal to GTID_EXECUTED
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_EXECUTED)
+--source include/assert.inc
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Install clone plugin on server2.
+--echo #    Start GR, clone must be executed since recovery
+--echo #    from binary logs is not possible.
+--echo #    As the donor doesn't have the plugin installed the clone
+--echo #    process will fail and the joiner will error out.
+
+# Install the clone plugin
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Cleanup.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+DROP TABLE t1;
+--source include/gtid_utils_end.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+UNINSTALL PLUGIN clone;
+
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 1524 : Plugin 'clone' is not loaded");
+call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin=1;
+
+--source include/group_replication_end.inc

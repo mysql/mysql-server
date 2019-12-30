@@ -1,7 +1,6 @@
 --source include/have_ndb.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source suite/ndb/include/backup_restore_setup.inc
 
 --echo # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 --echo #                REFERRED BY A STATEMENT
@@ -193,6 +192,3 @@ ALTER TABLESPACE ts2 DROP DATAFILE 'datafile2.dat';
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg1 ENGINE NDB;
-
---source suite/ndb/include/backup_restore_cleanup.inc
---remove_file $NDB_TOOLS_OUTPUT

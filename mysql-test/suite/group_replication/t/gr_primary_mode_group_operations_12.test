@@ -42,6 +42,8 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_legacy_election_version';
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.");
+# Server1 started with version 8.0.12, so server2(present version) is read compatible
+call mtr.add_suppression("Member version is read compatible with the group.");
 set session sql_log_bin=1;
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)

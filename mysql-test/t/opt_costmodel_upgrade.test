@@ -2,6 +2,7 @@
 --source include/no_valgrind_without_big.inc
 # mysql_upgrade currently fails with 4k pages
 --source include/have_innodb_min_8k.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo
 --echo WL#10128:  Add defaults column to optimizer cost tables

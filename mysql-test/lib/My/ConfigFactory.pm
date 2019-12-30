@@ -222,12 +222,7 @@ sub fix_std_data {
   return "$testdir/std_data";
 }
 
-sub ssl_supported {
-  return $::ssl_supported;
-}
-
 sub fix_ssl_disabled {
-  return if !ssl_supported(@_);
 
   # Add ssl-mode=DISABLED to avoid that mysqltest
   # connects with SSL by default.
@@ -235,19 +230,16 @@ sub fix_ssl_disabled {
 }
 
 sub fix_ssl_ca {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/cacert.pem";
 }
 
 sub fix_ssl_server_cert {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/server-cert.pem";
 }
 
 sub fix_ssl_server_key {
-  return if !ssl_supported(@_);
   my $std_data = fix_std_data(@_);
   return "$std_data/server-key.pem";
 }
@@ -271,6 +263,8 @@ my @mysqld_rules = (
   { '#log-error'                                   => \&fix_log_error },
   { 'caching_sha2_password_private_key_path'       => \&fix_rsa_private_key },
   { 'caching_sha2_password_public_key_path'        => \&fix_rsa_public_key },
+  { 'loose-sha256_password_private_key_path'       => \&fix_rsa_private_key },
+  { 'loose-sha256_password_public_key_path'        => \&fix_rsa_public_key },
   { 'character-sets-dir'                           => \&fix_charset_dir },
   { 'datadir'                                      => \&fix_datadir },
   { 'port'                                         => \&fix_port },

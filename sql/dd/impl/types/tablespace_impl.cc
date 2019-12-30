@@ -88,19 +88,13 @@ class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {"encryption"};
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // NDB keys:
-    "object_id", "object_version", "object_type",
-    // InnoDB keys:
-    "flags", "id", "server_version", "space_version", "state"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Tablespace_impl::Tablespace_impl()
     : m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_files() {} /* purecov: tested */
 
 Tablespace_impl::~Tablespace_impl() {}
@@ -213,7 +207,8 @@ bool Tablespace_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read_properties(&m_options, val, "options");
   read_properties(&m_se_private_data, val, "se_private_data");
   read(&m_engine, val, "engine");
-  deserialize_each(rctx, [this]() { return add_file(); }, val, "files");
+  deserialize_each(
+      rctx, [this]() { return add_file(); }, val, "files");
   return false;
 }
 
@@ -329,10 +324,6 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
-bool operator==(const dd::sdi_key &a, const dd::sdi_key &b) {
-  return a.id == b.id && a.type == b.type;
-}
 
 namespace {
 /* purecov: begin inspected */

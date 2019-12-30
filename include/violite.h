@@ -174,9 +174,11 @@ int vio_keepalive(MYSQL_VIO vio, bool onoff);
 bool vio_should_retry(MYSQL_VIO vio);
 /* Check that operation was timed out */
 bool vio_was_timeout(MYSQL_VIO vio);
+#ifndef DBUG_OFF
 /* Short text description of the socket for those, who are curious.. */
 #define VIO_DESCRIPTION_SIZE 30 /* size of description */
 void vio_description(MYSQL_VIO vio, char *buf);
+#endif  // DBUG_OFF
 /* Return the type of the connection */
 enum enum_vio_type vio_type(const MYSQL_VIO vio);
 /* Return last error number */
@@ -229,19 +231,9 @@ extern "C" {
 #endif
 
 #define HEADER_DES_LOCL_H dummy_something
-#ifndef WOLFSSL_MYSQL_COMPATIBLE
-#define WOLFSSL_MYSQL_COMPATIBLE
-#endif
-/* Set wolfSSL to use same type as MySQL do for socket handles */
-typedef my_socket WOLFSSL_SOCKET_T;
-#define WOLFSSL_SOCKET_T_DEFINED
 
-// clang-format off
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <wolfssl_fix_namespace_pollution.h>
-// clang-format on
 
 enum enum_ssl_init_error {
   SSL_INITERR_NOERROR = 0,

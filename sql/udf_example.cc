@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -569,14 +569,14 @@ extern "C" long long sequence(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
   return ++*((long long *)initid->ptr) + val;
 }
 
-  /****************************************************************************
-  ** Some functions that handles IP and hostname conversions
-  ** The orignal function was from Zeev Suraski.
-  **
-  ** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
-  ** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
-  **
-  ****************************************************************************/
+/****************************************************************************
+** Some functions that handles IP and hostname conversions
+** The orignal function was from Zeev Suraski.
+**
+** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
+** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
+**
+****************************************************************************/
 
 #ifndef _WIN32
 #include <arpa/inet.h>
@@ -887,11 +887,11 @@ extern "C" bool check_const_len_init(UDF_INIT *initid, UDF_ARGS *args,
     return 1;
   }
   if (args->args[0] == 0) {
-    initid->ptr = (char *)"Not constant";
+    initid->ptr = const_cast<char *>("Not constant");
   } else if (strlen(args->args[0]) == args->lengths[0]) {
-    initid->ptr = (char *)"Correct length";
+    initid->ptr = const_cast<char *>("Correct length");
   } else {
-    initid->ptr = (char *)"Wrong length";
+    initid->ptr = const_cast<char *>("Wrong length");
   }
   initid->max_length = 100;
   return 0;

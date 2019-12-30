@@ -1,0 +1,284 @@
+--source include/have_debug.inc
+--source include/mysql_have_debug.inc
+
+--echo #
+--echo # These tests verify that MySQL supports hostname with maximum of 255
+--echo # char length.
+--echo #
+
+--echo # Test dictionary table.
+
+--error ER_WRONG_STRING_LENGTH
+CREATE USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+--error ER_WRONG_STRING_LENGTH
+SHOW CREATE USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+--error ER_WRONG_STRING_LENGTH
+SHOW GRANTS FOR some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+CREATE USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SHOW CREATE USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SHOW GRANTS FOR some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+--echo #
+--echo # Verify mysql.events.definer
+--echo #
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT 1;
+
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS LIKE 'e1';
+
+SELECT DEFINER FROM INFORMATION_SCHEMA.EVENTS WHERE EVENT_NAME='e1';
+
+DROP EVENT e1;
+
+
+--echo #
+--echo # Verify mysql.routines.definer
+--echo #
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X PROCEDURE p1() SELECT 1;
+
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 PROCEDURE p1() SELECT 1;
+
+SHOW CREATE PROCEDURE p1;
+
+SELECT ROUTINE_NAME, DEFINER
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE ROUTINE_NAME LIKE 'p1';
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Verify mysql.routines.definer
+--echo #
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X FUNCTION f1() RETURNS INT RETURN 1;
+
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 FUNCTION f1() RETURNS INT RETURN 1;
+
+SHOW CREATE FUNCTION f1;
+
+SELECT ROUTINE_NAME, DEFINER
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE ROUTINE_NAME LIKE 'f1';
+
+DROP FUNCTION f1;
+
+--echo #
+--echo # Verify mysql.tables.definer
+--echo #
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X VIEW v1 AS SELECT 1;
+
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 VIEW v1 AS SELECT 1;
+
+SHOW CREATE VIEW v1;
+
+SELECT TABLE_NAME, DEFINER FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_NAME LIKE 'v1';
+
+DROP VIEW v1;
+
+--echo #
+--echo # Verify mysql.triggers.definer
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1=1;
+
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1=1;
+
+--replace_column 2 # 7 #
+SHOW CREATE TRIGGER trg1;
+
+SELECT TRIGGER_NAME, DEFINER FROM INFORMATION_SCHEMA.TRIGGERS
+  WHERE TRIGGER_NAME LIKE 'trg1';
+
+DROP TRIGGER trg1;
+
+DROP TABLE t1;
+
+
+
+--echo # Test system table (non-dictionary).
+CREATE TABLE t1 (f1 INT);
+CREATE TABLE t2 (f1 INT);
+
+--error ER_WRONG_STRING_LENGTH
+GRANT INSERT ON test.* TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT UPDATE ON test.t1 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+--error ER_WRONG_STRING_LENGTH
+GRANT UPDATE (f1) ON test.t2 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+
+GRANT INSERT ON test.* TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+GRANT UPDATE ON test.t1 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+GRANT UPDATE (f1) ON test.t2 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+
+--echo #
+--echo # Verify mysql.user.host
+--echo #
+
+SELECT host,user,length(authentication_string) FROM mysql.user
+  WHERE user LIKE 'some_user_name%' ORDER BY host,user,authentication_string;
+
+--echo #
+--echo # Verify mysql.db.host
+--echo #
+
+SELECT host,db,user FROM mysql.db
+  WHERE user LIKE 'some_user_name%' ORDER BY host,db,user;
+
+--echo #
+--echo # Verify mysql.tables_priv.host
+--echo #
+
+SELECT host,db,user,table_name FROM mysql.tables_priv
+  WHERE user LIKE 'some_user_name%' ORDER BY host,db,user,table_name;
+
+--echo #
+--echo # Verify mysql.columns_priv.host
+--echo #
+
+SELECT host,db,user,table_name,column_name FROM mysql.columns_priv
+  WHERE user LIKE 'some_user_name%'
+  ORDER BY host,db,user,table_name,column_name;
+
+--echo #
+--echo # Verify GRANTEE column in I_S tables.
+--echo #
+
+SELECT GRANTEE FROM INFORMATION_SCHEMA.USER_PRIVILEGES
+ WHERE GRANTEE LIKE "\'some_user_name%";
+SELECT GRANTEE FROM INFORMATION_SCHEMA.SCHEMA_PRIVILEGES
+ WHERE GRANTEE LIKE "\'some_user_name%";
+SELECT GRANTEE FROM INFORMATION_SCHEMA.TABLE_PRIVILEGES
+ WHERE GRANTEE LIKE "\'some_user_name%";
+SELECT GRANTEE FROM INFORMATION_SCHEMA.COLUMN_PRIVILEGES
+ WHERE GRANTEE LIKE "\'some_user_name%";
+
+SHOW GRANTS FOR some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SHOW GRANTS FOR some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo #
+--echo # Verify mysql.role_edges.from_host/to_host
+--echo #
+
+GRANT some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TO root@localhost;
+GRANT root@localhost TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SELECT * FROM mysql.role_edges;
+
+--echo #
+--echo # Verify mysql.default_roles.host/default_role_host
+--echo #
+
+SET DEFAULT ROLE root@localhost TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SET DEFAULT ROLE some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TO root@localhost;
+
+SELECT * FROM mysql.default_roles;
+
+--echo #
+--echo # Verify mysql.global_grants.host
+--echo #
+
+GRANT ALL ON *.* TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+SELECT USER, HOST, COUNT(*) > 0  FROM mysql.global_grants
+  WHERE USER LIKE 'some_user_name%' AND HOST LIKE 'host_%' GROUP BY USER, HOST;
+REVOKE ALL ON *.* FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+SELECT * FROM mysql.global_grants WHERE USER LIKE 'some_user_name%';
+
+--echo #
+--echo # Verify mysql.password_history.host
+--echo #
+
+CREATE USER pass_hist_user@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 IDENTIFIED BY 'haha' PASSWORD HISTORY 1;
+
+SELECT User, Host FROM mysql.password_history WHERE User='pass_hist_user';
+
+DROP USER pass_hist_user@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+
+--echo #
+--echo # Verify mysql.servers.host
+--echo #
+
+CREATE SERVER 'server_one' FOREIGN DATA WRAPPER 'mysql' OPTIONS
+  (HOST 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890',
+  DATABASE 'test',
+  USER 'some_user_name',
+  PASSWORD '',
+  PORT 9983,
+  SOCKET '',
+  OWNER 'some_user_name');
+SELECT * FROM mysql.servers ORDER BY SERVER_NAME;
+
+DROP SERVER 'server_one';
+
+--echo #
+--echo # Verify mysql.procs_priv.host
+--echo #
+
+CREATE PROCEDURE p1() SELECT 1;
+
+GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SELECT User, Host FROM mysql.procs_priv WHERE User LIKE 'some_user_name%';
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Verify mysql.proxies_priv.host
+--echo #
+
+GRANT PROXY ON root@localhost TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+GRANT PROXY ON some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 TO root@localhost;
+SELECT * FROM mysql.proxies_priv WHERE user ='some_user_name';
+SELECT * FROM mysql.proxies_priv WHERE Proxied_user ='some_user_name';
+REVOKE PROXY ON root@localhost FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+REVOKE PROXY ON some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 FROM root@localhost;
+
+--echo #
+--echo # Verify the grantor column size.
+--echo #
+
+CREATE USER u1@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+CREATE USER u2@localhost;
+GRANT ALL ON *.* TO u1@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 WITH GRANT OPTION;
+
+SET GLOBAL DEBUG='+d,vio_peer_addr_fake_hostname1';
+--echo # Execute test with long hostname in GRANTOR.
+--exec $MYSQL --user=u1 --ssl-mode=DISABLED --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 -#d,vio_client_use_localhost -v test  < $MYSQL_TEST_DIR/std_data/hostname_in_grantor.sql
+SET GLOBAL DEBUG='-d,vio_peer_addr_fake_hostname1';
+
+REVOKE ALL ON *.* FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+DROP USER u2@localhost;
+DROP USER u1@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+--echo # Cleanup
+DROP USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;

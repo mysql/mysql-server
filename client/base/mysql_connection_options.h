@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,6 @@
 #include "client/base/abstract_program.h"
 #include "client/base/composite_options_provider.h"
 #include "client/base/i_connection_factory.h"
-#include "client/base/mutex.h"
 #include "client/client_priv.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -143,6 +142,8 @@ class Mysql_connection_options : public Composite_options_provider,
   Nullable<std::string> m_default_charset;
   Nullable<std::string> m_server_public_key;
   bool m_get_server_public_key;
+  uint m_zstd_compress_level;
+  Nullable<std::string> m_compress_algorithm;
 };
 
 }  // namespace Options

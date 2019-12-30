@@ -43,7 +43,7 @@
 .dojoxGridHeader .dojoxGridCell { 
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
-	background: url(images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 	padding-bottom: 2px;
 }
 .dojoxGridHeader .dojoxGridCellOver {
@@ -104,7 +104,7 @@
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
 	border-top: none;
-	background: url(images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 }
 .dojoxGridRowbarInner {
 	border-top: 1px solid #F6F4EB;
@@ -168,13 +168,20 @@
 	height: 0;
 	overflow: hidden;
 }
-.dojoxGridCell {
+.dojoxGrid .dojoxGridCell {
 	border: 1px solid;
 	border-color: #EBEADB;
 	border-right-color: #D5CDB5;
 	padding: 3px 3px 3px 3px;
 	text-align: left;
 	overflow: hidden;
+	word-wrap: break-word;
+}
+.dojoxGrid .dojoxGridFixedRowHeight .dojoxGridCell {
+	white-space: nowrap;
+	word-break: keep-all;
+	word-wrap: normal;
+	text-overflow: ellipsis;
 }
 .dojoxGridCellFocus {
 	border: 1px dashed blue;
@@ -224,6 +231,11 @@
 .dijit_a11y .dojoxGridRowSelected {
 	border: 1px solid black !important;
 }
+.dojoxGridRowTable .dojoDndHorizontal th.dojoDndItem {
+	display: table-cell;
+	
+	margin: 0;
+}
 .dojoxGridDndAvatar {
 	font-size: 100%;
 }
@@ -242,7 +254,7 @@
 .dojoxGridDndAvatarItem	td {
 	border: 1px solid;
 	border-color: #F6F4EB #ACA899 #ACA899 #F6F4EB;
-	background: url(images/grid_dx_gradient.gif) #E8E1CF top repeat-x;
+	background: url("images/grid_dx_gradient.gif") #E8E1CF top repeat-x;
 	padding: 0pt;
 	margin: 0pt;
 }
@@ -255,30 +267,30 @@
 	margin: 0;
 }
 .dojoDndMove .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../dojo/resources/images/dndNoMove.png);
+	background-image: url("../../../dojo/resources/images/dndNoMove.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndCopy .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../dojo/resources/images/dndNoCopy.png);
+	background-image: url("../../../dojo/resources/images/dndNoCopy.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndMove .dojoDndAvatarCanDrop .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../dojo/resources/images/dndMove.png);
+	background-image: url("../../../dojo/resources/images/dndMove.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoDndCopy .dojoDndAvatarCanDrop .dojoxGridDndAvatarItem .dojoxGridDndAvatarItemImage {
-	background-image: url(../../../dojo/resources/images/dndCopy.png);
+	background-image: url("../../../dojo/resources/images/dndCopy.png");
 	background-repeat: no-repeat;
 	background-position: center center;
 }
 .dojoxGridColPlaceBottom {
-	background: transparent url(images/grid_sort_up.gif) no-repeat scroll left top;
+	background: transparent url("images/grid_sort_up.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop {
-	background: transparent url(images/grid_sort_down.gif) no-repeat scroll left top;
+	background: transparent url("images/grid_sort_down.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop, .dojoxGridColPlaceBottom {
 	font-size:1px;
@@ -309,10 +321,10 @@
 	cursor: col-resize !important;
 }
 .dojoxGridColPlaceBottom {
-	background: transparent url(images/grid_sort_up.gif) no-repeat scroll left top;
+	background: transparent url("images/grid_sort_up.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop {
-	background: transparent url(images/grid_sort_down.gif) no-repeat scroll left top;
+	background: transparent url("images/grid_sort_down.gif") no-repeat scroll left top;
 }
 .dojoxGridColPlaceTop, .dojoxGridColPlaceBottom {
 	font-size:1px;
@@ -493,6 +505,9 @@
 }
 .tundra .dojoxGridRow-error td {
 	background-color: #F8B8B6;
+}
+.tundra .dojoxGridRowTable .dojoDndHorizontal th.dojoDndItem {
+	padding: 3px;
 }
 .tundra .dojoxGrid .dojoDndItemBefore {
 	border-left-color: #3559ac;

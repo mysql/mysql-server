@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #define MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
 
 #include <memory>
+#include <vector>
 
 #include "mysqlrouter/mock_server_export.h"
 #include "mysqlrouter/mock_server_global_scope.h"
@@ -39,14 +40,14 @@ class MOCK_SERVER_EXPORT MockServerComponent {
   MockServerComponent(MockServerComponent const &) = delete;
   void operator=(MockServerComponent const &) = delete;
 
-  std::weak_ptr<server_mock::MySQLServerMock> srv_;
+  std::vector<std::weak_ptr<server_mock::MySQLServerMock>> srvs_;
 
   MockServerComponent() = default;
 
  public:
   static MockServerComponent &get_instance();
 
-  void init(std::shared_ptr<server_mock::MySQLServerMock> srv);
+  void register_server(std::shared_ptr<server_mock::MySQLServerMock> srv);
 
   std::shared_ptr<MockServerGlobalScope> get_global_scope();
   void close_all_connections();

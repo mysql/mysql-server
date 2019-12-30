@@ -1,7 +1,6 @@
-//>>built
-define("dojox/highlight/languages/django", ["dojox/main", "../_base", "./xml", "./html"], function(dojox){
+define("dojox/highlight/languages/django", ["../_base", "./xml", "./html"], function(dh){
 
-	var dh = dojox.highlight, dhc = dh.constants, dhl = dh.languages, x = dhl.xml, h = dhl.html;
+	var dhc = dh.constants, dhl = dh.languages, x = dhl.xml, h = dhl.html;
 	dhl.django = {
 		defaultMode: {
 			contains: ['tag', 'comment', 'doctype', 'template_comment', 'template_tag', 'variable']

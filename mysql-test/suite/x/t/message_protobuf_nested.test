@@ -4,6 +4,7 @@
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+-->import wait_until_disconnect.macro
 -->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
 
@@ -87,12 +88,13 @@ Mysqlx.Crud.Find {
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state
--->closesession abort
+-->callmacro Wait_until_disconnect
 
 EOF
 
 
 --write_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
+-->import wait_until_disconnect.macro
 -->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
 
@@ -145,15 +147,22 @@ Mysqlx.Connection.CapabilitiesSet {
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
 # it is in invalid state
--->closesession abort
+-->callmacro Wait_until_disconnect
 
 EOF
+
+# Set the timeout for connection to 300 seconds
+# which is must be greater than the peerdisc/timeout
+SET GLOBAL mysqlx_connect_timeout = 300;
+SET GLOBAL mysqlx_wait_timeout = 300;
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl 2>&1
 
 ## Cleanup
+SET GLOBAL mysqlx_connect_timeout= DEFAULT;
+SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 DROP TABLE IF EXISTS coll;
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
 --remove_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl

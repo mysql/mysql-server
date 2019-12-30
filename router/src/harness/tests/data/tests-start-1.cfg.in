@@ -5,7 +5,7 @@ runtime_folder = {prefix}/var/run/{program}
 config_folder = {prefix}/var/run/{program}
 data_folder = {prefix}/var/lib/{program}
 
-[magic]
-library = magic
+[routertestplugin_magic]
+library = routertestplugin_magic
 message = It is some kind of magic
 suki = bad

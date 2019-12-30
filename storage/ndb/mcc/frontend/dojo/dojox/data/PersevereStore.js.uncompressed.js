@@ -1,28 +1,27 @@
-//>>built
 define("dojox/data/PersevereStore", ["dojo", "dojox", "require", "dojox/data/JsonQueryRestStore", "dojox/rpc/Client", "dojo/_base/url"], function(dojo, dojox, require) {
 
 // PersevereStore is an extension of JsonRestStore to handle Persevere's special features
 
 dojox.json.ref.serializeFunctions = true; // Persevere supports persisted functions
 
-dojo.declare("dojox.data.PersevereStore",dojox.data.JsonQueryRestStore,{
+dojo.declare("dojox.data.PersevereStore", dojox.data.JsonQueryRestStore,{
 	useFullIdInQueries: true, // in JSONQuerys use the full id
 	jsonQueryPagination: false // use the Range headers instead
 });
 
-dojox.data.PersevereStore.getStores = function(/*String?*/path,/*Boolean?*/sync){
+dojox.data.PersevereStore.getStores = function(/*String?*/ path,/*Boolean?*/ sync){
 	// summary:
 	//		Creates Dojo data stores for all the table/classes on a Persevere server
 	// path:
-	// 		URL of the Persevere server's root, this normally just "/"
-	// 		which is the default value if the target is not provided
+	//		URL of the Persevere server's root, this normally just "/"
+	//		which is the default value if the target is not provided
 	// sync:
-	// 		Indicates that the operation should happen synchronously.
-	// return:
-	// 		A map/object of datastores will be returned if it is performed asynchronously,
-	// 		otherwise it will return a Deferred object that will provide the map/object.
-	// 		The name of each property is a the name of a store,
-	// 		and the value is the actual data store object.
+	//		Indicates that the operation should happen synchronously.
+	// returns:
+	//		A map/object of datastores will be returned if it is performed asynchronously,
+	//		otherwise it will return a Deferred object that will provide the map/object.
+	//		The name of each property is a the name of a store,
+	//		and the value is the actual data store object.
 	path = (path && (path.match(/\/$/) ? path : (path + '/'))) || '/';
 	if(path.match(/^\w*:\/\//)){
 		// if it is cross-domain, we will use window.name for communication
@@ -33,7 +32,7 @@ dojox.data.PersevereStore.getStores = function(/*String?*/path,/*Boolean?*/sync)
 	dojo.xhr = function(method,args){
 		(args.headers = args.headers || {})['Server-Methods'] = "false";
 		return plainXhr.apply(dojo,arguments);
-	}
+	};
 	var rootService= dojox.rpc.Rest(path,true);
 	dojox.rpc._sync = sync;
 	var dfd = rootService("Class/");//dojo.xhrGet({url: target, sync:!callback, handleAs:'json'});

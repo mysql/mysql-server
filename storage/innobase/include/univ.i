@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -501,7 +501,17 @@ computers! */
 #define UNIV_SQL_NULL UINT32_UNDEFINED
 
 /** Flag to indicate a field which was added instantly */
-#define UNIV_SQL_ADD_COL_DEFAULT (UNIV_SQL_NULL - 1)
+#define UNIV_SQL_ADD_COL_DEFAULT (UINT32_UNDEFINED - 1)
+
+/** The following number as the length of a logical field means that no
+attribute value for the multi-value index exists in the JSON doc */
+#define UNIV_NO_INDEX_VALUE (UINT32_UNDEFINED - 2)
+
+/** The follwoing number as the length marker of a logical field, which
+is only used for multi-value field data, means the data itself of the
+field is actually an array. Define it as 0 to prevent any conflict with
+normal data length */
+#define UNIV_MULTI_VALUE_ARRAY_MARKER 0
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally
@@ -578,10 +588,12 @@ functions. */
 
 #ifdef _WIN32
 typedef ulint os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "\\"
 #define OS_PATH_SEPARATOR '\\'
 #define OS_PATH_SEPARATOR_ALT '/'
 #else
 typedef void *os_thread_ret_t;
+#define OS_PATH_SEPARATOR_STR "/"
 #define OS_PATH_SEPARATOR '/'
 #define OS_PATH_SEPARATOR_ALT '\\'
 #endif /* _WIN32 */
@@ -706,8 +718,9 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type {
 }
 
 /** If we are doing something that takes longer than this many seconds then
-print an informative message. Type should be return type of ut_time(). */
-static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
+print an informative message. Type should be return type of ut_time_monotonic().
+*/
+static constexpr ib_time_monotonic_t PRINT_INTERVAL_SECS = 10;
 
 constexpr size_t PART_SEPARATOR_LEN = 3;
 constexpr size_t SUB_PART_SEPARATOR_LEN = 4;

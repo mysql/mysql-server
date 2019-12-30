@@ -4,8 +4,8 @@ There are three areas of styling for the Menu:
  
  1. The menu 
  	There are three types of menus:
- 	i)Context Menu
- 	ii)Drop down Menu
+ 	i) Context Menu
+ 	ii) Drop down Menu
  	iii) Navigation Menu
  	All three types of menus are affected by the .dijitMenu class in which you can set the background-color, padding and border
  	.dijitMenu affects the drop down menu in TimeTextBox, Calendar, ComboBox and FilteringSelect
@@ -18,7 +18,7 @@ There are three areas of styling for the Menu:
  3. Menu items - items in the menu.  
  	.dijitMenuItem - for color
  	.dijitMenuItemHover, .dijitMenuItemSelected - for background-color, border, text color, padding of a menu item or menubar item that has been hovered over or selected	
- 	.dijitMenuItemActive - for bacgkround-color of an active (mousedown) menu item
+ 	.dijitMenuItemActive - for background-color of an active (mousedown) menu item
 	td.dijitMenuItemIconCell - for padding around a  menu item's icon
 	td.dijitMenuItemLabel - for padding around a menu item's label	
 	.dijitMenuSeparatorTop - for border, top border, of the separator
@@ -37,15 +37,10 @@ There are three areas of styling for the Menu:
 	margin: 0;
 	padding: 0;
 	background-color: @bar-background-color;
-	background-image: url(@image-common-highlight);
-	background-position:0 0;
-	background-repeat:repeat-x;
+	.standard-gradient;
 }
-.dj_ie6 .claro .dijitMenuBar {
-	background-image:none;
-}
+
 .claro .dijitMenu {
-	background-repeat:repeat-y;
 	background-color:@menu-background-color;
 	border: 1px solid @popup-border-color;
 
@@ -55,16 +50,19 @@ There are three areas of styling for the Menu:
 .dj_ie6 .claro .dijitMenu {
 	margin: 0;	/* above -1px makes top/bottom borders disappear on IE6 */
 }
+
+.claro .dijitMenuItem {
+	color: @text-color;
+}
 .claro .dijitMenuBar .dijitMenuItem {  
 	padding: 6px 10px 7px;
-	background-position:0 100px;
 	margin:-1px;
-}	
-.claro .dijitMenuItem {
-	background-image: url(@image-menu-highlight);
-	background-position:0 -40px;
-	background-repeat:repeat-x;
-	color: @text-color;
+}
+.claro .dijitMenuBar .dijitMenuItemHover,
+.claro .dijitMenuBar .dijitMenuItemSelected {
+    // on hover or selection of MenuBar item, add border and reduce padding to compensate
+	border:solid 1px @hovered-border-color;
+	padding: 5px 9px 6px;
 }
 
 /* this prevents jiggling upon hover of a menu item */
@@ -76,50 +74,36 @@ There are three areas of styling for the Menu:
 .claro .dijitMenuItem td{
 	padding:1px;
 }
-/* hover over a MenuBarItem */
-.claro .dijitMenuPassive .dijitMenuItemHover,
-.claro .dijitMenuPassive .dijitMenuItemSelected {
+/* hover over a MenuItem or MenuBarItem */
+.claro .dijitSelectMenu .dijitMenuItemHover td,
+.claro .dijitSelectMenu .dijitMenuItemSelected td,
+.claro .dijitMenuItemHover,
+.claro .dijitMenuItemSelected {
+    // note: seems like the selected MenuItem should use @pressed-background-color
+    // and .active-gradient, but claro didn't to that
 	background-color: @hovered-background-color;
-	border:solid 1px @hovered-border-color;
-	background-position:0 0;
-	color:@text-color;
-	padding: 5px 9px 6px;
+	.standard-gradient;
 }
-.claro .dijitMenuPassive .dijitMenuItemActive{
-	background-position:0 -177px;
-}
-.dj_ie6 .claro .dijitMenuItem,
-.dj_ie6 .claro .dijitMenuPassive .dijitMenuItem {
-	background-image: none;
-}
-
-/* MenuBarItem that has been selected and menu drops down from it */
-.claro .dijitMenuActive .dijitMenuItemHover,
-.claro .dijitMenuActive .dijitMenuItemSelected {
-	border:solid 1px @hovered-border-color;
-	padding: 5px 9px 6px;
-	background-color: @hovered-background-color;
-	background-position:0 0;
-	color:@hovered-text-color;
+.claro .dijitMenuItemActive {
+    // todo: seems like the selected MenuItem should come here
+    // todo: seems like should use @pressed-background-color
+    .active-gradient;
 }
 .dj_ie .claro .dijitMenuActive .dijitMenuItemHover,
 .dj_ie .claro .dijitMenuActive .dijitMenuItemSelected,
 .dj_ie .claro .dijitMenuPassive .dijitMenuItemHover,
 .dj_ie .claro .dijitMenuPassive .dijitMenuItemSelected {
+    // Selectivity set to override ComboBox rules below.
+    // If this rule isn't present, on IE6 hovering an item in the ComboBox drop down causes two
+    // items to be highlighted (except when hovering the first item in the list)
 	padding-top: 6px;
 	padding-bottom: 5px;
 	margin-top: -3px;
 }
-.claro .dijitMenuActive .dijitMenuItemActive{
-	background-color: @pressed-background-color;
-	background-position:0 -177px;
-}
-.claro .dijitMenuItemActive {
-	background-position:0 -177px;
-}
+
 .claro td.dijitMenuItemIconCell {
- padding: 2px;
- margin: 0 0 0 4px;
+	padding: 2px;
+	margin: 0 0 0 4px;
 }
 .claro td.dijitMenuItemLabel {
 	padding-top: 5px;
@@ -168,25 +152,26 @@ There are three areas of styling for the Menu:
 	background-image: none;
 }
 
+.claro .dijitSelectMenu .dijitMenuItem td,
 .claro .dijitComboBoxMenu .dijitMenuItem {
 	padding: @textbox-padding;	// Make drop down menu text line up with text in <input>.
 	border-width:1px 0 1px 0;
 	border-style:solid;
 	border-color: @select-dropdownitem-background-color;
 }
+.claro .dijitSelectMenu .dijitMenuItemSelected td,
 .claro .dijitComboBoxMenu .dijitMenuItemSelected {
 	color:@selected-text-color;
 	border-color:@hovered-border-color;
 	background-color:@hovered-background-color;
 }
+.claro .dijitSelectMenu .dijitMenuItemHover td,
 .claro .dijitComboBoxMenu .dijitMenuItemHover {
 	color: #000000;
 	border-color: #769dc0;
 	background-color: #abd6ff;
-	background-position: 0 0;
 }
 .claro .dijitComboBoxMenuActive .dijitMenuItemSelected {
-	background-position:0 -177px;
 	background-color: @select-dropdownitem-hovered-background-color;	/* TODO: why is this a different color than normal .dijitMenuItemSelected? */
 }
 .claro .dijitMenuPreviousButton, .claro .dijitMenuNextButton {

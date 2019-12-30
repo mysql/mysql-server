@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Configure slave_rows_search_algorithms on master
 [connection master]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON on master
 [connection master]
 SET @old_binlog_row_image= @@SESSION.BINLOG_ROW_IMAGE;
@@ -33,6 +35,8 @@ include/stop_slave.inc
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -442,6 +446,8 @@ include/rpl_restart_server.inc [server_number=2 parameters: --slave_skip_errors=
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -761,6 +767,8 @@ SET GLOBAL SLAVE_EXEC_MODE = IDEMPOTENT;
 # Configure slave_rows_search_algorithms and binlog_format
 [connection slave]
 include/begin_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 # Configure partial JSON
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
@@ -1164,7 +1172,11 @@ SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 [connection slave]
 include/stop_slave_sql.inc
 include/end_replace_combination.inc [BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT -> GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS=INDEX_SCAN,HASH_SCAN,TABLE_SCAN]
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
 include/rpl_end.inc

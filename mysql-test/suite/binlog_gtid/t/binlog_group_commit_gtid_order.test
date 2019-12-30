@@ -21,6 +21,8 @@
 --source include/have_debug_sync.inc
 
 RESET MASTER;
+# Disable background GTID task to get uniform result.
+SET @@GLOBAL.DEBUG= '+d, disable_gtid_background_persister';
 --let $master_uuid=`SELECT @@GLOBAL.server_uuid`
 
 # Group commit parameters
@@ -119,6 +121,7 @@ SET @free_intervals_mutex_after= (
 
 --connection default
 --eval SET GLOBAL binlog_group_commit_sync_delay=$bgcd_saved
+SET @@GLOBAL.DEBUG= '-d, disable_gtid_background_persister';
 
 DROP TABLE t1, t2;
 RESET MASTER;

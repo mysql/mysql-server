@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "NdbImportImpl.hpp"
+
+#include <inttypes.h>
 
 NdbImportImpl::NdbImportImpl(NdbImport& facade) :
   NdbImport(*this),
@@ -334,6 +336,28 @@ NdbImportImpl::add_table(const char* database,
   return 0;
 }
 
+int
+NdbImportImpl::remove_table(const uint table_id)
+{
+  Connect& c = c_connect;
+  if (!c.m_connected)
+  {
+    m_util.set_error_usage(m_error, __LINE__);
+    return -1;
+  }
+
+  Ndb* ndb = c.m_mainndb;
+  if (ndb == NULL)
+  {
+    m_util.set_error_usage(m_error, __LINE__);
+    return -1;
+  }
+
+  NdbDictionary::Dictionary* dic = ndb->getDictionary();
+  m_util.remove_table(dic, table_id);
+  return 0;
+}
+
 // files
 
 NdbImportImpl::WorkerFile::WorkerFile(NdbImportUtil& util, Error& error) :
@@ -538,6 +562,12 @@ NdbImportImpl::Job::set_table(uint tabid)
   m_tabid = tabid;
 }
 
+int
+NdbImportImpl::Job::remove_table(const uint table_id)
+{
+  return m_impl.remove_table(table_id);
+}
+
 void
 NdbImportImpl::Job::do_start()
 {
@@ -620,7 +650,7 @@ NdbImportImpl::Job::start_resume()
       m_util.set_error_gen(m_error, __LINE__,
                            "inconsistent counts from old state files"
                            " (*.stt vs *.map)"
-                           " rows %llu vs %llu reject %llu vs %llu",
+                           " rows %" PRIu64 " vs %" PRIu64 " reject %" PRIu64 " vs %" PRIu64,
                            m_old_rows, old_rows, m_old_reject, old_reject);
       return;
     }
@@ -1530,7 +1560,7 @@ NdbImportImpl::RandomInputWorker::create_row(uint64 rowid, const Table& table)
   const uint attrcnt = attrs.size();
   char keychr[100];
   uint keylen;
-  sprintf(keychr, "%llu:", rowid);
+  sprintf(keychr, "%" PRIu64 ":", rowid);
   keylen = strlen(keychr);
   for (uint i = 0; i < attrcnt; i++)
   {
@@ -2102,6 +2132,13 @@ NdbImportImpl::OpList::OpList()
 
 NdbImportImpl::OpList::~OpList()
 {
+  Op* one_op = NULL;
+  while ((one_op = pop_front()) != NULL)
+  {
+    // See bug 30192989
+    //  require(one_op->m_row == NULL);
+    delete one_op;
+  }
 }
 
 // tx
@@ -2968,6 +3005,9 @@ NdbImportImpl::ExecOpWorkerAsynch::asynch_callback(Tx* tx)
       require(op != 0);
       require(op->m_row != 0);
       reject_row(op->m_row, error);
+      m_rows_free.push_back(op->m_row);
+      op->m_row = NULL;
+      free_op(op);
     }
   }
   else
@@ -3003,7 +3043,7 @@ NdbImportImpl::ExecOpWorkerAsynch::state_define()
       const uint attrcnt = attrs.size();
       const Attr& attr = attrs[attrcnt - 1];
       require(attr.m_type == NdbDictionary::Column::Bigunsigned);
-      uint64 val;
+      Uint64 val;
       if (m_ndb->getAutoIncrementValue(table.m_tab, val,
                                        opt.m_ai_prefetch_sz,
                                        opt.m_ai_increment,
@@ -3304,13 +3344,13 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
   Buf* buf[2];
   CsvInput* csvinput[2];
   RowList rows_reject;
+  RowMap rowmap_in[] = {m_util, m_util};
   for (uint i = 0; i < 2; i++)
   {
     uint pagesize = opt.m_pagesize;
     uint pagecnt = opt.m_pagecnt;
     buf[i] = new Buf(true);
     buf[i]->alloc(pagesize, 2 * pagecnt);
-    RowMap rowmap_in(m_util);   // dummy
     csvinput[i] = new CsvInput(m_impl.m_csv,
                                Name(name, i),
                                csvspec,
@@ -3318,7 +3358,7 @@ NdbImportImpl::DiagTeam::read_old_diags(const char* name,
                                *buf[i],
                                rows_out,
                                rows_reject,
-                               rowmap_in,
+                               rowmap_in[i],
                                m_job.m_stats);
     csvinput[i]->do_init();
   }
@@ -3636,12 +3676,21 @@ NdbImportImpl::DiagTeam::do_end()
 }
 
 NdbImportImpl::DiagWorker::DiagWorker(Team& team, uint n) :
-  Worker(team, n)
-{
-}
+  Worker(team, n),
+  m_result_csv(NULL),
+  m_reject_csv(NULL),
+  m_rowmap_csv(NULL),
+  m_stopt_csv(NULL),
+  m_stats_csv(NULL)
+{}
 
 NdbImportImpl::DiagWorker::~DiagWorker()
 {
+  delete m_result_csv;
+  delete m_reject_csv;
+  delete m_rowmap_csv;
+  delete m_stopt_csv;
+  delete m_stats_csv;
 }
 
 void
@@ -3844,6 +3893,7 @@ NdbImportImpl::DiagWorker::write_result()
                           utime,
                           error);
     m_result_csv->add_line(row);
+    m_util.free_row(row);
   }
   // job
   {
@@ -3867,6 +3917,7 @@ NdbImportImpl::DiagWorker::write_result()
                           utime,
                           error);
     m_result_csv->add_line(row);
+    m_util.free_row(row);
   }
   // teams
   for (uint teamno = 0; teamno < job.m_teamcnt; teamno++)
@@ -3897,6 +3948,7 @@ NdbImportImpl::DiagWorker::write_result()
                           utime,
                           error);
     m_result_csv->add_line(row);
+    m_util.free_row(row);
   }
   if (file.do_write(buf) == -1)
   {
@@ -3945,12 +3997,14 @@ NdbImportImpl::DiagWorker::write_reject()
     {
       require(has_error());
       m_team.m_job.m_fatal = true;
+      m_util.free_row(row);
       return;
     }
     // add to job level rowmap
     job.m_rowmap_out.lock();
     job.m_rowmap_out.add(row, true);
     job.m_rowmap_out.unlock();
+    m_util.free_row(row);
   }
   rows_reject.unlock();
 }
@@ -3974,6 +4028,7 @@ NdbImportImpl::DiagWorker::write_rowmap()
     m_util.set_rowmap_row(row, job.m_runno, range);
     buf.reset();
     m_rowmap_csv->add_line(row);
+    m_util.free_row(row);
     if (file.do_write(buf) == -1)
     {
       require(has_error());
@@ -4024,6 +4079,7 @@ NdbImportImpl::DiagWorker::write_stopt()
     m_util.set_stopt_row(row, job.m_runno, ov.m_option, ov.m_value);
     buf.reset();
     m_stopt_csv->add_line(row);
+    m_util.free_row(row);
     if (file.do_write(buf) == -1)
     {
       require(has_error());
@@ -4054,6 +4110,7 @@ NdbImportImpl::DiagWorker::write_stats()
       Row* row = m_util.alloc_row(table);
       m_util.set_stats_row(row, job.m_runno, *stat, global);
       m_stats_csv->add_line(row);
+      m_util.free_row(row);
       if (file.do_write(buf) == -1)
       {
         require(has_error());

@@ -1,25 +1,23 @@
-//>>built
 define("dojox/editor/plugins/PageBreak", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/form/Button",
 	"dijit/_editor/_Plugin",
+	"dijit/form/Button",
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/PageBreak"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.PageBreak",dijit._editor._Plugin,{
-	//	summary:
+dojo.declare("dojox.editor.plugins.PageBreak", _Plugin, {
+	// summary:
 	//		This plugin provides a simple CSS page break plugin that
-	//		lets you insert browser pring recognizable page breaks in
+	//		lets your insert browser print recognizable page breaks in
 	//		the document.
 	//		This plugin registers the hotkey command: CTRL-SHIFT-ENTER
 
-	//	useDefaultCommand [protected]
-	//		Over-ride indicating that the command processing is done all by this plugin.
+	// Over-ride indicating that the command processing is done all by this plugin.
 	useDefaultCommand: false,
 
 	// iconClassPrefix: [const] String
@@ -36,7 +34,7 @@ dojo.declare("dojox.editor.plugins.PageBreak",dijit._editor._Plugin,{
 	_pbContent: "<hr style='page-break-after: always;' class='dijitEditorPageBreak'>",
 
 	_initButton: function(){
-		//	summary:
+		// summary:
 		//		Over-ride for creation of the resize button.
 		var ed = this.editor;
 		var strings = dojo.i18n.getLocalization("dojox.editor.plugins", "PageBreak");
@@ -150,7 +148,7 @@ dojo.declare("dojox.editor.plugins.PageBreak",dijit._editor._Plugin,{
 		//		private
 		var ed = this.editor;
 		var doc = ed.document;
-		var node = ed._sCall("getSelectedElement", null) || ed._sCall("getParentElement", null);
+		var node = ed._sCall("getSelectedElement", []) || ed._sCall("getParentElement", []);
 		while(node && node !== doc.body && node !== doc.html){
 			if(ed._sCall("isTag", [node, this._unbreakableNodes])){
 				return false;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -155,10 +155,10 @@ LogFilter::~LogFilter() {
 
 void SQLLogFilter::add_default_sql_patterns() {
   add_pattern(
-      "^CREATE USER ([[:graph:]]+) IDENTIFIED WITH mysql_native_password AS "
+      "^CREATE USER '([[:graph:]]+)' IDENTIFIED WITH mysql_native_password AS "
       "([[:graph:]]*)",
       2);
-  add_pattern("^CREATE USER ([[:graph:]]+) IDENTIFIED BY ([[:graph:]]*)", 2);
+  add_pattern("^CREATE USER '([[:graph:]]+)' IDENTIFIED BY ([[:graph:]]*)", 2);
 }
 
 }  // namespace mysqlrouter

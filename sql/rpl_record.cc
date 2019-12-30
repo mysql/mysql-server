@@ -95,7 +95,7 @@ void Bit_stream_base<T, UT>::dbug_print(
 static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
                        enum_row_image_type row_image_type,
                        ulonglong value_options, bool *is_partial_format) {
-  DBUG_ENTER("pack_field");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("value_options=%llu (type==JSON)=%d row_image_type=%d",
                       value_options, field->type() == MYSQL_TYPE_JSON,
@@ -126,13 +126,12 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
     if (field->pack_diff(pack_ptr, value_options) == false) {
       DBUG_PRINT("info", ("stored in partial format"));
       *is_partial_format = true;
-      DBUG_VOID_RETURN;
+      return;
     }
     DBUG_PRINT("info", ("stored in full format"));
   }
   *pack_ptr = field->pack(*pack_ptr, field->ptr + rec_offset,
                           field->max_data_length(), true);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -166,7 +165,7 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
 static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
                          enum_row_image_type row_image_type,
                          bool is_partial_column) {
-  DBUG_ENTER("unpack_field");
+  DBUG_TRACE;
   /*
     For a virtual generated column based on the blob type, we have to keep both
     the old and new value for the blob-based field since this might be needed by
@@ -179,12 +178,11 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
     function is not called when applying updated records in
     replication.
   */
-  if ((field->flags & BLOB_FLAG) != 0 && field->is_virtual_gcol())
+  if (field->handle_old_value())
     (down_cast<Field_blob *>(field))->keep_old_value();
 
   if (is_partial_column) {
-    if (down_cast<Field_json *>(field)->unpack_diff(pack_ptr))
-      DBUG_RETURN(true);
+    if (down_cast<Field_json *>(field)->unpack_diff(pack_ptr)) return true;
   } else {
     /*
       When PARTIAL_JSON_UPDATES is enabled in the row in the event,
@@ -223,7 +221,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
     *pack_ptr = field->unpack(field->ptr, *pack_ptr, metadata, true);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -266,7 +264,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
 size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
                 uchar *row_data, const uchar *record,
                 enum_row_image_type row_image_type, ulonglong value_options) {
-  DBUG_ENTER("pack_row");
+  DBUG_TRACE;
 
   // Since we don't want any hidden generated columns to be included in the
   // binlog, we must clear any bits for these columns in the bitmap. We will
@@ -285,7 +283,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   // Number of columns in table (counting even those that will not be written)
   uint table_column_count = table->pack_row_tmp_set.n_bits;
 
-  my_ptrdiff_t const rec_offset = record - table->record[0];
+  ptrdiff_t const rec_offset = record - table->record[0];
 
   // This is a moving cursor that points to the byte where the next
   // field will be written.
@@ -344,7 +342,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   Bit_writer null_bits(pack_ptr);
   pack_ptr += (image_column_count + 7) / 8;
 
-  for (Field **p_field = table->field; *p_field != NULL; p_field++) {
+  for (Field **p_field = table->field; *p_field != nullptr; p_field++) {
     Field *field = *p_field;
     bool is_partial_json = false;
     if (bitmap_is_set(&table->pack_row_tmp_set, p_field - table->field)) {
@@ -395,7 +393,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
 
   // Reset the pack_row_tmp_set so it can be used elsewhere.
   bitmap_clear_all(&table->pack_row_tmp_set);
-  DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
+  return static_cast<size_t>(pack_ptr - row_data);
 }
 
 /**
@@ -574,7 +572,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                 uchar const *const event_end,
                 enum_row_image_type row_image_type,
                 bool event_has_value_options, bool only_seek) {
-  DBUG_ENTER("unpack_row");
+  DBUG_TRACE;
   DBUG_ASSERT(rli != nullptr);
   DBUG_ASSERT(table != nullptr);
   DBUG_ASSERT(row_data != nullptr);
@@ -589,8 +587,8 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                 row_image_type == enum_row_image_type::UPDATE_AI);
 
   // Get table_def object and table used for type conversion
-  table_def *tabledef = NULL;
-  TABLE *conv_table = NULL;
+  table_def *tabledef = nullptr;
+  TABLE *conv_table = nullptr;
   rli->get_table_data(table, &tabledef, &conv_table);
   DBUG_ASSERT(tabledef != nullptr);
 
@@ -608,7 +606,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   // check for mismatch between column counts in table_map_event and row_event
   if (tabledef->size() != master_column_count) {
     my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   const uchar *pack_ptr = row_data;
@@ -639,17 +637,17 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         */
         table->clear_partial_update_diffs();
       else {
-      /*
-        partial_update_info has not been initialized (so this is the
-        first row in the statement having the PARTIAL_JSON bit set).
-        Initialize partial_update_info to allow the optimizer to
-        collect partial diffs when applying any diff.  Each diff
-        vector will be cleared between rows
-        (clear_partial_update_diffs above).  The whole
-        partial_update_info structure will be cleaned up at the end
-        of the statement, when close_thread_tables calls
-        cleanup_partial_update.
-      */
+        /*
+          partial_update_info has not been initialized (so this is the
+          first row in the statement having the PARTIAL_JSON bit set).
+          Initialize partial_update_info to allow the optimizer to
+          collect partial diffs when applying any diff.  Each diff
+          vector will be cleared between rows
+          (clear_partial_update_diffs above).  The whole
+          partial_update_info structure will be cleaned up at the end
+          of the statement, when close_thread_tables calls
+          cleanup_partial_update.
+        */
 #ifndef DBUG_OFF
         int marked_columns = 0;
 #endif
@@ -663,7 +661,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 #endif
             if (table->mark_column_for_partial_update(table->field[col_i]))
               // my_error was already called
-              DBUG_RETURN(true); /* purecov: inspected */
+              return true; /* purecov: inspected */
           }
 #ifndef DBUG_OFF
         DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
@@ -696,12 +694,12 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       the conversion table.  If the conversion table or the field
       pointer is NULL, no conversions are necessary.
      */
-    Field *conv_field = conv_table ? conv_table->field[col_i] : NULL;
+    Field *conv_field = conv_table ? conv_table->field[col_i] : nullptr;
     Field *const f = conv_field ? conv_field : field_ptr;
     DBUG_PRINT("debug",
                ("Conversion %srequired for field '%s' (#%d)",
                 conv_field ? "" : "not ", field_ptr->field_name, col_i));
-    DBUG_ASSERT(f != NULL);
+    DBUG_ASSERT(f != nullptr);
 
     DBUG_PRINT("debug",
                ("field name: %s; field position: %p", f->field_name, pack_ptr));
@@ -719,7 +717,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
      */
     if (bitmap_is_set(column_image, col_i)) {
       /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(pack_ptr != NULL);
+      DBUG_ASSERT(pack_ptr != nullptr);
 
       if (null_bits.get()) {
         if (f->maybe_null()) {
@@ -755,24 +753,24 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           Use the master's size information if available else call
           normal unpack operation.
         */
-        uint16 const metadata = tabledef->field_metadata(col_i);
+        uint const metadata = tabledef->field_metadata(col_i);
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr = pack_ptr;
 #endif
         /// @todo calc_field_size may read out of bounds /Sven
-        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
         uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
                             (int)event_len));
         if (len > event_len) {
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-          DBUG_RETURN(true);
+          return true;
         }
         if (only_seek)
           pack_ptr += len;
         else if (unpack_field(&pack_ptr, f, metadata, row_image_type,
                               is_partial_json))
-          DBUG_RETURN(true);
+          return true;
         DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
                              " pack_ptr: %p; pack_ptr': %p; bytes: %d",
                              metadata, old_pack_ptr, pack_ptr,
@@ -785,7 +783,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           RBR mode.
          */
         DBUG_ASSERT(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
-                    tabledef->calc_field_size(col_i, (uchar *)old_pack_ptr) ==
+                    tabledef->calc_field_size(col_i, old_pack_ptr) ==
                         (uint32)(pack_ptr - old_pack_ptr));
       }
 
@@ -835,13 +833,13 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       partial_bits.get();
     if (bitmap_is_set(column_image, col_i)) {
       if (!null_bits.get()) {
-        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
         uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("Skipping field"));
         DBUG_DUMP("info", pack_ptr, len);
         if (len > event_len) {
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
-          DBUG_RETURN(true);
+          return true;
         }
         pack_ptr += len;
       }
@@ -882,7 +880,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -902,11 +900,11 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
  */
 int prepare_record(TABLE *const table, const MY_BITMAP *cols,
                    const bool check) {
-  DBUG_ENTER("prepare_record");
+  DBUG_TRACE;
 
   restore_record(table, s->default_values);
 
-  if (!check) DBUG_RETURN(0);
+  if (!check) return 0;
 
   /*
     For fields the extra fields on the slave, we check if they have a default.
@@ -954,5 +952,5 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols,
   /* set the write_set back to original*/
   table->column_bitmaps_set_no_signal(table->read_set, old_write_set);
 
-  DBUG_RETURN(0);
+  return 0;
 }

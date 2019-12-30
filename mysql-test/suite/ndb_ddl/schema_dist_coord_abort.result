@@ -1,0 +1,32 @@
+#
+# Test coordinator abort of active schema operation
+#
+# Setup coordinator to restart when first schema op result is
+# received, this will trigger test of "abort active"
+set GLOBAL debug="+d,ndb_schema_dist_coord_abort_active";
+# Do schema operation which will cause the coordinator to abort the
+# active schema operation
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+Warnings:
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+Warning	1296	Node <nodeid> 'Coordinator aborted'
+set GLOBAL debug="-d,ndb_schema_dist_coord_abort_active";
+DROP TABLE t1;
+# Setup coordinator to restart when schema operation is received, this
+# will trigger test of "fail all schema ops"
+set GLOBAL debug="+d,ndb_schema_dist_coord_fail_all";
+# Do schema operation which will cause the coordinator to abort the
+# schema operation(s)
+CREATE TABLE t1(
+a int primary key
+) engine = NDB;
+Warnings:
+Warning	1296	Node <nodeid> 'Aborted during shutdown'
+set GLOBAL debug="-d,ndb_schema_dist_coord_fail_all";
+DROP TABLE t1;

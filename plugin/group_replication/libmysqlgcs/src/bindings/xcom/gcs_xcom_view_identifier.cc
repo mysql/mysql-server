@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,31 +26,49 @@
 
 Gcs_xcom_view_identifier::Gcs_xcom_view_identifier(uint64_t fixed_part_arg,
                                                    uint32_t monotonic_part_arg)
-    : fixed_part(0), monotonic_part(0), representation() {
+    : m_fixed_part(0), m_monotonic_part(0), m_representation() {
   init(fixed_part_arg, monotonic_part_arg);
 }
 
 void Gcs_xcom_view_identifier::init(uint64_t fixed_part_arg,
                                     uint32_t monotonic_part_arg) {
-  fixed_part = fixed_part_arg;
-  monotonic_part = monotonic_part_arg;
+  m_fixed_part = fixed_part_arg;
+  m_monotonic_part = monotonic_part_arg;
 
   std::ostringstream builder;
 
-  builder << fixed_part << ":" << monotonic_part;
+  builder << m_fixed_part << ":" << m_monotonic_part;
 
-  representation = builder.str();
+  m_representation = builder.str();
 }
 
 void Gcs_xcom_view_identifier::increment_by_one() {
-  monotonic_part += 1;
-  init(fixed_part, monotonic_part);
+  m_monotonic_part += 1;
+  init(m_fixed_part, m_monotonic_part);
 }
 
 const std::string &Gcs_xcom_view_identifier::get_representation() const {
-  return representation;
+  return m_representation;
 }
 
 Gcs_view_identifier *Gcs_xcom_view_identifier::clone() const {
   return new Gcs_xcom_view_identifier(*this);
+}
+
+bool Gcs_xcom_view_identifier::equals(const Gcs_view_identifier &other) const {
+  // Static cast is safe because of the typeid safeguard in the base class
+  const Gcs_xcom_view_identifier &cast_other =
+      static_cast<const Gcs_xcom_view_identifier &>(other);
+  return m_fixed_part == cast_other.m_fixed_part &&
+         m_monotonic_part == cast_other.m_monotonic_part;
+}
+
+bool Gcs_xcom_view_identifier::lessThan(
+    const Gcs_view_identifier &other) const {
+  // Static cast is safe because of the typeid safeguard in the base class
+  const Gcs_xcom_view_identifier &cast_other =
+      static_cast<const Gcs_xcom_view_identifier &>(other);
+  return (m_fixed_part == cast_other.m_fixed_part
+              ? m_monotonic_part < cast_other.m_monotonic_part
+              : m_fixed_part < cast_other.m_fixed_part);
 }

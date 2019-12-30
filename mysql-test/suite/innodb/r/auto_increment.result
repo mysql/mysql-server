@@ -101,6 +101,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(120);
 SELECT COUNT(*) FROM t1;
@@ -320,6 +323,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(60);
@@ -637,6 +643,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(70);
 SELECT COUNT(*) FROM t1;
@@ -861,6 +870,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(51);
@@ -1346,6 +1358,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 CALL POP2(1);
 CALL POP2(50);
 SELECT COUNT(*) FROM t1;
@@ -1565,6 +1580,9 @@ INSERT INTO t1(cc) VALUES(i);
 SET i=i+1;
 END WHILE;
 END //
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 START TRANSACTION;
 CALL POP2(1);
 CALL POP2(120);

@@ -12,23 +12,28 @@ if ($rpl_inited)
 --let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 --exec echo "wait" > $_expect_file_name
 
-if (!$shutdown_server_timeout)
+# Send shutdown to the connected server.
+
+--let $ss_timeout= 60
+
+if ($shutdown_server_timeout)
 {
-  --let $shutdown_server_timeout= 60
+  --let $ss_timeout= $shutdown_server_timeout
 }
+
+--let $timeout_multiplier= 6
 
 if ($VALGRIND_TEST)
 {
-  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+  --expr $ss_timeout= $ss_timeout * $timeout_multiplier
 }
 
 --let $have_sparc = `select convert(@@version_compile_machine using latin1) IN ('sparc')`
 if ($have_sparc)
 {
-  --let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`
+  --expr $ss_timeout= $ss_timeout * $timeout_multiplier
 }
-# Send shutdown to the connected server
---shutdown_server $shutdown_server_timeout
+--shutdown_server $ss_timeout
 
 --source include/wait_until_disconnected.inc
 

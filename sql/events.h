@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,17 +71,7 @@ extern PSI_stage_info stage_waiting_on_empty_queue;
 extern PSI_stage_info stage_waiting_for_next_activation;
 extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
 
-int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
-
-/**
-  Convert name to lowercase.
-
-  @param from the string to be converted to lowercase.
-  @param to   Buffer space for the coverted lowercase string.
-  @param len  Maximum length of the buffer.
-*/
-
-void convert_name_lowercase(const char *from, char *to, size_t len);
+int sortcmp_lex_string(LEX_CSTRING s, LEX_CSTRING t, CHARSET_INFO *cs);
 
 /**
   @brief A facade to the functionality of the Event Scheduler.
@@ -127,16 +117,17 @@ class Events {
                            bool if_exists);
 
   static bool update_event(THD *thd, Event_parse_data *parse_data,
-                           LEX_STRING *new_dbname, LEX_STRING *new_name);
+                           const LEX_CSTRING *new_dbname,
+                           const LEX_CSTRING *new_name);
 
-  static bool drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+  static bool drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
                          bool if_exists);
 
   static bool lock_schema_events(THD *thd, const dd::Schema &schema);
 
   static bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
-  static bool show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
+  static bool show_create_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name);
 
   /* Needed for both SHOW CREATE EVENT and INFORMATION_SCHEMA */
   static int reconstruct_interval_expression(String *buf,

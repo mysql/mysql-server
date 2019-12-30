@@ -13,22 +13,22 @@
 	border-width: 1px 1px 1px 0px;
 	border-style: outset;
 	color: white;
-	-webkit-border-radius: 3px;
+	border-radius: 3px;
 }
 .mblDomButtonBlueMinus > div, .mblDomButtonBluePlus > div {
-	border-color: #6D89C7;
-	background-color: #366EDF;
-	background: -webkit-gradient(linear, left top, left bottom, from(#7A9DE9), to(#2362DD), color-stop(0.5, #366EDF), color-stop(0.5, #215FDC));
+	border-color: #6d89c7;
+	background-color: #366edf;
+	background: -webkit-gradient(linear, left top, left bottom, from(#7a9de9), to(#2362dd), color-stop(0.5, #366edf), color-stop(0.5, #215fdc));
 }
 .mblDomButtonDarkBlueMinus > div, .mblDomButtonDarkBluePlus > div {
-	border-color: #6D89C7;
-	background-color: #5877A2;
-	background: -webkit-gradient(linear, left top, left bottom, from(#8EA4C1), to(#4A6C9B), color-stop(0.5, #5877A2), color-stop(0.5, #476999));
+	border-color: #6d89c7;
+	background-color: #5877a2;
+	background: -webkit-gradient(linear, left top, left bottom, from(#8ea4c1), to(#4a6c9b), color-stop(0.5, #5877a2), color-stop(0.5, #476999));
 }
 .mblDomButtonRedMinus > div, .mblDomButtonRedPlus > div {
 	border-color: #cc1122;
-	background-color: #C9404B;
-	background: -webkit-gradient(linear, left top, left bottom, from(#D3656D), to(#BC1320), color-stop(0.5, #C9404B), color-stop(0.5, #BC1421));
+	background-color: #c9404b;
+	background: -webkit-gradient(linear, left top, left bottom, from(#d3656d), to(#bc1320), color-stop(0.5, #c9404b), color-stop(0.5, #bc1421));
 }
 .mblDomButtonBlueMinus > div > div, .mblDomButtonBluePlus > div > div, .mblDomButtonDarkBlueMinus > div > div, .mblDomButtonDarkBluePlus > div > div, .mblDomButtonRedMinus > div > div, .mblDomButtonRedPlus > div > div {
 	position: absolute;
@@ -40,7 +40,7 @@
 	font-size: 1px;
 	border-style: none;
 	background: white;
-	border-top: 1px solid #4A5A71;
+	border-top: 1px solid #4a5a71;
 }
 .mblDomButtonBluePlus > div > div > div, .mblDomButtonDarkBluePlus > div > div > div, .mblDomButtonRedPlus > div > div > div {
 	position: absolute;

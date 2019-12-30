@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,11 @@
 
 #include <stdexcept>
 #include <string>
+
 #include "keyring.h"
+#include "keyring/master_key_file.h"  // invalid_master_keyfile
 
 namespace mysql_harness {
-
-class invalid_master_keyfile : public std::runtime_error {
- public:
-  invalid_master_keyfile(const std::string &w) : std::runtime_error(w) {}
-};
 
 static const int kMaxKeyringKeyLength = 255;
 

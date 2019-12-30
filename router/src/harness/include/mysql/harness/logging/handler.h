@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,9 @@ class HARNESS_EXPORT Handler {
 
   void set_level(LogLevel level) { level_ = level; }
   LogLevel get_level() const { return level_; }
+  void set_timestamp_precision(LogTimestampPrecision precision) {
+    precision_ = precision;
+  }
 
   /**
    * Request to reopen underlying log sink. Should be no-op for handlers NOT
@@ -83,7 +86,8 @@ class HARNESS_EXPORT Handler {
  protected:
   std::string format(const Record &record) const;
 
-  explicit Handler(bool format_messages, LogLevel level);
+  explicit Handler(bool format_messages, LogLevel level,
+                   LogTimestampPrecision timestamp_precision);
 
  private:
   /**
@@ -108,6 +112,11 @@ class HARNESS_EXPORT Handler {
    * Log level set for the handler.
    */
   LogLevel level_;
+
+  /**
+   * Timestamp precision for logging
+   */
+  LogTimestampPrecision precision_;
 };
 
 /**
@@ -124,7 +133,9 @@ class HARNESS_EXPORT StreamHandler : public Handler {
   static constexpr const char *kDefaultName = "stream";
 
   explicit StreamHandler(std::ostream &stream, bool format_messages = true,
-                         LogLevel level = LogLevel::kNotSet);
+                         LogLevel level = LogLevel::kNotSet,
+                         LogTimestampPrecision timestamp_precision =
+                             LogTimestampPrecision::kNotSet);
 
   // for the stream handler there is nothing to do
   void reopen() override {}
@@ -151,7 +162,9 @@ class HARNESS_EXPORT FileHandler : public StreamHandler {
   static constexpr const char *kDefaultName = "file";
 
   explicit FileHandler(const Path &path, bool format_messages = true,
-                       LogLevel level = LogLevel::kNotSet);
+                       LogLevel level = LogLevel::kNotSet,
+                       LogTimestampPrecision timestamp_precision =
+                           LogTimestampPrecision::kNotSet);
   ~FileHandler() override;
 
   virtual void reopen() override;

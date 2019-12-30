@@ -4,6 +4,9 @@ gesuchnr int(11) DEFAULT '0' NOT NULL,
 benutzer_id int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (gesuchnr,benutzer_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);

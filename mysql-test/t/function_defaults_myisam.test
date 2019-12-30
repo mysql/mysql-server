@@ -1,0 +1,13 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--echo #
+--echo # Function defaults run 1. No microsecond precision. MyISAM.
+--echo #
+set default_storage_engine=myisam;
+let $current_timestamp=CURRENT_TIMESTAMP;
+let $now=NOW();
+let $timestamp=TIMESTAMP;
+let $datetime=DATETIME;
+source 'include/function_defaults.inc';
+

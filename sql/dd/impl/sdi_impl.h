@@ -511,8 +511,8 @@ bool deserialize_each(dd::Sdi_rcontext *rctx, ADD_BINDER add_binder,
   }
   return false;
 }
-  /** @} */  // special_composite_templates
+/** @} */  // special_composite_templates
 
-  //} // namespace dd_sdi_impl
+//} // namespace dd_sdi_impl
 
 #endif /* DD_SERIALIZE_IMPL_H_INCLUDED */

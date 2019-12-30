@@ -1,0 +1,324 @@
+call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
+call mtr.add_suppression("The table 't1' is full");
+set global innodb_file_per_table = off;
+SELECT @@global.innodb_file_per_table;
+@@global.innodb_file_per_table
+0
+SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
+@mycount_SYS_DATAFILES:=COUNT(*)
+NUM
+Warnings:
+NUM	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
+c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+# creation of shared temp-tablespace in MYSQL_DATA_DIR
+ibtmp1
+# check no entries made INNODB_DATAFILES
+SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_DATAFILES;
+@mycount_SYS_DATAFILES=COUNT(*)
+1
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+START TRANSACTION;
+INSERT INTO t1(b,c,d,e) VALUES (12.111,REPEAT('a2',50),REPEAT('a2',50),
+REPEAT('a2',50));
+INSERT INTO t1(b,c,d,e) VALUES (13.111,REPEAT('a3',50),REPEAT('a3',50),
+REPEAT('a3',50));
+UPDATE t1 SET e = REPEAT('ta',50);
+DELETE FROM t1 WHERE a = 3;
+SAVEPOINT A;
+INSERT INTO t1(b,c,d,e) VALUES (14.111,REPEAT('a4',50),REPEAT('a4',50),
+REPEAT('a4',50));
+UPDATE t1 SET e = REPEAT('yb',50);
+DELETE FROM t1 WHERE a = 1;
+SAVEPOINT B;
+SELECT a,RIGHT(b,10),RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	RIGHT(b,10)	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+2	12.111	a2a2a2a2a2	a2a2a2a2a2	ybybybybyb
+4	14.111	a4a4a4a4a4	a4a4a4a4a4	ybybybybyb
+ROLLBACK TO SAVEPOINT A;
+COMMIT;
+SELECT a,RIGHT(b,10),RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	RIGHT(b,10)	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	tatatatata
+2	12.111	a2a2a2a2a2	a2a2a2a2a2	tatatatata
+ALTER TABLE t1 ADD COLUMN f BLOB(100), ADD INDEX `idx1` (d);
+SELECT a,RIGHT(b,10),RIGHT(c,10),RIGHT(d,10),RIGHT(e,10),RIGHT(f,10) FROM t1;
+a	RIGHT(b,10)	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)	RIGHT(f,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	tatatatata	NULL
+2	12.111	a2a2a2a2a2	a2a2a2a2a2	tatatatata	NULL
+ALTER TABLE t1 DROP COLUMN f, DROP INDEX `idx1` , ADD INDEX `idx2` (d), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 DROP COLUMN f, DROP INDEX `idx1` , ADD INDEX `idx2` (d), ALGORITHM=COPY;
+SELECT a,RIGHT(b,10),RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	RIGHT(b,10)	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	tatatatata
+2	12.111	a2a2a2a2a2	a2a2a2a2a2	tatatatata
+DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
+DROP DATABASE IF EXISTS test_db;
+set global innodb_file_per_table = on;
+SELECT @@global.innodb_file_per_table;
+@@global.innodb_file_per_table
+1
+CREATE DATABASE test_db;
+"Create con1 client connection"
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+# creation of shared temp-tablespace in MYSQL_DATA_DIR
+ibtmp1
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+SELECT @@global.innodb_file_per_table;
+@@global.innodb_file_per_table
+1
+USE test;
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
+c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TEMPORARY TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT, c BLOB(100),
+d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+CREATE TEMPORARY TABLE t3 (val INT) ENGINE = InnoDB PARTITION BY LIST(val)(
+PARTITION mypart1 VALUES IN (1,3,5),
+PARTITION MyPart2 VALUES IN (2,4,6)
+);
+ERROR HY000: Cannot create temporary table with partitions
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+INSERT INTO t2(b,c,d,e) VALUES (11.111,REPEAT('t1',50),REPEAT('t1',50),
+REPEAT('a2',50));
+INSERT INTO t2(b,c,d,e) VALUES (11.111,REPEAT('t2',50),REPEAT('t2',50),
+REPEAT('a2',50));
+SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c LIKE t2.c;
+a	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
+a	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+1	1	a1a1a1a1a1	t1t1t1t1t1
+CREATE OR REPLACE VIEW vw1 AS SELECT * FROM t1;
+ERROR HY000: View's SELECT refers to a temporary table 't1'
+CREATE TEMPORARY TABLE t3 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
+WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
+SELECT * FROM t3;
+a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+1	a1a1a1a1a1	t1t1t1t1t1
+CREATE TABLE t4 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
+WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
+SELECT * FROM t4;
+a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+1	a1a1a1a1a1	t1t1t1t1t1
+SELECT * FROM t3,t4 WHERE t3.a=t4.a;
+a	RIGHT(t1.c,10)	RIGHT(t2.c,10)	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+1	a1a1a1a1a1	t1t1t1t1t1	1	a1a1a1a1a1	t1t1t1t1t1
+SELECT * FROM t3,t4 WHERE t3.a!=t4.a;
+a	RIGHT(t1.c,10)	RIGHT(t2.c,10)	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+LOCK TABLES t1 READ;
+SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c LIKE t2.c;
+a	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
+a	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+1	1	a1a1a1a1a1	t1t1t1t1t1
+DELETE FROM t1;
+SELECT * FROM t1;
+a	b	c	d	e
+UNLOCK TABLES;
+LOCK TABLES t2 WRITE,t3 WRITE,t4 WRITE;
+DELETE FROM t2 WHERE t2.c LIKE REPEAT('t2',50);
+SELECT t2.a,RIGHT(t2.c,10) FROM t2;
+a	RIGHT(t2.c,10)
+1	t1t1t1t1t1
+DELETE FROM t3;
+DELETE FROM t4;
+SELECT * FROM t3,t4;
+a	RIGHT(t1.c,10)	RIGHT(t2.c,10)	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
+UNLOCK TABLES;
+ibtmp1
+t4.ibd
+DROP TABLE t1,t2,t3,t4;
+SELECT @@global.innodb_file_per_table;
+@@global.innodb_file_per_table
+1
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
+c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
+c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+2	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+UPDATE t1 SET a = a + 5;
+DELETE FROM t1 WHERE a > 6;
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+INSERT INTO t2(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+UPDATE t2 SET a = a + 5;
+DELETE FROM t2 WHERE a > 6;
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+# shutting down the server
+# list_file, no files expected - temp tablespace cleared on stopping server
+# restart
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
+c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
+REPEAT('a1',50));
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+1	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+2	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+UPDATE t1 SET a = a + 5;
+DELETE FROM t1 WHERE a > 6;
+SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
+a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
+6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+DROP TABLE t1;
+# restart
+SHOW TABLES;
+Tables_in_test
+t2
+DROP TABLE t2;

@@ -1,0 +1,2 @@
+$CLONE_PLUGIN_OPT
+--log_error_verbosity=3

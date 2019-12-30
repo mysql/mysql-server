@@ -1,0 +1,269 @@
+# Remove this line after fixing bug#29888076.
+--source include/not_solaris.inc
+
+--echo ########################################################################
+--echo #
+--echo # Verify definitions of I_S system views.
+--echo # --------------------------------------
+--echo # This test has three parts:
+--echo #
+--echo # 1. Verify the existence of the expected I_S system views, neither less
+--echo #    nor more.
+--echo # 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
+--echo #    I_S system views.
+--echo # 3. Verify the checksum of the generated meta data associated with the
+--echo #    current I_S version number.
+--echo #
+--echo ########################################################################
+--echo #
+--echo # A note regarding the checksum usage.
+--echo # ------------------------------------
+--echo # This is based on a test by Marc Alff (perfschema.dd_version_check).
+--echo # The idea is to keep a record of each I_S version released with the
+--echo # I_S version number and a checksum created based on the meta data for
+--echo # the I_S views. It is important not to change the expected checksum
+--echo # once a release has been published.
+--echo #
+--echo # If there was an intentional change, leading to a new checksum, then:
+--echo #
+--echo # 1. Uncomment the debug output showing the low level meta data and
+--echo #    verify that the changes are intentional.
+--echo # 2. Create a new target I_S version (unless the existing target IS
+--echo #    version is not publicly released yet).
+--echo # 3. Add a new row in test.I_S_published_schema with the new target
+--echo #    I_S version and the new checksum (or update the expected
+--echo #    checksum if the target I_S version is not publicly released yet).
+--echo #
+--echo # Note that a failure to do 2, when doing 3, will result in a broken
+--echo # upgrade where the server code is expecting a certain I_S system view
+--echo # definition, while the actual persisted I_S system view definition is
+--echo # different (because it was created by a previous server binary, and
+--echo # I_S upgrade handling was not triggered).
+--echo #
+--echo # Thus, this part of the test is designed to be a reminder to do 2.
+--echo # by detecting differences in 3.
+--echo #
+--echo ########################################################################
+--echo #
+--echo # How to handle test failures.
+--echo # ----------------------------
+--echo # In general, if there is a change leading to a failure in this test,
+--echo # then we must first consider whether the change is intentional, i.e.,
+--echo # whether there is a change in a I_S system view definition that
+--echo # that we actually want to do, or whether the change is by mistake
+--echo # or not needed.
+--echo #
+--echo # Then, if the change is intentional, we must make sure the following
+--echo # scenarios are handled:
+--echo #
+--echo # 1. Plain initialization of the server. This is most likely handled,
+--echo #    otherwise we wouldn't even get to the point where this test starts
+--echo #    failing.
+--echo # 2. Plain server restart using a data directory initialized by this
+--echo #    server.
+--echo # 3. Upgrade from any supported I_S version, or server restart using
+--echo #    a data directory from a different server version using the same
+--echo #    I_S version.
+--echo #
+--echo # Failures in the different parts of the test must be handled as
+--echo # follows:
+--echo #
+--echo # *  A failure in part 1 means that a I_S system view is added or removed.
+--echo #    In this case, please make sure the tables 'I_S_view_names'
+--echo #    below are kept up to date. Also make sure that
+--echo #    the list of SHOW CREATE VIEW statements is up to date.
+--echo # *  A failure in part 2 or 3 means that there is a change in the I_S
+--echo #    system view definitions, and that we have a new I_S version. So
+--echo #    if the current target I_S version number is released publicly,
+--echo #    then we must bump the target I_S version. If the I_S version is
+--echo #    not yet released, and has already been bumped, then it should
+--echo #    stay the same. This test must have its results re-recorded. A
+--echo #    failure in part 1 or 2 will most likely also lead to a failure
+--echo #    in part 3.
+--echo # *  A failure in part 3 means that the generated meta data is
+--echo #    different than it used to be. If there is a change in part 1 or
+--echo #    2, this is to be expected. In that case, the test results must
+--echo #    be re-recorded, and we must either update the expected checksum
+--echo #    (if the I_S version stays the same) or add the new I_S version
+--echo #    along with the expected checksum. However, if there is not a
+--echo #    change in part 1 or 2, then we have changes in the SQL DDL
+--echo #    semantics. This should be handled by changing the I_S initialization
+--echo #    procedure to either tweak the view statements before execution
+--echo #    by tweaking the generated low level meta data. Either way, the 
+--echo #    result of the changes to the server code should be that
+--echo #    this test stops failing.
+--echo ########################################################################
+
+--source include/have_debug.inc
+
+# Total number of system views in MySQL server.
+let $expected_system_view_count = 32;
+
+--echo ########################################################################
+--echo # PART 1
+--echo # Verify the existence of the expected I_S system views, neither less
+--echo ########################################################################
+let $I_S_view_names = test.I_S_view_names;
+# Create table to hold the I_S view names, they are needed later in this test.
+eval CREATE TABLE $I_S_view_names (name VARCHAR(64) PRIMARY KEY);
+--source include/i_s_schema_assert_and_fill_table_names.inc
+
+--echo ########################################################################
+--echo # PART 2. Verify the I_S_VERSION and the CREATE VIEW statements of the
+--echo #         I_S system views.
+--echo ########################################################################
+# We also store the defs in following table in order to calculate the
+# checksum later.
+CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+   t TEXT NOT NULL,
+   row_hash VARCHAR(64) DEFAULT NULL);
+--source include/i_s_schema_dump_table_defs_debug.inc
+
+--echo ########################################################################
+--echo # PART 3. Verify the checksum of the generated meta data associated with
+--echo #         the current I_S version number.
+--echo ########################################################################
+
+SET debug = '+d,skip_dd_table_access_check';
+--disable_query_log
+
+# Verify number of system views stored in DD.
+let $system_view_count_in_dd = `SELECT count(id) FROM mysql.tables
+  WHERE type = 'SYSTEM VIEW' AND CHAR_LENGTH(view_definition_utf8)>0 AND
+  name IN (SELECT name FROM $I_S_view_names)`;
+let $assert_cond = "$system_view_count_in_dd" = "$expected_system_view_count";
+--let $assert_text = Found expected number of system views in DD.
+--source include/assert.inc
+
+# Make sure that we have checksum of all system view definitions that are
+# stored in I_S_check_table().
+let $actual_system_view_count = `SELECT COUNT(*) from I_S_check_table`;
+let $assert_cond = "$actual_system_view_count" = "$expected_system_view_count";
+--let $assert_text = Found expected number of system views in I_S_check_table.
+--source include/assert.inc
+
+# Schema meta data excluding timestamps. Id is fixed even across versions.
+INSERT INTO I_S_check_table(t)
+  SELECT CONCAT(id, '-', catalog_id, '-',
+    name, '-', default_collation_id, '-',
+    IFNULL(options, 'NULL'))
+  FROM mysql.schemata
+  WHERE name = 'information_schema';
+
+# Expression representing the I_S view ids
+let $I_S_view_ids = SELECT id FROM mysql.tables
+  WHERE type = 'SYSTEM VIEW' AND CHAR_LENGTH(view_definition_utf8)>0 AND
+  name IN (SELECT name FROM $I_S_view_names);
+
+# definitions from views
+eval INSERT INTO I_S_check_table(t)
+  SELECT CONCAT(id, '-', name, '-', type, '-',
+    IFNULL(collation_id,'NULL'), '-',
+    comment, '-', hidden, '-',
+    view_check_option, '-',
+    view_is_updatable, '-',
+    view_algorithm, '-',
+    view_security_type, '-',
+    view_definer, '-',
+    view_client_collation_id, '-',
+    view_connection_collation_id, '-',
+    IFNULL(view_column_names,'NULL'))
+  FROM mysql.tables
+  WHERE id IN ($I_S_view_ids)
+  ORDER BY id;
+
+# Subset of definitions from columns, not including
+# default_values.
+eval INSERT INTO I_S_check_table(t)
+  SELECT CONCAT(id, '-', table_id, '-', name, '-',
+    ordinal_position, '-', type, '-', is_nullable, '-',
+    IFNULL(is_zerofill, 'NULL'), '-',
+    IFNULL(is_unsigned, 'NULL'), '-',
+    IFNULL(char_length, 'NULL'), '-',
+    IFNULL(numeric_precision, 'NULL'), '-',
+    IFNULL(numeric_scale, 'NULL'), '-',
+    IFNULL(datetime_precision, 'NULL'), '-',
+    IFNULL(collation_id, 'NULL'), '-',
+    IFNULL(default_option, 'NULL'), '-',
+    IFNULL(update_option, 'NULL'), '-',
+    IFNULL(is_auto_increment, 'NULL'), '-',
+    comment, '-',
+    hidden, '-',
+    IFNULL(options, 'NULL'), '-',
+    IFNULL(se_private_data, 'NULL'))
+  FROM mysql.columns
+  WHERE table_id IN ($I_S_view_ids)
+  ORDER BY id;
+
+
+# Create checksums for each row.
+UPDATE I_S_check_table SET row_hash = SHA2(t, 256);
+
+# And then a checksum of all rows. We need about 1500 rows of varchar(64)
+# concatenated.
+SET @old_group_concat_max_len = @@group_concat_max_len;
+SET group_concat_max_len = 100000;
+
+CREATE TABLE whole_schema(row_checksums LONGTEXT, checksum VARCHAR(64));
+INSERT INTO whole_schema (row_checksums)
+  SELECT GROUP_CONCAT(row_hash ORDER BY id)
+    FROM I_S_check_table;
+UPDATE whole_schema SET checksum = SHA2(row_checksums, 256);
+
+let $assert_cond = "[SELECT LENGTH(row_checksums) FROM whole_schema]"
+                    < @@group_concat_max_len;
+--let $assert_text = The group concat max length is sufficient.
+--source include/assert.inc
+
+# Insert historical records of I_S version numbers and checksums. For a
+# new I_S version, add a new row below. Please read the comments at the
+# beginning of the test file to make sure this is done correctly. Note
+# that the checksums are different depending on case sensitivity of the
+# underlying file system. Hence, the lctn field is used as a discriminator
+# (lctn = lower case table names).
+
+CREATE TABLE I_S_published_schema(
+  version VARCHAR(20),
+  lctn BOOL,
+  checksum VARCHAR(64),
+  PRIMARY KEY (version, lctn));
+
+# Checksums with ids.
+INSERT INTO I_S_published_schema
+  VALUES ('80017', 0,
+    '172ff4fb1366414e3fb16c0175eefe861a493dab30d59e299f6186f4abc8d13a');
+INSERT INTO I_S_published_schema
+  VALUES ('80017', 1,
+    '23dbc025dda0dfba52a9e9f09061290347c868735a01258396a55525e894b69b');
+INSERT INTO I_S_published_schema
+  VALUES ('80018', 0,
+    'b0077c83e03d640dcf26fc717accd5081269ea7ff3e6c3282914380a1246c1af');
+INSERT INTO I_S_published_schema
+  VALUES ('80018', 1,
+    'ca7b69e91a233bab7856f491e7dab6caff7f0fd4f56218ece438e95375ff2392');
+
+SELECT IFNULL(CONCAT('The schema checksum corresponds to I_S version ',
+                     version, '.'),
+              CONCAT('No I_S version found with schema checksum ',
+                     whole_schema.checksum, '.')) AS CHECK_STATUS
+  FROM I_S_published_schema
+    RIGHT OUTER JOIN whole_schema
+    ON I_S_published_schema.checksum= whole_schema.checksum;
+
+# Please read the comments at the beginning of the test file to make sure an
+# error in the assert below is handled correctly.
+
+let $assert_cond = "[SELECT COUNT(version)
+                       FROM I_S_published_schema, whole_schema
+                       WHERE I_S_published_schema.checksum =
+                             whole_schema.checksum
+                       AND lctn = @@global.lower_case_file_system]" = 1;
+--let $assert_text = The schema checksum corresponds to a known I_S version.
+--source include/assert.inc
+
+SET group_concat_max_len = @old_group_concat_max_len;
+eval DROP TABLES I_S_check_table, whole_schema, I_S_published_schema,
+            $I_S_view_names;
+SET debug = '-d,skip_dd_table_access_check';
+
+--enable_query_log

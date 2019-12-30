@@ -1,0 +1,393 @@
+#
+# WL#6631: Detect transaction boundaries
+#
+########################################################################
+#
+# set up: save settings
+#
+SET autocommit=1;
+# if we track CHARACTERISTICS, we must also track the tx_* sysvars!
+SELECT @@session.session_track_system_variables INTO @old_track_list;
+SET @track_list= CONCAT(@old_track_list, ",transaction_isolation,
+                                           transaction_read_only");
+SET SESSION session_track_system_variables=@track_list;
+SELECT @@session.session_track_state_change INTO @old_track_enable;
+SET SESSION session_track_state_change=TRUE;
+SELECT @@session.session_track_transaction_info INTO @old_track_tx;
+FLUSH STATUS;
+########################################################################
+#
+# test "STATE" tracking: transaction state reporting
+#
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+# We don't report when in autocommit mode and outside a transaction:
+INSERT INTO t1 VALUES(1);
+SELECT 1 FROM DUAL;
+1
+1
+DELETE FROM t1;
+START TRANSACTION;
+# add "unsafe stmt" to the set:
+SET @x=UUID();
+# next stmt is safe, but unsafe flag should stick:
+SET @x=1;
+# however, after C/A/C, the status should revert to "empty trx":
+COMMIT AND CHAIN;
+# SELECT with no tables gives us just a result set
+SELECT 1 FROM DUAL;
+1
+1
+COMMIT AND CHAIN;
+# SELECT with no tables and no result set
+SELECT 1 FROM DUAL INTO OUTFILE 'VARDIR/tmp/wl6631.csv';
+COMMIT AND CHAIN;
+# SELECT with trx tables but no result set
+SELECT f1 FROM t1 INTO OUTFILE 'VARDIR/tmp/wl6631.csv';;
+COMMIT AND CHAIN;
+# SELECT with non-trx tables but no result set
+SELECT f1 FROM t2 INTO OUTFILE 'VARDIR/tmp/wl6631.csv';;
+# show that "unsafe read" sticks (isn't cleared by the dummy SELECT)
+SELECT 1 FROM DUAL INTO @x;
+# clear state
+COMMIT;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# states: read + write; transactional + non-transactional
+# state should be "no transaction":
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+# resulting state should be "T", transaction started, no data modified:
+START TRANSACTION;
+# resulting state should be "W", transactional write pending:
+INSERT INTO t1 VALUES (1);
+# resulting state should be "wW", both safe and unsafe writes happened:
+INSERT INTO t2 VALUES (1);
+# resulting state should STILL be "wW"!
+INSERT INTO t1 VALUES (1);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+START TRANSACTION;
+# resulting state should be "w", unsafe non-transaction write happened:
+INSERT INTO t2 VALUES (1);
+# resulting state should be "wW", both safe and unsafe writes happened:
+INSERT INTO t1 VALUES (1);
+# resulting state should be  "RwW" (adding transactional read):
+SELECT f1 FROM t1;
+f1
+1
+# resulting state should be "rRwW" (adding non-transactional read):
+SELECT f1 FROM t2;
+f1
+1
+1
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+DROP TABLE t1, t2;
+
+# autocommit (0)
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+SET autocommit=0;
+SET @x=UUID();
+SET @x=1;
+SET @x=UUID();
+# SET TRANSACTION one-shot should generate a tracker item when
+# tracking statements. Transaction state however should not change.
+# We can still set chistics here because in_active_multi_stmt_transaction()
+# is still false (!SERVER_STATUS_IN_TRANS).
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+INSERT INTO t1 VALUES(1);
+# Now that we've involved tables in the implicit transaction, we're
+# no longer allowed to change its chistics:
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+ERROR 25001: Transaction characteristics can't be changed while a transaction is in progress
+BEGIN;
+INSERT INTO t1 VALUES(3);
+DROP TABLE t1;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+SELECT 1 FROM DUAL;
+1
+1
+SELECT 1 FROM DUAL INTO @dummy;
+COMMIT;
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+SELECT f1 FROM t2;
+f1
+DROP TABLE t2;
+SET autocommit=1;
+
+########################################################################
+#
+# show that table access reporting works in multi-statements
+#
+# multi-stmt #1
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+BEGIN;
+COMMIT; INSERT INTO t2 VALUES (1); BEGIN; |
+COMMIT;
+DROP TABLE t2;
+# multi-stmt #2
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+BEGIN;
+COMMIT; INSERT INTO t2 VALUES (1); BEGIN; INSERT INTO t1 VALUES (99); |
+COMMIT;
+DROP TABLE t1;
+DROP TABLE t2;
+
+########################################################################
+#
+# show that reporting works for Stored Procedures (SP)
+#
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+CREATE PROCEDURE proc1()
+BEGIN
+SET @dummy = 0;
+IF (SELECT f1 FROM t1) THEN
+SET @dummy = 1;
+END IF;
+END|
+CREATE PROCEDURE proc2()
+BEGIN
+CALL proc1();
+UPDATE t1 SET f1=4;
+END|
+CREATE PROCEDURE proc3()
+BEGIN
+DECLARE x CHAR(36);
+SET x=UUID();
+END|
+CREATE PROCEDURE proc4(x CHAR(36))
+BEGIN
+END|
+CREATE PROCEDURE proc5()
+BEGIN
+SELECT f1 FROM t1;
+SELECT f1 FROM t2;
+END|
+CREATE PROCEDURE proc6a()
+BEGIN
+IF (SELECT f1 FROM t1) THEN
+SET @dummy = 1;
+END IF;
+ALTER TABLE t1 ADD COLUMN f2 INT;
+IF (SELECT f1 FROM t2) THEN
+SET @dummy = 1;
+END IF;
+END|
+CREATE PROCEDURE proc6b()
+BEGIN
+SELECT f1 FROM t1;
+ALTER TABLE t1 ADD COLUMN f3 INT;
+SELECT f1 FROM t2;
+END|
+CREATE PROCEDURE proc7(x INT)
+BEGIN
+SELECT f1   FROM t1;
+SELECT f1*2 FROM t1;
+END|
+CREATE PROCEDURE proc8(x INT)
+BEGIN
+SELECT f1   FROM t1;
+IF (SELECT f1 FROM t2) THEN
+SET @dummy = 1;
+END IF;
+END|
+CREATE PROCEDURE proc9(x INT)
+BEGIN
+SELECT f1   FROM t1;
+IF (SELECT f1 FROM t1) THEN
+SET @dummy = 1;
+END IF;
+END|
+BEGIN;
+# example unsafe call:
+CALL proc3();
+# report on tables accessed within SP:
+CALL proc1();
+# report on tables accessed within all (nested) SP:
+CALL proc2();
+COMMIT;
+BEGIN;
+CALL proc4(UUID());
+COMMIT;
+# multiple result sets:
+# autocommit=1, not in a transaction, no tracker item:
+CALL proc5();
+f1
+4
+f1
+2
+
+BEGIN;
+# first  SELECT adds R/S to present T and renders a tracker item;
+# second SELECT add r flag and renders another tracker item
+CALL proc5();
+f1
+4
+f1
+2
+COMMIT;
+SET autocommit=0;
+# first  SELECT renders I/R/S tracker item;
+# second SELECT add r flag and renders another tracker item
+CALL proc5();
+f1
+4
+f1
+2
+COMMIT;
+
+BEGIN;
+# first  SELECT adds R/S to present T and renders a tracker item;
+# second SELECT add r flag and renders another tracker item
+CALL proc5();
+f1
+4
+f1
+2
+COMMIT;
+
+# multiple result sets; implicit commit between them
+BEGIN;
+# first  SELECT adds R/S to present T and renders a tracker item;
+# second SELECT add r flag and renders another tracker item
+CALL proc6b();
+f1
+4
+f1
+2
+COMMIT;
+BEGIN;
+# first  SELECT adds R/S to present T and renders a tracker item;
+# second SELECT add r flag and renders another tracker item
+CALL proc6a();
+COMMIT;
+
+# multiple result sets; sub-query as argument, autocommit==0
+BEGIN;
+SELECT 1 FROM DUAL;
+1
+1
+CALL proc7((SELECT f1 FROM t2));
+f1
+4
+f1*2
+8
+COMMIT;
+SET autocommit=1;
+# multiple result sets; sub-query as argument, autocommit==1
+BEGIN;
+SELECT 1 FROM DUAL;
+1
+1
+CALL proc7((SELECT f1 FROM t2));
+f1
+4
+f1*2
+8
+COMMIT;
+# not in a transaction, no tracking
+CALL proc8((SELECT f1 FROM t2));
+f1
+4
+
+BEGIN;
+# body sets R/S in select, and r in sub-select
+CALL proc8((SELECT f1 FROM t2));
+f1
+4
+COMMIT;
+
+BEGIN;
+# argument sets r, body sets R
+CALL proc9((SELECT f1 FROM t2));
+f1
+4
+COMMIT;
+
+DROP PROCEDURE proc1;
+DROP PROCEDURE proc2;
+DROP PROCEDURE proc3;
+DROP PROCEDURE proc4;
+DROP PROCEDURE proc5;
+DROP PROCEDURE proc6a;
+DROP PROCEDURE proc6b;
+DROP PROCEDURE proc7;
+DROP PROCEDURE proc8;
+DROP PROCEDURE proc9;
+DROP TABLE t1;
+DROP TABLE t2;
+########################################################################
+#
+# interaction with system tables
+#
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+BEGIN;
+SELECT CONVERT_TZ('2004-01-01 12:00:00','GMT','MET');
+CONVERT_TZ('2004-01-01 12:00:00','GMT','MET')
+NULL
+COMMIT;
+DROP TABLE t2;
+########################################################################
+#
+#
+# show that table access reporting works with LOCK TABLES
+#
+CREATE TABLE t1 (f1 INT) ENGINE="InnoDB";
+CREATE TABLE t2 (f1 INT) ENGINE="MyISAM";
+SET autocommit=0;
+SELECT 1  FROM DUAL;
+1
+1
+SELECT f1 FROM t1;
+f1
+# no LOCK held this time, so no implicit commit:
+UNLOCK TABLES;
+# LOCK TABLES pre-commits:
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+SELECT f1 FROM t1;
+f1
+1
+2
+COMMIT;
+SET TRANSACTION READ ONLY;
+SET TRANSACTION READ WRITE;
+UNLOCK TABLES;
+
+SET autocommit=1;
+LOCK TABLE t1 WRITE, t2 WRITE;
+INSERT INTO t2 VALUES (3);
+INSERT INTO t1 VALUES (3);
+SELECT f1 FROM t1 WHERE f1 > 2;
+f1
+3
+UNLOCK TABLES;
+# don't report chistics for autocommits while LOCK is held
+SET SESSION session_track_transaction_info="CHARACTERISTICS";
+LOCK TABLE t1 WRITE;
+INSERT INTO t1 VALUES (3);
+SELECT f1 FROM t1 WHERE f1 > 2;
+f1
+3
+3
+UNLOCK TABLES;
+SET session_track_transaction_info="STATE";
+DROP TABLE t1;
+DROP TABLE t2;
+########################################################################
+#
+# cleanup
+#
+SET SESSION session_track_system_variables= @old_track_list;
+SET SESSION session_track_state_change=@old_track_enable;
+SET SESSION session_track_transaction_info=@old_track_tx;

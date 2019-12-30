@@ -278,13 +278,12 @@ dberr_t fts_config_get_value(
  must ensure that enough space is allocated for value to hold the
  column contents.
  @return DB_SUCCESS or error code */
-dberr_t fts_config_get_index_value(
-    trx_t *trx,          /*!< transaction */
-    dict_index_t *index, /*!< in: index */
-    const char *param,   /*!< in: get config value for
-                         this parameter name */
-    fts_string_t *value) /*!< out: value read from
-                         config table */
+dberr_t fts_config_get_index_value(trx_t *trx,          /*!< transaction */
+                                   dict_index_t *index, /*!< in: index */
+                                   const char *param, /*!< in: get config value
+                                                      for this parameter name */
+                                   fts_string_t *value) /*!< out: value read
+                                                        from config table */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Set the value in the config table for name.
@@ -307,13 +306,12 @@ dberr_t fts_config_set_ulint(
 
 /** Set the value specific to an FTS index in the config table.
  @return DB_SUCCESS or error code */
-dberr_t fts_config_set_index_value(
-    trx_t *trx,          /*!< transaction */
-    dict_index_t *index, /*!< in: index */
-    const char *param,   /*!< in: get config value for
-                         this parameter name */
-    fts_string_t *value) /*!< out: value read from
-                         config table */
+dberr_t fts_config_set_index_value(trx_t *trx,          /*!< transaction */
+                                   dict_index_t *index, /*!< in: index */
+                                   const char *param, /*!< in: get config value
+                                                      for this parameter name */
+                                   fts_string_t *value) /*!< out: value read
+                                                        from config table */
     MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef FTS_OPTIMIZE_DEBUG

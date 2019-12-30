@@ -1,7 +1,7 @@
 #ifndef SQL_CONST_FOLDING_INCLUDED
 #define SQL_CONST_FOLDING_INCLUDED
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ class THD;
   Also fold such conditions if they are present as arguments of other functions
   in the same way, except there we replace the arguments with manifest FALSE or
   field <> field to exclude NULLs if the field is nullable, cf.
-  is_top_level_item.
+  ignore_unknown().
 
   The constants are always converted to constants of the type of the field, no
   widening of the field type in therefore necessary after this folding for
@@ -63,7 +63,7 @@ class THD;
                          For IS NOT NULL on a not nullable item, if true,
                          return item TRUE (1), else remove condition and return
                          COND_TRUE. For cmp items, this is determined by
-                         Item_bool_func2::is_top_level_item.
+                         Item_bool_func2::ignore_unknown.
   @returns false if success, true if error
 */
 bool fold_condition(THD *thd, Item *cond, Item **retcond,

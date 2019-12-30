@@ -69,6 +69,9 @@ class Abstract_restrictions {
   It uses memroot based, collation aware map to store
   (\<dbname\>, \<restricted_access\>) mapping.
 
+  Each object created in the MEM_ROOT has to be destroyed manually.
+  It will be the client's responsibility that create the objects.
+
   It also provides functions to:
   - Manage DB restrictions
   - Status functions
@@ -116,6 +119,9 @@ class DB_restrictions final : public Abstract_restrictions {
 
 /**
   Container of all restrictions for a given user.
+
+  Each object created in the MEM_ROOT has to be destroyed manually.
+  It will be the client's responsibility that create the objects.
 */
 class Restrictions {
  public:
@@ -160,7 +166,7 @@ class Restrictions_aggregator_factory {
       const ulong grantor_access, const ulong grantee_access,
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong required_access,
-      const Db_access_map *db_map, const Db_access_map *db_wild_map);
+      Db_access_map *db_map);
 
  private:
   static Auth_id fetch_grantor(const Security_context *sctx);
@@ -263,7 +269,6 @@ class DB_restrictions_aggregator : public Restrictions_aggregator {
                                  const ulong restrictions_mask) noexcept;
   enum class SQL_OP { SET_ROLE, GLOBAL_GRANT };
   void aggregate_restrictions(SQL_OP sql_op, const Db_access_map *m_db_map,
-                              const Db_access_map *m_db_wild_map,
                               DB_restrictions &restrictions);
   ulong get_grantee_db_access(const std::string &db_name) const;
   void get_grantee_db_access(const std::string &db_name, ulong &access) const;
@@ -295,15 +300,14 @@ class DB_restrictions_aggregator_set_role final
       const ulong grantor_global_access, const ulong grantee_global_access,
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
-      const Db_access_map *db_map, const Db_access_map *db_wild_map);
+      Db_access_map *db_map);
 
   Status validate() override;
   void aggregate(DB_restrictions &restrictions) override;
   friend class Restrictions_aggregator_factory;
 
  private:
-  const Db_access_map *m_db_map;
-  const Db_access_map *m_db_wild_map;
+  Db_access_map *m_db_map;
 };
 
 /**

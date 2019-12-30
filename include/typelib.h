@@ -38,8 +38,8 @@ struct TYPELIB {             /* Different types saved here */
   unsigned int *type_lengths{nullptr};
 };
 
-extern my_ulonglong find_typeset(const char *x, TYPELIB *typelib,
-                                 int *error_position);
+extern uint64_t find_typeset(const char *x, TYPELIB *typelib,
+                             int *error_position);
 extern int find_type_or_exit(const char *x, TYPELIB *typelib,
                              const char *option);
 #define FIND_TYPE_BASIC 0
@@ -59,9 +59,9 @@ extern TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from);
 
 extern TYPELIB sql_protocol_typelib;
 
-my_ulonglong find_set_from_flags(const TYPELIB *lib, size_t default_name,
-                                 my_ulonglong cur_set, my_ulonglong default_set,
-                                 const char *str, unsigned int length,
-                                 const char **err_pos, unsigned int *err_len);
+uint64_t find_set_from_flags(const TYPELIB *lib, size_t default_name,
+                             uint64_t cur_set, uint64_t default_set,
+                             const char *str, unsigned int length,
+                             const char **err_pos, unsigned int *err_len);
 
 #endif /* _typelib_h */

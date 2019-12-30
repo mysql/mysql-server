@@ -37,6 +37,7 @@ _b.encoding="multipart/form-data";
 }else{
 _b=document.createElement("form");
 _b.setAttribute("enctype","multipart/form-data");
+_b.setAttribute("method","post");
 }
 _b.appendChild(this.fileInput);
 _3.body().appendChild(_b);

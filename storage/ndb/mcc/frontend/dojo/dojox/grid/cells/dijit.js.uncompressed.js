@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/cells/dijit", [
 	"dojo/_base/kernel",
 	"../../main",
@@ -11,6 +10,7 @@ define("dojox/grid/cells/dijit", [
 	"dojo/dom",
 	"dojo/dom-attr",
 	"dojo/dom-construct",
+	"dojo/dom-style",
 	"dojo/dom-geometry",
 	"dojo/data/ItemFileReadStore",
 	"dijit/form/DateTextBox",
@@ -22,12 +22,13 @@ define("dojox/grid/cells/dijit", [
 	"dijit/form/NumberTextBox",
 	"dijit/form/CurrencyTextBox",
 	"dijit/form/HorizontalSlider",
+	"dijit/form/_TextBoxMixin",
 	"dijit/Editor",
 	"../util",
 	"./_base"
-], function(dojo, dojox, declare, array, lang, json, connect, has, dom, domAttr, domConstruct,
+], function(dojo, dojox, declare, array, lang, json, connect, has, dom, domAttr, domConstruct, domStyle,
 	domGeometry, ItemFileReadStore, DateTextBox, TimeTextBox, ComboBox, CheckBox, TextBox,
-	NumberSpinner, NumberTextBox, CurrencyTextBox, HorizontalSlider, Editor, util, BaseCell){
+	NumberSpinner, NumberTextBox, CurrencyTextBox, HorizontalSlider, _TextBoxMixin, Editor, util, BaseCell){
 		
 // TODO: shouldn't it be the test file's job to require these modules,
 // if it is using them?  Most of these modules aren't referenced by this file.
@@ -77,6 +78,7 @@ define("dojox/grid/cells/dijit", [
 				this.widgetProps||{},
 				{
 					constraints: lang.mixin({}, this.constraint) || {}, //TODO: really just for ValidationTextBoxes
+					required: (this.constraint || {}).required,
 					value: this._unescapeHTML(inDatum)
 				}
 			);
@@ -104,22 +106,23 @@ define("dojox/grid/cells/dijit", [
 			return undefined;
 		},
 		sizeWidget: function(inNode, inDatum, inRowIndex){
-			var
-				p = this.getNode(inRowIndex),
-				box = dojo.contentBox(p);
-			dojo.marginBox(this.widget.domNode, {w: box.w});
+			var p = this.getNode(inRowIndex);
+			dojo.marginBox(this.widget.domNode, {w: domStyle.get(p, 'width')});
 		},
 		focus: function(inRowIndex, inNode){
 			if(this.widget){
 				setTimeout(lang.hitch(this.widget, function(){
 					util.fire(this, "focus");
+					if(this.focusNode && this.focusNode.tagName === "INPUT"){
+						_TextBoxMixin.selectInputText(this.focusNode);
+					}
 				}), 0);
 			}
 		},
 		_finish: function(inRowIndex){
 			this.inherited(arguments);
 			util.removeNode(this.widget.domNode);
-			if(has("ie")){
+			if(has('ie')){
 				dom.setSelectable(this.widget.domNode, true);
 			}
 		}
@@ -220,13 +223,14 @@ define("dojox/grid/cells/dijit", [
 		createWidget: function(inNode, inDatum, inRowIndex){
 			// widget needs its value set after creation
 			var widget = new this.widgetClass(this.getWidgetProps(inDatum), inNode);
-			connect.connect(widget, 'onLoad', lang.hitch(this, 'populateEditor'));
+			// use onLoadDeferred because onLoad may have already fired
+			widget.onLoadDeferred.then(lang.hitch(this, 'populateEditor'));
 			return widget;
 		},
 		formatNode: function(inNode, inDatum, inRowIndex){
 			this.content = inDatum;
 			this.inherited(arguments);
-			if(has("mozilla")){
+			if(has('mozilla')){
 				// FIXME: seem to need to reopen the editor and display the toolbar
 				var e = this.widget;
 				e.open();

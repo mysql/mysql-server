@@ -1,25 +1,20 @@
-//>>built
 define("dijit/tree/TreeStoreModel", [
 	"dojo/_base/array", // array.filter array.forEach array.indexOf array.some
 	"dojo/aspect", // aspect.after
 	"dojo/_base/declare", // declare
-	"dojo/_base/json", // json.stringify
 	"dojo/_base/lang" // lang.hitch
-], function(array, aspect, declare, json, lang){
+], function(array, aspect, declare, lang){
 
 	// module:
 	//		dijit/tree/TreeStoreModel
-	// summary:
-	//		Implements dijit.Tree.model connecting to a dojo.data store with a single
-	//		root item.
 
 	return declare("dijit.tree.TreeStoreModel", null, {
 		// summary:
-		//		Implements dijit.Tree.model connecting to a dojo.data store with a single
+		//		Implements dijit/Tree/model connecting to a dojo.data store with a single
 		//		root item.  Any methods passed into the constructor will override
 		//		the ones defined here.
 
-		// store: dojo.data.Store
+		// store: dojo/data/api/Read
 		//		Underlying store
 		store: null,
 
@@ -42,7 +37,7 @@ define("dijit/tree/TreeStoreModel", [
 		//		than by calling store.getLabel()
 		labelAttr: "",
 
-	 	// root: [readonly] dojo.data.Item
+		// root: [readonly] dojo/data/Item
 		//		Pointer to the root item (read only, not a parameter)
 		root: null,
 
@@ -56,11 +51,11 @@ define("dijit/tree/TreeStoreModel", [
 
 		// deferItemLoadingUntilExpand: Boolean
 		//		Setting this to true will cause the TreeStoreModel to defer calling loadItem on nodes
-		// 		until they are expanded. This allows for lazying loading where only one
+		//		until they are expanded. This allows for lazying loading where only one
 		//		loadItem (and generally one network call, consequently) per expansion
-		// 		(rather than one for each child).
-		// 		This relies on partial loading of the children items; each children item of a
-		// 		fully loaded item should contain the label and info about having children.
+		//		(rather than one for each child).
+		//		This relies on partial loading of the children items; each children item of a
+		//		fully loaded item should contain the label and info about having children.
 		deferItemLoadingUntilExpand: false,
 
 		constructor: function(/* Object */ args){
@@ -75,7 +70,7 @@ define("dijit/tree/TreeStoreModel", [
 
 			var store = this.store;
 			if(!store.getFeatures()['dojo.data.api.Identity']){
-				throw new Error("dijit.Tree: store must support dojo.data.Identity");
+				throw new Error("dijit.tree.TreeStoreModel: store must support dojo.data.Identity");
 			}
 
 			// if the store supports Notification, subscribe to the notification events
@@ -108,8 +103,8 @@ define("dijit/tree/TreeStoreModel", [
 					query: this.query,
 					onComplete: lang.hitch(this, function(items){
 						if(items.length != 1){
-							throw new Error(this.declaredClass + ": query " + json.stringify(this.query) + " returned " + items.length +
-							 	" items, but must return exactly one item");
+							throw new Error("dijit.tree.TreeStoreModel: root query returned " + items.length +
+								" items, but must return exactly one");
 						}
 						this.root = items[0];
 						onItem(this.root);
@@ -119,7 +114,7 @@ define("dijit/tree/TreeStoreModel", [
 			}
 		},
 
-		mayHaveChildren: function(/*dojo.data.Item*/ item){
+		mayHaveChildren: function(/*dojo/data/Item*/ item){
 			// summary:
 			//		Tells if an item has or may have children.  Implementing logic here
 			//		avoids showing +/- expando icon for nodes that we know don't have children.
@@ -130,9 +125,9 @@ define("dijit/tree/TreeStoreModel", [
 			}, this);
 		},
 
-		getChildren: function(/*dojo.data.Item*/ parentItem, /*function(items)*/ onComplete, /*function*/ onError){
+		getChildren: function(/*dojo/data/Item*/ parentItem, /*function(items)*/ onComplete, /*function*/ onError){
 			// summary:
-			// 		Calls onComplete() with array of child items of given parent item, all loaded.
+			//		Calls onComplete() with array of child items of given parent item, all loaded.
 
 			var store = this.store;
 			if(!store.isItemLoaded(parentItem)){
@@ -200,7 +195,7 @@ define("dijit/tree/TreeStoreModel", [
 			return this.store.getIdentity(item);	// Object
 		},
 
-		getLabel: function(/*dojo.data.Item*/ item){
+		getLabel: function(/*dojo/data/Item*/ item){
 			// summary:
 			//		Get the label for an item
 			if(this.labelAttr){
@@ -213,9 +208,9 @@ define("dijit/tree/TreeStoreModel", [
 		// =======================================================================
 		// Write interface
 
-		newItem: function(/* dojo.dnd.Item */ args, /*Item*/ parent, /*int?*/ insertIndex){
+		newItem: function(/* dijit/tree/dndSource.__Item */ args, /*dojo/data/api/Item*/ parent, /*int?*/ insertIndex){
 			// summary:
-			//		Creates a new item.   See `dojo.data.api.Write` for details on args.
+			//		Creates a new item.   See `dojo/data/api/Write` for details on args.
 			//		Used in drag & drop when item from external source dropped onto tree.
 			// description:
 			//		Developers will need to override this method if new items get added
@@ -288,7 +283,7 @@ define("dijit/tree/TreeStoreModel", [
 		// =======================================================================
 		// Callbacks
 
-		onChange: function(/*dojo.data.Item*/ /*===== item =====*/){
+		onChange: function(/*dojo/data/Item*/ /*===== item =====*/){
 			// summary:
 			//		Callback whenever an item has changed, so that Tree
 			//		can update the label, icon, etc.   Note that changes
@@ -301,13 +296,13 @@ define("dijit/tree/TreeStoreModel", [
 		onChildrenChange: function(/*===== parent, newChildrenList =====*/){
 			// summary:
 			//		Callback to do notifications about new, updated, or deleted items.
-			// parent: dojo.data.Item
-			// newChildrenList: dojo.data.Item[]
+			// parent: dojo/data/Item
+			// newChildrenList: dojo/data/Item[]
 			// tags:
 			//		callback
 		},
 
-		onDelete: function(/*dojo.data.Item*/ /*===== item =====*/){
+		onDelete: function(/*dojo/data/Item*/ /*===== item =====*/){
 			// summary:
 			//		Callback when an item has been deleted.
 			// description:
@@ -320,7 +315,7 @@ define("dijit/tree/TreeStoreModel", [
 		// =======================================================================
 		// Events from data store
 
-		onNewItem: function(/* dojo.data.Item */ item, /* Object */ parentInfo){
+		onNewItem: function(/* dojo/data/Item */ item, /* Object */ parentInfo){
 			// summary:
 			//		Handler for when new items appear in the store, either from a drop operation
 			//		or some other way.   Updates the tree view (if necessary).
@@ -364,8 +359,8 @@ define("dijit/tree/TreeStoreModel", [
 			//		See `onNewItem` for more details on handling updates to an item's children.
 			// item: Item
 			// attribute: attribute-name-string
-			// oldValue: object | array
-			// newValue: object | array
+			// oldValue: Object|Array
+			// newValue: Object|Array
 			// tags:
 			//		extension
 

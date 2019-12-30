@@ -24,42 +24,39 @@ INCLUDE(libutils)
 
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-          "unused-but-set-variable"
-          "strict-aliasing"
-          "unused-parameter"
-          # Downgrade -Werror to warning for "may be used uninitialized"
-          "error=maybe-uninitialized"
-          # Downgrade placement-new as part of Bug #24822203
-          "error=placement-new"
-          # Downgrade -Werror=deprecated-copy to warning for gcc 9
-          "error=deprecated-copy"
-          )
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-  ##################
-  # Temporary C++ 8 workarounds:
-  # (not supported for C, so only set CXX_FLAGS)
-  FOREACH(warning
-          # Workaround for bug#28387760, also failed other places then in NdbEvent*
-          "class-memaccess"
+FOREACH(warning
+    "unused-but-set-variable"
+    "strict-aliasing"
+    "unused-parameter"
+    "cast-qual"
+    # Downgrade -Werror to warning for "may be used uninitialized"
+    "error=maybe-uninitialized"
+    # Downgrade placement-new as part of Bug #24822203
+    "error=placement-new"
+    # Downgrade -Werror=deprecated-copy to warning for gcc 9
+    "error=deprecated-copy"
+    # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
+    "error=stringop-truncation"
     )
-    STRING(REPLACE "-" "_" warning_ ${warning})
-    STRING(TOUPPER ${warning_} WARNING)
-    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
-    IF(HAVE_${WARNING})
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
+
+##################
+# Temporary C++ 8 workarounds:
+# (not supported for C, so only set CXX_FLAGS)
+FOREACH(warning
+    # Workaround for bug#28387760, also failed other places then in NdbEvent*
+    "class-memaccess"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
 
 ADD_SUBDIRECTORY(common)
 ADD_SUBDIRECTORY(mgmapi)
@@ -95,7 +92,7 @@ ENDIF()
 # Build static ndbclient library
 #
 SET(NDBCLIENT_LIBS
-  mysys dbug strings mysys_ssl
+  mysys strings
   ${SSL_LIBRARIES} ${ZLIB_LIBRARY}
   ndbapi
   ndbtransport
@@ -109,23 +106,23 @@ SET(NDBCLIENT_LIBS
   ndbconf)
 
 SET(LIBS_TO_MERGE
-  mysys dbug mytime strings mysys_ssl
+  mysys
+  mytime
   ndbapi
-  ndbtransport
-  ndbtrace
-  ndbsignaldata
+  ndbconf
+  ndbgeneral
+  ndblogger
   ndbmgmapi
   ndbmgmcommon
-  ndblogger
   ndbportlib
-  ndbgeneral
-  ndbconf)
+  ndbsignaldata
+  ndbtrace
+  ndbtransport
+  strings
+  )
 
 IF(WITH_ZLIB STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZLIB_LIBRARY})
-ENDIF()
-IF(WITH_SSL STREQUAL "wolfssl")
-  LIST(APPEND LIBS_TO_MERGE wolfssl wolfcrypt)
 ENDIF()
 
 
@@ -158,7 +155,8 @@ IF(LINUX_INSTALL_RPATH_ORIGIN)
   SET_PROPERTY(TARGET ndbclient_so PROPERTY INSTALL_RPATH "\$ORIGIN/")
 ENDIF()
 IF(WIN32_CLANG AND WITH_ASAN)
-  TARGET_LINK_LIBRARIES(ndbclient_so "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+  TARGET_LINK_LIBRARIES(ndbclient_so
+    "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
 ENDIF()
 
 IF(WIN32)
@@ -269,7 +267,7 @@ ELSE()
     SET(ndbclient_so_link_flags
       "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
   ENDIF()
-  IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  IF(SOLARIS)
     SET(ndbclient_so_link_flags
       "${ndbclient_so_link_flags} ${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()

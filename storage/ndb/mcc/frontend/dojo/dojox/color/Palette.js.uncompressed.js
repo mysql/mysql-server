@@ -1,6 +1,5 @@
-//>>built
-define("dojox/color/Palette", ["dojo/_base/kernel", "../main", "dojo/_base/lang", "dojo/_base/array", "./_base"], 
-	function(dojo, dojox, lang, arr, dxc){
+define("dojox/color/Palette", ["dojo/_base/lang", "dojo/_base/array", "./_base"],
+	function(lang, arr, dxc){
 
 	/***************************************************************
 	*	dojox.color.Palette
@@ -22,9 +21,9 @@ define("dojox/color/Palette", ["dojo/_base/kernel", "../main", "dojo/_base/lang"
 
 	//	ctor ----------------------------------------------------------------------------
 	dxc.Palette = function(/* String|Array|dojox.color.Color|dojox.color.Palette */base){
-		//	summary:
+		// summary:
 		//		An object that represents a palette of colors.
-		//	description:
+		// description:
 		//		A Palette is a representation of a set of colors.  While the standard
 		//		number of colors contained in a palette is 5, it can really handle any
 		//		number of colors.
@@ -33,8 +32,8 @@ define("dojox/color/Palette", ["dojo/_base/kernel", "../main", "dojo/_base/lang"
 		//		using a simple object-based approach.  In addition, you can generate
 		//		palettes using dojox.color.Palette.generate; these generated palettes
 		//		are based on the palette generators at http://kuler.adobe.com.
-		//
-		//	colors: dojox.color.Color[]
+
+		// colors: dojox.color.Color[]
 		//		The actual color references in this palette.
 		this.colors = [];
 		if(base instanceof dxc.Palette){
@@ -144,13 +143,77 @@ define("dojox/color/Palette", ["dojo/_base/kernel", "../main", "dojo/_base/lang"
 		return high-((high-val)*((high-low)/high));
 	}
 
+/*=====
+var __transformArgs = {
+	// summary:
+	//		The keywords argument to be passed to the dojox.color.Palette.transform function.  Note that
+	//		while all arguments are optional, *some* arguments must be passed.  The basic concept is that
+	//		you pass a delta value for a specific aspect of a color model (or multiple aspects of the same
+	//		color model); for instance, if you wish to transform a palette based on the HSV color model,
+	//		you would pass one of "dh", "ds", or "dv" as a value.
+	// use: String?
+	//		Specify the color model to use for the transformation.  Can be "rgb", "rgba", "hsv", "hsl", "cmy", "cmyk".
+	// dr: Number?
+	//		The delta to be applied to the red aspect of the RGB/RGBA color model.
+	// dg: Number?
+	//		The delta to be applied to the green aspect of the RGB/RGBA color model.
+	// db: Number?
+	//		The delta to be applied to the blue aspect of the RGB/RGBA color model.
+	// da: Number?
+	//		The delta to be applied to the alpha aspect of the RGBA color model.
+	// dc: Number?
+	//		The delta to be applied to the cyan aspect of the CMY/CMYK color model.
+	// dm: Number?
+	//		The delta to be applied to the magenta aspect of the CMY/CMYK color model.
+	// dy: Number?
+	//		The delta to be applied to the yellow aspect of the CMY/CMYK color model.
+	// dk: Number?
+	//		The delta to be applied to the black aspect of the CMYK color model.
+	// dh: Number?
+	//		The delta to be applied to the hue aspect of the HSL/HSV color model.
+	// ds: Number?
+	//		The delta to be applied to the saturation aspect of the HSL/HSV color model.
+	// dl: Number?
+	//		The delta to be applied to the luminosity aspect of the HSL color model.
+	// dv: Number?
+	//		The delta to be applied to the value aspect of the HSV color model.
+};
+var __generatorArgs = {
+	// summary:
+	//		The keyword arguments object used to create a palette based on a base color.
+	// base: dojo/_base/Color
+	//		The base color to be used to generate the palette.
+};
+var __analogousArgs = {
+	// summary:
+	//		The keyword arguments object that is used to create a 5 color palette based on the
+	//		analogous rules as implemented at http://kuler.adobe.com, using the HSV color model.
+	// base: dojo/_base/Color
+	//		The base color to be used to generate the palette.
+	// high: Number?
+	//		The difference between the hue of the base color and the highest hue.  In degrees, default is 60.
+	// low: Number?
+	//		The difference between the hue of the base color and the lowest hue.  In degrees, default is 18.
+};
+var __splitComplementaryArgs = {
+	// summary:
+	//		The keyword arguments object used to create a palette based on the split complementary rules
+	//		as implemented at http://kuler.adobe.com.
+	// base: dojo/_base/Color
+	//		The base color to be used to generate the palette.
+	// da: Number?
+	//		The delta angle to be used to determine where the split for the complementary rules happen.
+	//		In degrees, the default is 30.
+};
+=====*/
+
 	//	object methods ---------------------------------------------------------------
 	lang.extend(dxc.Palette, {
-		transform: function(/* dojox.color.Palette.__transformArgs */kwArgs){
-			//	summary:
+		transform: function(/*__transformArgs*/kwArgs){
+			// summary:
 			//		Transform the palette using a specific transformation function
 			//		and a set of transformation parameters.
-			//	description:
+			// description:
 			//		{palette}.transform is a simple way to uniformly transform
 			//		all of the colors in a palette using any of 5 formulae:
 			//		RGBA, HSL, HSV, CMYK or CMY.
@@ -194,102 +257,16 @@ define("dojox/color/Palette", ["dojo/_base/kernel", "../main", "dojo/_base/lang"
 			return palette;		//	dojox.color.Palette
 		},
 		clone: function(){
-			//	summary:
+			// summary:
 			//		Clones the current palette.
 			return new dxc.Palette(this);	//	dojox.color.Palette
 		}
 	});
 
-/*=====
-dojox.color.Palette.__transformArgs = function(use, dr, dg, db, da, dc, dm, dy, dk, dh, ds, dv, dl){
-	//	summary:
-	//		The keywords argument to be passed to the dojox.color.Palette.transform function.  Note that
-	//		while all arguments are optional, *some* arguments must be passed.  The basic concept is that
-	//		you pass a delta value for a specific aspect of a color model (or multiple aspects of the same
-	//		color model); for instance, if you wish to transform a palette based on the HSV color model,
-	//		you would pass one of "dh", "ds", or "dv" as a value.
-	//
-	//	use: String?
-	//		Specify the color model to use for the transformation.  Can be "rgb", "rgba", "hsv", "hsl", "cmy", "cmyk".
-	//	dr: Number?
-	//		The delta to be applied to the red aspect of the RGB/RGBA color model.
-	//	dg: Number?
-	//		The delta to be applied to the green aspect of the RGB/RGBA color model.
-	//	db: Number?
-	//		The delta to be applied to the blue aspect of the RGB/RGBA color model.
-	//	da: Number?
-	//		The delta to be applied to the alpha aspect of the RGBA color model.
-	//	dc: Number?
-	//		The delta to be applied to the cyan aspect of the CMY/CMYK color model.
-	//	dm: Number?
-	//		The delta to be applied to the magenta aspect of the CMY/CMYK color model.
-	//	dy: Number?
-	//		The delta to be applied to the yellow aspect of the CMY/CMYK color model.
-	//	dk: Number?
-	//		The delta to be applied to the black aspect of the CMYK color model.
-	//	dh: Number?
-	//		The delta to be applied to the hue aspect of the HSL/HSV color model.
-	//	ds: Number?
-	//		The delta to be applied to the saturation aspect of the HSL/HSV color model.
-	//	dl: Number?
-	//		The delta to be applied to the luminosity aspect of the HSL color model.
-	//	dv: Number?
-	//		The delta to be applied to the value aspect of the HSV color model.
-	this.use = use;
-	this.dr = dr;
-	this.dg = dg;
-	this.db = db;
-	this.da = da;
-	this.dc = dc;
-	this.dm = dm;
-	this.dy = dy;
-	this.dk = dk;
-	this.dh = dh;
-	this.ds = ds;
-	this.dl = dl;
-	this.dv = dv;
-}
-dojox.color.Palette.__generatorArgs = function(base){
-	//	summary:
-	//		The keyword arguments object used to create a palette based on a base color.
-	//
-	//	base: dojo.Color
-	//		The base color to be used to generate the palette.
-	this.base = base;
-}
-dojox.color.Palette.__analogousArgs = function(base, high, low){
-	//	summary:
-	//		The keyword arguments object that is used to create a 5 color palette based on the
-	//		analogous rules as implemented at http://kuler.adobe.com, using the HSV color model.
-	//
-	//	base: dojo.Color
-	//		The base color to be used to generate the palette.
-	//	high: Number?
-	//		The difference between the hue of the base color and the highest hue.  In degrees, default is 60.
-	//	low: Number?
-	//		The difference between the hue of the base color and the lowest hue.  In degrees, default is 18.
-	this.base = base;
-	this.high = high;
-	this.low = low;
-}
-dojox.color.Palette.__splitComplementaryArgs = function(base, da){
-	//	summary:
-	//		The keyword arguments object used to create a palette based on the split complementary rules
-	//		as implemented at http://kuler.adobe.com.
-	//
-	//	base: dojo.Color
-	//		The base color to be used to generate the palette.
-	//	da: Number?
-	//		The delta angle to be used to determine where the split for the complementary rules happen.
-	//		In degrees, the default is 30.
-	this.base = base;
-	this.da = da;
-}
-=====*/
 	lang.mixin(dxc.Palette, {
 		generators: {
-			analogous:function(/* dojox.color.Palette.__analogousArgs */args){
-				//	summary:
+			analogous:function(/* __analogousArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the analogous rules as implemented at
 				//		http://kuler.adobe.com.
 				var high=args.high||60, 	//	delta between base hue and highest hue (subtracted from base)
@@ -318,8 +295,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				}));		//	dojox.color.Palette
 			},
 
-			monochromatic: function(/* dojox.color.Palette.__generatorArgs */args){
-				//	summary:
+			monochromatic: function(/* __generatorArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the monochromatic rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -341,8 +318,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				]);		//	dojox.color.Palette
 			},
 
-			triadic: function(/* dojox.color.Palette.__generatorArgs */args){
-				//	summary:
+			triadic: function(/* __generatorArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the triadic rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -366,8 +343,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				]);		//	dojox.color.Palette
 			},
 
-			complementary: function(/* dojox.color.Palette.__generatorArgs */args){
-				//	summary:
+			complementary: function(/* __generatorArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the complementary rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -389,8 +366,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				]);		//	dojox.color.Palette
 			},
 
-			splitComplementary: function(/* dojox.color.Palette.__splitComplementaryArgs */args){
-				//	summary:
+			splitComplementary: function(/* __splitComplementaryArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the split complementary rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -415,8 +392,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				]);		//	dojox.color.Palette
 			},
 
-			compound: function(/* dojox.color.Palette.__generatorArgs */args){
-				//	summary:
+			compound: function(/* __generatorArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the compound rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -441,8 +418,8 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 				]);		//	dojox.color.Palette
 			},
 
-			shades: function(/* dojox.color.Palette.__generatorArgs */args){
-				//	summary:
+			shades: function(/* __generatorArgs */args){
+				// summary:
 				//		Create a 5 color palette based on the shades rules as implemented at
 				//		http://kuler.adobe.com.
 				var base = lang.isString(args.base)?new dxc.Color(args.base):args.base,
@@ -464,7 +441,7 @@ dojox.color.Palette.__splitComplementaryArgs = function(base, da){
 			}
 		},
 		generate: function(/* String|dojox.color.Color */base, /* Function|String */type){
-			//	summary:
+			// summary:
 			//		Generate a new Palette using any of the named functions in
 			//		dojox.color.Palette.generators or an optional function definition.  Current
 			//		generators include "analogous", "monochromatic", "triadic", "complementary",

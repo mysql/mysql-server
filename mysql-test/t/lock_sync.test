@@ -2,6 +2,9 @@
 # Locking related tests which use DEBUG_SYNC facility.
 #
 --source include/have_debug_sync.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 # We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
 # This test requires statement/mixed mode binary logging.
 # Row-based mode puts weaker serializability requirements

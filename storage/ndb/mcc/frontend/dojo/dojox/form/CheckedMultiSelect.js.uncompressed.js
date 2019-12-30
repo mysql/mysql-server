@@ -1,7 +1,6 @@
-//>>built
 require({cache:{
-'url:dojox/form/resources/_CheckedMultiSelectMenuItem.html':"<tr class=\"dijitReset dijitMenuItem\" dojoAttachPoint=\"focusNode\" role=\"menuitemcheckbox\" tabIndex=\"-1\"\n\tdojoAttachEvent=\"onmouseenter:_onHover,onmouseleave:_onUnhover,ondijitclick:_onClick\"\n\t><td class=\"dijitReset dijitMenuItemIconCell\" role=\"presentation\"\n\t\t><div src=\"${_blankGif}\" alt=\"\" class=\"dijitMenuItemIcon ${_iconClass}\" dojoAttachPoint=\"iconNode\"\n\t\t\t><input class=\"dojoxCheckedMultiSelectCheckBoxInput\" dojoAttachPoint=\"inputNode\" type=\"${_type.type}\"\n\t\t/></div></td\n\t><td class=\"dijitReset dijitMenuItemLabel\" colspan=\"2\" dojoAttachPoint=\"containerNode,labelNode\"></td\n\t><td class=\"dijitReset dijitMenuItemAccelKey\" style=\"display: none\" dojoAttachPoint=\"accelKeyNode\"></td\n\t><td class=\"dijitReset dijitMenuArrowCell\" role=\"presentation\">&nbsp;</td\n></tr>",
-'url:dojox/form/resources/_CheckedMultiSelectItem.html':"<div class=\"dijitReset ${baseClass}\"\n\t><input class=\"${baseClass}Box\" data-dojo-type=\"dijit.form.CheckBox\" data-dojo-attach-point=\"checkBox\" \n\t\tdata-dojo-attach-event=\"_onClick:_changeBox\" type=\"${_type.type}\" baseClass=\"${_type.baseClass}\"\n\t/><div class=\"dijitInline ${baseClass}Label\" data-dojo-attach-point=\"labelNode\" data-dojo-attach-event=\"onclick:_onClick\"></div\n></div>\n",
+'url:dojox/form/resources/_CheckedMultiSelectMenuItem.html':"<tr class=\"dijitReset dijitMenuItem\" dojoAttachPoint=\"focusNode\" role=\"menuitemcheckbox\" tabIndex=\"-1\"\n\tdojoAttachEvent=\"ondijitclick:_onClick\"\n\t><td class=\"dijitReset dijitMenuItemIconCell\" role=\"presentation\"\n\t\t><div src=\"${_blankGif}\" alt=\"\" class=\"dijitMenuItemIcon ${_iconClass}\" dojoAttachPoint=\"iconNode\"\n\t\t\t><input class=\"dojoxCheckedMultiSelectCheckBoxInput\" dojoAttachPoint=\"inputNode\" type=\"${_type.type}\"\n\t\t/></div></td\n\t><td class=\"dijitReset dijitMenuItemLabel\" colspan=\"2\" dojoAttachPoint=\"containerNode,labelNode\"></td\n\t><td class=\"dijitReset dijitMenuItemAccelKey\" style=\"display: none\" dojoAttachPoint=\"accelKeyNode\"></td\n\t><td class=\"dijitReset dijitMenuArrowCell\" role=\"presentation\">&nbsp;</td\n></tr>",
+'url:dojox/form/resources/_CheckedMultiSelectItem.html':"<div class=\"dijitReset ${baseClass}\"\n\t><input class=\"${baseClass}Box\" data-dojo-type=\"dijit.form.CheckBox\" data-dojo-attach-point=\"checkBox\" \n\t\tdata-dojo-attach-event=\"_onClick:_changeBox\" type=\"${_type.type}\" data-dojo-props='disabled:${disabled}, readOnly:${readOnly}' baseClass=\"${_type.baseClass}\"\n\t/><div class=\"dijitInline ${baseClass}Label\" data-dojo-attach-point=\"labelNode\" data-dojo-attach-event=\"onclick:_onClick\"></div\n></div>\n",
 'url:dojox/form/resources/CheckedMultiSelect.html':"<div class=\"dijit dijitReset dijitInline dijitLeft\" id=\"widget_${id}\"\n\t><div data-dojo-attach-point=\"comboButtonNode\"\n\t></div\n\t><div data-dojo-attach-point=\"selectNode\" class=\"dijit dijitReset dijitInline ${baseClass}Wrapper\" data-dojo-attach-event=\"onmousedown:_onMouseDown,onclick:focus\"\n\t\t><select class=\"${baseClass}Select dojoxCheckedMultiSelectHidden\" multiple=\"true\" data-dojo-attach-point=\"containerNode,focusNode\"></select\n\t\t><div data-dojo-attach-point=\"wrapperDiv\"></div\n\t></div\n></div>"}});
 define("dojox/form/CheckedMultiSelect", [
 	"dojo/_base/declare",
@@ -12,7 +11,7 @@ define("dojox/form/CheckedMultiSelect", [
 	"dojo/dom-class",
 	"dojo/dom-construct",
 	"dojo/i18n",
-	"dijit/_Widget",
+	"dijit/_WidgetBase",
 	"dijit/_TemplatedMixin",
 	"dijit/_WidgetsInTemplateMixin",
 	"dijit/registry",
@@ -28,20 +27,12 @@ define("dojox/form/CheckedMultiSelect", [
 	"dijit/form/CheckBox" // template
 ], function(declare, lang, array, event, domGeometry, domClass, domConstruct, i18n, Widget, TemplatedMixin, WidgetsInTemplateMixin, registry, Menu, MenuItem, Tooltip, FormSelectWidget, ComboButton, CheckedMultiSelectMenuItem, CheckedMultiSelectItem, CheckedMultiSelect, nlsCheckedMultiSelect){
 
-	//	module:
-	//		dojox/form/CheckedMultiSelect
-	//	summary:
-	//		Extends the core dojox.form.CheckedMultiSelect to provide a "checkbox" selector
-	//
+// module:
+//		dojox/form/CheckedMultiSelect
+// summary:
+//		Extends the core dojox.form.CheckedMultiSelect to provide a "checkbox" selector
 
-	/*=====
-		Widget = dijit._Widget;
-		TemplatedMixin = dijit._TemplatedMixin;
-		WidgetsInTemplateMixin = dijit._WidgetsInTemplateMixin;
-		Menu = dijit.Menu;
-		MenuItem = dijit.MenuItem;
-		FormSelectWidget = dijit.form._FormSelectWidget;
-	=====*/
+
 var formCheckedMultiSelectItem = declare("dojox.form._CheckedMultiSelectItem", [Widget, TemplatedMixin, WidgetsInTemplateMixin], {
 	// summary:
 	//		The individual items for a CheckedMultiSelect
@@ -70,7 +61,13 @@ var formCheckedMultiSelectItem = declare("dojox.form._CheckedMultiSelectItem", [
 		this._type = this.parent.multiple ?
 			{type: "checkbox", baseClass: "dijitCheckBox"} :
 			{type: "radio", baseClass: "dijitRadio"};
-		this.disabled = this.option.disabled = this.option.disabled||false;
+		// use global disabled/readOnly if set to true, otherwise use per-option setting
+		if(!this.disabled){
+			this.disabled = this.option.disabled = this.option.disabled||false;
+		}
+		if(!this.readOnly){
+			this.readOnly = this.option.readOnly = this.option.readOnly||false;
+		}
 		this.inherited(arguments);
 	},
 
@@ -135,10 +132,9 @@ var formCheckedMultiSelectItem = declare("dojox.form._CheckedMultiSelectItem", [
 var formCheckedMultiSelectMenu = declare("dojox.form._CheckedMultiSelectMenu", Menu, {
 	// summary:
 	//		An internally-used menu for dropdown that allows us a vertical scrollbar
+
 	multiple: false,
 
-	// summary:
-	//		An internally-used menu for dropdown that allows us a vertical scrollbar
 	buildRendering: function(){
 		// summary:
 		//		Stub in our own changes, so that our domNode is not a table
@@ -192,6 +188,7 @@ var formCheckedMultiSelectMenu = declare("dojox.form._CheckedMultiSelectMenu", M
 		//		Handle clicks on an item.
 		// tags:
 		//		private
+		
 		// this can't be done in _onFocus since the _onFocus events occurs asynchronously
 		if(typeof this.isShowingNow == 'undefined'){ // non-popup menu
 			this._markActive();
@@ -225,12 +222,12 @@ var formCheckedMultiSelectMenuItem = declare("dojox.form._CheckedMultiSelectMenu
 	parent: null,
 
 	// icon of the checkbox/radio button
-	_iconClass: "",
+	iconClass: "",
 
 	postMixInProperties: function(){
-	// summary:
-	//		Set the appropriate _subClass value - based on if we are multi-
-	//		or single-select
+		// summary:
+		//		Set the appropriate _subClass value - based on if we are multi-
+		//		or single-select
 		if(this.parent.multiple){
 			this._iconClass = "dojoxCheckedMultiSelectMenuCheckBoxItemIcon";
 			this._type = {type: "checkbox"};
@@ -364,7 +361,6 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 	startup: function(){
 		// summary:
 		//		Set the value to be the first, or the selected index
-		this.inherited(arguments);
 		if(this.dropDown){
 			this.dropDownButton = new ComboButton({
 				label: this.labelText,
@@ -373,6 +369,7 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 				maxHeight: this.maxHeight
 			}, this.comboButtonNode);
 		}
+		this.inherited(arguments);
 	},
 
 	_onMouseDown: function(e){
@@ -436,7 +433,7 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 		//		notification that an item as been added to this dijit.
 	},
 
-	_addOptionItem: function(/* dojox.form.__SelectOption */ option){
+	_addOptionItem: function(/*dojox.form.__SelectOption*/ option){
 		var item;
 		if(this.dropDown){
 			item = new formCheckedMultiSelectMenuItem({
@@ -447,7 +444,9 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 		}else{
 			item = new formCheckedMultiSelectItem({
 				option: option,
-				parent: this
+				parent: this,
+				disabled: this.disabled,
+				readOnly: this.readOnly
 			});
 			this.wrapperDiv.appendChild(item.domNode);
 		}
@@ -467,7 +466,7 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 	},
 
 	reset: function(){
-		// summary: Overridden so that the state will be cleared.
+		// Overridden so that the state will be cleared.
 		this.inherited(arguments);
 		Tooltip.hide(this.domNode);
 	},
@@ -477,6 +476,16 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 		this._handleOnChange(this.value);
 		array.forEach(this._getChildren(), function(item){
 			item._updateBox();
+		});
+		domConstruct.empty(this.containerNode);
+		var self = this;
+		array.forEach(this.value, function(item){
+			var opt = domConstruct.create("option", {
+				"value": item,
+				"label": item,
+				"selected": "selected"
+			});
+			domConstruct.place(opt, self.containerNode);
 		});
 		if(this.dropDown && this.dropDownButton){
 			var i = 0, label = "";
@@ -503,7 +512,8 @@ var formCheckedMultiSelect = declare("dojox.form.CheckedMultiSelect", FormSelect
 	},
 
 	invertSelection: function(onChange){
-		// summary: Invert the selection
+		// summary:
+		//		Invert the selection
 		// onChange: Boolean
 		//		If null, onChange is not fired.
 		if(this.multiple){

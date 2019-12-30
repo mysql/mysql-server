@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -284,7 +284,9 @@ static struct PSI_rwlock_locker *start_rwlock_wrwait_noop(
 
 static void end_rwlock_wrwait_noop(PSI_rwlock_locker *, int) { return; }
 
-static void unlock_rwlock_noop(PSI_rwlock *) { return; }
+static void unlock_rwlock_noop(PSI_rwlock *, enum PSI_rwlock_operation) {
+  return;
+}
 
 static PSI_rwlock_service_t psi_rwlock_noop = {
     register_rwlock_noop,     init_rwlock_noop,       destroy_rwlock_noop,

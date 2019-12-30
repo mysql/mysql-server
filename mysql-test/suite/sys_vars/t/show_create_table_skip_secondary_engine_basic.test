@@ -1,0 +1,17 @@
+--echo #
+--echo # WL#13153: Don't dump SECONDARY TABLE if requested by the end user
+--echo #
+
+--echo # test: should be off by default
+select @@session.show_create_table_skip_secondary_engine;
+
+SET SESSION show_create_table_skip_secondary_engine=default;
+--echo # test: should be off by default
+select @@session.show_create_table_skip_secondary_engine;
+
+--error ER_LOCAL_VARIABLE
+SET GLOBAL show_create_table_skip_secondary_engine=default;
+--error ER_LOCAL_VARIABLE
+SET PERSIST show_create_table_skip_secondary_engine=default;
+--error ER_LOCAL_VARIABLE
+SET PERSIST_ONLY show_create_table_skip_secondary_engine=default;

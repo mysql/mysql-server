@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::_;
 
 class MockProtocol : public BaseProtocol {
  public:
@@ -118,12 +118,6 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   };
   client_addr.sin6_family = AF_INET6;
   memset(&client_addr.sin6_addr, 0x0, sizeof(client_addr.sin6_addr));
-  EXPECT_CALL(socket_operations_, getpeername(_, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
-                      Return(0)));
-
-  EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
-      .WillOnce(Return("127.0.0.1"));
 
   EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
       .Times(testing::AtLeast(0))
@@ -165,12 +159,6 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtThreadExit) {
 
   EXPECT_CALL(socket_operations_, shutdown(testing::_)).Times(2);
   EXPECT_CALL(socket_operations_, close(testing::_)).Times(2);
-  EXPECT_CALL(socket_operations_, getpeername(_, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
-                      Return(0)));
-
-  EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
-      .WillOnce(Return("127.0.0.1"));
 
   EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
       .Times(testing::AtLeast(0))
@@ -222,12 +210,6 @@ TEST_F(TestRoutingConnection, IsConnectionThreadStopOnDisconnect) {
 
   EXPECT_CALL(socket_operations_, shutdown(testing::_)).Times(2);
   EXPECT_CALL(socket_operations_, close(testing::_)).Times(2);
-  EXPECT_CALL(socket_operations_, getpeername(_, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
-                      Return(0)));
-
-  EXPECT_CALL(socket_operations_, inetntop(_, _, _, _))
-      .WillOnce(Return("127.0.0.1"));
 
   EXPECT_CALL(*protocol_, on_block_client_host(testing::_, testing::_))
       .Times(testing::AtLeast(0))

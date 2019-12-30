@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,7 @@ struct SYS_VAR;
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
-#if !defined(HAVE_WOLFSSL)
 bool caching_sha2_auto_generate_rsa_keys = true;
-#endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys = 0;
 
 namespace sha2_password {
@@ -104,12 +102,12 @@ SHA2_password_cache::~SHA2_password_cache() {
 
 bool SHA2_password_cache::add(const std::string authorization_id,
                               const sha2_cache_entry &entry_to_be_cached) {
-  DBUG_ENTER("SHA2_password_cache::add");
+  DBUG_TRACE;
   auto ret = m_password_cache.insert(std::pair<std::string, sha2_cache_entry>(
       authorization_id, entry_to_be_cached));
-  if (ret.second == false) DBUG_RETURN(true);
+  if (ret.second == false) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -123,13 +121,13 @@ bool SHA2_password_cache::add(const std::string authorization_id,
 */
 
 bool SHA2_password_cache::remove(const std::string authorization_id) {
-  DBUG_ENTER("SHA2_password_cache::remove");
+  DBUG_TRACE;
   auto it = m_password_cache.find(authorization_id);
   if (it != m_password_cache.end()) {
     m_password_cache.erase(it);
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -147,7 +145,7 @@ bool SHA2_password_cache::remove(const std::string authorization_id) {
 
 bool SHA2_password_cache::search(const std::string authorization_id,
                                  sha2_cache_entry &cache_entry) {
-  DBUG_ENTER("SHA2_password_cache::search");
+  DBUG_TRACE;
   auto it = m_password_cache.find(authorization_id);
   if (it != m_password_cache.end()) {
     const sha2_cache_entry stored_entry = it->second;
@@ -155,9 +153,9 @@ bool SHA2_password_cache::search(const std::string authorization_id,
       memcpy(cache_entry.digest_buffer[i], stored_entry.digest_buffer[i],
              sizeof(cache_entry.digest_buffer[i]));
     }
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Clear the cache - Release all memory */
@@ -235,16 +233,15 @@ Caching_sha2_password::~Caching_sha2_password() {
 std::pair<bool, bool> Caching_sha2_password::authenticate(
     const std::string &authorization_id, const std::string *serialized_string,
     const std::string &plaintext_password) {
-  DBUG_ENTER("Caching_sha2_password::authenticate");
+  DBUG_TRACE;
 
   /* Don't process the password if it is longer than maximum limit */
   if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
-    DBUG_RETURN(std::make_pair(true, false));
+    return std::make_pair(true, false);
 
   /* Empty authentication string */
   if (!serialized_string[0].length())
-    DBUG_RETURN(
-        std::make_pair(plaintext_password.length() ? true : false, false));
+    return std::make_pair(plaintext_password.length() ? true : false, false);
 
   bool second = false;
   for (unsigned int i = 0;
@@ -265,7 +262,7 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
       if (m_plugin_info)
         LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
                      authorization_id.c_str());
-      DBUG_RETURN(std::make_pair(true, second));
+      return std::make_pair(true, second);
     }
 
     /*
@@ -280,7 +277,7 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
         LogPluginErr(ERROR_LEVEL,
                      ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
                      authorization_id.c_str());
-      DBUG_RETURN(std::make_pair(true, second));
+      return std::make_pair(true, second);
     }
 
     /*
@@ -302,7 +299,7 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
         DBUG_PRINT("info", ("Failed to generate multi-round hash for %s. "
                             "Fast authentication won't be possible.",
                             authorization_id.c_str()));
-        DBUG_RETURN(std::make_pair(false, second));
+        return std::make_pair(false, second);
       }
 
       rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__, __LINE__);
@@ -313,7 +310,7 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
         /* Same digest is already added, so just return */
         if (memcmp(fast_digest.digest_buffer[i], stored_digest.digest_buffer[i],
                    sizeof(fast_digest.digest_buffer[i])) == 0)
-          DBUG_RETURN(std::make_pair(false, second));
+          return std::make_pair(false, second);
 
         /* Update the digest */
         uint retain_index = i ? 0 : 1;
@@ -325,12 +322,12 @@ std::pair<bool, bool> Caching_sha2_password::authenticate(
         DBUG_PRINT("info", ("An old digest for %s was recorded in cache. "
                             "It has been replaced with the latest digest.",
                             authorization_id.c_str()));
-        DBUG_RETURN(std::make_pair(false, second));
+        return std::make_pair(false, second);
       }
-      DBUG_RETURN(std::make_pair(false, second));
+      return std::make_pair(false, second);
     }
   }
-  DBUG_RETURN(std::make_pair(true, second));
+  return std::make_pair(true, second);
 }
 
 /**
@@ -353,14 +350,14 @@ std::pair<bool, bool> Caching_sha2_password::fast_authenticate(
     const std::string &authorization_id, const unsigned char *random,
     unsigned int random_length, const unsigned char *scramble,
     bool check_second) {
-  DBUG_ENTER("Caching_sha2_password::fast_authenticate");
+  DBUG_TRACE;
   if (!scramble || !random) {
     DBUG_PRINT("info", ("For authorization id : %s,"
                         "Scramble is null - %s :"
                         "Random is null - %s :",
                         authorization_id.c_str(), !scramble ? "true" : "false",
                         !random ? "true" : "false"));
-    DBUG_RETURN(std::make_pair(true, false));
+    return std::make_pair(true, false);
   }
 
   rwlock_scoped_lock rdlock(&m_cache_lock, false, __FILE__, __LINE__);
@@ -369,7 +366,7 @@ std::pair<bool, bool> Caching_sha2_password::fast_authenticate(
   if (m_cache.search(authorization_id, digest)) {
     DBUG_PRINT("info", ("Could not find entry for %s in cache.",
                         authorization_id.c_str()));
-    DBUG_RETURN(std::make_pair(true, false));
+    return std::make_pair(true, false);
   }
 
   /* Entry found, so validate scramble against it */
@@ -383,7 +380,7 @@ std::pair<bool, bool> Caching_sha2_password::fast_authenticate(
         scramble, digest.digest_buffer[1], random, random_length);
     retval = validate_scramble_second.validate();
   }
-  DBUG_RETURN(std::make_pair(retval, second));
+  return std::make_pair(retval, second);
 }
 
 /**
@@ -442,13 +439,13 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
                                         Digest_info &digest_type,
                                         std::string &salt, std::string &digest,
                                         size_t &iterations) {
-  DBUG_ENTER("Caching_sha2_password::deserialize");
-  if (!serialized_string.length()) DBUG_RETURN(true);
+  DBUG_TRACE;
+  if (!serialized_string.length()) return true;
   /* Digest Type */
   std::string::size_type delimiter = serialized_string.find(DELIMITER, 0);
   if (delimiter == std::string::npos) {
     DBUG_PRINT("info", ("Digest string is not in expected format."));
-    DBUG_RETURN(true);
+    return true;
   }
   std::string digest_type_info =
       serialized_string.substr(delimiter + 1, DIGEST_INFO_LENGTH);
@@ -457,7 +454,7 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   else {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Missing digest type information."));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Iteration */
@@ -465,14 +462,14 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   if (delimiter == std::string::npos) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Missing iteration count information."));
-    DBUG_RETURN(true);
+    return true;
   }
   std::string::size_type delimiter_2 =
       serialized_string.find(DELIMITER, delimiter + 1);
   if (delimiter_2 == std::string::npos || delimiter_2 - delimiter != 4) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Invalid iteration count information."));
-    DBUG_RETURN(true);
+    return true;
   }
   std::string iteration_info =
       serialized_string.substr(delimiter + 1, ITERATION_LENGTH);
@@ -482,7 +479,7 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   if (!iterations) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Invalid iteration count information."));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Salt */
@@ -491,7 +488,7 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
   if (salt.length() != SALT_LENGTH) {
     DBUG_PRINT("info", ("Digest string is not in expected format."
                         "Invalid m_salt information."));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Digest */
@@ -502,13 +499,13 @@ bool Caching_sha2_password::deserialize(const std::string &serialized_string,
       if (digest.length() != STORED_SHA256_DIGEST_LENGTH) {
         DBUG_PRINT("info", ("Digest string is not in expected format."
                             "Invalid digest length."));
-        DBUG_RETURN(true);
+        return true;
       }
       break;
     default:
-      DBUG_RETURN(true);
+      return true;
   };
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -544,7 +541,7 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
                                       const std::string &salt,
                                       const std::string &digest,
                                       size_t iterations) {
-  DBUG_ENTER("Caching_sha2_password::serialize");
+  DBUG_TRACE;
   std::stringstream ss;
   /* Digest type */
   switch (digest_type) {
@@ -552,14 +549,14 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
       ss << DELIMITER << "A" << DELIMITER;
       break;
     default:
-      DBUG_RETURN(true);
+      return true;
   }
 
   /* Iterations */
   unsigned int iteration_info = iterations / ITERATION_MULTIPLIER;
   if (!iteration_info || iterations > MAX_ITERATIONS) {
     DBUG_PRINT("info", ("Invalid iteration count information."));
-    DBUG_RETURN(true);
+    return true;
   }
   ss << std::setfill('0') << std::setw(3) << iteration_info << DELIMITER;
   serialized_string = ss.str();
@@ -567,7 +564,7 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
   /* Salt */
   if (salt.length() != SALT_LENGTH) {
     DBUG_PRINT("info", ("Invalid m_salt."));
-    DBUG_RETURN(true);
+    return true;
   }
   serialized_string.append(salt.c_str(), salt.length());
 
@@ -576,14 +573,14 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
     case Digest_info::SHA256_DIGEST:
       if (digest.length() != STORED_SHA256_DIGEST_LENGTH) {
         DBUG_PRINT("info", ("Invalid digest size."));
-        DBUG_RETURN(true);
+        return true;
       }
       serialized_string.append(digest.c_str(), digest.length());
       break;
     default:
-      DBUG_RETURN(true);
+      return true;
   };
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -601,7 +598,7 @@ bool Caching_sha2_password::serialize(std::string &serialized_string,
 bool Caching_sha2_password::generate_fast_digest(
     const std::string &plaintext_password, sha2_cache_entry &digest,
     unsigned int pos) {
-  DBUG_ENTER("Caching_sha2_password::generate_fast_digest");
+  DBUG_TRACE;
   DBUG_ASSERT(pos < MAX_PASSWORDS);
   SHA256_digest sha256_digest;
   unsigned char digest_buffer[CACHING_SHA2_DIGEST_LENGTH];
@@ -612,7 +609,7 @@ bool Caching_sha2_password::generate_fast_digest(
       sha256_digest.retrieve_digest(digest_buffer,
                                     CACHING_SHA2_DIGEST_LENGTH)) {
     DBUG_PRINT("info", ("Failed to generate SHA256 digest for password"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   for (unsigned int i = 1; i < m_fast_digest_rounds; ++i) {
@@ -623,14 +620,14 @@ bool Caching_sha2_password::generate_fast_digest(
                                       CACHING_SHA2_DIGEST_LENGTH)) {
       DBUG_PRINT("info", ("Failed to generate SHA256 of SHA256 "
                           "digest for password"));
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
   /* Calculated digest is stored in digest */
   memcpy(digest.digest_buffer[pos], digest_buffer,
          sizeof(digest.digest_buffer[pos]));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -651,7 +648,7 @@ bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
                                                      const std::string &random,
                                                      std::string *digest,
                                                      unsigned int iterations) {
-  DBUG_ENTER("Caching_sha2_password::generate_sha2_multi_hash");
+  DBUG_TRACE;
   char salt[SALT_LENGTH + 1];
   /* Generate salt including terminating \0 */
   generate_user_salt(salt, SALT_LENGTH + 1);
@@ -674,9 +671,9 @@ bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
     }
     default:
       DBUG_ASSERT(false);
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -686,17 +683,16 @@ bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
 */
 
 size_t Caching_sha2_password::get_cache_count() {
-  DBUG_ENTER("Caching_sha2_password::get_cache_count");
+  DBUG_TRACE;
   rwlock_scoped_lock rdlock(&m_cache_lock, false, __FILE__, __LINE__);
-  DBUG_RETURN(m_cache.size());
+  return m_cache.size();
 }
 
 /** Clear the password cache */
 void Caching_sha2_password::clear_cache() {
-  DBUG_ENTER("Caching_sha2_password::clear_cache");
+  DBUG_TRACE;
   rwlock_scoped_lock wrlock(&m_cache_lock, true, __FILE__, __LINE__);
   m_cache.clear_cache();
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -709,7 +705,7 @@ void Caching_sha2_password::clear_cache() {
     @retval true  Invalid hash
 */
 bool Caching_sha2_password::validate_hash(const std::string serialized_string) {
-  DBUG_ENTER("Caching_sha2_password::validate_hash");
+  DBUG_TRACE;
   Digest_info digest_type;
   std::string salt;
   std::string digest;
@@ -717,11 +713,10 @@ bool Caching_sha2_password::validate_hash(const std::string serialized_string) {
 
   if (!serialized_string.length()) {
     DBUG_PRINT("info", ("0 length digest."));
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(
-      deserialize(serialized_string, digest_type, salt, digest, iterations));
+  return deserialize(serialized_string, digest_type, salt, digest, iterations);
 }
 
 }  // namespace sha2_password
@@ -785,13 +780,12 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio,
 */
 static void make_hash_key(const char *username, const char *hostname,
                           std::string &key) {
-  DBUG_ENTER("make_hash_key");
+  DBUG_TRACE;
   key.clear();
   key.append(username ? username : "");
   key.push_back('\0');
   key.append(hostname ? hostname : "");
   key.push_back('\0');
-  DBUG_VOID_RETURN;
 }
 
 static char request_public_key = '\2';
@@ -943,7 +937,7 @@ static char perform_full_authentication = '\4';
 
 static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                                               MYSQL_SERVER_AUTH_INFO *info) {
-  DBUG_ENTER("caching_sha2_password_authenticate");
+  DBUG_TRACE;
   uchar *pkt;
   int pkt_len;
   char scramble[SCRAMBLE_LENGTH + 1];
@@ -962,7 +956,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if it is set to operate as a default plugin.
   */
   if (vio->write_packet(vio, (unsigned char *)scramble, SCRAMBLE_LENGTH + 1))
-    DBUG_RETURN(CR_AUTH_HANDSHAKE);
+    return CR_AUTH_HANDSHAKE;
 
   /*
     Save the scramble so it could be used by native plugin in case
@@ -974,8 +968,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     After the call to read_packet() the user name will appear in
     mpvio->acl_user and info will contain current data.
   */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) == -1)
-    DBUG_RETURN(CR_AUTH_HANDSHAKE);
+  if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_AUTH_HANDSHAKE;
 
   /*
     If first packet is a 0 byte then the client isn't sending any password
@@ -988,9 +981,9 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       host mask.
     */
     if (info->auth_string_length == 0)
-      DBUG_RETURN(CR_OK);
+      return CR_OK;
     else
-      DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
+      return CR_AUTH_USER_CREDENTIALS;
   } else
     info->password_used = PASSWORD_USED_YES;
 
@@ -1000,8 +993,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   make_hash_key(info->authenticated_as, hostname ? hostname : NULL,
                 authorization_id);
 
-  if (pkt_len != sha2_password::CACHING_SHA2_DIGEST_LENGTH)
-    DBUG_RETURN(CR_ERROR);
+  if (pkt_len != sha2_password::CACHING_SHA2_DIGEST_LENGTH) return CR_ERROR;
 
   std::pair<bool, bool> fast_auth_result =
       g_caching_sha2_password->fast_authenticate(
@@ -1015,11 +1007,11 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       In either case, move to full authentication and ask the password
     */
     if (vio->write_packet(vio, (uchar *)&perform_full_authentication, 1))
-      DBUG_RETURN(CR_AUTH_HANDSHAKE);
+      return CR_AUTH_HANDSHAKE;
   } else {
     /* Send fast_auth_success packet followed by CR_OK */
     if (vio->write_packet(vio, (uchar *)&fast_auth_success, 1))
-      DBUG_RETURN(CR_AUTH_HANDSHAKE);
+      return CR_AUTH_HANDSHAKE;
     if (fast_auth_result.second) {
       const char *username =
           *info->authenticated_as ? info->authenticated_as : "";
@@ -1028,7 +1020,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                    username, hostname ? hostname : "");
     }
 
-    DBUG_RETURN(CR_OK);
+    return CR_OK;
   }
 
   /*
@@ -1037,8 +1029,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     password is '\0'.
     See setting of plaintext_password using unencrypted vio.
   */
-  if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0)
-    DBUG_RETURN(CR_AUTH_HANDSHAKE);
+  if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_AUTH_HANDSHAKE;
 
   if (!my_vio_is_secure(vio)) {
     /*
@@ -1052,7 +1043,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (private_key == NULL || public_key == NULL) {
       if (caching_sha2_auth_plugin_ref)
         LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
 
     if ((cipher_length = g_caching_sha2_rsa_keys->get_cipher_length()) >
@@ -1061,7 +1052,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
         LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
                      g_caching_sha2_rsa_keys->get_cipher_length(),
                      MAX_CIPHER_LENGTH);
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
 
     /*
@@ -1074,18 +1065,19 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
           strlen(g_caching_sha2_rsa_keys->get_public_key_as_pem()));
       if (vio->write_packet(
               vio,
-              (unsigned char *)g_caching_sha2_rsa_keys->get_public_key_as_pem(),
+              pointer_cast<const uchar *>(
+                  g_caching_sha2_rsa_keys->get_public_key_as_pem()),
               pem_length))
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
       /* Get the encrypted response from the client */
-      if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) DBUG_RETURN(CR_ERROR);
+      if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_ERROR;
     }
 
     /*
       The packet will contain the cipher used. The length of the packet
       must correspond to the expected cipher length.
     */
-    if (pkt_len != cipher_length) DBUG_RETURN(CR_ERROR);
+    if (pkt_len != cipher_length) return CR_ERROR;
 
     /* Decrypt password */
     RSA_private_decrypt(cipher_length, pkt, plain_text, private_key,
@@ -1099,7 +1091,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     pkt = plain_text;
     pkt_len = strlen((char *)plain_text) + 1;  // include \0 intentionally.
 
-    if (pkt_len == 1) DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
+    if (pkt_len == 1) return CR_AUTH_USER_CREDENTIALS;
   }  // if(!my_vio_is_encrypted())
 
   /* Fetch user authentication_string and extract the password salt */
@@ -1112,7 +1104,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
   std::string plaintext_password((char *)pkt, pkt_len - 1);
   std::pair<bool, bool> auth_success = g_caching_sha2_password->authenticate(
       authorization_id, serialized_string, plaintext_password);
-  if (auth_success.first) DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
+  if (auth_success.first) return CR_AUTH_USER_CREDENTIALS;
 
   if (auth_success.second) {
     const char *username =
@@ -1122,7 +1114,7 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                  username, hostname ? hostname : "");
   }
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }
 
 /**
@@ -1144,19 +1136,23 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
                                           const char *inbuf,
                                           unsigned int inbuflen) {
-  DBUG_ENTER("caching_sha2_password_generate");
+  DBUG_TRACE;
   std::string digest;
   std::string source(inbuf, inbuflen);
   std::string random;
   std::string serialized_string;
 
-  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH ||
-      my_validate_password_policy(inbuf, inbuflen))
-    DBUG_RETURN(1);
+  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    return 1;
+
+  THD *thd = current_thd;
+  if (!thd->m_disable_password_validation) {
+    if (my_validate_password_policy(inbuf, inbuflen)) return 1;
+  }
 
   if (inbuflen == 0) {
     *buflen = 0;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   char salt[sha2_password::SALT_LENGTH + 1];
@@ -1165,21 +1161,21 @@ static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
 
   if (g_caching_sha2_password->generate_sha2_multi_hash(
           source, random, &digest, CACHING_SHA2_PASSWORD_ITERATIONS))
-    DBUG_RETURN(1);
+    return 1;
 
   if (g_caching_sha2_password->serialize(
           serialized_string, g_caching_sha2_password->get_digest_type(), random,
           digest, g_caching_sha2_password->get_digest_rounds()))
-    DBUG_RETURN(1);
+    return 1;
 
   if (serialized_string.length() > MAX_FIELD_WIDTH) {
     *buflen = 0;
-    DBUG_RETURN(1);
+    return 1;
   }
   memcpy(outbuf, serialized_string.c_str(), serialized_string.length());
   *buflen = serialized_string.length();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1196,10 +1192,10 @@ static int caching_sha2_password_generate(char *outbuf, unsigned int *buflen,
 
 static int caching_sha2_password_validate(char *const inbuf,
                                           unsigned int buflen) {
-  DBUG_ENTER("caching_sha2_password_validate");
+  DBUG_TRACE;
   std::string serialized_string(inbuf, buflen);
-  if (g_caching_sha2_password->validate_hash(serialized_string)) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (g_caching_sha2_password->validate_hash(serialized_string)) return 1;
+  return 0;
 }
 
 /**
@@ -1217,9 +1213,9 @@ static int caching_sha2_password_salt(
     const char *password MY_ATTRIBUTE((unused)),
     unsigned int password_len MY_ATTRIBUTE((unused)),
     unsigned char *salt MY_ATTRIBUTE((unused)), unsigned char *salt_len) {
-  DBUG_ENTER("caching_sha2_password_salt");
+  DBUG_TRACE;
   *salt_len = 0;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1233,13 +1229,13 @@ static int caching_sha2_password_salt(
 */
 
 static int caching_sha2_authentication_init(MYSQL_PLUGIN plugin_ref) {
-  DBUG_ENTER("caching_sha2_authentication_init");
+  DBUG_TRACE;
   caching_sha2_auth_plugin_ref = plugin_ref;
   g_caching_sha2_password =
       new sha2_password::Caching_sha2_password(caching_sha2_auth_plugin_ref);
-  if (!g_caching_sha2_password) DBUG_RETURN(1);
+  if (!g_caching_sha2_password) return 1;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1252,12 +1248,12 @@ static int caching_sha2_authentication_init(MYSQL_PLUGIN plugin_ref) {
 
 static int caching_sha2_authentication_deinit(
     void *arg MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("caching_sha2_authentication_deinit");
+  DBUG_TRACE;
   if (g_caching_sha2_password) {
     delete g_caching_sha2_password;
     g_caching_sha2_password = 0;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1280,7 +1276,7 @@ static int caching_sha2_authentication_deinit(
 static int compare_caching_sha2_password_with_hash(
     const char *hash, unsigned long hash_length, const char *cleartext,
     unsigned long cleartext_length, int *is_error) {
-  DBUG_ENTER("compare_caching_sha2_password_with_hash");
+  DBUG_TRACE;
 
   std::string serialized_string(hash, hash_length);
   std::string plaintext_password(cleartext, cleartext_length);
@@ -1294,25 +1290,25 @@ static int compare_caching_sha2_password_with_hash(
               sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
   if (cleartext_length >
       sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
-    DBUG_RETURN(-1);
+    return -1;
 
   if (g_caching_sha2_password->deserialize(serialized_string, digest_type,
                                            random, digest, iterations)) {
     *is_error = 1;
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   if (g_caching_sha2_password->generate_sha2_multi_hash(
           plaintext_password, random, &generated_digest, iterations)) {
     *is_error = 1;
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   *is_error = 0;
   int result = memcmp(digest.c_str(), generated_digest.c_str(),
                       sha2_password::STORED_SHA256_DIGEST_LENGTH);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1354,23 +1350,18 @@ static MYSQL_SYSVAR_STR(
     "A fully qualified path to the public RSA key used for authentication.",
     NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
-#if !defined(HAVE_WOLFSSL)
 static MYSQL_SYSVAR_BOOL(
     auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-    "Auto generate RSA keys at server startup if correpsonding "
+    "Auto generate RSA keys at server startup if corresponding "
     "system variables are not specified and key files are not present "
     "at the default location.",
     NULL, NULL, true);
-#endif
 
 /** Array of system variables. Used in plugin declaration. */
 static SYS_VAR *caching_sha2_password_sysvars[] = {
     MYSQL_SYSVAR(private_key_path), MYSQL_SYSVAR(public_key_path),
-#if !defined(HAVE_WOLFSSL)
-    MYSQL_SYSVAR(auto_generate_rsa_keys),
-#endif
-    0};
+    MYSQL_SYSVAR(auto_generate_rsa_keys), 0};
 
 /** Array of status variables. Used in plugin declaration. */
 static SHOW_VAR caching_sha2_password_status_variables[] = {
@@ -1390,7 +1381,7 @@ static SHOW_VAR caching_sha2_password_status_variables[] = {
 
 static int sha2_cache_cleaner_notify(MYSQL_THD, mysql_event_class_t event_class,
                                      const void *event) {
-  DBUG_ENTER("sha2_cache_cleaner_notify");
+  DBUG_TRACE;
   if (event_class == MYSQL_AUDIT_AUTHENTICATION_CLASS) {
     const struct mysql_event_authentication *authentication_event =
         (const struct mysql_event_authentication *)event;
@@ -1402,11 +1393,11 @@ static int sha2_cache_cleaner_notify(MYSQL_THD, mysql_event_class_t event_class,
       If status is set to true, it indicates an error.
       In which case, don't touch the cache.
     */
-    if (authentication_event->status) DBUG_RETURN(0);
+    if (authentication_event->status) return 0;
 
     if (subclass == MYSQL_AUDIT_AUTHENTICATION_FLUSH) {
       g_caching_sha2_password->clear_cache();
-      DBUG_RETURN(0);
+      return 0;
     }
 
     if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
@@ -1421,7 +1412,7 @@ static int sha2_cache_cleaner_notify(MYSQL_THD, mysql_event_class_t event_class,
       g_caching_sha2_password->remove_cached_entry(authorization_id);
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /** st_mysql_audit for sha2_cache_cleaner plugin */

@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"save": "儲存"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/zh-tw/Save",({"save":"儲存"}));

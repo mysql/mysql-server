@@ -2,7 +2,7 @@
 # Test restoring backups with in- or excluding tables or databases
 ######################################################################
 
--- source include/have_ndb.inc
+-- source include/have_multi_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
 --echo *************************************
@@ -51,6 +51,14 @@ select * from tab2 order by a;
 --source include/ndb_backup.inc
 
 drop table db1.tab1, db1.tab2, db2.tab1, db2.tab2;
+
+# Turn off metadata check so it doesn't intefere with table discovery
+--connection server2
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+--connection server1
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 
 --echo **************************************
 --echo Check various include/exclude variants
@@ -350,5 +358,12 @@ drop table db2.tab1, db2.tab2;
 
 drop database db1;
 drop database db2;
+
+# Reset metadata check value
+--connection server2
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+--connection server1
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

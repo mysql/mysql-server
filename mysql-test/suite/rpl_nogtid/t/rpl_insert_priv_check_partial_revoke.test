@@ -1,0 +1,94 @@
+# ==== Purpose ====
+#
+# To Verify that Rows log event privilege check works with partial revokes.
+#
+# ==== Implementation ====
+#
+# TC1. Execute INSERT with and without the necessary privileges by
+#      means of partial revoke
+# -----------------------------------------------------------------
+# 1) Create a table on master and insert a row
+# 2) On slave create an user 'u1' which will be used as a
+#    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
+# 3) Grant INSERT globally and partially revoke for current database.
+# 4) Start slave and expect an error as the user doesn't have INSERT privilege.
+# 5) Stop slave and grant INSERT privilege.
+# 6) Start slave again and this time there should not be any error.
+# 7) Revoke the privilege granted in step 4)
+# 8) Ensure table is the same on master and slave.
+# 9) Drop the table from master and slave.
+#
+# ==== References ====
+#
+# WL#12966: Replication with Restricted Privileges
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_privilege_checks_user = 2:'u1'@'localhost'
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+--source include/rpl_use_privilege_db.inc
+
+--echo #
+--echo # TC1. Execute INSERT with and without the necessary
+--echo #      privileges
+--echo # --------------------------------------------------
+--echo #
+
+# 1) Create a table on master and insert a row
+SET @@session.sql_log_bin = OFF;
+CREATE TABLE t(c INT);
+SET @@session.sql_log_bin = ON;
+INSERT INTO t VALUES(10);
+--source include/save_master_pos.inc
+
+# 2) On slave create an user 'u1' which will be used as a
+#    PRIVILEGE_CHECKS_USER to apply events in the replication stream.
+--source include/rpl_connection_slave.inc
+--let $opt_partial_revokes = `SELECT @@partial_revokes`
+SET GLOBAL partial_revokes = ON;
+
+--source include/rpl_use_privilege_db.inc
+CALL mtr.add_suppression(".*command denied to user.");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CREATE TABLE t(c INT);
+
+# 3) Grant INSERT globally and partially revoke for current database.
+GRANT INSERT ON *.* TO 'u1'@'localhost';
+--eval REVOKE INSERT ON $RPL_PRIV_DB.* FROM 'u1'@'localhost'
+SHOW GRANTS FOR 'u1'@'localhost';
+
+# 4) Start slave and expect an error as the user doesn't have the privilege.
+START SLAVE;
+--let $slave_sql_errno= convert_error(ER_TABLEACCESS_DENIED_ERROR)
+--source include/wait_for_slave_sql_error.inc
+
+# 5) Stop slave and grant the privilege.
+STOP SLAVE;
+--eval GRANT INSERT ON $RPL_PRIV_DB.* TO 'u1'@'localhost'
+
+# 6) Start slave again and this time there should not be any error.
+START SLAVE;
+--source include/sync_slave_sql.inc
+
+# 7) Revoke the privilege granted in step 4)
+REVOKE INSERT ON *.* FROM 'u1'@'localhost';
+
+# 8) Ensure table is the same on master and slave.
+--let $diff_tables = master:t, slave:t
+--source include/diff_tables.inc
+
+--disable_query_log
+--eval SET GLOBAL partial_revokes = $opt_partial_revokes
+--enable_query_log
+
+# 9) Drop the table from master and slave.
+DROP TABLE t;
+--source include/rpl_connection_master.inc
+SET @@session.sql_log_bin = OFF;
+DROP TABLE t;
+SET @@session.sql_log_bin = ON;
+
+--let $rpl_only_running_threads=1
+--source include/rpl_end.inc

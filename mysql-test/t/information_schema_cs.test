@@ -168,7 +168,8 @@ show procedure status where db='test';
 show function status where db='test';
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test'
+ORDER BY a.ROUTINE_NAME;
 
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 
@@ -179,19 +180,23 @@ drop view v1;
 
 connect (user1,localhost,mysqltest_1,,);
 connection user1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 --error ER_SP_DOES_NOT_EXIST
 show create function sub1;
 connection user3;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 connection default;
 grant all privileges on test.* to mysqltest_1@localhost;
 connect (user2,localhost,mysqltest_1,,);
 connection user2;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 create function sub2(i int) returns int
   return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 show create procedure sel2;
 show create function sub1;
 show create function sub2;
@@ -265,7 +270,8 @@ connection user2;
 select table_name from information_schema.TABLES where table_schema like "test%" order by table_name;
 select table_name,column_name from information_schema.COLUMNS
 where table_schema like "test%" order by table_name, column_name;
-select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
+SELECT ROUTINE_NAME FROM information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA != 'sys' ORDER BY ROUTINE_NAME;
 disconnect user2;
 connection default;
 delete from mysql.user where user='mysqltest_1';
@@ -916,13 +922,15 @@ CREATE USER mysql_bug20230@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
 
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 SHOW CREATE PROCEDURE p1;
 SHOW CREATE FUNCTION f1;
 
 connect (conn1, localhost, mysql_bug20230,,);
 
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 SHOW CREATE PROCEDURE p1;
 SHOW CREATE FUNCTION f1;
 CALL p1();
@@ -1150,6 +1158,10 @@ USE test;
 #
 
 select * from information_schema.engines WHERE ENGINE="MyISAM";
+
+# Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
+# table iterators.
+explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #
 # INFORMATION_SCHEMA.PROCESSLIST
@@ -1830,27 +1842,6 @@ LIMIT 1;
 --source include/wait_until_count_sessions.inc
 
 --echo #
---echo # Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
---echo #
-# After ACL tables were migrated to InnoDB storage engine the
-# "Impossible HAVING" optimization isn't possible with mysql.procs_priv
-# table. To keep the test runnable the copy of this table using MyISAM
-# engine is created and used in the test.
-CREATE TABLE mysql.procs_priv_copy ENGINE=MyISAM AS SELECT * FROM mysql.procs_priv;
-
-let $query=
-select * from
-information_schema . innodb_cmp as table1
-left outer join mysql . procs_priv_copy as table2
-on ( table2 . routine_name = table1 . compress_time )
-where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
-having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
-
-eval EXPLAIN $query;
-eval $query;
-DROP TABLE mysql.procs_priv_copy;
-
---echo #
 --echo # Bug#20665051 SQL_SHOW.CC:7764: ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()
 --echo #
 
@@ -2519,4 +2510,75 @@ SHOW WARNINGS;
 SET SESSION max_error_count=default;
 
 DROP VIEW v1, v2;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
+--echo #
+
+--echo # Verify that I_S.COLUMNS.EXTRA shows the 'NOT SECONDARY' clause.
+
+CREATE TABLE t1 (f1 DATE NOT SECONDARY);
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME='t1';
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 DATE);
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME='t1';
+ALTER TABLE  t1 MODIFY f1 DATE NOT SECONDARY;
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME='t1';
+DROP TABLE t1;
+
+--echo # Verify that I_S.TABLES.CREATE_OPTIONS shows 'SECONDARY_ENGINE' clause.
+
+CREATE TABLE t1 (f1 INT) SECONDARY_ENGINE=myisam;
+SELECT TABLE_NAME, CREATE_OPTIONS
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME = 't1';
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT);
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME = 't1';
+ALTER TABLE t1 SECONDARY_ENGINE=myisam;
+SELECT TABLE_NAME, CREATE_OPTIONS FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_NAME = 't1';
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#29406053: OPTIMIZER_SWITCH DERIVED_MERGE=OFF CAUSES TABLE COMMENTS
+--echo #               "... IS NOT BASE TABLE"
+--echo #
+
+let $query =
+  SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, TABLE_COMMENT
+  FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'sys' AND TABLE_NAME = 'sys_config';
+
+SET OPTIMIZER_SWITCH='DERIVED_MERGE=ON';
+--eval $query
+--eval $query
+
+SET OPTIMIZER_SWITCH='DERIVED_MERGE=OFF';
+--eval $query
+--echo # Without the patch, TABLE_COMMENT field in INFORMATION_SCHEMA.TABLES will
+--echo # contain error information mentioning that one of the views in sys schema
+--echo # is not a BASE TABLE.
+--eval $query
+
+# For views, all the columns in I_S.TABLES except TABLE_CATALOG, TABLE_SCHEMA,
+# TABLE_NAME, TABLE_TYPE, CREATE_TIME and TABLE_COMMENT are NULL.
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+CREATE VIEW v1 AS SELECT * FROM t1;
+ANALYZE TABLE t1;
+
+--replace_column 15 #
+SELECT * FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v1';
+
+SET OPTIMIZER_SWITCH=default;
+DROP VIEW v1;
 DROP TABLE t1;

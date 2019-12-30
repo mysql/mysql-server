@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,17 +154,18 @@ public:
    * Copy the string if you are not going to use it immediately.
    */
   int status(int nodeId,
-	     ndb_mgm_node_status * status,
-	     Uint32 * version,
-	     Uint32 * mysql_version,
-	     Uint32 * phase,
-	     bool * systemShutdown,
-	     Uint32 * dynamicId,
-	     Uint32 * nodeGroup,
-	     Uint32 * connectCount,
-	     const char **address,
+             ndb_mgm_node_status * status,
+             Uint32 * version,
+             Uint32 * mysql_version,
+             Uint32 * phase,
+             bool * systemShutdown,
+             Uint32 * dynamicId,
+             Uint32 * nodeGroup,
+             Uint32 * connectCount,
+             const char **address,
              char *addr_buf,
-             size_t addr_buf_size);
+             size_t addr_buf_size,
+             bool* is_single_user);
 
   /**
    *   Stop a list of nodes
@@ -372,20 +373,23 @@ private:
                   Uint32& version, Uint32& mysql_version,
                   const char **address,
                   char *addr_buf,
-                  size_t addr_buf_size);
+                  size_t addr_buf_size,
+                  bool& is_single_user);
   void status_mgmd(NodeId node_id,
                    ndb_mgm_node_status& node_status,
                    Uint32& version, Uint32& mysql_version,
                    const char **address,
                    char *addr_buf,
-                   size_t addr_buf_size);
+                   size_t addr_buf_size,
+                   bool& is_single_user);
 
   int sendVersionReq(int processId,
                      Uint32 &version,
                      Uint32& mysql_version,
                      const char **address,
                      char *addr_buf,
-                     size_t addr_buf_size);
+                     size_t addr_buf_size,
+                     bool& is_single_user);
 
   int sendStopMgmd(NodeId nodeId,
                    bool abort,
@@ -461,7 +465,9 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(const Uint32 * theData, Uint32 len);
+  void eventReport(const Uint32 * theSignalData,
+                   Uint32 len,
+                   const Uint32 * theData);
  
   class TransporterFacade * theFacade;
 
@@ -492,11 +498,16 @@ private:
 public:
   /* Get copy of configuration packed with base64 */
   bool get_packed_config(ndb_mgm_node_type nodetype,
-                         BaseString& buf64, BaseString& error);
+                         BaseString& buf64,
+                         BaseString& error,
+                         bool v2,
+                         Uint32 node_id);
 
   /* Get copy of configuration packed with base64 from node nodeid */
   bool get_packed_config_from_node(NodeId nodeid,
-                         BaseString& buf64, BaseString& error);
+                         BaseString& buf64,
+                         BaseString& error,
+                         bool v2);
 
   void print_config(const char* section_filter = NULL,
                     NodeId nodeid_filter = 0,
@@ -539,10 +550,10 @@ private:
   int try_alloc(NodeId id,
                 ndb_mgm_node_type type,
                 Uint32 timeout_ms);
-  bool try_alloc_from_list(NodeId& nodeid,
-                           ndb_mgm_node_type type,
-                           Uint32 timeout_ms,
-                           Vector<PossibleNode>& nodes_info);
+  int try_alloc_from_list(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          Uint32 timeout_ms,
+                          Vector<PossibleNode>& nodes_info);
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const struct sockaddr* client_addr,

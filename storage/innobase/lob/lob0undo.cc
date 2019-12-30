@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ namespace lob {
 @param[in]    first_page_no   the first page number of lob */
 void undo_data_t::apply(dict_index_t *index, byte *lob_mem, size_t len,
                         size_t lob_version, page_no_t first_page_no) {
-  DBUG_ENTER("undo_data_t::apply");
+  DBUG_TRACE;
 
   DBUG_LOG("undo_data_t", "lob_version=" << lob_version);
 
@@ -58,8 +58,6 @@ void undo_data_t::apply(dict_index_t *index, byte *lob_mem, size_t len,
     ut_ad((m_offset + m_length) <= len);
     memcpy(ptr, m_old_data, m_length);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 std::ostream &undo_data_t::print(std::ostream &out) const {

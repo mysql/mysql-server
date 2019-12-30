@@ -1,0 +1,36 @@
+create table t1 (id int(10)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t1 values (1);
+CREATE  VIEW v1 AS select t1.id as id from t1;
+CREATE  VIEW v2 AS select t1.id as renamed from t1;
+CREATE  VIEW v3 AS select t1.id + 12 as renamed from t1;
+select * from v1 group by id limit 1;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	id	id	3	10	1	Y	32768	0	63
+id
+1
+select * from v1 group by id limit 0;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
+id
+select * from v1 where id=1000 group by id;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v1	v1	id	id	3	10	0	Y	32768	0	63
+id
+select * from v1 where id=1 group by id;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v1	id	id	3	10	1	Y	32768	0	63
+id
+1
+select * from v2 where renamed=1 group by renamed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	t1	v2	id	renamed	3	10	1	Y	32768	0	63
+renamed
+1
+select * from v3 where renamed=1 group by renamed;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def		v3	v3	renamed	renamed	8	12	0	Y	32896	0	63
+renamed
+drop table t1;
+drop view v1,v2,v3;

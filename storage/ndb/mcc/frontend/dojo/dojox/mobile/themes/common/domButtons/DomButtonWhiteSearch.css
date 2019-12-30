@@ -13,7 +13,7 @@
 	margin: 0px;
 	font-size: 1px;
 	border: 2px solid white;
-	-webkit-border-radius: 6px;
+	border-radius: 6px;
 }
 .mblDomButtonWhiteSearch > div > div {
 	position: absolute;
@@ -26,5 +26,5 @@
 	background-color: white;
 	border: none;
 	-webkit-transform: rotate(45deg);
-	-webkit-border-radius: 0px;
+	border-radius: 0px;
 }

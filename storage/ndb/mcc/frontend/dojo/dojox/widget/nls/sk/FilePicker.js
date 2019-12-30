@@ -1,10 +1,2 @@
 //>>built
-define(
-({
-name: "Názov",
-path: "Cesta",
-size: "Veľkosť (v bajtoch)"
-})
-
-
-);
+define("dojox/widget/nls/sk/FilePicker",({name:"Meno",path:"Cesta",size:"Veľkosť (v bajtoch)"}));

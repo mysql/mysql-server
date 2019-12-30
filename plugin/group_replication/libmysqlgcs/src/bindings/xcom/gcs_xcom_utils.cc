@@ -412,8 +412,7 @@ bool is_parameters_syntax_correct(
     if (get_ip_and_port(const_cast<char *>(local_node_str->c_str()), host_str,
                         &local_node_port)) {
       MYSQL_GCS_LOG_ERROR("Invalid hostname or IP address ("
-                          << *local_node_str->c_str()
-                          << ") assigned to the parameter "
+                          << *local_node_str << ") assigned to the parameter "
                           << "local_node!");
       error = GCS_NOK;
       goto end;

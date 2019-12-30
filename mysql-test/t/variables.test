@@ -2,6 +2,8 @@
 # test variables
 #
 --source include/have_log_bin.inc
+--source include/have_myisam.inc
+
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings

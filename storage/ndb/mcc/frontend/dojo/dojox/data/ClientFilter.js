@@ -114,7 +114,7 @@ return _1e;
 });
 return _18;
 },isUpdateable:function(_1f){
-return typeof _1f.query=="object";
+return !_1f.query||typeof _1f.query=="object";
 },clientSideFetch:function(_20,_21){
 if(_20.queryOptions&&_20.queryOptions.results){
 _21=_20.queryOptions.results;

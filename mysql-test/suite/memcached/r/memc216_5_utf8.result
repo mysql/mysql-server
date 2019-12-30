@@ -44,10 +44,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,M,C:
+Here are the memcached results with D,B,M,C:
 Darmstadt|City|1|dddddddddddddd|1234|2012
 Berlin|Mitte|2|bbbbbbbbbbbbbb|2345|2012
 München|Süd|4|ÜÖÄßüöä|4567|2012
@@ -58,7 +55,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
-Here the memcached results after set:
+Here are the memcached results after set:
 Ülzen|City|5|üöäßÜÖÄ|5678|2012
 Beijing|City|6|fffffffff|6789|2012
 Shanghai|City|7|fffffffff|7890|2012
@@ -113,10 +110,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,M,C:
+Here are the memcached results with D,B,M,C:
 Darmstadt                               |City                                    |1                                       |dddddddddddddd                          |1234                                    |2012                                    
 Berlin                                  |Mitte                                   |2                                       |bbbbbbbbbbbbbb                          |2345                                    |2012                                    
 München                                |Süd                                    |4                                       |ÜÖÄßüöä                          |4567                                    |2012                                    
@@ -127,7 +121,7 @@ B	Berlin	Mitte	2	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 M	München	Süd	4	ÜÖÄßüöä	4567	2012
-Here the memcached results after set:
+Here are the memcached results after set:
 Ülzen                                  |City                                    |5                                       |üöäßÜÖÄ                          |5678                                    |2012                                    
 Beijing                                 |City                                    |6                                       |fffffffff                               |6789                                    |2012                                    
 Shanghai                                |City                                    |7                                       |fffffffff                               |7890                                    |2012                                    

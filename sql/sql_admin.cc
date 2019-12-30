@@ -70,6 +70,8 @@
 #include "sql/mysqld.h"             // key_file_misc
 #include "sql/partition_element.h"  // PART_ADMIN
 #include "sql/protocol.h"
+#include "sql/protocol_classic.h"
+#include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
 #include "sql/sp.h"           // Sroutine_hash_entry
 #include "sql/sp_rcontext.h"  // sp_rcontext
@@ -107,8 +109,8 @@ static int send_check_errmsg(THD *thd, TABLE_LIST *table,
   Protocol *protocol = thd->get_protocol();
   protocol->start_row();
   protocol->store(table->alias, system_charset_info);
-  protocol->store((char *)operator_name, system_charset_info);
-  protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+  protocol->store(operator_name, system_charset_info);
+  protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
   protocol->store(errmsg, system_charset_info);
   thd->clear_error();
   if (protocol->end_row()) return -1;
@@ -127,9 +129,9 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   Open_table_context ot_ctx(thd,
                             (MYSQL_OPEN_IGNORE_FLUSH | MYSQL_OPEN_HAS_MDL_LOCK |
                              MYSQL_LOCK_IGNORE_TIMEOUT));
-  DBUG_ENTER("prepare_for_repair");
+  DBUG_TRACE;
 
-  if (!(check_opt->sql_flags & TT_USEFRM)) DBUG_RETURN(0);
+  if (!(check_opt->sql_flags & TT_USEFRM)) return 0;
 
   if (!(table = table_list->table)) {
     const char *key;
@@ -151,7 +153,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     if (lock_table_names(thd, table_list, table_list->next_global,
                          thd->variables.lock_wait_timeout, 0))
-      DBUG_RETURN(0);
+      return 0;
     has_mdl_lock = true;
 
     key_length = get_table_def_key(table_list, &key);
@@ -160,14 +162,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     share = get_table_share(thd, table_list->db, table_list->table_name, key,
                             key_length, false);
     mysql_mutex_unlock(&LOCK_open);
-    if (share == NULL) DBUG_RETURN(0);  // Can't open frm file
+    if (share == NULL) return 0;  // Can't open frm file
 
     if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, false,
                               NULL)) {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);
       mysql_mutex_unlock(&LOCK_open);
-      DBUG_RETURN(0);  // Out of memory
+      return 0;  // Out of memory
     }
     table = &tmp_table;
   }
@@ -263,7 +265,7 @@ end:
   /* In case of a temporary table there will be no metadata lock. */
   if (error && has_mdl_lock) thd->mdl_context.release_transactional_locks();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -314,7 +316,7 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
          "analyze" or "histogram".
   @param table_name The name of the table that ANALYZE TABLE operated on.
 
-  @retval true An error occured while sending the result set to the client.
+  @retval true An error occurred while sending the result set to the client.
   @retval false The result set was sent to the client.
 */
 static bool send_analyze_table_errors(THD *thd, const char *operator_name,
@@ -327,9 +329,9 @@ static bool send_analyze_table_errors(THD *thd, const char *operator_name,
     protocol->start_row();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);
-    protocol->store(warning_level_names[err->severity()].str,
-                    warning_level_names[err->severity()].length,
-                    system_charset_info);
+    protocol->store_string(warning_level_names[err->severity()].str,
+                           warning_level_names[err->severity()].length,
+                           system_charset_info);
     protocol->store(err->message_text(), system_charset_info);
     if (protocol->end_row()) return true;
   }
@@ -438,10 +440,12 @@ bool Sql_cmd_analyze_table::send_histogram_results(
 
     protocol->start_row();
     if (protocol->store(table_name, system_charset_info) ||
-        protocol->store(STRING_WITH_LEN("histogram"), system_charset_info) ||
-        protocol->store(message_type.c_str(), message_type.length(),
-                        system_charset_info) ||
-        protocol->store(message.c_str(), message.size(), system_charset_info) ||
+        protocol->store_string(STRING_WITH_LEN("histogram"),
+                               system_charset_info) ||
+        protocol->store_string(message_type.c_str(), message_type.length(),
+                               system_charset_info) ||
+        protocol->store_string(message.c_str(), message.size(),
+                               system_charset_info) ||
         protocol->end_row()) {
       return true; /* purecov: deadcode */
     }
@@ -554,7 +558,7 @@ static bool mysql_admin_table(
         thd->variables.gtid_next.type == ANONYMOUS_GTID) &&
        (!thd->skip_gtid_rollback));
   bool ignore_grl_on_analyze = operator_func == &handler::ha_analyze;
-  DBUG_ENTER("mysql_admin_table");
+  DBUG_TRACE;
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
@@ -568,7 +572,7 @@ static bool mysql_admin_table(
   item->maybe_null = 1;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     Close all temporary tables which were pre-open to simplify
@@ -815,10 +819,10 @@ static bool mysql_admin_table(
       protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
       length = snprintf(buff, sizeof(buff), ER_THD(thd, ER_OPEN_AS_READONLY),
                         table_name);
-      protocol->store(buff, length, system_charset_info);
+      protocol->store_string(buff, length, system_charset_info);
       trans_commit_stmt(thd, ignore_grl_on_analyze);
       trans_commit(thd, ignore_grl_on_analyze);
       /* Make sure this table instance is not reused after the operation. */
@@ -868,9 +872,9 @@ static bool mysql_admin_table(
       protocol->start_row();
       protocol->store(table_name, system_charset_info);
       protocol->store(operator_name, system_charset_info);
-      protocol->store(STRING_WITH_LEN("warning"), system_charset_info);
-      protocol->store(STRING_WITH_LEN("Table is marked as crashed"),
-                      system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("warning"), system_charset_info);
+      protocol->store_string(STRING_WITH_LEN("Table is marked as crashed"),
+                             system_charset_info);
       if (protocol->end_row()) goto err;
       /* purecov: end */
     }
@@ -1002,8 +1006,8 @@ static bool mysql_admin_table(
         size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
                      operator_name);
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
       } break;
 
       case HA_ADMIN_NOT_BASE_TABLE: {
@@ -1017,44 +1021,45 @@ static bool mysql_admin_table(
         size_t length =
             snprintf(buf, sizeof(buf), ER_THD(thd, ER_BAD_TABLE_ERROR),
                      tbl_name.c_ptr());
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
       } break;
 
       case HA_ADMIN_OK:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("OK"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("OK"), system_charset_info);
         break;
 
       case HA_ADMIN_FAILED:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Operation failed"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Operation failed"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_REJECT:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Operation need committed state"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(
+            STRING_WITH_LEN("Operation need committed state"),
+            system_charset_info);
         open_for_modify = false;
         break;
 
       case HA_ADMIN_ALREADY_DONE:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Table is already up to date"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Table is already up to date"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_CORRUPT:
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Corrupt"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Corrupt"), system_charset_info);
         fatal_error = 1;
         break;
 
       case HA_ADMIN_INVALID:
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(STRING_WITH_LEN("Invalid argument"),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("Invalid argument"),
+                               system_charset_info);
         break;
 
       case HA_ADMIN_TRY_ALTER: {
@@ -1082,16 +1087,18 @@ static bool mysql_admin_table(
         table->mdl_request.ticket = NULL;
 
         DEBUG_SYNC(thd, "ha_admin_try_alter");
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
         if (alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION) {
-          protocol->store(STRING_WITH_LEN("Table does not support optimize on "
-                                          "partitions. All partitions "
-                                          "will be rebuilt and analyzed."),
-                          system_charset_info);
+          protocol->store_string(
+              STRING_WITH_LEN("Table does not support optimize on "
+                              "partitions. All partitions "
+                              "will be rebuilt and analyzed."),
+              system_charset_info);
         } else {
-          protocol->store(STRING_WITH_LEN("Table does not support optimize, "
-                                          "doing recreate + analyze instead"),
-                          system_charset_info);
+          protocol->store_string(
+              STRING_WITH_LEN("Table does not support optimize, "
+                              "doing recreate + analyze instead"),
+              system_charset_info);
         }
         if (protocol->end_row()) goto err;
         DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
@@ -1166,7 +1173,8 @@ static bool mysql_admin_table(
                   .sqlstate(da->returned_sqlstate());
             } else {
               /* Hijack the row already in-progress. */
-              protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+              protocol->store_string(STRING_WITH_LEN("error"),
+                                     system_charset_info);
               protocol->store(da->message_text(), system_charset_info);
               if (protocol->end_row()) goto err;
               /* Start off another row for HA_ADMIN_FAILED */
@@ -1185,10 +1193,10 @@ static bool mysql_admin_table(
         goto send_result_message;
       }
       case HA_ADMIN_WRONG_CHECKSUM: {
-        protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-        protocol->store(ER_THD(thd, ER_VIEW_CHECKSUM),
-                        strlen(ER_THD(thd, ER_VIEW_CHECKSUM)),
-                        system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("note"), system_charset_info);
+        protocol->store_string(ER_THD(thd, ER_VIEW_CHECKSUM),
+                               strlen(ER_THD(thd, ER_VIEW_CHECKSUM)),
+                               system_charset_info);
         break;
       }
 
@@ -1197,7 +1205,7 @@ static bool mysql_admin_table(
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
 
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         if (table->table->file->ha_table_flags() & HA_CAN_REPAIR)
           length =
               snprintf(buf, sizeof(buf), ER_THD(thd, ER_TABLE_NEEDS_UPGRADE),
@@ -1206,14 +1214,14 @@ static bool mysql_admin_table(
           length =
               snprintf(buf, sizeof(buf), ER_THD(thd, ER_TABLE_NEEDS_REBUILD),
                        table->table_name);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }
 
       case HA_ADMIN_STATS_UPD_ERR:
-        protocol->store(STRING_WITH_LEN("status"), system_charset_info);
-        protocol->store(
+        protocol->store_string(STRING_WITH_LEN("status"), system_charset_info);
+        protocol->store_string(
             STRING_WITH_LEN("Unable to write table statistics to DD tables"),
             system_charset_info);
         break;
@@ -1229,13 +1237,13 @@ static bool mysql_admin_table(
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
 
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
         length = snprintf(buf, sizeof(buf),
                           "Table upgrade required for "
                           "`%-.64s`.`%-.64s`. Please dump/reload table to "
                           "fix it!",
                           table->db, table->table_name);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }
@@ -1246,8 +1254,8 @@ static bool mysql_admin_table(
         size_t length = snprintf(buf, sizeof(buf),
                                  "Unknown - internal error %d during operation",
                                  result_code);
-        protocol->store(STRING_WITH_LEN("error"), system_charset_info);
-        protocol->store(buf, length, system_charset_info);
+        protocol->store_string(STRING_WITH_LEN("error"), system_charset_info);
+        protocol->store_string(buf, length, system_charset_info);
         fatal_error = 1;
         break;
       }
@@ -1300,7 +1308,7 @@ static bool mysql_admin_table(
 
   if (gtid_rollback_must_be_skipped) thd->skip_gtid_rollback = false;
 
-  DBUG_RETURN(false);
+  return false;
 
 err:
   DBUG_PRINT("admin", ("err:"));
@@ -1315,7 +1323,7 @@ err:
   if (table->table) table->table->m_needs_reopen = true;
   close_thread_tables(thd);  // Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -1334,26 +1342,26 @@ err:
 bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   HA_CHECK_OPT check_opt;
   KEY_CACHE *key_cache;
-  DBUG_ENTER("assign_to_keycache");
+  DBUG_TRACE;
 
   check_opt.init();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache = get_key_cache(&m_key_cache_name))) {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (!key_cache->key_cache_inited) {
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
   check_opt.key_cache = key_cache;
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret = mysql_admin_table(
       thd, tables, &check_opt, "assign_to_keycache", TL_READ_NO_INSERT, 0, 0, 0,
       0, &handler::assign_to_keycache, 0, m_alter_info, false);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*
@@ -1370,7 +1378,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
 */
 
 bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
-  DBUG_ENTER("preload_keys");
+  DBUG_TRACE;
   /*
     We cannot allow concurrent inserts. The storage engine reads
     directly from the index file, bypassing the cache. It could read
@@ -1380,7 +1388,7 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
   const bool ret =
       mysql_admin_table(thd, tables, 0, "preload_keys", TL_READ_NO_INSERT, 0, 0,
                         0, 0, &handler::preload_keys, 0, m_alter_info, false);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
@@ -1472,7 +1480,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
   TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
   bool res = true;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
-  DBUG_ENTER("Sql_cmd_analyze_table::execute");
+  DBUG_TRACE;
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
@@ -1480,7 +1488,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
 
   DBUG_EXECUTE_IF("simulate_analyze_table_lock_wait_timeout_error", {
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   });
 
   thd->enable_slow_log = opt_log_slow_admin_statements;
@@ -1504,14 +1512,14 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
   thd->lex->query_tables = first_table;
 
 error:
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_check_table::execute(THD *thd) {
   TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res = true;
-  DBUG_ENTER("Sql_cmd_check_table::execute");
+  DBUG_TRACE;
 
   if (check_table_access(thd, SELECT_ACL, first_table, true, UINT_MAX, false))
     goto error; /* purecov: inspected */
@@ -1525,13 +1533,13 @@ bool Sql_cmd_check_table::execute(THD *thd) {
   thd->lex->query_tables = first_table;
 
 error:
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_optimize_table::execute(THD *thd) {
   TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
   bool res = true;
-  DBUG_ENTER("Sql_cmd_optimize_table::execute");
+  DBUG_TRACE;
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
@@ -1553,13 +1561,13 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
   thd->lex->query_tables = first_table;
 
 error:
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_repair_table::execute(THD *thd) {
   TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
   bool res = true;
-  DBUG_ENTER("Sql_cmd_repair_table::execute");
+  DBUG_TRACE;
 
   if (check_table_access(thd, SELECT_ACL | INSERT_ACL, first_table, false,
                          UINT_MAX, false))
@@ -1581,15 +1589,15 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
   thd->lex->query_tables = first_table;
 
 error:
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_shutdown::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_shutdown::execute");
+  DBUG_TRACE;
   bool res = true;
   res = !shutdown(thd, SHUTDOWN_DEFAULT);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 class Alter_instance_reload_tls : public Alter_instance {
@@ -1611,11 +1619,11 @@ class Alter_instance_reload_tls : public Alter_instance {
       const char *error_text = sslGetErrString(error);
       if (force_) {
         push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                            ER_SSL_LIBRARY_ERROR,
-                            ER_THD(m_thd, ER_SSL_LIBRARY_ERROR), error_text);
+                            ER_DA_SSL_LIBRARY_ERROR,
+                            ER_THD(m_thd, ER_DA_SSL_LIBRARY_ERROR), error_text);
         LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
       } else {
-        my_error(ER_SSL_LIBRARY_ERROR, MYF(0), error_text);
+        my_error(ER_DA_SSL_LIBRARY_ERROR, MYF(0), error_text);
         res = true;
       }
     }
@@ -1631,7 +1639,7 @@ class Alter_instance_reload_tls : public Alter_instance {
 
 bool Sql_cmd_alter_instance::execute(THD *thd) {
   bool res = true;
-  DBUG_ENTER("Sql_cmd_alter_instance::execute");
+  DBUG_TRACE;
   switch (alter_instance_action) {
     case ROTATE_INNODB_MASTER_KEY:
       alter_instance = new Rotate_innodb_master_key(thd);
@@ -1648,7 +1656,7 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     default:
       DBUG_ASSERT(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");
-      DBUG_RETURN(true);
+      return true;
   }
 
   /*
@@ -1665,7 +1673,7 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     alter_instance = NULL;
   }
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
@@ -1677,26 +1685,36 @@ Sql_cmd_clone::Sql_cmd_clone(LEX_USER *user_info, ulong port,
 }
 
 bool Sql_cmd_clone::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_clone::execute");
+  DBUG_TRACE;
+
+  bool is_replace = (m_data_dir.str == nullptr);
 
   if (is_local()) {
     DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", m_data_dir.str));
 
   } else {
     DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s",
-                         (m_data_dir.str == nullptr) ? "" : m_data_dir.str));
+                         is_replace ? "" : m_data_dir.str));
   }
 
   auto sctx = thd->security_context();
 
-  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
+  /* For replacing current data directory, needs clone_admin privilege. */
+  if (is_replace) {
+    if (!(sctx->has_global_grant(STRING_WITH_LEN("CLONE_ADMIN")).first)) {
+      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "CLONE_ADMIN");
+      return true;
+    }
+  } else if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (m_data_dir.str == nullptr) {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "clone to current data directory");
-    DBUG_RETURN(true);
+  /* A user session cannot run clone on a group member. */
+  if (is_group_replication_running() &&
+      strcmp(thd->security_context()->priv_user().str, "mysql.session")) {
+    my_error(ER_CLONE_DISALLOWED, MYF(0), "Group Replication is running");
+    return true;
   }
 
   DBUG_ASSERT(m_clone == nullptr);
@@ -1704,19 +1722,20 @@ bool Sql_cmd_clone::execute(THD *thd) {
 
   if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (is_local()) {
+    DBUG_ASSERT(!is_replace);
     auto err = m_clone->clone_local(thd, m_data_dir.str);
     clone_plugin_unlock(thd, m_plugin);
 
     if (err != 0) {
-      DBUG_RETURN(true);
+      return true;
     }
 
     my_ok(thd);
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_ASSERT(!is_local());
@@ -1745,21 +1764,33 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   if (err != 0) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Check for KILL after setting active VIO */
-  if (thd->killed != THD::NOT_KILLED) {
+  if (!is_replace && thd->killed != THD::NOT_KILLED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    DBUG_RETURN(true);
+    return true;
+  }
+
+  /* Restart server after successfully cloning to current data directory. */
+  if (is_replace && signal_restart_server()) {
+    /* Shutdown server if restart failed. */
+    LogErr(ERROR_LEVEL, ER_CLONE_SHUTDOWN_TRACE);
+    Diagnostics_area shutdown_da(false);
+    thd->push_diagnostics_area(&shutdown_da);
+    /* CLONE_ADMIN privilege allows us to shutdown/restart at end. */
+    kill_mysql();
+    thd->pop_diagnostics_area();
+    return true;
   }
 
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sql_cmd_clone::load(THD *thd) {
-  DBUG_ENTER("Sql_cmd_clone::load");
+  DBUG_TRACE;
   DBUG_ASSERT(m_clone == nullptr);
   DBUG_ASSERT(!is_local());
 
@@ -1767,22 +1798,22 @@ bool Sql_cmd_clone::load(THD *thd) {
 
   if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_clone = clone_plugin_lock(thd, &m_plugin);
 
   if (m_clone == nullptr) {
     my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "clone");
-    DBUG_RETURN(true);
+    return true;
   }
 
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sql_cmd_clone::execute_server(THD *thd) {
-  DBUG_ENTER("Sql_cmd_clone::execute_server");
+  DBUG_TRACE;
   DBUG_ASSERT(!is_local());
 
   bool ret = false;
@@ -1816,7 +1847,7 @@ bool Sql_cmd_clone::execute_server(THD *thd) {
   clone_plugin_unlock(thd, m_plugin);
   m_clone = nullptr;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 void Sql_cmd_clone::rewrite(THD *thd) {
@@ -1855,21 +1886,21 @@ void Sql_cmd_clone::rewrite(THD *thd) {
 
   /* Append SSL information. */
   if (thd->lex->ssl_type == SSL_TYPE_NONE) {
-    rlb->append(STRING_WITH_LEN(" REQUIRES NO SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE NO SSL"));
 
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
-    rlb->append(STRING_WITH_LEN(" REQUIRES SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE SSL"));
   }
 
   /* Set the query to be displayed in SHOW PROCESSLIST */
   thd->set_query(rlb->c_ptr_safe(), rlb->length());
+  thd->set_query_for_display(rlb->c_ptr_safe(), rlb->length());
 }
 
 bool Sql_cmd_create_role::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_set_create_role::execute");
+  DBUG_TRACE;
   // TODO: Execution-time processing of the CREATE ROLE statement
-  if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL))
-    DBUG_RETURN(true);
+  if (check_global_access(thd, CREATE_ROLE_ACL | CREATE_USER_ACL)) return true;
   /* Conditionally writes to binlog */
   HA_CREATE_INFO create_info;
   /*
@@ -1904,17 +1935,19 @@ bool Sql_cmd_create_role::execute(THD *thd) {
     role->alter_status.update_password_expired_column = true;
     role->auth.str = 0;
     role->auth.length = 0;
+    role->has_password_generator = false;
   }
   if (!(mysql_create_user(thd, *const_cast<List<LEX_USER> *>(roles),
                           if_not_exists, true))) {
-    my_ok(thd);
-    DBUG_RETURN(false);
+    // Either my_ok() or my_eof() was called in mysql_create_user()
+    return false;
   }
-  DBUG_RETURN(true);
+  // my_error() was called.
+  return true;
 }
 
 bool Sql_cmd_drop_role::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_drop_role::execute");
+  DBUG_TRACE;
   /*
     We want to do extra checks (if user login is disabled) when golding a
     using DROP_ROLE privilege.
@@ -1927,17 +1960,16 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
   */
   bool on_create_user_priv =
       thd->security_context()->check_access(CREATE_USER_ACL, "", true);
-  if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL))
-    DBUG_RETURN(true);
+  if (check_global_access(thd, DROP_ROLE_ACL | CREATE_USER_ACL)) return true;
   if (mysql_drop_user(thd, const_cast<List<LEX_USER> &>(*roles), ignore_errors,
                       !on_create_user_priv))
-    DBUG_RETURN(true);
+    return true;
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sql_cmd_set_role::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_set_role::execute");
+  DBUG_TRACE;
   bool ret = 0;
   switch (role_type) {
     case role_enum::ROLE_NONE:
@@ -1968,46 +2000,44 @@ bool Sql_cmd_set_role::execute(THD *thd) {
   */
   if (!ret) set_system_user_flag(thd, true);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_grant_roles::execute");
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(roles)));
-  while (LEX_USER *role = it++) {
-    if (!has_grant_role_privilege(thd, role->user, role->host)) {
+  DBUG_TRACE;
+  for (const LEX_USER &role : *roles) {
+    if (!has_grant_role_privilege(thd, role.user, role.host)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "WITH ADMIN, ROLE_ADMIN, SUPER");
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(mysql_grant_role(thd, users, roles, this->with_admin_option));
+  return mysql_grant_role(thd, users, roles, this->with_admin_option);
 }
 
 bool Sql_cmd_revoke_roles::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_revoke_roles::execute");
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(roles)));
-  while (LEX_USER *role = it++) {
-    if (!has_grant_role_privilege(thd, role->user, role->host)) {
+  DBUG_TRACE;
+  for (const LEX_USER &role : *roles) {
+    if (!has_grant_role_privilege(thd, role.user, role.host)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                "WITH ADMIN, ROLE_ADMIN, SUPER");
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(mysql_revoke_role(thd, users, roles));
+  return mysql_revoke_role(thd, users, roles);
 }
 
 bool Sql_cmd_alter_user_default_role::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
+  DBUG_TRACE;
 
   bool ret = mysql_alter_or_clear_default_roles(thd, role_type, users, roles);
   if (!ret) my_ok(thd);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Sql_cmd_show_grants::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_show_grants::execute");
+  DBUG_TRACE;
   bool show_mandatory_roles = false;
   if (for_user == 0) show_mandatory_roles = true;
 
@@ -2018,56 +2048,50 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     if (using_users == 0 || using_users->elements == 0) {
       const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
-      DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
-                                    show_mandatory_roles));
+      return mysql_show_grants(thd, &current_user, *active_list,
+                               show_mandatory_roles);
     }
   } else if (strcmp(thd->security_context()->priv_user().str,
                     for_user->user.str) != 0) {
-    TABLE_LIST table;
-    table.init_one_table("mysql", 5, "user", 4, 0, TL_READ);
+    TABLE_LIST table("mysql", "user", nullptr, TL_READ);
     if (!is_granted_table_access(thd, SELECT_ACL, &table)) {
       char command[128];
       get_privilege_desc(command, sizeof(command), SELECT_ACL);
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), command,
                thd->security_context()->priv_user().str,
                thd->security_context()->host_or_ip().str, "user");
-      DBUG_RETURN(false);
+      return false;
     }
   }
   List_of_auth_id_refs authid_list;
   if (using_users != 0 && using_users->elements > 0) {
     /* We have a USING clause */
-    LEX_USER *user;
-    List<LEX_USER> *tmp_using_users = const_cast<List<LEX_USER> *>(using_users);
-    List_iterator<LEX_USER> it(*tmp_using_users);
-    while ((user = it++)) {
-      Auth_id_ref authid = std::make_pair(user->user, user->host);
-      authid_list.push_back(authid);
+    for (const LEX_USER &user : *using_users) {
+      authid_list.emplace_back(user.user, user.host);
     }
   }
 
   LEX_USER *tmp_user = const_cast<LEX_USER *>(for_user);
   tmp_user = get_current_user(thd, tmp_user);
-  DBUG_RETURN(
-      mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles));
+  return mysql_show_grants(thd, tmp_user, authid_list, show_mandatory_roles);
 }
 
 bool Sql_cmd_show::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_show::execute");
+  DBUG_TRACE;
 
   thd->clear_current_query_costs();
   bool res = show_precheck(thd, thd->lex, true);
   if (!res) res = execute_show(thd, thd->lex->query_tables);
   thd->save_current_query_costs();
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Sql_cmd_show::prepare(THD *thd) {
-  DBUG_ENTER("Sql_cmd_show::prepare");
+  DBUG_TRACE;
 
-  if (Sql_cmd::prepare(thd)) DBUG_RETURN(true);
+  if (Sql_cmd::prepare(thd)) return true;
 
   bool rc = mysql_test_show(get_owner(), thd->lex->query_tables);
-  DBUG_RETURN(rc);
+  return rc;
 }

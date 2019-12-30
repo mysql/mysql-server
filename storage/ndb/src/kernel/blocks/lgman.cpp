@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,12 +51,19 @@ extern EventLogger * g_eventLogger;
 #ifdef VM_TRACE
 //#define DEBUG_LGMAN 1
 //#define DEBUG_DROP_LG 1
+//#define DEBUG_LGMAN_LCP 1
 #endif
 
 #ifdef DEBUG_LGMAN
 #define DEB_LGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LGMAN(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_LGMAN_LCP
+#define DEB_LGMAN_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LGMAN_LCP(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_DROP_LG
@@ -934,7 +941,23 @@ void
 Lgman::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
-  const NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  NodeFailRep * rep = (NodeFailRep*)signal->getDataPtr();
+  if(signal->getLength() == NodeFailRep::SignalLength)
+  {
+    ndbrequire(signal->getNoOfSections() == 1);
+    ndbrequire(ndbd_send_node_bitmask_in_section(
+        getNodeInfo(refToNode(signal->getSendersBlockRef())).m_version));
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    memset(rep->theNodes, 0, sizeof(rep->theNodes));
+    copy(rep->theNodes, ptr);
+    releaseSections(handle);
+  }
+  else
+  {
+    memset(rep->theNodes + NdbNodeBitmask48::Size, 0, _NDB_NBM_DIFF_BYTES);
+  }
   NdbNodeBitmask failed; 
   failed.assign(NdbNodeBitmask::Size, rep->theNodes);
 
@@ -2378,6 +2401,22 @@ Logfile_client::~Logfile_client()
     m_lgman->client_unlock(m_block, 0, m_client_block);
 }
 
+bool
+Logfile_client::exists_logfile_group()
+{
+  Ptr<Lgman::Logfile_group> ptr;
+  if (m_lgman->m_logfile_group_list.first(ptr))
+  {
+    jamBlock(m_client_block);
+    return true;
+  }
+  else
+  {
+    jamBlock(m_client_block);
+    return false;
+  }
+}
+
 Uint64
 Logfile_client::pre_sync_lsn(Uint64 lsn)
 {
@@ -3411,13 +3450,14 @@ Lgman::exec_lcp_frag_ord(Signal* signal,
     ret_lsn = next_lsn;
     lg_ptr.p->m_next_lsn = next_lsn + 1;
 
-    DEB_LGMAN(("UNDO_LOCAL_LCP: lsn: %llu, tab(%u,%u), lcp(%u,%u), entry: %u",
-               ret_lsn,
-               table_id,
-               frag_id,
-               lcp_id,
-               local_lcp_id,
-               entry));
+    DEB_LGMAN_LCP(("UNDO_LOCAL_LCP: lsn: %llu, tab(%u,%u), lcp(%u,%u),"
+                   " entry: %u",
+                   ret_lsn,
+                   table_id,
+                   frag_id,
+                   lcp_id,
+                   local_lcp_id,
+                   entry));
     validate_logfile_group(lg_ptr, "execLCP_FRAG_ORD",
                            client_block->jamBuffer());
   }
@@ -5033,8 +5073,7 @@ Lgman::execute_undo_record(Signal* signal)
         local_lcp = 0;
       }
 
-      if ((m_latest_lcp == 0) ||
-          (lcp < m_latest_lcp) ||
+      if ((lcp < m_latest_lcp) ||
           (lcp == m_latest_lcp && local_lcp < m_latest_local_lcp) ||
           (lcp == m_latest_lcp &&  local_lcp == m_latest_local_lcp &&
            (mask == File_formats::Undofile::UNDO_LCP_FIRST ||
@@ -5632,10 +5671,10 @@ Lgman::execEND_LCPCONF(Signal* signal)
   lg_ptr.p->m_free_log_words -= (sizeof(undo) >> 2);
   DEB_LGMAN(("Line(%u): free_log_words: %llu", __LINE__,
              lg_ptr.p->m_free_log_words));
-  DEB_LGMAN(("Fake LCP at lsn: %llu: lcp(%u,%u)",
-            next_lsn,
-            m_latest_lcp,
-            m_latest_local_lcp));
+  DEB_LGMAN_LCP(("Fake LCP at lsn: %llu: lcp(%u,%u)",
+                 next_lsn,
+                 m_latest_lcp,
+                 m_latest_local_lcp));
 
   lg_ptr.p->m_next_lsn = next_lsn + 1;
   lg_ptr.p->m_last_synced_lsn = next_lsn;

@@ -2,6 +2,7 @@
 
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(11),(12),(13),(14),(15),(16),(17),(18),(19);
+ANALYZE TABLE t1;
 
 CREATE TABLE t2(a INTEGER);
 INSERT INTO t2 VALUES(21),(22),(23),(24),(25),(26),(27);
@@ -269,18 +270,6 @@ select 1 as a limit 4294967296,10;
 
 --echo End of 5.1 tests
 
---echo #
---echo # Bug #11747810: EXPLAIN SHOWS BOGUS VALUE FOR
---echo #                'FILTERED' COLUMN FOR LIMIT QUERY
---echo #
-
-CREATE TABLE t1 (a INT, KEY (a)) ENGINE=Myisam;
-INSERT INTO t1 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-EXPLAIN SELECT * FROM t1 ORDER BY a LIMIT 1;
-DROP TABLE t1;
-
---echo #End of test for Bug#11747810
-
 --echo # Bug #28961843: COUNT() WITH LIMIT AND OFFSET RETURNS WRONG RESULT
 
 CREATE TABLE t1 (i INT);
@@ -295,4 +284,51 @@ DROP TABLE t1;
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
 SELECT t1.pk FROM (SELECT DISTINCT * FROM t1) AS t1 WHERE t1.pk=1 LIMIT 1 OFFSET 2;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #29373972: SIG 6 AT HANDLER::START_PSI_BATCH_MODE()
+--echo #
+
+#
+# Set up an error that occurs during OFFSET processing, and force the table
+# to be closed so that we verify that it's not stuck in performance schema
+# batch mode.
+#
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+--error ER_JSON_DOCUMENT_NULL_KEY
+SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+FLUSH TABLES;
+DROP TABLE t1;
+set optimizer_switch=@old_opt_switch;
+
+
+--echo #
+--echo # Bug#29531472: SIG 6 AT JOIN::TEST_SKIP_SORT | SQL_OPTIMIZER.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT DEFAULT NULL,
+  col_varchar_key VARCHAR(1) DEFAULT NULL,
+  KEY idx_CC_col_int_key (col_int_key),
+  KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES(1,'A');
+
+SELECT col_varchar_key AS f1
+  FROM t1
+  WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+  GROUP BY f1 LIMIT 100;
+
+EXPLAIN
+SELECT col_varchar_key AS f1
+  FROM t1
+  WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+  GROUP BY f1 LIMIT 100;
+
 DROP TABLE t1;

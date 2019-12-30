@@ -1,5 +1,5 @@
 //>>built
-define("dojox/io/OAuth",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/array","dojo/_base/xhr","dojo/dom","dojox/encoding/digests/SHA1",],function(_1,_2,_3,_4,_5,_6){
+define("dojox/io/OAuth",["dojo/_base/kernel","dojo/_base/lang","dojo/_base/array","dojo/_base/xhr","dojo/dom","dojox/encoding/digests/SHA1"],function(_1,_2,_3,_4,_5,_6){
 _1.getObject("io.OAuth",true,dojox);
 dojox.io.OAuth=new (function(){
 var _7=this.encode=function(s){

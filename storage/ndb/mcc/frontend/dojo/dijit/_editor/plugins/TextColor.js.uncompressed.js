@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_editor/plugins/TextColor", [
 	"require",
 	"dojo/colors", // colors.fromRgb
@@ -8,24 +7,18 @@ define("dijit/_editor/plugins/TextColor", [
 	"../../form/DropDownButton"
 ], function(require, colors, declare, lang, _Plugin, DropDownButton){
 
-/*=====
-	var _Plugin = dijit._editor._Plugin;
-=====*/
-
 // module:
 //		dijit/_editor/plugins/TextColor
-// summary:
-//		This plugin provides dropdown color pickers for setting text color and background color
 
 
 var TextColor = declare("dijit._editor.plugins.TextColor", _Plugin, {
 	// summary:
 	//		This plugin provides dropdown color pickers for setting text color and background color
-	//
 	// description:
 	//		The commands provided by this plugin are:
-	//		* foreColor - sets the text color
-	//		* hiliteColor - sets the background color
+	//
+	//		- foreColor - sets the text color
+	//		- hiliteColor - sets the background color
 
 	// Override _Plugin.buttonClass to use DropDownButton (with ColorPalette) to control this plugin
 	buttonClass: DropDownButton,
@@ -42,6 +35,8 @@ var TextColor = declare("dijit._editor.plugins.TextColor", _Plugin, {
 		this.button.loadDropDown = function(callback){
 			require(["../../ColorPalette"], lang.hitch(this, function(ColorPalette){
 				this.dropDown = new ColorPalette({
+					dir: self.editor.dir,
+					ownerDocument: self.editor.ownerDocument,
 					value: self.value,
 					onChange: function(color){
 						self.editor.execCommand(self.command, color);

@@ -1,8 +1,7 @@
 //>>built
-define("dijit/form/_FormValueMixin",["dojo/_base/declare","dojo/dom-attr","dojo/keys","dojo/_base/sniff","./_FormWidgetMixin"],function(_1,_2,_3,_4,_5){
+define("dijit/form/_FormValueMixin",["dojo/_base/declare","dojo/dom-attr","dojo/keys","dojo/sniff","./_FormWidgetMixin"],function(_1,_2,_3,_4,_5){
 return _1("dijit.form._FormValueMixin",_5,{readOnly:false,_setReadOnlyAttr:function(_6){
 _2.set(this.focusNode,"readOnly",_6);
-this.focusNode.setAttribute("aria-readonly",_6);
 this._set("readOnly",_6);
 },postCreate:function(){
 this.inherited(arguments);
@@ -24,13 +23,12 @@ this._hasBeenBlurred=false;
 this._setValueAttr(this._resetValue,true);
 },_onKeyDown:function(e){
 if(e.keyCode==_3.ESCAPE&&!(e.ctrlKey||e.altKey||e.metaKey)){
-var te;
 if(_4("ie")<9||(_4("ie")&&_4("quirks"))){
 e.preventDefault();
-te=document.createEventObject();
+var _b=e.srcElement,te=_b.ownerDocument.createEventObject();
 te.keyCode=_3.ESCAPE;
 te.shiftKey=e.shiftKey;
-e.srcElement.fireEvent("onkeypress",te);
+_b.fireEvent("onkeypress",te);
 }
 }
 }});

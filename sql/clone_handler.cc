@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 #include "sql/clone_handler.h"
 
 #include <string.h>
+#include <chrono>
+#include <thread>
 
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -34,7 +36,9 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
 #include "sql/mysqld.h"
+#include "sql/sql_class.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql_string.h"      // to_lex_cstring
@@ -67,42 +71,70 @@ int Clone_handler::clone_remote_client(THD *thd, const char *remote_host,
                                        const char *remote_passwd,
                                        const char *data_dir,
                                        enum mysql_ssl_mode ssl_mode) {
-  int error;
+  int error = 0;
   char dir_name[FN_REFLEN];
+  char *dir_ptr = nullptr;
 
-  error = validate_dir(data_dir, dir_name);
+  /* NULL when clone replaces current data directory. */
+  if (data_dir != nullptr) {
+    error = validate_dir(data_dir, dir_name);
+    dir_ptr = &dir_name[0];
+  }
+
+  if (error != 0) {
+    return error;
+  }
+
+  /* NULL data directory implies we are replacing current data directory
+  for provisioning this node. We never set it back to false only in case
+  of error otherwise the server would shutdown or restart at the end of
+  operation. */
+  bool provisioning = (data_dir == nullptr);
+  if (provisioning) {
+    ++s_provision_in_progress;
+  }
 
   int mode = static_cast<int>(ssl_mode);
 
-  if (error == 0) {
-    error = m_plugin_handle->clone_client(thd, remote_host, remote_port,
-                                          remote_user, remote_passwd, dir_name,
-                                          mode);
-  }
+  error = m_plugin_handle->clone_client(
+      thd, remote_host, remote_port, remote_user, remote_passwd, dir_ptr, mode);
 
+  if (error != 0 && provisioning) {
+    --s_provision_in_progress;
+  }
   return error;
 }
 
 int Clone_handler::clone_remote_server(THD *thd, MYSQL_SOCKET socket) {
   auto err = m_plugin_handle->clone_server(thd, socket);
-
   return err;
 }
 
 int Clone_handler::init() {
+  /* Don't allow loading clone plugin during upgrade. */
+  if (dd::upgrade_57::in_progress()) {
+    LogErr(ERROR_LEVEL, ER_PLUGIN_INSTALL_ERROR, "clone",
+           "Cannot install during upgrade.");
+    return 1;
+  }
+
   plugin_ref plugin;
 
   plugin = my_plugin_lock_by_name(0, to_lex_cstring(m_plugin_name.c_str()),
                                   MYSQL_CLONE_PLUGIN);
   if (plugin == nullptr) {
     m_plugin_handle = nullptr;
-    LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED);
+    LogErr(ERROR_LEVEL, ER_CLONE_PLUGIN_NOT_LOADED_TRACE);
     return 1;
   }
 
   m_plugin_handle = (Mysql_clone *)plugin_decl(plugin)->info;
   plugin_unlock(0, plugin);
 
+  if (opt_initialize) {
+    /* Inform that database initialization in progress. */
+    return ER_INIT_BOOTSTRAP_COMPLETE;
+  }
   return 0;
 }
 
@@ -171,14 +203,14 @@ int Clone_handler::validate_dir(const char *in_dir, char *out_dir) {
 
 int clone_handle_create(const char *plugin_name) {
   if (clone_handle != nullptr) {
-    LogErr(ERROR_LEVEL, ER_CLONE_HANDLER_EXISTS);
+    LogErr(ERROR_LEVEL, ER_CLONE_HANDLER_EXIST_TRACE);
     return 1;
   }
 
   clone_handle = new Clone_handler(plugin_name);
 
   if (clone_handle == nullptr) {
-    LogErr(ERROR_LEVEL, ER_FAILED_TO_CREATE_CLONE_HANDLER);
+    LogErr(ERROR_LEVEL, ER_CLONE_CREATE_HANDLER_FAIL_TRACE);
     return 1;
   }
 
@@ -194,6 +226,10 @@ int clone_handle_drop() {
 
   clone_handle = nullptr;
 
+  if (opt_initialize) {
+    /* Inform that database initialization in progress. */
+    return ER_INIT_BOOTSTRAP_COMPLETE;
+  }
   return 0;
 }
 
@@ -220,3 +256,125 @@ Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin) {
 void clone_plugin_unlock(THD *thd, plugin_ref plugin) {
   plugin_unlock(thd, plugin);
 }
+
+std::atomic<int> Clone_handler::s_xa_counter{0};
+std::atomic<bool> Clone_handler::s_xa_block_op{false};
+std::atomic<int> Clone_handler::s_provision_in_progress{0};
+
+mysql_mutex_t Clone_handler::s_xa_mutex;
+
+void Clone_handler::init_xa() {
+  s_xa_block_op.store(false);
+  s_xa_counter.store(0);
+  s_provision_in_progress.store(0);
+  mysql_mutex_init(PSI_NOT_INSTRUMENTED, &s_xa_mutex, MY_MUTEX_INIT_FAST);
+}
+
+void Clone_handler::uninit_xa() { mysql_mutex_destroy(&s_xa_mutex); }
+
+Clone_handler::XA_Operation::XA_Operation(THD *thd) : m_thd(thd) {
+  begin_xa_operation(thd);
+  DEBUG_SYNC_C("xa_block_clone");
+  /* Allow GTID to be read by SE for XA Commit. */
+  thd->pin_gtid();
+}
+
+Clone_handler::XA_Operation::~XA_Operation() {
+  m_thd->unpin_gtid();
+  end_xa_operation();
+}
+
+void Clone_handler::begin_xa_operation(THD *thd) {
+  /* Quick sequential consistent check and return if not blocked by clone. This
+  ensures minimum impact during normal operations. */
+  s_xa_counter.fetch_add(1);
+  if (!s_xa_block_op.load()) {
+    return;
+  }
+  /* Clone has requested to block xa operation. Synchronize with mutex. */
+  s_xa_counter.fetch_sub(1);
+  mysql_mutex_lock(&s_xa_mutex);
+
+  int count = 0;
+  while (s_xa_block_op.load()) {
+    /* Release mutex and sleep. We don't bother about starvation here as Clone
+    is not a frequent operation. */
+    mysql_mutex_unlock(&s_xa_mutex);
+    std::chrono::milliseconds sleep_time(10);
+    std::this_thread::sleep_for(sleep_time);
+    mysql_mutex_lock(&s_xa_mutex);
+
+#if defined(ENABLED_DEBUG_SYNC)
+    if (count == 0) {
+      DEBUG_SYNC_C("xa_wait_clone");
+    }
+#endif
+
+    /* Timeout in 60 seconds */
+    if (++count > 60 * 100) {
+      LogErr(ERROR_LEVEL, ER_CLONE_CLIENT_TRACE,
+             "Clone blocked XA operation too long: 1 minute(Timeout)");
+      break;
+    }
+    /* Check for kill/shutdown. */
+    if (thd_killed(thd)) {
+      break;
+    }
+  }
+  s_xa_counter.fetch_add(1);
+  mysql_mutex_unlock(&s_xa_mutex);
+}
+
+void Clone_handler::end_xa_operation() { s_xa_counter.fetch_sub(1); }
+
+Clone_handler::XA_Block::XA_Block(THD *thd) {
+  m_success = block_xa_operation(thd);
+  DEBUG_SYNC_C("clone_block_xa");
+}
+
+Clone_handler::XA_Block::~XA_Block() { unblock_xa_operation(); }
+
+bool Clone_handler::XA_Block::failed() const { return (!m_success); }
+
+bool Clone_handler::block_xa_operation(THD *thd) {
+  bool ret = true;
+  DBUG_ASSERT(!s_xa_block_op.load());
+
+  mysql_mutex_lock(&s_xa_mutex);
+  /* Block new xa prepare/commit/rollback. No new XA operation can start after
+  this point and existing operations will eventually finish. */
+  s_xa_block_op.store(true);
+
+  int count = 0;
+  /* Wait for existing XA operations to complete. */
+  while (s_xa_counter.load() != 0) {
+    /* Release mutex and sleep. */
+    mysql_mutex_unlock(&s_xa_mutex);
+    std::chrono::milliseconds sleep_time(10);
+    std::this_thread::sleep_for(sleep_time);
+    mysql_mutex_lock(&s_xa_mutex);
+
+#if defined(ENABLED_DEBUG_SYNC)
+    if (count == 0) {
+      DEBUG_SYNC_C("clone_wait_xa");
+    }
+#endif
+
+    /* Timeout in 60 seconds */
+    if (++count > 60 * 100) {
+      LogErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE,
+             "Clone wait for XA operation too long: 1 minute(Timeout)");
+      ret = false;
+      break;
+    }
+    /* Check for kill/shutdown. */
+    if (thd_killed(thd)) {
+      ret = false;
+      break;
+    }
+  }
+  mysql_mutex_unlock(&s_xa_mutex);
+  return (ret);
+}
+
+void Clone_handler::unblock_xa_operation() { s_xa_block_op.store(false); }

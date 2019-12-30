@@ -30,11 +30,8 @@ C	Cottbus	West	3	cccccccccccccc	3456	2012
 D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 N	NULL	NULL	NULL	NULL	NULL	2012
-SELECT SLEEP(2);
-SLEEP(2)
-0
 # case 1: Fetch results for all Keys
-Here the memcached results with D B C H D B C H N:
+Here are the memcached results with D B C H D B C H N:
 B => Berlin0Mitte020bbbbbbbbbbbbbb0234502012
 C => Cottbus0West030cccccccccccccc0345602012
 D => Darmstadt0City010dddddddddddddd0123402012
@@ -51,7 +48,7 @@ D	Darmstadt	City	1	dddddddddddddd	1234	2012
 H	Hamburg	Norderstedt	4	hhhhhhhhhh	4567	2012
 N	NULL	NULL	NULL	NULL	NULL	2012
 # case 2: Fetch results, when no values are exist for some keys
-Here the memcached results with D B C H I J K L M N O P NULL Q R S T U V X Y Z A D B C H:
+Here are the memcached results with D B C H I J K L M N O P NULL Q R S T U V X Y Z A D B C H:
 B => Berlin0Mitte020bbbbbbbbbbbbbb0234502012
 C => Cottbus0West030cccccccccccccc0345602012
 D => Darmstadt0City010dddddddddddddd0123402012
@@ -68,7 +65,7 @@ DD	DELHI	DAHAR
 HH	HYDERABAD	HOSPET
 # case 3: No support switch between the tables t2 and t1
 # Here it shows the results of table t2 and not for t1
-Here the memcached results with @@desc_t2.DD @@desc_t2.BB @@desc_t2.CC @@desc_t1.c @@desc_t2.HH @@desc_t1.H:
+Here are the memcached results with @@desc_t2.DD @@desc_t2.BB @@desc_t2.CC @@desc_t1.c @@desc_t2.HH @@desc_t1.H:
 @@desc_t2.BB => BOMBAY0BANGALORE
 @@desc_t2.CC => CALICUTT0CHENNAI
 @@desc_t2.DD => DELHI0DAHAR

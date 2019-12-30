@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,10 @@ TEST(initialize_password, random_pwd_10chars) {
   static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 10);
+  bool failed = ::generate_password(&pass[1], 10);
   pass[11] = 0;
 
+  EXPECT_EQ(failed, false);
   EXPECT_EQ(pass[0], 0);
   for (char *ptr = &pass[1]; *ptr; ptr++) {
     const char *s = strchr(chars, *ptr);
@@ -49,7 +50,8 @@ TEST(initialize_password, random_pwd_0) {
   char pass[11];
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 0);
+  bool failed = ::generate_password(&pass[1], 0);
+  EXPECT_EQ(failed, false);
 
   for (unsigned inx = 0; inx < sizeof(pass); inx++) EXPECT_EQ(pass[inx], 0);
 }
@@ -59,7 +61,8 @@ TEST(initialize_password, random_pwd_1) {
   static const char chars[] = LOWCHARS SYMCHARS UPCHARS NUMCHARS;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 1);
+  bool failed = ::generate_password(&pass[1], 1);
+  EXPECT_EQ(failed, false);
 
   EXPECT_EQ(pass[0], 0);
 
@@ -75,8 +78,9 @@ TEST(initialize_password, random_pwd_2) {
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 2);
+  bool failed = ::generate_password(&pass[1], 2);
 
+  EXPECT_EQ(failed, false);
   EXPECT_EQ(pass[0], 0);
 
   for (inx = 0; inx < 2; inx++) {
@@ -93,7 +97,8 @@ TEST(initialize_password, random_pwd_3) {
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 3);
+  bool failed = ::generate_password(&pass[1], 3);
+  EXPECT_EQ(failed, false);
 
   EXPECT_EQ(pass[0], 0);
 
@@ -111,7 +116,8 @@ TEST(initialize_password, random_pwd_4) {
   unsigned inx;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 4);
+  bool failed = ::generate_password(&pass[1], 4);
+  EXPECT_EQ(failed, false);
 
   EXPECT_EQ(pass[0], 0);
 
@@ -133,7 +139,8 @@ TEST(initialize_password, strong_pwd_10_chars) {
   bool had_low = false, had_up = false, had_sym = false, had_num = false;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 10);
+  bool failed = ::generate_password(&pass[1], 10);
+  EXPECT_EQ(failed, false);
 
   EXPECT_EQ(pass[0], 0);
   EXPECT_EQ(pass[11], 0);
@@ -167,7 +174,8 @@ TEST(initialize_password, strong_pwd_4_chars) {
   bool had_low = false, had_up = false, had_sym = false, had_num = false;
 
   memset(pass, 0, sizeof(pass));
-  ::generate_password(&pass[1], 4);
+  bool failed = ::generate_password(&pass[1], 4);
+  EXPECT_EQ(failed, false);
 
   EXPECT_EQ(pass[0], 0);
   EXPECT_EQ(pass[5], 0);

@@ -28,8 +28,6 @@ connect (conn_damn,localhost,damn,,);
 
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET GLOBAL explicit_defaults_for_timestamp=TRUE;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION explicit_defaults_for_timestamp=TRUE;
 
 --connection default
 DROP USER damn;

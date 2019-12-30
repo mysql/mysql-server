@@ -350,21 +350,16 @@ class Fil_path {
   static constexpr auto OS_SEPARATOR = OS_PATH_SEPARATOR;
 
   /** Directory separators that are supported. */
-#if defined(__SUNPRO_CC)
-  static char *SEPARATOR;
-  static char *DOT_SLASH;
-  static char *DOT_DOT_SLASH;
-#else
   static constexpr auto SEPARATOR = "\\/";
 #ifdef _WIN32
   static constexpr auto DOT_SLASH = ".\\";
   static constexpr auto DOT_DOT_SLASH = "..\\";
+  static constexpr auto SLASH_DOT_DOT_SLASH = "\\..\\";
 #else
   static constexpr auto DOT_SLASH = "./";
   static constexpr auto DOT_DOT_SLASH = "../";
+  static constexpr auto SLASH_DOT_DOT_SLASH = "/../";
 #endif /* _WIN32 */
-
-#endif /* __SUNPRO_CC */
 
   /** Various types of file paths. */
   enum path_type { absolute, relative, file_name_only, invalid };
@@ -472,6 +467,31 @@ class Fil_path {
   @return true if the path is valid. */
   bool is_valid() const MY_ATTRIBUTE((warn_unused_result));
 
+  /** Determine if m_path contains a circular section like "/anydir/../"
+  Fil_path::normalize() must be run before this.
+  @return true if a circular section if found, false if not */
+  bool is_circular() const MY_ATTRIBUTE((warn_unused_result));
+
+  /** Determine if the file or directory is considered HIDDEN.
+  Most file systems identify the HIDDEN attribute by a '.' preceeding the
+  basename.  On Windows, a HIDDEN path is identified by a file attribute.
+  We will use the preceeding '.' to indicate a HIDDEN attribute on ALL
+  file systems so that InnoDB tablespaces and their directory structure
+  remain portable.
+  @param[in]  path  The full or relative path of a file or directory.
+  @return true if the directory or path is HIDDEN. */
+  static bool is_hidden(std::string path);
+
+#ifdef _WIN32
+  /** Use the WIN32_FIND_DATA struncture to determine if the file or
+  directory is HIDDEN.  Consider a SYSTEM attribute also as an indicator
+  that it is HIDDEN to InnoDB.
+  @param[in]  dirent  A directory entry obtained from a call to FindFirstFile()
+  or FindNextFile()
+  @return true if the directory or path is HIDDEN. */
+  static bool is_hidden(WIN32_FIND_DATA &dirent);
+#endif /* WIN32 */
+
   /** Remove quotes e.g., 'a;b' or "a;b" -> a;b.
   Assumes matching quotes.
   @return pathspec with the quotes stripped */
@@ -567,7 +587,7 @@ class Fil_path {
             std::equal(prefix.begin(), prefix.end(), path.begin()));
   }
 
-  /** Normalizes a directory path for the current OS:
+  /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
   @param[in,out]	path	Directory and file path */
   static void normalize(std::string &path) {
@@ -578,7 +598,7 @@ class Fil_path {
     }
   }
 
-  /** Normalizes a directory path for the current OS:
+  /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
   @param[in,out]	path	A NUL terminated path */
   static void normalize(char *path) {
@@ -1124,6 +1144,13 @@ system tablespace.
 dberr_t fil_write_flushed_lsn(lsn_t lsn) MY_ATTRIBUTE((warn_unused_result));
 
 #else /* !UNIV_HOTBACKUP */
+/** Frees a space object from the tablespace memory cache.
+Closes a tablespaces' files but does not delete them.
+There must not be any pending i/o's or flushes on the files.
+@param[in]	space_id	Tablespace ID
+@return true if success */
+bool meb_fil_space_free(space_id_t space_id);
+
 /** Extends all tablespaces to the size stored in the space header. During the
 mysqlbackup --apply-log phase we extended the spaces on-demand so that log
 records could be applied, but that may have left spaces still too small
@@ -1775,13 +1802,6 @@ already be known.
 @param[in]	space_id	Tablespace ID to lookup
 @return true if open was successful */
 bool fil_tablespace_open_for_recovery(space_id_t space_id)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Callback to check tablespace size with space header size and extend
-Caller must own the Fil_shard mutex that the file belongs to.
-@param[in]	file	file node
-@return	error code */
-dberr_t fil_check_extend_space(fil_node_t *file)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Replay a file rename operation for ddl replay.

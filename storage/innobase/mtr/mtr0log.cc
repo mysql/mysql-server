@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -570,7 +570,7 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
   } else {
     n = n_uniq = 1;
   }
-  table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n, 0,
+  table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n, 0, 0,
                                 comp ? DICT_TF_COMPACT : 0, 0);
   if (instant) {
     table->set_instant_cols(instant_cols);

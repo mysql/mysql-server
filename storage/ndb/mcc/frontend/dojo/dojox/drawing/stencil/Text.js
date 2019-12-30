@@ -1,20 +1,16 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.stencil.Text");
-_3.drawing.stencil.Text=_3.drawing.util.oo.declare(_3.drawing.stencil._Base,function(_4){
-},{type:"dojox.drawing.stencil.Text",anchorType:"none",baseRender:true,align:"start",valign:"top",_lineHeight:1,typesetter:function(_5){
-if(_3.drawing.util.typeset){
-this._rawText=_5;
-return _3.drawing.util.typeset.convertLaTeX(_5);
-}
-return _5;
-},setText:function(_6){
+define("dojox/drawing/stencil/Text",["dojo","../util/oo","./_Base","../manager/_registry","../util/typeset"],function(_1,oo,_2,_3,_4){
+var _5=oo.declare(_2,function(_6){
+},{type:"dojox.drawing.stencil.Text",anchorType:"none",baseRender:true,align:"start",valign:"top",_lineHeight:1,typesetter:function(_7){
+this._rawText=_7;
+return _4.convertLaTeX(_7);
+},setText:function(_8){
 if(this.enabled){
-_6=this.typesetter(_6);
+_8=this.typesetter(_8);
 }
-this._text=_6;
+this._text=_8;
 this._textArray=[];
-this.created&&this.render(_6);
+this.created&&this.render(_8);
 },getText:function(){
 return this._rawText||this._text;
 },dataToPoints:function(o){
@@ -29,11 +25,11 @@ var s=p[0];
 var e=p[2];
 this.data={x:s.x,y:s.y,width:e.x-s.x,height:e.y-s.y};
 return this.data;
-},render:function(_7){
+},render:function(_9){
 this.remove(this.shape,this.hit);
 !this.annotation&&this.renderHit&&this._renderOutline();
-if(_7!=undefined){
-this._text=_7;
+if(_9!=undefined){
+this._text=_9;
 this._textArray=this._text.split("\n");
 }
 var d=this.pointsToData();
@@ -44,8 +40,8 @@ if(this.valign=="middle"){
 y-=h/2;
 }
 this.shape=this.container.createGroup();
-_2.forEach(this._textArray,function(_8,i){
-var tb=this.shape.createText({x:x,y:y+(h*i),text:unescape(_8),align:this.align}).setFont(this.style.currentText).setFill(this.style.currentText.color);
+_1.forEach(this._textArray,function(_a,i){
+var tb=this.shape.createText({x:x,y:y+(h*i),text:unescape(_a),align:this.align}).setFont(this.style.currentText).setFill(this.style.currentText.color);
 this._setNodeAtts(tb);
 },this);
 this._setNodeAtts(this.shape);
@@ -71,22 +67,24 @@ d.y-=(this._lineHeight)/2-this.style.text.pad;
 this.hit=this.container.createRect(d).setStroke(this.style.currentHit).setFill(this.style.currentHit.fill);
 this._setNodeAtts(this.hit);
 this.hit.moveToBack();
-},makeFit:function(_9,w){
-var _a=_2.create("span",{innerHTML:_9,id:"foo"},document.body);
+},makeFit:function(_b,w){
+var _c=_1.create("span",{innerHTML:_b,id:"foo"},document.body);
 var sz=1;
-_2.style(_a,"fontSize",sz+"px");
-var _b=30;
-while(_2.marginBox(_a).w<w){
+_1.style(_c,"fontSize",sz+"px");
+var _d=30;
+while(_1.marginBox(_c).w<w){
 sz++;
-_2.style(_a,"fontSize",sz+"px");
-if(_b--<=0){
+_1.style(_c,"fontSize",sz+"px");
+if(_d--<=0){
 break;
 }
 }
 sz--;
-var _c=_2.marginBox(_a);
-_2.destroy(_a);
-return {size:sz,box:_c};
+var _e=_1.marginBox(_c);
+_1.destroy(_c);
+return {size:sz,box:_e};
 }});
-_3.drawing.register({name:"dojox.drawing.stencil.Text"},"stencil");
+_1.setObject("dojox.drawing.stencil.Text",_5);
+_3.register({name:"dojox.drawing.stencil.Text"},"stencil");
+return _5;
 });

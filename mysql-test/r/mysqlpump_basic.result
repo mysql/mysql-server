@@ -23,6 +23,9 @@ id2 tinyint(3) NOT NULL,
 PRIMARY KEY (id),
 KEY index2 (id2)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t6 (`x"z"` INT, xyz VARCHAR(20), notes TEXT);
 ALTER TABLE t6 ADD INDEX t6_index (`x"z"`, xyz, notes(3));
 CREATE TABLE t7 (
@@ -32,6 +35,10 @@ PS_AVAILQTY int(11) NOT NULL,
 PS_SUPPLYCOST float NOT NULL,
 PS_COMMENT varchar(199) NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t7 ADD PRIMARY KEY (PS_PARTKEY,PS_SUPPKEY);
 CREATE TABLE t8 (
 c_id INT(11) NOT NULL AUTO_INCREMENT,
@@ -39,11 +46,15 @@ c_name VARCHAR(255) NOT NULL,
 c_description text,
 PRIMARY KEY (c_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t9 (
 v_id INT(11) NOT NULL AUTO_INCREMENT,
 v_name VARCHAR(255) DEFAULT NULL,
 PRIMARY KEY (v_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t10 (
 p_id INT(11) NOT NULL AUTO_INCREMENT,
 p_name VARCHAR(355) NOT NULL,
@@ -53,6 +64,9 @@ PRIMARY KEY (p_id),
 KEY fk_t8 (c_id),
 CONSTRAINT t10_ibfk_1 FOREIGN KEY (c_id) REFERENCES t8 (c_id) ON UPDATE CASCADE
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t11 (
 num int PRIMARY KEY,
 FOREIGN KEY (num) REFERENCES t9 (v_id)
@@ -463,6 +477,9 @@ CREATE TABLE `part1_hash` (
 KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 PARTITION BY HASH (MONTH(hired)) PARTITIONS 2;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `part2_hash` (
 `firstname` VARCHAR(25) NOT NULL,
 `lastname` VARCHAR(25) NOT NULL,

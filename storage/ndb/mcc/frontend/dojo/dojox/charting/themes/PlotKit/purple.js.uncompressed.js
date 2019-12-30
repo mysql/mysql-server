@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/themes/PlotKit/purple", ["./base", "../../Theme"], function(pk, Theme){
 	pk.purple = pk.base.clone();
 	pk.purple.chart.fill = pk.purple.plotarea.fill = "#eee6f5";

@@ -60,6 +60,8 @@ if ($rpl_channel_name)
 --source include/begin_include_file.inc
 
 
+# Wait until an IO Error different from zero is found in result of the query
+# 'SHOW SLAVE STATUS'
 let $old_slave_param_comparison= $slave_param_comparison;
 let $slave_param= Last_IO_Errno;
 let $slave_param_comparison= !=;
@@ -67,7 +69,8 @@ let $slave_param_value= 0;
 source include/wait_for_slave_param.inc;
 let $slave_param_comparison= $old_slave_param_comparison;
 
-let $_wait_for_slave_io_errno= query_get_value($slave_param_statement, Last_IO_Errno, 1);
+# Get the IO error number from the 'SHOW SLAVE STATUS' query which returned error
+let $_wait_for_slave_io_errno= $_show_slave_status_value;
 
 if ($slave_io_errno == '')
 {

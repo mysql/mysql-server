@@ -1,10 +1,10 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"],function(_1,_2,_3){
-_2.provide("dojox.storage.WhatWGStorageProvider");
-_2.require("dojox.storage.Provider");
-_2.require("dojox.storage.manager");
-_2.declare("dojox.storage.WhatWGStorageProvider",[_3.storage.Provider],{initialized:false,_domain:null,_available:null,_statusHandler:null,_allNamespaces:null,_storageEventListener:null,initialize:function(){
-if(_2.config["disableWhatWGStorage"]==true){
+define("dojox/storage/WhatWGStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"],function(_1,_2,_3){
+_1.provide("dojox.storage.WhatWGStorageProvider");
+_1.require("dojox.storage.Provider");
+_1.require("dojox.storage.manager");
+_1.declare("dojox.storage.WhatWGStorageProvider",[_3.storage.Provider],{initialized:false,_domain:null,_available:null,_statusHandler:null,_allNamespaces:null,_storageEventListener:null,initialize:function(){
+if(_1.config["disableWhatWGStorage"]==true){
 return;
 }
 this._domain=location.hostname;
@@ -27,12 +27,12 @@ throw new Error("Invalid key given: "+_5);
 _8=_8||this.DEFAULT_NAMESPACE;
 _5=this.getFullKey(_5,_8);
 this._statusHandler=_7;
-if(_2.isString(_6)){
+if(_1.isString(_6)){
 _6="string:"+_6;
 }else{
-_6=_2.toJson(_6);
+_6=_1.toJson(_6);
 }
-var _9=_2.hitch(this,function(_a){
+var _9=_1.hitch(this,function(_a){
 window.removeEventListener("storage",_9,false);
 if(_7){
 _7.call(null,this.SUCCESS,_5,null,_8);
@@ -58,10 +58,10 @@ if(_f==null||_f==""){
 return null;
 }
 _f=_f.value;
-if(_2.isString(_f)&&(/^string:/.test(_f))){
+if(_1.isString(_f)&&(/^string:/.test(_f))){
 _f=_f.substring("string:".length);
 }else{
-_f=_2.fromJson(_f);
+_f=_1.fromJson(_f);
 }
 return _f;
 },getNamespaces:function(){
@@ -119,7 +119,7 @@ if(_1c.test(_1d.key(i))==true){
 _1e[_1e.length]=_1d.key(i);
 }
 }
-_2.forEach(_1e,_2.hitch(_1d,"removeItem"));
+_1.forEach(_1e,_1.hitch(_1d,"removeItem"));
 },remove:function(key,_1f){
 key=this.getFullKey(key,_1f);
 var _20=globalStorage[this._domain];

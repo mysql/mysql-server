@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"collapse": "Өңдегіш құралдар тақтасын тасалау",
-	"expand": "Өңдегіш құралдар тақтасын шығарып алу"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/kk/CollapsibleToolbar",({"collapse":"Өңдегіш құралдар тақтасын тасалау","expand":"Өңдегіш құралдар тақтасын шығарып алу"}));

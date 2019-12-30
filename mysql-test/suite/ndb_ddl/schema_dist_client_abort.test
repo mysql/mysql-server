@@ -1,0 +1,59 @@
+--source include/have_debug.inc
+# This test crashes MySQL Server on purpose.
+--source include/not_valgrind.inc
+--source include/not_crashrep.inc
+
+# Connect to all
+--source connect.inc
+
+--echo #
+--echo # Test client abort of schema operation
+--echo #
+
+
+--echo # Setup to trigger the client to detect that schema
+--echo # distribution is no longer ready
+set GLOBAL debug="+d,ndb_schema_dist_client_not_ready";
+
+# Supress warning which is written to log when client detect not ready
+--disable_query_log ONCE
+call mtr.add_suppression("Distribution of .* not ready!");
+
+--echo # Do schema operation which will cause the client to abort its
+--echo # schema operation
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+# Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
+
+# Wait until ready again
+--source include/ndb_not_readonly.inc
+
+DROP TABLE t1;
+
+
+--echo # Setup to trigger the client to detect that it was killed while
+--echo # waiting for schema distribuiton to complete
+set GLOBAL debug="+d,ndb_schema_dist_client_killed";
+
+# Supress warning which is written to log when client is killed
+--disable_query_log ONCE
+call mtr.add_suppression("Distribution of .* killed!");
+
+--echo # Do schema operation which will cause the client to detect it
+--echo # has been killed
+--replace_regex /Node [0-9]+:/Node <nodeid>/
+CREATE TABLE t1(
+  a int primary key
+) engine = NDB;
+
+# Remove debug setup
+set GLOBAL debug="-d,ndb_schema_dist_client_killed";
+
+# Wait until ready again
+--source include/ndb_not_readonly.inc
+
+DROP TABLE t1;

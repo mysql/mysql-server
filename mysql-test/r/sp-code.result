@@ -51,7 +51,7 @@ Pos	Instruction
 9	set err@1 1
 10	hreturn 5
 11	cfetch c@0 n@4
-12	jump_if_not 15(17) isnull(n@4)
+12	jump_if_not 15(17) (n@4 is null)
 13	set nulls@2 (nulls@2 + 1)
 14	jump 17
 15	set count@3 (count@3 + 1)
@@ -187,14 +187,14 @@ Pos	Instruction
 32	set v_dig@4 (v_dig@4 + 1)
 33	stmt "update sudoku_work set dig = v_dig wh..."
 34	set v_tcounter@6 (v_tcounter@6 + 1)
-35	jump_if_not 37(37) (not(`sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4)))
+35	jump_if_not 37(37) (0 = `sudoku_digit_ok`(v_row@7,v_col@8,v_dig@4))
 36	jump 15
 37	set v_i@3 (v_i@3 + 1)
 38	jump 15
 39	stmt "select dig from sudoku_work"
 40	stmt "select v_tcounter as 'Tests'"
 41	set v_scounter@2 (v_scounter@2 + 1)
-42	jump_if_not 45(14) (p_all@1 and (v_i@3 > 0))
+42	jump_if_not 45(14) ((0 <> p_all@1) and (v_i@3 > 0))
 43	set v_i@3 (v_i@3 - 1)
 44	jump 14
 45	stmt "drop temporary table sudoku_work, sud..."

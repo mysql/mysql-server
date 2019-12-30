@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ class THD;
 class Prepared_statement;
 struct handlerton;
 struct MYSQL_LEX_STRING;
+struct MYSQL_LEX_CSTRING;
 
 /**
   Representation of an SQL command.
@@ -149,7 +150,7 @@ class Sql_cmd {
     the statement is not eligible for execution in a secondary storage
     engine
   */
-  virtual const MYSQL_LEX_STRING *eligible_secondary_storage_engine() const {
+  virtual const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const {
     return nullptr;
   }
 

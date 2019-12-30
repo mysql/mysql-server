@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/HtmlStore",["dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/dom","dojo/_base/xhr","dojo/_base/window","dojo/data/util/simpleFetch","dojo/data/util/filter","dojox/xml/parser"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojox/data/HtmlStore",["dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/dom","dojo/_base/xhr","dojo/_base/kernel","dojo/data/util/simpleFetch","dojo/data/util/filter","dojox/xml/parser"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 var _a=_1("dojox.data.HtmlStore",null,{constructor:function(_b){
 if(_b&&"urlPreventCache" in _b){
 this.urlPreventCache=_b.urlPreventCache?true:false;
@@ -75,7 +75,6 @@ throw new Error("dojo.data.HtmlStore: a function was passed an item argument tha
 },_assertIsAttribute:function(_f){
 if(typeof _f!=="string"){
 throw new Error("dojo.data.HtmlStore: a function was passed an attribute argument that was not an attribute name string");
-return -1;
 }
 return _2.indexOf(this._headings,_f);
 },getValue:function(_10,_11,_12){

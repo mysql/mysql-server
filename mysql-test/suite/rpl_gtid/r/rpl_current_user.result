@@ -22,8 +22,8 @@ GRANT ALL PRIVILEGES ON *.* TO 'bug48321_1-01234'@'localhost' WITH GRANT OPTION;
 GRANT CREATE USER ON *.* TO '012345678901234567890123456789012'@'fakehost';
 ERROR HY000: String '012345678901234567890123456789012' is too long for user name (should be no longer than 32)
 # the host name is too lengh
-GRANT CREATE USER ON *.* TO 'fakename'@'0123456789012345678901234567890123456789012345678901234567890';
-ERROR HY000: String '0123456789012345678901234567890123456789012345678901234567890' is too long for host name (should be no longer than 60)
+GRANT CREATE USER ON *.* TO 'fakename'@'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X';
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 
 # User 'bug48321_1-01234' connects to master by conn1
 # [On conn1]

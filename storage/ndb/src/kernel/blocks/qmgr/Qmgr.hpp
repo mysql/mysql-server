@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 
 #include <pc.hpp>
 #include <NdbTick.h>
+#include <NdbGetRUsage.h>
 #include <SimulatedBlock.hpp>
 #include <NodeBitmask.hpp>
 #include <SignalCounter.hpp>
@@ -42,6 +43,7 @@
 
 #include <RequestTracker.hpp>
 #include <signaldata/StopReq.hpp>
+#include <ndb_limits.h>
 
 #include "timer.hpp"
 
@@ -293,6 +295,13 @@ public:
     ENABLE_COM_API_REGREQ = 2
   };
 
+  struct NodeFailRec
+  {
+    NdbNodeBitmask nodes;
+    Uint32 failureNr;
+    Uint16 president;
+  };
+
 public:
   Qmgr(Block_context&);
   virtual ~Qmgr();
@@ -359,6 +368,7 @@ private:
   void sendApiRegConf(Signal *signal, Uint32 node);
   
   void execSTART_ORD(Signal*);
+  void execSYNC_THREAD_VIA_CONF(Signal*);
 
   // Arbitration signals
   void execARBIT_CFG(Signal* signal);
@@ -420,7 +430,7 @@ private:
   void timerHandlingLab(Signal* signal);
   void hbReceivedLab(Signal* signal);
   void sendCmRegrefLab(Signal* signal, BlockReference ref, 
-		       CmRegRef::ErrorCode);
+		       CmRegRef::ErrorCode, Uint32 remote_node_version);
   void systemErrorBecauseOtherNodeFailed(Signal* signal, Uint32 line, NodeId);
   [[noreturn]] void systemErrorLab(Signal* signal,
                                    Uint32 line,
@@ -523,6 +533,8 @@ private:
 
   NodeRec *nodeRec;
   ArbitRec arbitRec;
+  static constexpr Uint32 MAX_DATA_NODE_FAILURES = MAX_DATA_NODE_ID;
+  NodeFailRec *nodeFailRec;
 
   /* Block references ------------------------------*/
   BlockReference cpdistref;	 /* Dist. ref of president   */
@@ -579,7 +591,14 @@ private:
 
   struct OpAllocNodeIdReq opAllocNodeIdReq;
   
-  StopReq c_stopReq;
+  struct StopReqRec {
+    Uint32 senderRef;
+    Uint32 senderData;
+    Uint32 requestInfo;
+    NdbNodeBitmask nodes;
+  };
+
+  StopReqRec c_stopReq;
   bool check_multi_node_shutdown(Signal* signal);
 
   void recompute_version_info(Uint32 type);
@@ -602,6 +621,8 @@ private:
 #ifdef ERROR_INSERT
   Uint32 nodeFailCount;
 #endif
+
+  struct ndb_rusage m_timer_handling_rusage;
 
   Uint32 get_hb_count(Uint32 nodeId) const {
     return globalData.get_hb_count(nodeId);

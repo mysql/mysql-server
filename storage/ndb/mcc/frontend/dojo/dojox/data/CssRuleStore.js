@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/CssRuleStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/json","dojo/_base/window","dojo/_base/sniff","dojo/data/util/sorter","dojo/data/util/filter","./css"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojox/data/CssRuleStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/array","dojo/_base/json","dojo/_base/kernel","dojo/_base/sniff","dojo/data/util/sorter","dojo/data/util/filter","./css"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
 return _2("dojox.data.CssRuleStore",null,{_storeRef:"_S",_labelAttribute:"selector",_cache:null,_browserMap:null,_cName:"dojox.data.CssRuleStore",constructor:function(_a){
 if(_a){
 _1.mixin(this,_a);

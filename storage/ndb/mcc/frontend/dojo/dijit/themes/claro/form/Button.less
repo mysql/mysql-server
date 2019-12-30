@@ -40,15 +40,21 @@
 .claro .dijitToggleButton .dijitButtonNode {
 	/* rules for the dijit.form.*Button widgets (see also ComboButton section below) */
 	border: 1px solid @button-border-color;
-	padding:2px 4px 4px 4px;
-	background-image: url("../@{image-form-button}");
-	background-position: center top;
-	background-repeat: repeat-x;
-	background-color: @button-background-color;
+	padding: 2px 4px 4px 4px;
 	color: @text-color;
 	.border-radius(@button-border-radius);
 	.box-shadow(0 1px 1px rgba(0,0,0,0.15));
+
+	background-color: desaturate(darken(@button-background-color, 10), 20);
+
+	// Alpha transparency layer to add gradient to above background color.
+	// Use CSS gradient with fallback to image for IE.
+	background-image: url("images/buttonEnabled.png");
+	background-repeat: repeat-x;
+	.alpha-white-gradient(1, 0px, 0, 3px, 0.75, 100%);
+	_background-image: none;	// IE6 can't handle background-color and background-image at once.
 }
+
 
 .claro .dijitComboButton .dijitArrowButton {
 	border-left-width: 0;
@@ -101,7 +107,7 @@
 .claro .dijitComboButton .dijitButtonNodeHover, 
 .claro .dijitComboButton .dijitDownArrowButtonHover,
 .claro .dijitToggleButtonHover .dijitButtonNode {
-	background-color: @button-hovered-background-color;
+	background-color: desaturate(darken(@button-hovered-background-color, 10), 20);
 	color:@text-color;
  	.transition-duration(.2s);
 }
@@ -111,9 +117,9 @@
 .claro .dijitDropDownButtonActive .dijitButtonNode,
 .claro .dijitComboButtonActive .dijitButtonNode,
 .claro .dijitToggleButtonActive .dijitButtonNode,
-.claro .dijitStackController .dijitToggleButtonChecked .dijitButtonNode {
-	background-color: @button-pressed-background-color;
-	.box-shadow(0 0 0 rgba(0,0,0,0));
+.claro .dijitToggleButtonChecked .dijitButtonNode {
+	background-color: desaturate(darken(@button-pressed-background-color, 10), 20);
+	.box-shadow(inset 0px 1px 1px rgba(0, 0, 0, 0.2));
  	.transition-duration(.1s);
 }
 
@@ -129,23 +135,25 @@
 .claro .dijitButtonDisabled .dijitButtonNode,
 .claro .dijitDropDownButtonDisabled .dijitButtonNode,
 .claro .dijitComboButtonDisabled .dijitButtonNode,
-.claro .dijitToggleButtonDisabled .dijitButtonNode { 
-	background-position:0 -149px;
+.claro .dijitToggleButtonDisabled .dijitButtonNode {
 	background-color: @disabled-background-color;
 	border: solid 1px @disabled-border-color;
 	color: @disabled-text-color;
 	.box-shadow(0 0 0 rgba(0,0,0,0));
+
+	// Change the gradient from light to dark.
+	// Again using CSS gradient with fallback to image for IE.
+	background-image: url("images/buttonDisabled.png");
+	.alpha-white-gradient(1, 0%, 0, 40%);
+	_background-image: none;	// IE6 can't handle background-color and background-image at once.
 }
+
 .claro .dijitComboButtonDisabled .dijitArrowButton{ 
 	border-left-width: 0;
 }
 /* for ComboButton */
 .claro table.dijitComboButton {
 	border-collapse: separate;	/* override dijit.css so that ComboBox rounded corners work */
-}
-
-.dj_ie6 .claro .dijitButtonNode {
-	background-image: none;
 }
 
 .claro .dijitComboButton .dijitStretch {

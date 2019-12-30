@@ -1,8 +1,9 @@
-//>>built
-// wrapped by build app
-define("dojox/wire", ["dijit","dojo","dojox","dojo/require!dojox/wire/_base"], function(dijit,dojo,dojox){
-dojo.provide("dojox.wire");
-dojo.require("dojox.wire._base");
-
-
+define("dojox/wire", ['./wire/_base'],function(){
+	/*=====
+	 return {
+	 // summary:
+	 //		Deprecated.  Should require dojox/wire modules directly rather than trying to access them through
+	 //		this module.
+	 };
+	 =====*/
 });

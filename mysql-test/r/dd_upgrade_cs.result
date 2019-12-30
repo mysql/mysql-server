@@ -12,6 +12,7 @@
 ########################################################################
 # Restart the server to trigger upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG_UPGRADE --log-error-verbosity=3
 ########################################################################
 # Verify that the entities have retained the SQL mode.
 ########################################################################
@@ -29,7 +30,7 @@ trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE I
 ########################################################################
 # Stop the server and do cleanup.
 ########################################################################
-# restart
+# restart:
 #-----------------------------------------------------------------------
 # WL#929: CHECK Constraint
 #         Test case to verify upgrade from version before check
@@ -39,8 +40,8 @@ trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE I
 # Check that the file exists in the working folder.
 # Set different paths for --datadir
 # Check that the file exits after unzip
-# Stop DB server which was created by MTR default
-# Start the DB server
+# Stop / restart DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG
 USE test;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
 # After upgrade CHECK_CONSTRAINTS table should be present and should list
@@ -64,7 +65,7 @@ DROP TABLE t1;
 # Stop the server and do cleanup
 # Remove copied files
 # Restart the server with default options.
-# restart
+# restart:
 #
 # Bug#28901821 - AFTER UPGRADE TO 8.0.13, SYS SCHEMA VIEWS ARE LISTED AS INVALID
 #                IN I_S.TABLES
@@ -73,8 +74,8 @@ DROP TABLE t1;
 # Check that the file exists in the working folder.
 # Set different paths for --datadir
 # Check that the file exits after unzip
-# Stop DB server which was created by MTR default
-# Start the DB server
+# Stop / start DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR2 --log-error=MYSQLD_LOG
 # Without fix, following views are listed as invalid.
 SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = 'schema_auto_increment_columns' OR
@@ -92,4 +93,74 @@ x$schema_flattened_keys	VIEW
 # Stop the server and do cleanup.
 # Remove copied files
 # Restart the server with default options.
-# restart
+# restart:
+#
+# Bug#29697670: OVERRIDING SERVER DEFAULT CHARSET/COLLATION AFFECTS UPGRADE
+#
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop / start DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+#
+# Bug##29865428: UPGRADE OF HELP TABLES FAILED ON 8.0.16
+#
+# A server restart with --upgrade=force would fail without the patch when
+# also submitting --autocommit=0 and --completion_type=chain, because when
+# the SRS table updates end with a commit, a new transaction is started, so
+# when the statements in fill_help_tables.sql are executed, and sql_log_bin
+# is being set, this fails since it's not allowed within the scope of an
+# active transaction.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
+# Stop the server and do cleanup.
+# Remove copied files
+#
+# Bug#29917793: REJECT UPGRADE 8.0.14-16 -> 8.0.17 FOR LCTN=1 AND PARTITIONED TABLES
+#
+# This is the test case for case sensitive file systems. A corresponding test case
+# for case insensitive file systems can be found in dd_upgrade_ci.test.
+#
+# Test with lctn=1 and no partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1
+# Stop the server and do cleanup.
+# Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+# Set different path for --datadir and check that it exists.
+# Upgrading the server should be rejected.
+Pattern "with partitioned tables and lower_case_table_names == 1" found
+# Retry upgrading the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
+# Table rebuild will fail.
+ALTER TABLE test.t ENGINE = InnoDB;
+ERROR HY000: Got error 44 - 'InnoDB error' from storage engine
+# After RENAME, table rebuild will succeed.
+RENAME TABLE test.t TO test.t_new;
+RENAME TABLE test.t_new TO test.t;
+ALTER TABLE test.t ENGINE = InnoDB;
+SHOW CREATE TABLE test.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION p0 VALUES LESS THAN (-1) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+Pattern "Table 'information_schema.TABLES' doesn't exist" not found
+# Stop the server and do cleanup.
+# Test with lctn=0 and no partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG
+# Stop the server and do cleanup.
+# Test with lctn=0 and partitioned tables. Upgrade should succeed.
+# Set different path for --datadir and check that it exists.
+# Upgrade the server.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG
+# Table rebuild will succeed.
+ALTER TABLE test.t ENGINE = InnoDB;
+# Stop the server and do cleanup.
+# Restart the server with default options.
+# restart:

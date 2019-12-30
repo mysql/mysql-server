@@ -48,3 +48,13 @@ Description: Select default authentication plugin
  The change will be written to the file /etc/mysql/mysql.conf.d/default-auth-override.cnf
  .
  After installation, the default can be changed by setting the default_authentication_plugin server setting.
+
+
+Template: mysql-server/lowercase-table-names
+Type: select
+Choices: Enabled, Disabled
+Description: Enable lowercase table names
+ If enabled, this setting makes MySQL store table names in lowercase, and comparisons will not be case sensitive.
+ .
+ This setting must be enabled before the database is initialized
+ The change will be written to the file /etc/mysql/mysql.conf.d/lowercase-table-names.cnf

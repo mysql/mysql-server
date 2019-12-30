@@ -1,8 +1,8 @@
 //>>built
-define("dojox/grid/EnhancedGrid",["dojo/_base/kernel","../main","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/sniff","dojo/dom","dojo/dom-geometry","dojo/i18n","./DataGrid","./DataSelection","./enhanced/_PluginManager","./enhanced/plugins/_SelectionPreserver","dojo/i18n!./enhanced/nls/EnhancedGrid"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
+define("dojox/grid/EnhancedGrid",["dojo/_base/kernel","../main","dojo/_base/declare","dojo/_base/lang","dojo/_base/array","dojo/_base/sniff","dojo/dom","dojo/dom-geometry","./DataGrid","./DataSelection","./enhanced/_PluginManager","./enhanced/plugins/_SelectionPreserver","dojo/i18n!./enhanced/nls/EnhancedGrid"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d){
 _1.experimental("dojox.grid.EnhancedGrid");
-var _e=_3("dojox.grid.EnhancedGrid",_a,{plugins:null,pluginMgr:null,_pluginMgrClass:_c,postMixInProperties:function(){
-this._nls=_9.getLocalization("dojox.grid.enhanced","EnhancedGrid",this.lang);
+var _e=_3("dojox.grid.EnhancedGrid",_9,{plugins:null,pluginMgr:null,_pluginMgrClass:_b,postMixInProperties:function(){
+this._nls=_d;
 this.inherited(arguments);
 },postCreate:function(){
 this.pluginMgr=new this._pluginMgrClass(this);
@@ -109,12 +109,12 @@ delete this._nls;
 this.pluginMgr.destroy();
 this.inherited(arguments);
 }});
-_3("dojox.grid.enhanced.DataSelection",_b,{constructor:function(_27){
+_3("dojox.grid.enhanced.DataSelection",_a,{constructor:function(_27){
 if(_27.keepSelection){
 if(this.preserver){
 this.preserver.destroy();
 }
-this.preserver=new _d(this);
+this.preserver=new _c(this);
 }
 },_range:function(_28,_29){
 this.grid._selectingRange=true;
@@ -128,10 +128,10 @@ this.grid._selectingRange=false;
 this.onChanged();
 }});
 _e.markupFactory=function(_2b,_2c,_2d,_2e){
-return _2.grid._Grid.markupFactory(_2b,_2c,_2d,_4.partial(_a.cell_markupFactory,_2e));
+return _2.grid._Grid.markupFactory(_2b,_2c,_2d,_4.partial(_9.cell_markupFactory,_2e));
 };
 _e.registerPlugin=function(_2f,_30){
-_c.registerPlugin(_2f,_30);
+_b.registerPlugin(_2f,_30);
 };
 return _e;
 });

@@ -1,5 +1,7 @@
 # windows does not support symlink
 --source include/not_windows.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1,t2,t7,t8,t9;

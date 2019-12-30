@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/_event", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/_event", ["dojo","dijit","dojox"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app._event");
 dojo.experimental("dojox.mobile.app._event.js");
 
@@ -11,13 +10,12 @@ dojo.mixin(dojox.mobile.app, {
 		// summary:
 		//		Listens for a flick event on a DOM node.  If the mouse/touch
 		//		moves more than 15 pixels in any given direction it is a flick.
-		//		The synthetic event fired specifies the direction as
-		//		<ul>
-		//			<li><b>'ltr'</b> Left To Right</li>
-		//			<li><b>'rtl'</b> Right To Left</li>
-		//			<li><b>'ttb'</b> Top To Bottom</li>
-		//			<li><b>'btt'</b> Bottom To Top</li>
-		//		</ul>
+		//		The synthetic event fired specifies the direction as:
+		//
+		//		- ltr - Left to Right
+		//		- rtl - Right to Left
+		//		- ttb - Top To Bottom
+		//		- btt - Bottom To top
 		// target: Node
 		//		The DOM node to connect to
 

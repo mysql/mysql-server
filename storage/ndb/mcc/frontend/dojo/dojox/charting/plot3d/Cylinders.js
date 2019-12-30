@@ -1,5 +1,5 @@
 //>>built
-define("dojox/charting/plot3d/Cylinders",["dojox/gfx3d","dojox/gfx3d/matrix","dojo/_base/declare","dojo/_base/Color","dojo/_base/window","./Base"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/charting/plot3d/Cylinders",["dojox/gfx3d","dojox/gfx3d/matrix","dojo/_base/declare","dojo/_base/Color","dojo/_base/kernel","./Base"],function(_1,_2,_3,_4,_5,_6){
 var _7=function(a,f,o){
 a=typeof a=="string"?a.split(""):a;
 o=o||_5.global;

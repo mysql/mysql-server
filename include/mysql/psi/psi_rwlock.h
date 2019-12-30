@@ -63,10 +63,10 @@ typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 
 /**
-  Performance Schema Rwlock Interface, version 1.
-  @since PSI_RWLOCK_VERSION_1
+  Performance Schema Rwlock Interface, version 2.
+  @since PSI_RWLOCK_VERSION_2
 */
-struct PSI_rwlock_service_v1 {
+struct PSI_rwlock_service_v2 {
   /** @sa register_rwlock_v1_t. */
   register_rwlock_v1_t register_rwlock;
   /** @sa init_rwlock_v1_t. */
@@ -81,11 +81,11 @@ struct PSI_rwlock_service_v1 {
   start_rwlock_wrwait_v1_t start_rwlock_wrwait;
   /** @sa end_rwlock_wrwait_v1_t. */
   end_rwlock_wrwait_v1_t end_rwlock_wrwait;
-  /** @sa unlock_rwlock_v1_t. */
-  unlock_rwlock_v1_t unlock_rwlock;
+  /** @sa unlock_rwlock_v2_t. */
+  unlock_rwlock_v2_t unlock_rwlock;
 };
 
-typedef struct PSI_rwlock_service_v1 PSI_rwlock_service_t;
+typedef struct PSI_rwlock_service_v2 PSI_rwlock_service_t;
 
 extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
 

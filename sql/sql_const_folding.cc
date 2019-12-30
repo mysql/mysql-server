@@ -273,11 +273,13 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         if (v > 0) {
           // underflow on the positive side
           String s("0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
           DBUG_ASSERT(err == 0);
         } else {
           String s("-0.1", thd->charset());
-          err = string2my_decimal(E_DEC_FATAL_ERROR, &s, &dec);
+          err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
+                               s.charset(), &dec);
           DBUG_ASSERT(err == 0);
         }
       }
@@ -1031,10 +1033,13 @@ static bool analyze_field_constant(THD *thd, Item_field *f, Item **const_val,
 
                    !top_level_item        top_level_item
                 ------------------------------------------
-     nullable   |  field <> field     |   COND_FALSE     |
+     nullable   |  field <> field [*] |   COND_FALSE     |
     !nullable   |  FALSE (0)          |   COND_FALSE     |
                 ------------------------------------------
+
+  [*] for the "<=>" operator, we fold to FALSE (0) in this case.
   </pre>
+
   @param      thd         current session context
   @param      ref_or_field
                           a field (that is being being compared to a constant)
@@ -1058,7 +1063,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
   Item *i = nullptr;
   const int is_top_level =
       ft == Item_func::MULT_EQUAL_FUNC ||
-      down_cast<Item_bool_func2 *>(*retcond)->is_top_level_item();
+      down_cast<Item_bool_func2 *>(*retcond)->ignore_unknown();
   if (always_true) {
     if (ref_or_field->maybe_null) {
       if (is_top_level) {
@@ -1078,7 +1083,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
         *retcond = nullptr;
         return false;
       }
-      i = new (thd->mem_root) Item_int(1, 1);
+      i = new (thd->mem_root) Item_func_true();
     }
   } else {
     if (is_top_level && !manifest_result) {
@@ -1087,10 +1092,10 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
       return false;
     }
 
-    if (ref_or_field->maybe_null) {
+    if (ref_or_field->maybe_null && ft != Item_func::EQUAL_FUNC) {
       i = new (thd->mem_root) Item_func_ne(ref_or_field, ref_or_field);
     } else {
-      i = new (thd->mem_root) Item_int(0, 1);
+      i = new (thd->mem_root) Item_func_false();
     }
   }
 
@@ -1109,11 +1114,9 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
 */
 static bool fold_arguments(THD *thd, Item_func *func) {
   for (uint i = 0; i < func->argument_count(); i++) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    const auto arg = func->arguments()[i];
-    if (fold_condition(thd, arg, &rc, &cv, true)) return true;
-    if (rc != arg) thd->change_item_tree(func->arguments() + i, rc);
+    Item **args = func->arguments();
+    if (fold_condition(thd, args[i], args + i, &cv, true)) return true;
   }
   func->update_used_tables();
   return false;
@@ -1131,10 +1134,8 @@ static bool fold_arguments(THD *thd, Item_cond *cond) {
   Item *item;
 
   while ((item = li++)) {
-    Item *rc = nullptr;
     Item::cond_result cv;
-    if (fold_condition(thd, item, &rc, &cv, true)) return true;
-    if (rc != item) thd->change_item_tree(li.ref(), rc);
+    if (fold_condition(thd, item, li.ref(), &cv, true)) return true;
   }
   cond->update_used_tables();
   return false;
@@ -1262,7 +1263,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
       /* The test can be elided. If top level, drop the condition */
       if (manifest_result) {
-        const auto i = new (thd->mem_root) Item_int(1);
+        const auto i = new (thd->mem_root) Item_func_true();
         if (i == nullptr) return true;
         thd->change_item_tree(retcond, i);
       } else {
@@ -1370,8 +1371,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
     return true; /* purecov: inspected */
 
   if (discount_eq && (ft == Item_func::LE_FUNC || ft == Item_func::GE_FUNC)) {
-    bool top_level_item =
-        down_cast<Item_bool_func2 *>(cond)->is_top_level_item();
+    bool ignore_unknown = down_cast<Item_bool_func2 *>(cond)->ignore_unknown();
     if (ft == Item_func::LE_FUNC) {
       if (!(cond = new (thd->mem_root) Item_func_lt(args[0], args[1])))
         return true; /* purecov: inspected */
@@ -1380,7 +1380,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
         return true; /* purecov: inspected */
     }
     auto cond_alias = down_cast<Item_bool_func2 *>(cond);
-    if (top_level_item) cond_alias->top_level_item();
+    if (ignore_unknown) cond_alias->apply_is_true();
     if (cond->fix_fields(thd, &cond)) return true;
     ft = cond_alias->functype();
     thd->change_item_tree(retcond, cond);

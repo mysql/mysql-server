@@ -90,7 +90,7 @@ Recovery_state_transfer::~Recovery_state_transfer() {
 }
 
 void Recovery_state_transfer::initialize(const string &rec_view_id) {
-  DBUG_ENTER("Recovery_state_transfer::initialize");
+  DBUG_TRACE;
 
   // reset the recovery aborted flag
   recovery_aborted = false;
@@ -105,13 +105,11 @@ void Recovery_state_transfer::initialize(const string &rec_view_id) {
 
   this->view_id.clear();
   this->view_id.append(rec_view_id);
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::inform_of_applier_stop(my_thread_id thread_id,
                                                      bool) {
-  DBUG_ENTER("Recovery_state_transfer::inform_of_applier_stop");
+  DBUG_TRACE;
 
   /*
     This method doesn't take any locks as it could lead to dead locks between
@@ -133,12 +131,10 @@ void Recovery_state_transfer::inform_of_applier_stop(my_thread_id thread_id,
     mysql_cond_broadcast(&recovery_condition);
     mysql_mutex_unlock(&recovery_lock);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::inform_of_receiver_stop(my_thread_id thread_id) {
-  DBUG_ENTER("Recovery_state_transfer::inform_of_receiver_stop");
+  DBUG_TRACE;
 
   /*
     This method doesn't take any locks as it could lead to dead locks between
@@ -157,12 +153,10 @@ void Recovery_state_transfer::inform_of_receiver_stop(my_thread_id thread_id) {
     mysql_cond_broadcast(&recovery_condition);
     mysql_mutex_unlock(&recovery_lock);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::initialize_group_info() {
-  DBUG_ENTER("Recovery_state_transfer::initialize_group_info");
+  DBUG_TRACE;
 
   selected_donor = NULL;
   selected_donor_hostname.clear();
@@ -170,12 +164,10 @@ void Recovery_state_transfer::initialize_group_info() {
   mysql_mutex_lock(&donor_selection_lock);
   update_group_membership(false);
   mysql_mutex_unlock(&donor_selection_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::update_group_membership(bool update_donor) {
-  DBUG_ENTER("Recovery_state_transfer::update_group_membership");
+  DBUG_TRACE;
 
 #ifndef DBUG_OFF
   mysql_mutex_assert_owner(&donor_selection_lock);
@@ -201,24 +193,20 @@ void Recovery_state_transfer::update_group_membership(bool update_donor) {
 
   // When updating the member list, also rebuild the suitable donor list
   build_donor_list(&donor_uuid);
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::abort_state_transfer() {
-  DBUG_ENTER("Recovery_state_transfer::abort_state_transfer");
+  DBUG_TRACE;
 
   // Break the wait for view change event
   mysql_mutex_lock(&recovery_lock);
   recovery_aborted = true;
   mysql_cond_broadcast(&recovery_condition);
   mysql_mutex_unlock(&recovery_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
-  DBUG_ENTER("Recovery_state_transfer::update_recovery_process");
+  DBUG_TRACE;
   int error = 0;
 
   /*
@@ -288,50 +276,46 @@ int Recovery_state_transfer::update_recovery_process(bool did_members_left) {
   }
   mysql_mutex_unlock(&donor_selection_lock);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Recovery_state_transfer::end_state_transfer() {
-  DBUG_ENTER("Recovery_state_transfer::end_state_transfer");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&recovery_lock);
   donor_transfer_finished = true;
   mysql_cond_broadcast(&recovery_condition);
   mysql_mutex_unlock(&recovery_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_state_transfer::donor_failover() {
-  DBUG_ENTER("Recovery_state_transfer::donor_failover");
+  DBUG_TRACE;
 
   // Awake the recovery process so it can loop again to connect to another donor
   mysql_mutex_lock(&recovery_lock);
   on_failover = true;
   mysql_cond_broadcast(&recovery_condition);
   mysql_mutex_unlock(&recovery_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 int Recovery_state_transfer::check_recovery_thread_status() {
-  DBUG_ENTER("Recovery_state_transfer::check_recovery_thread_status");
+  DBUG_TRACE;
 
   // if some of the threads are running
   if (donor_connection_interface.is_receiver_thread_running() ||
       donor_connection_interface.is_applier_thread_running()) {
     return terminate_recovery_slave_threads(); /* purecov: inspected */
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool Recovery_state_transfer::is_own_event_channel(my_thread_id id) {
-  DBUG_ENTER("Recovery_state_transfer::is_own_event_channel");
-  DBUG_RETURN(donor_connection_interface.is_own_event_applier(id));
+  DBUG_TRACE;
+  return donor_connection_interface.is_own_event_applier(id);
 }
 
 void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
-  DBUG_ENTER("Recovery_state_transfer::build_donor_list");
+  DBUG_TRACE;
 
   suitable_donors.clear();
 
@@ -344,14 +328,23 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
     bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
     bool not_self = m_uuid.compare(member_uuid);
+    bool valid_donor = false;
 
     if (is_online && not_self) {
-      suitable_donors.push_back(member);
+      if (member->get_member_version() <=
+          local_member_info->get_member_version()) {
+        suitable_donors.push_back(member);
+        valid_donor = true;
+      } else if (get_allow_local_lower_version_join()) {
+        suitable_donors.push_back(member);
+        valid_donor = true;
+      }
     }
 
     // if requested, and if the donor is still in the group, update its
     // reference
-    if (selected_donor_uuid != NULL && !m_uuid.compare(*selected_donor_uuid)) {
+    if (selected_donor_uuid != NULL && !m_uuid.compare(*selected_donor_uuid) &&
+        valid_donor) {
       selected_donor = member;
     }
 
@@ -364,11 +357,10 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
 
   // no need for errors if no donors exist, we thrown it in the connection
   // method.
-  DBUG_VOID_RETURN;
 }
 
 int Recovery_state_transfer::establish_donor_connection() {
-  DBUG_ENTER("Recovery_state_transfer::establish_donor_connection");
+  DBUG_TRACE;
 
   int error = -1;
   connected_to_donor = false;
@@ -388,13 +380,13 @@ int Recovery_state_transfer::establish_donor_connection() {
     if (donor_connection_retry_count >= max_connection_attempts_to_donors) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MAXIMUM_CONNECTION_RETRIES_REACHED);
       mysql_mutex_unlock(&donor_selection_lock);
-      DBUG_RETURN(error);
+      return error;
     }
 
     if (group_member_mgr->get_number_of_members() == 1) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ALL_DONORS_LEFT_ABORT_RECOVERY);
       mysql_mutex_unlock(&donor_selection_lock);
-      DBUG_RETURN(error);
+      return error;
     }
 
     if (donor_connection_retry_count == 0) {
@@ -461,11 +453,11 @@ int Recovery_state_transfer::establish_donor_connection() {
     my_sleep(100);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_state_transfer::initialize_donor_connection() {
-  DBUG_ENTER("Recovery_state_transfer::initialize_donor_connection");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -488,7 +480,8 @@ int Recovery_state_transfer::initialize_donor_connection() {
       recovery_ssl_capath, recovery_ssl_cert, recovery_ssl_cipher,
       recovery_ssl_key, recovery_ssl_crl, recovery_ssl_crlpath,
       recovery_ssl_verify_server_cert, DEFAULT_THREAD_PRIORITY, 1, false,
-      recovery_public_key_path, recovery_get_public_key);
+      recovery_public_key_path, recovery_get_public_key,
+      recovery_compression_algorithm, recovery_zstd_compression_level);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
@@ -499,11 +492,11 @@ int Recovery_state_transfer::initialize_donor_connection() {
                  port); /* purecov: inspected */
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_state_transfer::start_recovery_donor_threads() {
-  DBUG_ENTER("Recovery_state_transfer::start_recovery_donor_threads");
+  DBUG_TRACE;
 
   int error =
       donor_connection_interface.start_threads(true, true, &view_id, true);
@@ -574,11 +567,11 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
-  DBUG_ENTER("Recovery_state_transfer::terminate_recovery_slave_threads");
+  DBUG_TRACE;
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
 
@@ -595,29 +588,30 @@ int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
-  DBUG_ENTER("Recovery_state_transfer::purge_recovery_slave_threads_repos");
+  DBUG_TRACE;
 
   int error = 0;
   if ((error = donor_connection_interface.purge_logs(false))) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PURGE_REC);
-    DBUG_RETURN(error);
+    return error;
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
       const_cast<char *>("<NULL>"), 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-      NULL, NULL, NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false, NULL, false);
+      NULL, NULL, NULL, NULL, DEFAULT_THREAD_PRIORITY, 1, false, NULL, false,
+      NULL, 0);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_state_transfer::state_transfer(
     Plugin_stage_monitor_handler &stage_handler) {
-  DBUG_ENTER("Recovery_state_transfer::state_transfer");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -633,7 +627,7 @@ int Recovery_state_transfer::state_transfer(
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_APPLIER);
         // if we can't stop, abort recovery
-        DBUG_RETURN(error);
+        return error;
         /* purecov: end */
       }
     }
@@ -650,7 +644,7 @@ int Recovery_state_transfer::state_transfer(
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_FAILOVER);
         // if we can't stop, abort recovery
-        DBUG_RETURN(error);
+        return error;
         /* purecov: end */
       }
     }
@@ -693,5 +687,5 @@ int Recovery_state_transfer::state_transfer(
   terminate_recovery_slave_threads(!error);
   connected_to_donor = false;
 
-  DBUG_RETURN(error);
+  return error;
 }

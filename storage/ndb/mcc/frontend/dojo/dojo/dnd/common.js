@@ -1,28 +1,28 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/dnd/common",["../main"],function(_1){
-_1.getObject("dnd",true,_1);
-_1.dnd.getCopyKeyState=_1.isCopyKey;
-_1.dnd._uniqueId=0;
-_1.dnd.getUniqueId=function(){
+define("dojo/dnd/common",["../_base/connect","../_base/kernel","../_base/lang","../dom"],function(_1,_2,_3,_4){
+var _5=_3.getObject("dojo.dnd",true);
+_5.getCopyKeyState=_1.isCopyKey;
+_5._uniqueId=0;
+_5.getUniqueId=function(){
 var id;
 do{
-id=_1._scopeName+"Unique"+(++_1.dnd._uniqueId);
-}while(_1.byId(id));
+id=_2._scopeName+"Unique"+(++_5._uniqueId);
+}while(_4.byId(id));
 return id;
 };
-_1.dnd._empty={};
-_1.dnd.isFormElement=function(e){
+_5._empty={};
+_5.isFormElement=function(e){
 var t=e.target;
 if(t.nodeType==3){
 t=t.parentNode;
 }
 return " button textarea input select option ".indexOf(" "+t.tagName.toLowerCase()+" ")>=0;
 };
-return _1.dnd;
+return _5;
 });

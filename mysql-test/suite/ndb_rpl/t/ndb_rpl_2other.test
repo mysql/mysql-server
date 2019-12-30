@@ -27,7 +27,7 @@ set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,
-                   log_name VARCHAR(255) BINARY NOT NULL,
+                   log_name VARBINARY(255) NOT NULL,
                    start_pos BIGINT UNSIGNED NOT NULL,
                    end_pos BIGINT UNSIGNED NOT NULL,
                    PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM

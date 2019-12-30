@@ -1,0 +1,135 @@
+###############################################################################
+# This test evaluates that a server can be shutdown when clone is in progress
+# in the context of group replication.
+#
+# 0. This test requires 2 servers.
+# 1. Install clone plugin on server1.
+# 2. Bootstrap server1 and add some data
+# 3. Make a backup of server 2 to restore it at the end
+# 4. Install the clone plugin on server2
+# 5. On a empty server2 start group replication
+#    Block clone progress
+# 6. Shutdown the server while the clone is happening
+# 7. Restart server2 using the backup folder
+# 8. Cleanup
+#
+
+--source include/have_debug_sync.inc
+--source include/not_windows.inc
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Validate plugins
+--let plugins = CLONE_PLUGIN,GROUP_REPLICATION
+--source include/check_plugin_dir.inc
+
+--echo
+--echo ############################################################
+--echo # 1. Install clone plugin on server1.
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_port= `SELECT @@GLOBAL.PORT`
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo ############################################################
+--echo # 2. Bootstrap server1 and add some data
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--echo ############################################################
+--echo # 3. Make a backup of server 2 to restore it at the end
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $BACKUP_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $MYSQLD_2_DATADIR= `SELECT @@datadir`
+--force-cpdir $MYSQLD_2_DATADIR $BACKUP_DATADIR
+
+--echo
+--echo ############################################################
+--echo # 4. Install the clone plugin on server2
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+--echo
+--echo ############################################################
+--echo # 5. On a empty server2 start group replication
+--echo #    Block clone progress
+
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 1;
+SET @@GLOBAL.DEBUG='+d,gr_clone_wait';
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+START GROUP_REPLICATION;
+
+SET DEBUG_SYNC = 'now WAIT_FOR gr_clone_paused';
+
+--echo
+--echo ############################################################
+--echo # 6. Shutdown the server while the clone is happening
+
+--let $_expect_file_name= $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--exec echo "wait" > $_expect_file_name
+
+--exec $MYSQLADMIN -uroot --password="" -S $SLAVE_MYSOCK shutdown 2>&1
+
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo ############################################################
+--echo # 7. Restart server2 using the backup folder
+
+--force-rmdir $MYSQLD_2_DATADIR
+--force-cpdir $BACKUP_DATADIR $MYSQLD_2_DATADIR
+--force-rmdir $BACKUP_DATADIR
+
+--source include/start_mysqld.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--echo
+--echo ############################################################
+--echo # 8. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will start distributed recovery using clone.");
+call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
+call mtr.add_suppression("There was an issue when cloning from another server: Error number: 1317 Error message: Query execution was interrupted'");
+call mtr.add_suppression("Plugin group_replication reported: 'Error, maximum number of retries exceeded when waiting for the internal server session state to be operating'");
+call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+UNINSTALL PLUGIN clone;
+
+--source include/group_replication_end.inc

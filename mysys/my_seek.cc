@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ typedef off_t os_off_t;
 
 my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
   os_off_t newpos = -1;
-  DBUG_ENTER("my_seek");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d Pos: %llu  Whence: %d  MyFlags: %d", fd,
                     (ulonglong)pos, whence, MyFlags));
 
@@ -102,12 +102,12 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
     DBUG_PRINT("error", ("lseek: %llu  errno: %d", (ulonglong)newpos, errno));
-    DBUG_RETURN(MY_FILEPOS_ERROR);
+    return MY_FILEPOS_ERROR;
   }
   if ((my_off_t)newpos != pos) {
     DBUG_PRINT("exit", ("pos: %llu", (ulonglong)newpos));
   }
-  DBUG_RETURN((my_off_t)newpos);
+  return (my_off_t)newpos;
 } /* my_seek */
 
 /* Tell current position of file */
@@ -115,7 +115,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
 
 my_off_t my_tell(File fd, myf MyFlags) {
   os_off_t pos;
-  DBUG_ENTER("my_tell");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  MyFlags: %d", fd, MyFlags));
   DBUG_ASSERT(fd >= 0);
 #if defined(HAVE_TELL) && !defined(_WIN32)
@@ -133,5 +133,5 @@ my_off_t my_tell(File fd, myf MyFlags) {
     DBUG_PRINT("error", ("tell: %llu  errno: %d", (ulonglong)pos, my_errno()));
   }
   DBUG_PRINT("exit", ("pos: %llu", (ulonglong)pos));
-  DBUG_RETURN((my_off_t)pos);
+  return (my_off_t)pos;
 } /* my_tell */

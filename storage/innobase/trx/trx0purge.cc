@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <new>
 
 #include "clone0api.h"
+#include "clone0clone.h"
 #include "dict0dd.h"
 #include "fil0fil.h"
 #include "fsp0fsp.h"
@@ -351,6 +352,9 @@ void trx_purge_add_update_undo_to_history(
     srv_wake_purge_thread_if_not_active();
   }
 
+  /* Update maximum transaction number for this rollback segment. */
+  mlog_write_ull(rseg_header + TRX_RSEG_MAX_TRX_NO, trx->no, mtr);
+
   /* Write the trx number to the undo log header */
   mlog_write_ull(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
 
@@ -359,6 +363,9 @@ void trx_purge_add_update_undo_to_history(
   if (!undo->del_marks) {
     mlog_write_ulint(undo_header + TRX_UNDO_DEL_MARKS, FALSE, MLOG_2BYTES, mtr);
   }
+
+  /* Write GTID information if there. */
+  trx_undo_gtid_write(trx, undo_header, undo, mtr);
 
   if (rseg->last_page_no == FIL_NULL) {
     rseg->last_page_no = undo->hdr_page_no;
@@ -858,11 +865,11 @@ void Tablespace::alter_active() {
 dberr_t start_logging(Tablespace *undo_space) {
 #ifdef UNIV_DEBUG
   static int fail_start_logging_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_start_logging",
-                  if (++fail_start_logging_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_start_logging";
-                    return (DB_OUT_OF_MEMORY);
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_start_logging", if (++fail_start_logging_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_start_logging";
+        return (DB_OUT_OF_MEMORY);
+      });
 #endif /* UNIV_DEBUG */
 
   dberr_t err;
@@ -1009,7 +1016,7 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 
     dberr_t err;
 
-    err = os_file_read(request, handle, log_buf, 0, sz);
+    err = os_file_read(request, log_file_name, handle, log_buf, 0, sz);
 
     os_file_close(handle);
 
@@ -1263,11 +1270,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
 #ifdef UNIV_DEBUG
   static int fail_marked_space_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_marked_space",
-                  if (++fail_marked_space_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_marked_space";
-                    marked_space = nullptr;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_marked_space", if (++fail_marked_space_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_marked_space";
+        marked_space = nullptr;
+      });
 #endif /* UNIV_DEBUG */
   if (marked_space == nullptr) {
     undo::spaces->x_unlock();
@@ -1294,15 +1301,15 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
 
   /* Don't do the actual truncate if we are doing a fast shutdown.
   The fixup routines will do it at startup. */
-  bool in_fast_shutdown =
-      (srv_shutdown_state != SRV_SHUTDOWN_NONE && srv_fast_shutdown != 0);
+  bool in_fast_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+                           srv_fast_shutdown != 0);
 #ifdef UNIV_DEBUG
   static int fast_shutdown_fail_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_fast_shutdown",
-                  if (++fast_shutdown_fail_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_fast_shutdown";
-                    in_fast_shutdown = true;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_fast_shutdown", if (++fast_shutdown_fail_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_fast_shutdown";
+        in_fast_shutdown = true;
+      });
 #endif /* UNIV_DEBUG */
   if (in_fast_shutdown) {
     undo::spaces->x_unlock();
@@ -1328,7 +1335,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   space_id_t new_space_id = marked_space->id();
 
   /* Flush all the buffer pages for this new undo tablespace to disk. */
-  uintmax_t counter_time_flush = ut_time_us(NULL);
+  auto counter_time_flush = ut_time_monotonic_us();
   FlushObserver *new_space_flush_observer =
       UT_NEW_NOKEY(FlushObserver(new_space_id, nullptr, nullptr));
   new_space_flush_observer->flush();
@@ -1386,12 +1393,13 @@ This wrapper does initial preparation and handles cleanup.
 @return true for success, false for failure */
 static bool trx_purge_truncate_marked_undo() {
   /* Don't truncate if a concurrent clone is in progress. */
-  if (!clone_mark_abort(false)) {
+  if (clone_check_active()) {
+    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate undo tablespace.";
     return (false);
   }
 
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_COUNT, 1);
-  uintmax_t counter_time_truncate = ut_time_us(NULL);
+  auto counter_time_truncate = ut_time_monotonic_us();
 
   /* Initialize variables */
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
@@ -1404,7 +1412,7 @@ static bool trx_purge_truncate_marked_undo() {
   std::string space_name = marked_space->space_name();
   undo::spaces->s_unlock();
 
-  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace "
+  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace '"
                            << space_name.c_str() << "'.";
 
   /* Since we are about to delete the current file, invalidate all
@@ -1413,7 +1421,7 @@ static bool trx_purge_truncate_marked_undo() {
                   ib::info(ER_IB_MSG_1168)
                       << "ib_undo_trunc_before_buf_remove_all";
                   DBUG_SUICIDE(););
-  uintmax_t counter_time_sweep = ut_time_us(NULL);
+  auto counter_time_sweep = ut_time_monotonic_us();
   FlushObserver *old_space_flush_observer =
       UT_NEW_NOKEY(FlushObserver(old_space_id, nullptr, nullptr));
   old_space_flush_observer->interrupted();
@@ -1430,19 +1438,31 @@ static bool trx_purge_truncate_marked_undo() {
       dd_tablespace_get_mdl(space_name.c_str(), &mdl_ticket, false);
 #ifdef UNIV_DEBUG
   static int fail_get_mdl_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
-    dd_release_mdl(mdl_ticket);
-    ib::info() << "ib_undo_trunc_fail_get_mdl";
-    dd_result = DD_FAILURE;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
+        dd_release_mdl(mdl_ticket);
+        ib::info() << "ib_undo_trunc_fail_get_mdl";
+        dd_result = DD_FAILURE;
+      });
 #endif /* UNIV_DEBUG */
   if (dd_result != DD_SUCCESS) {
-    clone_mark_active();
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
+    ib::info(ER_IB_MSG_1175) << "MDL Lock: Skip Truncate of undo tablespace '"
+                             << space_name.c_str() << "'.";
     return (false);
   }
   ut_ad(mdl_ticket != nullptr);
+
+  /* Re-check for clone after acquiring MDL. The Backup MDL from clone
+  is released by clone during shutdown while provisioning. We should
+  not allow truncate to proceed here. */
+  if (clone_check_active()) {
+    dd_release_mdl(mdl_ticket);
+    ib::info(ER_IB_MSG_1175) << "Clone: Skip Truncate of undo tablespace '"
+                             << space_name.c_str() << "'.";
+    return (false);
+  }
 
   /* Serialize this truncate with all undo tablespace DDLs */
   mutex_enter(&(undo::ddl_mutex));
@@ -1450,13 +1470,10 @@ static bool trx_purge_truncate_marked_undo() {
   if (!trx_purge_truncate_marked_undo_low(space_num, space_name)) {
     mutex_exit(&(undo::ddl_mutex));
     dd_release_mdl(mdl_ticket);
-    clone_mark_active();
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
     return (false);
   }
-
-  dd_release_mdl(mdl_ticket);
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_done_logging",
                   ib::info(ER_IB_MSG_UNDO_TRUNC_BEFORE_UNDO_LOGGING);
@@ -1471,17 +1488,16 @@ static bool trx_purge_truncate_marked_undo() {
   ib::info(ER_IB_MSG_1175) << "Completed truncate of undo tablespace '"
                            << space_name.c_str() << "'.";
 
+  dd_release_mdl(mdl_ticket);
+
   DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info(ER_IB_MSG_1176)
                                                   << "ib_undo_trunc_trunc_done";
                   DBUG_SUICIDE(););
 
   mutex_exit(&(undo::ddl_mutex));
 
-  clone_mark_active();
-
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                  counter_time_truncate);
-
   return (true);
 }
 
@@ -1495,7 +1511,7 @@ static void trx_purge_truncate_history(
   ulint i;
 
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
-  uintmax_t counter_time_truncate_history = ut_time_us(NULL);
+  auto counter_time_truncate_history = ut_time_monotonic_us();
 
   /* We play safe and set the truncate limit at most to the purge view
   low_limit number, though this is not necessary */
@@ -1567,7 +1583,8 @@ static void trx_purge_truncate_history(
     if (!trx_purge_check_if_marked_undo_is_empty(limit)) {
       /* During slow shutdown, keep checking until
       it is empty. */
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE && srv_fast_shutdown == 0) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+          srv_fast_shutdown == 0) {
         continue;
       }
 
@@ -2348,6 +2365,10 @@ void trx_purge_stop(void) {
 
 /** Resume purge, move to PURGE_STATE_RUN. */
 void trx_purge_run(void) {
+  /* Flush any GTIDs to disk so that purge can proceed immediately. */
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.wait_flush(true, false, false, nullptr);
+
   rw_lock_x_lock(&purge_sys->latch);
 
   switch (purge_sys->state) {

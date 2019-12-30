@@ -1,11 +1,9 @@
-//>>built
-define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/islamic"],
-	function(dojo, dlang, darray, dd, i18n, regexp, string, islamicDate){
+define("dojox/date/islamic/locale", ["../..", "dojo/_base/lang", "dojo/_base/array", "dojo/date", "dojo/i18n", "dojo/regexp", "dojo/string", "./Date", "dojo/i18n!dojo/cldr/nls/islamic"],
+       function(dojox, lang, arr, dd, i18n, regexp, string, IDate, bundle){
 
-	dojo.getObject("date.islamic.locale", true, dojox);
-	dojo.experimental("dojox.date.islamic.locale");
+	var ilocale = lang.getObject("date.islamic.locale", true, dojox);
 
-	dojo.requireLocalization("dojo.cldr", "islamic");
+	//	dojo.requireLocalization("dojo.cldr", "islamic");
 
 	// Format a pattern without literals
 	function formatPattern(dateObject, bundle, locale, fullYear,  pattern){
@@ -106,17 +104,17 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 	}
 	
 	// based on and similar to dojo.date.locale.format
-	dojox.date.islamic.locale.format = function(/*islamic.Date*/dateObject, /*Object?*/options){
+	ilocale.format = function(/*dojox/date/islamic/Date*/dateObject, /*Object?*/options){
 		// summary:
 		//		Format a Date object as a String, using  settings.
 		options = options || {};
 
 		var locale = i18n.normalizeLocale(options.locale);
 		var formatLength = options.formatLength || 'short';
-		var bundle = dojox.date.islamic.locale._getIslamicBundle(locale);
+		var bundle = ilocale._getIslamicBundle(locale);
 		var str = [];
 
-		var sauce = dojo.hitch(this, formatPattern, dateObject, bundle, locale, options.fullYear);
+		var sauce = lang.hitch(this, formatPattern, dateObject, bundle, locale, options.fullYear);
 		if(options.selector == "year"){
 			var year = dateObject.getFullYear();
 			return year;
@@ -134,19 +132,21 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 		return result; // String
 	};
 
-	dojox.date.islamic.locale.regexp = function(/*object?*/options){
-		//	based on and similar to dojo.date.locale.regexp
+	ilocale.regexp = function(/*object?*/options){
 		// summary:
 		//		Builds the regular needed to parse a islamic.Date
-		return dojox.date.islamic.locale._parseInfo(options).regexp; // String
+
+		//	based on and similar to dojo.date.locale.regexp
+
+		return ilocale._parseInfo(options).regexp; // String
 	};
 
-	dojox.date.islamic.locale._parseInfo = function(/*oblect?*/options){
+	ilocale._parseInfo = function(/*oblect?*/options){
 	/* based on and similar to dojo.date.locale._parseInfo */
 
 		options = options || {};
 		var locale = i18n.normalizeLocale(options.locale);
-		var bundle = dojox.date.islamic.locale._getIslamicBundle(locale);
+		var bundle = ilocale._getIslamicBundle(locale);
 		var formatLength = options.formatLength || 'short';
 		var datePattern = options.datePattern || bundle["dateFormat-" + formatLength];
 		var timePattern = options.timePattern || bundle["timeFormat-" + formatLength];
@@ -162,18 +162,20 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 
 		var tokens = [];
 	
-		var re = _processPattern(pattern, dojo.hitch(this, _buildDateTimeRE, tokens, bundle, options));
+		var re = _processPattern(pattern, lang.hitch(this, _buildDateTimeRE, tokens, bundle, options));
 		return {regexp: re, tokens: tokens, bundle: bundle};
 	};
 
-	dojox.date.islamic.locale.parse = function(/*String*/value, /*Object?*/options){
+	ilocale.parse = function(/*String*/value, /*Object?*/options){
+		// summary:
+		//		This function parse string date value according to options
+
 		// based on and similar to dojo.date.locale.parse
-		// summary: This function parse string date value according to options
-	
+
 		value =  value.replace(/[\u200E\u200F\u202A\u202E]/g, ""); //remove bidi non-printing chars
 
 		if(!options){ options={}; }
-		var info = dojox.date.islamic.locale._parseInfo(options);
+		var info = ilocale._parseInfo(options);
 
 		var tokens = info.tokens, bundle = info.bundle;
 		var regexp = info.regexp.replace(/[\u200E\u200F\u202A\u202E]/g, ""); //remove bidi non-printing chars from the pattern
@@ -183,10 +185,7 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 
 		var locale = i18n.normalizeLocale(options.locale);
 
-		if(!match){
-			console.debug("dojox.date.islamic.locale.parse: value  "+value+" doesn't match pattern   " + re);
-			return null;
-		} // null
+		if(!match){ return null; } // null
 	
 		var date, date1;
 	
@@ -194,7 +193,7 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 		var amPm = "";
 		var mLength = 0;
 		var widthList = ["abbr", "wide", "narrow"];
-		var valid = dojo.every(match, function(v, i){
+		var valid = arr.every(match, function(v, i){
 			if(!i){return true;}
 			var token=tokens[i-1];
 			var l=token.length;
@@ -209,9 +208,9 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 							//Tolerate abbreviating period in month part
 							//Case-insensitive comparison
 							v = v.replace(".","").toLowerCase();
-							months = dojo.map(months, function(s){ return s ? s.replace(".","").toLowerCase() : s; } );
+							months = arr.map(months, function(s){ return s ? s.replace(".","").toLowerCase() : s; } );
 						}
-						v = dojo.indexOf(months, v);
+						v = arr.indexOf(months, v);
 						if(v == -1){
 							return false;
 						}
@@ -271,12 +270,13 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 		}else if(amPm === 'a' && hours == 12){
 			result[3] = 0; //12am -> 0
 		}
-		var dateObject = new islamicDate(result[0], result[1], result[2], result[3], result[4], result[5], result[6]);
+		var dateObject = new IDate(result[0], result[1], result[2], result[3], result[4], result[5], result[6]);
 		return dateObject;
 	};
 
 	function _processPattern(pattern, applyPattern, applyLiteral, applyAll){
-		//summary: Process a pattern with literals in it
+		// summary:
+		//		Process a pattern with literals in it
 
 		// Break up on single quotes, treat every other one as a literal, except '' which becomes '
 		var identity = function(x){return x;};
@@ -289,7 +289,7 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 		var chunks = pattern.match(/(''|[^'])+/g);
 		var literal = pattern.charAt(0) == "'";
 
-		dojo.forEach(chunks, function(chunk, i){
+		arr.forEach(chunks, function(chunk, i){
 			if(!chunk){
 				chunks[i]='';
 			}else{
@@ -301,9 +301,8 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 	}
 
 	function _buildDateTimeRE  (tokens, bundle, options, pattern){
-			// based on and similar to dojo.date.locale._buildDateTimeRE
-			//
-	
+		// based on and similar to dojo.date.locale._buildDateTimeRE
+
 		pattern = regexp.escapeString(pattern);
 		var locale = i18n.normalizeLocale(options.locale);
 	
@@ -372,29 +371,29 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 	}
 
 	var _customFormats = [];
-	dojox.date.islamic.locale.addCustomFormats = function(/*String*/packageName, /*String*/bundleName){
+	ilocale.addCustomFormats = function(/*String*/packageName, /*String*/bundleName){
 		// summary:
 		//		Add a reference to a bundle containing localized custom formats to be
 		//		used by date/time formatting and parsing routines.
 		_customFormats.push({pkg:packageName,name:bundleName});
 	};
 
-	dojox.date.islamic.locale._getIslamicBundle = function(/*String*/locale){
+	ilocale._getIslamicBundle = function(/*String*/locale){
 		var islamic = {};
-		dojo.forEach(_customFormats, function(desc){
+		arr.forEach(_customFormats, function(desc){
 			var bundle = i18n.getLocalization(desc.pkg, desc.name, locale);
-			islamic = dojo.mixin(islamic, bundle);
+			islamic = lang.mixin(islamic, bundle);
 		}, this);
 		return islamic; /*Object*/
 	};
 
-	dojox.date.islamic.locale.addCustomFormats("dojo.cldr","islamic");
+	ilocale.addCustomFormats("dojo.cldr","islamic");
 
-	dojox.date.islamic.locale.getNames = function(/*String*/item, /*String*/type, /*String?*/context, /*String?*/locale, /*islamic Date Object?*/date){
+	ilocale.getNames = function(/*String*/item, /*String*/type, /*String?*/context, /*String?*/locale, /*dojox/date/islamic/Date?*/date){
 		// summary:
 		//		Used to get localized strings from dojo.cldr for day or month names.
 		var label;
-		var lookup = dojox.date.islamic.locale._getIslamicBundle(locale);
+		var lookup = ilocale._getIslamicBundle(locale);
 		var props = [item, context, type];
 		if(context == 'standAlone'){
 			var key = props.join('-');
@@ -409,9 +408,9 @@ define("dojox/date/islamic/locale", ["dojo/_base/kernel", "dojo/_base/lang", "do
 	};
 
 
-	dojox.date.islamic.locale.weekDays = dojox.date.islamic.locale.getNames('days', 'wide', 'format');
+	ilocale.weekDays = ilocale.getNames('days', 'wide', 'format');
 
-	dojox.date.islamic.locale.months = dojox.date.islamic.locale.getNames('months', 'wide', 'format');
+	ilocale.months = ilocale.getNames('months', 'wide', 'format');
 
-	return dojox.date.islamic.locale;
+	return ilocale;
 });

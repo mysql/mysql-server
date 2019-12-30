@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_Templated", [
 	"./_WidgetBase",
 	"./_TemplatedMixin",
@@ -9,21 +8,14 @@ define("dijit/_Templated", [
 	"dojo/_base/kernel" // kernel.deprecated
 ], function(_WidgetBase, _TemplatedMixin, _WidgetsInTemplateMixin, array, declare, lang, kernel){
 
-/*=====
-	var _WidgetBase = dijit._WidgetBase;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var _WidgetsInTemplateMixin = dijit._WidgetsInTemplateMixin;
-=====*/
-
 	// module:
 	//		dijit/_Templated
-	// summary:
-	//		Deprecated mixin for widgets that are instantiated from a template.
 
 	// These arguments can be specified for widgets which are used in templates.
 	// Since any widget can be specified as sub widgets in template, mix it
 	// into the base widget class.  (This is a hack, but it's effective.)
-	lang.extend(_WidgetBase, {
+	// Remove for 2.0.   Also, hide from API doc parser.
+	lang.extend(_WidgetBase, /*===== {} || =====*/ {
 		waiRole: "",
 		waiState:""
 	});

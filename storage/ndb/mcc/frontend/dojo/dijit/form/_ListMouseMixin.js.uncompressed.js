@@ -1,66 +1,67 @@
-//>>built
 define("dijit/form/_ListMouseMixin", [
 	"dojo/_base/declare", // declare
-	"dojo/_base/event", // event.stop
+	"dojo/mouse",
+	"dojo/on",
 	"dojo/touch",
 	"./_ListBase"
-], function(declare, event, touch, _ListBase){
-
-/*=====
-var _ListBase = dijit.form._ListBase;
-=====*/
+], function(declare, mouse, on, touch, _ListBase){
 
 // module:
 //		dijit/form/_ListMouseMixin
-// summary:
-//		a mixin to handle mouse or touch events for a focus-less menu
 
 return declare( "dijit.form._ListMouseMixin", _ListBase, {
 	// summary:
 	//		a Mixin to handle mouse or touch events for a focus-less menu
 	//		Abstract methods that must be defined externally:
-	//			onClick: item was chosen (mousedown somewhere on the menu and mouseup somewhere on the menu)
+	//
+	//		- onClick: item was chosen (mousedown somewhere on the menu and mouseup somewhere on the menu)
 	// tags:
 	//		private
 
 	postCreate: function(){
 		this.inherited(arguments);
-		this.connect(this.domNode, touch.press, "_onMouseDown");
-		this.connect(this.domNode, touch.release, "_onMouseUp");
-		this.connect(this.domNode, "onmouseover", "_onMouseOver");
-		this.connect(this.domNode, "onmouseout", "_onMouseOut");
+
+		this._listConnect("click", "_onClick");
+		this._listConnect("mousedown", "_onMouseDown");
+		this._listConnect("mouseup", "_onMouseUp");
+		this._listConnect("mouseover", "_onMouseOver");
+		this._listConnect("mouseout", "_onMouseOut");
 	},
 
-	_onMouseDown: function(/*Event*/ evt){
-		event.stop(evt);
+	_onClick: function(/*Event*/ evt, /*DomNode*/ target){
+		this._setSelectedAttr(target, false);
+		if(this._deferredClick){
+			this._deferredClick.remove();
+		}
+		this._deferredClick = this.defer(function(){
+			this._deferredClick = null;
+			this.onClick(target);
+		});
+	},
+
+	_onMouseDown: function(/*Event*/ evt, /*DomNode*/ target){
 		if(this._hoveredNode){
 			this.onUnhover(this._hoveredNode);
 			this._hoveredNode = null;
 		}
 		this._isDragging = true;
-		this._setSelectedAttr(this._getTarget(evt));
+		this._setSelectedAttr(target, false);
 	},
 
-	_onMouseUp: function(/*Event*/ evt){
-		event.stop(evt);
+	_onMouseUp: function(/*Event*/ evt, /*DomNode*/ target){
 		this._isDragging = false;
-		var selectedNode = this._getSelectedAttr();
-		var target = this._getTarget(evt);
+		var selectedNode = this.selected;
 		var hoveredNode = this._hoveredNode;
 		if(selectedNode && target == selectedNode){
-			this.onClick(selectedNode);
-		}else if(hoveredNode && target == hoveredNode){ // drag to select
-			this._setSelectedAttr(hoveredNode);
-			this.onClick(hoveredNode);
+			this.defer(function(){ this._onClick(evt, selectedNode); });
+		}else if(hoveredNode){ // drag to select
+			this.defer(function(){ this._onClick(evt, hoveredNode); });
 		}
 	},
 
-	_onMouseOut: function(/*Event*/ /*===== evt ====*/){
+	_onMouseOut: function(/*Event*/ evt, /*DomNode*/ target){
 		if(this._hoveredNode){
 			this.onUnhover(this._hoveredNode);
-			if(this._getSelectedAttr() == this._hoveredNode){
-				this.onSelect(this._hoveredNode);
-			}
 			this._hoveredNode = null;
 		}
 		if(this._isDragging){
@@ -68,7 +69,7 @@ return declare( "dijit.form._ListMouseMixin", _ListBase, {
 		}
 	},
 
-	_onMouseOver: function(/*Event*/ evt){
+	_onMouseOver: function(/*Event*/ evt, /*DomNode*/ target){
 		if(this._cancelDrag){
 			var time = (new Date()).getTime();
 			if(time > this._cancelDrag){
@@ -76,20 +77,10 @@ return declare( "dijit.form._ListMouseMixin", _ListBase, {
 			}
 			this._cancelDrag = null;
 		}
-		var node = this._getTarget(evt);
-		if(!node){ return; }
-		if(this._hoveredNode != node){
-			if(this._hoveredNode){
-				this._onMouseOut({ target: this._hoveredNode });
-			}
-			if(node && node.parentNode == this.containerNode){
-				if(this._isDragging){
-					this._setSelectedAttr(node);
-				}else{
-					this._hoveredNode = node;
-					this.onHover(node);
-				}
-			}
+		this._hoveredNode = target;
+		this.onHover(target);
+		if(this._isDragging){
+			this._setSelectedAttr(target, false);
 		}
 	}
 });

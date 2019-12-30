@@ -1429,3 +1429,38 @@ SHOW CREATE TABLE t2;
 
 DROP TABLE t1;
 DROP TABLE t2;
+
+
+--echo #
+--echo # Scenario 24:
+--echo # Create a small table, and add stored and(or) virtual columns
+--echo # after last stored column in the table
+--echo #
+
+--eval CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT, d INT GENERATED ALWAYS AS (b + c) VIRTUAL, e INT GENERATED ALWAYS AS (b * c) VIRTUAL) ROW_FORMAT=$row_format
+
+INSERT INTO t1(a, b, c) VALUES(0, 1, 2), (0, 2, 3), (0, 3, 4), (0, 4, 5), (0, 5, 6);
+
+
+let $new_cols = 1;
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN h INT NOT NULL AFTER c;
+
+--source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
+
+INSERT INTO t1(a, b, c, h) VALUES(0, 6, 20, 40);
+SELECT * FROM t1;
+
+
+let $new_cols = 1;
+let $instant_add_column = ALTER TABLE t1 ADD COLUMN i VARCHAR(100) DEFAULT 'ABCD EFGH' AFTER h, ADD COLUMN f INT GENERATED ALWAYS AS (LENGTH(i)) AFTER i;
+
+--source ../mysql-test/suite/innodb/include/instant_add_column_exec_and_verify.inc
+
+INSERT INTO t1(a, b, c, h, i) VALUES(0, 20, 30, 50, 'qwerty');
+SELECT * FROM t1;
+
+CHECK TABLE t1;
+
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

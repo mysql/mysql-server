@@ -149,6 +149,7 @@ SET GLOBAL group_replication_enforce_update_everywhere_checks= TRUE;
 --source include/rpl_connection.inc
 
 COMMIT;
+--source include/rpl_sync.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc

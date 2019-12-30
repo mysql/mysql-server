@@ -797,8 +797,10 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
 
     if (r != 0)
     {
-      g_err << "ndb_mgm_set_configuration failed, error: "
-            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl;
+      g_err << "ndb_mgm_set_configuration failed, error: " << endl
+            << ndb_mgm_get_latest_error_msg(mgmd.handle()) << endl
+            << "description: " << endl
+            << ndb_mgm_get_latest_error_desc(mgmd.handle()) << endl;
       return NDBT_FAILED;
     }
   }
@@ -1750,8 +1752,8 @@ set_config(NdbMgmd& mgmd,
            BaseString encoded_config,
            Properties& reply)
 {
-
   // Fill in default values of other args
+  bool v2 = ndb_config_version_v2(mgmd.get_version());
   Properties call_args(args);
   if (!call_args.contains("Content-Type"))
     call_args.put("Content-Type", "ndbconfig/octet-stream");
@@ -1761,7 +1763,8 @@ set_config(NdbMgmd& mgmd,
     call_args.put("Content-Length",
                   encoded_config.length() ? encoded_config.length() - 1 : 1);
 
-  if (!mgmd.call("set config", call_args,
+  const char *cmd_str = v2 ? "set config_v2" : "set config";
+  if (!mgmd.call(cmd_str, call_args,
                  "set config reply", reply,
                  encoded_config.c_str()))
   {
@@ -1794,7 +1797,11 @@ static bool set_config_result_contains(NdbMgmd& mgmd,
   Properties args;
 
   BaseString encoded_config;
-  if (!conf.pack64(encoded_config))
+  bool v2 = ndb_config_version_v2(mgmd.get_version());
+  bool ret = v2 ?
+    conf.pack64_v2(encoded_config) :
+    conf.pack64_v1(encoded_config);
+  if (!ret)
     return false;
 
   if (!set_config(mgmd, args, encoded_config, reply))
@@ -1850,13 +1857,17 @@ check_set_config_wrong_config_length(NdbMgmd& mgmd)
     return false;
 
   BaseString encoded_config;
-  if (!conf.pack64(encoded_config))
+  bool v2 = ndb_config_version_v2(mgmd.get_version());
+  bool ret = v2 ?
+    conf.pack64_v2(encoded_config) :
+    conf.pack64_v1(encoded_config);
+  if (!ret)
     return false;
 
   Properties args;
   args.put("Content-Length", encoded_config.length() - 20);
   bool res = set_config_result_contains(mgmd, args, encoded_config,
-                                        "Failed to unpack config");
+                                        "Failed to decode config");
 
   if (res){
     /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,33 +51,29 @@ Group_transaction_observation_manager::
 
 void Group_transaction_observation_manager::register_transaction_observer(
     Group_transaction_listener *observer) {
-  DBUG_ENTER(
-      "Group_transaction_observation_manager::register_transaction_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_transaction_listeners.push_back(observer);
   registered_observers.store(true);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 void Group_transaction_observation_manager::unregister_transaction_observer(
     Group_transaction_listener *observer) {
-  DBUG_ENTER(
-      "Group_transaction_observation_manager::unregister_transaction_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_transaction_listeners.remove(observer);
   if (group_transaction_listeners.empty()) registered_observers.store(false);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 std::list<Group_transaction_listener *>
     *Group_transaction_observation_manager::get_all_observers() {
-  DBUG_ENTER("Group_transaction_observation_manager::get_all_observers()");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   transaction_observer_list_lock->assert_some_lock();
 #endif
-  DBUG_RETURN(&group_transaction_listeners);
+  return &group_transaction_listeners;
 }
 
 void Group_transaction_observation_manager::read_lock_observer_list() {

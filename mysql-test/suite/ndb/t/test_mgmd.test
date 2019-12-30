@@ -1,8 +1,5 @@
 --source include/have_ndb.inc
 
-# Avoid check for result file
---source include/ndb_no_result_file.inc
-
 # The testMgmd binary is not built on Windows
 --source include/not_windows.inc
 

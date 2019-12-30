@@ -38,10 +38,6 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
-#if defined(LIBWOLFSSL_VERSION_HEX)
-#include <wolfssl/wolfcrypt/pwdbased.h>  // wc_PBKDF2()
-#endif
-
 #include "base64.h"
 
 constexpr char Pbkdf2McfType::kTypeSha256[];
@@ -49,10 +45,6 @@ constexpr char Pbkdf2McfType::kTypeSha512[];
 
 std::vector<uint8_t> Pbkdf2::salt() {
   std::vector<uint8_t> out(16);
-
-  if (out.size() > std::numeric_limits<int>::max()) {
-    throw std::out_of_range("out.size() too large");
-  }
 
   if (0 == RAND_bytes(out.data(), static_cast<int>(out.size()))) {
     throw std::runtime_error("getting random bytes failed");
@@ -128,26 +120,11 @@ std::vector<uint8_t> Pbkdf2::derive(Pbkdf2::Type type, unsigned long rounds,
                                     const std::string &key) {
   const EVP_MD *func = type == Type::Sha_256 ? EVP_sha256() : EVP_sha512();
   std::vector<uint8_t> derived(EVP_MD_size(func));
-#if defined(LIBWOLFSSL_VERSION_HEX)
-  // wc_PBDKF2() does more or less what PKCS5_PBKDF2_HMAC() does, it just has
-  // a slightly different API:
-  //
-  // * returns 0 on success
-  // * order of params
-  // * type of "key" data
-  if (0 != wc_PBKDF2(derived.data(),
-                     reinterpret_cast<const unsigned char *>(key.data()),
-                     key.size(), salt.data(), salt.size(), rounds,
-                     derived.size(), EVP_MD_type(func))) {
-    throw std::runtime_error("PKCS5_PBKDF2_HMAC failed");
-  }
-#else
   if (1 != PKCS5_PBKDF2_HMAC(key.data(), key.size(), salt.data(), salt.size(),
                              rounds, func, derived.capacity(),
                              derived.data())) {
     throw std::runtime_error("PKCS5_PBKDF2_HMAC failed");
   }
-#endif
 
   return derived;
 }

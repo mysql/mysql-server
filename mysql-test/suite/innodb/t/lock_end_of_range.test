@@ -1,0 +1,613 @@
+--echo #
+--echo # Bug #29508068  UNNECESSARY NEXT-KEY LOCK TAKEN
+--echo #
+
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id INT NOT NULL,
+  PRIMARY KEY (id DESC)
+) ENGINE=InnoDB;
+
+--let $TWO=2
+
+SET @conditions =  CONCAT(
+  '<=0 <1 <=1 <7 <=7 <=8 <9 <=9 <=10 ',
+  '>=10 >9 >=9 >3 >=3 >=2 >1 >=1 >0'
+);
+let $conditions_cnt = `
+  SELECT 1 + LENGTH(@conditions) - LENGTH(REPLACE(@conditions, ' ',''))
+`;
+
+--let $t=1
+while($t <= 2)
+{
+
+  --eval INSERT INTO t$t VALUES (1),  (3), (4), (5), (6), (7),  (9)
+
+  --eval ANALYZE TABLE t$t
+
+  --let $c=1
+  while($c <= $conditions_cnt)
+  {
+    let condition = `
+      SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@conditions,' ',$c),' ',-1)
+    `;
+
+    --let $desc=0
+    while($desc <= 1)
+    {
+      if($desc == 0)
+      {
+        --let $ord=ASC
+      }
+      if($desc == 1)
+      {
+        --let $ord=DESC
+      }
+      BEGIN;
+
+      eval
+        SELECT *
+          FROM t$t FORCE INDEX (PRIMARY)
+          WHERE id $condition
+          ORDER BY id $ord
+          FOR UPDATE;
+
+      --sorted_result
+      eval
+        SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+          FROM performance_schema.data_locks
+          WHERE object_name = 't$t';
+
+      ROLLBACK;
+
+      --inc $desc
+    }
+
+    --inc $c
+  }
+
+  --eval DROP TABLE t$t
+  --inc $t
+}
+
+CREATE TABLE t1 (
+  id1 INT NOT NULL,
+  id2 INT NOT NULL,
+  PRIMARY KEY (id1 ASC, id2 ASC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id1 INT NOT NULL,
+  id2 INT NOT NULL,
+  PRIMARY KEY (id1 ASC, id2 DESC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t3 (
+  id1 INT NOT NULL,
+  id2 INT NOT NULL,
+  PRIMARY KEY (id1 DESC, id2 ASC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t4 (
+  id1 INT NOT NULL,
+  id2 INT NOT NULL,
+  PRIMARY KEY (id1 DESC, id2 DESC)
+) ENGINE=InnoDB;
+
+SET @conditions =  CONCAT(
+  '<0 <1 <3 <=3 <=4 <5 <=5 ',
+  '>6 >5 >3 >=3 >=2 >1 >=1'
+);
+let $conditions_cnt = `
+  SELECT 1 + LENGTH(@conditions) - LENGTH(REPLACE(@conditions, ' ',''))
+`;
+
+--let $t = 1
+while($t <= 4)
+{
+  eval
+    INSERT INTO t$t (id1,id2) VALUES
+    (1,1),(1,3),(1,5),(3,1),(3,3),(3,5),(5,1),(5,3),(5,5);
+
+  --eval ANALYZE TABLE t$t
+
+  --let $c = 1
+  while($c <= $conditions_cnt)
+  {
+    let condition = `
+      SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@conditions,' ',$c),' ',-1)
+    `;
+    --let $desc=0
+    while($desc <= 1)
+    {
+      if($desc == 0)
+      {
+        --let $ord=ASC
+      }
+      if($desc == 1)
+      {
+        --let $ord=DESC
+      }
+
+      --let $field = 1
+      while($field <= 2)
+      {
+        if($field == 1){
+          --let $predicate=id1 $condition
+          --let $order_column=id1
+        }
+        if($field == 2){
+          --let $predicate=id1=3 AND id2 $condition
+          --let $order_column=id2
+        }
+        BEGIN;
+
+        eval
+          SELECT *
+            FROM t$t FORCE INDEX (PRIMARY)
+            WHERE $predicate
+            ORDER BY $order_column $ord
+            FOR UPDATE;
+
+        --sorted_result
+        eval
+          SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+            FROM performance_schema.data_locks
+            WHERE object_name = 't$t';
+
+        ROLLBACK;
+
+        --inc $field
+      }
+      --inc $desc
+    }
+
+    --inc $c
+  }
+
+  --eval DROP TABLE t$t
+  --inc $t
+}
+
+CREATE TABLE t1 (
+  id VARCHAR(100) NOT NULL,
+  PRIMARY KEY (id(1) ASC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id VARCHAR(100) NOT NULL,
+  PRIMARY KEY (id(1) DESC)
+) ENGINE=InnoDB;
+
+SET @conditions = CONCAT(
+  '<="c" <="d" <"e" <"ee" <="ee" <="ec" <="ef" ',
+  '>="g" >="f" >"e" >"ee" >="ee" >="ef" >="ec"'
+);
+let $conditions_cnt = `
+  SELECT 1 + LENGTH(@conditions) - LENGTH(REPLACE(@conditions, ' ',''))
+`;
+
+--let $t = 1
+while($t <= 2)
+{
+
+  eval
+    INSERT INTO t$t
+      VALUES ("aa"), ("bb"), ("cc"),   ("ee"),   ("gg"), ("hh"), ("ii");
+
+  --eval ANALYZE TABLE t$t
+
+  --let $c = 1
+  while($c <= $conditions_cnt)
+  {
+    let condition = `
+      SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@conditions,' ',$c),' ',-1)
+    `;
+
+    --let $desc=0
+    while($desc <= 1)
+    {
+      if($desc == 0)
+      {
+        --let $ord=ASC
+      }
+      if($desc == 1)
+      {
+        --let $ord=DESC
+      }
+      BEGIN;
+
+      eval
+        SELECT *
+          FROM t$t FORCE INDEX (PRIMARY)
+          WHERE id $condition
+          ORDER BY id $ord
+          FOR UPDATE;
+
+      --sorted_result
+      eval
+        SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+          FROM performance_schema.data_locks
+          WHERE object_name = 't$t';
+
+      ROLLBACK;
+
+      --inc $desc
+    }
+
+    --inc $c
+  }
+
+  --eval DROP TABLE t$t
+  --inc $t
+}
+
+CREATE TABLE t1 (
+  id VARCHAR(100) NOT NULL,
+  PRIMARY KEY (id(2) ASC)
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id VARCHAR(100) NOT NULL,
+  PRIMARY KEY (id(2) DESC)
+) ENGINE=InnoDB;
+
+SET @conditions = CONCAT(
+  '<="c" <="d" <"e" <"ee" <="ee" <="ec" <="ef" ',
+  '>="g" >="f" >"e" >"ee" >="ee" >="ef" >="ec"'
+);
+let $conditions_cnt = `
+  SELECT 1 + LENGTH(@conditions) - LENGTH(REPLACE(@conditions, ' ',''))
+`;
+
+--let $t = 1
+while($t <= 2)
+{
+
+  eval
+    INSERT INTO t$t
+      VALUES ("aaa"), ("bbb"), ("ccc"),   ("eee"),   ("ggg"), ("hhh"), ("iii");
+
+  --eval ANALYZE TABLE t$t
+
+  --let $c = 1
+  while($c <= $conditions_cnt)
+  {
+    let condition = `
+      SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@conditions,' ',$c),' ',-1)
+    `;
+
+    --let $desc=0
+    while($desc <= 1)
+    {
+      if($desc == 0)
+      {
+        --let $ord=ASC
+      }
+      if($desc == 1)
+      {
+        --let $ord=DESC
+      }
+      BEGIN;
+
+      eval
+        SELECT *
+          FROM t$t FORCE INDEX (PRIMARY)
+          WHERE id $condition
+          ORDER BY id $ord
+          FOR UPDATE;
+
+      --sorted_result
+      eval
+        SELECT index_name,lock_type,lock_mode,lock_status,lock_data
+          FROM performance_schema.data_locks
+          WHERE object_name = 't$t';
+
+      ROLLBACK;
+
+      --inc $desc
+    }
+
+    --inc $c
+  }
+
+  --eval DROP TABLE t$t
+  --inc $t
+}
+
+# In this scenario, we test what happens if the last row in the range is locked
+# by another transaction. In particular con1 locks row with id=7, and con2 tries
+# to lock rows with id<=7. This scenario is interesting, because when con2 goes
+# to waiting state AFTER it has already "seen" the end of the range, and when it
+# "wakes up" (after con1 releases the lock) it tries to read the row again.
+# A faulty implementation might fail on assert, not read the row, or fail to
+# lock it properly on the second attempt.
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),  (3), (4), (5), (6), (7),  (9);
+ANALYZE TABLE t1;
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  SELECT * FROM t1 WHERE id=7 FOR UPDATE;
+
+--connection con2
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=7 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+  ROLLBACK;
+
+--connection con2
+  --reap
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;
+
+# In this scenario, we test what happens if the last row in the range is delete-
+# -marked
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),  (3), (4), (5), (6), (7),  (9);
+ANALYZE TABLE t1;
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id=7;
+
+
+BEGIN;
+SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=7 FOR UPDATE;
+
+--sorted_result
+SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+  FROM performance_schema.data_locks
+  WHERE object_name='t1';
+
+ROLLBACK;
+SET GLOBAL innodb_purge_run_now = ON;
+
+DROP TABLE t1;
+
+# In this scenario, we test what happens if the last row in the range is locked
+# by another transaction and is delete-marked.
+# In particular con1 locks row with id=7, and con2 tries
+# to lock rows with id<=7. This scenario is interesting, because when con2 goes
+# to waiting state AFTER it has already "seen" the end of the range, and when it
+# "wakes up" (after con1 releases the lock) it tries to read the row again.
+# A faulty implementation might fail on assert, not read the row, or fail to
+# lock it properly on the second attempt.
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),  (3), (4), (5), (6), (7),  (9);
+ANALYZE TABLE t1;
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id=7;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  SELECT * FROM t1 WHERE id=7 FOR UPDATE;
+
+--connection con2
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=7 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+  ROLLBACK;
+
+--connection con2
+  --reap
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+# In this scenario, we test what happens if the last row in the range is locked
+# by another transaction and is delete-marked, and the other transaction
+# undeletes this row, and then rolls back.
+# In particular con1 locks row with id=7, and con2 tries
+# to lock rows with id<=7. This scenario is interesting, because when con2 goes
+# to waiting state AFTER it has already "seen" the end of the range, and when it
+# "wakes up" (after con1 releases the lock) it tries to read the row again.
+# A faulty implementation might fail on assert, not read the row, or fail to
+# lock it properly on the second attempt.
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),  (3), (4), (5), (6), (7),  (9);
+ANALYZE TABLE t1;
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id=7;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  INSERT INTO t1 VALUES (7);
+
+--connection con2
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=7 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+  ROLLBACK;
+
+--connection con2
+  --reap
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+# In this scenario, we test what happens if the last row in the range is locked
+# by another transaction and is delete-marked, and the other transaction
+# undeletes this row.
+# In particular con1 locks row with id=7, and con2 tries
+# to lock rows with id<=7. This scenario is interesting, because when con2 goes
+# to waiting state AFTER it has already "seen" the end of the range, and when it
+# "wakes up" (after con1 releases the lock) it tries to read the row again.
+# A faulty implementation might fail on assert, not read the row, or fail to
+# lock it properly on the second attempt.
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1),  (3), (4), (5), (6), (7),  (9);
+ANALYZE TABLE t1;
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1 WHERE id=7;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  INSERT INTO t1 VALUES (7);
+
+--connection con2
+  BEGIN;
+  SET DEBUG_SYNC='lock_wait_will_wait SIGNAL con2_will_wait';
+  --send SELECT * FROM t1 FORCE INDEX (PRIMARY) WHERE id<=7 FOR UPDATE;
+
+--connection con1
+  SET DEBUG_SYNC='now WAIT_FOR con2_will_wait';
+  COMMIT;
+
+--connection con2
+  --reap
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+SET GLOBAL innodb_purge_run_now = ON;
+DROP TABLE t1;
+
+# In this scenario, we test what happens when semi-consistent read is involved.
+# In particular con1 locks row with id=6 while deleting it, and con2 tries
+# to lock rows with id<=6 while updating them using semi-consistent read.
+# This scenario is interesting, because when con2 goes notices it would have to
+# wait, it cancels it's own waiting lock, and reports the old (non-deleted)
+# version of the row to the higher layer, which then retries the read, this time
+# with proper locking enabled - so it is interesting what would happen if con1
+# have had commited the delete meanwhile.
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  val INT,
+  PRIMARY KEY (id ASC)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (id,val) VALUES (1,1),(2,2) ,(3,3), (4,4), (5,5), (6,6),   (9,9);
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con1
+  BEGIN;
+  DELETE FROM t1 WHERE id=6;
+
+--connection con2
+  SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+  BEGIN;
+  SET DEBUG_SYNC='
+    semi_consistent_read_would_wait
+    SIGNAL con2_would_wait
+    WAIT_FOR con2_can_unlock';
+  SET DEBUG_SYNC='
+    row_search_for_mysql_before_return
+    SIGNAL con2_returns_row
+    WAIT_FOR con2_can_return_row
+    EXECUTE 6';
+  --send UPDATE t1 SET val=13 WHERE id<=6
+
+--connection con1
+
+  --let i=1
+  while($i < 6)
+  {
+    --echo Expecting row number $i
+    SET DEBUG_SYNC='now WAIT_FOR con2_returns_row';
+    SET DEBUG_SYNC='now SIGNAL con2_can_return_row';
+    --inc $i
+  }
+
+  SET DEBUG_SYNC='now WAIT_FOR con2_would_wait';
+  --sorted_result
+  SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+    FROM performance_schema.data_locks
+    WHERE object_name='t1';
+  SET DEBUG_SYNC='now SIGNAL con2_can_unlock';
+  SET DEBUG_SYNC='now WAIT_FOR con2_returns_row';
+  --sorted_result
+  SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+    FROM performance_schema.data_locks
+    WHERE object_name='t1';
+  COMMIT;
+
+  # Wait for purge to delete the delete-marked record
+  --source include/wait_innodb_all_purged.inc
+
+  --sorted_result
+  SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+    FROM performance_schema.data_locks
+    WHERE object_name='t1';
+  SET DEBUG_SYNC='now SIGNAL con2_can_return_row';
+
+
+--connection con2
+  --reap
+  --sorted_result
+  SELECT index_name, lock_type, lock_mode, lock_status, lock_data
+    FROM performance_schema.data_locks
+    WHERE object_name='t1';
+  ROLLBACK;
+
+--connection default
+--disconnect con1
+--disconnect con2
+
+DROP TABLE t1;

@@ -1840,8 +1840,18 @@ bool PFS_key_event_name::match_view(uint view) {
                              mutex_instrument_prefix.length);
 
     case PFS_instrument_view_constants::VIEW_RWLOCK:
-      return do_match_prefix(false, rwlock_instrument_prefix.str,
-                             rwlock_instrument_prefix.length);
+      bool match;
+      match = do_match_prefix(false, prlock_instrument_prefix.str,
+                              prlock_instrument_prefix.length);
+      if (!match) {
+        match = do_match_prefix(false, rwlock_instrument_prefix.str,
+                                rwlock_instrument_prefix.length);
+      }
+      if (!match) {
+        match = do_match_prefix(false, sxlock_instrument_prefix.str,
+                                sxlock_instrument_prefix.length);
+      }
+      return match;
 
     case PFS_instrument_view_constants::VIEW_COND:
       return do_match_prefix(false, cond_instrument_prefix.str,
@@ -1969,7 +1979,7 @@ bool PFS_key_bucket_number::match(ulong value) {
   return do_match(false, value);
 }
 
-bool PFS_key_name::match(const LEX_STRING *name) {
+bool PFS_key_name::match(const LEX_CSTRING *name) {
   bool record_null = (name->length == 0);
   return do_match(record_null, name->str, name->length);
 }

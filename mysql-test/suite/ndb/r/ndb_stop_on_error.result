@@ -1,4 +1,4 @@
-3, 49, 16, 32, 48, 63, 127, 192, 228, 229, 230, 231, 232, 233, 255, 1,0 2,0
+1,0 2,0 3, 16, 32, 48, 49, 63, 127, 192, 228, 229, 230, 231, 232, 233, 255,
 CREATE DATABASE mysqltest;
 USE mysqltest;
 CREATE TABLE t1 (
@@ -110,7 +110,7 @@ INSERT INTO t1 VALUES
 (99,99,99,'99');
 "Run DUMP commands to start LCP"
 "Sleep 10s so that LCP can complete"
-"Run DUMP commands to crash nodes with SEGV"
+"Insert ERROR command to crash nodes with SEGV"
 "Wait till nodes started"
 pk	attr1	attr2	attr3
 0	0	[NULL]	"0"

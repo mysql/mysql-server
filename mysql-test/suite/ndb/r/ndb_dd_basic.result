@@ -214,6 +214,19 @@ INITIAL_SIZE 1000000000000K
 ENGINE = NDB;
 ERROR HY000: The size number was correct but we don't allow the digit part to be more than 2 billion
 DROP TABLE t1;
+create table t1(
+col1 int unsigned not null primary key,
+col2 int unsigned not null,
+col3 varchar(8176),
+col4 int)
+tablespace ts1 storage disk
+charset = latin1 engine=ndbcluster;
+ERROR HY000: Can't create table 't1'
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 851 'Fixed-size column offset exceeded max.Use VARCHAR or COLUMN_FORMAT DYNAMIC for memory-stored columns' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Error	1005	Can't create table 't1'
 CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
 ENGINE ndb
 COMMENT="NDB_TABLE=NOLOGGING=1"
@@ -244,6 +257,9 @@ PRIMARY KEY (ID)
 ) ENGINE=ndbcluster
 tablespace ts2
 storage disk;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t1 (a int primary key, b int)
 engine = ndbcluster tablespace ts2 storage disk;
 insert into t1 values (1,1);

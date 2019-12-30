@@ -130,6 +130,7 @@ SET @@global.slow_query_log= @old_slow_query_log;
 # Create bootstrap file.
 # First start the server with --initialize
 # Restart the server against DDIR.
+# restart: --datadir=DDIR --lower_case_table_names=1 --secure-file-priv= --no-console --log-error=MYSQLD_LOG
 # Run the single test.
 # Following command would crash if run without fix.
 # Shutdown server.
@@ -137,5 +138,5 @@ SET @@global.slow_query_log= @old_slow_query_log;
 #   Delete $DDIR.
 #   Delete sql files.
 #   Delete log files.
-#   Delete expect files.
 # Restart server without --lower-case-table-names
+# restart:

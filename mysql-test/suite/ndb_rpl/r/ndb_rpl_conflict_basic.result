@@ -256,6 +256,8 @@ primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
 create table t1allsame(a int primary key, b varchar(200), X int unsigned) engine=ndb;
 create table t2diffex(a int primary key, b varchar(200), X int unsigned) engine=ndb;
 create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
+Warnings:
+Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't3oneex' failed'
 show variables like 'server_id';
 Variable_name	Value
 server_id	1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,12 @@
 #ifndef _PROCESS_LAUNCHER_H_
 #define _PROCESS_LAUNCHER_H_
 
+#include <chrono>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 #include <utility>
-#include "harness_export.h"
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS 1
@@ -36,11 +39,17 @@
 #else
 #include <unistd.h>
 #endif
-#include <stdint.h>
-#include <stdexcept>
-#include <string>
+
+#include "harness_export.h"
 
 namespace mysql_harness {
+#ifdef _WIN32
+namespace win32 {
+// reverse of CommandLineToArgv()
+HARNESS_EXPORT std::string cmdline_quote_arg(const std::string &arg);
+HARNESS_EXPORT std::string cmdline_from_args(const char *const *args);
+}  // namespace win32
+#endif
 
 /** an alive, spawned process
  *
@@ -64,8 +73,8 @@ class HARNESS_EXPORT SpawnedProcess {
         child_in_wr{INVALID_HANDLE_VALUE},
         child_out_rd{INVALID_HANDLE_VALUE},
         child_out_wr{INVALID_HANDLE_VALUE},
-  // pi
-  // si
+        pi{},
+        si{},
 #else
         childpid{-1},
         fd_in{-1, -1},
@@ -150,11 +159,11 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * expires.
    * @param buf already allocated buffer where the read data will be stored.
    * @param count the maximum amount of bytes to read.
-   * @param timeout_ms timeout (in milliseconds) for the read to complete
+   * @param timeout timeout (in milliseconds) for the read to complete
    * @return the real number of bytes read.
    * Returns an shcore::Exception in case of error when reading.
    */
-  int read(char *buf, size_t count, unsigned timeout_ms);
+  int read(char *buf, size_t count, std::chrono::milliseconds timeout);
 
   /**
    * Writes several butes into stdin of child process.
@@ -178,7 +187,7 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
    * If the child process is already dead, wait() just returns.
    * Returns the exit code of the process.
    */
-  int wait(unsigned int timeout_ms = 1000);
+  int wait(std::chrono::milliseconds timeout = std::chrono::milliseconds(1000));
 
   /**
    * Returns the file descriptor write handle (to write child's stdin).
@@ -212,13 +221,6 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
       ShutdownEvent event = ShutdownEvent::TERM) const noexcept;
 
  private:
-  /**
-   * Throws an exception with the specified message, if msg == NULL, the
-   * exception's message is specific of the platform error. (errno in Linux /
-   * GetLastError in Windows).
-   */
-  void report_error(const char *msg, const char *prefix = nullptr);
-
   /**
    * Closes child process and returns process' exit code.
    *

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,9 @@
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
-#include "sql/field.h"      // Field_json
-#include "sql/json_dom.h"   // Json_dom
+#include "sql/field.h"     // Field_json
+#include "sql/json_dom.h"  // Json_dom
+#include "sql/json_syntax_check.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"
@@ -148,7 +149,7 @@ static bool reserve(String *buffer, size_t bytes_needed) {
 /** Encode a 16-bit int at the end of the destination string. */
 static bool append_int16(String *dest, int16 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int2store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int2store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -156,7 +157,7 @@ static bool append_int16(String *dest, int16 value) {
 /** Encode a 32-bit int at the end of the destination string. */
 static bool append_int32(String *dest, int32 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int4store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int4store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -164,7 +165,7 @@ static bool append_int32(String *dest, int32 value) {
 /** Encode a 64-bit int at the end of the destination string. */
 static bool append_int64(String *dest, int64 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int8store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int8store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -200,8 +201,7 @@ static bool append_offset_or_size(String *dest, size_t offset_or_size,
 static void insert_offset_or_size(String *dest, size_t pos,
                                   size_t offset_or_size, bool large) {
   DBUG_ASSERT(pos + offset_size(large) <= dest->alloced_length());
-  write_offset_or_size(const_cast<char *>(dest->ptr()) + pos, offset_or_size,
-                       large);
+  write_offset_or_size(dest->ptr() + pos, offset_or_size, large);
 }
 
 /**
@@ -506,8 +506,7 @@ static enum_serialization_result serialize_json_array(const THD *thd,
   const size_t start_pos = dest->length();
   const size_t size = array->size();
 
-  if (++depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+  if (check_json_depth(++depth)) {
     return FAILURE;
   }
 
@@ -569,8 +568,7 @@ static enum_serialization_result serialize_json_object(
   const size_t start_pos = dest->length();
   const size_t size = object->cardinality();
 
-  if (++depth > JSON_DOCUMENT_MAX_DEPTH) {
-    my_error(ER_JSON_DOCUMENT_TOO_DEEP, MYF(0));
+  if (check_json_depth(++depth)) {
     return FAILURE;
   }
 
@@ -810,7 +808,7 @@ static enum_serialization_result serialize_json_value(
       // Store the double in a platform-independent eight-byte format.
       const Json_double *d = down_cast<const Json_double *>(dom);
       if (reserve(dest, 8)) return FAILURE; /* purecov: inspected */
-      float8store(const_cast<char *>(dest->ptr()) + dest->length(), d->value());
+      float8store(dest->ptr() + dest->length(), d->value());
       dest->length(dest->length() + 8);
       (*dest)[type_pos] = JSONB_TYPE_DOUBLE;
       result = OK;
@@ -1068,7 +1066,7 @@ static Value parse_value(uint8 type, const char *data, size_t len) {
 }
 
 Value parse_binary(const char *data, size_t len) {
-  DBUG_ENTER("json_binary::parse_binary");
+  DBUG_TRACE;
   /*
     Each document should start with a one-byte type specifier, so an
     empty document is invalid according to the format specification.
@@ -1077,10 +1075,10 @@ Value parse_binary(const char *data, size_t len) {
     the value NULL is inserted into a NOT NULL column. We choose to
     interpret empty values as the JSON null literal.
   */
-  if (len == 0) DBUG_RETURN(Value(Value::LITERAL_NULL));
+  if (len == 0) return Value(Value::LITERAL_NULL);
 
   Value ret = parse_value(data[0], data + 1, len - 1);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -2044,6 +2042,62 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
 
   *space += m_length - next_value_offset;
   return false;
+}
+
+/**
+  Check whether two binary JSON scalars are equal. This function is used by
+  multi-valued index updating code. Unlike JSON comparator implemented in
+  server, this code doesn't treat numeric types as the same, e.g. int 1 and
+  uint 1 won't be treated as equal. This is fine as the mv index updating code
+  compares old and new values of the same typed array field, i.e. all values
+  being compared have the same type.
+
+  Since MV index doesn't support indexing of arrays/objects in arrays, these
+  two aren't supported and cause assert.
+*/
+
+int Value::eq(const Value &val) const {
+  DBUG_ASSERT(is_valid() && val.is_valid());
+
+  if (type() != val.type()) {
+    return type() < val.type() ? -1 : 1;
+  }
+  switch (m_type) {
+    case OBJECT:
+    case ARRAY:
+      DBUG_ASSERT(0);
+      return -1;
+    case OPAQUE:
+      if (m_field_type != val.m_field_type)
+        return m_field_type < val.m_field_type ? -1 : 1;
+      /* Fall through */
+    case STRING: {
+      uint cmp_length = std::min(get_data_length(), val.get_data_length());
+      int res;
+      if (!(res = memcmp(get_data(), val.get_data(), cmp_length)))
+        return (get_data_length() < val.get_data_length())
+                   ? -1
+                   : ((get_data_length() == val.get_data_length()) ? 0 : 1);
+      return res;
+    }
+    case INT:
+    case UINT:
+      return (m_int_value == val.m_int_value)
+                 ? 0
+                 : ((m_int_value < val.m_int_value) ? -1 : 1);
+    case DOUBLE:
+      return (m_double_value == val.m_double_value)
+                 ? 0
+                 : ((m_double_value < val.m_double_value) ? -1 : 1);
+    case LITERAL_NULL:
+    case LITERAL_TRUE:
+    case LITERAL_FALSE:
+      return 0;
+    default:
+      DBUG_ASSERT(0);  // Shouldn't happen
+      break;
+  }
+  return -1;
 }
 #endif  // ifdef MYSQL_SERVER
 

@@ -70,6 +70,31 @@ EOF
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # Bug#11748692: LOGGING TO SLOW_LOG TABLE FAILS WITH VERY SLOW QUERIES
+--echo #
+
+# While fatal issues can arise while trying to log to a tab (such as
+# being unable to open or write to the table), show that we fail gracefully
+# in other cases (e.g. if setting a field fails because the value for
+# rows_examined is larger in the server than the data-type in the table
+# can hold, we can still write the line and should in fact do so as the
+# other information would still be correct and valuable). Below, we
+# articifically max out the internal value to demonstrate the aforementioned
+# behaviour.
+
+SELECT @@session.long_query_time INTO @old_long_query_time;
+SET GLOBAL slow_query_log = 1;
+TRUNCATE mysql.slow_log;
+--echo # this should get logged. 0 rows are examined.
+SET SESSION long_query_time=0;
+--echo # rows_examined should overflow without the patch, and max out with it.
+SET @@session.debug = '+d,slow_log_table_max_rows_examined';
+SET @@session.long_query_time = @old_long_query_time;
+SET @@session.debug = '-d,slow_log_table_max_rows_examined';
+SELECT rows_examined,db,sql_text FROM mysql.slow_log;
+
+--echo End of 8.0 tests
 
 --echo #
 --echo # Cleanup

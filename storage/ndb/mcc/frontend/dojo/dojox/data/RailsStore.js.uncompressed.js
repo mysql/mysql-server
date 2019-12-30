@@ -1,10 +1,9 @@
-//>>built
 define("dojox/data/RailsStore", ["dojo", "dojox", "dojox/data/JsonRestStore"], function(dojo, dojox) {
 
 // Contains code donated by Travis Tilley under CLA
 dojo.declare("dojox.data.RailsStore", dojox.data.JsonRestStore, {
 	constructor: function(){
-		//	summary:
+		// summary:
 		//		RailsStore is a data store for interacting with RESTful Rails controllers
 	},
 	preamble: function(options){

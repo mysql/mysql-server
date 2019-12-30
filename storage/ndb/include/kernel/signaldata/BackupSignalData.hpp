@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,12 +170,11 @@ class BackupConf {
 
   friend bool printBACKUP_CONF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 2 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 2);
   
 private:
   Uint32 senderData;
   Uint32 backupId;
-  NdbNodeBitmaskPOD nodes;
 };
 
 /**
@@ -218,7 +217,7 @@ class BackupCompleteRep {
 
   friend bool printBACKUP_COMPLETE_REP(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 10 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 12 );
 private:
   Uint32 senderData;
   Uint32 backupId;
@@ -228,7 +227,7 @@ private:
   Uint32 noOfRecordsLow;
   Uint32 noOfLogBytes;
   Uint32 noOfLogRecords;
-  NdbNodeBitmaskPOD nodes;
+  Uint32 unused[2];
   Uint32 noOfBytesHigh;
   Uint32 noOfRecordsHigh;
 };

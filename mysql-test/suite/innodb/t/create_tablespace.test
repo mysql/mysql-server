@@ -250,7 +250,7 @@ CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE s1_remote ADD DATAFILE '$MYSQL_TMP_DIR/s1.ibd.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/../s2_#_dir/s2.ibd';
+eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/s2.ibd';
 
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
@@ -1030,7 +1030,7 @@ CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
---error ER_OPEN_AS_READONLY
+--error ER_READ_ONLY_MODE
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 SHOW WARNINGS;
 --error ER_INNODB_READ_ONLY

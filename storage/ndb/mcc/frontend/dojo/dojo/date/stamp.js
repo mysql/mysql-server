@@ -1,17 +1,18 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/date/stamp",["../_base/kernel","../_base/lang","../_base/array"],function(_1,_2,_3){
-_2.getObject("date.stamp",true,_1);
-_1.date.stamp.fromISOString=function(_4,_5){
-if(!_1.date.stamp._isoRegExp){
-_1.date.stamp._isoRegExp=/^(?:(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(.\d+)?)?((?:[+-](\d{2}):(\d{2}))|Z)?)?$/;
+define("dojo/date/stamp",["../_base/lang","../_base/array"],function(_1,_2){
+var _3={};
+_1.setObject("dojo.date.stamp",_3);
+_3.fromISOString=function(_4,_5){
+if(!_3._isoRegExp){
+_3._isoRegExp=/^(?:(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(.\d+)?)?((?:[+-](\d{2}):(\d{2}))|Z)?)?$/;
 }
-var _6=_1.date.stamp._isoRegExp.exec(_4),_7=null;
+var _6=_3._isoRegExp.exec(_4),_7=null;
 if(_6){
 _6.shift();
 if(_6[1]){
@@ -22,7 +23,7 @@ _6[6]*=1000;
 }
 if(_5){
 _5=new Date(_5);
-_3.forEach(_3.map(["FullYear","Month","Date","Hours","Minutes","Seconds","Milliseconds"],function(_8){
+_2.forEach(_2.map(["FullYear","Month","Date","Hours","Minutes","Seconds","Milliseconds"],function(_8){
 return _5["get"+_8]();
 }),function(_9,_a){
 _6[_a]=_6[_a]||_9;
@@ -48,7 +49,7 @@ _7.setTime(_7.getTime()+_b*60000);
 }
 return _7;
 };
-_1.date.stamp.toISOString=function(_d,_e){
+_3.toISOString=function(_d,_e){
 var _f=function(n){
 return (n<10)?"0"+n:n;
 };
@@ -78,5 +79,5 @@ _10.push(_14);
 }
 return _10.join("T");
 };
-return _1.date.stamp;
+return _3;
 });

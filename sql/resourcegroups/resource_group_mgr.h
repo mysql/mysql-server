@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -296,13 +296,12 @@ class Resource_group_mgr {
     Release the shared MDL lock held on a resource group.
 
     @param thd        THD context.
-    @param ticket     Pointert to lock ticket object.
+    @param ticket     Pointer to lock ticket object.
   */
 
-  void release_shared_mdl_for_resource_group(THD *thd,
-                                             const MDL_ticket *ticket) {
+  void release_shared_mdl_for_resource_group(THD *thd, MDL_ticket *ticket) {
     DBUG_ASSERT(ticket != nullptr);
-    thd->mdl_context.release_lock(const_cast<MDL_ticket *>(ticket));
+    thd->mdl_context.release_lock(ticket);
   }
 
   /**
@@ -377,7 +376,6 @@ class Resource_group_mgr {
           "now "
           "SIGNAL restore_finished";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
-
     };);
   }
 
@@ -393,8 +391,8 @@ class Resource_group_mgr {
   */
 
   SERVICE_TYPE(registry) * m_registry_svc;
-  SERVICE_TYPE(pfs_resource_group) * m_resource_group_svc;
-  SERVICE_TYPE(pfs_notification) * m_notify_svc;
+  SERVICE_TYPE(pfs_resource_group_v3) * m_resource_group_svc;
+  SERVICE_TYPE(pfs_notification_v3) * m_notify_svc;
   my_h_service m_h_res_grp_svc;
   my_h_service m_h_notification_svc;
   int m_notify_handle;

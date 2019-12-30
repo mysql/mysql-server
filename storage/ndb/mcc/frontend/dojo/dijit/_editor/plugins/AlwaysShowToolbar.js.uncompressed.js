@@ -1,28 +1,16 @@
-//>>built
 define("dijit/_editor/plugins/AlwaysShowToolbar", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-class", // domClass.add domClass.remove
 	"dojo/dom-construct", // domConstruct.place
 	"dojo/dom-geometry",
 	"dojo/_base/lang", // lang.hitch
-	"dojo/_base/sniff", // has("ie") has("opera")
+	"dojo/sniff", // has("ie") has("opera")
 	"dojo/_base/window", // win.body
 	"../_Plugin"
 ], function(declare, domClass, domConstruct, domGeometry, lang, has, win, _Plugin){
 
-/*=====
-	var _Plugin = dijit._editor._Plugin;
-=====*/
-
 // module:
 //		dijit/_editor/plugins/AlwaysShowToolbar
-// summary:
-//		This plugin is required for Editors in auto-expand mode.
-//		It handles the auto-expansion as the user adds/deletes text,
-//		and keeps the editor's toolbar visible even when the top of the editor
-//		has scrolled off the top of the viewport (usually when editing a long
-//		document).
-
 
 return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 	// summary:
@@ -35,8 +23,11 @@ return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 	//		Specify this in extraPlugins (or plugins) parameter and also set
 	//		height to "".
 	// example:
-	//	|	<div data-dojo-type="dijit.Editor" height=""
-	//	|	data-dojo-props="extraPlugins: [dijit._editor.plugins.AlwaysShowToolbar]">
+	//	|	<script type="dojo/require">
+	//	|		AlwaysShowToolbar: "dijit/_editor/plugins/AlwaysShowToolbar"
+	//	|	</script>
+	//	|	<div data-dojo-type="dijit/Editor" height=""
+	//	|			data-dojo-props="extraPlugins: [AlwaysShowToolbar]">
 
 	// _handleScroll: Boolean
 	//		Enables/disables the handler for scroll events
@@ -51,7 +42,7 @@ return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 
 		this.editor = e;
 
-		e.onLoadDeferred.addCallback(lang.hitch(this, this.enable));
+		e.onLoadDeferred.then(lang.hitch(this, this.enable));
 	},
 
 	enable: function(d){
@@ -107,7 +98,7 @@ return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 
 	globalOnScrollHandler: function(){
 		// summary:
-		//		Handler for scroll events that bubbled up to <html>
+		//		Handler for scroll events that bubbled up to `<html>`
 		// tags:
 		//		private
 
@@ -126,7 +117,7 @@ return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 //			}
 		}
 
-		var scrollPos = domGeometry.docScroll().y;
+		var scrollPos = domGeometry.docScroll(this.editor.ownerDocument).y;
 		var s = tdn.style;
 
 		if(scrollPos > this._scrollThreshold && scrollPos < this._scrollThreshold+this._lastHeight){
@@ -144,7 +135,7 @@ return declare("dijit._editor.plugins.AlwaysShowToolbar", _Plugin, {
 					}else{
 						this._IEOriginalPos = ['last',tdn.parentNode];
 					}
-					win.body().appendChild(tdn);
+					this.editor.ownerDocumentBody.appendChild(tdn);
 					domClass.add(tdn,'dijitIEFixedToolbar');
 				}else{
 					s.position = "fixed";

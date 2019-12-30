@@ -22,12 +22,9 @@ B	Berlin
 C	Cottbus
 D	Darmstadt
 H	Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Add E|Essen:
+# Add E|Essen:
 Ok.
-Add E|Essen:
+# Add E|Essen:
 Error: E|Essen is still existing.
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -36,7 +33,7 @@ C	Cottbus
 D	Darmstadt
 E	Essen
 H	Hamburg
-Here the memcached results with E:
+# Here are the memcached results with E:
 Essen
 SELECT c1,c2 FROM t1;
 c1	c2
@@ -45,7 +42,7 @@ C	Cottbus
 D	Darmstadt
 E	Essen
 H	Hamburg
-Here the memcached results with E,H:
+# Here are the memcached results with E,H:
 Essen
 Hamburg
 UNINSTALL PLUGIN daemon_memcached;
@@ -70,12 +67,9 @@ B	t2_Berlin
 C	t2_Cottbus
 D	t2_Darmstadt
 H	t2_Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Add E|Essen:
+# Add E|Essen:
 Ok.
-Add E|Essen:
+# Add E|Essen:
 Error: E|Essen is still existing.
 SELECT c1,c2 FROM t2;
 c1	c2
@@ -84,7 +78,7 @@ C	t2_Cottbus
 D	t2_Darmstadt
 E	Essen
 H	t2_Hamburg
-Here the memcached results with E:
+# Here are the memcached results with E:
 Essen
 SELECT c1,c2 FROM t2;
 c1	c2
@@ -93,7 +87,7 @@ C	t2_Cottbus
 D	t2_Darmstadt
 E	Essen
 H	t2_Hamburg
-Here the memcached results with E,H:
+# Here are the memcached results with E,H:
 Essen
 t2_Hamburg
 UNINSTALL PLUGIN daemon_memcached;
@@ -109,10 +103,7 @@ DELETE FROM containers;
 INSERT INTO containers VALUES ("desc_t2", "junk", "t2",
 "c1", "c2",  "c3", "c4", "c5", "PRIMARY");
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-SELECT SLEEP(2);
-SLEEP(2)
-0
- This will fail, since memcached not initialized 
+# This will fail, since memcached not initialized
 UNINSTALL PLUGIN daemon_memcached;
 DELETE FROM containers;
 INSERT INTO containers VALUES ("desc_t2", "test", "t2",
@@ -125,10 +116,7 @@ c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1))
 ENGINE = INNODB;
 INSERT INTO t2 VALUES (3, 't2_Hamburg', 0, 0, 0);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-SELECT SLEEP(2);
-SLEEP(2)
-0
- This will success, since memcached support int as key 
+# This will succeed, since memcached supports int as key
 t2_Hamburg
 use test;
 DROP TABLE IF EXISTS t2;
@@ -138,10 +126,7 @@ c3 INT, c4 INT,  c5 INT, primary key(c1));
 INSERT INTO t2 VALUES ('H', 't2_Hamburg', 0, 0, 0);
 UNINSTALL PLUGIN daemon_memcached;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
-SELECT SLEEP(2);
-SLEEP(2)
-0
- This will fail, since memcached not initialized 
+# This will fail, since memcached not initialized
 t2_Hamburg
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
@@ -157,40 +142,38 @@ ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 SELECT c1,c2 FROM t2;
 c1	c2
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Add E|Essen:
+# Add E|Essen:
 Ok.
-SELECT c1, c2, c4 FROM t2;
-c1	c2	c4
-E	Essen	5
-Add G|Gossen:
+SELECT MAX(c4) INTO @baseline_cas_value FROM t2;
+SELECT c1, c2, c4-@baseline_cas_value as relative_cas FROM t2;
+c1	c2	relative_cas
+E	Essen	0
+# Add G|Gossen:
 Ok.
 Ok.
-SELECT c1,c2, c4 FROM t2;
-c1	c2	c4
-E	Essen	5
-G	Gossen	6
-H	Hamburg	7
-SELECT * FROM test.t2;
-c1	c2	c3	c4	c5
-E	Essen	0	5	0
-G	Gossen	0	6	0
-H	Hamburg	0	7	0
-Add B|Berlin expires in 1 seconds:
+SELECT c1, c2, c4-@baseline_cas_value as relative_cas FROM t2;
+c1	c2	relative_cas
+E	Essen	0
+G	Gossen	1
+H	Hamburg	2
+SELECT c1,c2,c3,c4-@baseline_cas_value as relative_cas,c5 FROM test.t2;
+c1	c2	c3	relative_cas	c5
+E	Essen	0	0	0
+G	Gossen	0	1	0
+H	Hamburg	0	2	0
+# Add B|Berlin expires in 1 seconds:
 Ok.
 select sleep(3);
 sleep(3)
 0
- Should not find B|Berlin, since it is expired 
-Add C|Cottbus, expires 100 seconds:
+# Should not find B|Berlin, since it is expired
+# Add C|Cottbus, expires 100 seconds:
 Ok.
- Should be able to find  C|Cottbus, assume it does not take 100s to get here 
+# Should be able to find  C|Cottbus, assume it does not take 100s to get here
 Cottbus
-Add J|Jilin
+# Add J|Jilin
 Ok.
- Should not find  J|Jilin, it should be expired 
+# Should not find  J|Jilin, it should be expired
 UNINSTALL PLUGIN daemon_memcached;
 use innodb_memcache;
 DELETE FROM containers;
@@ -213,19 +196,16 @@ B	t2_Berlin
 C	t2_Cottbus
 D	t2_Darmstadt
 H	t2_Hamburg
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Add E|Essen:
+# Add E|Essen:
 Ok.
 connection default;
 c1	c2
-Add E|Essen:
+# Add E|Essen:
 Error: E|Essen is still existing.
 c1	c2
-Here the memcached results with E:
+# Here are the memcached results with E:
 c1	c2
-Here the memcached results with E,H:
+# Here are the memcached results with E,H:
 alter table test.t2 change c2 c_new int;
 show create table test.t2;
 Table	Create Table

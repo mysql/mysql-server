@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/OpmlStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/xhr","dojo/data/util/simpleFetch","dojo/data/util/filter","dojo/_base/window"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/data/OpmlStore",["dojo/_base/declare","dojo/_base/lang","dojo/_base/xhr","dojo/data/util/simpleFetch","dojo/data/util/filter","dojo/_base/kernel"],function(_1,_2,_3,_4,_5,_6){
 var _7=_1("dojox.data.OpmlStore",null,{constructor:function(_8){
 this._xmlData=null;
 this._arrayOfTopLevelItems=[];

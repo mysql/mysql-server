@@ -1,0 +1,1853 @@
+#
+# Start out by testing some simple in-memory inner hash joins.
+#
+# Join on two integer columns.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (3), (5), (7);
+INSERT INTO t2 VALUES (1), (2), (5), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+EXPLAIN
+-> Sort: <temporary>.col1
+    -> Stream results
+        -> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
+            -> Table scan on t2  (cost=0.09 rows=4)
+            -> Hash
+                -> Table scan on t1  (cost=0.65 rows=4)
+
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+col1	col1
+1	1
+5	5
+DROP TABLE t1, t2;
+# Join on a integer column and a string column.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (1), (3), (5), (7);
+INSERT INTO t2 VALUES (1), (2), (5), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+EXPLAIN
+-> Sort: <temporary>.col1
+    -> Stream results
+        -> Inner hash join (t1.col1 = t2.col1)  (cost=2.50 rows=4)
+            -> Table scan on t2  (cost=0.09 rows=4)
+            -> Hash
+                -> Table scan on t1  (cost=0.65 rows=4)
+
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+col1	col1
+1	1
+5	5
+DROP TABLE t1, t2;
+# Join on two datetime columns.
+CREATE TABLE t1 (col1 DATETIME(6));
+CREATE TABLE t2 (col1 DATETIME(6));
+INSERT INTO t1 VALUES ('2018-01-01 00:00:00.000000'),
+('2018-01-01 00:00:00.000001'),
+('2018-01-02 00:00:00.000000'),
+('2018-01-02 00:00:00.000001');
+INSERT INTO t2 VALUES ('2018-01-01 00:00:00.000000'),
+('2018-01-01 00:00:00.000002'),
+('2018-01-02 00:00:00.000001'),
+('2019-01-02 00:00:00.000001');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
+    -> Table scan on t2  (cost=0.09 rows=4)
+    -> Hash
+        -> Table scan on t1  (cost=0.65 rows=4)
+
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+col1	col1
+2018-01-01 00:00:00.000000	2018-01-01 00:00:00.000000
+2018-01-02 00:00:00.000001	2018-01-02 00:00:00.000001
+DROP TABLE t1, t2;
+# Join on a string and datetime column, where datetime comparison is
+# picked.
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
+CREATE TABLE t2 (b VARCHAR(64));
+INSERT INTO t2 VALUES ('2001#01#01');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a=b;
+EXPLAIN
+-> Inner hash join (t1.a = t2.b)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1, t2 WHERE a=b;
+a	b
+2001-01-01 00:00:00	2001#01#01
+DROP TABLE t1, t2;
+# Join on two double columns.
+CREATE TABLE t1 (col1 DOUBLE);
+CREATE TABLE t2 (col1 DOUBLE);
+INSERT INTO t1 VALUES (1.1), (3.3), (5.5), (7.7);
+INSERT INTO t2 VALUES (1.1), (1.11), (5.5), (6.6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
+    -> Table scan on t2  (cost=0.09 rows=4)
+    -> Hash
+        -> Table scan on t1  (cost=0.65 rows=4)
+
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+col1	col1
+1.1	1.1
+5.5	5.5
+DROP TABLE t1, t2;
+# Join on two decimal columns.
+CREATE TABLE t1 (col1 DECIMAL(6, 2));
+CREATE TABLE t2 (col1 DECIMAL(6, 2));
+INSERT INTO t1 VALUES (1.1), (3.3), (5.5), (7.7);
+INSERT INTO t2 VALUES (1.1), (1.10), (5.5), (6.6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
+    -> Table scan on t2  (cost=0.09 rows=4)
+    -> Hash
+        -> Table scan on t1  (cost=0.65 rows=4)
+
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+col1	col1
+1.10	1.10
+1.10	1.10
+5.50	5.50
+DROP TABLE t1, t2;
+# See that comparison between decimal and bigint works well. The main
+# challenge is that decimals with different amount of leading/trailing
+# zeroes should compare equally.
+CREATE TABLE t1 (col1 BIGINT);
+CREATE TABLE t2 (col1 DECIMAL(64,30));
+INSERT INTO t1 VALUES (5);
+INSERT INTO t2 VALUES (5.000000000000000000000000000000);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t1.col1 = t2.col1)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
+col1	col1
+5	5.000000000000000000000000000000
+DROP TABLE t1, t2;
+CREATE TABLE t1 (col1 DECIMAL(5));
+CREATE TABLE t2 (col1 BIGINT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 where t1.col1=t2.col1;
+EXPLAIN
+-> Inner hash join (t1.col1 = t2.col1)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1,t2 where t1.col1=t2.col1;
+col1	col1
+1	1
+DROP TABLE t1, t2;
+# Bit fields, which is a bit different depending on the storage engine.
+create table t1 (id1 int, b1 bit(1)) engine = myisam;
+create table t2 (id2 int, b2 bit(1)) engine = myisam;
+insert into t1 values (2, 0), (3, 1);
+insert into t2 values (2, 1), (3, 0);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
+EXPLAIN
+-> Inner hash join (t2.id2 = t1.id1)  (cost=1.60 rows=2)
+    -> Table scan on t2  (cost=0.30 rows=2)
+    -> Hash
+        -> Table scan on t1  (cost=0.70 rows=2)
+
+SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
+id1	HEX(b1)	id2	HEX(b2)
+2	0	2	1
+3	1	3	0
+DROP TABLE t1, t2;
+create table t1 (id1 int, b1 bit(64)) engine = innodb;
+create table t2 (id2 int, b2 bit(64)) engine = innodb;
+insert into t1 values (2, 0), (3, 2);
+insert into t2 values (2, 2), (3, 0);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
+EXPLAIN
+-> Inner hash join (t2.id2 = t1.id1)  (cost=1.10 rows=2)
+    -> Table scan on t2  (cost=0.18 rows=2)
+    -> Hash
+        -> Table scan on t1  (cost=0.45 rows=2)
+
+SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
+id1	HEX(b1)	id2	HEX(b2)
+2	0	2	2
+3	2	3	0
+DROP TABLE t1, t2;
+# See that we handle NULL values properly.
+CREATE TABLE t1 (col1 VARCHAR(255));
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t2 VALUES ("");
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t2.col1 = t1.col1)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+col1	col1
+DROP TABLE t1,t2;
+#
+# Now, do some queries where we end up with a GRACE hash join. That is,
+# the right table of the join is bigger than the join_buffer_size.
+#
+CREATE TABLE t1 (col1 BIGINT);
+CREATE TABLE t2 (col1 BIGINT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t2 SELECT col1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 2048;
+EXPLAIN FORMAT=tree
+SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
+EXPLAIN
+-> Aggregate: sum(t1.col1), sum(t2.col1)
+    -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=26214)
+        -> Table scan on t2  (cost=*** rows=512)
+        -> Hash
+            -> Table scan on t1  (cost=*** rows=512)
+
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+0
+SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
+SUM(t1.col1)	SUM(t2.col1)
+131328	131328
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1,t2;
+# See that spill to disk (GRACE hash join) works with all kind of
+# data types.
+CREATE TABLE t1 (
+str_col VARCHAR(255),
+blob_col LONGBLOB,
+text_col LONGTEXT,
+bit_col BIT(64),
+tinyint_col TINYINT,
+smallint_col SMALLINT,
+mediumint_col MEDIUMINT,
+int_col INTEGER,
+bigint_col BIGINT,
+float_col FLOAT,
+double_col DOUBLE,
+decimal_col DECIMAL(65, 30),
+year_col YEAR,
+date_col DATE,
+time_col TIME(6),
+datetime_col DATETIME(6),
+timestamp_col TIMESTAMP(6),
+json_col JSON,
+geometry_col GEOMETRY
+);
+SET time_zone = '+00:00';
+INSERT INTO t1 VALUES (
+'',
+'',
+'',
+b'0000000000000000000000000000000000000000000000000000000000000000',
+-128,
+-32768,
+-8388608,
+-2147483648,
+-9223372036854775808,
+-3.402823466E+38,
+-1.7976931348623157E+308,
+'-99999999999999999999999999999999999.999999999999999999999999999999',
+1901,
+'1000-01-01',
+'-838:59:59.000000',
+'1000-01-01 00:00:00.000000',
+'1970-01-01 00:00:01.000000',
+'{}',
+ST_GeomFromText('GEOMETRYCOLLECTION()')
+);
+INSERT INTO t1 VALUES (
+'a very long and interesting string',
+'a very long and interesting blob',
+'a very long and interesting text',
+b'1111111111111111111111111111111111111111111111111111111111111111',
+127,
+32767,
+8388607,
+2147483647,
+9223372036854775807,
+3.402823466E+38,
+1.7976931348623157E+308,
+'99999999999999999999999999999999999.999999999999999999999999999999',
+2155,
+'9999-12-31',
+'838:59:59.000000',
+'9999-12-31 23:59:59.999999',
+'2038-01-19 03:14:07.999999',
+'{"key": [1, 2, 3]}',
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 2), POINT(3 4))')
+);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+SET join_buffer_size = 99968;
+# Just do a few aggregations for sanity checking. We don't want to
+# pollute the result log with thousands of lines with binary data.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT
+COUNT(*),
+SUM(LENGTH(t1.text_col)),
+SUM(t2.bigint_col)
+FROM
+t1,
+t1 AS t2
+WHERE
+t1.int_col = t2.int_col
+ORDER BY
+t1.int_col;
+EXPLAIN
+-> Aggregate: count(0), sum(length(t1.text_col)), sum(t2.bigint_col)
+    -> Inner hash join (t2.int_col = t1.int_col)  (cost=*** rows=1638)
+        -> Table scan on t2  (cost=*** rows=128)
+        -> Hash
+            -> Table scan on t1  (cost=*** rows=128)
+
+SELECT
+COUNT(*),
+SUM(LENGTH(t1.text_col)),
+SUM(t2.bigint_col)
+FROM
+t1,
+t1 AS t2
+WHERE
+t1.int_col = t2.int_col
+ORDER BY
+t1.int_col;
+COUNT(*)	SUM(LENGTH(t1.text_col))	SUM(t2.bigint_col)
+8192	131072	-4096
+DROP TABLE t1;
+SET join_buffer_size = DEFAULT;
+SET time_zone = DEFAULT;
+#
+# A query where we end up with a weedout + hash join. This forces hash
+# join to keep the row ID for each row, so that the duplicate removal
+# works.
+#
+SET optimizer_switch="materialization=off,firstmatch=off";
+CREATE TABLE t1 (i BIGINT);
+CREATE TABLE t2 (i BIGINT);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (2), (3);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+EXPLAIN
+-> Remove duplicate t2 rows using temporary table (weedout)  (cost=1.30 rows=2)
+    -> Inner hash join (t1.i = t2.i)  (cost=1.30 rows=2)
+        -> Table scan on t1  (cost=0.18 rows=3)
+        -> Hash
+            -> Table scan on t2  (cost=0.45 rows=2)
+
+SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+i
+2
+3
+# Increase the data volume, and reduce the join_buffer_size, in order to
+# test that we can keep the row ID in case of GRACE hash join as well.
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 2048;
+EXPLAIN FORMAT=tree
+SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+EXPLAIN
+-> Aggregate: count(0)
+    -> Remove duplicate t2 rows using temporary table (weedout)  (cost=*** rows=39322)
+        -> Inner hash join (t1.i = t2.i)  (cost=*** rows=39322)
+            -> Table scan on t1  (cost=*** rows=768)
+            -> Hash
+                -> Table scan on t2  (cost=*** rows=512)
+
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+0
+SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+COUNT(*)
+512
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+DROP TABLE t1, t2;
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+# Test a case where the RAND() function is pushed as late as possible in
+# the join. The optimizer ends up rewriting t1.col1 = FLOOR(...) to
+# t2.col1 = FLOOR(...), so this test case ensures that the executor is
+# able to put the condition after the join. FLOOR and division/addition
+# make this query deterministic.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT
+t1.col1,
+t2.col1
+FROM
+t1,
+t2
+WHERE
+t1.col1 = t2.col1
+AND t1.col1 = FLOOR(RAND() / 2 + 2);
+EXPLAIN
+-> Filter: (t1.col1 = floor(((rand() / 2) + 2)))  (cost=1.00 rows=2)
+    -> Inner hash join (t2.col1 = t1.col1)  (cost=1.00 rows=2)
+        -> Table scan on t2  (cost=0.35 rows=2)
+        -> Hash
+            -> Table scan on t1  (cost=0.35 rows=2)
+
+SELECT
+t1.col1,
+t2.col1
+FROM
+t1,
+t2
+WHERE
+t1.col1 = t2.col1
+AND t1.col1 = FLOOR(RAND() / 2 + 2);
+col1	col1
+2	2
+DROP TABLE t1, t2;
+# Ensure that the hash join picks the correct fields and tables when both
+# sides of the join condition are from the same source table.
+CREATE TABLE c (
+col1 varchar(1)
+) ENGINE = myisam;
+INSERT INTO c VALUES ('w');
+INSERT INTO c VALUES ('d');
+ANALYZE TABLE c;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+EXPLAIN format=tree SELECT *
+FROM
+(SELECT * FROM c) AS table1
+JOIN (SELECT * FROM c) AS table2
+ON table2.col1 = table1.col1;
+EXPLAIN
+-> Inner hash join (c.col1 = c.col1)  (cost=1.60 rows=2)
+    -> Table scan on c  (cost=0.30 rows=2)
+    -> Hash
+        -> Table scan on c  (cost=0.70 rows=2)
+
+SELECT *
+FROM
+(SELECT * FROM c) AS table1
+JOIN (SELECT * FROM c) AS table2
+ON table2.col1 = table1.col1;
+col1	col1
+w	w
+d	d
+DROP TABLE c;
+# This query ends up with a BNL between t3 and t2. Ensure that we don't
+# end up with a hash join like:
+#
+#  -> Constant row from <subquery2>
+#    -> Materialize with deduplication
+#        -> HashJoin inner join (t3.i = '2')
+#            -> Table scan on t2
+#            -> Table scan on t3
+#
+# We don't want a join condition on a constant, so it should be pushed as
+# a filter.
+SET optimizer_switch='firstmatch=off';
+CREATE TABLE t1 (i INTEGER) ENGINE = MyISAM;
+CREATE TABLE t2 (i INTEGER) ENGINE = MyISAM;
+CREATE TABLE t3 (i INTEGER) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN
+-> Constant row from <subquery2>
+    -> Materialize with deduplication
+        -> Filter: (t3.i is not null)  (cost=1.10 rows=0)
+            -> Inner hash join  (cost=1.10 rows=0)
+                -> Filter: (t3.i = '2')  (cost=0.50 rows=0)
+                    -> Table scan on t3  (cost=0.50 rows=0)
+                -> Hash
+                    -> Table scan on t2  (cost=0.60 rows=1)
+
+SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+i
+DROP TABLE t1,t2,t3;
+SET optimizer_switch=DEFAULT;
+# A bit more complicated join condition where we have multiple join
+# conditions, and one of them is an expression.
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 (a) VALUES (1),(2);
+CREATE TABLE t3 (a INTEGER, b INTEGER);
+INSERT INTO t3 VALUES (1, 10), (1, 11), (2, 10), (2, 11);
+ANALYZE TABLE t1, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1, t3 WHERE t3.b = t1.a + 9 AND t3.a = t1.a;
+EXPLAIN
+-> Inner hash join (t3.a = t1.a), (t3.b = (t1.a + 9))  (cost=1.50 rows=2)
+    -> Table scan on t3  (cost=0.18 rows=4)
+    -> Hash
+        -> Table scan on t1  (cost=0.45 rows=2)
+
+SELECT * FROM t1, t3 WHERE t3.b = t1.a + 9 AND t3.a = t1.a;
+a	b	a	b
+1	NULL	1	10
+2	NULL	2	11
+DROP TABLE t1,t3;
+# Ensure that outer joins doesn't degrade into a nested loop,
+# but still uses join buffering.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+<not executable by iterator executor>
+
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t2`.`col1` AS `col1` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`col1` = `test`.`t1`.`col1`)) where true
+DROP TABLE t1, t2;
+# See that we can replace a BNL with hash join, even if we have extra
+# join conditions that are not equi-join conditions. The result should be
+# that the non-equi-join conditions should be attached as a filter after
+# the join.
+CREATE TABLE t1 (col1 INTEGER, col2 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 4), (3, 6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+EXPLAIN
+-> Filter: (t1.col2 < t2.col2)  (cost=1.70 rows=3)
+    -> Inner hash join (t2.col1 = t1.col1)  (cost=1.70 rows=3)
+        -> Table scan on t2  (cost=0.12 rows=3)
+        -> Hash
+            -> Table scan on t1  (cost=0.55 rows=3)
+
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+col1	col2	col1	col2
+2	2	2	4
+3	3	3	6
+DROP TABLE t1, t2;
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
+FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+EXPLAIN
+-> Aggregate: sum(t1.col1)
+    -> Inner hash join  (cost=111113.45 rows=1000000)
+        -> Table scan on t6  (cost=0.00 rows=10)
+        -> Hash
+            -> Inner hash join  (cost=11112.35 rows=100000)
+                -> Table scan on t5  (cost=0.00 rows=10)
+                -> Hash
+                    -> Inner hash join  (cost=1112.01 rows=10000)
+                        -> Table scan on t4  (cost=0.00 rows=10)
+                        -> Hash
+                            -> Inner hash join  (cost=111.75 rows=1000)
+                                -> Table scan on t3  (cost=0.01 rows=10)
+                                -> Hash
+                                    -> Inner hash join  (cost=11.50 rows=100)
+                                        -> Table scan on t2  (cost=0.13 rows=10)
+                                        -> Hash
+                                            -> Table scan on t1  (cost=1.25 rows=10)
+
+SELECT SUM(t1.col1) FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+SUM(t1.col1)
+1000000
+DROP TABLE t1;
+# Test that comparison between FLOAT and DOUBLE works as expected if
+# given an explicit number of decimals.
+CREATE TABLE t1 (col1 FLOAT(5,2), col2 DOUBLE(15,2));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (1.01, 1.01);
+SELECT * FROM t1 a, t1 b WHERE a.col1 = b.col2;
+col1	col2	col1	col2
+1.01	1.01	1.01	1.01
+DROP TABLE t1;
+# The point of the following test is to see that if the innermost hash
+# join returns zero rows, the outermost hash join should not scan the
+# probe table.
+CREATE TABLE t1 (col1 INT);
+CREATE TABLE t2 (col1 INT);
+CREATE TABLE t3 (col1 INT);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t3 VALUES (1), (2), (3);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN * FROM t1
+JOIN t2 ON t1.col1 + 10 = t2.col1
+JOIN t3 ON t2.col1 = t3.col1;
+EXPLAIN
+-> Inner hash join (t3.col1 = t2.col1)  (cost=2.85 rows=3)
+    -> Table scan on t3  (cost=0.12 rows=3)
+    -> Hash
+        -> Inner hash join ((t1.col1 + 10) = t2.col1)  (cost=1.70 rows=3)
+            -> Table scan on t2  (cost=0.12 rows=3)
+            -> Hash
+                -> Table scan on t1  (cost=0.55 rows=3)
+
+SELECT SUM(variable_value) AS Total_handler_reads
+FROM performance_schema.session_status
+WHERE variable_name LIKE 'Handler_read%';
+Total_handler_reads
+12
+DROP TABLE t1, t2, t3;
+#
+# Bug#29898802	WL#2241: SIG6 IN HASH_JOIN_BUFFER::LOADINTOTABLEBUFFERS()
+#              AT HASH_JOIN_BUFFER.CC
+#
+CREATE TABLE t1 (
+pk int NOT NULL AUTO_INCREMENT,
+col_varchar varchar(1),
+col_varchar_key varchar(1),
+PRIMARY KEY (pk),
+KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES (1,'n','X'),(2,'Y','8'),(3,'R','l');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT
+t1.col_varchar_key AS field1
+FROM
+(t1, t1 as alias1)
+WHERE
+NOT
+EXISTS(
+SELECT
+alias2.col_varchar_key
+FROM
+t1 AS alias2
+WHERE
+alias2.col_varchar_key >= t1.col_varchar
+)
+GROUP BY
+field1;
+EXPLAIN
+-> Table scan on <temporary>
+    -> Temporary table with deduplication
+        -> Inner hash join  (cost=4.65 rows=27)
+            -> Index scan on alias1 using idx_CC_col_varchar_key  (cost=0.18 rows=3)
+            -> Hash
+                -> Nested loop anti-join  (cost=1.70 rows=9)
+                    -> Table scan on t1  (cost=0.55 rows=3)
+                    -> Filter: (alias2.col_varchar_key >= t1.col_varchar)  (cost=0.55 rows=3)
+                        -> Index range scan on alias2 (re-planned for each iteration)  (cost=0.55 rows=3)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col_varchar' of SELECT #2 was resolved in SELECT #1
+SELECT
+t1.col_varchar_key AS field1
+FROM
+(t1, t1 as alias1)
+WHERE
+NOT
+EXISTS(
+SELECT
+alias2.col_varchar_key
+FROM
+t1 AS alias2
+WHERE
+alias2.col_varchar_key >= t1.col_varchar
+)
+GROUP BY
+field1;
+field1
+8
+DROP TABLE t1;
+# See that typed arrays are handled as blobs. That is, we do not try to
+# allocate 4GB of memory during the hash join.
+CREATE TABLE t1 (
+col_int_key INTEGER,
+col_json JSON,
+KEY mv_idx ((CAST(col_json->'$[*]' AS CHAR(40) ARRAY)))
+);
+INSERT INTO t1 VALUES (NULL, '[1]'), (4, '[1]'), (1, '[2]');
+CREATE TABLE t2(col_int INTEGER);
+INSERT INTO t2 VALUES (1), (2), (3), (11), (12);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
+JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+EXPLAIN
+-> Inner hash join  (cost=*** rows=5)
+    -> Table scan on t2  (cost=*** rows=5)
+    -> Hash
+        -> Filter: json'"1"' member of (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array))  (cost=*** rows=1)
+            -> Index lookup on t1 using mv_idx (cast(json_extract(t1.col_json,_utf8mb4'$[*]') as char(40) array)=json'"1"')  (cost=*** rows=1)
+
+SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
+JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+DROP TABLE t1,t2;
+#
+# Bug#29906372 WL#2241: SIG6 IN HASH_JOIN_BUFFER::STOREFROMTABLEBUFFERS
+#              AT HASH_JOIN_BUFFER.CC
+#
+CREATE TABLE a (
+pk INTEGER NOT NULL AUTO_INCREMENT,
+col_varchar VARCHAR(1),
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY varchar_key (col_varchar_key)
+);
+CREATE TABLE b (
+pk INTEGER NOT NULL AUTO_INCREMENT,
+col_varchar VARCHAR(1),
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk),
+KEY varchar_key (col_varchar_key)
+);
+INSERT INTO a VALUES (1, 'N', '0');
+INSERT INTO b VALUES (1, '8', 'r'), (2, 'v', 'C'), (3, 'b', 'p'), (4, '7', 'W');
+ANALYZE TABLE a, b;
+Table	Op	Msg_type	Msg_text
+test.a	analyze	status	OK
+test.b	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT 1 FROM (b AS table1
+INNER JOIN a AS table2 ON table2.pk = table1.pk OR table1.col_varchar < 'D')
+WHERE (NOT EXISTS
+(SELECT 1 FROM (b AS alias3 STRAIGHT_JOIN a AS alias4
+ON alias4.col_varchar = alias3.col_varchar_key)
+WHERE alias3.pk >= table1.pk));
+EXPLAIN
+-> Nested loop anti-join  (cost=2.30 rows=8)
+    -> Filter: ((table1.pk = table2.pk) or (table1.col_varchar < 'D'))  (cost=1.00 rows=2)
+        -> Inner hash join  (cost=1.00 rows=2)
+            -> Table scan on table1  (cost=0.45 rows=4)
+            -> Hash
+                -> Index scan on table2 using varchar_key  (cost=0.35 rows=1)
+    -> Nested loop inner join  (cost=2.85 rows=4)
+        -> Filter: (alias3.pk >= table1.pk)  (cost=0.45 rows=4)
+            -> Index range scan on alias3 (re-planned for each iteration)  (cost=0.45 rows=4)
+        -> Filter: (alias4.col_varchar = alias3.col_varchar_key)  (cost=1.05 rows=1)
+            -> Table scan on alias4  (cost=1.05 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.pk' of SELECT #2 was resolved in SELECT #1
+SELECT 1 FROM (b AS table1
+INNER JOIN a AS table2 ON table2.pk = table1.pk OR table1.col_varchar < 'D')
+WHERE (NOT EXISTS
+(SELECT 1 FROM (b AS alias3 STRAIGHT_JOIN a AS alias4
+ON alias4.col_varchar = alias3.col_varchar_key)
+WHERE alias3.pk >= table1.pk));
+DROP TABLE a, b;
+#
+# Bug#29947439 WL#2241: FLOATING POINT EXCEPTION: INITIALIZECHUNKFILES AT
+#              HASH_JOIN_ITERATOR.CC
+#
+CREATE TABLE t1 (col1 TEXT);
+INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
+EXPLAIN FORMAT=tree SELECT a.col1 FROM t1 AS a, t1 AS b;
+EXPLAIN
+-> Inner hash join  (cost=*** rows=4)
+    -> Table scan on b  (cost=*** rows=2)
+    -> Hash
+        -> Table scan on a  (cost=*** rows=2)
+
+SET join_buffer_size = 128;
+SELECT a.col1 FROM t1 AS a, t1 AS b;
+DROP TABLE t1;
+# Set up a case where we have very skewed data in the probe input, and we
+# degrade into an on-disk hash join. We want to trigger a code path where
+# we have empty chunk files from the probe input.
+CREATE TABLE t1 (col1 VARCHAR(255));
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (SHA2(UUID(), 512));
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+INSERT INTO t2 SELECT REPEAT("a", 255) FROM t1;
+SET GLOBAL innodb_stats_persistent_sample_pages = 2000;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
+EXPLAIN FORMAT=tree SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Aggregate: count(0)
+    -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=26214)
+        -> Table scan on t2  (cost=*** rows=512)
+        -> Hash
+            -> Table scan on t1  (cost=*** rows=512)
+
+SET join_buffer_size = 1024;
+SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+DROP TABLE t1, t2;
+SET join_buffer_size = DEFAULT;
+# See that the hints for hash join works as expected.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+# By default, hash join should be used.
+EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
+EXPLAIN
+-> Inner hash join  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+# Try disabling hash join using the hint.
+EXPLAIN FORMAT=tree SELECT /*+ NO_HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
+EXPLAIN
+<not executable by iterator executor>
+
+# Turn off hash join using the optimizer switch, and then enable it again
+# using the hint.
+SET optimizer_switch="hash_join=off";
+EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
+EXPLAIN
+<not executable by iterator executor>
+
+EXPLAIN FORMAT=tree SELECT /*+ HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
+EXPLAIN
+-> Inner hash join  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2;
+#
+# Bug#29964536 WL#2241: ASSERTION FAILURE IN
+#              TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
+#
+CREATE TABLE tc (
+col_int INTEGER,
+col_varchar VARCHAR(1)
+);
+INSERT INTO tc VALUES (0,'x');
+CREATE TABLE tcc (
+col_varchar VARCHAR(1)
+);
+INSERT INTO tcc VALUES ('r'), ('f'), ('y'), ('u'), ('m'), (NULL);
+CREATE TABLE t1 (field1 INTEGER);
+INSERT INTO t1 VALUES (0);
+SET optimizer_switch="firstmatch=off";
+UPDATE t1 SET field1 = 9999 WHERE field1 NOT IN ( SELECT alias1.col_int AS
+field1 FROM ( tcc, ( SELECT * FROM tc WHERE col_int < 1 ) AS alias1 ) WHERE (
+alias1.col_varchar IN ( SELECT col_varchar FROM tcc ) ) GROUP BY field1
+HAVING field1 <> 1 );
+SET optimizer_switch="firstmatch=on";
+DROP TABLE tc,tcc,t1;
+# Do a join between DECIMAL and INTEGER to verify that we get a match
+# between these two types.
+CREATE TABLE t1 (col1 DECIMAL(4, 2));
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t2 VALUES (0);
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t1.col1 = t2.col1)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+col1	col1
+0.00	0
+DROP TABLE t1, t2;
+# See that we get the correct results with a PAD SPACE collation and
+# PAD_CHAR_TO_FULL_LENGTH. Note that the latter is deprecated, so this
+# test should go away once the SQL mode is removed.
+CREATE TABLE t1 (
+col1 CHAR(4)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
+INSERT INTO t1 VALUES ("foo");
+CREATE TABLE t2 (
+col1 CHAR(40)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
+INSERT INTO t2 VALUES ("foo");
+SET sql_mode="PAD_CHAR_TO_FULL_LENGTH";
+Warnings:
+Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN
+-> Inner hash join (t1.col1 = t2.col1)  (cost=0.70 rows=1)
+    -> Table scan on t2  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+col1	col1
+foo 	foo                                     
+SET sql_mode=DEFAULT;
+DROP TABLE t1, t2;
+# Set up a case where the join planner will set up a BNL with linked
+# join buffers, and where the row ID should be kept due to duplicate
+# removal. rowid_status will be set on several QEP_TABs to indicate that
+# a row ID is needed, even though we should not request the row ID on all
+# of them.
+CREATE TABLE b1 (col_int INTEGER);
+INSERT INTO b1 VALUES (1);
+CREATE TABLE c1 (
+col_int INTEGER,
+col_timestamp TIMESTAMP NULL,
+col_decimal DECIMAL(10, 4)
+);
+INSERT INTO c1 VALUES
+(1741569678,'2004-01-07 20:47:51',-4.7563),
+(-1533615975,'2037-10-27 16:40:24',7.7785);
+CREATE TABLE cc1 (
+col_int INTEGER,
+col_decimal DECIMAL(10, 4),
+col_timestamp TIMESTAMP NULL
+);
+INSERT INTO cc1 VALUES
+(-190646953,6.4052,'2007-11-21 09:45:29'),
+(-423321712,6.9636,'1988-01-04 13:34:47');
+SELECT
+1
+FROM
+b1
+LEFT JOIN (
+c1
+RIGHT JOIN (SELECT DISTINCT * FROM cc1) AS alias3 ON
+alias3.col_timestamp = c1.col_timestamp
+) ON b1.col_int = c1.col_int AND 1
+WHERE
+EXISTS(
+SELECT
+1
+FROM
+cc1 JOIN c1 ON c1.col_decimal = cc1.col_decimal AND 1
+WHERE
+cc1.col_int <= b1.col_int OR cc1.col_int = c1.col_int
+);
+1
+DROP TABLE b1, c1, cc1;
+# Yet another problematic case involing duplicate weedout.
+CREATE TABLE t1 (
+col_int_key int(11) DEFAULT NULL,
+col_varchar_key varchar(1) DEFAULT NULL,
+col_varchar_nokey varchar(1) DEFAULT NULL,
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+set optimizer_switch='firstmatch=off';
+set optimizer_switch='materialization=off';
+SELECT
+alias1.col_varchar_nokey AS a1_nokey,
+alias1.col_varchar_key AS a1_key,
+alias2.col_varchar_nokey AS a2_nokey
+FROM
+t1 AS alias1, t1 AS alias2
+WHERE
+(alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+IN
+(
+SELECT
+sq2_alias2.col_varchar_nokey, sq2_alias1.col_varchar_key
+FROM
+t1 AS sq2_alias1, t1 AS sq2_alias2
+)
+;
+a1_nokey	a1_key	a2_nokey
+c	c	c
+c	c	v
+c	c	v
+v	v	c
+v	v	c
+v	v	v
+v	v	v
+v	v	v
+v	v	v
+set optimizer_switch=DEFAULT;
+DROP TABLE t1;
+# A case where we have a hash join iterator both above and below a
+# WeedoutIterator.
+CREATE TABLE t1(f1 INT(11) NOT NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (10);
+CREATE TABLE t2
+(
+f1 INT(11) NOT NULL AUTO_INCREMENT,
+f2 INT(11) DEFAULT NULL,
+PRIMARY KEY (f1),
+KEY (f2)
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t2 VALUES (1, 7), (2, 1), (4, 7);
+CREATE TABLE t4(f1 INT DEFAULT NULL);
+INSERT INTO t4 VALUES (2);
+ANALYZE TABLE t1, t2, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+EXPLAIN
+-> Aggregate: count(0)
+    -> Inner hash join  (cost=3.70 rows=4)
+        -> Table scan on t1  (cost=0.08 rows=1)
+        -> Hash
+            -> Remove duplicate (ta3, ta4) rows using temporary table (weedout)  (cost=3.00 rows=4)
+                -> Nested loop inner join  (cost=3.00 rows=4)
+                    -> Nested loop inner join  (cost=2.30 rows=4)
+                        -> Inner hash join  (cost=1.10 rows=3)
+                            -> Filter: (t4.f1 is not null)  (cost=0.12 rows=1)
+                                -> Table scan on t4  (cost=0.12 rows=1)
+                            -> Hash
+                                -> Filter: (t2.f2 is not null)  (cost=0.55 rows=3)
+                                    -> Index scan on t2 using f2  (cost=0.55 rows=3)
+                        -> Index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.30 rows=2)
+                    -> Single-row index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.08 rows=1)
+
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+3
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+COUNT(*)
+3
+DROP TABLE t1, t2, t4;
+#
+# Bug#30035890 SIG 11 IN HASHJOINITERATOR::READJOINEDROW AT
+#              SQL/HASH_JOIN_ITERATOR.CC
+#
+# Note that this test case needs ASAN to reproduce.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (7), (7);
+CREATE TABLE t2 (b INT, c DATETIME);
+INSERT IGNORE INTO t2 VALUES (7, NULL), (7, '2006'), (7, '2002');
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 2
+Warning	1265	Data truncated for column 'c' at row 3
+# Set up a case where the hash join row buffer will be re-inited.
+UPDATE t1
+SET a = 42
+WHERE a NOT IN (
+SELECT alias2.b FROM t2 AS alias2 JOIN t2 AS alias1 ON (alias2.c = alias1.c)
+);
+DROP TABLE t1, t2;
+#
+# Bug#30060691 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' IN
+#              TEMPTABLE::HANDLER::POSITION()
+#
+CREATE TABLE c (
+col_int INTEGER,
+col_varchar VARCHAR(1) ,
+col_varchar_key VARCHAR(1));
+CREATE TABLE bb (
+pk INTEGER auto_increment,
+col_int_key INTEGER,
+col_varchar VARCHAR(1),
+col_varchar_key VARCHAR(1),
+PRIMARY KEY (pk));
+CREATE TABLE cc (
+col_varchar_key VARCHAR(1),
+INDEX idx (col_varchar_key));
+INSERT INTO bb VALUES (DEFAULT, 41509313, 'S', 'W');
+INSERT INTO c VALUES
+(-792274908, 'P', 'r'),
+(281391051, 'w', 'x'),
+(-1381986093, 'l', '2'),
+(-78303180, 'f', 'Q'),
+(1027797776, 'w', 'G'),
+(-1361294690, 'm', 'L'),
+(65604698, '7', 'Y'),
+(-964881813, 'j', 'F'),
+(1831120981, 'q', 'q'),
+(-573388832, 'F', 'M'),
+(571640392, '1', 'R'),
+(857813414, 'y', 'l'),
+(555892383, 'x', 'P'),
+(601556555, 'z', 'k'),
+(-578249624, 'N', 'e'),
+(-843749952, '4', 'J'),
+(2058477272, '4', 'R'),
+(-1732353317, 'C', 'Z'),
+(-1639317818, '9', 'f'),
+(19700948, 'K', 'V');
+INSERT INTO cc VALUES
+('b'), ('E'), ('v'), ('4'), ('L'), ('g'), ('i'), ('D'), ('S'), ('s'), ('4'),
+('5'), ('4'), ('y'), ('v'), ('Z'), ('O'), ('2'), ('v'), ('5');
+ANALYZE TABLE c, bb, cc;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+test.bb	analyze	status	OK
+test.cc	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT *
+FROM
+cc AS alias1
+LEFT JOIN (
+(
+bb AS alias2
+INNER JOIN (SELECT DISTINCT sq1_alias1.* FROM bb AS sq1_alias1)
+AS alias3 ON alias3.col_int_key = alias2.col_int_key
+)
+) ON alias3.col_varchar_key = alias2.col_varchar_key
+WHERE
+alias1.col_varchar_key
+IN (
+SELECT
+sq2_alias1.col_varchar AS sq2_field1
+FROM
+c AS sq2_alias1
+WHERE
+sq2_alias1.col_varchar_key != alias2.col_varchar
+AND sq2_alias1.col_int > alias2.pk
+);
+EXPLAIN
+-> Remove duplicate (alias2, alias3, alias1) rows using temporary table (weedout)
+    -> Nested loop inner join
+        -> Filter: ((sq2_alias1.col_int > alias2.pk) and (sq2_alias1.col_varchar_key <> alias2.col_varchar))
+            -> Inner hash join
+                -> Filter: (sq2_alias1.col_varchar is not null)  (cost=0.43 rows=6)
+                    -> Table scan on sq2_alias1  (cost=0.43 rows=20)
+                -> Hash
+                    -> Nested loop inner join
+                        -> Table scan on alias2  (cost=0.35 rows=1)
+                        -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)
+                            -> Materialize
+                                -> Table scan on sq1_alias1  (cost=0.35 rows=1)
+        -> Index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.alias2.col_varchar' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.alias2.pk' of SELECT #3 was resolved in SELECT #1
+# We only want to see that the query does not hit an assertion, so ignore
+# the results.
+SELECT *
+FROM
+cc AS alias1
+LEFT JOIN (
+(
+bb AS alias2
+INNER JOIN (SELECT DISTINCT sq1_alias1.* FROM bb AS sq1_alias1)
+AS alias3 ON alias3.col_int_key = alias2.col_int_key
+)
+) ON alias3.col_varchar_key = alias2.col_varchar_key
+WHERE
+alias1.col_varchar_key
+IN (
+SELECT
+sq2_alias1.col_varchar AS sq2_field1
+FROM
+c AS sq2_alias1
+WHERE
+sq2_alias1.col_varchar_key != alias2.col_varchar
+AND sq2_alias1.col_int > alias2.pk
+);
+DROP TABLE bb, c, cc;
+#
+# Bug#30049217 ASSERTION FAILURE AT
+#              TEMPTABLE::HANDLER::POSITION|SRC/HANDLER.CC
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES
+(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+CREATE TABLE t2 (c2 INT, c3 INT, KEY (c3));
+INSERT INTO t2 VALUES
+(1,-823867270),
+(19,1130654803),
+(20,1299270309);
+CREATE TABLE t3 (c4 INT);
+INSERT INTO t3 VALUES (1);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT *
+FROM ((SELECT DISTINCT * FROM t2) AS alias2 JOIN t3 ON (t3.c4 = alias2.c2))
+WHERE (EXISTS (SELECT * FROM (t1 LEFT JOIN (t3 JOIN t2 ON (t2.c3 = t3.c4)) ON
+(1))))
+AND alias2.c3 < 19;
+c2	c3	c4
+1	-823867270	1
+DROP TABLE t1, t2, t3;
+#
+# Bug#30153695 ASSERTION SIG6 TEMPTABLE::HANDLER::POSITION
+#              SRC/HANDLER.CC:715
+#
+CREATE TABLE c (
+col_date date,
+col_datetime_key datetime,
+col_varchar_key varchar (1),
+col_varchar varchar (1),
+col_date_key date,
+col_int_key int,
+col_time time,
+col_time_key time,
+col_int int,
+pk integer auto_increment,
+col_datetime datetime,
+key (col_datetime_key ),
+key (col_varchar_key ),
+key (col_date_key ),
+key (col_int_key ),
+key (col_time_key ),
+primary key (pk)) ENGINE=innodb;
+INSERT IGNORE INTO c VALUES
+('2001-07-23', '2004-12-11', 'k', 's', NULL, 7, '2004-11-12', '2000-03-18', 3,
+NULL, NULL),
+(NULL, NULL, 's', 'j', NULL, 6, NULL, '2005', 1, NULL, NULL),
+('2006-07-02', NULL, 'w', 'y', NULL, 2, '04:35:59.017853', '2002', 7, NULL,
+'2004-09-04 21:23:05.023144'),
+(NULL, '2009-02-16 21:37:23.010045', 'w', 'o', '2005-05-25', NULL, NULL,
+'04:32:06.000870', 9, NULL, '2004'),
+(NULL, NULL, 'y', 'k', '2002-12-15', 81, NULL, '2009-03-14', 3, NULL, NULL),
+(NULL, '2005', 'x', 's', '2004-07-12', 9, NULL, NULL, 7, NULL, '2009'),
+('2003', '2000-11-08', 'd', 'h', '2002-09-25', 8, NULL, '2002', NULL, NULL,
+'2004'),
+('2000', '2008-01-08 20:49:13.011386', 't', 'w', '2000-12-11', 6,
+'18:31:35.007025', '19:28:20.040544', 4, NULL, '2005-03-13'),
+('2006-10-04', '2000-12-16', 'i', 'f', NULL, 3, '2008', NULL, 5, NULL,
+'2003-12-03 13:55:06.040156'),
+('2009-07-26', '2009-11-22 07:59:12.037926', 'o', 'n', '2004-07-23', 4,
+'2005', '12:00:51.020344', 5, NULL, '2006'),
+('2009-02-25', NULL, 'm', NULL, '2003', NULL, '2000', '2002-07-28', 1, NULL,
+'2004-06-26'),
+('2008-01-11', '2001-05-27', 'c', 'w', '2001-11-21', 4, '2004-07-23',
+'2005-07-19', 3, NULL, '2001'),
+('2009', NULL, 'x', NULL, NULL, 6, '2006-10-03', NULL, 1, NULL, '2009-12-03'),
+('2008-09-22', '2008-08-09 11:16:52.037869', 'r', 'c', '2008-01-23', 3, NULL,
+NULL, 6, NULL, '2008'),
+('2007-01-21', NULL, 'u', 'u', '2008', 5, '2003-07-15', '07:04:43.054922',
+NULL, NULL, NULL),
+('2009-06-15', '2004-01-25', 'x', NULL, NULL, 189, '2008', '2000-06-14', 1,
+NULL, NULL),
+('2005', '2008-03-22', NULL, 'g', '2008', 1, '20:53:08.022885', '2006', 3,
+NULL, '2009-04-06 15:24:52.051014'),
+('2002', '2003-07-10 12:29:23.023649', 'g', 'u', '2000-10-16', 9, '2003',
+'2006', 9, NULL, NULL),
+('2005-10-23', NULL, 's', 'x', '2005', 9, '2008-07-09', '2001-08-12', 8, NULL,
+NULL),
+('2005', NULL, 'g', 'm', '2000-01-03', 9, '2008', NULL, 1, NULL,
+'2001-01-21');
+Warnings:
+Warning	1265	Data truncated for column 'col_time' at row 1
+Warning	1265	Data truncated for column 'col_time_key' at row 1
+Warning	1265	Data truncated for column 'col_datetime' at row 4
+Warning	1265	Data truncated for column 'col_time_key' at row 5
+Warning	1265	Data truncated for column 'col_datetime_key' at row 6
+Warning	1265	Data truncated for column 'col_datetime' at row 6
+Warning	1265	Data truncated for column 'col_date' at row 7
+Warning	1265	Data truncated for column 'col_datetime' at row 7
+Warning	1265	Data truncated for column 'col_date' at row 8
+Warning	1265	Data truncated for column 'col_datetime' at row 10
+Warning	1265	Data truncated for column 'col_date_key' at row 11
+Warning	1265	Data truncated for column 'col_time_key' at row 11
+Warning	1265	Data truncated for column 'col_time' at row 12
+Warning	1265	Data truncated for column 'col_time_key' at row 12
+Warning	1265	Data truncated for column 'col_datetime' at row 12
+Warning	1265	Data truncated for column 'col_date' at row 13
+Warning	1265	Data truncated for column 'col_time' at row 13
+Warning	1265	Data truncated for column 'col_datetime' at row 14
+Warning	1265	Data truncated for column 'col_date_key' at row 15
+Warning	1265	Data truncated for column 'col_time' at row 15
+Warning	1265	Data truncated for column 'col_time_key' at row 16
+Warning	1265	Data truncated for column 'col_date' at row 17
+Warning	1265	Data truncated for column 'col_date_key' at row 17
+Warning	1265	Data truncated for column 'col_date' at row 18
+Warning	1265	Data truncated for column 'col_date_key' at row 19
+Warning	1265	Data truncated for column 'col_time' at row 19
+Warning	1265	Data truncated for column 'col_time_key' at row 19
+Warning	1265	Data truncated for column 'col_date' at row 20
+CREATE TABLE cc (
+col_date date,
+col_int int,
+col_int_key int,
+col_varchar_key varchar (1),
+col_datetime_key datetime,
+col_datetime datetime,
+pk integer auto_increment,
+col_varchar varchar (1),
+col_time_key time,
+col_time time,
+col_date_key date,
+key (col_int_key ),
+key (col_varchar_key ),
+key (col_datetime_key ),
+primary key (pk),
+key (col_time_key ),
+key (col_date_key )) ENGINE=innodb;
+ALTER TABLE cc DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 'cc' doesn't have this option
+INSERT IGNORE  INTO cc VALUES
+('2006-06-04', 3, 0, 'y', '2006-04-12 00:44:48.055959', NULL, NULL, 'l',
+'2005-01-10', '2004', '2004-07-14'),
+('2008', 6, 8, NULL, '2006-10-23', NULL, NULL, 'a', NULL, NULL, '2000-04-26'),
+('2009-06-11', NULL, 9, 'w', '2008', '2005', NULL, 'q', '04:42:05.061538',
+'2004-08-18', NULL),
+('2007-03-01', 4, 7, 'f', NULL, '2000-10-06 15:26:40.040137', NULL, 'd',
+'2008', '2006-11-17', '2006'),
+('2001-02-08', 4, 210, 'j', '2003-11-14 04:26:34.047333', NULL, NULL, 'h',
+'06:13:13.012974', '02:20:21.050151', '2006-08-20'),
+('2000', 9, 5, 'b', '2006-12-16', NULL, NULL, 'z', '2000-09-09', '2007-06-15',
+'2008'),
+(NULL, 1, 6, 'z', '2007-12-10 00:57:04.007939', NULL, NULL, 'i', '2002-02-11',
+'2004', '2006-08-08'),
+('2007', NULL, 1, 'w', '2007-09-03 21:11:14.028959', '2009', NULL, 'n',
+'2009-05-03', '2005-06-23', NULL),
+(NULL, 4, NULL, 'f', '2007-04-12', NULL, NULL, 'f', '2007-12-01', '2006',
+'2000-05-11'),
+('2008', 7, 1, 's', NULL, NULL, NULL, 'o', '2002', '2003', '2009-12-03'),
+(NULL, 5, 62, 'i', '2009-10-06 12:22:10.055548', '2003', NULL, 'p', NULL,
+NULL, '2006-02-03'),
+('2006-02-10', 4, 9, 'g', NULL, '2000-07-26 23:20:24.031805', NULL, 'c',
+'2007-12-12', '2002', '2003'),
+('2000', 5, 0, 'j', '2000-02-23', '2000', NULL, 'a', '2005', '2000-04-15',
+'2000-09-19'),
+(NULL, 2, 9, 'q', '2003-12-24', NULL, NULL, NULL, NULL, '2000', '2008-05-23'),
+(NULL, 9, NULL, 'i', '2003-10-22 02:03:47.003490', '2006-01-03', NULL, 'b',
+NULL, '2003', '2008-01-21'),
+('2008-06-09', 9, 0, 'a', '2000', NULL, NULL, 'c', '21:15:46.049912', '2001',
+NULL),
+('2000', 2, 8, NULL, '2009-11-27', NULL, NULL, NULL, '2004-05-08',
+'12:30:30.041709', '2005-12-01'),
+('2009-03-27', 3, 0, 'l', '2009', '2009', NULL, 'a', NULL, '04:16:53.049190',
+NULL),
+('2008-08-26', 114, 3, 'o', '2008-03-06', NULL, NULL, 'k', '07:26:47.018798',
+'2002-08-17', '2004-09-07'),
+(NULL, 8, 7, 'm', '2007-12-28 23:49:04.022501', '2005-04-08', NULL, 't',
+'2000-11-12', '22:19:29.060590', '2005-09-20');
+Warnings:
+Warning	1265	Data truncated for column 'col_time_key' at row 1
+Warning	1265	Data truncated for column 'col_date' at row 2
+Warning	1265	Data truncated for column 'col_datetime_key' at row 3
+Warning	1265	Data truncated for column 'col_datetime' at row 3
+Warning	1265	Data truncated for column 'col_time' at row 3
+Warning	1265	Data truncated for column 'col_time' at row 4
+Warning	1265	Data truncated for column 'col_date_key' at row 4
+Warning	1265	Data truncated for column 'col_date' at row 6
+Warning	1265	Data truncated for column 'col_time_key' at row 6
+Warning	1265	Data truncated for column 'col_time' at row 6
+Warning	1265	Data truncated for column 'col_date_key' at row 6
+Warning	1265	Data truncated for column 'col_time_key' at row 7
+Warning	1265	Data truncated for column 'col_date' at row 8
+Warning	1265	Data truncated for column 'col_datetime' at row 8
+Warning	1265	Data truncated for column 'col_time_key' at row 8
+Warning	1265	Data truncated for column 'col_time' at row 8
+Warning	1265	Data truncated for column 'col_time_key' at row 9
+Warning	1265	Data truncated for column 'col_date' at row 10
+Warning	1265	Data truncated for column 'col_datetime' at row 11
+Warning	1265	Data truncated for column 'col_time_key' at row 12
+Warning	1265	Data truncated for column 'col_date_key' at row 12
+Warning	1265	Data truncated for column 'col_date' at row 13
+Warning	1265	Data truncated for column 'col_datetime' at row 13
+Warning	1265	Data truncated for column 'col_time' at row 13
+Warning	1265	Data truncated for column 'col_datetime_key' at row 16
+Warning	1265	Data truncated for column 'col_date' at row 17
+Warning	1265	Data truncated for column 'col_time_key' at row 17
+Warning	1265	Data truncated for column 'col_datetime_key' at row 18
+Warning	1265	Data truncated for column 'col_datetime' at row 18
+Warning	1265	Data truncated for column 'col_time' at row 19
+Warning	1265	Data truncated for column 'col_time_key' at row 20
+ALTER TABLE cc ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 'cc' doesn't have this option
+ANALYZE TABLE c, cc;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
+test.cc	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT
+alias1.pk AS field1
+FROM
+(
+SELECT
+sq1_alias2.*
+FROM
+cc AS sq1_alias1
+RIGHT JOIN cc AS sq1_alias2 ON
+sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key
+LIMIT
+100
+)
+AS alias1
+WHERE
+alias1.col_varchar_key
+IN (
+SELECT
+sq2_alias1.col_varchar_key AS sq2_field1
+FROM
+(cc AS sq2_alias1, c AS sq2_alias2)
+WHERE
+sq2_alias1.col_varchar_key != alias1.col_varchar
+)
+GROUP BY
+field1
+HAVING
+field1 != 'pg'
+ORDER BY
+alias1.col_int_key DESC, field1
+LIMIT 2 OFFSET 2;
+EXPLAIN
+-> Limit/Offset: 2/2 row(s)
+    -> Sort: <temporary>.col_int_key DESC, <temporary>.pk
+        -> Filter: (field1 <> 0)
+            -> Table scan on <temporary>
+                -> Temporary table with deduplication
+                    -> Remove duplicate alias1 rows using temporary table (weedout)
+                        -> Inner hash join
+                            -> Index scan on sq2_alias2 using col_date_key  (cost=1.93 rows=20)
+                            -> Hash
+                                -> Nested loop inner join
+                                    -> Filter: (sq2_alias1.col_varchar_key is not null)  (cost=2.25 rows=20)
+                                        -> Index scan on sq2_alias1 using col_varchar_key  (cost=2.25 rows=20)
+                                    -> Filter: (sq2_alias1.col_varchar_key <> alias1.col_varchar)
+                                        -> Index lookup on alias1 using <auto_key0> (col_varchar_key=sq2_alias1.col_varchar_key)
+                                            -> Materialize
+                                                -> Limit: 100 row(s)
+                                                    -> Nested loop left join  (cost=9.92 rows=27)
+                                                        -> Table scan on sq1_alias2  (cost=2.25 rows=20)
+                                                        -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
+Warning	1292	Truncated incorrect DOUBLE value: 'pg'
+SELECT
+alias1.pk AS field1
+FROM
+(
+SELECT
+sq1_alias2.*
+FROM
+cc AS sq1_alias1
+RIGHT JOIN cc AS sq1_alias2 ON
+sq1_alias2.col_varchar_key = sq1_alias1.col_varchar_key
+LIMIT
+100
+)
+AS alias1
+WHERE
+alias1.col_varchar_key
+IN (
+SELECT
+sq2_alias1.col_varchar_key AS sq2_field1
+FROM
+(cc AS sq2_alias1, c AS sq2_alias2)
+WHERE
+sq2_alias1.col_varchar_key != alias1.col_varchar
+)
+GROUP BY
+field1
+HAVING
+field1 != 'pg'
+ORDER BY
+alias1.col_int_key DESC, field1
+LIMIT 2 OFFSET 2;
+field1
+3
+12
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'pg'
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime_key' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime_key' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date_key' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date_key' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date_key' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date_key' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime_key' at row 1
+Warning	1292	Incorrect date value: '0000-00-00' for column 'col_date' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime_key' at row 1
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'col_datetime' at row 1
+DROP TABLE c, cc;
+#
+# Bug#30119783 SIG11 IN
+#   HASH_JOIN_BUFFER::STOREFROMTABLEBUFFERS|SQL/HASH_JOIN_BUFFER.CC
+#
+CREATE TABLE b(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
+CREATE TABLE cc(pk INT PRIMARY KEY, col_varchar VARCHAR(1));
+INSERT INTO b VALUES (1, '4');
+INSERT INTO cc VALUES (1, 'c'), (2, 'c');
+EXPLAIN FORMAT=tree SELECT
+table1.col_varchar
+FROM
+(
+SELECT
+subquery1_t1.*
+FROM
+b AS subquery1_t1
+INNER JOIN cc AS subquery1_t2 ON
+subquery1_t1.col_varchar = subquery1_t2.col_varchar
+)
+AS table1
+LEFT JOIN (
+SELECT
+col_varchar
+FROM
+cc AS subquery2_t1
+GROUP BY
+subquery2_t1.col_varchar
+)
+AS table2 ON
+table2.col_varchar = table1.col_varchar
+AND table1.col_varchar
+IN (
+SELECT
+lower(subquery3_t1.pk) AS subquery3_field1
+FROM
+b AS subquery3_t1
+);
+EXPLAIN
+-> Remove duplicate (subquery1_t1, table2, subquery1_t2) rows using temporary table (weedout)
+    -> Inner hash join (subquery1_t2.col_varchar = subquery1_t1.col_varchar)
+        -> Table scan on subquery1_t2  (cost=0.18 rows=2)
+        -> Hash
+            -> Nested loop left join
+                -> Table scan on subquery1_t1  (cost=0.35 rows=1)
+                -> Nested loop inner join
+                    -> Filter: (subquery1_t1.col_varchar = lower(subquery3_t1.pk))  (cost=0.35 rows=1)
+                        -> Index scan on subquery3_t1 using PRIMARY  (cost=0.35 rows=1)
+                    -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+                        -> Materialize
+                            -> Table scan on <temporary>
+                                -> Temporary table with deduplication
+                                    -> Table scan on subquery2_t1  (cost=0.45 rows=2)
+
+SELECT
+table1.col_varchar
+FROM
+(
+SELECT
+subquery1_t1.*
+FROM
+b AS subquery1_t1
+INNER JOIN cc AS subquery1_t2 ON
+subquery1_t1.col_varchar = subquery1_t2.col_varchar
+)
+AS table1
+LEFT JOIN (
+SELECT
+col_varchar
+FROM
+cc AS subquery2_t1
+GROUP BY
+subquery2_t1.col_varchar
+)
+AS table2 ON
+table2.col_varchar = table1.col_varchar
+AND table1.col_varchar
+IN (
+SELECT
+lower(subquery3_t1.pk) AS subquery3_field1
+FROM
+b AS subquery3_t1
+);
+col_varchar
+DROP TABLE b, cc;
+#
+# Bug#30049083 [REGRESSION]REPLACE/INSERT WITH LIMIT TAKING MORE TIME AND
+#              SPACE
+#
+# If the query has a LIMIT, the hash join should not spill to disk. Note
+# that if the query contains either grouping or sorting, we allow spill
+# to disk even if the query contains a LIMIT.
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1;
+CREATE TABLE t2 SELECT col1 FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+SET join_buffer_size = 2048;
+# This should spill to disk since we do not have any LIMIT.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+# This should NOT spill to disk since we have a LIMIT.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 1;
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+0
+# This should spill to disk since we have sorting.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1 ORDER BY t1.col1 LIMIT 1;
+col1	col1
+1	1
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+# This should spill to disk since we have (implicit) grouping.
+TRUNCATE performance_schema.file_summary_by_event_name;
+SELECT SUM(t1.col1) FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 10;
+SUM(t1.col1)
+131328
+SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+WHERE event_name LIKE '%hash_join%';
+COUNT_STAR > 0
+1
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1,t2;
+#
+# Bug#30214767 SIG11 AT QUICK_INDEX_MERGE_SELECT::GET_NEXT |
+#              SQL/OPT_RANGE.CC
+#
+# Set up a query with hash join, where the build input uses an index
+# range scan with index merge sort-union. Also, a LIMIT greater than
+# the number of rows satisfying the join condition is needed to
+# reproduce the bug. What we want to achieve is to get the hash join
+# to call Read() on the build input after it has returned EOF. This can
+# be triggered by using LIMIT, as this causes the hash join to go back
+# and read from the build input after the probe iterator has returned
+# EOF (see comment on HashJoinIterator regarding spill to disk and LIMIT
+# for more details around this).
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (
+col1 INTEGER,
+col2 INTEGER,
+col3 INTEGER,
+INDEX idx_a (col2),
+INDEX idx_b (col3));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1, 1, 1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
+FROM t1
+JOIN t2 ON t1.col1 = t2.col1
+WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
+EXPLAIN
+-> Limit: 10 row(s)
+    -> Inner hash join (t1.col1 = t2.col1)  (cost=1.86 rows=1)
+        -> Table scan on t1  (cost=0.35 rows=1)
+        -> Hash
+            -> Filter: ((t2.col2 > 0) or (t2.col3 > 0))  (cost=1.51 rows=1)
+                -> Index range scan on t2 using sort_union(idx_a,idx_b)  (cost=1.51 rows=1)
+
+SELECT /*+ JOIN_ORDER(t2, t1) INDEX_MERGE(t2) */ t1.col1
+FROM t1
+JOIN t2 ON t1.col1 = t2.col1
+WHERE t2.col2 > 0 OR t2.col3 > 0 LIMIT 10;
+col1
+1
+DROP TABLE t1, t2;
+#
+# Bug#30224582 ASSERTION `M_INDEX_CURSOR.IS_POSITIONED()' FAILED
+#
+# Set up a query where the hash join build input consists of a
+# materialized table, where we do an index lookup on the materialized
+# table. The LIMIT is also needed in order to trigger a second build
+# phase in the hash join.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+EXPLAIN FORMAT=tree SELECT /*+ JOIN_ORDER(table1, t2) */
+*
+FROM
+(
+SELECT
+DISTINCT t1.*
+FROM
+t1
+) AS table1 JOIN t2
+WHERE table1.col1 = 1
+LIMIT 50;
+EXPLAIN
+-> Limit: 50 row(s)
+    -> Inner hash join
+        -> Table scan on t2  (cost=0.35 rows=1)
+        -> Hash
+            -> Index lookup on table1 using <auto_key0> (col1=1)
+                -> Materialize
+                    -> Table scan on <temporary>
+                        -> Temporary table with deduplication
+                            -> Table scan on t1  (cost=0.35 rows=1)
+
+SELECT /*+ JOIN_ORDER(table1, t2) */
+*
+FROM
+(
+SELECT
+DISTINCT t1.*
+FROM
+t1
+) AS table1 JOIN t2
+WHERE table1.col1 = 1
+LIMIT 50;
+col1	col1
+1	1
+DROP TABLE t1, t2;

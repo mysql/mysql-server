@@ -1,15 +1,14 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/XmlWire", ["dijit","dojo","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"], function(dijit,dojo,dojox){
+define("dojox/wire/XmlWire", ["dojo","dijit","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.XmlWire");
 
 dojo.require("dojox.xml.parser");
 dojo.require("dojox.wire.Wire");
 
 dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
-	//	summary:
+	// summary:
 	//		A Wire for XML nodes or values (element, attribute and text)
-	//	description:
+	// description:
 	//		This class accesses XML nodes or value with a simplified XPath
 	//		specified to 'path' property.
 	//		The root object for this class must be an DOM document or element
@@ -24,19 +23,19 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	_wireClass: "dojox.wire.XmlWire",
 	
 	constructor: function(/*Object*/args){
-		//	summary:
+		// summary:
 		//		Initialize properties
-		//	description:
+		// description:
 		//		'args' is just mixed in with no further processing.
-		//	args:
-		//		Arguments to initialize properties
-		//		path:
-		//			A simplified XPath to an attribute, a text or elements
+		// args:
+		//		Arguments to initialize properties:
+		//
+		//		- path: A simplified XPath to an attribute, a text or elements
 	},
 	_getValue: function(/*Node*/object){
-		//	summary:
+		// summary:
 		//		Return an attribute value, a text value or an array of elements
-		//	description:
+		// description:
 		//		This method first uses a root node passed in 'object' argument
 		//		and 'path' property to identify an attribute, a text or
 		//		elements.
@@ -45,9 +44,9 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 		//		(That is, "/a/b/@c" and "b/@c" against a root node access
 		//		the same attribute value, assuming the root node is an element
 		//		with a tag name, "a".)
-		//	object:
+		// object:
 		//		A root node
-		//	returns:
+		// returns:
 		//		A value found, otherwise 'undefined'
 		if(!object || !this.path){
 			return object; //Node
@@ -74,9 +73,9 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	},
 
 	_setValue: function(/*Node*/object, /*String*/value){
-		//	summary:
+		// summary:
 		//		Set an attribute value or a child text value to an element
-		//	description:
+		// description:
 		//		This method first uses a root node passed in 'object' argument
 		//		and 'path' property to identify an attribute, a text or
 		//		elements.
@@ -85,9 +84,9 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 		//		node of the current node.
 		//		Finally, 'value' argument is set to an attribute or a text
 		//		(a child node) of the leaf element.
-		//	object:
+		// object:
 		//		A root node
-		//	value:
+		// value:
 		//		A value to set
 		if(!this.path){
 			return object; //Node
@@ -127,19 +126,19 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	},
 
 	_getNodeValue: function(/*Node*/node, /*String*/exp){
-		//	summary:
+		// summary:
 		//		Return an attribute value, a text value or an array of elements
-		//	description:
+		// description:
 		//		If 'exp' starts with '@', an attribute value of the specified
 		//		attribute is returned.
 		//		If 'exp' is "text()", a child text value is returned.
 		//		Otherwise, an array of child elements, the tag name of which
 		//		match 'exp', is returned.
-		//	node:
+		// node:
 		//		A node
-		//	exp:
+		// exp:
 		//		An expression for attribute, text or elements
-		//	returns:
+		// returns:
 		//		A value found, otherwise 'undefined'
 		var value = undefined;
 		if(exp.charAt(0) == '@'){
@@ -163,17 +162,17 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	},
 
 	_setNodeValue: function(/*Node*/node, /*String*/exp, /*String*/value){
-		//	summary:
+		// summary:
 		//		Set an attribute value or a child text value to an element
-		//	description:
+		// description:
 		//		If 'exp' starts with '@', 'value' is set to the specified
 		//		attribute.
 		//		If 'exp' is "text()", 'value' is set to a child text.
-		//	node:
+		// node:
 		//		A node
-		//	exp:
+		// exp:
 		//		An expression for attribute or text
-		//	value:
+		// value:
 		//		A value to set
 		if(exp.charAt(0) == '@'){
 			var attribute = exp.substring(1);
@@ -195,18 +194,18 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	},
 
 	_getChildNode: function(/*Node*/node, /*String*/name){
-		//	summary:
+		// summary:
 		//		Return a child node
-		//	description:
+		// description:
 		//		A child element of the tag name specified with 'name' is
 		//		returned.
 		//		If 'name' ends with an array index, it is used to pick up
 		//		the corresponding element from multiple child elements.
-		//	node:
+		// node:
 		//		A parent node
-		//	name:
+		// name:
 		//		A tag name
-		//	returns:
+		// returns:
 		//		A child node
 		var index = 1;
 		var i1 = name.indexOf('[');
@@ -229,12 +228,12 @@ dojo.declare("dojox.wire.XmlWire", dojox.wire.Wire, {
 	},
 
 	_getDocument: function(/*Node*/node){
-		//	summary:
+		// summary:
 		//		Return a DOM document
-		//	description:
+		// description:
 		//		If 'node' is specified, a DOM document of the node is returned.
 		//		Otherwise, a DOM document is created.
-		//	returns:
+		// returns:
 		//		A DOM document
 		if(node){
 			return (node.nodeType == 9 /* DOCUMENT_NODE */ ? node : node.ownerDocument); //Document

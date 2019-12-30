@@ -10,6 +10,10 @@
 	width: 180px;
 	overflow: hidden;
 }
+.dj_ie6 .dojoxCalendarContainer {
+	width: auto;
+	position: relative;
+}
 .dojoxCalendarBody {
 	height: 138px;
 	overflow: hidden;

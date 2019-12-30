@@ -156,8 +156,8 @@ class Stored_routine_creation_ctx : public Stored_program_creation_ctx {
 
  protected:
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const {
-    DBUG_ENTER("Stored_routine_creation_ctx::create_backup_ctx");
-    DBUG_RETURN(new (thd->mem_root) Stored_routine_creation_ctx(thd));
+    DBUG_TRACE;
+    return new (thd->mem_root) Stored_routine_creation_ctx(thd);
   }
 
   virtual void delete_backup_ctx() { destroy(this); }

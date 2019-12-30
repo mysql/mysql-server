@@ -1572,8 +1572,6 @@ void Log_DDL::replay_free_tree_log(space_id_t space_id, page_no_t page_no,
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }
 
-extern ib_mutex_t master_key_id_mutex;
-
 void Log_DDL::replay_delete_space_log(space_id_t space_id,
                                       const char *file_path) {
   THD *thd = current_thd;
@@ -1607,10 +1605,8 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     mutex_exit(&dict_sys->mutex);
   }
 
-  /* Require the mutex to block key rotation. Please note that
-  here we don't know if this tablespace is encrypted or not,
-  so just acquire the mutex unconditionally. */
-  mutex_enter(&master_key_id_mutex);
+  /* A master key rotation blocks all DDLs using backup_lock, so it is assured
+  that during CREATE/DROP TABLE, master key will not change. */
 
   DBUG_EXECUTE_IF("ddl_log_replay_delete_space_crash_before_drop",
                   DBUG_SUICIDE(););
@@ -1624,8 +1620,6 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     undo::unuse_space_id(space_id);
     undo::spaces->x_unlock();
   }
-
-  mutex_exit(&master_key_id_mutex);
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }

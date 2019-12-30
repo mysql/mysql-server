@@ -1,4 +1,3 @@
-//>>built
 define("dojox/xml/DomParser", [
 	"dojo/_base/kernel",// dojo.getObject
 	"dojo/_base/array"	// dojo.forEach

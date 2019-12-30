@@ -41,21 +41,21 @@ set ndb_join_pushdown = off;
 # Use 'replace_column' to eliminate explained 'rows' which are unreliable
 --replace_column 10 ### 11 ###
 explain
-  select straight_join * 
+  select straight_join count(*)
   from parent join child
   on child.a = parent.a and child.b = parent.b
   where parent.b > 5;
 
 --replace_column 10 ### 11 ###
 explain
-  select straight_join *
+  select straight_join count(*)
   from parent join child
   on child.a = parent.a 
   where parent.b > 5;
 
 --replace_column 10 ### 11 ###
 explain
-  select straight_join *
+  select straight_join count(*)
   from parent join child
   on child.b = parent.b 
   where parent.b > 5;
@@ -68,7 +68,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join * 
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;
@@ -81,7 +81,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join * 
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;
@@ -94,7 +94,7 @@ begin
   set @x=time_to_sec(current_time()) + seconds;
   repeat
     set ndb_join_pushdown = off;
-    select straight_join *
+    select straight_join count(*)
     from parent join child
     on child.a = parent.a and child.b = parent.b
     where parent.b > 5;

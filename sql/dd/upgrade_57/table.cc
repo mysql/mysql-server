@@ -195,7 +195,7 @@ class Trigger_loader {
 
 static const int TRG_NUM_REQUIRED_PARAMETERS = 8;
 
-const LEX_STRING trg_file_type = {C_STRING_WITH_LEN("TRIGGERS")};
+const LEX_CSTRING trg_file_type = {STRING_WITH_LEN("TRIGGERS")};
 
 /**
   Structure representing contents of .TRG file.
@@ -229,31 +229,31 @@ struct Trg_file_data {
 */
 
 static File_option trg_file_parameters[] = {
-    {{C_STRING_WITH_LEN("triggers")},
+    {{STRING_WITH_LEN("triggers")},
      my_offsetof_upgrade(struct Trg_file_data, definitions),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("sql_modes")},
+    {{STRING_WITH_LEN("sql_modes")},
      my_offsetof_upgrade(struct Trg_file_data, sql_modes),
      FILE_OPTIONS_ULLLIST},
-    {{C_STRING_WITH_LEN("definers")},
+    {{STRING_WITH_LEN("definers")},
      my_offsetof_upgrade(struct Trg_file_data, definers_list),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("client_cs_names")},
+    {{STRING_WITH_LEN("client_cs_names")},
      my_offsetof_upgrade(struct Trg_file_data, client_cs_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("connection_cl_names")},
+    {{STRING_WITH_LEN("connection_cl_names")},
      my_offsetof_upgrade(struct Trg_file_data, connection_cl_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("db_cl_names")},
+    {{STRING_WITH_LEN("db_cl_names")},
      my_offsetof_upgrade(struct Trg_file_data, db_cl_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("created")},
+    {{STRING_WITH_LEN("created")},
      my_offsetof_upgrade(struct Trg_file_data, created_timestamps),
      FILE_OPTIONS_ULLLIST},
     {{0, 0}, 0, FILE_OPTIONS_STRING}};
 
 static File_option sql_modes_parameters = {
-    {C_STRING_WITH_LEN("sql_modes")},
+    {STRING_WITH_LEN("sql_modes")},
     my_offsetof_upgrade(struct Trg_file_data, sql_modes),
     FILE_OPTIONS_ULLLIST};
 
@@ -296,6 +296,10 @@ bool Trigger_loader::trg_file_exists(const char *db_name,
   return true;
 }
 
+static bool is_equal(const LEX_CSTRING &a, const LEX_CSTRING &b) {
+  return a.length == b.length && !strncmp(a.str, b.str, a.length);
+}
+
 /**
   Load table triggers from .TRG file.
 
@@ -314,7 +318,7 @@ bool Trigger_loader::trg_file_exists(const char *db_name,
 bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
                                    const char *db_name, const char *table_name,
                                    List<::Trigger> *triggers) {
-  DBUG_ENTER("Trigger_loader::load_triggers");
+  DBUG_TRACE;
 
   // Construct TRG-file name.
 
@@ -329,11 +333,11 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
   File_parser *parser = sql_parse_prepare(&trg_file_path, mem_root, true);
 
-  if (!parser) DBUG_RETURN(true);
+  if (!parser) return true;
 
-  if (!is_equal(&trg_file_type, parser->type())) {
+  if (!is_equal(trg_file_type, parser->type())) {
     my_error(ER_WRONG_OBJECT, MYF(0), table_name, TRG_EXT + 1, "TRIGGER");
-    DBUG_RETURN(true);
+    return true;
   }
 
   Handle_old_incorrect_sql_modes_hook sql_modes_hook(trg_file_path.str);
@@ -342,7 +346,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
   if (parser->parse((uchar *)&trg, mem_root, trg_file_parameters,
                     TRG_NUM_REQUIRED_PARAMETERS, &sql_modes_hook))
-    DBUG_RETURN(true);
+    return true;
 
   if (trg.definitions.is_empty()) {
     DBUG_ASSERT(trg.sql_modes.is_empty());
@@ -350,7 +354,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     DBUG_ASSERT(trg.client_cs_names.is_empty());
     DBUG_ASSERT(trg.connection_cl_names.is_empty());
     DBUG_ASSERT(trg.db_cl_names.is_empty());
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Make sure character set properties are filled.
@@ -361,7 +365,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
         !trg.connection_cl_names.is_empty() || !trg.db_cl_names.is_empty()) {
       my_error(ER_TRG_CORRUPTED_FILE, MYF(0), db_name, table_name);
 
-      DBUG_RETURN(true);
+      return true;
     }
 
     LogErr(WARNING_LEVEL, ER_TRG_CREATION_CTX_NOT_SET, db_name, table_name);
@@ -442,16 +446,14 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
     // Allocate space to hold username and hostname.
     char *pos = NULL;
-    if (!(pos =
-              static_cast<char *>(alloc_root(mem_root, USERNAME_LENGTH + 1)))) {
+    if (!(pos = static_cast<char *>(mem_root->Alloc(USERNAME_LENGTH + 1)))) {
       LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "User");
       return true;
     }
 
     LEX_STRING definer_user{pos, 0};
 
-    if (!(pos =
-              static_cast<char *>(alloc_root(mem_root, USERNAME_LENGTH + 1)))) {
+    if (!(pos = static_cast<char *>(mem_root->Alloc(USERNAME_LENGTH + 1)))) {
       LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "Host");
       return true;
     }
@@ -506,39 +508,39 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     */
     if (triggers->push_back(t, mem_root)) {
       destroy(t);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
-  /**
-    Trigger BUG#14090 compatibility hook.
+/**
+  Trigger BUG#14090 compatibility hook.
 
-    @param[in,out] unknown_key       reference on the line with unknown
-      parameter and the parsing point
-    @param[in]     base              base address for parameter writing
-      (structure like TABLE)
-    @param[in]     mem_root          MEM_ROOT for parameters allocation
-    @param[in]     end               the end of the configuration
+  @param[in,out] unknown_key       reference on the line with unknown
+    parameter and the parsing point
+  @param[in]     base              base address for parameter writing
+    (structure like TABLE)
+  @param[in]     mem_root          MEM_ROOT for parameters allocation
+  @param[in]     end               the end of the configuration
 
-    @note
-      NOTE: this hook process back compatibility for incorrectly written
-      sql_modes parameter (see BUG#14090).
+  @note
+    NOTE: this hook process back compatibility for incorrectly written
+    sql_modes parameter (see BUG#14090).
 
-    @retval
-      false OK
-    @retval
-      true  Error
-  */
+  @retval
+    false OK
+  @retval
+    true  Error
+*/
 
 #define INVALID_SQL_MODES_LENGTH 13
 
 bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     const char *&unknown_key, uchar *base, MEM_ROOT *mem_root,
     const char *end) {
-  DBUG_ENTER("Handle_old_incorrect_sql_modes_hook::process_unknown_string");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("unknown key: %60s", unknown_key));
 
   if (unknown_key + INVALID_SQL_MODES_LENGTH + 1 < end &&
@@ -550,7 +552,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     LogErr(WARNING_LEVEL, ER_FILE_HAS_OLD_FORMAT, m_path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root)) {
-      DBUG_RETURN(true);
+      return true;
     }
     /*
       Set parsing pointer to the last symbol of string (\n)
@@ -559,7 +561,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     */
     unknown_key = ptr - 1;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -712,40 +714,40 @@ static const int REQUIRED_VIEW_PARAMETERS = 12;
   as it's used by parse().
 */
 static File_option view_parameters[] = {
-    {{C_STRING_WITH_LEN("query")},
+    {{STRING_WITH_LEN("query")},
      my_offsetof_upgrade(TABLE_LIST, select_stmt),
      FILE_OPTIONS_ESTRING},
-    {{C_STRING_WITH_LEN("updatable")},
+    {{STRING_WITH_LEN("updatable")},
      my_offsetof_upgrade(TABLE_LIST, updatable_view),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("algorithm")},
+    {{STRING_WITH_LEN("algorithm")},
      my_offsetof_upgrade(TABLE_LIST, algorithm),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("definer_user")},
+    {{STRING_WITH_LEN("definer_user")},
      my_offsetof_upgrade(TABLE_LIST, definer.user),
      FILE_OPTIONS_STRING},
-    {{C_STRING_WITH_LEN("definer_host")},
+    {{STRING_WITH_LEN("definer_host")},
      my_offsetof_upgrade(TABLE_LIST, definer.host),
      FILE_OPTIONS_STRING},
-    {{C_STRING_WITH_LEN("suid")},
+    {{STRING_WITH_LEN("suid")},
      my_offsetof_upgrade(TABLE_LIST, view_suid),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("with_check_option")},
+    {{STRING_WITH_LEN("with_check_option")},
      my_offsetof_upgrade(TABLE_LIST, with_check),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("timestamp")},
      my_offsetof_upgrade(TABLE_LIST, timestamp),
      FILE_OPTIONS_TIMESTAMP},
-    {{C_STRING_WITH_LEN("source")},
+    {{STRING_WITH_LEN("source")},
      my_offsetof_upgrade(TABLE_LIST, source),
      FILE_OPTIONS_ESTRING},
-    {{(char *)STRING_WITH_LEN("client_cs_name")},
+    {{STRING_WITH_LEN("client_cs_name")},
      my_offsetof_upgrade(TABLE_LIST, view_client_cs_name),
      FILE_OPTIONS_STRING},
-    {{(char *)STRING_WITH_LEN("connection_cl_name")},
+    {{STRING_WITH_LEN("connection_cl_name")},
      my_offsetof_upgrade(TABLE_LIST, view_connection_cl_name),
      FILE_OPTIONS_STRING},
-    {{(char *)STRING_WITH_LEN("view_body_utf8")},
+    {{STRING_WITH_LEN("view_body_utf8")},
      my_offsetof_upgrade(TABLE_LIST, view_body_utf8),
      FILE_OPTIONS_ESTRING},
     {{NullS, 0}, 0, FILE_OPTIONS_STRING}};
@@ -943,11 +945,8 @@ static bool migrate_view_to_dd(THD *thd, const FRM_context &frm_context,
                                const String_type &db_name,
                                const String_type &view_name, MEM_ROOT *mem_root,
                                bool is_fix_view_cols_and_deps) {
-  TABLE_LIST table_list;
-
-  table_list.init_one_table(db_name.c_str(), db_name.length(),
-                            view_name.c_str(), view_name.length(),
-                            view_name.c_str(), TL_READ);
+  TABLE_LIST table_list(db_name.c_str(), db_name.length(), view_name.c_str(),
+                        view_name.length(), view_name.c_str(), TL_READ);
 
   // Initialize timestamp
   table_list.timestamp.str = table_list.timestamp_buffer;
@@ -1463,8 +1462,8 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
                        &was_truncated);
 
   if (was_truncated) {
-    LogErr(ERROR_LEVEL, ER_TABLE_NAME_CAUSES_TOO_LONG_PATH, sizeof(path) - 1,
-           path);
+    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH_IN_UPGRADE,
+           sizeof(path) - 1, path);
     return true;
   }
 
@@ -1786,6 +1785,37 @@ bool migrate_plugin_table_to_dd(THD *thd) {
 }
 
 /**
+  Migration of NDB tables is deferred until later, except for legacy privilege
+  tables stored in NDB, which must be migrated now so that they can be moved to
+  InnoDB later in the upgrade.
+
+  To check whether the table is a NDB table, look for the presence of a
+  table_name.ndb file in the data directory. These files still exist at this
+  point, though they will be permanently removed later in the upgrade.
+*/
+static bool is_skipped_ndb_table(const char *db_name, const char *table_name) {
+  char path[FN_REFLEN];
+  build_table_filename(path, FN_REFLEN - 1, db_name, table_name,
+                       NDB_EXT.c_str(), 0);
+
+  if (access(path, F_OK)) {
+    if (errno == ENOENT) return false;
+  }
+
+  if (strcmp("mysql", db_name) == 0) {
+    if ((strcmp("user", table_name) == 0) || (strcmp("db", table_name) == 0) ||
+        (strcmp("tables_priv", table_name) == 0) ||
+        (strcmp("columns_priv", table_name) == 0) ||
+        (strcmp("procs_priv", table_name) == 0) ||
+        (strcmp("proxies_priv", table_name) == 0)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
   Scan the database to identify all .frm files.
   Triggers existence will be checked only for tables found here.
 */
@@ -1846,6 +1876,9 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
           strcmp(schema_name, PERFORMANCE_SCHEMA_DB_NAME.str) == 0;
 
       if (is_skip_table) continue;
+
+      // Skip NDB tables which are upgraded later by the ndbcluster plugin
+      if (is_skipped_ndb_table(schema_name, table_name)) continue;
 
       log_sink_buffer_check_timeout();
 

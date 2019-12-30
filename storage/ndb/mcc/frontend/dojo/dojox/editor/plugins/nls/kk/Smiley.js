@@ -1,27 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	smiley: "Эмограмма енгізу",
-	emoticonSmile: "күлімсіреу",
-	emoticonLaughing: "күлу",
-	emoticonWink: "көз қысу",
-	emoticonGrin: "ақситу",
-	emoticonCool: "салқын",
-	emoticonAngry: "ашулы",
-	emoticonHalf: "жарты",
-	emoticonEyebrow: "қас",
-	emoticonFrown: "қабағы түйілу",
-	emoticonShy: "ұялшақ",
-	emoticonGoofy: "ақымақ",
-	emoticonOops: "ой",
-	emoticonTongue: "тіл",
-	emoticonIdea: "ой",
-	emoticonYes: "иә",
-	emoticonNo: "ешбір",
-	emoticonAngel: "періште",
-	emoticonCrying: "жылау"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/kk/Smiley",({smiley:"Эмограмма енгізу",emoticonSmile:"күлімсіреу",emoticonLaughing:"күлу",emoticonWink:"кірпік қағу",emoticonGrin:"ақситу",emoticonCool:"байсалды",emoticonAngry:"ашулы",emoticonHalf:"жарты",emoticonEyebrow:"қас",emoticonFrown:"қабағы түйілу",emoticonShy:"ұялшақ",emoticonGoofy:"аңқау",emoticonOops:"ой",emoticonTongue:"тіл",emoticonIdea:"пікір",emoticonYes:"иә",emoticonNo:"жоқ",emoticonAngel:"періште",emoticonCrying:"жылау",emoticonHappy:"бақыт"}));

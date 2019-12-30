@@ -1,4 +1,3 @@
-//>>built
 define("dojox/mobile/_compat", [
 	"dojo/_base/array",	// array.forEach
 	"dojo/_base/config",
@@ -9,6 +8,7 @@ define("dojox/mobile/_compat", [
 	"dojo/_base/window",	// win.doc, win.body
 	"dojo/dom-class",
 	"dojo/dom-construct",
+	"dojo/dom-geometry",
 	"dojo/dom-style",
 	"dojo/fx",
 	"dojo/fx/easing",
@@ -19,58 +19,64 @@ define("dojox/mobile/_compat", [
 	"dojox/fx/flip",
 	"./EdgeToEdgeList",
 	"./IconContainer",
+	"./ProgressIndicator",
 	"./RoundRect",
 	"./RoundRectList",
 	"./ScrollableView",
 	"./Switch",
 	"./View",
 	"require"
-], function(array, config, connect, bfx, lang, has, win, domClass, domConstruct, domStyle, fx, easing, ready, uacss, registry, xfx, flip, EdgeToEdgeList, IconContainer, RoundRect, RoundRectList, ScrollableView, Switch, View, require){
-
-/*=====
-	var EdgeToEdgeList = dojox.mobile.EdgeToEdgeList;
-	var IconContainer = dojox.mobile.IconContainer;
-	var RoundRect = dojox.mobile.RoundRect;
-	var RoundRectList = dojox.mobile.RoundRectList;
-	var ScrollableView = dojox.mobile.ScrollableView;
-	var Switch = dojox.mobile.Switch;
-	var View = dojox.mobile.View;
-=====*/
+], function(array, config, connect, bfx, lang, has, win, domClass, domConstruct, domGeometry, domStyle, fx, easing, ready, uacss, registry, xfx, flip, EdgeToEdgeList, IconContainer, ProgressIndicator, RoundRect, RoundRectList, ScrollableView, Switch, View, require){
 
 	// module:
 	//		dojox/mobile/compat
+
+/*=====
+return {
 	// summary:
-	//		CSS3 compatibility module
+	//		CSS3 compatibility module.
 	// description:
-	//		This module provides support for some of the CSS3 features to dojox.mobile
-	//		for non-CSS3 browsers, such as IE or Firefox.
-	//		If you load this module, it directly replaces some of the methods of
-	//		dojox.mobile instead of subclassing. This way, html pages remains the same
-	//		regardless of whether this compatibility module is used or not.
-	//		Recommended usage is as follows. the code below loads dojox.mobile.compat
-	//		only when isWebKit is true.
+	//		This module provides to dojox/mobile support for some of the CSS3 features 
+	//		in non-CSS3 browsers, such as IE or Firefox.
+	//		If you require this module, when running in a non-CSS3 browser it directly 
+	//		replaces some of the methods of	dojox/mobile classes, without any subclassing. 
+	//		This way, HTML pages remain the same regardless of whether this compatibility 
+	//		module is used or not.
 	//
-	//		dojo.require("dojox.mobile");
-	//		dojo.requireIf(!has("webkit"), "dojox.mobile.compat");
+	//		Example of usage: 
+	//		|	require([
+	//		|		"dojox/mobile",
+	//		|		"dojox/mobile/compat",
+	//		|		...
+	//		|	], function(...){
+	//		|		...
+	//		|	});
 	//
-	//		This module also loads compatibility CSS files, which has -compat.css
-	//		suffix. You can use either the <link> tag or @import to load theme
+	//		This module also loads compatibility CSS files, which have a -compat.css
+	//		suffix. You can use either the `<link>` tag or `@import` to load theme
 	//		CSS files. Then, this module searches for the loaded CSS files and loads
-	//		compatibility CSS files. For example, if you load iphone.css in a page,
-	//		this module automatically loads iphone-compat.css.
-	//		If you explicitly load iphone-compat.css with <link> or @import,
-	//		this module will not load the already loaded file.
+	//		compatibility CSS files. For example, if you load dojox/mobile/themes/iphone/iphone.css
+	//		in a page, this module automatically loads dojox/mobile/themes/iphone/iphone-compat.css.
+	//		If you explicitly load iphone-compat.css with `<link>` or `@import`,
+	//		this module will not load again the already loaded file.
+	//
+	//		Note that, by default, compatibility CSS files are only loaded for CSS files located
+	//		in a directory containing a "mobile/themes" path. For that, a matching is done using 
+	//		the default pattern	"/\/mobile\/themes\/.*\.css$/". If a custom theme is not located 
+	//		in a directory containing this path, the data-dojo-config needs to specify a custom 
+	//		pattern using the "mblLoadCompatPattern" configuration parameter, for instance:
+	//		|	data-dojo-config="mblLoadCompatPattern: /\/mycustomtheme\/.*\.css$/"
+};
+=====*/
 
 	var dm = lang.getObject("dojox.mobile", true);
-	/*=====
-	dm = dojox.mobile
-	=====*/
 
 	if(!has("webkit")){
 		lang.extend(View, {
 			_doTransition: function(fromNode, toNode, transition, dir){
 				var anim;
 				this.wakeUp(toNode);
+				var s1, s2;
 				if(!transition || transition == "none"){
 					toNode.style.display = "";
 					fromNode.style.display = "none";
@@ -78,13 +84,13 @@ define("dojox/mobile/_compat", [
 					this.invokeCallback();
 				}else if(transition == "slide" || transition == "cover" || transition == "reveal"){
 					var w = fromNode.offsetWidth;
-					var s1 = fx.slideTo({
+					s1 = fx.slideTo({
 						node: fromNode,
 						duration: 400,
 						left: -w*dir,
 						top: domStyle.get(fromNode, "top")
 					});
-					var s2 = fx.slideTo({
+					s2 = fx.slideTo({
 						node: toNode,
 						duration: 400,
 						left: 0,
@@ -95,6 +101,7 @@ define("dojox/mobile/_compat", [
 					toNode.style.display = "";
 					anim = fx.combine([s1,s2]);
 					connect.connect(anim, "onEnd", this, function(){
+						if(!this._inProgress){ return; } // transition has been aborted
 						fromNode.style.display = "none";
 						fromNode.style.left = "0px";
 						toNode.style.position = "relative";
@@ -108,13 +115,13 @@ define("dojox/mobile/_compat", [
 					anim.play();
 				}else if(transition == "slidev" || transition == "coverv" || transition == "reavealv"){
 					var h = fromNode.offsetHeight;
-					var s1 = fx.slideTo({
+					s1 = fx.slideTo({
 						node: fromNode,
 						duration: 400,
 						left: 0,
 						top: -h*dir
 					});
-					var s2 = fx.slideTo({
+					s2 = fx.slideTo({
 						node: toNode,
 						duration: 400,
 						left: 0,
@@ -126,6 +133,7 @@ define("dojox/mobile/_compat", [
 					toNode.style.display = "";
 					anim = fx.combine([s1,s2]);
 					connect.connect(anim, "onEnd", this, function(){
+						if(!this._inProgress){ return; } // transition has been aborted
 						fromNode.style.display = "none";
 						toNode.style.position = "relative";
 						this.invokeCallback();
@@ -141,6 +149,7 @@ define("dojox/mobile/_compat", [
 					toNode.style.position = "absolute";
 					toNode.style.left = "0px";
 					connect.connect(anim, "onEnd", this, function(){
+						if(!this._inProgress){ return; } // transition has been aborted
 						fromNode.style.display = "none";
 						toNode.style.position = "relative";
 						toNode.style.display = "";
@@ -164,6 +173,7 @@ define("dojox/mobile/_compat", [
 					toNode.style.display = "";
 					domStyle.set(toNode, "opacity", 0);
 					connect.connect(anim, "onEnd", this, function(){
+						if(!this._inProgress){ return; } // transition has been aborted
 						fromNode.style.display = "none";
 						toNode.style.position = "relative";
 						domStyle.set(fromNode, "opacity", 1);
@@ -171,9 +181,8 @@ define("dojox/mobile/_compat", [
 					});
 					anim.play();
 				}
-				dm.currentView = registry.byNode(toNode);
 			},
-		
+
 			wakeUp: function(/*DomNode*/node){
 				// summary:
 				//		Function to force IE to redraw a node since its layout
@@ -198,7 +207,7 @@ define("dojox/mobile/_compat", [
 			}
 		});	
 
-	
+
 		lang.extend(Switch, {
 			_changeState: function(/*String*/state, /*Boolean*/anim){
 				// summary:
@@ -210,17 +219,17 @@ define("dojox/mobile/_compat", [
 				// tags:
 				//		private
 				var on = (state === "on");
-		
+
 				var pos;
 				if(!on){
 					pos = -this.inner.firstChild.firstChild.offsetWidth;
 				}else{
 					pos = 0;
 				}
-		
+
 				this.left.style.display = "";
 				this.right.style.display = "";
-		
+
 				var _this = this;
 				var f = function(){
 					domClass.remove(_this.domNode, on ? "mblSwitchOff" : "mblSwitchOn");
@@ -228,7 +237,7 @@ define("dojox/mobile/_compat", [
 					_this.left.style.display = on ? "" : "none";
 					_this.right.style.display = !on ? "" : "none";
 				};
-		
+
 				if(anim){
 					var a = fx.slideTo({
 						node: this.inner,
@@ -246,7 +255,27 @@ define("dojox/mobile/_compat", [
 			}
 		});	
 
-	
+
+		lang.extend(ProgressIndicator, {
+			scale: function(/*Number*/size){
+				if(has("ie")){
+					var dim = {w:size, h:size};
+					domGeometry.setMarginBox(this.domNode, dim);
+					domGeometry.setMarginBox(this.containerNode, dim);
+				}else if(has("ff")){
+					var scale = size / 40;
+					domStyle.set(this.containerNode, {
+						MozTransform: "scale(" + scale + ")",
+						MozTransformOrigin: "0 0"
+					});
+
+					domGeometry.setMarginBox(this.domNode, {w:size, h:size});
+					domGeometry.setMarginBox(this.containerNode, {w:size / scale, h:size / scale});
+				}
+			}
+		});	
+
+
 		if(has("ie")){
 			lang.extend(RoundRect, {
 				buildRendering: function(){
@@ -262,6 +291,7 @@ define("dojox/mobile/_compat", [
 
 
 			RoundRectList._addChild = RoundRectList.prototype.addChild;
+			RoundRectList._postCreate = RoundRectList.prototype.postCreate;
 			lang.extend(RoundRectList, {
 				buildRendering: function(){
 					// summary:
@@ -272,11 +302,12 @@ define("dojox/mobile/_compat", [
 					dm.createRoundRect(this, true);
 					this.domNode.className = "mblRoundRectList";
 				},
-			
+
 				postCreate: function(){
+					RoundRectList._postCreate.apply(this, arguments);
 					this.redrawBorders();
 				},
-		
+
 				addChild: function(widget, /*Number?*/insertIndex){
 					RoundRectList._addChild.apply(this, arguments);
 					this.redrawBorders();
@@ -284,14 +315,14 @@ define("dojox/mobile/_compat", [
 						dm.applyPngFilter(widget.domNode);
 					}
 				},
-			
+
 				redrawBorders: function(){
 					// summary:
 					//		Function to adjust the creation of RoundRectLists on IE.
 					//		Removed undesired styles.
 					// tags:
 					//		public
-			
+
 					// Remove a border of the last ListItem.
 					// This is for browsers that do not support the last-child CSS pseudo-class.
 
@@ -310,7 +341,7 @@ define("dojox/mobile/_compat", [
 
 			lang.extend(EdgeToEdgeList, {
 				buildRendering: function(){
-				this.domNode = this.containerNode = this.srcNodeRef || win.doc.createElement("UL");
+				this.domNode = this.containerNode = this.srcNodeRef || win.doc.createElement("ul");
 					this.domNode.className = "mblEdgeToEdgeList";
 				}
 			});
@@ -335,11 +366,11 @@ define("dojox/mobile/_compat", [
 					// tags:
 					//		public
 					var i, len;
-					_this.domNode = win.doc.createElement("DIV");
+					_this.domNode = win.doc.createElement("div");
 					_this.domNode.style.padding = "0px";
 					_this.domNode.style.backgroundColor = "transparent";
 					_this.domNode.style.border = "none"; // borderStyle = "none"; doesn't work on IE9
-					_this.containerNode = win.doc.createElement(isList?"UL":"DIV");
+					_this.containerNode = win.doc.createElement(isList?"ul":"div");
 					_this.containerNode.className = "mblRoundRectContainer";
 					if(_this.srcNodeRef){
 						_this.srcNodeRef.parentNode.replaceChild(_this.domNode, _this.srcNodeRef);
@@ -349,13 +380,13 @@ define("dojox/mobile/_compat", [
 						_this.srcNodeRef = null;
 					}
 					_this.domNode.appendChild(_this.containerNode);
-		
+
 					for(i = 0; i <= 5; i++){
-						var top = domConstruct.create("DIV");
+						var top = domConstruct.create("div");
 						top.className = "mblRoundCorner mblRoundCorner"+i+"T";
 						_this.domNode.insertBefore(top, _this.containerNode);
-		
-						var bottom = domConstruct.create("DIV");
+
+						var bottom = domConstruct.create("div");
 						bottom.className = "mblRoundCorner mblRoundCorner"+i+"B";
 						_this.domNode.appendChild(bottom);
 					}
@@ -368,7 +399,7 @@ define("dojox/mobile/_compat", [
 					// On IE, margin-top of the first child does not seem to be effective,
 					// probably because padding-top is specified for containerNode
 					// to make room for a fixed header. This dummy node is a workaround for that.
-					var dummy = domConstruct.create("DIV", {className:"mblDummyForIE", innerHTML:"&nbsp;"}, this.containerNode, "first");
+					var dummy = domConstruct.create("div", {className:"mblDummyForIE", innerHTML:"&nbsp;"}, this.containerNode, "first");
 					domStyle.set(dummy, {
 						position: "relative",
 						marginBottom: "-2px",
@@ -431,7 +462,7 @@ define("dojox/mobile/_compat", [
 
 		dm.loadCssFile = function(/*String*/file){
 			// summary:
-			//		Overrides dojox.mobile.loadCssFile() defined in
+			//		Overrides dojox/mobile.loadCssFile() defined in
 			//		deviceTheme.js.
 			if(!dm.loadedCssFiles){ dm.loadedCssFiles = []; }
 			if(win.doc.createStyleSheet){
@@ -444,7 +475,7 @@ define("dojox/mobile/_compat", [
 					};
 				}(file), 0);
 			}else{
-				dm.loadedCssFiles.push(domConstruct.create("LINK", {
+				dm.loadedCssFiles.push(domConstruct.create("link", {
 					href: file,
 					type: "text/css",
 					rel: "stylesheet"
@@ -492,7 +523,7 @@ define("dojox/mobile/_compat", [
 					}
 				}
 			}
-		
+
 			// find <link>
 			var elems = win.doc.getElementsByTagName("link");
 			for(i = 0, len = elems.length; i < len; i++){
@@ -514,18 +545,26 @@ define("dojox/mobile/_compat", [
 				setTimeout(function(){ // IE needs setTimeout
 					dm.loadCompatCssFiles(true);
 				}, 0);
+				return;
 			}
 			dm._loadedCss = undefined;
 			var paths = dm.getCssPaths();
 			for(var i = 0; i < paths.length; i++){
 				var href = paths[i];
-				if((href.match(dm.loadCompatPattern) || location.href.indexOf("mobile/tests/") !== -1) && href.indexOf("-compat.css") === -1){
+				// Load the -compat.css only for css files that belong to a theme. For that, by default
+				// we match on directories containing "mobile/themes". If a custom theme is located
+				// outside a "mobile/themes" directory, the dojoConfig needs to specify a custom 
+				// pattern using the "mblLoadCompatPattern" configuration parameter, for instance:
+				// data-dojo-config="mblLoadCompatPattern: /\/mycustom\/.*\.css$/"
+				// Additionally, compat css files are loaded for css in the mobile/tests directory.
+				if((href.match(config.mblLoadCompatPattern || dm.loadCompatPattern) || 
+					location.href.indexOf("mobile/tests/") !== -1) && href.indexOf("-compat.css") === -1){
 					var compatCss = href.substring(0, href.length-4)+"-compat.css";
 					dm.loadCss(compatCss);
 				}
 			}
 		};
-	
+
 		dm.hideAddressBar = function(/*Event?*/evt, /*Boolean?*/doResize){
 			if(doResize !== false){ dm.resizeAll(); }
 		};

@@ -1,5 +1,5 @@
 
 .claro .dijitTextBoxRtlError .dijitValidationContainer {
-  border-left-width: 0;
-  border-right-width: 1px;
+  border-left-width: 0 !important;
+  border-right-width: 1px !important;
 }

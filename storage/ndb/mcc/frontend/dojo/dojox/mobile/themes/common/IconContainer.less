@@ -1,10 +1,13 @@
 /* dojox.mobile.IconContainer */
 .mblIconContainer {
-	.mblIconContainer-styles;
+	margin: 20px 10px;
+	padding: 0;
 }
 
 /* dojox.mobile.IconItem */
 .mblIconItem {
+	position: relative;
+	overflow: hidden; /* for focus frame */
 	list-style-type: none;
 	float: left;
 	-webkit-tap-highlight-color: rgba(255, 255, 255, 0);
@@ -12,30 +15,38 @@
 .mblIconItemTerminator {
 	list-style-type: none;
 	clear: both;
-	.mblIconItemTerminator-styles;
 }
-.mblIconItemSub {
+.mblIconItemPane {
 	list-style-type: none;
 	.mblIconItemSub-styles;
 }
 .mblIconArea {
+	position: relative;
+	height: 78px;
+	font-family: Helvetica;
+	font-size: 12px;
+	text-align: center;
 	.mblIconArea-styles;
-	div {
-		position: relative;
-		height: 65px;
-		line-height: 65px;
-		text-align: center;
-	}
 	img {
 		vertical-align: middle;
 	}
+}
+.mblIconAreaInner {
+	position: relative;
+	height: 65px;
+	line-height: 65px;
+	text-align: center;
+}
+.mblIconItemDeleteIcon {
+	position: absolute;
+	.mblIconItemDeleteIcon-styles;
 }
 .mblIconItemSpriteIcon {
 	position: absolute;
 }
 .mblContent {
 	clear: both;
-	.mblContent-styles;
+	padding-bottom: 20px;
 }
 table.mblClose {
 	clear: both;
@@ -45,7 +56,7 @@ table.mblClose {
 	position: relative;
 	-webkit-animation-duration: .5s;
 	-webkit-animation-timing-function: ease-in-out;
-	-webkit-animation-iteration-count: 20;
+	-webkit-animation-iteration-count: infinite;
 	-webkit-animation-name: mblVibrate;
 	-webkit-transform: rotate(0deg);
 }
@@ -68,12 +79,27 @@ table.mblClose {
 	}
 }
 
-/* Icon Content Heading */
-.mblIconContentHeading {
+/* dojox.mobile._IconItemPane */
+.mblIconItemPaneHeading {
 	position: relative;
 	clear: both;
 	overflow: hidden;
-	white-space: nowrap;
+	margin-top: 0px;
+	padding-left: 40px;
+	height: 25px;
+	border-top: 1px solid #f1f3f4;
+	border-bottom: 1px solid #717d85;
+	background-image: -webkit-gradient(linear, left top, left bottom, from(#e0e4e7), to(#b4bec6), color-stop(0.5, #c4ccd2), color-stop(0.5, #bfc8ce));
+	font-family: Helvetica;
+	font-size: 14px;
+	color: white;
+	line-height: 26px;
+	text-shadow: rgba(0,0,0,0.6) 0px -1px 0px;
 	text-overflow: ellipsis;
-	.mblIconContentHeading-styles;
+	white-space: nowrap;
+}
+.mblIconItemPaneIcon {
+	position: absolute;
+	top: -2px;
+	left: 1px;
 }

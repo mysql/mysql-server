@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -85,6 +85,7 @@ mysql_pfs_key_t log_writer_mutex_key;
 mysql_pfs_key_t log_flusher_mutex_key;
 mysql_pfs_key_t log_write_notifier_mutex_key;
 mysql_pfs_key_t log_flush_notifier_mutex_key;
+mysql_pfs_key_t log_limits_mutex_key;
 mysql_pfs_key_t log_cmdq_mutex_key;
 mysql_pfs_key_t log_sn_lock_key;
 mysql_pfs_key_t log_sys_arch_mutex_key;
@@ -140,6 +141,7 @@ mysql_pfs_key_t master_key_id_mutex_key;
 mysql_pfs_key_t clone_sys_mutex_key;
 mysql_pfs_key_t clone_task_mutex_key;
 mysql_pfs_key_t clone_snapshot_mutex_key;
+mysql_pfs_key_t parallel_read_mutex_key;
 
 #endif /* UNIV_PFS_MUTEX */
 
@@ -169,7 +171,7 @@ mysql_pfs_key_t trx_purge_latch_key;
 even if their corresponding performance schema define is set. And this
 PFS_NOT_INSTRUMENTED is used as the key value to identify those objects that
 would be excluded from instrumentation.*/
-mysql_pfs_key_t PFS_NOT_INSTRUMENTED(UINT32_UNDEFINED);
+mysql_pfs_key_t PFS_NOT_INSTRUMENTED(0);
 
 /** For monitoring active mutexes */
 MutexMonitor *mutex_monitor;

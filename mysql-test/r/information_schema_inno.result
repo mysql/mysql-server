@@ -63,6 +63,8 @@ create table `t-2` (
 id int(10) unsigned not null auto_increment,
 primary key (id)
 ) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table `t-1` (
 id int(10) unsigned not null auto_increment,
 idtype int(10) unsigned not null,
@@ -70,6 +72,9 @@ primary key (id),
 key fk_t1_1 (idtype),
 constraint fk_t1_1 foreign key (idtype) references `t-2` (id)
 ) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 use test;
 select referenced_table_schema, referenced_table_name 
 from information_schema.key_column_usage

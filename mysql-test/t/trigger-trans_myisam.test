@@ -1,0 +1,78 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--echo
+--echo Bug#26141 mixing table types in trigger causes full
+--echo table lock on innodb table
+--echo
+--echo Ensure we do not open and lock tables for the triggers we do not
+--echo fire.
+--echo
+
+# Note, for InnoDB to allow concurrent UPDATE and INSERT the
+# table must have a unique key.
+create table t1 (c int primary key) engine=innodb;
+create table t2 (c int) engine=myisam;
+create table t3 (c int) engine=myisam;
+insert into t1 (c) values (1);
+delimiter |;
+
+create trigger trg_bug26141_ai after insert on t1
+for each row
+begin
+  insert into t2 (c) values (1);
+# We need the 'sync' lock to synchronously wait in connection 2 till 
+# the moment when the trigger acquired all the locks.
+  select release_lock("lock_bug26141_sync") into @a;
+# 1000 is time in seconds of lock wait timeout -- this is a way
+# to cause a manageable sleep up to 1000 seconds
+  select get_lock("lock_bug26141_wait", 1000) into @a;
+end|
+
+create trigger trg_bug26141_au after update on t1
+for each row
+begin
+  insert into t3 (c) values (1);
+end|
+delimiter ;|
+
+# Establish an alternative connection.
+--connect (connection_aux,localhost,root,,test,,)
+--connect (connection_update,localhost,root,,test,,)
+
+connection connection_aux;
+# Lock the wait lock, it must not be locked, so specify zero timeout.
+select get_lock("lock_bug26141_wait", 0);
+
+#
+connection default;
+#
+# Run the trigger synchronously 
+#
+select get_lock("lock_bug26141_sync", /* must not be priorly locked */ 0);
+# Will acquire the table level locks, perform the insert into t2,
+# release the sync lock and block on the wait lock.
+send insert into t1 (c) values (2);
+
+connection connection_update;
+# Wait for the trigger to acquire its locks and unlock the sync lock.
+select get_lock("lock_bug26141_sync", 1000);
+#
+# This must continue: after the fix for the bug, we do not
+# open tables for t2, and with c=4 innobase allows the update
+# to run concurrently with insert.
+update t1 set c=3 where c=1;
+select release_lock("lock_bug26141_sync");
+connection connection_aux;
+select release_lock("lock_bug26141_wait");
+connection default;
+reap;
+select * from t1;
+select * from t2;
+select * from t3;
+
+# Drops the trigger as well.
+drop table t1, t2, t3;
+disconnect connection_update;
+disconnect connection_aux;
+

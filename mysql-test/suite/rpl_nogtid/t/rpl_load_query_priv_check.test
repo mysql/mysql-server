@@ -1,0 +1,193 @@
+# ==== Purpose ====
+#
+# To Verify that Load_query_events like Begin_load_query_event,
+# Append_load_query_event, Execute_load_query_event and Delete_file_log_event
+# can fail due to insufficient privileges, and succeed with sufficient
+# privileges.
+#
+# ==== Implementation ====
+#
+# TC1. Execute Begin_load_query and Execute_load with and without the necessary
+#      privileges
+# -----------------------------------------------------------------------------
+# 1) Create a table on master and insert a row.
+# 2) On slave create a user 'u1' which will be used as a PIVILEGE_CHECKS_USER to
+#    connect to master and create a table similar to the one on master.
+# 3) Start slave and expect an error as the user doesn't have FILE and INSERT
+#    privileges.
+# 4) Stop slave and grant FILE and INSERT privilege.
+# 5) Start slave again and this time there should not be any error.
+# 6) Revoke the privileges granted to user 'u1'.
+# 7) Add a debug option to skip the privilege check for Begin_load_query and
+#    only perform the check for Execute_load_query event
+# 8) Repeat 3) - 5)
+# 9) Drop the table from master and slave, and also revoke the privilege from
+#    'u1'
+#
+# TC2. Execute Begin_load_query and Delete_file with and without the necessary
+#      privileges
+# ----------------------------------------------------------------------------
+# 1) Create a table with a primary key on master and insert a row.
+# 2) Create a data file with a record with the same primary key as inserted in
+#    the table.
+# 3) Load this in the table at master, expecting a failure as the primary key is
+#    the same. This will create a Begin_load_query and a Delete_file event.
+# 4) Start slave and expect an error as the user doesn't have FILE privilege.
+# 5) Stop slave and grant FILE privilege.
+# 6) Start slave again and this time there should not be any error.
+# 7) Revoke the privileges granted to user 'u1'.
+# 8) Add a debug option to skip the privilege check for Begin_load_query and
+#    only perform the check for Delete_file event
+# 9) Repeat 4) - 6)
+# 10) Drop the table from master and slave.
+
+# ==== References ====
+#
+# WL#12966: Replication with Restricted Privileges
+#
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+
+--let $applier_user = 'u1'@'localhost'
+if ($grant_to == '')
+{
+  --let $grant_to = $applier_user
+}
+--let $rpl_privilege_checks_user = 2:$applier_user
+--let $rpl_skip_start_slave=1
+--source include/master-slave.inc
+--source include/rpl_use_privilege_db.inc
+
+--echo #
+--echo # TC1. Execute Begin_load_query and Execute_load with and without the
+--echo #      necessary privileges
+--echo # -------------------------------------------------------------------
+
+SET @@SESSION.sql_log_bin = OFF;
+CREATE TABLE t1 (word CHAR(20) NOT NULL);
+SET @@SESSION.sql_log_bin = ON;
+
+--let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+--source include/save_master_pos.inc
+
+--source include/rpl_connection_slave.inc
+--source include/rpl_use_privilege_db.inc
+CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+CREATE TABLE t1(word CHAR(20) NOT NULL);
+
+START SLAVE;
+--let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--source include/wait_for_slave_sql_error.inc
+
+--eval GRANT FILE, INSERT  ON *.* TO $grant_to
+START SLAVE;
+--source include/sync_slave_sql.inc
+
+# Now check for the privilege required by Execute_load_query_log_event separately.
+
+STOP SLAVE;
+--eval REVOKE FILE, INSERT  ON *.* FROM $grant_to
+
+SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
+# Start reading the LOAD DATA INFILE statement but skip the privilege check for
+# Begin_load_query event this time, and just verify for Execute_load_query event
+
+--replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
+eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+
+START SLAVE;
+SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
+--let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--source include/wait_for_slave_sql_error.inc
+
+SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
+STOP SLAVE;
+--eval GRANT FILE, INSERT  ON *.* TO $grant_to
+
+--replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
+eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+START SLAVE;
+--source include/sync_slave_sql.inc
+DROP TABLE t1;
+STOP SLAVE;
+
+--eval REVOKE FILE, INSERT  ON *.* FROM $grant_to
+--source include/rpl_connection_master.inc
+
+--echo #
+--echo # TC2. Execute Begin_load_query and Delete_file with and without the
+--echo #      necessary privileges
+--echo # -------------------------------------------------------------------
+
+--source include/have_myisam.inc
+SET @@SESSION.sql_log_bin = OFF;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
+
+# Insert some data into the table to generate an error on LOAD DATA INSFILE
+INSERT INTO t1 VALUES (1);
+
+SET @@SESSION.sql_log_bin = ON;
+--let $master_log_pos_1= query_get_value(SHOW MASTER STATUS, Position, 1)
+--echo master_log_pos $master_log_pos_1
+# Generates the file to be loaded
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--write_file $MYSQLTEST_VARDIR/tmp/data01
+1
+EOF
+--error ER_DUP_ENTRY
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/data01' INTO TABLE t1
+
+--source include/rpl_connection_slave.inc
+CREATE TABLE t1 (c1 INT NOT NULL, PRIMARY KEY (c1)) ENGINE = MyISAM;
+
+# We want to replicate only from the last LOAD DATA INFILE statement
+# So doing a change master and start replicating from master_log_pos_1
+
+START SLAVE;
+--let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--source include/wait_for_slave_sql_error.inc
+
+--eval GRANT FILE  ON *.* TO $grant_to
+
+START SLAVE;
+--source include/sync_slave_sql.inc
+
+# Now check for the privilege required by Delete_file event separately.
+
+STOP SLAVE;
+--eval REVOKE FILE  ON *.* FROM $grant_to
+
+SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
+# Start reading the LOAD DATA INFILE statement but skip the privilege check for
+# Begin_load_query event this time, and just verify for Execute_load_query event
+--replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
+eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+
+START SLAVE;
+SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
+--let $slave_sql_errno= convert_error(ER_FILE_PRIVILEGE_FOR_REPLICATION_CHECKS)
+--source include/wait_for_slave_sql_error.inc
+
+SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
+STOP SLAVE;
+--eval GRANT FILE  ON *.* TO $grant_to
+--replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
+eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+
+START SLAVE;
+--source include/sync_slave_sql.inc
+DROP TABLE t1;
+STOP SLAVE;
+connection master;
+DROP TABLE t1;
+--let $rpl_only_running_threads=1
+--remove_file $MYSQLTEST_VARDIR/tmp/data01
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD*
+--source include/rpl_end.inc

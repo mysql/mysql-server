@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
-dojox.css3
+dojox/css3
 -------------------------------------------------------------------------------
 Version: 0.1
 Release date: 03/06/2010
@@ -29,7 +29,7 @@ See the Dojo API tool (http://dojotoolkit.org/api)
 Installation instructions
 
 Grab the following from the Dojo SVN Repository:
-http://svn.dojotoolkit.org/src/dojo/dojox/trunk/css3/fx.js
+http://svn.dojotoolkit.org/src/dojo/dojox/trunk/css3/*
 
 Install into the following directory structure:
 /dojox/css3/

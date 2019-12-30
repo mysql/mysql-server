@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_Builder", [
 	"../main",
 	"dojo/_base/array",
@@ -10,8 +9,9 @@ define("dojox/grid/_Builder", [
 	"dojo/dnd/Moveable",
 	"dojox/html/metrics",
 	"./util",
-	"dojo/_base/html"
-], function(dojox, array, lang, win, event, has, connect, Moveable, metrics, util, html){
+	"dojo/_base/html",
+	"dojo/dom-geometry"
+], function(dojox, array, lang, win, event, has, connect, Moveable, metrics, util, html, domGeometry){
 
 	var dg = dojox.grid;
 
@@ -270,10 +270,6 @@ define("dojox/grid/_Builder", [
 					m = cell.markup; cc = cell.customClasses = []; cs = cell.customStyles = [];
 					// content (format can fill in cc and cs as side-effects)
 					m[5] = cell.format(inRowIndex, item);
-					if(has("ie") < 8 && (m[5] === null || m[5] === '' || /^\s+$/.test(m[5]))){
-						//fix IE 6/7 quirks - border style not effective for empty td
-						m[5] = '&nbsp;'
-					}
 					// classes
 					m[1] = cc.join(' ');
 					// styles
@@ -362,28 +358,17 @@ define("dojox/grid/_Builder", [
 
 		// event helpers
 		getCellX: function(e){
-			var n, x = e.layerX;
-			if(has("mozilla") || has("ie") >= 9){
-				n = ascendDom(e.target, makeNotTagName("th"));
-				x -= (n && n.offsetLeft) || 0;
-				var t = e.sourceView.getScrollbarWidth();
-				if(!this.grid.isLeftToRight()/*&& e.sourceView.headerNode.scrollLeft < t*/){
-					//fix #11253
-					table = ascendDom(n,makeNotTagName("table"));
-					x -= (table && table.offsetLeft) || 0;
-				}
-				//x -= getProp(ascendDom(e.target, mkNotTagName("td")), "offsetLeft") || 0;
+			var n, x, pos;
+			// Calculate starting x position
+			n = ascendDom(e.target, makeNotTagName("th"));
+			if(n){
+				// We have a proper parent node, use that for position
+				pos = domGeometry.position(n);
+				x = e.clientX - pos.x;
+			}else{
+				// Fall back to layerX
+				x = e.layerX;
 			}
-			n = ascendDom(e.target, function(){
-				if(!n || n == e.cellNode){
-					return false;
-				}
-				// Mozilla 1.8 (FF 1.5) has a bug that makes offsetLeft = -parent border width
-				// when parent has border, overflow: hidden, and is positioned
-				// handle this problem here ... not a general solution!
-				x += (n.offsetLeft < 0 ? 0 : n.offsetLeft);
-				return true;
-			});
 			return x;
 		},
 
@@ -423,7 +408,7 @@ define("dojox/grid/_Builder", [
 			//as if they were still on the left instead of returning the position they were 'float: right' to.
 			//So, the resize check ends up checking the wrong adjacent cell.  This checks to see if the hover was over
 			//the image or text nodes, then just ignored them/treat them not in scale range.
-			if(has("ie")){
+			if(has('ie')){
 				var tN = e.target;
 				if(html.hasClass(tN, "dojoxGridArrowButtonNode") ||
 					html.hasClass(tN, "dojoxGridArrowButtonChar") ||
@@ -448,7 +433,7 @@ define("dojox/grid/_Builder", [
 			//as if they were still on the left instead of returning the position they were 'float: right' to.
 			//So, the resize check ends up checking the wrong adjacent cell.  This checks to see if the hover was over
 			//the image or text nodes, then just ignored them/treat them not in scale range.
-			if(has("ie")){
+			if(has('ie')){
 				var tN = e.target;
 				if(html.hasClass(tN, "dojoxGridArrowButtonNode") ||
 					html.hasClass(tN, "dojoxGridArrowButtonChar") ||
@@ -514,7 +499,7 @@ define("dojox/grid/_Builder", [
 				var bodyContentBox = html.contentBox(e.sourceView.domNode);
 				//fix #11340
 				var l = e.pageX;
-				if(!this.grid.isLeftToRight() && has("ie") < 8){
+				if(!this.grid.isLeftToRight() && has('ie') < 8){
 					l -= metrics.getScrollbar().w;
 				}
 				html.style(this.lineDiv, {
@@ -610,7 +595,7 @@ define("dojox/grid/_Builder", [
 				// Make sure we are not under our minimum
 				// http://bugs.dojotoolkit.org/ticket/9390
 				changeX += Math.max(inDrag.w + changeX, this.minColWidth) - (inDrag.w + changeX);
-				if(has("webkit") && inDrag.spanners.length){
+				if(has('webkit') && inDrag.spanners.length){
 					// Webkit needs the pad border extents back in
 					changeX += html._getPadBorderExtents(inDrag.spanners[0].node).w;
 				}
@@ -650,7 +635,7 @@ define("dojox/grid/_Builder", [
 					inDrag.view.setColWidth(s.index, sw);
 				}
 			}
-			if(this.grid.isLeftToRight() || !has("ie")){//fix #11339
+			if(this.grid.isLeftToRight() || !has('ie')){//fix #11339
 				for(i=0; (f=inDrag.followers[i]); i++){
 					fl = f.left + data.deltaX;
 					f.node.style.left = fl + 'px';
@@ -674,7 +659,8 @@ define("dojox/grid/_Builder", [
 		map: null,
 
 		mapRows: function(inRows){
-			// summary: Map table topography
+			// summary:
+			//		Map table topography
 
 			//console.log('mapRows');
 			// # of rows
@@ -714,7 +700,8 @@ define("dojox/grid/_Builder", [
 		},
 
 		getMapCoords: function(inRow, inCol){
-			// summary: Find node's map coords by it's structure coords
+			// summary:
+			//		Find node's map coords by it's structure coords
 			for(var j=0, row; (row=this.map[j]); j++){
 				for(var i=0, cell; (cell=row[i]); i++){
 					if(cell.c==inCol && cell.r == inRow){
@@ -727,7 +714,8 @@ define("dojox/grid/_Builder", [
 		},
 		
 		getNode: function(inTable, inRow, inCol){
-			// summary: Find a node in inNode's table with the given structure coords
+			// summary:
+			//		Find a node in inNode's table with the given structure coords
 			var row = inTable && inTable.rows[inRow];
 			return row && row.cells[inCol];
 		},

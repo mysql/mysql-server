@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   ulong *rec_per_key_part;
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], key_del[MI_MAX_KEY_BLOCK_SIZE];
   MI_CREATE_INFO tmp_create_info;
-  DBUG_ENTER("mi_create");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u", keys,
                        columns, uniques, flags));
 
@@ -86,7 +86,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
 
   if (keys + uniques > MI_MAX_KEY || columns == 0) {
     set_my_errno(HA_WRONG_CREATE_OPTION);
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    return HA_WRONG_CREATE_OPTION;
   }
 
   errpos = 0;
@@ -111,7 +111,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
             (ulong *)my_malloc(mi_key_memory_MYISAM_SHARE,
                                (keys + uniques) * MI_MAX_KEY_SEG * sizeof(long),
                                MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(my_errno());
+    return my_errno();
 
   /* Start by checking fields and field-types used */
 
@@ -737,7 +737,7 @@ int mi_create(const char *name, uint keys, MI_KEYDEF *keydefs, uint columns,
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0))) goto err_no_lock;
   my_free(rec_per_key_part);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
@@ -767,7 +767,7 @@ err_no_lock:
   }
   my_free(rec_per_key_part);
   set_my_errno(save_errno);
-  DBUG_RETURN(save_errno); /* return the fatal errno */
+  return save_errno; /* return the fatal errno */
 }
 
 uint mi_get_pointer_length(ulonglong file_length, uint def) {

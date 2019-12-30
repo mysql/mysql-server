@@ -1,7 +1,6 @@
-//>>built
-define("dojox/highlight/languages/pygments/_html", ["dojo", "dojox/main", "../../_base"], function(dojo, dojox){
+define("dojox/highlight/languages/pygments/_html", ["dojo/_base/lang", "dojox/main", "../../_base"], function(lang, dojox){
 
-	dojo.getObject("highlight.languages.pygments._html", true, dojox);
+	lang.getObject("highlight.languages.pygments._html", true, dojox);
 
 	dojox.highlight.languages.pygments._html.tags = {
 		"code": 1, "kbd": 1, "font": 1, "noscript": 1, "style": 1, "img": 1,

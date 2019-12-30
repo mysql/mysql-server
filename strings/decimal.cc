@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -320,7 +320,9 @@ static inline int count_leading_zeroes(int i, dec1 val) {
     case 0:
       if (val >= 1) break;
       ++ret;  // Fall through.
-    default: { DBUG_ASSERT(false); }
+    default: {
+      DBUG_ASSERT(false);
+    }
   }
   return ret;
 }
@@ -374,7 +376,9 @@ static inline int count_trailing_zeroes(int i, dec1 val) {
     case 9:
       if ((uval % 1000000000) != 0) break;
       ++ret;  // Fall through.
-    default: { DBUG_ASSERT(false); }
+    default: {
+      DBUG_ASSERT(false);
+    }
   }
   return ret;
 }
@@ -580,7 +584,8 @@ int decimal2string(const decimal_t *from, char *to, int *to_len,
                      be written by this address
 */
 
-static void digits_bounds(decimal_t *from, int *start_result, int *end_result) {
+static void digits_bounds(const decimal_t *from, int *start_result,
+                          int *end_result) {
   int start, stop, i;
   dec1 *buf_beg = from->buf;
   dec1 *end = from->buf + ROUND_UP(from->intg) + ROUND_UP(from->frac);
@@ -1041,12 +1046,12 @@ int decimal2double(const decimal_t *from, double *to) {
 int double2decimal(double from, decimal_t *to) {
   char buff[FLOATING_POINT_BUFFER];
   int res;
-  DBUG_ENTER("double2decimal");
+  DBUG_TRACE;
   const char *end = buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE,
                                    (int)sizeof(buff) - 1, buff, NULL);
   res = string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
-  DBUG_RETURN(res);
+  return res;
 }
 
 static int ull2dec(ulonglong from, decimal_t *to) {
@@ -1091,7 +1096,7 @@ int longlong2decimal(longlong from, decimal_t *to) {
   return ull2dec(from, to);
 }
 
-int decimal2ulonglong(decimal_t *from, ulonglong *to) {
+int decimal2ulonglong(const decimal_t *from, ulonglong *to) {
   dec1 *buf = from->buf;
   ulonglong x = 0;
   int intg, frac;
@@ -1115,7 +1120,7 @@ int decimal2ulonglong(decimal_t *from, ulonglong *to) {
   return E_DEC_OK;
 }
 
-int decimal2longlong(decimal_t *from, longlong *to) {
+int decimal2longlong(const decimal_t *from, longlong *to) {
   dec1 *buf = from->buf;
   longlong x = 0;
   int intg, frac;
@@ -1308,7 +1313,7 @@ int double2lldiv_t(double nr, lldiv_t *lld) {
 
                 7E F2 04 C7 2D FB 2D
 */
-int decimal2bin(decimal_t *from, uchar *to, int precision, int frac) {
+int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac) {
   dec1 mask = from->sign ? -1 : 0, *buf1 = from->buf, *stop1;
   int error = E_DEC_OK, intg = precision - frac, isize1, intg1, intg1x,
       from_intg, intg0 = intg / DIG_PER_DEC1, frac0 = frac / DIG_PER_DEC1,
@@ -1430,16 +1435,21 @@ int decimal2bin(decimal_t *from, uchar *to, int precision, int frac) {
       from    - value to convert
       to      - result
       precision/scale - see decimal_bin_size() below
+      keep_prec do not trim leading zeros
 
   NOTE
     see decimal2bin()
     the buffer is assumed to be of the size decimal_bin_size(precision, scale)
+    If the keep_prec is true, the value will be read and returned as is,
+    without precision reduction. This is used to read DECIMAL values that
+    are to be indexed by multi-valued index.
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
+int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
+                bool keep_prec) {
   int error = E_DEC_OK, intg = precision - scale, intg0 = intg / DIG_PER_DEC1,
       frac0 = scale / DIG_PER_DEC1, intg0x = intg - intg0 * DIG_PER_DEC1,
       frac0x = scale - frac0 * DIG_PER_DEC1, intg1 = intg0 + (intg0x > 0),
@@ -1493,7 +1503,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
     from += i;
     *buf = x ^ mask;
     if (((ulonglong)*buf) >= (ulonglong)powers10[intg0x + 1]) goto err;
-    if (buf > to->buf || *buf != 0)
+    if (buf > to->buf || *buf != 0 || keep_prec)
       buf++;
     else
       to->intg -= intg0x;
@@ -1502,7 +1512,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
     DBUG_ASSERT(sizeof(dec1) == 4);
     *buf = mi_sint4korr(from) ^ mask;
     if (((uint32)*buf) > DIG_MAX) goto err;
-    if (buf > to->buf || *buf != 0)
+    if (buf > to->buf || *buf != 0 || keep_prec)
       buf++;
     else
       to->intg -= DIG_PER_DEC1;
@@ -1541,6 +1551,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
   /*
     No digits? We have read the number zero, of unspecified precision.
     Make it a proper zero, with non-zero precision.
+    Note: this is valid only if scale == 0, otherwise frac is always non-zero
   */
   if (to->intg == 0 && to->frac == 0) decimal_make_zero(to);
   return error;
@@ -1811,7 +1822,7 @@ done:
     multiply by sizeof(dec1)
 */
 
-int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
+int decimal_result_size(const decimal_t *from1, const decimal_t *from2, char op,
                         int param) {
   switch (op) {
     case '-':
@@ -2100,7 +2111,7 @@ int decimal_mul(const decimal_t *from_1, const decimal_t *from_2,
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error); /* bound size */
   to->sign = from1->sign != from2->sign;
   to->frac = from1->frac + from2->frac; /* store size in digits */
-  set_if_smaller(to->frac, NOT_FIXED_DEC);
+  set_if_smaller(to->frac, DECIMAL_NOT_SPECIFIED);
   to->intg = intg0 * DIG_PER_DEC1;
 
   if (unlikely(error)) {

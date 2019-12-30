@@ -58,7 +58,7 @@ void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
 @return	nullptr if new page could not be allocated (DB_OUT_OF_FILE_SPACE). */
 buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
                                    ulint &want, mtr_t *mtr) {
-  DBUG_ENTER("first_page_t::replace");
+  DBUG_TRACE;
 
   buf_block_t *new_block = nullptr;
 
@@ -69,7 +69,7 @@ buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
   DBUG_EXECUTE_IF("innodb_lob_first_page_replace_failed", new_block = nullptr;);
 
   if (new_block == nullptr) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   byte *new_ptr = new_page.data_begin();
@@ -117,7 +117,7 @@ buf_block_t *first_page_t::replace(trx_t *trx, ulint offset, const byte *&ptr,
 
   want -= data_to_copy;
 
-  DBUG_RETURN(new_block);
+  return new_block;
 }
 
 std::ostream &first_page_t::print_index_entries_cache_s(

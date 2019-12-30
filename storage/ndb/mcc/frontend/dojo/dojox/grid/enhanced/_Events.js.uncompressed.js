@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/_Events", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
@@ -16,7 +15,7 @@ return declare("dojox.grid.enhanced._Events", null, {
 	//		Methods are copied or replaced for overwriting, this might be refined once
 	//		an overall plugin architecture is set up for DataGrid.
 
-	//_events: Object
+	// _events: Object
 	//		Method map cached from dojox.grid._Events().
 	_events: null,
 
@@ -189,6 +188,7 @@ return declare("dojox.grid.enhanced._Events", null, {
 	onHeaderCellClick: function(e){
 		// summary:
 		//		Overwritten, see dojox.grid._Events.onHeaderCellClick()
+		
 		//move focus to header.
 		this.focus.currentArea("header");
 		//invoke dojox.grid._Events.onHeaderCellClick()

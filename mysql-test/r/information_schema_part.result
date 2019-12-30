@@ -156,3 +156,50 @@ select create_options from information_schema.tables where table_schema="test";
 CREATE_OPTIONS
 partitioned
 drop table t1;
+# Bug #29870919  INFORMATION SCHEMA STATS EXPIRY RESULTS IN BAD
+# STATS FOR PARTITIONED TABLES
+#
+# Without the fix the cardinality values by SHOW INDEXES is invalid.
+#
+CREATE TABLE t1
+(f1 INT NOT NULL AUTO_INCREMENT,
+f2 INT NOT NULL,
+PRIMARY KEY (f1,f2)) ENGINE=InnoDB
+PARTITION BY RANGE (f2)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN (200),
+PARTITION p2 VALUES LESS THAN (300),
+PARTITION p3 VALUES LESS THAN (MAXVALUE));
+INSERT INTO t1 VALUES (NULL, 1);
+INSERT INTO t1 VALUES (NULL, 2);
+INSERT INTO t1 SELECT NULL, 3
+FROM t1 a, t1 b, t1 c, t1 d, t1 e, t1 f, t1 g;
+# This SELECT caches the cardinality, as there is non cached yet.
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	130	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	130	NULL	NULL		BTREE			YES	NULL
+# We do not account INSERTed rows into cardinality
+# because the cached value is not expired yet.
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	130	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	130	NULL	NULL		BTREE			YES	NULL
+# We force update cache by calling ANALYZE TABLE.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	260	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	260	NULL	NULL		BTREE			YES	NULL
+# We do see INSERTed rows accounted into cardinality
+# because we ignore cache with expiry seconds set to 0.
+SET session information_schema_stats_expiry = 0;
+INSERT INTO t1 SELECT NULL, 4 FROM t1;
+SHOW INDEXES IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	f1	A	520	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	f2	A	520	NULL	NULL		BTREE			YES	NULL
+DROP TABLE t1;

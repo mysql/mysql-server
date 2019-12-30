@@ -1,15 +1,12 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/ui/dom/Zoom", ["dijit","dojo","dojox","dojo/require!dojox/drawing/plugins/_Plugin"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.ui.dom.Zoom");
-dojo.require("dojox.drawing.plugins._Plugin");
+define("dojox/drawing/ui/dom/Zoom", ["dojo", "../../util/oo", "../../plugins/_Plugin"], 
+function(dojo, oo, Plugin){
 
-dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
+var Zoom = oo.declare(
 	// NOTE:
-	//			dojox.drawing.ui.dom.Zoom is DEPRECATED.
-	//			This was a temporary DOM solution. Use the non-dom
-	//			tools for Toobar and Plugins.
-	//
+	//		dojox.drawing.ui.dom.Zoom is DEPRECATED.
+	//		This was a temporary DOM solution. Use the non-dom
+	//		tools for Toolbar and Plugins.
+
 	// summary:
 	//		A plugin that allows for zooming the canvas in and out. An
 	//		action-tool is added to the toolbar with plus, minus and 100%
@@ -19,8 +16,8 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 	//		|		<div tool="dojox.drawing.tools.Line" selected="true">Line</div>
 	//		|		<div plugin="dojox.drawing.ui.dom.Zoom" options="{zoomInc:.1,minZoom:.5,maxZoom:2}">Zoom</div>
 	//		|	</div>
-	//
-	dojox.drawing.plugins._Plugin,
+
+	Plugin,
 	function(options){
 		var cls = options.node.className;
 		var txt = options.node.innerHTML;
@@ -33,43 +30,43 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 	},
 	{
 		type:"dojox.drawing.ui.dom.Zoom",
-		//
-		// 	zoomInc: Float
+
+		// zoomInc: Float
 		//		The amount of zoom that will occur upon each click.
 		zoomInc:.1,
-		//
-		//	maxZoom: Number
+
+		// maxZoom: Number
 		//		The maximum the canvas can be zoomed in. 10 = 1000%
 		maxZoom:10,
-		//
-		//	minZoom: Float
+
+		// minZoom: Float
 		//		The most the canvas can be zoomed out. .1 = 10%
 		minZoom:.1,
-		//
-		//	zoomFactor: [readonly] Float
+
+		// zoomFactor: [readonly] Float
 		//		The current zoom amount
 		zoomFactor:1,
-		//
-		//	baseClass: String
+
+		// baseClass: String
 		//		The CSS class added to the Toolbar buttons
 		baseClass:"drawingButton",
-		//
-		//	topClass: String
+
+		// topClass: String
 		//		The CSS class added to the top (or left) Toolbar button
 		topClass:"toolComboTop",
-		//
-		//	midClass: String
+
+		// midClass: String
 		//		The CSS class added to the middle Toolbar button
 		midClass:"toolComboMid",
-		//
-		//	botClass: String
+
+		// botClass: String
 		//		The CSS class added to the bottom (or right) Toolbar button
 		botClass:"toolComboBot",
-		//
+
 		makeButton: function(name, cls){
 			// summary:
 			//		Internal. Creates one of the buttons in the zoom-button set.
-			//
+
 			var node = dojo.create("div", {id:"btn"+name, "class":this.baseClass+" "+cls,
 				innerHTML:'<div title="Zoom In" class="icon icon'+name+'"></div>'}, this.domNode);
 			
@@ -101,7 +98,7 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 		onZoomIn: function(/*Mouse Event*/evt){
 			// summary:
 			//		Handles zoom in.
-			//
+
 			this.zoomFactor += this.zoomInc;
 			this.zoomFactor = Math.min(this.zoomFactor, this.maxZoom);
 			this.canvas.setZoom(this.zoomFactor);
@@ -110,7 +107,7 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 		onZoom100: function(/*Mouse Event*/evt){
 			// summary:
 			//		Zooms to 100%
-			//
+
 			this.zoomFactor = 1;
 			this.canvas.setZoom(this.zoomFactor);
 			this.mouse.setZoom(this.zoomFactor);
@@ -118,7 +115,7 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 		onZoomOut: function(/*Mouse Event*/evt){
 			// summary:
 			//		Handles zoom out.
-			//
+
 			this.zoomFactor -= this.zoomInc;
 			this.zoomFactor = Math.max(this.zoomFactor, this.minZoom);
 			this.canvas.setZoom(this.zoomFactor);
@@ -127,8 +124,8 @@ dojox.drawing.ui.dom.Zoom = dojox.drawing.util.oo.declare(
 	}
 );
 
-
+dojo.setObject("dojox.drawing.ui.dom.Zoom", Zoom);
 //dojox.drawing.register(dojox.drawing.plugins.tools.Pan, "plugin");
 
-
+return Zoom;
 });

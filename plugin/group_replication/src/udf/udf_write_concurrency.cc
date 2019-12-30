@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,18 @@ static bool group_replication_get_write_concurrency_init(UDF_INIT *,
   bool constexpr success = false;
   bool result = failure;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return result;
+  }
   UDF_counter udf_counter;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }
@@ -90,6 +99,15 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
   bool constexpr success = false;
   bool result = failure;
 
+  /*
+    Increment only after verifying the plugin is not stopping
+    Do NOT increment before accessing volatile plugin structures.
+    Stop is checked again after increment as the plugin might have stopped
+  */
+  if (get_plugin_is_stopping()) {
+    std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
+    return result;
+  }
   UDF_counter udf_counter;
 
   privilege_result privilege = privilege_result::error();
@@ -97,7 +115,7 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
   bool const wrong_arg_type =
       !wrong_number_of_args && args->arg_type[0] != INT_RESULT;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }
@@ -157,12 +175,15 @@ static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
   DBUG_ASSERT(user_has_gr_admin_privilege().status == privilege_status::ok);
   *is_null = 0;  // result is not null
   *error = 0;
+  bool throw_error = false;
+  bool log_error = false;
   uint32_t new_write_concurrency = 0;
   enum enum_gcs_error gcs_result = GCS_NOK;
   uint32_t min_write_concurrency = gcs_module->get_minimum_write_concurrency();
   uint32_t max_write_concurrency = gcs_module->get_maximum_write_concurrency();
   if (args->args[0] == nullptr) {
     std::snprintf(result, max_safe_length, wrong_nr_args_str);
+    throw_error = true;
     goto end;
   }
   new_write_concurrency = *reinterpret_cast<long long *>(args->args[0]);
@@ -170,6 +191,7 @@ static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
       max_write_concurrency < new_write_concurrency) {
     std::snprintf(result, max_safe_length, value_outside_domain_str,
                   min_write_concurrency, max_write_concurrency);
+    throw_error = true;
     goto end;
   }
   gcs_result = gcs_module->set_write_concurrency(new_write_concurrency);
@@ -181,8 +203,15 @@ static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
     std::snprintf(
         result, max_safe_length,
         "Could not set, please check the error log of group members.");
+    throw_error = true;
+    log_error = true;
   }
 end:
+  if (throw_error) {
+    *error = 1;
+    throw_udf_error("group_replication_set_write_concurrency", result,
+                    log_error);
+  }
   *length = strlen(result);
   return result;
 }

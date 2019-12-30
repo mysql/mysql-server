@@ -28,7 +28,7 @@ catch(e){
 var _6=d.create;
 var dd=d.doc;
 var dp=d.place;
-var _7=_6("iframe",{className:"dojoxEllipsisIFrame",src:"javascript:'<html><head><script>if(\"loadFirebugConsole\" in window){window.loadFirebugConsole();}</script></head><body></body></html>'"});
+var _7=_6("iframe",{className:"dojoxEllipsisIFrame",src:"javascript:'<html><head><script>if(\"loadFirebugConsole\" in window){window.loadFirebugConsole();}</script></head><body></body></html>'",style:{display:"none"}});
 var _8=function(r,_9){
 if(r.collapsed){
 return;

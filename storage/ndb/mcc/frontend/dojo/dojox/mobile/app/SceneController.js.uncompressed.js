@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/SceneController", ["dijit","dojo","dojox","dojo/require!dojox/mobile/_base"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/SceneController", ["dojo","dijit","dojox","dojo/require!dojox/mobile/_base"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.SceneController");
 dojo.experimental("dojox.mobile.app.SceneController");
 dojo.require("dojox.mobile._base");
@@ -19,8 +18,8 @@ dojo.require("dojox.mobile._base");
 
 		init: function(sceneName, params){
 			// summary:
-			//    Initializes the scene by loading the HTML template and code, if it has
-			//    not already been loaded
+			//		Initializes the scene by loading the HTML template and code, if it has
+			//		not already been loaded
 
 			this.sceneName = sceneName;
 			this.params = params;
@@ -44,8 +43,8 @@ dojo.require("dojox.mobile._base");
 
 		_setContents: function(templateHtml){
 			// summary:
-			//    Sets the content of the View, and invokes either the loading or
-			//    initialization of the scene assistant.
+			//		Sets the content of the View, and invokes either the loading or
+			//		initialization of the scene assistant.
 			templates[this.sceneName] = templateHtml;
 
 			this.domNode.innerHTML = "<div>" + templateHtml + "</div>";
@@ -93,9 +92,9 @@ dojo.require("dojox.mobile._base");
 
 		_initAssistant: function(){
 			// summary:
-			//    Initializes the scene assistant. At this point, the View is
-			//    populated with the HTML template, and the scene assistant type
-			//    is declared.
+			//		Initializes the scene assistant. At this point, the View is
+			//		populated with the HTML template, and the scene assistant type
+			//		is declared.
 
 			console.log("Instantiating the scene assistant " + this.sceneAssistantName);
 
@@ -118,8 +117,8 @@ dojo.require("dojox.mobile._base");
 
 		query: function(selector, node){
 			// summary:
-			//    Queries for DOM nodes within either the node passed in as an argument
-			//    or within this view.
+			//		Queries for DOM nodes within either the node passed in as an argument
+			//		or within this view.
 
 			return dojo.query(selector, node || this.domNode)
 		},

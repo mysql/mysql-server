@@ -23,6 +23,7 @@ this.flashMovie.reset();
 this._files=[];
 },uploadFlash:function(_11){
 this.onBegin(this.getFileList());
+_11.returnType="F";
 this.flashMovie.doUpload(_11);
 },_change:function(_12){
 this._files=this._files.concat(_12);
@@ -74,6 +75,15 @@ if(this.tabIndex>=0){
 _4.set(this.domNode,"tabIndex",this.tabIndex);
 }
 },_createFlashUploader:function(){
+var w=this.btnSize.w;
+var h=this.btnSize.h;
+if(!w){
+setTimeout(dojo.hitch(this,function(){
+this._getButtonStyle(this.domNode);
+this._createFlashUploader();
+}),200);
+return;
+}
 var url=this.getUrl();
 if(url){
 if(url.toLowerCase().indexOf("http")<0&&url.indexOf("/")!=0){
@@ -86,9 +96,7 @@ url=loc+url;
 console.warn("Warning: no uploadUrl provided.");
 }
 this.inputNode=_3.create("div",{className:"dojoxFlashNode"},this.domNode,"first");
-_2.set(this.inputNode,{position:"absolute",top:"-2px",width:this.btnSize.w+"px",height:this.btnSize.h+"px",opacity:0});
-var w=this.btnSize.w;
-var h=this.btnSize.h;
+_2.set(this.inputNode,{position:"absolute",top:"-2px",width:w+"px",height:h+"px",opacity:0});
 var _17={expressInstall:true,path:(this.swfPath.uri||this.swfPath)+"?cb_"+(new Date().getTime()),width:w,height:h,allowScriptAccess:"always",allowNetworking:"all",vars:{uploadDataFieldName:this.flashFieldName||this.name+"Flash",uploadUrl:url,uploadOnSelect:this.uploadOnSelect,deferredUploading:this.deferredUploading||0,selectMultipleFiles:this.multiple,id:this.id,isDebug:this.isDebug,noReturnCheck:this.skipServerCheck,serverTimeout:this.serverTimeout},params:{scale:"noscale",wmode:"transparent",wmode:"opaque",allowScriptAccess:"always",allowNetworking:"all"}};
 this.flashObject=new _b(_17,this.inputNode);
 this.flashObject.onError=_8.hitch(function(msg){

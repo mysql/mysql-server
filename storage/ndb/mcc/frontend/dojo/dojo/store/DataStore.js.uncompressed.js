@@ -1,33 +1,38 @@
-//>>built
-define("dojo/store/DataStore", ["../_base/lang", "../_base/declare", "../_base/Deferred", "../_base/array", "./util/QueryResults"
-], function(lang,declare,Deferred,array,QueryResults) {
-	// module:
-	//		dojo/store/DataStore
+define("dojo/store/DataStore", [
+	"../_base/lang", "../_base/declare", "../_base/Deferred", "../_base/array",
+	"./util/QueryResults", "./util/SimpleQueryEngine" /*=====, "./api/Store" =====*/
+], function(lang, declare, Deferred, array, QueryResults, SimpleQueryEngine /*=====, Store =====*/){
+
+// module:
+//		dojo/store/DataStore
+
+
+// No base class, but for purposes of documentation, the base class is dojo/store/api/Store
+var base = null;
+/*===== base = Store; =====*/
+
+return declare("dojo.store.DataStore", base, {
 	// summary:
-	//		TODOC
+	//		This is an adapter for using Dojo Data stores with an object store consumer.
+	//		You can provide a Dojo data store and use this adapter to interact with it through
+	//		the Dojo object store API
 
-
-return declare("dojo.store.DataStore", null, {
 	target: "",
 	constructor: function(options){
-		// summary:
-		//		This is an adapter for using Dojo Data stores with an object store consumer.
-		//		You can provide a Dojo data store and use this adapter to interact with it through
-		//		the Dojo object store API
 		// options: Object?
 		//		This provides any configuration information that will be mixed into the store,
 		//		including a reference to the Dojo data store under the property "store".
 		lang.mixin(this, options);
- 		if(!"idProperty" in options){
-			var idAttribute; 
+ 		if(!("idProperty" in options)){
+			var idAttribute;
 			try{
-				idAttribute = this.store.getIdentityAttributes(); 
-			}catch(e){ 
-	 		// some store are not requiring an item instance to give us the ID attributes 
-	 		// but some other do and throw errors in that case. 
-			} 
-			// if no idAttribute we have implicit id 
-			this.idProperty = (!idAttribute || !idAttributes[0]) || this.idProperty; 
+				idAttribute = this.store.getIdentityAttributes();
+			}catch(e){
+	 		// some store are not requiring an item instance to give us the ID attributes
+	 		// but some other do and throw errors in that case.
+			}
+			// if no idAttribute we have implicit id
+			this.idProperty = (lang.isArray(idAttribute) ? idAttribute[0] : idAttribute) || this.idProperty;
 		}
 		var features = this.store.getFeatures();
 		// check the feature set and null out any methods that shouldn't be available
@@ -47,19 +52,42 @@ return declare("dojo.store.DataStore", null, {
 	// store:
 	//		The object store to convert to a data store
 	store: null,
+	// queryEngine: Function
+	//		Defines the query engine to use for querying the data store
+	queryEngine: SimpleQueryEngine,
+
 	_objectConverter: function(callback){
 		var store = this.store;
 		var idProperty = this.idProperty;
-		return function(item){
+		function convert(item){
 			var object = {};
 			var attributes = store.getAttributes(item);
 			for(var i = 0; i < attributes.length; i++){
-				object[attributes[i]] = store.getValue(item, attributes[i]);
+				var attribute = attributes[i];
+				var values = store.getValues(item, attribute);
+				if(values.length > 1){
+					for(var j = 0; j < values.length; j++){
+						var value = values[j];
+						if(typeof value == 'object' && store.isItem(value)){
+							values[j] = convert(value);
+						}
+					}
+					value = values;
+				}else{
+					var value = store.getValue(item, attribute);
+					if(typeof value == 'object' && store.isItem(value)){
+						value = convert(value);
+					}
+				}
+				object[attributes[i]] = value;
 			}
-			if(!(idProperty in object)){
+			if(!(idProperty in object) && store.getIdentity){
 				object[idProperty] = store.getIdentity(item);
 			}
-			return callback(object);
+			return object;
+		}
+		return function(item){
+			return callback(convert(item));
 		};
 	},
 	get: function(id, options){
@@ -100,6 +128,7 @@ return declare("dojo.store.DataStore", null, {
 		var idProperty = this.idProperty;
 		if(typeof id == "undefined"){
 			store.newItem(object);
+			store.save();
 		}else{
 			store.fetchItemByIdentity({
 				identity: id,
@@ -114,6 +143,7 @@ return declare("dojo.store.DataStore", null, {
 					}else{
 						store.newItem(object);
 					}
+					store.save();
 				}
 			});
 		}
@@ -128,6 +158,7 @@ return declare("dojo.store.DataStore", null, {
 			identity: id,
 			onItem: function(item){
 				store.deleteItem(item);
+				store.save();
 			}
 		});
 	},
@@ -138,7 +169,7 @@ return declare("dojo.store.DataStore", null, {
 		//		The query to use for retrieving objects from the store
 		// options: Object?
 		//		Optional options object as used by the underlying dojo.data Store.
-		// returns: dojo.store.util.QueryResults
+		// returns: dojo/store/api/Store.QueryResults
 		//		A query results object that can be used to iterate over results.
 		var fetchHandle;
 		var deferred = new Deferred(function(){ fetchHandle.abort && fetchHandle.abort(); });

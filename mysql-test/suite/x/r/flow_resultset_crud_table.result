@@ -1,12 +1,19 @@
 CREATE SCHEMA IF NOT EXISTS xtest;
 USE xtest;
-CREATE TABLE xtable (phrase VARCHAR(30), prio INTEGER);
+CREATE PROCEDURE recreate_tables()
+BEGIN
+CREATE TABLE IF NOT EXISTS xtable (phrase VARCHAR(30), prio INTEGER);
+TRUNCATE TABLE xtable;
 INSERT INTO xtable (phrase, prio) VALUES ('Alice has a cat', 1);
 INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 1', 2);
 INSERT INTO xtable (phrase, prio) VALUES ('Peppa has a teddy', 1);
 INSERT INTO xtable (phrase, prio) VALUES ('Bob has a dog 2', 3);
-CREATE TABLE xtable_with_pk (p_id INTEGER AUTO_INCREMENT PRIMARY KEY, description varchar(40));
+INSERT INTO xtable (phrase, prio) VALUES ('Row to delete', 4);
+CREATE TABLE IF NOT EXISTS xtable_with_pk (p_id INTEGER AUTO_INCREMENT PRIMARY KEY, description varchar(40));
+TRUNCATE TABLE xtable_with_pk;
 INSERT INTO xtable_with_pk (description) VALUES ('MyRow');
+END //
+CALL recreate_tables();
 
 
 ## Test setup
@@ -90,7 +97,7 @@ send Mysqlx.Crud.Update {
 }
 
 [ASSERT notice session state change - PRODUCED_MESSAGE, type: V_STRING]
-[ASSERT notice session state change - ROWS_AFFECTED, v_unsigned_int:3]
+[ASSERT notice session state change - ROWS_AFFECTED, v_unsigned_int:4]
 [ASSERT Mysqlx.Sql.StmtExecuteOk]
 
 #
@@ -175,6 +182,7 @@ send Mysqlx.Crud.Find {
 [ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.Row]
+[ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.FetchDone]
 [ASSERT Mysqlx.Sql.StmtExecuteOk]
 
@@ -210,6 +218,7 @@ send Mysqlx.Crud.Find {
 }
 
 [ASSERT Mysqlx.Resultset.ColumnMetaData]
+[ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.Row]
 [ASSERT Mysqlx.Resultset.Row]

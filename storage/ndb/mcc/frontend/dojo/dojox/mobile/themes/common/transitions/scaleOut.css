@@ -1,5 +1,4 @@
 .mblScaleOut.mblOut {
-	z-index: 0;
 	-webkit-animation-duration: .5s;
 	-webkit-animation-name: mblScaleOutOut;
 	-webkit-animation-timing-function: ease-in;

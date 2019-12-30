@@ -795,6 +795,8 @@ str
 str
 drop table t1;
 CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8mb4 ENGINE MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES ('test');
 SELECT a FROM t1 WHERE a LIKE '%te';
 a
@@ -1180,6 +1182,9 @@ KEY `IX_mobile_originated_message_keyword` (`keyword`),
 KEY `IX_mobile_originated_message_created` (`created`),
 KEY `IX_mobile_originated_message_support` (`msisdn`,`momid`,`keyword`,`gateway_id`,`created`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
 (2,'blah','464','aaa','haxpl2ilc20x00bj4tt2m5ti','11','11 g','G',3,'2005-06-02 22:43:10','1234567890');
@@ -1556,6 +1561,9 @@ tid int(11) NOT NULL default '0',
 val text NOT NULL,
 INDEX idx(tid, val(10))
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (40988,72,'VOLN� ADSL'),(41009,72,'VOLN� ADSL'),
 (41032,72,'VOLN� ADSL'),(41038,72,'VOLN� ADSL'),

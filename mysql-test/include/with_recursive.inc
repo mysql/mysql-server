@@ -40,11 +40,16 @@ with recursive qn as
 select * from qn;
 
 --echo # UNION DISTINCT allowed
+--echo # Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs.
 
+let $query =
 with recursive qn as
   (select 1 from dual union
    select 1 from qn)
 select * from qn;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
 
 --echo # No aggregation on the QN
 create table t1(b int);
@@ -775,6 +780,9 @@ set optimizer_switch='block_nested_loop=off';
 --replace_column 10 #
 eval explain $query order by path;
 eval $query order by path;
+
+--echo # Also demonstrates EXPLAIN FORMAT=TREE of recursive CTEs with joins.
+eval EXPLAIN FORMAT=tree $query order by path;
 
 --echo # Without ORDER BY order is different; it is deterministic as
 --echo # the CTE is the driving table (no BNL) but a user shouldn't

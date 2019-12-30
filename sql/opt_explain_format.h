@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -246,7 +246,7 @@ class qep_row {
       if (str[len - 1] == 0)
         return static_cast<char *>(memdup_root(root, str, len));
 
-      char *ret = static_cast<char *>(alloc_root(root, len + 1));
+      char *ret = static_cast<char *>(root->Alloc(len + 1));
       if (ret != NULL) {
         memcpy(ret, str, len);
         ret[len] = 0;

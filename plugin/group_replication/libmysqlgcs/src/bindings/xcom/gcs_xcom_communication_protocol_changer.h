@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -216,8 +216,7 @@
 class Gcs_xcom_communication_protocol_changer {
  public:
   explicit Gcs_xcom_communication_protocol_changer(
-      Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine &gcs_engine,
-      Gcs_message_pipeline &pipeline);
+      Gcs_xcom_engine &gcs_engine, Gcs_message_pipeline &pipeline);
 
   Gcs_xcom_communication_protocol_changer(
       Gcs_xcom_communication_protocol_changer const &) = delete;
@@ -336,6 +335,12 @@ class Gcs_xcom_communication_protocol_changer {
   void commit_protocol_version_change();
 
   /*
+   Releases the tagged lock and notifies threads waiting for the protocol change
+   to finish.
+   */
+  void release_tagged_lock_and_notify_waiters();
+
+  /*
    Auxiliary method to the implementation of
    atomically_increment_nr_packets_in_transit.
 
@@ -392,8 +397,6 @@ class Gcs_xcom_communication_protocol_changer {
   std::atomic<unsigned long> m_nr_packets_in_transit;
 
   Gcs_xcom_engine &m_gcs_engine;
-
-  Gcs_member_identifier m_myself;
 
   Gcs_message_pipeline &m_msg_pipeline;
 };

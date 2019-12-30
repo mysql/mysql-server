@@ -1,0 +1,75 @@
+ALTER TABLE t1
+ENGINE=InnoDB;
+ALTER TABLE t2
+ENGINE=InnoDB;
+ALTER TABLE t3
+ENGINE=InnoDB;
+ALTER TABLE t4
+ENGINE=InnoDB;
+ALTER TABLE t5
+ENGINE=InnoDB;
+ALTER TABLE t6
+ENGINE=InnoDB;
+ALTER TABLE t7
+ENGINE=InnoDB;
+ALTER TABLE t8
+ENGINE=InnoDB;
+ALTER TABLE t9
+ENGINE=InnoDB;
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+ndb_ddl_test	t1	InnoDB
+ndb_ddl_test	t2	InnoDB
+ndb_ddl_test	t3	InnoDB
+ndb_ddl_test	t4	InnoDB
+ndb_ddl_test	t5	InnoDB
+ndb_ddl_test	t6	InnoDB
+ndb_ddl_test	t7	InnoDB
+ndb_ddl_test	t8	InnoDB
+ndb_ddl_test	t9	InnoDB
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+select TABLE_SCHEMA, TABLE_NAME, ENGINE
+from information_schema.tables
+where TABLE_SCHEMA = 'ndb_ddl_test'
+  order by TABLE_SCHEMA, TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	ENGINE
+ALTER TABLE t1
+ENGINE=NDB;
+ALTER TABLE t2
+ENGINE=NDB;
+ALTER TABLE t3
+ENGINE=NDB;
+ALTER TABLE t4
+ENGINE=NDB;
+ALTER TABLE t5
+ENGINE=NDB;
+ALTER TABLE t6
+ENGINE=NDB;
+ALTER TABLE t7
+ENGINE=NDB;
+ALTER TABLE t8
+ENGINE=NDB;
+ALTER TABLE t9
+ENGINE=NDB;
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+== verify_mysql_dd.inc ==
+set debug='+d,ndb_simulate_alter_failure_rename1';
+ALTER TABLE ndb_ddl_test.t1 ENGINE = InnoDB;
+ERROR HY000: Internal error: Simulated : Failed to rename original table to a temp name.
+== verify_mysql_dd.inc ==
+ALTER TABLE ndb_ddl_test.t1 ENGINE = InnoDB;
+set debug='+d,ndb_simulate_alter_failure_rename2';
+ALTER TABLE ndb_ddl_test.t1 ENGINE = NDB;
+ERROR HY000: Internal error: Simulated : Failed to rename new table to target name.
+Number of tables with temp name in NDB
+0
+ALTER TABLE ndb_ddl_test.t1 ENGINE = NDB;
+== verify_mysql_dd.inc ==

@@ -7,8 +7,10 @@
 # Multiple runs of same suite with different options are not
 # allowed in this collection
 #
-# Run all default suites
-perl mysql-test-run.pl --timer --debug-server --force  --comment=all_default_valgrind --vardir=var-all_default_valgrind
+# Run all default suites except rpl suites
+perl mysql-test-run.pl --timer --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind
+# Run rpl suites with explict --parallel
+perl mysql-test-run.pl --timer --debug-server --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
 perl mysql-test-run.pl --force --timer --testcase-timeout=60  --debug-server  --comment=funcs2-debug  --vardir=var-funcs2-debug --suite=funcs_2
 perl mysql-test-run.pl --force --timer  --debug-server  --comment=stress-debug --vardir=var-stress-debug  --suite=stress
 perl mysql-test-run.pl --force --timer  --debug-server  --comment=jp-debug --vardir=var-jp-debug --suite=jp

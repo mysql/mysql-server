@@ -572,6 +572,8 @@ drop procedure if exists test_resignal;
 drop table if exists t_warn;
 drop table if exists t_cursor;
 create table t_warn(a integer(2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t_cursor(a integer);
 #
 # SIGNAL can also appear in a query

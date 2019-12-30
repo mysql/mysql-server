@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -299,9 +299,10 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
   return area;
 }
 
-int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
-                       uint size, uint n_dims MY_ATTRIBUTE((unused)),
-                       double *mbr, gis::srid_t *srid) {
+int get_mbr_from_store(const dd::Spatial_reference_system *srs,
+                       const uchar *store, uint size,
+                       uint n_dims MY_ATTRIBUTE((unused)), double *mbr,
+                       gis::srid_t *srid) {
   DBUG_ASSERT(n_dims == 2);
   // The SRS should match the SRID of the geometry, with one exception: For
   // backwards compatibility it is allowed to create indexes with mixed
@@ -319,9 +320,10 @@ int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
     // in gis::parse_wkb, but the geometry has been parsed before with the stack
     // size check enabled. We assume we have at least the same amount of stack
     // when called from an internal thread as when called from a MySQL thread.
-    std::unique_ptr<gis::Geometry> g = gis::parse_wkb(
-        current_thd, srs, pointer_cast<char *>(store) + sizeof(gis::srid_t),
-        size - sizeof(gis::srid_t), true);
+    std::unique_ptr<gis::Geometry> g =
+        gis::parse_wkb(current_thd, srs,
+                       pointer_cast<const char *>(store) + sizeof(gis::srid_t),
+                       size - sizeof(gis::srid_t), true);
     if (g.get() == nullptr) {
       return -1; /* purecov: inspected */
     }

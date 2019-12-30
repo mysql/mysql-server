@@ -1,5 +1,5 @@
 //>>built
-define("dijit/tree/_dndContainer",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/_base/event","dojo/_base/lang","dojo/mouse","dojo/on"],function(_1,_2,_3,_4,_5,_6,on){
+define("dijit/tree/_dndContainer",["dojo/aspect","dojo/_base/declare","dojo/dom-class","dojo/_base/event","dojo/_base/lang","dojo/on","dojo/touch"],function(_1,_2,_3,_4,_5,on,_6){
 return _2("dijit.tree._dndContainer",null,{constructor:function(_7,_8){
 this.tree=_7;
 this.node=_7.domNode;

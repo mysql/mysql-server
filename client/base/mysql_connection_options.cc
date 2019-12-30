@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/base/abstract_options_provider.h"
 #include "client/base/abstract_program.h"
+#include "compression.h"
 #include "m_ctype.h"
 #include "mysys_err.h"
 #include "typelib.h"
@@ -39,9 +40,9 @@
 using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
-using std::placeholders::_1;
 using std::string;
 using std::vector;
+using std::placeholders::_1;
 
 bool Mysql_connection_options::mysql_inited;
 
@@ -61,11 +62,24 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
 void Mysql_connection_options::create_options() {
   this->create_new_option(&this->m_bind_addr, "bind-address",
                           "IP address to bind to.");
-  this->create_new_option((char **)&charsets_dir, "character-sets-dir",
+  this->create_new_option(const_cast<char **>(&charsets_dir),
+                          "character-sets-dir",
                           "Directory for character set files.");
   this->create_new_option(&this->m_compress, "compress",
                           "Use compression in server/client protocol.")
       ->set_short_character('C');
+  this->create_new_option(
+      &this->m_compress_algorithm, "compression-algorithms",
+      "Use compression algorithm in server/client protocol. Valid values "
+      "are any combination of 'zstd','zlib','uncompressed'");
+  this->create_new_option(
+          &this->m_zstd_compress_level, "zstd-compression-level",
+          "Use this compression level in the client/server protocol, in case "
+          "--compression-algorithms=zstd. Valid range is between 1 and 22, "
+          "inclusive. Default is 3.")
+      ->set_minimum_value(1)
+      ->set_maximum_value(22)
+      ->set_value(default_zstd_compression_level);
   this->create_new_option(&this->m_default_charset, "default-character-set",
                           "Set the default character set.")
       ->set_value("UTF8MB4");
@@ -129,6 +143,13 @@ void Mysql_connection_options::create_options() {
 MYSQL *Mysql_connection_options::create_connection() {
   MYSQL *connection = mysql_init(NULL);
   if (this->m_compress) mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
+
+  if (this->m_compress_algorithm.has_value())
+    mysql_options(connection, MYSQL_OPT_COMPRESSION_ALGORITHMS,
+                  this->m_compress_algorithm.value().c_str());
+
+  mysql_options(connection, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+                &this->m_zstd_compress_level);
 
   if (this->m_ssl_options_provider.apply_for_connection(connection))
     return NULL;

@@ -30,6 +30,9 @@
 --source include/have_debug.inc
 --source include/not_crashrep.inc
 --source include/master-slave.inc
+#default storage engine is MyIsam for this test.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .* and file master-bin.000001");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                 myf MyFlags) {
   size_t readbytes;
   int error = 0;
-  DBUG_ENTER("my_pread");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Seek: %llu  Buffer: %p  Count: %lu  MyFlags: %d",
                     Filedes, (ulonglong)offset, Buffer, (ulong)Count, MyFlags));
   for (;;) {
@@ -119,11 +119,10 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                    my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
       if (readbytes == (size_t)-1 || (MyFlags & (MY_FNABP | MY_NABP)))
-        DBUG_RETURN(MY_FILE_ERROR); /* Return with error */
+        return MY_FILE_ERROR; /* Return with error */
     }
-    if (MyFlags & (MY_NABP | MY_FNABP))
-      DBUG_RETURN(0);       /* Read went ok; Return 0 */
-    DBUG_RETURN(readbytes); /* purecov: inspected */
+    if (MyFlags & (MY_NABP | MY_FNABP)) return 0; /* Read went ok; Return 0 */
+    return readbytes;                             /* purecov: inspected */
   }
 } /* my_pread */
 
@@ -165,7 +164,7 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   uint errors = 0;
   const size_t initial_count = Count;
 
-  DBUG_ENTER("my_pwrite");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Seek: %llu  Buffer: %p  Count: %lu  MyFlags: %d",
                     Filedes, offset, Buffer, (ulong)Count, MyFlags));
 
@@ -214,17 +213,17 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
   }
   if (MyFlags & (MY_NABP | MY_FNABP)) {
     if (sum_written == initial_count)
-      DBUG_RETURN(0); /* Want only errors, not bytes written */
+      return 0; /* Want only errors, not bytes written */
     if (MyFlags & (MY_WME | MY_FAE | MY_FNABP)) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(EE_WRITE, MYF(0), my_filename(Filedes), my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_RETURN(MY_FILE_ERROR);
+    return MY_FILE_ERROR;
   }
   DBUG_EXECUTE_IF("check", my_seek(Filedes, -1, SEEK_SET, MYF(0)););
 
-  if (sum_written == 0) DBUG_RETURN(MY_FILE_ERROR);
+  if (sum_written == 0) return MY_FILE_ERROR;
 
-  DBUG_RETURN(sum_written);
+  return sum_written;
 } /* my_pwrite */

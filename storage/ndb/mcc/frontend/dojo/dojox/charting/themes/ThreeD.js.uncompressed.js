@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/themes/ThreeD", ["dojox","dojo/_base/kernel", "dojo/_base/lang", "dojo/_base/array", "../Theme", "./gradientGenerator", "./PrimaryColors", "dojo/colors" /* for sanitize */, "./common"], 
 	function(dojox, kernel, lang, ArrayUtil, Theme, gradientGenerator, PrimaryColors, themes){
 

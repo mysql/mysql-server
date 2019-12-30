@@ -227,6 +227,45 @@ remove_file $MYSQL_TMP_DIR/keyring;
 
 
 --echo #
+--echo # Bug#29584642 DATABASE INITIALISATION FAILURE WITH INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
+--echo #
+--echo # The database initialization would fail without the fix.
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize --innodb_default_row_format=redundant > $MYSQLD_LOG 2>&1
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+
+--echo #
+--echo # Bug#29780434 MYSQLD --INITIALIZE FAILS IF LOST+FOUND FROM FILESYSTEM IS IN DATADIR
+--echo #
+
+--echo # Create the data directory and subdirectories.
+--mkdir $DDIR
+--echo # Add a sub-directory in it with a name that is not ignored.
+--mkdir $DDIR/subdir
+--echo # Add a sub-directory in it with a name that is ignored.
+--mkdir $DDIR/lost+found
+--echo # Add a "hidden" sub-directory, starting with '.'.
+--mkdir $DDIR/.hsubdir
+
+--echo # Run the server with --initialize. Should fail due to 'subdir'.
+--error 1
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR > $MYSQLD_LOG 2>&1
+
+--echo # Remove the subdirectory which is not accepted, and start the server with --initialize again.
+--force-rmdir $DDIR/subdir
+--exec $MYSQLD $extra_args --initialize --datadir=$DDIR > $MYSQLD_LOG 2>&1
+
+--echo # Remove data dir and log file.
+--remove_file $MYSQLD_LOG
+--force-rmdir $DDIR
+
+
+--echo #
 --echo # Cleanup
 --echo #
 --echo # Restarting the server

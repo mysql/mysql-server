@@ -10,10 +10,10 @@
 	left: 0px;
 	width: 26px;
 	height: 26px;
-	border: 1px solid #B5B6B5;
-	-webkit-border-radius: 13px;
+	border: 1px solid #b5b6b5;
+	border-radius: 13px;
 	-webkit-box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.5);
-	background: -webkit-gradient(linear, left top, left bottom, from(#EFEFEF), to(#C2C2C2));
+	background: -webkit-gradient(linear, left top, left bottom, from(#efefef), to(#c2c2c2));
 }
 .mblDomButtonSilverCircleGreenButton > div > div {
 	position: relative;
@@ -21,7 +21,7 @@
 	left: 6px;
 	width: 12px;
 	height: 12px;
-	border: 1px inset #1B991C;
-	-webkit-border-radius: 7px;
-	background: -webkit-gradient(radial, center center, 0, center center, 6, from(#17DF25), to(#1BA51C));
+	border: 1px inset #1b991c;
+	border-radius: 7px;
+	background: -webkit-gradient(radial, center center, 0, center center, 6, from(#17df25), to(#1ba51c));
 }

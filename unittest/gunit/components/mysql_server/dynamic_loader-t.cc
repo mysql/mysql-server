@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/mysql_server/mysql_page_track.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
+#include <keyring_iterator_service_imp.h>
 #include <mysql.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
@@ -54,6 +55,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
@@ -62,6 +64,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
+                   (MYSQL_THD *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
                    (int, void *)) {
@@ -161,8 +168,26 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
 
+DEFINE_METHOD(int, mysql_clone_get_charsets, (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_charsets,
+              (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_get_configs, (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_configs,
+              (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD *, const char *, uint, const char *, const char *,
+              (THD *, const char *, uint32_t, const char *, const char *,
                mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
   return nullptr;
 }
@@ -173,7 +198,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
 }
 
 DEFINE_METHOD(int, mysql_clone_get_response,
-              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *, size_t *)) {
   return 0;
 }
 
@@ -183,12 +208,16 @@ DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
   return;
 }
 
+DEFINE_METHOD(void, mysql_clone_get_error, (THD *, uint32_t *, const char **)) {
+  return;
+}
+
 DEFINE_METHOD(int, mysql_clone_get_command,
               (THD *, uchar *, uchar **, size_t *)) {
   return 0;
 }
 
-DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, bool, uchar *, size_t)) {
   return 0;
 }
 
@@ -286,6 +315,25 @@ DEFINE_METHOD(int, Page_track_implementation::get_status,
   return (0);
 }
 
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
+                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
+                    char *key_id MY_ATTRIBUTE((unused)),
+                    size_t key_id_size MY_ATTRIBUTE((unused)),
+                    char *user_id MY_ATTRIBUTE((unused)),
+                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component
   unit tests. */
@@ -308,6 +356,9 @@ bool check_valid_path(const char *path, size_t len) {
 
 namespace dynamic_loader_unittest {
 
+using registry_type_t = SERVICE_TYPE_NO_CONST(registry);
+using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
+
 class dynamic_loader : public ::testing::Test {
  protected:
   virtual void SetUp() {
@@ -315,15 +366,19 @@ class dynamic_loader : public ::testing::Test {
     reg = NULL;
     loader = NULL;
     ASSERT_FALSE(mysql_services_bootstrap(&reg));
-    ASSERT_FALSE(reg->acquire("dynamic_loader", (my_h_service *)&loader));
+    ASSERT_FALSE(reg->acquire("dynamic_loader",
+                              reinterpret_cast<my_h_service *>(
+                                  const_cast<loader_type_t **>(&loader))));
   }
 
   virtual void TearDown() {
     if (reg) {
-      ASSERT_FALSE(reg->release((my_h_service)reg));
+      ASSERT_FALSE(reg->release(
+          reinterpret_cast<my_h_service>(const_cast<registry_type_t *>(reg))));
     }
     if (loader) {
-      ASSERT_FALSE(reg->release((my_h_service)loader));
+      ASSERT_FALSE(reg->release(
+          reinterpret_cast<my_h_service>(const_cast<loader_type_t *>(loader))));
     }
     shutdown_dynamic_loader();
     ASSERT_FALSE(mysql_services_shutdown());

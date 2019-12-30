@@ -1006,6 +1006,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk DESC),
 KEY 1col_int_key (col_int_key DESC)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO ee VALUES
 (NULL,NULL,1), (NULL,NULL,2), (NULL,286720000,3), (NULL,1,4),
 (2084831232,8,5), (NULL,0,6), (4,763953152,7), (5,NULL,8), (7,9,9);
@@ -1066,7 +1070,7 @@ AND table1 . col_varchar_10_latin1_key >= 'w'
 AND table1 . col_varchar_10_utf8_key < 'zzzz';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	NULL	range	k5	k5	24	NULL	1	100.00	Using where
-1	SIMPLE	table2	NULL	ref	k5	k5	24	test.table1.col_varchar_10_utf8_key	1	100.00	Using where
+1	SIMPLE	table2	NULL	eq_ref	k5	k5	24	test.table1.col_varchar_10_utf8_key	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table2`.`col_varchar_10_utf8_key` AS `field1` from `test`.`e` `table1` left join `test`.`c` `table2` on((`test`.`table2`.`col_varchar_10_utf8_key` = `test`.`table1`.`col_varchar_10_utf8_key`)) where ((`test`.`table1`.`col_varchar_255_utf8_key` <> 'LPGIV') and (`test`.`table1`.`col_varchar_10_latin1_key` >= 'w') and (`test`.`table1`.`col_varchar_10_utf8_key` < 'zzzz'))
 SELECT table2 . col_varchar_10_utf8_key AS field1
@@ -1086,6 +1090,11 @@ PRIMARY KEY (i),
 KEY j (j,k DESC,l),
 KEY i (i,j,k,l)
 )ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES
 (11,1,6,3),(4,1,2,3),(8,1,2,3),(10,1,2,3),(1,1,1,1),(2,1,1,1),(3,1,1,1),
 (5,3,2,3),(6,4,2,3),(7,6,2,3),(12,7,6,3),(13,7,6,8),(14,7,6,9),(16,8,7,9),
@@ -1134,7 +1143,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	test.alias1.pk	1	100.00	Using index; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) join `test`.`t1` where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` >= 'y'))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` >= 'y'))
 SELECT t1.col_varchar_key
 FROM ( t2 INNER JOIN t1
 ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
@@ -1156,7 +1165,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	const	PRIMARY,col_int_key	PRIMARY	4	const	1	100.00	Using where
 1	SIMPLE	alias2	NULL	ref	col_int_key	col_int_key	5	test.alias1.pk	1	100.00	Using index; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) join `test`.`t1` where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` <= 'y'))
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t2` join `test`.`t1` semi join (`test`.`t1` `alias1` left join `test`.`t2` `alias2` on((`test`.`alias1`.`pk` = `test`.`alias2`.`col_int_key`))) where ((`test`.`t1`.`col_int_key` = `test`.`t2`.`col_int`) and (`test`.`alias1`.`pk` = 5) and (`test`.`alias1`.`col_int_key` = 1) and (`test`.`alias1`.`col_varchar_key` <= 'y'))
 SELECT t1.col_varchar_key
 FROM ( t2 INNER JOIN t1
 ON (t1.col_int_key = t2.col_int  AND (1,5)  IN
@@ -1296,7 +1305,7 @@ Warnings:
 Note	1276	Field or reference 'test.gp1.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.gp1.col_int' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.gp1.col_varchar' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`gp1`.`col_varchar` AS `g1` from `test`.`b` `gp1` semi join (`test`.`b` `c1` left join `test`.`bb` `c2` on((`test`.`c1`.`col_varchar` = `test`.`c2`.`col_varchar`)) join `test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int` >= `test`.`p2`.`col_int_key`))) left join `test`.`bb` `gp2` on((`test`.`gp2`.`col_varchar_key` = `test`.`gp1`.`col_varchar_key`)) where ((`test`.`c1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`p1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`gp1`.`col_varchar_key` <> 'y') and (`test`.`gp1`.`col_varchar` < 'e') and (`test`.`gp1`.`col_varchar_key` >= 'n')) order by `test`.`gp1`.`col_varchar_key` limit 4
+Note	1003	/* select#1 */ select `test`.`gp1`.`col_varchar` AS `g1` from `test`.`b` `gp1` left join `test`.`bb` `gp2` on((`test`.`gp2`.`col_varchar_key` = `test`.`gp1`.`col_varchar_key`)) semi join (`test`.`bb` `p1` left join `test`.`bb` `p2` on((`test`.`p1`.`col_int` >= `test`.`p2`.`col_int_key`)) join `test`.`b` `c1` left join `test`.`bb` `c2` on((`test`.`c1`.`col_varchar` = `test`.`c2`.`col_varchar`))) where ((`test`.`c1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`p1`.`col_int` = `test`.`gp1`.`col_int`) and (`test`.`gp1`.`col_varchar_key` <> 'y') and (`test`.`gp1`.`col_varchar` < 'e') and (`test`.`gp1`.`col_varchar_key` >= 'n')) order by `test`.`gp1`.`col_varchar_key` limit 4
 SELECT  gp1 . col_varchar AS g1 
 FROM b AS gp1 LEFT JOIN bb AS gp2 USING ( col_varchar_key ) 
 WHERE gp1 . col_int IN ( 
@@ -1324,6 +1333,8 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 KEY (pk DESC),
 KEY k3 (col_varchar_255_latin1_key DESC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(col_varchar_255_latin1_key, pk) VALUES
 ('l',4), ('something',3), ('ycyoybhug',2), ('l',5), ('my',1),
 ('l',4),('l',4),('l',4),('l',4),('l',4),('l',4),
@@ -1386,6 +1397,9 @@ col_int_key int(11) DEFAULT NULL,
 PRIMARY KEY (pk DESC),
 KEY k3 (col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (25,9), (24,1), (23,-74383360), (22,-855900160),
 (21,NULL), (20,1596522496), (19,9), (18,1), (17,NULL), (16,NULL),
 (15,1808465920), (14,NULL), (13,588644352), (12,3), (11,6), (10,NULL),
@@ -1422,7 +1436,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	range	PRIMARY,k3	k3	9	NULL	11	100.00	Using where; Using index; Using temporary; Using filesort
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) group by `field1` having (`field1` <> 6) order by `field1`
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `field1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`pk` = `test`.`t1`.`pk`)) where ((`test`.`t1`.`col_int_key` is null) and (`test`.`t1`.`pk` <> 4)) group by `field1` having (`field1` <> 6) order by `field1`
 EXPLAIN UPDATE t1
 SET t1.pk = pk + 1000
 WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
@@ -1430,7 +1444,7 @@ ORDER BY pk ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY,k3	PRIMARY	4	const	24	100.00	Using where; Backward index scan; Using temporary
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`pk` = (`test`.`t1`.`pk` + 1000) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) order by `test`.`t1`.`pk` limit 3
+Note	1003	update `test`.`t1` set `test`.`t1`.`pk` = (`test`.`t1`.`pk` + 1000) where ((`test`.`t1`.`col_int_key` is null) and (`test`.`t1`.`pk` <> 4)) order by `test`.`t1`.`pk` limit 3
 DROP TABLE t1;
 #
 #
@@ -1492,6 +1506,10 @@ col_int_key int(11),
 PRIMARY KEY (pk DESC),
 KEY k2 (col_int_key, col_int DESC)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO
 t2(col_int,col_int_key) VALUES (1,2), (2,4), (3,6), (4,8), (5,10), (6,12),
 (7,14), (8,16), (9,18);
@@ -1500,6 +1518,10 @@ col_int int(11) DEFAULT NULL,
 pk int(11) NOT NULL,
 col_int_key int(11)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(pk, col_int, col_int_key) VALUES (4,3,6), (5,4,8), (6,2,4);
 SELECT STRAIGHT_JOIN
 t1 . col_int_key AS field1 ,
@@ -1603,7 +1625,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b DATE, KEY(b,a DESC));
 SET @g:='1';
 DELETE FROM t1 WHERE b=@g ORDER BY b, a LIMIT 1;
-Warnings:
-Warning	1292	Incorrect date value: '1' for column 'b' at row 1
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
 DROP TABLE t1;
 # End of test for Bug#25899921

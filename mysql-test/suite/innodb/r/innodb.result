@@ -47,6 +47,10 @@ PRIMARY KEY (id),
 KEY parent_id (parent_id),
 KEY level (level)
 ) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1),(179,5,2);
 update t1 set parent_id=parent_id+100;
 select * from t1 where parent_id=102;
@@ -225,6 +229,9 @@ gesuchnr int(11) DEFAULT '0' NOT NULL,
 benutzer_id int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (gesuchnr,benutzer_id)
 ) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
@@ -419,6 +426,8 @@ ref_email varchar(100) DEFAULT '' NOT NULL,
 detail varchar(200),
 PRIMARY KEY (user_id,ref_email)
 )engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10292,'sanjeev','29153373','sansh777@hotmail.com','xxx'),(10292,'shirish','2333604','shirish@yahoo.com','ddsds'),(10292,'sonali','323232','sonali@bolly.com','filmstar');
 select * from t1 where user_id=10292;
 user_id	name	phone	ref_email	detail
@@ -534,6 +543,10 @@ approved datetime,
 dummy_primary_key int(11) NOT NULL auto_increment,
 PRIMARY KEY (dummy_primary_key)
 ) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('user_0','somepassword','N',0,0,0,'2000-09-07','23:06:59','2000-09-07 23:06:59',1);
 INSERT INTO t1 VALUES ('user_1','somepassword','Y',1,1,1,'2000-09-07','23:06:59','2000-09-07 23:06:59',2);
 INSERT INTO t1 VALUES ('user_2','somepassword','N',2,2,1.4142135623731,'2000-09-07','23:06:59','2000-09-07 23:06:59',3);
@@ -555,6 +568,10 @@ KEY (id),
 KEY parent_id (parent_id),
 KEY level (level)
 ) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0,0),(3,1,1),(4,1,1),(8,2,2),(9,2,2),(17,3,2),(22,4,2),(24,4,2),(28,5,2),(29,5,2),(30,5,2),(31,6,2),(32,6,2),(33,6,2),(203,7,2),(202,7,2),(20,3,2),(157,0,0),(193,5,2),(40,7,2),(2,1,1),(15,2,2),(6,1,1),(34,6,2),(35,6,2),(16,3,2),(7,1,1),(36,7,2),(18,3,2),(26,5,2),(27,5,2),(183,4,2),(38,7,2),(25,5,2),(37,7,2),(21,4,2),(19,3,2),(5,1,1);
 INSERT INTO t1 values (179,5,2);
 update t1 set parent_id=parent_id+100;
@@ -1017,6 +1034,15 @@ version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
 status tinyint(4) default '0'
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (4077711111,'SeanWheeler',90,2,20020111112846,500,00000000000000,-1,2,3,1);
 INSERT INTO t1 VALUES (9197722223,'berry',90,3,20020111112809,500,20020102114532,501,4,10,0);
 INSERT INTO t1 VALUES (650,'San Francisco',0,0,20011227111336,342,00000000000000,-1,1,24,1);
@@ -1036,6 +1062,15 @@ version smallint(6) NOT NULL default '0',
 assigned_scps int(11) default '0',
 status tinyint(4) default '0'
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4077711111,'SeanWheeler',0,2,20020111112853,500,00000000000000,-1,2,3,1);
 INSERT INTO t2 VALUES (9197722223,'berry',90,3,20020111112818,500,20020102114532,501,4,10,0);
 INSERT INTO t2 VALUES (650,'San Francisco',90,0,20020109113158,342,00000000000000,-1,1,24,1);
@@ -1107,7 +1142,13 @@ id	code	name
 COMMIT;
 DROP TABLE t1;
 create table t1 (n int(10), d int(10)) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (n int(10), d int(10)) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values(1,1),(1,2);
 insert into t2 values(1,10),(2,20);
 UPDATE t1,t2 SET t1.d=t2.d,t2.d=30 WHERE t1.n=t2.n;
@@ -1354,10 +1395,16 @@ CREATE TABLE t1 (`id 1` INT NOT NULL, PRIMARY KEY (`id 1`)) ENGINE=INNODB;
 CREATE TABLE t2 (id INT PRIMARY KEY, t1_id INT, INDEX par_ind (t1_id), FOREIGN KEY (`t1_id`) REFERENCES `t1`(`id 1`)  ON DELETE CASCADE ) ENGINE=INNODB;
 drop table t2,t1;
 create table `t1` (`id` int( 11 ) not null  ,primary key ( `id` )) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into `t1`values ( 1 ) ;
 create table `t2` (`id` int( 11 ) not null default '0',unique key `id` ( `id` ) ,constraint `t1_id_fk` foreign key ( `id` ) references `t1` (`id` )) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into `t2`values ( 1 ) ;
 create table `t3` (`id` int( 11 ) not null default '0',key `id` ( `id` ) ,constraint `t2_id_fk` foreign key ( `id` ) references `t2` (`id` )) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into `t3`values ( 1 ) ;
 delete t3,t2,t1 from t1,t2,t3 where t1.id =1 and t2.id = t1.id and t3.id = t2.id;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`))
@@ -1393,8 +1440,12 @@ delete from t1 where id=15;
 delete from t1 where id=0;
 drop table t1;
 CREATE TABLE t1 (col1 int(1))ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (col1 int(1),stamp TIMESTAMP,INDEX stamp_idx
 (stamp))ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1),(2),(3);
 insert ignore into t2 values (1, 20020204130000),(2, 20020204130000),(4,20020204310000 ),(5,20020204230000);
 Warnings:
@@ -1417,6 +1468,10 @@ PRIMARY KEY  (`id`),
 KEY `id_object` (`id_object`),
 KEY `id_version` (`id_version`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES("6", "3382", "9", "Test", NULL), ("7", "102", "5", "Le Pekin (Test)", NULL),("584", "1794", "4", "Test de resto", NULL),("837", "1822", "6", "Test 3", NULL),("1119", "3524", "1", "Societe Test", NULL),("1122", "3525", "1", "Fournisseur Test", NULL);
 CREATE TABLE t2 (
 `id` int(10) unsigned NOT NULL auto_increment,
@@ -1424,6 +1479,9 @@ CREATE TABLE t2 (
 PRIMARY KEY  (`id`),
 KEY `id_version` (`id_version`)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES("3524", "1"),("3525", "1"),("1794", "4"),("102", "5"),("1822", "6"),("3382", "9");
 SELECT t2.id, t1.`label` FROM t2 INNER JOIN
 (SELECT t1.id_object as id_object FROM t1 WHERE t1.`label` LIKE '%test%') AS lbl
@@ -1485,7 +1543,12 @@ create table t1 (a int) engine=innodb;
 create table t2 like t1;
 drop table t1,t2;
 create table t1 (id int(11) not null, id2 int(11) not null, unique (id,id2)) engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (id int(11) not null, constraint t1_id_fk foreign key ( id ) references t1 (id)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1531,6 +1594,9 @@ t2	CREATE TABLE `t2` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, constraint t1_id_fk foreign key (id,id2) references t1 (id,id2)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1550,6 +1616,9 @@ t2	CREATE TABLE `t2` (
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1561,6 +1630,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2), constraint t1_id_fk foreign key (id) references t1 (id)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1571,6 +1643,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null, id2 int(11) not null, unique (id,id2),constraint t1_id_fk foreign key (id2,id) references t1 (id,id2)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1582,6 +1657,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id), primary key (id), index (id,id2)) engine = innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1593,6 +1671,9 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 (id int(11) not null auto_increment, id2 int(11) not null, constraint t1_id_fk foreign key (id) references t1 (id)) engine= innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1732,7 +1813,7 @@ explain select count(*) from t1 where x > -16;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	8	NULL	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where true
 select count(*) from t1 where x > -16;
 count(*)
 2
@@ -2110,8 +2191,8 @@ f	10
 g	10
 h	10
 i	10
-select t,count(*) from t1 group by t order by t limit 10;
-t	count(*)
+select TRIM(t),count(*) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(*)
 a	1
 a	10
 b	10
@@ -2122,8 +2203,8 @@ f	10
 g	10
 h	10
 i	10
-select t,count(t) from t1 group by t order by t limit 10;
-t	count(t)
+select TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(t)
 a	1
 a	10
 b	10
@@ -2134,8 +2215,8 @@ f	10
 g	10
 h	10
 i	10
-select sql_big_result t,count(t) from t1 group by t order by t limit 10;
-t	count(t)
+select sql_big_result TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+TRIM(t)	count(t)
 a	1
 a	10
 b	10
@@ -2454,7 +2535,7 @@ explain select * from t1 where a=20 and b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	ba	ba	56	const,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 20) and isnull(`test`.`t1`.`b`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 20) and (`test`.`t1`.`b` is null))
 select * from t1 where a=20 and b is null;
 a	b
 20	NULL
@@ -2499,6 +2580,9 @@ min(b)
 6
 drop table t1;
 CREATE TABLE t1 ( `a` int(11) NOT NULL auto_increment, `b` int(11) default NULL,PRIMARY KEY  (`a`),UNIQUE KEY `b` (`b`)) ENGINE=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 (b) values (1);
 replace into t1 (b) values (2), (1), (3);
 select * from t1;
@@ -2730,7 +2814,11 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;
 create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
 ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
@@ -2805,7 +2893,11 @@ hex(s1)
 4120
 drop table t2,t1;
 create table t1 (a int primary key,s1 varchar(2) binary not null unique) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 create table t2 (s1 char(2) binary not null, constraint c foreign key(s1) references t1(s1) on update cascade) engine=innodb;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 insert into t1 values(1,0x4100),(2,0x41);
 insert into t2 values(0x41);
 select hex(s1) from t2;
@@ -3047,6 +3139,7 @@ a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 a BIGINT(20) NOT NULL,
@@ -3058,6 +3151,7 @@ CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
 ON DELETE CASCADE
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, 'bar', 'vbar');
@@ -3170,6 +3264,8 @@ Note	1051	Unknown table 'test.t1'
 CREATE TABLE t1(
 id BIGINT(20) NOT NULL AUTO_INCREMENT PRIMARY KEY
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(-10);
 SELECT * FROM t1;
 id
@@ -3202,6 +3298,7 @@ c2 VARCHAR(128) NOT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -3209,6 +3306,8 @@ c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text

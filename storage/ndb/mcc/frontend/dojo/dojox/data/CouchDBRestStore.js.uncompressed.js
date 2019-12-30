@@ -1,15 +1,13 @@
-//>>built
 define("dojox/data/CouchDBRestStore", ["dojo", "dojox", "dojox/data/JsonRestStore"], function(dojo, dojox) {
-
-// A CouchDBRestStore is an extension of JsonRestStore to handle CouchDB's idiosyncrasies, special features,
-// and deviations from standard HTTP Rest.
-// NOTE: CouchDB is not designed to be run on a public facing network. There is no access control
-// on database documents, and you should NOT rely on client side control to implement security.
-
-
 dojo.declare("dojox.data.CouchDBRestStore",
 	dojox.data.JsonRestStore,
 	{
+	// summary:
+	//		A CouchDBRestStore is an extension of JsonRestStore to handle CouchDB's idiosyncrasies, special features,
+	//		and deviations from standard HTTP Rest.
+	//		NOTE: CouchDB is not designed to be run on a public facing network. There is no access control
+	//	 	on database documents, and you should NOT rely on client side control to implement security.
+
 		save: function(kwArgs){
 			var actions = this.inherited(arguments); // do the default save and then update for version numbers
 			var prefix = this.service.servicePath;
@@ -28,10 +26,10 @@ dojo.declare("dojox.data.CouchDBRestStore",
 		},
 		fetch: function(args){
 			// summary:
-			// 		This only differs from JsonRestStore in that it, will put the query string the query part of the URL and it handles start and count
+			//		This only differs from JsonRestStore in that it, will put the query string the query part of the URL and it handles start and count
 			args.query = args.query || '_all_docs?';
 			if(args.start){
-				args.query = (args.query ? (args.query + '&') : '') + 'startkey=' + args.start;
+				args.query = (args.query ? (args.query + '&') : '') + 'skip=' + args.start;
 				delete args.start;
 			}
 			if(args.count){

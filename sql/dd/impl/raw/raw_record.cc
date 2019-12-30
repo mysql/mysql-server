@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ Raw_record::Raw_record(TABLE *table) : m_table(table) {
   @return false - on success.
 */
 bool Raw_record::update() {
-  DBUG_ENTER("Raw_record::update");
+  DBUG_TRACE;
 
   int rc = m_table->file->ha_update_row(m_table->record[1], m_table->record[0]);
 
@@ -79,10 +79,10 @@ bool Raw_record::update() {
 
   if (rc && rc != HA_ERR_RECORD_IS_THE_SAME) {
     m_table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -95,16 +95,16 @@ bool Raw_record::update() {
   @return false - on success.
 */
 bool Raw_record::drop() {
-  DBUG_ENTER("Raw_record::drop");
+  DBUG_TRACE;
 
   int rc = m_table->file->ha_delete_row(m_table->record[1]);
 
   if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -291,7 +291,7 @@ Raw_new_record::Raw_new_record(TABLE *table) : Raw_record(table) {
   bitmap_set_all(m_table->read_set);
 
   m_table->next_number_field = m_table->found_next_number_field;
-  m_table->auto_increment_field_not_null = true;
+  m_table->autoinc_field_has_explicit_non_null_value = true;
 
   restore_record(m_table, s->default_values);
 }
@@ -306,16 +306,16 @@ Raw_new_record::Raw_new_record(TABLE *table) : Raw_record(table) {
   @return false - on success.
 */
 bool Raw_new_record::insert() {
-  DBUG_ENTER("Raw_new_record::insert");
+  DBUG_TRACE;
 
   int rc = m_table->file->ha_write_row(m_table->record[0]);
 
   if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -332,7 +332,7 @@ Object_id Raw_new_record::get_insert_id() const {
 void Raw_new_record::finalize() {
   if (!m_table) return;
 
-  m_table->auto_increment_field_not_null = false;
+  m_table->autoinc_field_has_explicit_non_null_value = false;
   m_table->file->ha_release_auto_increment();
   m_table->next_number_field = NULL;
 

@@ -29,8 +29,6 @@
 #include <string>
 #include <vector>
 
-#include "mq/broker_task.h"
-#include "mq/notice_input_queue.h"
 #include "mysql/plugin.h"
 
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
@@ -45,6 +43,8 @@
 #include "plugin/x/src/helper/multithread/lock_container.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/rw_lock.h"
+#include "plugin/x/src/mq/broker_task.h"
+#include "plugin/x/src/mq/notice_input_queue.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/ssl_session_options.h"
@@ -69,11 +69,11 @@ class Server : public ngs::Server_delegate {
  public:
   Server(std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
          std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-         std::shared_ptr<ngs::Protocol_config> config,
+         std::shared_ptr<ngs::Protocol_global_config> config,
          std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
 
-  static int main(MYSQL_PLUGIN p);
-  static int exit(MYSQL_PLUGIN p);
+  static int plugin_main(MYSQL_PLUGIN p);
+  static int plugin_exit(MYSQL_PLUGIN p);
   static bool reset();
   static void stop();
   static std::string get_document_id(const THD *thd, const uint16_t offset,
@@ -112,7 +112,7 @@ class Server : public ngs::Server_delegate {
   void reset_globals();
 
  private:
-  static void verify_mysqlx_user_grants(Sql_data_context &context);
+  static void verify_mysqlx_user_grants(Sql_data_context *context);
   static void initialize_xmessages();
 
   bool on_net_startup();
@@ -150,7 +150,7 @@ class Server : public ngs::Server_delegate {
 
   ngs::Client_interface::Client_id m_client_id;
   std::atomic<int> m_num_of_connections;
-  std::shared_ptr<ngs::Protocol_config> m_config;
+  std::shared_ptr<ngs::Protocol_global_config> m_config;
   std::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
   std::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   Mutex m_accepting_mutex{KEY_mutex_x_xpl_server_accepting};

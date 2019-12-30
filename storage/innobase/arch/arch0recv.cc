@@ -85,7 +85,7 @@ dberr_t Arch_Dblwr_Ctx::init(const char *dblwr_path,
 
   memset(m_buf, 0, m_file_size);
 
-  auto err = m_file_ctx.init(dblwr_path, nullptr, dblwr_base_file,
+  auto err = m_file_ctx.init(ARCH_DIR, dblwr_path, dblwr_base_file,
                              dblwr_num_files, m_file_size);
 
   return (err);

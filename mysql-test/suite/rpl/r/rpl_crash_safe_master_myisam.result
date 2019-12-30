@@ -1,0 +1,29 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+include/stop_slave.inc
+RESET MASTER;
+call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("allocated tablespace *., old maximum was 0");
+call mtr.add_suppression("Error in Log_event::read_log_event()");
+call mtr.add_suppression("Buffered warning: Performance schema disabled");
+# Test case4: Set DEBUG POINT in the middle of binlog to
+#             make the master crash for non-transaction.
+CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM;
+INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the master server
+# Test the halfly binlogged non-transaction statement will be trimmed
+# from the crashed binlog file
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2(a LONGBLOB) ENGINE=MYISAM
+# Test the data will not be recovered successfully
+# after the master restart.
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+0
+DROP TABLE t2;
+CHANGE MASTER TO MASTER_AUTO_POSITION= 0;

@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"save": "Gem"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/da/Save",({"save":"Gem"}));

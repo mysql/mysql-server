@@ -1,45 +1,36 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/stencil/Ellipse", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.stencil.Ellipse");
+define("dojox/drawing/stencil/Ellipse", ["dojo/_base/lang", "../util/oo", "./_Base", "../manager/_registry"], 
+function(lang, oo, Base, registry){
 
 /*=====
-__StencilData = {
+var __StencilData = {
 	// summary:
 	//		the data used to create the dojox.gfx Shape
-	//
-
-	// 	cx: Number
+	// cx: Number
 	//		Center point x
-	cx:0,
-	// 	cy: Number
+	// cy: Number
 	//		Center point y
-	cy:0,
-	// 	rx: Number
+	// rx: Number
 	//		Horizontal radius
-	rx:0,
-	// 	ry: Number
+	// ry: Number
 	//		Vertical radius
-	ry:0
-}
+};
 =====*/
 
-dojox.drawing.stencil.Ellipse = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Creates a dojox.gfx Ellipse based on data or points provided.
-	//
-	dojox.drawing.stencil._Base,
+var Ellipse = oo.declare(
+	Base,
 	function(options){
 		// summary:
 		//		constructor
 	},
 	{
-		
+		// summary:
+		//		Creates a dojox.gfx Ellipse based on data or points provided.
+
 		type:"dojox.drawing.stencil.Ellipse",
 		anchorType: "group",
 		baseRender:true,
 		dataToPoints: function(/*Object*/o){
-			//summary:
+			// summary:
 			//		Converts data to points.
 			o = o || this.data;
 			var x = o.cx - o.rx,
@@ -76,7 +67,7 @@ dojox.drawing.stencil.Ellipse = dojox.drawing.util.oo.declare(
 			//		Creates a dojox.gfx.shape based on passed arguments.
 			//		Can be called many times by implementation to create
 			//		multiple shapes in one stencil.
-			//
+
 			this.remove(this[shp]);
 			this[shp] = this.container.createEllipse(d)
 				.setStroke(sty)
@@ -89,7 +80,7 @@ dojox.drawing.stencil.Ellipse = dojox.drawing.util.oo.declare(
 			//		Renders the 'hit' object (the shape used for an expanded
 			//		hit area and for highlighting) and the'shape' (the actual
 			//		display object).
-			//
+
 			this.onBeforeRender(this);
 			this.renderHit && this._create("hit", this.data, this.style.currentHit);
 			this._create("shape", this.data, this.style.current);
@@ -98,7 +89,10 @@ dojox.drawing.stencil.Ellipse = dojox.drawing.util.oo.declare(
 	}
 );
 
-dojox.drawing.register({
+lang.setObject("dojox.drawing.stencil.Ellipse", Ellipse);
+registry.register({
 	name:"dojox.drawing.stencil.Ellipse"
 }, "stencil");
+
+return Ellipse;
 });

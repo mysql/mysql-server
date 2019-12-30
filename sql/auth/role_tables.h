@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,4 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
 bool modify_default_roles_in_table(THD *thd, TABLE *table,
                                    const Auth_id_ref &auth_id,
                                    const Auth_id_ref &role, bool delete_option);
-TABLE *open_role_edges_table(THD *thd);
-TABLE *open_default_role_table(THD *thd);
-void close_all_role_tables(THD *thd);
 #endif /* ROLE_TABLES_H */

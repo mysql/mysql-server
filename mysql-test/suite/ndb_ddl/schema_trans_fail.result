@@ -1,5 +1,5 @@
 # Emulate failure to start the NDB schema transaction
-# when creating a table. Note that no NDB error really occured
+# when creating a table. Note that no NDB error really occurred
 # and it's thus normal to have error 0.
 SET SESSION debug="+d,ndb_schema_trans_start_fail";
 CREATE TABLE t1(a int primary key) engine = NDB;

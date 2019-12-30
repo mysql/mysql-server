@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#ifndef GCS_BASE_TEST_INCLUDED
+#define GCS_BASE_TEST_INCLUDED
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_basic_logging.h"
 
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::ByRef;
 using ::testing::ContainsRegex;
@@ -35,7 +39,6 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 using ::testing::WithArgs;
-using ::testing::_;
 
 /**
   Class that defines basic common testing infra-structure to be used
@@ -68,3 +71,5 @@ class GcsBaseTestNoLogging : public ::testing::Test {
 
   virtual ~GcsBaseTestNoLogging() {}
 };
+
+#endif  // GCS_BASE_TEST_INCLUDED

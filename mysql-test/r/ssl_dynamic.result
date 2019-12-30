@@ -105,7 +105,7 @@ gizmo
 # Must pass with a warning and disable SSL
 ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
 Warnings:
-Warning	10069	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
+Warning	3888	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
 # Must be 1
 SELECT COUNT(*) FROM performance_schema.session_status
 WHERE VARIABLE_NAME = 'Current_tls_ca' AND VARIABLE_VALUE = 'gizmo';

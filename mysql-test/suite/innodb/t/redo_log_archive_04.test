@@ -1,0 +1,94 @@
+#
+# Test the Redo-Log Archiving feature. File and directory permissions.
+#
+--source include/not_windows.inc
+
+--disable_query_log
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
+--let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
+--let $SERVER_UUID      = `SELECT @@global.server_uuid`
+--let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log
+--let $IRLA_DIRECTORY_1 = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--let $IRLA_PATHNAME_1  = $IRLA_DIRECTORY_1/$IRLA_FILENAME
+
+--echo #
+--echo # Show the original variable value (from -master.opt).
+--echo #
+SELECT @@global.innodb_redo_log_archive_dirs;
+--echo
+
+--echo #
+--echo # Try to start redo log archiving with that value.
+--echo #
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH, ER_INNODB_REDO_LOG_ARCHIVE_DIR_PERMISSIONS
+DO innodb_redo_log_archive_start('command_line_label');
+--echo
+
+--echo #
+--echo # Set innodb_redo_log_archive_dirs for the following tests.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--mkdir $IRLA_DIRECTORY_1
+--echo
+
+--echo #
+--echo # Directory with world permissions
+--echo #
+--exec chmod o+rx $IRLA_DIRECTORY_1
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+--error ER_INNODB_REDO_LOG_ARCHIVE_DIR_PERMISSIONS
+DO innodb_redo_log_archive_start('label1');
+--exec chmod o= $IRLA_DIRECTORY_1
+--echo
+
+--echo #
+--echo # Redo log archive file is read-only. No world permissions
+--echo #
+DO innodb_redo_log_archive_start('label1');
+--echo #
+--echo # Check the redo log archive file for existence and permissions.
+--echo #
+--file_exists $IRLA_PATHNAME_1
+
+--let _INPUT_FILE_ = $IRLA_PATHNAME_1
+--source include/get_file_permissions.inc
+--source $MYSQL_TMP_DIR/permissions.inc
+--remove_file $MYSQL_TMP_DIR/permissions.inc
+--let $assert_cond= $FILE_PERMISSIONS= 440
+--let $assert_text= File permissions should be equal to 440
+--source include/assert.inc
+--let _INPUT_FILE_ =
+
+--echo #
+--echo # Stop redo log archiving.
+--echo #
+DO innodb_redo_log_archive_stop();
+--echo #
+--echo # Check the redo log archive file again.
+--echo #
+--file_exists $IRLA_PATHNAME_1
+
+--let _INPUT_FILE_ = $IRLA_PATHNAME_1
+--source include/get_file_permissions.inc
+--source $MYSQL_TMP_DIR/permissions.inc
+--remove_file $MYSQL_TMP_DIR/permissions.inc
+--let $assert_cond= $FILE_PERMISSIONS= 440
+--let $assert_text= File permissions should be equal to 440
+--source include/assert.inc
+--let _INPUT_FILE_ =
+
+--echo #
+--echo # Remove the redo log archive file.
+--echo #
+--remove_file $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Cleanup
+--echo #
+--rmdir $IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';

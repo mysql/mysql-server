@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
 namespace dd {
 
 bool schema_exists(THD *thd, const char *schema_name, bool *exists) {
-  DBUG_ENTER("dd_schema_exists");
+  DBUG_TRACE;
 
   // We must make sure the schema is released and unlocked in the right order.
   Schema_MDL_locker mdl_handler(thd);
@@ -55,7 +55,7 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists) {
   DBUG_ASSERT(exists);
   *exists = (sch != NULL);
   // Error has been reported by the dictionary subsystem.
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool create_schema(THD *thd, const char *schema_name,

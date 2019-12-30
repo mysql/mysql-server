@@ -1,29 +1,23 @@
-//>>built
 define("dojox/mobile/IconItem", [
-	"dojo/_base/kernel",
-	"dojo/_base/array",
 	"dojo/_base/declare",
+	"dojo/_base/event",
 	"dojo/_base/lang",
 	"dojo/_base/sniff",
 	"dojo/_base/window",
-	"dojo/dom-attr",
 	"dojo/dom-class",
 	"dojo/dom-construct",
+	"dojo/dom-geometry",
 	"dojo/dom-style",
-	"dijit/registry",	// registry.byId
-	"./common",
 	"./_ItemBase",
-	"./TransitionEvent"
-], function(dojo, array, declare, lang, has, win, domAttr, domClass, domConstruct, domStyle, registry, common, ItemBase, TransitionEvent){
-
-/*=====
-	var ItemBase = dojox.mobile._ItemBase;
-=====*/
+	"./Badge",
+	"./TransitionEvent",
+	"./iconUtils",
+	"./lazyLoadUtils",
+	"./viewRegistry"
+], function(declare, event, lang, has, win, domClass, domConstruct, domGeometry, domStyle, ItemBase, Badge, TransitionEvent, iconUtils, lazyLoadUtils, viewRegistry){
 
 	// module:
 	//		dojox/mobile/IconItem
-	// summary:
-	//		An icon item widget.
 
 	return declare("dojox.mobile.IconItem", ItemBase, {
 		// summary:
@@ -36,113 +30,134 @@ define("dojox/mobile/IconItem", [
 		//		href or url parameters.
 
 		// lazy: String
-		//		If true, the content of the item, which includes dojo markup, is
-		//		instantiated lazily. That is, only when the icon is opened by
-		//		the user, the required modules are loaded and dojo widgets are
-		//		instantiated.
+		//		If true, the content of the widget, which includes dojo markup,
+		//		is instantiated lazily. That is, only when the widget is opened
+		//		by the user, the required modules are loaded and the content
+		//		widgets are instantiated.
+		//		This option works both in the sync and async loader mode.
 		lazy: false,
 
 		// requires: String
-		//		Comma-separated required module names to be loaded. All the
-		//		modules specified with dojoType and their depending modules are
-		//		automatically loaded by the IconItem. If you need other extra
-		//		modules to be loaded, use this parameter. If lazy is true, the
-		//		specified required modules are loaded when the user opens the
-		//		icon for the first time.
+		//		Comma-separated required module names to be lazily loaded. This
+		//		property is effective only when lazy=true. All the modules
+		//		specified with data-dojo-type and their depending modules are
+		//		automatically loaded by the IconItem when it is opened.
+		//		However, if you need other extra modules to be loaded, use this parameter.
+		//		This option works both in the sync and async loader mode.
 		requires: "",
 
 		// timeout: String
 		//		Duration of highlight in seconds.
 		timeout: 10,
 
-		// closeBtnClass: String
-		//		A class name of a DOM button to be used as a close button.
-		closeBtnClass: "mblDomButtonBlueMinus",
+		// content: String
+		//		An HTML fragment to embed as icon content.
+		content: "",
 
-		// closeBtnProp: String
-		//		Properties for the close button.
-		closeBtnProp: null,
+		// badge: String
+		//		A text to show in a badge (ex. "55").
+		badge: "",
 
+		// badgeClass: String
+		//		A class name of a DOM button for a badge.
+		badgeClass: "mblDomButtonRedBadge",
 
-		templateString: '<div class="mblIconArea" dojoAttachPoint="iconDivNode">'+
-							'<div><img src="${icon}" dojoAttachPoint="iconNode"></div><span dojoAttachPoint="labelNode1"></span>'+
-						'</div>',
-		templateStringSub: '<li class="mblIconItemSub" lazy="${lazy}" style="display:none;" dojoAttachPoint="contentNode">'+
-						'<h2 class="mblIconContentHeading" dojoAttachPoint="closeNode">'+
-							'<div class="${closeBtnClass}" style="position:absolute;left:4px;top:2px;" dojoAttachPoint="closeIconNode"></div><span dojoAttachPoint="labelNode2"></span>'+
-						'</h2>'+
-						'<div class="mblContent" dojoAttachPoint="containerNode"></div>'+
-					'</li>',
+		// deletable: Boolean
+		//		If true, you can delete this IconItem by clicking on the delete
+		//		icon during edit mode.
+		//		If false, the delete icon is not displayed during edit mode so
+		//		that it cannot be deleted.
+		deletable: true,
 
-		createTemplate: function(s){
-			array.forEach(["lazy","icon","closeBtnClass"], function(v){
-				while(s.indexOf("${"+v+"}") != -1){
-					s = s.replace("${"+v+"}", this[v]);
-				}
-			}, this);
-			var div = win.doc.createElement("DIV");
-			div.innerHTML = s;
-	
-			/*
-			array.forEach(query("[dojoAttachPoint]", domNode), function(node){
-				this[node.getAttribute("dojoAttachPoint")] = node;
-			}, this);
-			*/
+		// deleteIcon: String
+		//		A delete icon to display at the top-left corner of the item
+		//		during edit mode. The value can be either a path for an image
+		//		file or a class name of a DOM button.
+		deleteIcon: "",
 
-			var nodes = div.getElementsByTagName("*");
-			var i, len, s1;
-			len = nodes.length;
-			for(i = 0; i < len; i++){
-				s1 = nodes[i].getAttribute("dojoAttachPoint");
-				if(s1){
-					this[s1] = nodes[i];
-				}
+		// tag: String
+		//		A name of the HTML tag to create as domNode.
+		tag: "li",
+
+		/* internal properties */	
+		// Note these are overrides for similar properties defined in _ItemBase.
+		paramsToInherit: "transition,icon,deleteIcon,badgeClass,deleteIconTitle,deleteIconRole",
+		baseClass: "mblIconItem",
+		_selStartMethod: "touch",
+		_selEndMethod: "none",
+
+		destroy: function(){
+			if(this.badgeObj){
+				delete this.badgeObj;
 			}
-			if(this.closeIconNode && this.closeBtnProp){
-				domAttr.set(this.closeIconNode, this.closeBtnProp);
-			}
-			var domNode = div.removeChild(div.firstChild);
-			div = null;
-			return domNode;
+			this.inherited(arguments);
 		},
 
 		buildRendering: function(){
-			this.inheritParams();
-			var node = this.createTemplate(this.templateString);
-			this.subNode = this.createTemplate(this.templateStringSub);
-			this.subNode._parentNode = this.domNode; // [custom property]
+			this.domNode = this.srcNodeRef || domConstruct.create(this.tag);
 
-			this.domNode = this.srcNodeRef || domConstruct.create("LI");
-			domClass.add(this.domNode, "mblIconItem");
 			if(this.srcNodeRef){
 				// reparent
+				this._tmpNode = domConstruct.create("div");
 				for(var i = 0, len = this.srcNodeRef.childNodes.length; i < len; i++){
-					this.containerNode.appendChild(this.srcNodeRef.firstChild);
+					this._tmpNode.appendChild(this.srcNodeRef.firstChild);
 				}
 			}
-			this.domNode.appendChild(node);
+
+			this.iconDivNode = domConstruct.create("div", {className:"mblIconArea"}, this.domNode);
+			this.iconParentNode = domConstruct.create("div", {className:"mblIconAreaInner"}, this.iconDivNode);
+			this.labelNode = domConstruct.create("span", {className:"mblIconAreaTitle"}, this.iconDivNode);
+
+			this.inherited(arguments);
 		},
 
-		postCreate: function(){
-			common.createDomButton(this.closeIconNode, {
-				top: "-2px",
-				left: "1px"
-			});
-			this.connect(this.iconNode, "onmousedown", "onMouseDownIcon");
-			this.connect(this.iconNode, "onclick", "iconClicked");
-			this.connect(this.closeIconNode, "onclick", "closeIconClicked");
-			this.connect(this.iconNode, "onerror", "onError");
+		startup: function(){
+			if(this._started){ return; }
+
+			var p = this.getParent();
+			require([p.iconItemPaneClass], lang.hitch(this, function(module){
+				var w = this.paneWidget = new module(p.iconItemPaneProps);
+				this.containerNode = w.containerNode;
+				if(this._tmpNode){
+					// reparent
+					for(var i = 0, len = this._tmpNode.childNodes.length; i < len; i++){
+						w.containerNode.appendChild(this._tmpNode.firstChild);
+					}
+					this._tmpNode = null;
+				}
+				p.paneContainerWidget.addChild(w, this.getIndexInParent());
+				w.set("label", this.label);
+				this._clickCloseHandle = this.connect(w.closeIconNode, "onclick", "_closeIconClicked");
+				this._keydownCloseHandle = this.connect(w.closeIconNode, "onkeydown", "_closeIconClicked"); // for desktop browsers
+			}));
+
+			this.inherited(arguments);
+			if(!this._isOnLine){
+				this._isOnLine = true;
+				// retry applying the attribute for which the custom setter delays the actual 
+				// work until _isOnLine is true. 
+				this.set("icon", this._pendingIcon !== undefined ? this._pendingIcon : this.icon);
+				// Not needed anymore (this code executes only once per life cycle):
+				delete this._pendingIcon; 
+			}
+			if(!this.icon && p.defaultIcon){
+				this.set("icon", p.defaultIcon);
+			}
+
+			this._dragstartHandle = this.connect(this.domNode, "ondragstart", event.stop);
+			this._keydownHandle = this.connect(this.domNode, "onkeydown", "_onClick"); // for desktop browsers
 		},
-	
-		highlight: function(){
+
+		highlight: function(/*Number?*/timeout){
 			// summary:
 			//		Shakes the icon 10 seconds.
 			domClass.add(this.iconDivNode, "mblVibrate");
-			if(this.timeout > 0){
+			timeout = (timeout !== undefined) ? timeout : this.timeout;
+			if(timeout > 0){
 				var _this = this;
 				setTimeout(function(){
 					_this.unhighlight();
-				}, this.timeout*1000);
+				}, timeout*1000);
 			}
 		},
 
@@ -152,181 +167,233 @@ define("dojox/mobile/IconItem", [
 			domClass.remove(this.iconDivNode, "mblVibrate");
 		},
 
-		instantiateWidget: function(e){
-			// summary:
-			//		Instantiates the icon content.
-
-			// avoid use of query
-			/*
-			var list = query('[dojoType]', this.containerNode);
-			for(var i = 0, len = list.length; i < len; i++){
-				dojo["require"](list[i].getAttribute("dojoType"));
-			}
-			*/
-	
-			var nodes = this.containerNode.getElementsByTagName("*");
-			var len = nodes.length;
-			var s;
-			for(var i = 0; i < len; i++){
-				s = nodes[i].getAttribute("dojoType");
-				if(s){
-					dojo["require"](s);
-				}
-			}
-	
-			if(len > 0){
-				dojo.parser.parse(this.containerNode);
-			}
-			this.lazy = false;
-		},
-	
 		isOpen: function(e){
 			// summary:
 			//		Returns true if the icon is open.
-			return this.containerNode.style.display != "none";
+			return this.paneWidget.isOpen();
 		},
-	
-		onMouseDownIcon: function (e){
-			domStyle.set(this.iconNode, "opacity", this.getParent().pressedIconOpacity);
+
+		_onClick: function(e){
+			// summary:
+			//		Internal handler for click events.
+			// tags:
+			//		private
+			if(this.getParent().isEditing || e && e.type === "keydown" && e.keyCode !== 13){ return; }
+			if(this.onClick(e) === false){ return; } // user's click action
+			this.defaultClickAction(e);
 		},
-	
-		iconClicked: function(e){
-			if(e){
-				this.setTransitionPos(e);
-				setTimeout(lang.hitch(this, function(d){ this.iconClicked(); }), 0);
-				return;
-			}
 
-			if (this.href && this.hrefTarget) {
-				common.openWindow(this.href, this.hrefTarget);
-				dojo.style(this.iconNode, "opacity", 1);
-				return;
-			}
+		onClick: function(/*Event*/ /*===== e =====*/){
+			// summary:
+			//		User-defined function to handle clicks.
+			// tags:
+			//		callback
+		},
 
-			var transOpts;
-			if(this.moveTo || this.href || this.url || this.scene){
-				transOpts = {moveTo: this.moveTo, href: this.href, url: this.url, scene: this.scene, transitionDir: this.transitionDir, transition: this.transition};
-			}else if(this.transitionOptions){
-				transOpts = this.transitionOptions;
-			}
+		_onNewWindowOpened: function(e){
+			// Override from _ItemBase
+			this.set("selected", false);
+		},
+
+		_prepareForTransition: function(e, transOpts){
+			// Override from _ItemBase
 			if(transOpts){
 				setTimeout(lang.hitch(this, function(d){
-					domStyle.set(this.iconNode, "opacity", 1);
+					this.set("selected", false);
 				}), 1500);
+				return true;
 			}else{
-				return this.open(e);
-			}
-	
-			if(transOpts){
-				return new TransitionEvent(this.domNode,transOpts,e).dispatch();
+				if(this.getParent().transition === "below" && this.isOpen()){
+					this.close();
+				}else{
+					this.open(e);
+				}
+				return false;
 			}
 		},
-	
-		closeIconClicked: function(e){
+
+		_closeIconClicked: function(e){
+			// summary:
+			//		Internal handler for click events.
+			// tags:
+			//		private
 			if(e){
-				setTimeout(lang.hitch(this, function(d){ this.closeIconClicked(); }), 0);
+				if(e.type === "keydown" && e.keyCode !== 13){ return; }
+				if(this.closeIconClicked(e) === false){ return; } // user's click action
+				setTimeout(lang.hitch(this, function(d){ this._closeIconClicked(); }), 0);
 				return;
 			}
 			this.close();
 		},
-	
+
+		closeIconClicked: function(/*Event*/ /*===== e =====*/){
+			// summary:
+			//		User-defined function to handle clicks for the close icon.
+			// tags:
+			//		callback
+		},
+
 		open: function(e){
 			// summary:
 			//		Opens the icon content, or makes a transition.
 			var parent = this.getParent(); // IconContainer
-			if(this.transition == "below"){
+			if(this.transition === "below"){
 				if(parent.single){
 					parent.closeAll();
-					domStyle.set(this.iconNode, "opacity", this.getParent().pressedIconOpacity);
 				}
 				this._open_1();
 			}else{
 				parent._opening = this;
 				if(parent.single){
-					this.closeNode.style.display = "none";
-					parent.closeAll();
-					var view = registry.byId(parent.id+"_mblApplView");
-					view._heading._setLabelAttr(this.label);
+					this.paneWidget.closeHeaderNode.style.display = "none";
+					if(!this.isOpen()){
+						parent.closeAll();
+					}
+					parent.appView._heading.set("label", this.label);
 				}
-				var transOpts = this.transitionOptions || {transition: this.transition, transitionDir: this.transitionDir, moveTo: parent.id + "_mblApplView"};		
-				new TransitionEvent(this.domNode, transOpts, e).dispatch();
+				this.moveTo = parent.id + "_mblApplView";
+				new TransitionEvent(this.domNode, this.getTransOpts(), e).dispatch();
 			}
 		},
-	
+
 		_open_1: function(){
-			this.contentNode.style.display = "";
+			// tags:
+			//		private
+			this.paneWidget.show();
 			this.unhighlight();
 			if(this.lazy){
-				if(this.requires){
-					array.forEach(this.requires.split(/,/), function(c){
-						dojo["require"](c);
-					});
-				}
-				this.instantiateWidget();
+				lazyLoadUtils.instantiateLazyWidgets(this.containerNode, this.requires);
+				this.lazy = false;
 			}
-			this.contentNode.scrollIntoView();
+			this.scrollIntoView(this.paneWidget.domNode);
 			this.onOpen();
 		},
-	
-		close: function(){
+
+		scrollIntoView: function(/*DomNode*/node){
+			// summary:
+			//		Scrolls until the given node is in the view.
+			var s = viewRegistry.getEnclosingScrollable(node);
+			if(s){ // this node is placed inside scrollable
+				s.scrollIntoView(node, true);
+			}else{
+				win.global.scrollBy(0, domGeometry.position(node, false).y);
+			}
+		},
+
+		close: function(/*Boolean?*/noAnimation){
 			// summary:
 			//		Closes the icon content.
-			if(has("webkit")){
-				var t = this.domNode.parentNode.offsetWidth/8;
-				var y = this.iconNode.offsetLeft;
-				var pos = 0;
-				for(var i = 1; i <= 3; i++){
-					if(t*(2*i-1) < y && y <= t*(2*(i+1)-1)){
-						pos = i;
-						break;
-					}
+			if(!this.isOpen()){ return; }
+			this.set("selected", false);
+			if(has("webkit") && !noAnimation){
+				var contentNode = this.paneWidget.domNode;
+				if(this.getParent().transition == "below"){
+					domClass.add(contentNode, "mblCloseContent mblShrink");
+					var nodePos = domGeometry.position(contentNode, true);
+					var targetPos = domGeometry.position(this.domNode, true);
+					var origin = (targetPos.x + targetPos.w/2 - nodePos.x) + "px " + (targetPos.y + targetPos.h/2 - nodePos.y) + "px";
+					domStyle.set(contentNode, { webkitTransformOrigin:origin });
+				}else{
+					domClass.add(contentNode, "mblCloseContent mblShrink0");
 				}
-				domClass.add(this.containerNode.parentNode, "mblCloseContent mblShrink"+pos);
 			}else{
-				this.containerNode.parentNode.style.display = "none";
+				this.paneWidget.hide();
 			}
-			domStyle.set(this.iconNode, "opacity", 1);
 			this.onClose();
 		},
-	
+
 		onOpen: function(){
 			// summary:
-			//		Stub method to allow the application to connect to.
+			//		Stub method to allow the application to connect.
 		},
-	
+
 		onClose: function(){
 			// summary:
-			//		Stub method to allow the application to connect to.
+			//		Stub method to allow the application to connect.
 		},
-	
-		onError: function(){
-			var icon = this.getParent().defaultIcon;
-			if(icon){
-				this.iconNode.src = icon;
-			}
-		},
-	
-		_setIconAttr: function(icon){
-			if(!this.getParent()){ return; } // icon may be invalid because inheritParams is not called yet
-			this.icon = icon;
-			common.createIcon(icon, this.iconPos, this.iconNode, this.alt);
-			if(this.iconPos){
-				domClass.add(this.iconNode, "mblIconItemSpriteIcon");
-				var arr = this.iconPos.split(/[ ,]/);
-				var p = this.iconNode.parentNode;
-				domStyle.set(p, {
-					width: arr[2] + "px",
-					top: Math.round((p.offsetHeight - arr[3]) / 2) + 1 + "px",
-					margin: "auto"
-				});
-			}
-		},
-	
+
 		_setLabelAttr: function(/*String*/text){
+			// tags:
+			//		private
 			this.label = text;
 			var s = this._cv ? this._cv(text) : text;
-			this.labelNode1.innerHTML = s;
-			this.labelNode2.innerHTML = s;
+			this.labelNode.innerHTML = s;
+			if(this.paneWidget){
+				this.paneWidget.set("label", text);
+			}
+		},
+
+		_getBadgeAttr: function(){
+			// tags:
+			//		private
+			return this.badgeObj ? this.badgeObj.getValue() : null;
+		},
+
+		_setBadgeAttr: function(/*String*/value){
+			// tags:
+			//		private
+			if(!this.badgeObj){
+				this.badgeObj = new Badge({fontSize:14, className:this.badgeClass});
+				domStyle.set(this.badgeObj.domNode, {
+					position: "absolute",
+					top: "-2px",
+					right: "2px"
+				});
+			}
+			this.badgeObj.setValue(value);
+			if(value){
+				this.iconDivNode.appendChild(this.badgeObj.domNode);
+			}else{
+				this.iconDivNode.removeChild(this.badgeObj.domNode);
+			}
+		},
+
+		_setDeleteIconAttr: function(icon){
+			// tags:
+			//		private
+			if(!this.getParent()){ return; } // icon may be invalid because inheritParams is not called yet
+
+			this._set("deleteIcon", icon);
+			icon = this.deletable ? icon : "";
+			this.deleteIconNode = iconUtils.setIcon(icon, this.deleteIconPos, this.deleteIconNode, 
+					this.deleteIconTitle || this.alt, this.iconDivNode);
+			if(this.deleteIconNode){
+				domClass.add(this.deleteIconNode, "mblIconItemDeleteIcon");
+				if(this.deleteIconRole){
+					this.deleteIconNode.setAttribute("role", this.deleteIconRole);
+				}
+			}
+		},
+
+		_setContentAttr: function(/*String|DomNode*/data){
+			// tags:
+			//		private
+			var root;
+			if(!this.paneWidget){
+				if(!this._tmpNode){
+					this._tmpNode = domConstruct.create("div");
+				}
+				root = this._tmpNode;
+			}else{
+				root = this.paneWidget.containerNode;
+			}
+
+			if(typeof data === "object"){
+				domConstruct.empty(root);
+				root.appendChild(data);
+			}else{
+				root.innerHTML = data;
+			}
+		},
+
+		_setSelectedAttr: function(/*Boolean*/selected){
+			// summary:
+			//		Makes this widget in the selected or unselected state.
+			// tags:
+			//		private
+			this.inherited(arguments);
+			this.iconNode && domStyle.set(this.iconNode, "opacity",
+						 selected ? this.getParent().pressedIconOpacity : 1);
 		}
 	});
 });

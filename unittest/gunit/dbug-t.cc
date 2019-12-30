@@ -160,4 +160,4 @@ TEST(DebugSetTest, DebugKeywordsTest) {
   DBUG_SET("");
 }
 #endif /* DBUG_OFF */
-}
+}  // namespace dbug_unittest

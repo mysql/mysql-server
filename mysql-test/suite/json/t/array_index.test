@@ -1,0 +1,1302 @@
+CREATE TABLE t1 (f1 json);
+create index i1 on t1((cast(f1 as unsigned array)));
+show create table t1;
+insert into t1(f1) values
+  (cast(1 as json)),
+  (cast('[2,3,4]' as json)),
+  (cast('[3,4,3,4,2,2,2]' as json)),
+  (cast('[5,5,6,6]' as json));
+select * from t1;
+alter table t1 add index mv_idx2((cast(f1 as signed array)));
+show create table t1;
+alter table t1 drop index i1;
+show create table t1;
+drop index mv_idx2 on t1;
+show create table t1;
+drop table t1;
+
+CREATE TABLE t1 (f1 json);
+
+insert into t1(f1) values (cast("null" as json));
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+create index i1 on t1((cast(f1 as unsigned array)));
+delete from t1;
+
+insert into t1(f1) values ('1111111111111111111111');
+-- error ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX
+create index i1 on t1((cast(f1 as unsigned array)));
+delete from t1;
+
+create index i1 on t1((cast(f1 as unsigned array)));
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+insert into t1(f1) values (cast("null" as json));
+-- error ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX
+insert into t1(f1) values ('1111111111111111111111');
+drop table t1;
+
+create table t1 (f1 json, key mvi((cast(f1 as unsigned array))));
+show create table t1;
+drop table t1;
+
+--error ER_NOT_SUPPORTED_YET
+select cast('[1,2,3]' as unsigned array);
+--error ER_NOT_SUPPORTED_YET
+create table t1 as select cast('[1,2,3]' as unsigned array);
+--error ER_NOT_SUPPORTED_YET
+create table t(j json, gc json as (cast(j->'$[*]' as unsigned array)));
+--error ER_NOT_SUPPORTED_YET
+create table t(j json, gc json as
+  ((concat(cast(j->'$[*]' as unsigned array),"x"))));
+
+--error ER_NOT_SUPPORTED_YET
+create table t1(j json, key i1((cast(j->"$" as json array))));
+--error ER_NOT_SUPPORTED_YET
+create table t1(j json, key i1((cast(j->"$" as char array))));
+--error ER_NOT_SUPPORTED_YET
+create table t1(j json, key i1((cast(j->"$" as binary array))));
+--error ER_NOT_SUPPORTED_YET
+create table t1(j json, key i1((cast(j->"$" as float array))));
+--error ER_NOT_SUPPORTED_YET
+create table t1(j json, key i1((cast(j->"$" as double array))));
+
+--error ER_CHECK_NOT_IMPLEMENTED
+CREATE TABLE t1 (f1 json, key mvi((cast(f1 as unsigned array)))) engine=myisam;
+--error ER_WRONG_USAGE
+CREATE TABLE t1 (f1 json, key mvi((cast(f1 as unsigned array)) asc));
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (f1 json, key mvi((cast(cast(f1 as unsigned array) as unsigned array))));
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t(x INT, KEY k ((1 AND CAST(JSON_ARRAY(x) AS UNSIGNED ARRAY))));
+
+--error ER_NOT_SUPPORTED_YET
+create table col(doc json,
+  key i1((cast(doc->'$.text' as char(10) array)),
+         (cast(doc->'$.integer' as signed array))));
+
+create table t1(j json, key i1((cast(j as char(10) array))));
+--error ER_NOT_SUPPORTED_YET
+insert into t1 values('{"asd":1}');
+--error ER_NOT_SUPPORTED_YET
+insert into t1 values('true');
+drop table t1;
+
+--error ER_NOT_SUPPORTED_YET
+create table t1 (j json, key mv_idx_char ((cast(j as char(16384) array))));
+create table t1 (j json, key mv_idx_char ((cast(j as char(512) array))));
+show create table t1;
+drop table t1;
+
+--error ER_WRONG_USAGE
+create function f() returns int deterministic return cast(json_array(1,2) as
+unsigned array);
+
+create table t(x int, key k ((cast(json_array(x) as decimal(10,3) array))));
+drop table t;
+
+create table t(j json, key k ((cast(j as unsigned array))));
+insert into t values ('[]');
+drop table t;
+
+select 1 member of ('[1,2,3]');
+select 1 member of ('1');
+select 1 member ('1');
+
+select cast(1 as json) member of(json_array(1,2,3));
+select cast(4 as json) member of(json_array(1,2,3));
+select cast(1 as json) member of(json_array(2,NULL,1));
+select cast(4 as json) member of(json_array(1,2,NULL));
+
+set @A_VAR=json_array(1,2,3);
+select cast(1 as json) member of(cast(@A_VAR as json));
+select cast(4 as json) member of(cast(@A_VAR as json));
+
+set @A_VAR=json_array(2,cast('{"A":1, "B":2}' as json),3);
+select cast('{"A":1, "B":2}' as json) member of(cast(@A_VAR as json));
+select cast('{"B":2, "A":1}' as json) member of(cast(@A_VAR as json));
+select cast('{"B":2, "A":2}' as json) member of(cast(@A_VAR as json));
+
+set @A_VAR=json_array(2,cast('{"A":1, "B":2}' as json), NULL);
+select cast('{"B":2, "A":1}' as json) member of(cast(@A_VAR as json));
+
+create table t1 (f1 json, key i1 ((cast(f1->"$.a" as unsigned array))));
+insert into t1(f1) values (cast('{}' as json));
+drop table t1;
+
+--error ER_NOT_SUPPORTED_YET
+create table t (j json default (cast(json_object() as unsigned array)));
+
+# InnoDB doesn''t support index record per data record more than some threshold
+# which depends on the data type.
+# Test the limit
+create table t(f char(1));
+insert into t values
+('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7'),('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+create table t1(doc json,key i1((cast(doc->'$' as unsigned array))));
+set session group_concat_max_len = 1000000;
+--echo Check limit on max total mv keys length
+--echo Should succeed
+insert into t1 select concat('[',group_concat(val),']') from (
+  select conv(concat(t1.f, t2.f, t3.f), 16, 10) val
+    from t t1, t t2, t t3
+    having val < 1605) tt;
+--error ER_EXCEEDED_MV_KEYS_NUM
+insert into t1 select concat('[',group_concat(val),']') from (
+  select conv(concat(t1.f, t2.f, t3.f), 16, 10) val
+    from t t1, t t2, t t3
+    having val < 1606) tt;
+create table t2(doc json,key i1((cast(doc->'$' as char(10) array))));
+--error ER_EXCEEDED_MV_KEYS_SPACE
+insert into t2 select concat('[',group_concat(val),']') from (
+  select conv(concat(t1.f, t2.f, t3.f), 16, 10) dec_val,
+      concat('"',
+             repeat(t1.f,3),
+             repeat(t2.f,3),
+             repeat(t3.f,2),
+             '"') val
+    from t t1, t t2, t t3
+    having dec_val < 1600) tt;
+--error ER_EXCEEDED_MV_KEYS_NUM
+insert into t2 select concat('[',group_concat(val),']') from (
+  select conv(concat(t1.f, t2.f, t3.f, t4.f), 16, 10) dec_val,
+      concat('"',
+             repeat(t1.f,3),
+             repeat(t2.f,3),
+             repeat(t3.f,2),
+             repeat(t4.f,2),
+             '"') val
+    from t t1, t t2, t t3, t t4) tt;
+analyze table t1;
+explain select * from t1 ignore key(i1) where json_contains(doc->"$","[1,2,3]");
+explain select * from t1 where json_contains(doc->"$","[1,2,3]");
+explain select * from t1 where json_overlaps(doc->"$","[1,2,3]");
+explain select * from t1 where json_overlaps("[1,2,3]", doc->"$");
+drop table t2, t1, t;
+
+create table t2(j json, key k ((cast(j->'$[*]' as char(10) array))));
+insert into t2 values (json_array('abc')), (json_array('ABC'));
+analyze table t2;
+select * from t2 where "abc" member of (j->'$[*]');
+explain select * from t2 where "abc" member of (j->'$[*]');
+explain select * from t2 ignore key(k) where "abc" member of (j->'$[*]');
+insert into t2 values('[]');
+drop table t2;
+
+create table t1(j json, key i1((cast(j->"$.id" as char(10) array))), key i2((cast(j->"$.id" as unsigned array))));
+insert into t1 values('{"id":1}');
+select * from t1 where 1 member of (j->"$.id");
+explain select * from t1 where 1 member of (j->"$.id");
+select * from t1 where '1' member of (j->"$.id");
+explain select * from t1 where '1' member of (j->"$.id");
+drop table t1;
+
+create table t(j json, key k ((cast(json_array(j) as unsigned array))));
+insert into t values ('1');
+select * from t where 1 member of  (json_array(j));
+explain select * from t where 1 member of  (json_array(j));
+drop table t;
+
+create table t1(x varchar(10), key k ((cast(concat(x,x) as unsigned array))));
+insert into t1 values ('1');
+select * from t1 where 11 member of  (concat(x,x));
+explain select * from t1 where 11 member of  (concat(x,x));
+drop table t1;
+
+--echo Test for error on array/object insertion into a scalar index
+create table t1(j json, key i1((cast(json_array(j) as unsigned array))));
+--error ER_WRONG_MVI_VALUE
+insert into t1 values ('{"a":1}');
+--error ER_WRONG_MVI_VALUE
+insert into t1 values ('[1,2,3]');
+drop table t1;
+
+--echo Same as above, but error is thrown from inside of InnoDB
+create table t(j json);
+insert into t values ('{"a":1}');
+--error ER_WRONG_MVI_VALUE
+create index idx on t((cast(json_array(j) as unsigned array)));
+drop table t;
+
+create table t1(j json,
+                sp_f json as (ifnull(j->'$.data','[]')) virtual,
+                key sp_i((cast(sp_f as unsigned array))));
+insert into t1(j) values
+  ('{"data":[1,2,3]}'),
+  ('{"other_data":[4,5,6]}'),
+  ('"no data"');
+analyze table t1;
+select * from t1 where 2 member of(sp_f);
+explain select * from t1 where 2 member of(sp_f);
+drop table t1;
+
+create table t(vc varchar(10), key ((cast(vc->'$' as unsigned array))));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+insert into t values ('');
+drop table t;
+
+create table t(j json, key i1((cast(j->'$' as unsigned))));
+insert into t values('1');
+select * from t where json_contains(j->'$', '1');
+explain select * from t where json_contains(j->'$', '1');
+drop table t;
+
+create table t(j json, key i1((cast(j->'$' as unsigned array))));
+insert into t values('1');
+select * from t where json_contains(j->'$', '1');
+explain select * from t where json_contains(j->'$', '1');
+select * from t where json_contains(j->'$', '{"a":1}');
+select * from t where j->'$'= 1;
+explain select * from t where j->'$'= 1;
+select * from t where j->'$'>= 1;
+explain select * from t where j->'$'>= 1;
+drop table t;
+
+# Test Unicode chars collision
+CREATE TABLE t1 (id INT AUTO_INCREMENT KEY, f1 JSON, KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(JSON_ARRAY(_utf8mb4 0xE284AB, _utf8mb4 0xc385));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY( _utf8mb4 0xc385, _utf8mb4 0xE284AB));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY(_utf8mb4 0xE284AB));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+--echo Empty result is expected
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY( _utf8mb4 0xc385));
+--echo Empty result is expected
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DROP TABLE t1;
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT KEY, f1 JSON, UNIQUE KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(JSON_ARRAY(_utf8mb4 0xE284AB, _utf8mb4 0xc385));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY( _utf8mb4 0xc385, _utf8mb4 0xE284AB));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY(_utf8mb4 0xE284AB));
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+--echo Empty result is expected
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(JSON_ARRAY( _utf8mb4 0xc385));
+--echo Empty result is expected
+SELECT * FROM t1 WHERE _utf8mb4 0xE284AB MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE _utf8mb4 0xc385 MEMBER OF (f1->"$[*]");
+DROP TABLE t1;
+
+--echo Test CAST( .. AS UNSIGNED ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$[*]" as unsigned array)));
+show create table t1;
+insert into t1(f1) values
+  (cast('[1,3]' as json)), (cast(2 as json)), (cast('[3,3,4,4,7]' as json)),
+  (cast('[5,7]' as json)),
+  (cast('[8,4,3,5]' as json)), (cast('[5,6,7]' as json)),
+  (cast('[9,2,7]' as json)), (cast('[1,3]' as json)),
+  (cast('[3,3,4,4,7]' as json)), (cast(4 as json)), (cast('[8,4,3,5]' as json)),
+  (cast('[9,2,7]' as json)), (cast('[9,2,7]' as json)),
+  (cast('[1,3]' as json)), 
+  (cast('[3,3,4,4,7]' as json)), (cast(4 as json)),
+  (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[9,2,7]' as json)),
+  ('[98,99]');
+analyze table t1;
+--error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
+insert into t1(f1) values (cast("[-2]" as json));
+--error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
+insert into t1(f1) values (cast('[1,-3]' as json));
+select * from t1;
+select * from t1 where 5 member of (f1->"$[*]");
+explain select * from t1 where 5 member of (f1->"$[*]");
+
+select * from t1 where f1->"$[0]" member of ('[1,3,9]');
+explain select * from t1 where f1->"$[0]" member of ('[1,3,9]');
+
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
+set @save_opt=@@optimizer_switch;
+set @@optimizer_switch="mrr=off";
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[7]");
+
+select * from t1 force index(i1) where 99 member of  (f1->"$[*]");
+update t1 set f1=cast('[100,99]' as json) where 99 member of (f1->"$[*]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+
+set @@optimizer_switch=@save_opt;
+
+--echo # Check that index applicability conditions aren't met as expected
+explain select * from t1 force index(i1) where json_contains("[1,2,3,4]", "[4,3]");
+explain select * from t1 force index(i1) where
+  json_contains(concat("[1,2",",3,4]"), "[4,3]");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", f1->"$[*]");
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,");
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", '{"a":4}');
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", '[4,"a"]');
+
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS SIGNED ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as signed array)));
+show create table t1;
+insert into t1(f1) values
+  (cast('[1,3]' as json)),
+  (cast(2 as json)),
+  (cast('[3,3,4,4,7]' as json)),
+  (cast(4 as json)),
+  (cast('[5,7]' as json)),
+  (cast(6 as json)),
+  (cast(7 as json)),
+  (cast('[8,5]' as json)),
+  (cast('[9,2]' as json));
+insert into t1(f1) values
+  (cast('[1,-3]' as json)),
+  (cast(-2 as json)), ('[98,99]');
+analyze table t1;
+select * from t1;
+--echo should return record ## 5,8
+select * from t1 where 5 member of (f1->"$");
+explain select * from t1 where 5 member of (f1->"$");
+
+select * from t1 force index(i1) where 99 member of (f1->"$[*]");
+update t1 set f1=cast('[100,99]' as json) where 99 member of (f1->"$[*]");
+select * from t1 force index(i1) where 100 member of (f1->"$[*]");
+explain select * from t1 force index(i1) where 100 member of (f1->"$[*]");
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS CHAR(X) ARRAY)
+create table t1 (f1 json);
+create index i1 on t1((cast(f1->"$[*]" as char(10) array)));
+show create table t1;
+insert into t1(f1) values(cast('"fgh"' as json));
+insert into t1(f1) values(cast('["asd","qwe"]' as json));
+insert into t1(f1) values(cast('["qe"]' as json));
+insert into t1(f1) values(cast('["gfd","qwe"]' as json));
+insert into t1(f1) values(cast('["ew","sdf"]' as json));
+insert into t1(f1) values(cast('["xcv","cvb"]' as json));
+insert into t1(f1) values(cast('["adf"]' as json));
+insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
+insert into t1(f1) values(cast('["ew","sdf"]' as json));
+insert into t1(f1) values(cast('["xcv","cvb"]' as json));
+insert into t1(f1) values(cast('["adf"]' as json));
+insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
+insert into t1(f1) values(cast('["bnm","sdfqwe"]' as json));
+analyze table t1;
+
+select * from t1 where "qwe" member of (f1->"$[*]");
+explain select * from t1 where "qwe" member of (f1->"$[*]");
+
+select * from t1 force index(i1) where "bnm" member of  (f1->"$[*]");
+update t1 set f1=cast('["bvc", "hgfd"]' as json) where "bnm" member of (f1->"$[*]");
+select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
+explain select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS BINARY(X) ARRAY)
+create table t1 (f1 json);
+create index i1 on t1((cast(f1->"$[*]" as binary(10) array)));
+show create table t1;
+insert into t1(f1) values(cast('"fgh"' as json));
+insert into t1(f1) values(cast('["asd","qwe"]' as json));
+insert into t1(f1) values(cast('["qe"]' as json));
+insert into t1(f1) values(cast('["gfd","qwe"]' as json));
+insert into t1(f1) values(cast('["ew","sdf"]' as json));
+insert into t1(f1) values(cast('["xcv","cvb"]' as json));
+insert into t1(f1) values(cast('["adf"]' as json));
+insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
+insert into t1(f1) values(cast('["ew","sdf"]' as json));
+insert into t1(f1) values(cast('["xcv","cvb"]' as json));
+insert into t1(f1) values(cast('["adf"]' as json));
+insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
+insert into t1(f1) values(cast('["bnm","sdfqwe"]' as json));
+analyze table t1;
+
+select * from t1 where "qwe" member of (f1->"$[*]");
+explain select * from t1 where "qwe" member of (f1->"$[*]");
+
+select * from t1 force index(i1) where "bnm" member of (f1->"$[*]");
+update t1 set f1=cast('["bvc", "hgfd"]' as json) where "bnm" member of (f1->"$[*]");
+select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
+explain select * from t1 force index(i1) where "bvc" member of (f1->"$[*]");
+
+delete from t1;
+drop table t1;
+
+
+--echo Test CAST( .. AS DECIMAL ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as decimal(10,4) array)));
+show create table t1;
+insert into t1(f1) values(cast(cast(0.0 as decimal) as json));
+insert into t1(f1) values(cast(cast(1 as decimal) as json));
+insert into t1(f1) values(cast(cast(-3 as decimal) as json));
+insert into t1(f1) values(cast(cast(0.0 as decimal) as json));
+insert into t1(f1) values(cast(cast(1 as decimal) as json));
+insert into t1(f1) values(cast(cast(-3 as decimal) as json));
+insert into t1(f1) values(json_array(
+    cast(1.33 as decimal(10,3)),
+    cast(5 as decimal(10,3)),
+    cast(1.33 as decimal(10,1))));
+insert into t1(f1) values(json_array(
+    cast(-1.33 as decimal(10,3)),
+    cast(5 as decimal),
+    cast(1.33 as decimal(10,4))));
+insert into t1(f1) values(json_array(
+    cast(98 as decimal(10,3)),
+    cast(99 as decimal)));
+analyze table t1;
+select * from t1;
+select * from t1 where 1.33 member of (f1->"$");
+explain select * from t1 where 1.33 member of (f1->"$");
+
+select * from t1 force index(i1) where 99 member of (f1->"$[*]");
+update t1 set f1=cast('[100,99]' as json) where 99 member of (f1->"$[*]");
+select * from t1 force index(i1) where 100 member of (f1->"$[*]");
+explain select * from t1 force index(i1) where 100 member of (f1->"$[*]");
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS DATE ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as date array)));
+show create table t1;
+insert into t1(f1) values(cast(cast('01-01-01' as date) as json));
+insert into t1(f1) values(cast(cast('01-02-03' as date) as json));
+insert into t1(f1) values(cast(cast('22.11.17' as date) as json));
+insert into t1(f1) values(json_array(
+    cast('01-02-03' as date),
+    cast('03-03-03' as date),
+    cast('01.01.17' as date)));
+insert into t1(f1) values(json_array(
+    cast('03-03-03' as date),
+    cast('05-05-05' as date),
+    cast('01-02-03' as date)));
+insert into t1(f1) values(json_array(
+    cast('01-01-12' as date),
+    cast('01-01-13' as date)));
+insert into t1(f1) values('["01-02-03","22.11.17"]');
+analyze table t1;
+
+select * from t1 where cast('01-02-03' as date) member of (f1->"$");
+explain select * from t1 where cast('01-02-03' as date) member of (f1->"$");
+
+select * from t1 force index(i1) where cast('01-01-12' as date) member of (f1->"$");
+update t1 set f1=
+  json_array(cast('01-01-14' as date), cast('01-01-12' as date)) where 
+  cast('01-01-12' as date) member of (f1->"$");
+select * from t1 force index(i1) where
+  cast('01-01-14' as date) member of (f1->"$");
+explain select * from t1 force index(i1) where
+  cast('01-01-14' as date) member of (f1->"$");
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS TIME ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as time(6) array)));
+show create table t1;
+insert into t1(f1) values(cast(cast('01:01:01' as time) as json));
+select * from t1;
+drop table t1;
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as time array)));
+show create table t1;
+insert into t1(f1) values(cast(cast('01:01:01' as time) as json));
+insert into t1(f1) values(cast(cast('01:02:03' as time) as json));
+insert into t1(f1) values(cast(cast('22:11:17' as time) as json));
+insert into t1(f1) values(json_array(
+    cast('01:02:03' as time),
+    cast('03:03:03' as time),
+    cast('01:01:17' as time)));
+insert into t1(f1) values(json_array(
+    cast('03:03:03' as time),
+    cast('05:05:05' as time),
+    cast('01:02:03' as time)));
+insert into t1(f1) values(json_array(
+    cast('01:12:54' as time),
+    cast('01:12:55' as time)));
+insert into t1(f1) values('["01:02:03","22:11:17"]');
+analyze table t1;
+
+select * from t1 where cast('01:02:03' as time) member of (f1->"$");
+explain select * from t1 where cast('01:02:03' as time) member of (f1->"$");
+
+select * from t1 force index(i1) where
+  cast('01:12:54' as time) member of (f1->"$");
+update t1 set f1=
+  json_array(cast('01:12:56' as time), cast('01:12:55' as time)) where 
+  cast('01:12:54' as time)  member of (f1->"$");
+select * from t1 force index(i1) where
+  cast('01:12:56' as time) member of (f1->"$");
+explain select * from t1 force index(i1) where
+  cast('01:12:56' as time) member of (f1->"$");
+
+delete from t1;
+drop table t1;
+
+--echo Test CAST( .. AS DATETIME ARRAY)
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as datetime(6) array)));
+show create table t1;
+insert into t1(f1) values(cast(cast('01-01-01 01:01:01' as datetime) as json));
+select * from t1;
+drop table t1;
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$" as datetime array)));
+show create table t1;
+insert into t1(f1) values(cast(cast('01-01-01 01:01:01' as datetime) as json));
+insert into t1(f1) values(cast(cast('01-01-01 01:02:03' as datetime) as json));
+insert into t1(f1) values(cast(cast('01-01-01 22:11:17' as datetime) as json));
+insert into t1(f1) values(json_array(
+    cast('01-01-01 01:02:03' as datetime),
+    cast('01-01-01 03:03:03' as datetime),
+    cast('01-01-01 01:01:17' as datetime)));
+insert into t1(f1) values(json_array(
+    cast('01-01-01 03:03:03' as datetime),
+    cast('01-01-01 05:05:05' as datetime),
+    cast('01-01-01 01:02:03' as datetime)));
+insert into t1(f1) values(json_array(
+    cast('01-01-01 01:12:54' as datetime),
+    cast('01-01-01 01:12:55' as datetime)));
+insert into t1(f1) values('["01-01-01 01:02:03","01-01-01 22:11:17"]');
+analyze table t1;
+
+select * from t1 where cast('01-01-01 01:02:03' as datetime) member of (f1->"$");
+explain select * from t1 where cast('01-01-01 01:02:03' as datetime) member
+of (f1->"$");
+
+select * from t1 force index(i1) where
+  cast('01-01-01 01:12:54' as datetime) member of (f1->"$");
+update t1 set f1=
+  json_array(cast('01-01-01 01:12:56' as datetime),
+    cast('01-01-01 01:12:55' as datetime)) where 
+  cast('01-01-01 01:12:54' as datetime)  member of (f1->"$");
+select * from t1 force index(i1) where
+  cast('01-01-01 01:12:56' as datetime)  member of (f1->"$");
+explain select * from t1 force index(i1) where
+  cast('01-01-01 01:12:56' as datetime)  member of (f1->"$");
+
+delete from t1;
+drop table t1;
+
+select json_overlaps(cast('[1,2,3]' as json), cast('[3,4,5]' as json));
+select json_overlaps(cast('[1,2,3]' as json), cast('[4,4,5]' as json));
+select json_overlaps(cast('[1,2,3]' as json), cast('[4,5]' as json));
+select json_overlaps(cast('[1,2]' as json), cast('[3,4,5]' as json));
+select json_overlaps(cast('[1,2]' as json), cast('[2,4,5]' as json));
+select json_overlaps(cast('1' as json), cast('[3,4,5]' as json));
+select json_overlaps(cast('[3,4,5]' as json), cast('1' as json));
+select json_overlaps(cast('[3,4,{"a":5}]' as json), cast('{"a":5}' as json));
+select json_overlaps(cast('{"a":1, "b":2}' as json), cast('{"a":1,"c":3}' as json));
+select json_overlaps(cast('{"a":1, "b":2}' as json), cast('{"a":2,"c":3}' as json));
+select json_overlaps(cast('{"a":1, "b":null}' as json), cast('{"a":2,"c":3}' as json));
+select json_overlaps(cast('{"a":1, "b":2}' as json), cast('{"a":null, "c":3}' as json));
+select json_overlaps('null','[null]');
+select json_overlaps('1234',NULL);
+select json_overlaps('null',NULL);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select json_overlaps('asdasd',NULL);
+select json_overlaps('[{"a":1}]', '{"a":1}') as c1,
+  json_overlaps('[{"a":1}]', '[{"a":1}]') as c2;
+select json_overlaps('[{}]', '{}') as c1;
+select json_overlaps('{}', '[{}]') as c1;
+select json_overlaps('[{}]', '{"a":1, "b":2}') as c1;
+select json_overlaps('[{}]', '1') as c1;
+select json_overlaps("1","1") as c1;
+select json_overlaps("true","false") as c1;
+select json_overlaps("null","null") as c1;
+select json_overlaps("123",'{"asd":123}') as c1;
+
+
+create table t(j json, key ((cast(j->'$[*]' as unsigned array))));
+select * from t where json_overlaps('[]', j->'$[*]');
+select * from t where json_contains(j->'$[*]', '[]');
+drop table t;
+
+create table t1 (id int not null key auto_increment, f1 json);
+create index i1 on t1((cast(f1->"$[*]" as signed array)));
+show create table t1;
+insert into t1(f1) values
+  (cast('[1,3]' as json)),
+  (cast(2 as json)),
+  (cast('[3,3,4,4,7]' as json)),
+  (cast(4 as json)),
+  (cast('[5,7]' as json)),
+  (cast(6 as json)),
+  (cast(7 as json)),
+  (cast('[8,4,3,5]' as json)),
+  (cast('[9,2,7]' as json)),
+  (cast('null' as json));
+analyze table t1;
+
+select * from t1 where json_overlaps(cast('[4,6]' as json), f1->'$[*]');
+explain select * from t1 where json_overlaps(cast('[4,6]' as json), f1->'$[*]');
+select * from t1 where json_overlaps(f1->'$[*]', cast('[2,5]' as json));
+explain select * from t1 where json_overlaps(f1->'$[*]', cast('[2,5]' as json));
+drop table t1;
+
+# Test that unique filter properly flushes on disk
+
+create table t1 (f1 json, id varchar(255) as (f1->"$[0]") stored not null primary key );
+create index i1 on t1((cast(f1->"$[*]" as unsigned array)));
+show create table t1;
+insert into t1(f1) values
+  (cast('[1,3]' as json)), (cast(2 as json)), (cast('[3,3,4,4,7]' as json)),
+  (cast(4 as json)), (cast('[100,5,7]' as json)), (cast(6 as json)),
+  (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[5,6,7]' as json)),
+  (cast('[9,2,7]' as json));
+insert into t1(f1) values
+  (cast('[11,3]' as json)), (cast(12 as json)), (cast('[13,3,4,4,7]' as json)),
+  (cast(14 as json)), (cast('[0,5,7]' as json)), (cast(16 as json)),
+  (cast(17 as json)), (cast('[18,4,3,5]' as json)), (cast('[15,6,7]' as json)),
+  (cast('[19,2,7]' as json));
+insert into t1(f1) values
+  (cast('[21,3]' as json)), (cast(22 as json)), (cast('[23,3,4,4,7]' as json)),
+  (cast(24 as json)), (cast('[10,5,7]' as json)), (cast(26 as json)),
+  (cast(27 as json)), (cast('[28,4,3,5]' as json)), (cast('[25,6,7]' as json)),
+  (cast('[29,2,7]' as json));
+insert into t1(f1) values
+  (cast('[31,3]' as json)), (cast(32 as json)), (cast('[33,3,4,4,7]' as json)),
+  (cast(34 as json)), (cast('[20,5,7]' as json)), (cast(36 as json)),
+  (cast(37 as json)), (cast('[38,4,3,5]' as json)), (cast('[35,6,7]' as json)),
+  (cast('[39,2,7]' as json));
+insert into t1(f1) values
+  (cast('[41,3]' as json)), (cast(42 as json)), (cast('[43,3,4,4,7]' as json)),
+  (cast(44 as json)), (cast('[30,5,7]' as json)), (cast(46 as json)),
+  (cast(47 as json)), (cast('[48,4,3,5]' as json)), (cast('[45,6,7]' as json)),
+  (cast('[49,2,7]' as json));
+insert into t1(f1) values
+  (cast('[51,3]' as json)), (cast(52 as json)), (cast('[53,3,4,4,7]' as json)),
+  (cast(54 as json)), (cast('[40,5,7]' as json)), (cast(56 as json)),
+  (cast(57 as json)), (cast('[58,4,3,5]' as json)), (cast('[55,6,7]' as json)),
+  (cast('[59,2,7]' as json));
+analyze table t1;
+
+set @save_sbs= @@sort_buffer_size;
+set @@sort_buffer_size=32768;
+
+let $query= select * from t1 force index(i1)
+  where json_overlaps(f1->'$[*]', '[4,3,7]') order by id;
+--eval $query
+--eval explain $query
+--eval prepare stmt from "$query"
+execute stmt;
+deallocate prepare stmt;
+let $query= select count(*) from t1 force index(i1)
+  where json_overlaps(f1->'$[*]', '[4,3,7]') order by id;
+--eval $query
+--eval explain $query
+--eval prepare stmt from "$query"
+execute stmt;
+deallocate prepare stmt;
+
+#test unique filter''s flushing to disk
+# test that unique filter is properly reset
+# join of 2 tables, mv is 2nd
+
+let $query= select /*+ NO_BNL(t1,tt) JOIN_ORDER(t1,tt) */ * from t1 join t1 as tt force index(i1)
+  where json_overlaps(tt.f1->'$[*]', '[4,3,7]') and t1.id in (1,2) order by t1.id,tt.id;
+--eval $query
+--eval explain $query
+--eval prepare stmt from "$query"
+execute stmt;
+deallocate prepare stmt;
+
+let $query= select /*+ NO_BNL(t1,tt) JOIN_ORDER(t1,tt) */ count(*) from t1 join t1 as tt force index(i1)
+  where json_overlaps(tt.f1->'$[*]', '[4,3,7]') and t1.id in (1,2) order by t1.id,tt.id;
+--eval $query
+--eval explain $query
+--eval prepare stmt from "$query"
+execute stmt;
+deallocate prepare stmt;
+
+set @@sort_buffer_size= @save_sbs;
+
+# Test that unique filter works with SE defined MRR implementation
+set @save_opt_sw= @@optimizer_switch;
+#set @@optimizer_switch="mrr_cost_based=off";
+select * from t1 force index(i1)
+  where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+explain select * from t1 force index(i1)
+  where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+
+select count(*) from t1 force index(i1)
+  where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+explain select count(*) from t1 force index(i1)
+  where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+
+drop table t1;
+
+create table t1 (f1 json,
+                 id varchar(255) as (f1->"$[0]") stored not null primary key );
+create index i1 on t1((cast(f1->"$[*]" as unsigned array)));
+show create table t1;
+insert into t1(f1) values
+      (cast('[1,3]' as json)), (cast(2 as json)), (cast('[3,3,4,4,7]' as json)),
+      (cast(4 as json)), (cast('[0,5,7]' as json)), (cast(6 as json)),
+      (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[5,6,7]' as json)),
+      (cast('[9,2,7]' as json));
+analyze table t1;
+set @@optimizer_switch="mrr_cost_based=off";
+select * from t1 force index(i1)
+      where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+explain select * from t1 force index(i1)
+      where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
+drop table t1;
+
+create table t(j json, key k ((cast(j->'$[*]' as unsigned array))));
+insert into t values('[2,2,3]');
+select * from t where 1 member of (j);
+explain select * from t where 1 member of (j);
+drop table t;
+
+create table t1 (j JSON, KEY mv_idx ((CAST(j->'$[*]' AS DATETIME ARRAY))));
+--error ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
+insert into t1(j) values("[ 1 ]") ;
+drop table t1;
+
+create table t2 (j json default (cast('[9,-1]' as json)),
+                 key mv_idx ((cast(j->'$[*]' as unsigned array))));
+--error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
+insert into t2 values ();
+drop table t2;
+
+create table t1 (j JSON DEFAULT( '["foobar"]' ));
+insert into t1 values ();
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+alter table t1 add index mv_idx((CAST(j->'$[0]' AS UNSIGNED ARRAY)));
+drop table t1;
+
+create table t1 (j JSON, KEY mv_idx ((cast(j->'$[*]' AS BINARY(10) ARRAY))));
+--error ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG
+insert into t1(j) values('["asdffggasdasdasdasd"]');
+drop table t1;
+
+CREATE TABLE t1 (j JSON DEFAULT (JSON_ARRAY(PI())),
+                  KEY mv_idx((CAST(j->'$[0]' AS DECIMAL(10,4) ARRAY))));
+INSERT INTO t1 VALUES();
+DROP TABLE t1;
+
+create table t1 (j JSON, KEY Mv_idx ((cast(j->'$[*]' AS BINARY(10) ARRAY))) ) ;
+--error ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG
+insert into t1(j) values('["asdffggasdasdasdasd"]');
+create table t2 (j JSON, KEY Mv_idx ((cast(j->'$[*]' AS CHAR(10) ARRAY))) ) ;
+--error ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG
+insert into t2(j) values('["asdffggasdasdasdasd"]');
+drop table t1,t2;
+
+create table t1(j json);
+insert into t1 values (json_array(1,2,3));
+insert into t1 values (json_array(1,2,3, null));
+select * from t1 where json_overlaps(j->'$[*]', '[2,3,4]');
+select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, null]');
+
+--echo Lookups of single SON null value can't use index, only table scan
+select * from t1 where json_overlaps(j->'$[*]', 'null');
+explain select * from t1 where json_overlaps(j->'$[*]', 'null');
+select * from t1 where json_overlaps(j->'$[*]', '[null]');
+explain select * from t1 where json_overlaps(j->'$[*]', '[null]');
+
+select * from t1 where cast('null' as json) member of(j->'$[*]');
+explain select * from t1 where cast('null' as json) member of(j->'$[*]');
+select * from t1 where cast('[null]' as json) member of(j->'$[*]');
+explain select * from t1 where cast('[null]' as json) member of(j->'$[*]');
+
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+alter table t1 add key k ((cast(j->'$[*]' as unsigned array)));
+delete from t1 where cast('null' as json) member of(j->'$[*]');
+alter table t1 add key k ((cast(j->'$[*]' as unsigned array)));
+select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, null]');
+explain select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, null]');
+select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, "asd"]');
+explain select * from t1 where json_overlaps(j->'$[*]', '[2,3,4, "asd"]');
+
+explain select * from t1 where json_overlaps(j->'$[*]', '{"a":1}');
+explain select * from t1 where json_contains(j->'$[*]', '{"a":1}');
+
+drop table t1;
+
+create table if not exists t1 (
+  j2 json default (cast('[9,8,0,1]' as json)),
+  j3 json default (cast('["foobar"]' as json)),
+  key mv_idx_unsigned (( cast(j2->'$[*]' as unsigned array) ))
+);
+insert into t1(j3) values(cast('[ 1,2,3,4 ]' as json));
+insert into t1(j2, j3) select j2, j3 from t1;
+insert into t1(j2, j3) select j2, j3 from t1;
+insert into t1(j2, j3) select j2, j3 from t1;
+insert into t1(j2, j3) select j2, j3 from t1;
+analyze table t1;
+explain select count(*) from t1 force index(mv_idx_unsigned);
+
+drop table t1; 
+
+create table if not exists t1 (
+        j7 json default (json_array(time('11:11:11'))),
+        j8 json default (json_array(-1,-2,9)),
+        key mv_idx_time (( cast(j7->'$[*]' as time array))));
+insert into t1() values() ;
+select * from t1 where cast('11:11:11' as time) member of (j7->'$[*]');
+alter table t1 add column ttt int, algorithm = copy;
+select * from t1 where cast('11:11:11' as time) member of (j7->'$[*]');
+explain select * from t1 where cast('11:11:11' as time) member of (j7->'$[*]');
+drop table t1;
+
+set @save_mode= @@sql_mode;
+set sql_mode='';
+create table t1 (j json, key mv_idx_time ((cast(j->'$[*]' as time array))));
+insert into t1 values(json_array(cast('2018-01-03' as date),
+  cast( '2018-01-01' as date)));
+drop table t1;
+
+create table t(j json, key ((cast(j->'$[*]' as time array))));
+insert into t values (json_array(timestamp'2001-01-01 00:00:00',
+                                 timestamp'2002-02-02 00:00:02',
+                                 timestamp'2003-03-03 00:00:00'));
+drop table t;
+set @@sql_mode= @save_mode;
+
+--echo #
+--echo # Bug#28752637: SIG11 IN JOIN::UPDATE_DEPEND_MAP() AT SQL/SQL_OPTIMIZER.CC
+--echo #
+CREATE TABLE t1 (
+     j3 JSON, KEY mv_idx_char (( CAST(j3->'$[*]' AS CHAR(10) ARRAY) )));
+INSERT INTO t1 SELECT * FROM t1 WHERE null MEMBER OF ( j3 -> '$[*]' ) ;
+--echo Shouldn't use ref access
+EXPLAIN SELECT * FROM t1 WHERE null MEMBER OF ( j3 -> '$[*]' ) ;
+DROP TABLE t1;
+--echo #
+--echo # Bug#28876519: ASSERT FAILURE:ROW0INS.CC:266:UPDATE->N_FIELDS == 0
+--echo #
+CREATE TABLE t1 (f1 JSON, UNIQUE KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(CAST('["abc", "abc "]' AS JSON));
+SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+EXPLAIN SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "abc " MEMBER OF (f1->"$[*]");
+EXPLAIN SELECT * FROM t1 WHERE "abc " MEMBER OF (f1->"$[*]");
+DELETE FROM t1;
+INSERT INTO t1(f1) VALUES(CAST('["abc"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["abc "]' AS JSON));
+DROP TABLE t1;
+CREATE TABLE t1 (f1 JSON, KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(CAST('["abc"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["abc "]' AS JSON));
+SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "abc " MEMBER OF (f1->"$[*]");
+DROP TABLE t1;
+CREATE TABLE t1 (f1 JSON, KEY i1((CAST(f1->"$[*]" AS BINARY(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(CAST('["abc"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["abc "]' AS JSON));
+SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "abc " MEMBER OF (f1->"$[*]");
+DROP TABLE t1;
+--error ER_NOT_SUPPORTED_YET
+CREATE TABLE t1 (f1 JSON,
+  KEY i1((CAST(f1->"$[*]" AS CHAR(10) CHARACTER SET UTF32 ARRAY))));
+SET NAMES latin1;
+CREATE TABLE t1 (f1 JSON, KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(CAST('["abc"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["abc "]' AS JSON));
+SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "abc " MEMBER OF (f1->"$[*]");
+DROP TABLE t1;
+SET NAMES utf8mb4;
+
+--echo #
+--echo # Bug #28893289: DUPLICATE RESULT OF JSON_OVERLAPS() WITH UNIQUE MV INDEX
+--echo #
+CREATE TABLE t1 (j JSON, UNIQUE KEY mv_idx ((CAST(j->'$[*]' AS SIGNED ARRAY))));
+INSERT INTO t1(j) VALUES ('[2,2,2]');
+SELECT * FROM t1 WHERE JSON_OVERLAPS(CAST('[2,2]' AS JSON), j->'$[*]');
+EXPLAIN SELECT * FROM t1 WHERE JSON_OVERLAPS(CAST('[2,2]' AS JSON), j->'$[*]');
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28929529: SERVER CRASH WITH MEMBER OF() FUNCTION
+--echo #
+CREATE TABLE t1 ( col_int INT) ;
+INSERT INTO t1 VALUES (1);
+SELECT col_int FROM t1 WHERE col_int MEMBER OF('[98989,67976]');
+EXPLAIN SELECT col_int FROM t1 WHERE col_int MEMBER OF('[98989,67976]');
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28935260: SIG11 IN HANDLER::HA_EXTRA() AT SQL/HANDLER.CC
+--echo #
+CREATE TABLE t1 (
+  col_key VARCHAR(1) DEFAULT NULL,
+  col_jsn json DEFAULT NULL,
+  KEY idx_col_key (col_key),
+  KEY mv_idx ((CAST(col_jsn->'$[*]' AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES ('i','[0]'), ('E','[0]'), ('l','[0]');
+SELECT col_key FROM t1 WHERE
+  (JSON_OVERLAPS(CAST(9444 AS JSON),col_jsn->'$[*]')) OR col_key = 't';
+EXPLAIN SELECT col_key FROM t1 WHERE
+  (JSON_OVERLAPS(CAST(9444 AS JSON),col_jsn->'$[*]')) OR col_key = 't';
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28960833: SIG11 IN FILESORT::MAKE_SORTORDER() AT SQL/FILESORT.CC
+--echo #
+CREATE TABLE C1 (
+  pk int(11) NOT NULL AUTO_INCREMENT KEY,
+  col_int int(11) DEFAULT NULL) ;
+INSERT INTO C1 VALUES (1,2);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT SUM( DISTINCT table1.col_int ) AS field1,
+  MAX( table1.col_int ) AS field3
+FROM C1 AS table1 LEFT JOIN C1 AS table2 ON 1
+WHERE CAST(RAND()*100 AS JSON) MEMBER OF( 'sTfW' )
+GROUP BY table1.pk ORDER BY field1, field3 ;
+DROP TABLE C1;
+
+--echo #
+--echo # Bug#28959908: REPEATED EXECUTION OF SELECT RETURNS DIFFERENT RESULT
+--echo #
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_jsonn json DEFAULT NULL,
+  KEY mv_idx ((cast(col_jsonn->'$[*]' as char(40) array)))
+);
+
+INSERT INTO t1 VALUES (NULL,'[1]'), (4,'[1]'), (1,'[2]');
+
+CREATE TABLE t2(col_int int(11));
+
+INSERT INTO t2 VALUES (1), (2), (3), (11), (12);
+ANALYZE TABLE t1,t2;
+
+EXPLAIN SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
+JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
+
+--sorted_result
+SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2 LEFT
+JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_jsonn->'$[*]'));
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#29111067: SIG6 IN HANDLER::HA_EXTRA() AT SQL/HANDLER.CC
+--echo #
+
+CREATE TABLE c1 (
+  col_int int(11) DEFAULT NULL,
+  col_jsonn json DEFAULT NULL,
+  KEY mv_idx_char
+    ((cast(json_extract(`col_jsonn`,_utf8mb4'$[2][*]') as char(10) array))),
+  KEY mv_idx_time
+    ((cast(json_extract(`col_jsonn`,_utf8mb4'$[6][*]') as time array)))
+);
+
+INSERT INTO c1 VALUES (266852963,'[[1835802859, 1212466474, 1958770846],
+[140577309, 37575131, 1480381571, 1610621995], ["6PivylM", "D4MJJ1N", "M0KX",
+"0ELw", "sIgqeN", "HHOzYx8vo", "u7htig76J0", "SVd7N"], [1, 0, 0, 1],
+["2027-03-28 09:30:48", "1981-12-19 07:23:59"], ["1992-02-21"], ["04:08:11",
+"03:14:43", "16:15:47", "08:35:02", "01:54:19", "12:23:50", "23:19:54",
+"03:19:05", "06:20:09"]]'),(827337874,'[[-289358475], [1365589563,
+1136730961, 1355533008, 623792249, 1492351200], ["quU8k89", "b", "5",
+"qUCBav5wm", "4qw", "48esnGIpJz", "OHFde8", "MvWemE3ON", "kfWRfhif"], [0],
+["2029-08-21 11:07:49", "2010-12-30 13:23:27", "1982-08-13 20:37:26"],
+["2003-08-19", "1996-06-18", "2010-12-29", "2023-02-26", "1994-03-09"],
+["23:05:01"]]'),(1335355510,'[[-565849481, -24516610, -2120954195,
+1161359986, -1413651589], [], ["G", "G", "G", "2h", "AjfPYjosm", "gq", "qwX",
+"iap94E", "S", "BHLb3XfcD", "kyJSC"], [1, 1, 1, 1, 1, 1],
+["2021-11-20 06:14:11"], ["1998-01-19", "2025-01-28", "2036-12-07",
+"1992-01-10",
+"1992-02-13", "2000-10-31", "1976-10-16", "1988-01-15"], ["07:24:55",
+"18:26:39", "01:03:31", "10:01:50", "10:32:40"]]'),(717723030,'[[721357711,
+443763172, 1346794776, 1228470359, 810183154, 1544293472, 182301524],
+[1274610824, 1044052482, 1788179665, 1649506330, 969248599, 1368415902,
+15095787], ["65h", "zCOtWhY", "vtIr", "9", "b7vckqds", "3RGQx", "jW1",
+"r0CqU"], [1, 0, 1, 1, 1], ["2010-02-23 02:29:37", "2011-07-17 16:44:14",
+"1987-08-17 03:47:04", "2012-05-24 09:09:40"], ["1997-01-12", "1992-10-26",
+"1975-05-29", "1988-05-02", "1984-07-24", "2001-06-21"], ["01:16:30",
+"12:10:12", "16:52:37", "11:15:48"]]'),(-1455798357,'[[1160950873,
+-1845559138, -591619735], [1947296343, 1928779367, 2046082843, 1714804343,
+1903096605, 230458028], ["8j8RNBGsci", "QWU2x", "b4a7", "uIcTSlagrr",
+"rpCiT2w"], [0, 1, 1], ["1971-10-25 17:55:12", "2021-04-07 00:09:33",
+"2015-06-11 05:08:07", "1981-08-25 16:50:38", "2035-10-19 05:23:43"],
+["2016-03-08", "2034-05-14", "2026-11-18", "1988-12-08", "2027-03-26",
+"2003-05-09"], ["01:45:07", "08:13:35",
+"22:51:45"]]'),(-205841342,'[[-286383407, -2132945193, -1440807096,
+712069046], [329306555, 927040824, 397088016, 951650479, 1320369164,
+2135904858], ["d0", "lG2", "uY", "6K9"], [1, 0, 0, 0, 1, 1],
+["1980-03-14 17:42:17", "2009-05-12 20:16:27", "1991-10-09 13:20:26",
+"1973-08-03 01:28:46", "2027-02-28 14:26:25", "2014-07-24 05:46:40",
+"2035-04-30 15:17:48"], [], ["06:32:03"]]');
+analyze table c1;
+
+SELECT  col_int FROM c1  WHERE
+  (JSON_CONTAINS( col_jsonn-> '$[2][*]' , JSON_ARRAY( '2030-11-16' ) ) ) OR
+  JSON_OVERLAPS(JSON_ARRAY('12:38:26', '17:42:23'), col_jsonn->'$[6][*]');
+EXPLAIN SELECT  col_int FROM c1  WHERE
+  (JSON_CONTAINS( col_jsonn-> '$[2][*]' , JSON_ARRAY( '2030-11-16' ) ) ) OR
+  JSON_OVERLAPS(JSON_ARRAY('12:38:26', '17:42:23'), col_jsonn->'$[6][*]');
+DROP TABLE c1;
+
+--echo #
+--echo # Bug#29114081: ERROR WHILE READING TABLE
+--echo #
+CREATE TABLE a (pk integer auto_increment key, col_varchar_key varchar(1));
+CREATE TABLE c (pk integer auto_increment key, col_varchar varchar(1) ,
+                col_varchar_key varchar(1));
+
+ALTER TABLE a ADD COLUMN col_jsonn JSON;
+ALTER TABLE a
+  ADD INDEX mv_idx_binary ((CAST(col_jsonn->'$[*]' AS BINARY(10) ARRAY)));
+
+ALTER TABLE c ADD COLUMN col_jsonn JSON;
+ALTER TABLE c
+  ADD INDEX mv_idx_binary ((CAST(col_jsonn->'$[*]' AS BINARY(10) ARRAY)));
+
+insert into c values (DEFAULT,'8','q','[0,0,1,1,0,1]'),
+(DEFAULT,'T','N','[1,0,0,0,0,1,0]'), (DEFAULT,'H','p','[0,0,1]'),
+(DEFAULT,'Z','t','[1]'), (DEFAULT,'T','v','[0]'), (DEFAULT,'m','N','[1,1,0]'),
+(DEFAULT,'4','o','[1,1,0,1]'), (DEFAULT,'1','5','[1,0,1,0,0,0]');
+analyze table c;
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT alias1 . pk AS   field1 , alias2 . pk AS   field3
+FROM ( c AS alias1 LEFT JOIN c AS alias2
+  ON ( alias1 . col_varchar = alias2 . col_varchar_key  ) )
+WHERE (
+  EXISTS ( ( SELECT   sq2_alias2 .  col_varchar_key AS sq2_field1
+  FROM a AS sq2_alias2
+  WHERE JSON_OVERLAPS(CAST('TOoqLsu' AS JSON),sq2_alias2.col_jsonn->'$[*]'))))
+  AND ( alias1 . pk = alias2 . pk AND alias1 . pk = 8 );
+
+SELECT alias1 . pk AS   field1 , alias2 . pk AS   field3
+FROM ( c AS alias1 LEFT JOIN c AS alias2
+  ON ( alias1 . col_varchar = alias2 . col_varchar_key  ) )
+WHERE (
+  EXISTS ( ( SELECT   sq2_alias2 .  col_varchar_key AS sq2_field1
+  FROM a AS sq2_alias2
+  WHERE JSON_OVERLAPS(CAST('"TOoqLsu"' AS JSON),sq2_alias2.col_jsonn->'$[*]'))))
+  AND ( alias1 . pk = alias2 . pk AND alias1 . pk = 8 );
+
+EXPLAIN SELECT alias1 . pk AS   field1 , alias2 . pk AS   field3
+FROM ( c AS alias1 LEFT JOIN c AS alias2
+  ON ( alias1 . col_varchar = alias2 . col_varchar_key  ) )
+WHERE (
+  EXISTS ( ( SELECT   sq2_alias2 .  col_varchar_key AS sq2_field1
+  FROM a AS sq2_alias2
+  WHERE JSON_OVERLAPS(CAST('"TOoqLsu"' AS JSON),sq2_alias2.col_jsonn->'$[*]'))))
+  AND ( alias1 . pk = alias2 . pk AND alias1 . pk = 8 );
+
+DROP TABLE a,c;
+
+--echo #
+--echo # Bug#29303026: TOO MANY RESULTS FROM UNIQUE MULTI-VALUE INDEX
+--echo #
+create table t (j json, unique key ((cast(j->'$[*]' as char(10) array))));
+insert into t values ('[1,"1"]');
+select * from t where json_overlaps('["1",1]', j->'$[*]');
+explain select * from t where json_overlaps('["1",1]', j->'$[*]');
+drop table t;
+
+--echo #
+--echo # Bug#29582655: ASSERTION FAILURE: `!THD->IS_ERROR()'
+--echo #
+CREATE TABLE t1 (pk INT primary key, col_jsonn JSON, INDEX
+mv_idx((CAST(col_jsonn->'$[0][*]' AS BINARY(10) ARRAY))));
+CREATE TABLE t2 (pk INT primary key, col_jsonn JSON);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_OVERLAPS( '0' , t1. col_jsonn-> '$[0][*]' ) FROM t1 LEFT JOIN t2
+ON t1.pk = JSON_OVERLAPS( 'OJNRaUr' , JSON_ARRAY( 'Q' , 'qX' ) ) WHERE t2 .
+pk = 1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#29752056: COLLECTION.FIND() FAILS FOR DATE TYPE WHEN IN IS USED
+--echo #
+CREATE TABLE t1 (doc JSON,_id VARBINARY(32)
+GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY
+KEY);
+
+ALTER TABLE t1 ADD INDEX dateArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.dateField') AS DATE ARRAY)));
+ALTER TABLE t1 ADD INDEX datetimeArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.datetimeField') AS DATETIME ARRAY)));
+ALTER TABLE t1 ADD INDEX timeArrayIndex
+((CAST(JSON_EXTRACT(doc,'$.timeField') AS TIME ARRAY)));
+
+INSERT INTO t1 (doc) VALUES
+('{"dateField":["2019-1-1","2019-2-1","2019-3-1"],
+  "datetimeField":["2019-12-29 23:59:59","2019-12-30 23:59:59",
+    "2019-12-31 23:59:59"],
+  "timeField":["10:10","11:10","12:10"],
+  "_id": "00005cd4075c0000000000000087"}'),
+('{"dateField":["2019-1-2","2019-2-2","2019-3-2"],
+  "datetimeField":["2018-12-29 23:59:59","2018-12-30 23:59:59",
+    "2018-12-31 23:59:59"],
+  "timeField":["10:11","11:11","12:11"],
+  "_id": "00005cd4075c0000000000000088"}'),
+('{"dateField":["2019-1-3","2019-2-3","2019-3-3"],
+  "datetimeField":["2017-12-29 23:59:59","2017-12-30 23:59:59",
+    "2017-12-31 23:59:59"],
+  "timeField":["10:12","11:12","12:12"],
+  "_id": "00005cd4075c0000000000000089"}');
+ANALYZE TABLE t1;
+--echo # DATE
+SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+SELECT doc->'$.dateField' FROM t1 IGNORE KEY(dateArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+--echo # Empty result as $.dateField is string and index isn't used
+SELECT doc->'$.dateField' FROM t1 IGNORE KEY(dateArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.dateField', CAST(CAST('2019-2-1' AS DATE) AS JSON));
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_QUOTE('2019-2-1'));
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.dateField',JSON_ARRAY('2019-2-1','2019-3-1'));
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+DATE'2019-2-1' MEMBER OF (doc->'$.dateField');
+
+SELECT doc->'$.dateField' FROM t1 WHERE
+'asd2019' MEMBER OF (doc->'$.dateField');
+
+EXPLAIN SELECT doc->'$.dateField' FROM t1 WHERE
+'asd2019' MEMBER OF (doc->'$.dateField');
+
+--echo # DATETIME
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 IGNORE KEY(datetimeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+--echo # Empty result as $.datetimeField is string and index isn't used
+SELECT doc->'$.datetimeField' FROM t1 IGNORE KEY(datetimeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+ CAST(CAST('2017-12-29 23:59:59' AS DATETIME) AS JSON));
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',JSON_QUOTE('2017-12-29 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+  JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.datetimeField',
+  JSON_ARRAY('2017-12-29 23:59:59','2017-12-30 23:59:59'));
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+SELECT doc->'$.datetimeField' FROM t1 WHERE
+TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+EXPLAIN SELECT doc->'$.datetimeField' FROM t1 WHERE
+TIMESTAMP'2017-12-29 23:59:59' MEMBER OF (doc->'$.datetimeField');
+
+--echo # TIME
+SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+SELECT doc->'$.timeField' FROM t1 IGNORE KEY(timeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+--echo # Empty result as $.timeField is string and index isn't used
+SELECT doc->'$.timeField' FROM t1 IGNORE KEY(timeArrayIndex) WHERE
+JSON_CONTAINS(doc->'$.timeField', CAST(CAST('11:11' AS TIME) AS JSON));
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_QUOTE('11:11'));
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+JSON_CONTAINS(doc->'$.timeField',JSON_ARRAY('11:11','12:11'));
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+'11:11' MEMBER OF (doc->'$.timeField');
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+'11:11' MEMBER OF (doc->'$.timeField');
+
+SELECT doc->'$.timeField' FROM t1 WHERE
+TIME'11:11' MEMBER OF (doc->'$.timeField');
+
+EXPLAIN SELECT doc->'$.timeField' FROM t1 WHERE
+TIME'11:11' MEMBER OF (doc->'$.timeField');
+
+DROP TABLE t1;
+
+CREATE TABLE t(i INT, j JSON);
+INSERT INTO t VALUES
+  (1,'"2019-1-1"'),(2,'"2019-01-01"'),(3,CAST(DATE'2019-1-1' AS JSON));
+--echo # Untyped comparison
+SELECT * FROM t WHERE j->'$' = '2019-1-1';
+SELECT * FROM t WHERE j->'$' = DATE'2019-01-01';
+SELECT * FROM t WHERE j->'$' = '2019-01-1';
+CREATE INDEX idx ON t((CAST(j->'$' AS DATE)));
+--echo # Typed comparison using index's type
+SELECT * FROM t WHERE j->'$' = '2019-1-1';
+SELECT * FROM t WHERE j->'$' = DATE'2019-01-01';
+SELECT * FROM t WHERE j->'$' = '2019-01-1';
+ALTER TABLE t DROP INDEX idx;
+DELETE FROM t;
+INSERT INTO t VALUES
+  (1,'"1:1"'),(2,'"01:1"'),(3,CAST(TIME'01:1' AS JSON));
+SELECT * FROM t WHERE j->'$' = '1:1';
+SELECT * FROM t WHERE j->'$' = TIME'1:1';
+SELECT * FROM t WHERE j->'$' = '1:01';
+CREATE INDEX idx ON t((CAST(j->'$' AS TIME)));
+--echo # Typed comparison using index's type
+SELECT * FROM t WHERE j->'$' = '1:1';
+SELECT * FROM t WHERE j->'$' = TIME'1:1';
+SELECT * FROM t WHERE j->'$' = '1:01';
+DROP TABLE t;
+
+# If the unique record filter is not properly closed by any of queries above,
+# then the TempTable plugin will have ref_count > 0 on restart. This should be
+# the at the very end of the test.
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Wetland", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.Wetland = new Theme({
+define("dojox/charting/themes/Wetland", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Wetland = new SimpleTheme({
 		colors: [
 			"#bfbc64",
 			"#737130",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/Wetland", ["../Theme", "./common"], function(Theme
 			"#8d3c42"
 		]
 	});
-	
 	return themes.Wetland;
 });

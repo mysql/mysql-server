@@ -7,6 +7,9 @@
 .dj_ie8 .dojoxGridRtl .dojoxGridCell {
 	border-left: none;
 }
+.dj_ie .dojoxGridRtl .dojoxGridMasterView .dojoxGridRowTable {
+	border-left: #e5dac8 1px solid
+}
 .dojoxGridRtl .dojoxGridArrowButtonNode {
 	float:left;
 }
@@ -25,7 +28,7 @@
 	text-align: right;
 }
 .dojoxGridRtl .dojoxGridFBarDefFilterBtnIcon {
-	background: url(images/sprite_icons.png) no-repeat;
+	background: url("images/sprite_icons.png") no-repeat;
 	background-position: -180px -18px;
 }
 .dojoxGridRtl .dojoxGridFBarStatus {

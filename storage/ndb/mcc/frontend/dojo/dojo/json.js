@@ -1,5 +1,5 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
@@ -79,6 +79,7 @@ return "["+res.join(",")+_13+_c+"]";
 var _14=[];
 for(_d in it){
 var _15;
+if(it.hasOwnProperty(_d)){
 if(typeof _d=="number"){
 _15="\""+_d+"\"";
 }else{
@@ -93,6 +94,7 @@ if(typeof _e!="string"){
 continue;
 }
 _14.push(_13+_12+_15+":"+sep+_e);
+}
 }
 return "{"+_14.join(",")+_13+_c+"}";
 };

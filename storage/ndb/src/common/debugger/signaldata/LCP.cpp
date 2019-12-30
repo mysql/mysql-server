@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,16 +33,23 @@ printSTART_LCP_REQ(FILE * output, const Uint32 * theData,
   
   const StartLcpReq * const sig = (StartLcpReq *) theData;
  
-  char buf1[8*_NDB_NODE_BITMASK_SIZE+1];
-  char buf2[8*_NDB_NODE_BITMASK_SIZE+1];
-  fprintf(output, 
-	  " Sender: %d LcpId: %d PauseStart: %d\n"
-	  " ParticipatingDIH = %s\n"
-	  " ParticipatingLQH = %s\n",
-	  refToNode(sig->senderRef), sig->lcpId, sig->pauseStart,
-	  sig->participatingDIH.getText(buf1),
-	  sig->participatingLQH.getText(buf2));
-  
+  char buf1[NdbNodeBitmask48::TextLength + 1];
+  char buf2[NdbNodeBitmask48::TextLength + 1];
+
+  if (sig->participatingDIH_v1.isclear() && sig->participatingLQH_v1.isclear())
+  {
+    fprintf(output, " ParticipatingDIH and ParticipatingLQH in signal section");
+  }
+  else
+  {
+    fprintf(output,
+      " Sender: %d LcpId: %d PauseStart: %d\n"
+      " ParticipatingDIH = %s\n"
+      " ParticipatingLQH = %s\n",
+      refToNode(sig->senderRef), sig->lcpId, sig->pauseStart,
+      sig->participatingDIH_v1.getText(buf1),
+      sig->participatingLQH_v1.getText(buf2));
+  }
   return true;
 }
 

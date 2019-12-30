@@ -1,0 +1,27 @@
+INSTALL PLUGIN pfs_example_plugin_employee SONAME 'pfs_example_plugin_employee.xxx';
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.xxx';;
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.xxx';;
+INSTALL PLUGIN version_tokens SONAME 'version_token.xxx';;
+INSTALL PLUGIN validate_password SONAME 'validate_password.xxx';;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+INSTALL COMPONENT "file://component_pfs_example";
+INSTALL COMPONENT "file://component_validate_password";
+select "In SSL session";
+In SSL session
+In SSL session
+select "Dumping lock_order.txt file now" as title;
+title
+Dumping lock_order.txt file now
+mysqladmin: [Warning] Using a password on the command line interface can be insecure.
+UNINSTALL COMPONENT "file://component_pfs_example";
+UNINSTALL COMPONENT "file://component_validate_password";
+UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+UNINSTALL PLUGIN version_tokens;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN pfs_example_plugin_employee;

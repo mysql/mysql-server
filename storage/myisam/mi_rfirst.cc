@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 /*  Read first row through  a specfic key */
 
 int mi_rfirst(MI_INFO *info, uchar *buf, int inx) {
-  DBUG_ENTER("mi_rfirst");
+  DBUG_TRACE;
   info->lastpos = HA_OFFSET_ERROR;
   info->update |= HA_STATE_PREV_FOUND;
-  DBUG_RETURN(mi_rnext(info, buf, inx));
+  return mi_rnext(info, buf, inx);
 } /* mi_rfirst */

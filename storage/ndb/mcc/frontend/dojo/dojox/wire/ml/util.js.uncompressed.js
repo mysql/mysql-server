@@ -1,26 +1,25 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/util", ["dijit","dojo","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/util", ["dojo","dijit","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.util");
 
 dojo.require("dojox.xml.parser");
 dojo.require("dojox.wire.Wire");
 
 dojox.wire.ml._getValue = function(/*String*/source, /*Array*/args){
-	//	summary:
+	// summary:
 	//		Return a value
-	//	description:
+	// description:
 	//		This method obtains an object by an ID of a widget or an DOM
 	//		element.
 	//		If 'source' specifies a dotted notation to its property, a Wire is
 	//		used to get the object property.
 	//		If 'source' starts with "arguments", 'args' is used as a root
 	//		object for the Wire.
-	//	source:
+	// source:
 	//		A string to specify an object and its property
-	//	args:
+	// args:
 	//		An optional arguments array
-	//	returns:
+	// returns:
 	//		A value
 	if(!source){
 		return undefined; //undefined
@@ -47,14 +46,14 @@ dojox.wire.ml._getValue = function(/*String*/source, /*Array*/args){
 };
 
 dojox.wire.ml._setValue = function(/*String*/target, /*anything*/value){
-	//	summary:
+	// summary:
 	//		Store a value
-	//	description:
+	// description:
 	//		This method stores a value by an ID of a widget or an DOM
 	//		element with a dotted notation to its property, using a Wire.
-	//	target:
+	// target:
 	//		A string to specify an object and its property
-	//	value:
+	// value:
 	//		A value
 	if(!target){
 		return; //undefined
@@ -72,15 +71,15 @@ dojox.wire.ml._setValue = function(/*String*/target, /*anything*/value){
 };
 
 dojo.declare("dojox.wire.ml.XmlElement", null, {
-	//	summary:
+	// summary:
 	//		An object wrapping an XML element
-	//	description:
+	// description:
 	//		This class represents an XML element.
 
 	constructor: function(/*Element||String*/element){
-		//	summary:
+		// summary:
 		//		Initialize with an XML element or a tag name
-		//	element:
+		// element:
 		//		An XML element or a tag name
 		if(dojo.isString(element)){
 			element = this._getDocument().createElement(element);
@@ -88,17 +87,17 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 		this.element = element;
 	},
 	getPropertyValue: function(/*String*/property){
-		//	summary:
+		// summary:
 		//		Return a property value
-		//	description:
+		// description:
 		//		If 'property' starts with '@', the attribute value is returned.
 		//		If 'property' specifies "text()", the value of the first child
 		//		text is returned.
 		//		Otherwise, child elements of the tag name specified with
 		//		'property' are returned.
-		//	property:
+		// property:
 		//		A property name
-		//	returns:
+		// returns:
 		//		A property value
 		var value = undefined;
 		if(!this.element){
@@ -136,9 +135,9 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 	},
 
 	setPropertyValue: function(/*String*/property, /*String||Array||XmlElement*/value){
-		//	summary:
+		// summary:
 		//		Store a property value
-		//	description:
+		// description:
 		//		If 'property' starts with '@', 'value' is set to the attribute.
 		//		If 'property' specifies "text()", 'value' is set as the first
 		//		child text.
@@ -146,9 +145,9 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 		//		specified with 'property' is created and 'value' is set as
 		//		the first child text of the child element.
 		//		Otherwise, 'value' is set to as child elements.
-		//	property:
+		// property:
 		//		A property name
-		//	value:
+		// value:
 		//		A property value
 		var i;
 		var text;
@@ -209,11 +208,11 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 	},
 
 	toString: function(){
-		//	summary:
+		// summary:
 		//		Return a value of the first text child of the element
-		//	description:
+		// description:
 		//		A value of the first text child of the element is returned.
-		//	returns:
+		// returns:
 		//		A value of the first text child of the element
 		var s = "";
 		if(this.element){
@@ -226,12 +225,12 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 	},
 
 	toObject: function(){
-		//	summary:
+		// summary:
 		//		Return an object representation of the element
-		//	description:
+		// description:
 		//		An object with properties for child elements, attributes and
 		//		text is returned.
-		//	returns:
+		// returns:
 		//		An object representation of the element
 		if(!this.element){
 			return null; //null
@@ -280,13 +279,13 @@ dojo.declare("dojox.wire.ml.XmlElement", null, {
 	},
 
 	_getDocument: function(){
-		//	summary:
+		// summary:
 		//		Return a DOM document
-		//	description:
+		// description:
 		//		If 'element' is specified, a DOM document of the element is
 		//		returned.
 		//		Otherwise, a DOM document is created.
-		//	returns:
+		// returns:
 		//		A DOM document
 		if(this.element){
 			return (this.element.nodeType == 9 /* DOCUMENT_NODE */ ?

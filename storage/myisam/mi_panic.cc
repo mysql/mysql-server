@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ int mi_panic(enum ha_panic_function flag) {
   int error = 0;
   LIST *list_element, *next_open;
   MI_INFO *info;
-  DBUG_ENTER("mi_panic");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&THR_LOCK_myisam);
   for (list_element = myisam_open_list; list_element;
@@ -79,7 +79,7 @@ int mi_panic(enum ha_panic_function flag) {
     ft_free_stopwords();
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  if (!error) DBUG_RETURN(0);
+  if (!error) return 0;
   set_my_errno(error);
-  DBUG_RETURN(error);
+  return error;
 } /* mi_panic */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include <ndb_global.h>
 
+//Enable DEBUG_RSS to measure memory consumption in various parts
+//#define DEBUG_RSS 1
 struct ndb_rusage
 {
   Uint64 ru_utime;
@@ -35,6 +37,9 @@ struct ndb_rusage
   Uint64 ru_majflt;
   Uint64 ru_nvcsw;
   Uint64 ru_nivcsw;
+#ifdef DEBUG_RSS
+  Uint64 ru_rss;
+#endif
 };
 
 #ifdef	__cplusplus
@@ -44,7 +49,7 @@ extern "C" {
   /**
    * Get resource usage for calling thread
    */
-  int Ndb_GetRUsage(ndb_rusage * dst);
+  int Ndb_GetRUsage(ndb_rusage * dst, bool process);
 
 #ifdef	__cplusplus
 }

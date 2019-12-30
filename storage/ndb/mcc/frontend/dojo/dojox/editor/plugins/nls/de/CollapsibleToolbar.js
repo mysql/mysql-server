@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"collapse": "Editor-Symbolleiste ausblenden",
-	"expand": "Editor-Symbolleiste einblenden"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/de/CollapsibleToolbar",({"collapse":"Editor-Symbolleiste ausblenden","expand":"Editor-Symbolleiste einblenden"}));

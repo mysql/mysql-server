@@ -58,7 +58,7 @@ explain select * from t3 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where true
 # select_type=SIMPLE, type=range
 select * from t3 where c>=-1;
 a	b	c
@@ -247,6 +247,10 @@ PRIMARY KEY (`pk`),
 KEY `col_int_key` (`col_int_key`),
 KEY `col_datetime_key` (`col_datetime_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES
 (1,default,4,'2008-12-05','1900-01-01 00:00:00');
 SELECT
@@ -613,7 +617,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	subquery2_t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	subquery2_t1	NULL	index	NULL	col_date_key	4	NULL	#	#	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`subquery2_t2`.`col_int_key` AS `subquery2_field1` from `test`.`c` `subquery2_t2` left join `test`.`cc` `subquery2_t3` on((`test`.`subquery2_t3`.`col_int_nokey` = `test`.`subquery2_t2`.`col_int_key`)) left join `test`.`c` `subquery2_t1` on((`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`)) where 1 order by `subquery2_field1`
+Note	1003	/* select#1 */ select `test`.`subquery2_t2`.`col_int_key` AS `subquery2_field1` from `test`.`c` `subquery2_t2` left join `test`.`cc` `subquery2_t3` on((`test`.`subquery2_t3`.`col_int_nokey` = `test`.`subquery2_t2`.`col_int_key`)) left join `test`.`c` `subquery2_t1` on((`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`)) where true order by `subquery2_field1`
 SELECT subquery2_t2.col_int_key AS subquery2_field1
 FROM (c AS subquery2_t1 RIGHT JOIN
 (c AS subquery2_t2 LEFT JOIN cc AS subquery2_t3 ON
@@ -1068,6 +1072,10 @@ KEY gc_idx7 (col_date_key,col_datetime_key,col_time_key),
 KEY gc_idx8(col_int_key,col_varchar_key,col_date_key,col_time_key,
 col_datetime_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO cc (
 col_int_nokey,
 col_date_nokey,
@@ -1093,11 +1101,6 @@ GROUP BY field1 HAVING field1 = 91
 ORDER BY field1, alias1.col_date_key, field1 ASC, field1 DESC,
 alias1.col_time_key ASC, field1;
 field1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'c'
-Warning	1292	Truncated incorrect DOUBLE value: 't'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
-Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE cc;
 SET sql_mode=@save_old_sql_mode;
 #
@@ -1118,6 +1121,9 @@ CREATE TABLE t1 (
 id int(11) NOT NULL,
 b int(11) GENERATED ALWAYS AS (id+1) VIRTUAL NOT NULL,
 UNIQUE KEY (b) );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (id) VALUES(NULL);
 ERROR 23000: Column 'id' cannot be null
 INSERT INTO t1 VALUES(2,3);
@@ -1127,7 +1133,7 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(b) WHERE b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	b	b	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `id`,'3' AS `b` from `test`.`t1` FORCE INDEX (`b`) where 1
+Note	1003	/* select#1 */ select '2' AS `id`,'3' AS `b` from `test`.`t1` FORCE INDEX (`b`) where true
 EXPLAIN SELECT * FROM t1 AS t2 STRAIGHT_JOIN t1 FORCE INDEX(b) WHERE t1.b=t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	b	NULL	NULL	NULL	2	100.00	NULL
@@ -1150,7 +1156,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	unique_subquery	b	b	4	func	1	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t2` `t1` where (not(<in_optimizer>(`test`.`t1`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on b where <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`b`), true))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t2` `t1` where <in_optimizer>(`test`.`t1`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on b where <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`b`), true))) is false)
 DROP TABLE t1;
 DROP TABLE t2, t3;
 #
@@ -1370,7 +1376,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1427,7 +1433,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1486,7 +1492,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 
@@ -1554,7 +1560,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
 2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 

@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_member_identifier.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"  // gcs_protocol_to_mysql_version
 
 #include <assert.h>
@@ -58,18 +59,16 @@ using std::map;
 Gcs_xcom_communication::Gcs_xcom_communication(
     Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
     Gcs_xcom_view_change_control_interface *view_control,
-    Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
-    Gcs_group_identifier const &group_id)
+    Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id)
     : event_listeners(),
       stats(stats),
       m_xcom_proxy(proxy),
       m_view_control(view_control),
       m_msg_pipeline(),
       m_buffered_packets(),
-      m_myself(xcom_node_address.get_member_address()),
       m_xcom_nodes(),
       m_gid_hash(),
-      m_protocol_changer(xcom_node_address, *gcs_engine, m_msg_pipeline) {
+      m_protocol_changer(*gcs_engine, m_msg_pipeline) {
   const void *id_str = group_id.get_group_id().c_str();
   m_gid_hash = Gcs_xcom_utils::mhash(static_cast<const unsigned char *>(id_str),
                                      group_id.get_group_id().size());
@@ -198,7 +197,8 @@ void Gcs_xcom_communication::remove_event_listener(int event_listener_handle) {
   event_listeners.erase(event_listener_handle);
 }
 
-void Gcs_xcom_communication::notify_received_message(Gcs_message *message) {
+void Gcs_xcom_communication::notify_received_message(
+    std::unique_ptr<Gcs_message> &&message) {
   map<int, const Gcs_communication_event_listener &>::iterator callback_it =
       event_listeners.begin();
 
@@ -215,7 +215,6 @@ void Gcs_xcom_communication::notify_received_message(Gcs_message *message) {
              message->get_message_data().get_payload_length()));
   MYSQL_GCS_LOG_TRACE("Delivered message from origin= %s",
                       message->get_origin().get_member_id().c_str())
-  delete message;
 }
 
 void Gcs_xcom_communication::buffer_incoming_packet(
@@ -262,13 +261,21 @@ Gcs_xcom_communication::possible_packet_recovery_donors() const {
   DBUG_ASSERT(!all_members.empty());
 
   std::vector<Gcs_xcom_node_information> donors;
-  auto not_me_predicate = [this](Gcs_xcom_node_information const &xcom_node) {
-    bool const is_me = (xcom_node.get_member_id() == m_myself);
-    return !is_me;
-  };
-  std::copy_if(all_members.cbegin(), all_members.cend(),
-               std::back_inserter(donors), not_me_predicate);
-  DBUG_ASSERT(donors.size() == all_members.size() - 1);
+
+  Gcs_xcom_interface *const xcom_interface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (xcom_interface != nullptr) {
+    Gcs_member_identifier myself{
+        xcom_interface->get_node_address()->get_member_address()};
+    auto not_me_predicate =
+        [&myself](Gcs_xcom_node_information const &xcom_node) {
+          bool const is_me = (xcom_node.get_member_id() == myself);
+          return !is_me;
+        };
+    std::copy_if(all_members.cbegin(), all_members.cend(),
+                 std::back_inserter(donors), not_me_predicate);
+    DBUG_ASSERT(donors.size() == all_members.size() - 1);
+  }
 
   return donors;
 }
@@ -562,13 +569,50 @@ void Gcs_xcom_communication::process_user_data_packet(
   }
 }
 
+/*
+  Helper function to determine whether this server is still in the group.
+
+  In principle one should be able to simply call view_control.belongs_to_group()
+  to check whether this server still belongs to the group. However, testing
+  shows that it does not fix the issue, i.e. GCS still delivers messages to
+  clients after leaving the group. Since the current logic around the server
+  leaving/being expelled from the group is convoluted, as a stop-gap fix we will
+  rely on whether we belong to the current view or not to decide whether we
+  still belong to the group.
+ */
+static bool are_we_still_in_the_group(
+    Gcs_xcom_view_change_control_interface &view_control) {
+  bool still_in_the_group = false;
+
+  Gcs_xcom_interface *const xcom_interface =
+      static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
+  if (xcom_interface != nullptr) {
+    std::string &myself =
+        xcom_interface->get_node_address()->get_member_address();
+    Gcs_view const *const view = view_control.get_unsafe_current_view();
+    still_in_the_group = (view != nullptr && view->has_member(myself));
+  }
+
+  return still_in_the_group;
+}
+
 void Gcs_xcom_communication::deliver_user_data_packet(
     Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) {
-  Gcs_message *message =
+  Gcs_message *unmanaged_message =
       convert_packet_to_message(std::move(packet), std::move(xcom_nodes));
+  std::unique_ptr<Gcs_message> message{unmanaged_message};
 
   bool const error = (message == nullptr);
-  if (!error) notify_received_message(message);
+  bool const still_in_the_group = are_we_still_in_the_group(*m_view_control);
+
+  bool const should_notify = (!error && still_in_the_group);
+  if (should_notify) {
+    notify_received_message(std::move(message));
+  } else {
+    MYSQL_GCS_LOG_TRACE(
+        "Did not deliver message error=%d still_in_the_group=%d", error,
+        still_in_the_group);
+  }
 }
 
 Gcs_protocol_version Gcs_xcom_communication::get_protocol_version() const {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,25 +173,6 @@ class Tablespace : virtual public Entity_object {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const uint32 SDI_KEY_LEN = 8;
-const uint32 SDI_TYPE_LEN = 4;
-
-/** Key to identify a dictionary object */
-struct sdi_key {
-  /** Type of Object, For ex: column, index, etc */
-  uint32 type;
-
-  /** Object id which should be unique in tablespsace */
-  uint64 id;
-};
-bool operator==(const sdi_key &a, const sdi_key &b);
-
-typedef std::vector<sdi_key> sdi_container;
-
-struct sdi_vector {
-  sdi_container m_vec;
-};
-
 /**
   Represents tables with their id, name, schema id and schema name.
   Needed to keep track of information when querying the dd to find
@@ -225,7 +206,7 @@ typedef std::vector<Tablespace_table_ref> Tablespace_table_ref_vec;
   @param thd thread context
   @param tso dd object
   @param tblrefs [OUT] Tablespace_table_ref objects for tables in tablespace
-  @retval true if error occured
+  @retval true if error occurred
   @retval false otherwise
  */
 bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,

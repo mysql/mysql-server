@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,22 +23,6 @@
 
 ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
 
-# this will be moved to the top level CMakeLists(outside libbinlogevents)
-# in the independent repo mysql-binlog
-# Options for building
-#OPTION(WITH_SERVER_TESTS
-#       "Build the unit test suite with tests requiring a server" OFF)
-
-#IF(GTEST_FOUND)
-#  ENABLE_TESTING(TRUE)
-#  INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
-#ENDIF()
-
-INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include
-                    ${CMAKE_CURRENT_BINARY_DIR}/../libbinlogevents/include
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
 ADD_SUBDIRECTORY(src)
-
-# Configure installation
-INSTALL(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/offline_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/read_mode_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/stage_monitor_handler.h"
 
@@ -100,7 +101,7 @@ bool Autorejoin_thread::abort_rejoin() {
 }
 
 int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
-  DBUG_ENTER("Autorejoin_thread::start_autorejoin");
+  DBUG_TRACE;
   int ret = 0;
 
   mysql_mutex_lock(&m_run_lock);
@@ -145,7 +146,7 @@ int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
 
 end:
   mysql_mutex_unlock(&m_run_lock);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Autorejoin_thread::is_autorejoin_ongoing() {
@@ -187,12 +188,8 @@ void Autorejoin_thread::execute_rejoin_process() {
     });
 
     // Attempt a single rejoin.
-    DBUG_EXECUTE_IF("group_replication_fail_rejoin", goto retry_wait;);
     if (!attempt_rejoin()) break;
 
-#if !defined(DBUG_OFF)
-  retry_wait:
-#endif
     /*
       Wait on m_run_cond up to 5 minutes. This is a simple way to allow the
       thread to be interrupted and/or canceled at will.
@@ -216,21 +213,28 @@ void Autorejoin_thread::execute_rejoin_process() {
   */
   if (num_attempts > m_attempts) {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN,
-                 num_attempts - 1ULL, m_attempts, " not");
+                 num_attempts - 1UL, m_attempts, " not");
 
-    enable_server_read_mode(PSESSION_USE_THREAD);
+    enable_server_read_mode(PSESSION_INIT_THREAD);
     /*
       Only abort() if the auto-rejoin thread wasn't explicitly stopped, i.e.
       if someone called Autorejoin_thread::abort(), because that implies an
       explicit stop and thus we probably don't want to abort right here.
     */
-    if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
-        (error && !m_abort)) {
-      std::stringstream ss;
-      ss << "Could not rejoin the member to the group after " << m_attempts
-         << " attempts";
-      std::string msg = ss.str();
-      abort_plugin_process(msg.c_str());
+    if (error && !m_abort) {
+      switch (get_exit_state_action_var()) {
+        case EXIT_STATE_ACTION_ABORT_SERVER: {
+          std::stringstream ss;
+          ss << "Could not rejoin the member to the group after " << m_attempts
+             << " attempts";
+          std::string msg = ss.str();
+          abort_plugin_process(msg.c_str());
+          break;
+        }
+        case EXIT_STATE_ACTION_OFFLINE_MODE:
+          enable_server_offline_mode(PSESSION_INIT_THREAD);
+          break;
+      }
     }
   } else {
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_FINISHED_AUTO_REJOIN, num_attempts,

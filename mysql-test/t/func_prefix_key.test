@@ -111,3 +111,28 @@ EXPLAIN SELECT (f1 LIKE null) from t1;
 EXPLAIN SELECT (f1 LIKE null) from t1 WHERE f1 LIKE 'a%';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#28934315 CASE STATEMENT USE IN CONDITIONAL WITH SUB_PART INDEX REGRESSION IN 8.0.
+--echo #
+
+CREATE TABLE t1 (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  example VARCHAR(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (id),
+  KEY example_key (example(9))
+) ENGINE=InnoDB;
+
+CREATE TABLE t2 (
+  id INT(11) NOT NULL AUTO_INCREMENT,
+  example VARCHAR(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (id)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (example) VALUES ('1234567890');
+INSERT INTO t2 (example) VALUES ('1234567890');
+
+EXPLAIN SELECT t2.example, t2.id FROM t2, t1 WHERE t1.example = LOWER(t2.example);
+SELECT t2.example, t2.id FROM t2, t1 WHERE t1.example = LOWER(t2.example);
+
+DROP TABLE t1, t2;

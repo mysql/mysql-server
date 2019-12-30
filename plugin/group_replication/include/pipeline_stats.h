@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,24 +37,6 @@
     FCM_QUOTA introduces a delay only on transactions the exceed a quota
 */
 enum Flow_control_mode { FCM_DISABLED = 0, FCM_QUOTA };
-extern ulong flow_control_mode_var;
-
-/**
-  Flow control queue threshold for certifier and for applier.
-*/
-extern long flow_control_certifier_threshold_var;
-extern long flow_control_applier_threshold_var;
-
-/**
-  Options to fine-tune flow-control behaviour
-*/
-extern long flow_control_min_quota_var;
-extern long flow_control_min_recovery_quota_var;
-extern long flow_control_max_quota_var;
-extern int flow_control_member_quota_percent_var;
-extern int flow_control_period_var;
-extern int flow_control_hold_percent_var;
-extern int flow_control_release_percent_var;
 
 /**
   @class Pipeline_stats_member_message

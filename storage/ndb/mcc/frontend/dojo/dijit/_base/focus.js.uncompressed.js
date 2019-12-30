@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_base/focus", [
 	"dojo/_base/array", // array.forEach
 	"dojo/dom", // dom.isDescendant
@@ -6,16 +5,17 @@ define("dijit/_base/focus", [
 	"dojo/topic", // publish
 	"dojo/_base/window", // win.doc win.doc.selection win.global win.global.getSelection win.withGlobal
 	"../focus",
-	".."	// for exporting symbols to dijit
+	"../main"	// for exporting symbols to dijit
 ], function(array, dom, lang, topic, win, focus, dijit){
 
 	// module:
 	//		dijit/_base/focus
-	// summary:
-	//		Deprecated module to monitor currently focused node and stack of currently focused widgets.
-	//		New code should access dijit/focus directly.
 
-	lang.mixin(dijit, {
+	var exports = {
+		// summary:
+		//		Deprecated module to monitor currently focused node and stack of currently focused widgets.
+		//		New code should access dijit/focus directly.
+
 		// _curFocus: DomNode
 		//		Currently focused item on screen
 		_curFocus: null,
@@ -175,7 +175,7 @@ define("dijit/_base/focus", [
 			//		or removed focus altogether.)   In this case the selected text is not returned,
 			//		since it can't be accurately determined.
 			//
-			// menu: dijit._Widget or {domNode: DomNode} structure
+			// menu: dijit/_WidgetBase|{domNode: DomNode} structure
 			//		The button that was just pressed.  If focus has disappeared or moved
 			//		to this button, returns the previous focus.  In this case the bookmark
 			//		information is already lost, and null is returned.
@@ -193,7 +193,7 @@ define("dijit/_base/focus", [
 			}; // Object
 		},
 
-		// _activeStack: dijit._Widget[]
+		// _activeStack: dijit/_WidgetBase[]
 		//		List of currently active widgets (focused widget and it's ancestors)
 		_activeStack: [],
 
@@ -201,7 +201,7 @@ define("dijit/_base/focus", [
 			// summary:
 			//		Registers listeners on the specified iframe so that any click
 			//		or focus event on that iframe (or anything in it) is reported
-			//		as a focus/click event on the <iframe> itself.
+			//		as a focus/click event on the `<iframe>` itself.
 			// description:
 			//		Currently only used by editor.
 			// returns:
@@ -246,12 +246,12 @@ define("dijit/_base/focus", [
 
 			handle && handle.remove();
 		}
-	});
+	};
 
 	// Override focus singleton's focus function so that dijit.focus()
 	// has backwards compatible behavior of restoring selection (although
 	// probably no one is using that).
-	focus.focus = function(/*Object || DomNode */ handle){
+	focus.focus = function(/*Object|DomNode */ handle){
 		// summary:
 		//		Sets the focused node and the selection according to argument.
 		//		To set focus to an iframe's content, pass in the iframe itself.
@@ -316,5 +316,8 @@ define("dijit/_base/focus", [
 		topic.publish("widgetFocus", widget, by);	// publish
 	});
 
-	return dijit;
+	lang.mixin(dijit, exports);
+
+	/*===== return exports; =====*/
+	return dijit;	// for back compat :-(
 });

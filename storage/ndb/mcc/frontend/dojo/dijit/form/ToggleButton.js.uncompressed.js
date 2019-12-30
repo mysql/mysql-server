@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/ToggleButton", [
 	"dojo/_base/declare", // declare
 	"dojo/_base/kernel", // kernel.deprecated
@@ -6,21 +5,14 @@ define("dijit/form/ToggleButton", [
 	"./_ToggleButtonMixin"
 ], function(declare, kernel, Button, _ToggleButtonMixin){
 
-/*=====
-	var Button = dijit.form.Button;
-	var _ToggleButtonMixin = dijit.form._ToggleButtonMixin;
-=====*/
-
 	// module:
 	//		dijit/form/ToggleButton
-	// summary:
-	//		A templated button widget that can be in two states (checked or not).
 
 
 	return declare("dijit.form.ToggleButton", [Button, _ToggleButtonMixin], {
 		// summary:
 		//		A templated button widget that can be in two states (checked or not).
-		//		Can be base class for things like tabs or checkbox or radio buttons
+		//		Can be base class for things like tabs or checkbox or radio buttons.
 
 		baseClass: "dijitToggleButton",
 

@@ -1,17 +1,20 @@
-//>>built
 define("dojox/embed/Flash", ["dojo"], function(dojo) {
 
-	/*******************************************************
-		dojox.embed.Flash
+	// module:
+	//		dojox/embed/Flash
+	// summary:
+	//		Base functionality to insert a flash movie into
+	//		a document on the fly.
+	// example:
+	//	|	var movie=new Flash({ args }, containerNode);
 
-		Base functionality to insert a flash movie into
-		a document on the fly.
-
-		Usage:
-		var movie=new dojox.embed.Flash({ args }, containerNode);
-	 ******************************************************/
-
-	dojo.getObject("embed", true, dojox);
+	function htmlEscape(str) {
+		return String(str)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&apos;');
+	}
 
 	var fMarkup, fVersion;
 	var minimumVersion = 9; // anything below this will throw an error (may overwrite)
@@ -51,21 +54,21 @@ define("dojox/embed/Flash", ["dojo"], function(dojo) {
 			if(kwArgs.vars){
 				var a = [];
 				for(p in kwArgs.vars){
-					a.push(p + '=' + kwArgs.vars[p]);
+					a.push(encodeURIComponent(p) + '=' + encodeURIComponent(kwArgs.vars[p]));
 				}
 				kwArgs.params.FlashVars = a.join("&");
 				delete kwArgs.vars;
 			}
-			var s = '<object id="' + kwArgs.id + '" '
+			var s = '<object id="' + htmlEscape(String(kwArgs.id)) + '" '
 				+ 'classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000" '
-				+ 'width="' + kwArgs.width + '" '
-				+ 'height="' + kwArgs.height + '"'
-				+ ((kwArgs.style)?' style="' + kwArgs.style + '"':'')
+				+ 'width="' + htmlEscape(String(kwArgs.width)) + '" '
+				+ 'height="' + htmlEscape(String(kwArgs.height)) + '"'
+				+ ((kwArgs.style)?' style="' + htmlEscape(String(kwArgs.style)) + '"':'')
 				+ '>'
-				+ '<param name="movie" value="' + path + '" />';
+				+ '<param name="movie" value="' + htmlEscape(String(path)) + '" />';
 			if(kwArgs.params){
 				for(p in kwArgs.params){
-					s += '<param name="' + p + '" value="' + kwArgs.params[p] + '" />';
+					s += '<param name="' + htmlEscape(p) + '" value="' + htmlEscape(String(kwArgs.params[p])) + '" />';
 				}
 			}
 			s += '</object>';
@@ -118,22 +121,22 @@ define("dojox/embed/Flash", ["dojo"], function(dojo) {
 			if(kwArgs.vars){
 				var a = [];
 				for(p in kwArgs.vars){
-					a.push(p + '=' + kwArgs.vars[p]);
+					a.push(encodeURIComponent(p) + '=' + encodeURIComponent(kwArgs.vars[p]));
 				}
 				kwArgs.params.flashVars = a.join("&");
 				delete kwArgs.vars;
 			}
 			var s = '<embed type="application/x-shockwave-flash" '
-				+ 'src="' + path + '" '
-				+ 'id="' + kwArgs.id + '" '
-				+ 'width="' + kwArgs.width + '" '
-				+ 'height="' + kwArgs.height + '"'
-				+ ((kwArgs.style)?' style="' + kwArgs.style + '" ':'')
+				+ 'src="' + htmlEscape(String(path)) + '" '
+				+ 'id="' + htmlEscape(String(kwArgs.id)) + '" '
+				+ 'width="' + htmlEscape(String(kwArgs.width)) + '" '
+				+ 'height="' + htmlEscape(String(kwArgs.height)) + '"'
+				+ ((kwArgs.style)?' style="' + htmlEscape(String(kwArgs.style)) + '" ':'')
 
 				+ 'pluginspage="' + window.location.protocol + '//www.adobe.com/go/getflashplayer" ';
 			if(kwArgs.params){
 				for(p in kwArgs.params){
-					s += ' ' + p + '="' + kwArgs.params[p] + '"';
+					s += ' ' + htmlEscape(p) + '="' + htmlEscape(String(kwArgs.params[p])) + '"';
 				}
 			}
 			s += ' />';
@@ -156,49 +159,39 @@ define("dojox/embed/Flash", ["dojo"], function(dojo) {
 
 
 /*=====
-dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars, expressInstall, redirect){
-	//	path: String
+var __flashArgs = {
+	// path: String
 	//		The URL of the movie to embed.
-	//	id: String?
+	// id: String?
 	//		A unique key that will be used as the id of the created markup.  If you don't
 	//		provide this, a unique key will be generated.
-	//	width: Number?
+	// width: Number?
 	//		The width of the embedded movie; the default value is 320px.
-	//	height: Number?
+	// height: Number?
 	//		The height of the embedded movie; the default value is 240px
-	//	minimumVersion: Number ?
+	// minimumVersion: Number?
 	//		The minimum targeted version of the Flash Player (defaults to 9)
-	//	style: String?
+	// style: String?
 	//		Any CSS style information (i.e. style="background-color:transparent") you want
 	//		to define on the markup.
-	//	params: Object?
+	// params: Object?
 	//		A set of key/value pairs that you want to define in the resultant markup.
-	//	vars: Object?
+	// vars: Object?
 	//		A set of key/value pairs that the Flash movie will interpret as FlashVars.
-	//	expressInstall: Boolean?
+	// expressInstall: Boolean?
 	//		Whether or not to include any kind of expressInstall info. Default is false.
-	//	redirect: String?
+	// redirect: String?
 	//		A url to redirect the browser to if the current Flash version is not supported.
-	this.id=id;
-	this.path=path;
-	this.width=width;
-	this.minimumVersion=minimumVersion;
-	this.height=height;
-	this.style=style;
-	this.params=params;
-	this.vars=vars;
-	this.expressInstall=expressInstall;
-	this.redirect=redirect;
-}
+};
 =====*/
 
 	//	the main entry point
-	dojox.embed.Flash = function(/*dojox.embed.__flashArgs*/ kwArgs, /*DOMNode*/ node){
-		//	summary:
+	var Flash = function(/*__flashArgs*/ kwArgs, /*DOMNode*/ node){
+		// summary:
 		//		Create a wrapper object around a Flash movie; this is the DojoX equivilent
 		//		to SWFObject.
 		//
-		//	description:
+		// description:
 		//		Creates a wrapper object around a Flash movie.  Wrapper object will
 		//		insert the movie reference in node; when the browser first starts
 		//		grabbing the movie, onReady will be fired; when the movie has finished
@@ -210,12 +203,12 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		//		Flash movie will shoot several methods into the window object before
 		//		EI callbacks can be used properly).
 		//
-		//	kwArgs: dojox.embed.__flashArgs
+		// kwArgs: __flashArgs
 		//		The various arguments that will be used to help define the Flash movie.
-		//	node: DomNode
+		// node: DomNode
 		//		The node where the embed object will be placed
 		//
-		//	example:
+		// example:
 		//		Embed a flash movie in a document using the new operator, and get a reference to it.
 		//	|	var movie = new dojox.embed.Flash({
 		//	|		path: "path/to/my/movie.swf",
@@ -223,7 +216,7 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		//	|		height: 300
 		//	|	}, myWrapperNode, "testLoaded");
 		//
-		//	example:
+		// example:
 		//		Embed a flash movie in a document without using the new operator.
 		//	|	var movie = dojox.embed.Flash({
 		//	|		path: "path/to/my/movie.swf",
@@ -231,29 +224,29 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		//	|		height: 300,
 		//	|		style: "position:absolute;top:0;left:0"
 		//	|	}, myWrapperNode, "testLoaded");
-		//
+
 		// File can only be run from a server, due to SWF dependency.
 		if(location.href.toLowerCase().indexOf("file://")>-1){
 			throw new Error("dojox.embed.Flash can't be run directly from a file. To instatiate the required SWF correctly it must be run from a server, like localHost.");
 		}
 
-		//	available: Number
+		// available: Number
 		//		If there is a flash player available, and if so what version.
 		this.available = dojox.embed.Flash.available;
 
-		//	minimumVersion: Number
+		// minimumVersion: Number
 		//		The minimum version of Flash required to run this movie.
 		this.minimumVersion = kwArgs.minimumVersion || minimumVersion;
 
-		//	id: String
+		// id: String
 		//		The id of the DOMNode to be used for this movie.  Can be used with dojo.byId to get a reference.
 		this.id = null;
 
-		//	movie: FlashObject
+		// movie: FlashObject
 		//		A reference to the movie itself.
 		this.movie = null;
 
-		//	domNode: DOMNode
+		// domNode: DOMNode
 		//		A reference to the DOMNode that contains this movie.
 		this.domNode = null;
 		if(node){
@@ -278,14 +271,14 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		}), 100);
 	};
 
-	dojo.extend(dojox.embed.Flash, {
+	dojo.extend(Flash, {
 		onReady: function(/*HTMLObject*/ movie){
-			//	summary:
+			// summary:
 			//		Stub function for you to attach to when the movie reference is first
 			//		pushed into the document.
 		},
 		onLoad: function(/*HTMLObject*/ movie){
-			//	summary:
+			// summary:
 			//		Stub function for you to attach to when the movie has finished downloading
 			//		and is ready to be manipulated.
 		},
@@ -301,8 +294,8 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 			delete this._pollMax;
 			this.onLoad(this.movie);
 		},
-		init: function(/*dojox.embed.__flashArgs*/ kwArgs, /*DOMNode?*/ node){
-			//	summary
+		init: function(/*__flashArgs*/ kwArgs, /*DOMNode?*/ node){
+			// summary:
 			//		Initialize (i.e. place and load) the movie based on kwArgs.
 			this.destroy();		//	ensure we are clean first.
 			node = dojo.byId(node || this.domNode);
@@ -344,7 +337,7 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 			}
 		},
 		_destroy: function(){
-			//	summary
+			// summary:
 			//		Kill the movie and reset all the properties of this object.
 			try{
 				this.domNode.removeChild(this.movie);
@@ -352,7 +345,7 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 			this.id = this.movie = this.domNode = null;
 		},
 		destroy: function(){
-			//	summary
+			// summary:
 			//		Public interface for destroying all the properties in this object.
 			//		Will also clean all proxied methods.
 			if(!this.movie){ return; }
@@ -380,20 +373,19 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 			}
 		},
 		byId: function (movieName, doc){
-			// 	summary:
+			// summary:
 			//		Gets Flash movie by id.
-			//	description:
+			// description:
 			//		Probably includes methods for outdated
 			//		browsers, but this should catch all cases.
-			// arguments:
-			//		movieName: String
-			//			The name of the SWF
-			//		doc: Object
-			//			The document, if not current window
-			//			(not fully supported)
-			//	example:
-			//	| var movie = dojox.embed.Flash.byId("myId");
-			//
+			// movieName: String
+			//		The name of the SWF
+			// doc: Object
+			//		The document, if not current window
+			//		(not fully supported)
+			// example:
+			//	|	var movie = dojox.embed.Flash.byId("myId");
+
 			doc = doc || document;
 			if(doc.embeds[movieName]){
 				return doc.embeds[movieName];
@@ -412,27 +404,27 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 	});
 
 	//	expose information through the constructor function itself.
-	dojo.mixin(dojox.embed.Flash, {
-		//	summary:
+	dojo.mixin(Flash, {
+		// summary:
 		//		A singleton object used internally to get information
 		//		about the Flash player available in a browser, and
 		//		as the factory for generating and placing markup in a
 		//		document.
 		//
-		//	minSupported: Number
+		// minSupported: Number
 		//		The minimum supported version of the Flash Player, defaults to 8.
-		//	available: Number
+		// available: Number
 		//		Used as both a detection (i.e. if(dojox.embed.Flash.available){ })
 		//		and as a variable holding the major version of the player installed.
-		//	supported: Boolean
+		// supported: Boolean
 		//		Whether or not the Flash Player installed is supported by dojox.embed.
-		//	version: Object
+		// version: Object
 		//		The version of the installed Flash Player; takes the form of
 		//		{ major, minor, rev }.  To get the major version, you'd do this:
 		//		var v=dojox.embed.Flash.version.major;
-		//	initialized: Boolean
+		// initialized: Boolean
 		//		Whether or not the Flash engine is available for use.
-		//	onInitialize: Function
+		// onInitialize: Function
 		//		A stub you can connect to if you are looking to fire code when the
 		//		engine becomes available.  A note: DO NOT use this event to
 		//		place a movie in a document; it will usually fire before DOMContentLoaded
@@ -444,24 +436,24 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		version: fVersion,
 		initialized: false,
 		onInitialize: function(){
-			dojox.embed.Flash.initialized = true;
+			Flash.initialized = true;
 		},
 		__ie_markup__: function(kwArgs){
 			return fMarkup(kwArgs);
 		},
-		proxy: function(/*dojox.embed.Flash*/ obj, /*Array|String*/ methods){
-			//	summary:
-			//		Create the set of passed methods on the dojox.embed.Flash object
+		proxy: function(/*Flash*/ obj, /*Array|String*/ methods){
+			// summary:
+			//		Create the set of passed methods on the Flash object
 			//		so that you can call that object directly, as opposed to having to
 			//		delve into the internal movie to do this.  Intended to make working
 			//		with Flash movies that use ExternalInterface much easier to use.
 			//
-			//	example:
+			// example:
 			//		Create "setMessage" and "getMessage" methods on foo.
-			//	|	var foo = new dojox.embed.Flash(args, someNode);
+			//	|	var foo = new Flash(args, someNode);
 			//	|	dojo.connect(foo, "onLoad", dojo.hitch(foo, function(){
-			//	|		dojox.embed.Flash.proxy(this, [ "setMessage", "getMessage" ]);
-			//	|		this.setMessage("dojox.embed.Flash.proxy is pretty cool...");
+			//	|		Flash.proxy(this, [ "setMessage", "getMessage" ]);
+			//	|		this.setMessage("Flash.proxy is pretty cool...");
 			//	|		console.log(this.getMessage());
 			//	|	}));
 			dojo.forEach((dojo.isArray(methods) ? methods : [ methods ]), function(item){
@@ -487,7 +479,7 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		}
 	});
 
-	dojox.embed.Flash.place = function(kwArgs, node){
+	Flash.place = function(kwArgs, node){
 		var o = fMarkup(kwArgs);
 		node = dojo.byId(node);
 		if(!node){
@@ -501,7 +493,9 @@ dojox.embed.__flashArgs = function(path, id, width, height, style, params, vars,
 		}
 		return null;
 	}
-	dojox.embed.Flash.onInitialize();
+	Flash.onInitialize();
 
-	return dojox.embed.Flash;
+	dojo.setObject("dojox.embed.Flash", Flash);
+
+	return Flash;
 });

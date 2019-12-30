@@ -12,18 +12,25 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -41,22 +48,29 @@ u1	localhost	SYSTEM_VARIABLES_ADMIN	N
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -73,22 +87,29 @@ u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -110,30 +131,37 @@ GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
 ** Make sure GRANT OPTION is cumulative
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
 ** Only one entry
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 ** Only one dynamic entry
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -151,26 +179,33 @@ SELECT * FROM information_schema.user_privileges WHERE GRANTEE LIKE '%u1%'
 ORDER BY GRANTEE, PRIVILEGE_TYPE, IS_GRANTABLE;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'u1'@'localhost'	def	SYSTEM_VARIABLES_ADMIN	YES
-'u1'@'localhost'	def	USAGE	YES
+'u1'@'localhost'	def	USAGE	NO
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -187,22 +222,29 @@ u1	localhost	SYSTEM_VARIABLES_ADMIN	Y
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -220,7 +262,7 @@ REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
 REVOKE SYSTEM_VARIABLES_ADMIN ON *.* FROM u1@localhost;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 REVOKE ALL ON *.* FROM u1@localhost;
 SHOW GRANTS FOR u1@localhost;
 Grants for u1@localhost
@@ -246,18 +288,25 @@ GRANT RUBBISH ON *.* TO `u1`@`localhost`
 DROP USER u1@localhost;
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -282,7 +331,7 @@ GRANT GROUP_REPLICATION_ADMIN ON *.* TO u1@localhost WITH GRANT OPTION;
 RENAME USER u1@localhost TO u2@localhost;
 SHOW GRANTS FOR u2@localhost;
 Grants for u2@localhost
-GRANT USAGE ON *.* TO `u2`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u2`@`localhost`
 GRANT BINLOG_ADMIN,ROLE_ADMIN,SYSTEM_VARIABLES_ADMIN ON *.* TO `u2`@`localhost`
 GRANT GROUP_REPLICATION_ADMIN ON *.* TO `u2`@`localhost` WITH GRANT OPTION
 SHOW GRANTS FOR u1@localhost;
@@ -292,18 +341,25 @@ ERROR 42000: There is no such grant defined for user 'u1' on host 'localhost'
 ** privileges are affected by RENAME
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -331,7 +387,7 @@ GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'u2'@'localhost'	def	GROUP_REPLICATION_ADMIN	YES
 'u2'@'localhost'	def	ROLE_ADMIN	NO
 'u2'@'localhost'	def	SYSTEM_VARIABLES_ADMIN	NO
-'u2'@'localhost'	def	USAGE	YES
+'u2'@'localhost'	def	USAGE	NO
 DROP USER u2@localhost;
 #
 # Granting both static and dynamic privilege with GRANT OPTION
@@ -346,18 +402,25 @@ GRANT SELECT ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 SELECT * FROM mysql.global_grants ORDER BY USER, PRIV, WITH_GRANT_OPTION;
 USER	HOST	PRIV	WITH_GRANT_OPTION
+mysql.session	localhost	BACKUP_ADMIN	N
+mysql.session	localhost	CLONE_ADMIN	N
+mysql.session	localhost	CONNECTION_ADMIN	N
 mysql.session	localhost	PERSIST_RO_VARIABLES_ADMIN	N
 mysql.session	localhost	SESSION_VARIABLES_ADMIN	N
 mysql.session	localhost	SYSTEM_USER	N
 mysql.session	localhost	SYSTEM_VARIABLES_ADMIN	N
 root	localhost	APPLICATION_PASSWORD_ADMIN	Y
+root	localhost	AUDIT_ADMIN	Y
 root	localhost	BACKUP_ADMIN	Y
 root	localhost	BINLOG_ADMIN	Y
 root	localhost	BINLOG_ENCRYPTION_ADMIN	Y
+root	localhost	CLONE_ADMIN	Y
 root	localhost	CONNECTION_ADMIN	Y
 root	localhost	ENCRYPTION_KEY_ADMIN	Y
 root	localhost	GROUP_REPLICATION_ADMIN	Y
+root	localhost	INNODB_REDO_LOG_ARCHIVE	Y
 root	localhost	PERSIST_RO_VARIABLES_ADMIN	Y
+root	localhost	REPLICATION_APPLIER	Y
 root	localhost	REPLICATION_SLAVE_ADMIN	Y
 root	localhost	RESOURCE_GROUP_ADMIN	Y
 root	localhost	RESOURCE_GROUP_USER	Y
@@ -521,7 +584,7 @@ GRANT ROLE_ADMIN ON *.* to u1@localhost;
 GRANT ROLE_ADMIN ON *.* to u1@localhost;
 SHOW GRANTS FOR CURRENT_USER();
 Grants for u1@localhost
-GRANT USAGE ON *.* TO `u1`@`localhost` WITH GRANT OPTION
+GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT ROLE_ADMIN ON *.* TO `u1`@`localhost` WITH GRANT OPTION
 GRANT `r1`@`%` TO `u1`@`localhost`
 DROP USER u1@localhost;
@@ -704,7 +767,7 @@ GRANT ALL ON *.* to u1;
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`%`
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,NON_DOCUMENTED_PRIVILEGE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,HELLOWORLD,INNODB_REDO_LOG_ARCHIVE,NON_DOCUMENTED_PRIVILEGE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,ROUTINE_GRANT,RUBBISH,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 GRANT `r2`@`%` TO `u1`@`%`
 # Boundary value test for privilege_id
 INSERT INTO mysql.global_grants VALUES('u1', '%',
@@ -716,11 +779,13 @@ ERROR 22001: Data too long for column 'PRIV' at row 1
 SHOW PRIVILEGES;
 Privilege	Context	Comment
 APPLICATION_PASSWORD_ADMIN	Server Admin	
+AUDIT_ADMIN	Server Admin	
 Alter	Tables	To alter the table
 Alter routine	Functions,Procedures	To alter or drop stored functions/procedures
 BACKUP_ADMIN	Server Admin	
 BINLOG_ADMIN	Server Admin	
 BINLOG_ENCRYPTION_ADMIN	Server Admin	
+CLONE_ADMIN	Server Admin	
 CONNECTION_ADMIN	Server Admin	
 Create	Databases,Tables,Indexes	To create new databases and tables
 Create role	Server Admin	To create new roles
@@ -739,6 +804,7 @@ File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 HELLOWORLD	Server Admin	
+INNODB_REDO_LOG_ARCHIVE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 LENGTH_32_ABCDEFGHIJKLMNOPQRSTUX	Server Admin	
@@ -747,6 +813,7 @@ NON_DOCUMENTED_PRIVILEGE	Server Admin
 PERSIST_RO_VARIABLES_ADMIN	Server Admin	
 Process	Server Admin	To view the plain text of currently executing queries
 Proxy	Server Admin	To make proxy user possible
+REPLICATION_APPLIER	Server Admin	
 REPLICATION_SLAVE_ADMIN	Server Admin	
 RESOURCE_GROUP_ADMIN	Server Admin	
 RESOURCE_GROUP_USER	Server Admin	
@@ -819,12 +886,13 @@ DROP DATABASE db1_protected;
 CREATE TABLE IF NOT EXISTS mysql.global_grants
 (
 USER CHAR(32) BINARY DEFAULT '' NOT NULL,
-HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL, 
 WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
-) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin TABLESPACE=mysql;
+) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin ROW_FORMAT=DYNAMIC TABLESPACE=mysql;
 Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3778	'utf8_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -833,6 +901,9 @@ Warning	3778	'utf8_bin' is a collation of the deprecated character set UTF8MB3. 
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SESSION_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CLONE_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT BACKUP_ADMIN ON *.* TO 'mysql.session'@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO 'mysql.session'@localhost;
 GRANT SYSTEM_USER ON *.* TO 'mysql.session'@localhost;
 # restart
 DROP USER u1@localhost;
@@ -856,7 +927,7 @@ GRANT XA_RECOVER_ADMIN ON *.* TO u1 WITH GRANT OPTION;
 GRANT XA_RECOVER_ADMIN ON *.* TO u2;
 SHOW GRANTS FOR u1;
 Grants for u1@%
-GRANT SELECT ON *.* TO `u1`@`%` WITH GRANT OPTION
+GRANT SELECT ON *.* TO `u1`@`%`
 GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`%`
 GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%` WITH GRANT OPTION
 SHOW GRANTS FOR u2;
@@ -881,7 +952,7 @@ GRANT ALL ON *.* TO u1@localhost;
 SHOW GRANTS;
 Grants for u1@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `u1`@`localhost`
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`localhost`
 REVOKE ALL ON *.* FROM CURRENT_USER();
 SHOW GRANTS;
 Grants for u1@localhost
@@ -1030,7 +1101,7 @@ REVOKE PERSIST_RO_VARIABLES_ADMIN, GRANT OPTION ON *.* FROM u1;
 FLUSH PRIVILEGES;
 SHOW GRANTS FOR u1;
 Grants for u1@%
-GRANT SELECT, INSERT, DELETE ON *.* TO `u1`@`%`
+GRANT SELECT, INSERT, DELETE ON *.* TO `u1`@`%` WITH GRANT OPTION
 GRANT BINLOG_ADMIN,CONNECTION_ADMIN,REPLICATION_SLAVE_ADMIN,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 SELECT * FROM mysql.global_grants WHERE USER='u1';
 USER	HOST	PRIV	WITH_GRANT_OPTION

@@ -1,0 +1,23 @@
+select @@global.lock_order_trace_missing_key;
+@@global.lock_order_trace_missing_key
+0
+select @@session.lock_order_trace_missing_key;
+ERROR HY000: Variable 'lock_order_trace_missing_key' is a GLOBAL variable
+show global variables like 'lock_order_trace_missing_key';
+Variable_name	Value
+lock_order_trace_missing_key	OFF
+show session variables like 'lock_order_trace_missing_key';
+Variable_name	Value
+lock_order_trace_missing_key	OFF
+select * from performance_schema.global_variables
+where variable_name='lock_order_trace_missing_key';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_trace_missing_key	OFF
+select * from performance_schema.session_variables
+where variable_name='lock_order_trace_missing_key';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_trace_missing_key	OFF
+set global lock_order_trace_missing_key=1;
+ERROR HY000: Variable 'lock_order_trace_missing_key' is a read only variable
+set session lock_order_trace_missing_key=1;
+ERROR HY000: Variable 'lock_order_trace_missing_key' is a read only variable

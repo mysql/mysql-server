@@ -1,22 +1,42 @@
 //>>built
-define("dojox/gfx/shape",["./_base","dojo/_base/lang","dojo/_base/declare","dojo/_base/window","dojo/_base/sniff","dojo/_base/connect","dojo/_base/array","dojo/dom-construct","dojo/_base/Color","./matrix"],function(g,_1,_2,_3,_4,_5,_6,_7,_8,_9){
+define("dojox/gfx/shape",["./_base","dojo/_base/lang","dojo/_base/declare","dojo/_base/kernel","dojo/_base/sniff","dojo/_base/connect","dojo/_base/array","dojo/dom-construct","dojo/_base/Color","./matrix"],function(g,_1,_2,_3,_4,_5,_6,_7,_8,_9){
 var _a=g.shape={};
 var _b={};
 var _c={};
-_a.register=function(_d){
-var t=_d.declaredClass.split(".").pop();
+var _d=0,_e=_4("ie")<9;
+function _f(_10){
+var _11={};
+for(var key in _10){
+if(_10.hasOwnProperty(key)){
+_11[key]=_10[key];
+}
+}
+return _11;
+};
+_a.register=function(s){
+var t=s.declaredClass.split(".").pop();
 var i=t in _b?++_b[t]:((_b[t]=0));
-var _e=t+i;
-_c[_e]=_d;
-return _e;
+var uid=t+i;
+_c[uid]=s;
+return uid;
 };
 _a.byId=function(id){
 return _c[id];
 };
-_a.dispose=function(_f){
-delete _c[_f.getUID()];
+_a.dispose=function(s,_12){
+if(_12&&s.children){
+for(var i=0;i<s.children.length;++i){
+_a.dispose(s.children[i],true);
+}
+}
+delete _c[s.getUID()];
+++_d;
+if(_e&&_d>10000){
+_c=_f(_c);
+_d=0;
+}
 };
-_2("dojox.gfx.shape.Shape",null,{constructor:function(){
+_a.Shape=_2("dojox.gfx.shape.Shape",null,{constructor:function(){
 this.rawNode=null;
 this.shape=null;
 this.matrix=null;
@@ -29,6 +49,8 @@ var uid=_a.register(this);
 this.getUID=function(){
 return uid;
 };
+},destroy:function(){
+_a.dispose(this);
 },getNode:function(){
 return this.rawNode;
 },getShape:function(){
@@ -52,46 +74,50 @@ var m=this._getRealMatrix(),gm=_9;
 return [gm.multiplyPoint(m,b.x,b.y),gm.multiplyPoint(m,b.x+b.width,b.y),gm.multiplyPoint(m,b.x+b.width,b.y+b.height),gm.multiplyPoint(m,b.x,b.y+b.height)];
 },getEventSource:function(){
 return this.rawNode;
-},setShape:function(_10){
-this.shape=g.makeParameters(this.shape,_10);
+},setClip:function(_13){
+this.clip=_13;
+},getClip:function(){
+return this.clip;
+},setShape:function(_14){
+this.shape=g.makeParameters(this.shape,_14);
 this.bbox=null;
 return this;
-},setFill:function(_11){
-if(!_11){
+},setFill:function(_15){
+if(!_15){
 this.fillStyle=null;
 return this;
 }
 var f=null;
-if(typeof (_11)=="object"&&"type" in _11){
-switch(_11.type){
+if(typeof (_15)=="object"&&"type" in _15){
+switch(_15.type){
 case "linear":
-f=g.makeParameters(g.defaultLinearGradient,_11);
+f=g.makeParameters(g.defaultLinearGradient,_15);
 break;
 case "radial":
-f=g.makeParameters(g.defaultRadialGradient,_11);
+f=g.makeParameters(g.defaultRadialGradient,_15);
 break;
 case "pattern":
-f=g.makeParameters(g.defaultPattern,_11);
+f=g.makeParameters(g.defaultPattern,_15);
 break;
 }
 }else{
-f=g.normalizeColor(_11);
+f=g.normalizeColor(_15);
 }
 this.fillStyle=f;
 return this;
-},setStroke:function(_12){
-if(!_12){
+},setStroke:function(_16){
+if(!_16){
 this.strokeStyle=null;
 return this;
 }
-if(typeof _12=="string"||_1.isArray(_12)||_12 instanceof _8){
-_12={color:_12};
+if(typeof _16=="string"||_1.isArray(_16)||_16 instanceof _8){
+_16={color:_16};
 }
-var s=this.strokeStyle=g.makeParameters(g.defaultStroke,_12);
+var s=this.strokeStyle=g.makeParameters(g.defaultStroke,_16);
 s.color=g.normalizeColor(s.color);
 return this;
-},setTransform:function(_13){
-this.matrix=_9.clone(_13?_9.normalize(_13):_9.identity);
+},setTransform:function(_17){
+this.matrix=_9.clone(_17?_9.normalize(_17):_9.identity);
 return this._applyTransform();
 },_applyTransform:function(){
 return this;
@@ -111,22 +137,22 @@ this._moveToBack();
 return this;
 },_moveToFront:function(){
 },_moveToBack:function(){
-},applyRightTransform:function(_14){
-return _14?this.setTransform([this.matrix,_14]):this;
-},applyLeftTransform:function(_15){
-return _15?this.setTransform([_15,this.matrix]):this;
-},applyTransform:function(_16){
-return _16?this.setTransform([this.matrix,_16]):this;
-},removeShape:function(_17){
+},applyRightTransform:function(_18){
+return _18?this.setTransform([this.matrix,_18]):this;
+},applyLeftTransform:function(_19){
+return _19?this.setTransform([_19,this.matrix]):this;
+},applyTransform:function(_1a){
+return _1a?this.setTransform([this.matrix,_1a]):this;
+},removeShape:function(_1b){
 if(this.parent){
-this.parent.remove(this,_17);
+this.parent.remove(this,_1b);
 }
 return this;
-},_setParent:function(_18,_19){
-this.parent=_18;
-return this._updateParentMatrix(_19);
-},_updateParentMatrix:function(_1a){
-this.parentMatrix=_1a?_9.clone(_1a):null;
+},_setParent:function(_1c,_1d){
+this.parent=_1c;
+return this._updateParentMatrix(_1d);
+},_updateParentMatrix:function(_1e){
+this.parentMatrix=_1e?_9.clone(_1e):null;
 return this._applyTransform();
 },_getRealMatrix:function(){
 var m=this.matrix;
@@ -139,29 +165,29 @@ p=p.parent;
 }
 return m;
 }});
-_a._eventsProcessing={connect:function(_1b,_1c,_1d){
-return _5.connect(this.getEventSource(),_1b,_a.fixCallback(this,g.fixTarget,_1c,_1d));
-},disconnect:function(_1e){
-_5.disconnect(_1e);
+_a._eventsProcessing={connect:function(_1f,_20,_21){
+return _5.connect(this.getEventSource(),_1f,_a.fixCallback(this,g.fixTarget,_20,_21));
+},disconnect:function(_22){
+_5.disconnect(_22);
 }};
-_a.fixCallback=function(_1f,_20,_21,_22){
-if(!_22){
-_22=_21;
-_21=null;
+_a.fixCallback=function(_23,_24,_25,_26){
+if(!_26){
+_26=_25;
+_25=null;
 }
-if(_1.isString(_22)){
-_21=_21||_3.global;
-if(!_21[_22]){
-throw (["dojox.gfx.shape.fixCallback: scope[\"",_22,"\"] is null (scope=\"",_21,"\")"].join(""));
+if(_1.isString(_26)){
+_25=_25||_3.global;
+if(!_25[_26]){
+throw (["dojox.gfx.shape.fixCallback: scope[\"",_26,"\"] is null (scope=\"",_25,"\")"].join(""));
 }
 return function(e){
-return _20(e,_1f)?_21[_22].apply(_21,arguments||[]):undefined;
+return _24(e,_23)?_25[_26].apply(_25,arguments||[]):undefined;
 };
 }
-return !_21?function(e){
-return _20(e,_1f)?_22.apply(_21,arguments):undefined;
+return !_25?function(e){
+return _24(e,_23)?_26.apply(_25,arguments):undefined;
 }:function(e){
-return _20(e,_1f)?_22.apply(_21,arguments||[]):undefined;
+return _24(e,_23)?_26.apply(_25,arguments||[]):undefined;
 };
 };
 _1.extend(_a.Shape,_a._eventsProcessing);
@@ -169,55 +195,85 @@ _a.Container={_init:function(){
 this.children=[];
 },openBatch:function(){
 },closeBatch:function(){
-},add:function(_23){
-var _24=_23.getParent();
-if(_24){
-_24.remove(_23,true);
+},add:function(_27){
+var _28=_27.getParent();
+if(_28){
+_28.remove(_27,true);
 }
-this.children.push(_23);
-return _23._setParent(this,this._getRealMatrix());
-},remove:function(_25,_26){
+this.children.push(_27);
+return _27._setParent(this,this._getRealMatrix());
+},remove:function(_29,_2a){
 for(var i=0;i<this.children.length;++i){
-if(this.children[i]==_25){
-if(_26){
+if(this.children[i]==_29){
+if(_2a){
 }else{
-_25.parent=null;
-_25.parentMatrix=null;
+_29.parent=null;
+_29.parentMatrix=null;
 }
 this.children.splice(i,1);
 break;
 }
 }
 return this;
-},clear:function(){
-var _27;
+},clear:function(_2b){
+var _2c;
 for(var i=0;i<this.children.length;++i){
-_27=this.children[i];
-_27.parent=null;
-_27.parentMatrix=null;
+_2c=this.children[i];
+_2c.parent=null;
+_2c.parentMatrix=null;
+if(_2b){
+_2c.destroy();
+}
 }
 this.children=[];
 return this;
-},_moveChildToFront:function(_28){
+},getBoundingBox:function(){
+if(this.children){
+var _2d=null;
+_6.forEach(this.children,function(_2e){
+var bb=_2e.getBoundingBox();
+if(bb){
+var ct=_2e.getTransform();
+if(ct){
+bb=_9.multiplyRectangle(ct,bb);
+}
+if(_2d){
+_2d.x=Math.min(_2d.x,bb.x);
+_2d.y=Math.min(_2d.y,bb.y);
+_2d.endX=Math.max(_2d.endX,bb.x+bb.width);
+_2d.endY=Math.max(_2d.endY,bb.y+bb.height);
+}else{
+_2d={x:bb.x,y:bb.y,endX:bb.x+bb.width,endY:bb.y+bb.height};
+}
+}
+});
+if(_2d){
+_2d.width=_2d.endX-_2d.x;
+_2d.height=_2d.endY-_2d.y;
+}
+return _2d;
+}
+return null;
+},_moveChildToFront:function(_2f){
 for(var i=0;i<this.children.length;++i){
-if(this.children[i]==_28){
+if(this.children[i]==_2f){
 this.children.splice(i,1);
-this.children.push(_28);
+this.children.push(_2f);
 break;
 }
 }
 return this;
-},_moveChildToBack:function(_29){
+},_moveChildToBack:function(_30){
 for(var i=0;i<this.children.length;++i){
-if(this.children[i]==_29){
+if(this.children[i]==_30){
 this.children.splice(i,1);
-this.children.unshift(_29);
+this.children.unshift(_30);
 break;
 }
 }
 return this;
 }};
-_2("dojox.gfx.shape.Surface",null,{constructor:function(){
+_a.Surface=_2("dojox.gfx.shape.Surface",null,{constructor:function(){
 this.rawNode=null;
 this._parent=null;
 this._nodes=[];
@@ -240,107 +296,105 @@ this._parent=null;
 return this.rawNode;
 },_getRealMatrix:function(){
 return null;
-},isLoaded:true,onLoad:function(_2a){
-},whenLoaded:function(_2b,_2c){
-var f=_1.hitch(_2b,_2c);
+},isLoaded:true,onLoad:function(_31){
+},whenLoaded:function(_32,_33){
+var f=_1.hitch(_32,_33);
 if(this.isLoaded){
 f(this);
 }else{
-var h=_5.connect(this,"onLoad",function(_2d){
+var h=_5.connect(this,"onLoad",function(_34){
 _5.disconnect(h);
-f(_2d);
+f(_34);
 });
 }
 }});
 _1.extend(_a.Surface,_a._eventsProcessing);
-_2("dojox.gfx.Point",null,{});
-_2("dojox.gfx.Rectangle",null,{});
-_2("dojox.gfx.shape.Rect",_a.Shape,{constructor:function(_2e){
+_a.Rect=_2("dojox.gfx.shape.Rect",_a.Shape,{constructor:function(_35){
 this.shape=g.getDefault("Rect");
-this.rawNode=_2e;
+this.rawNode=_35;
 },getBoundingBox:function(){
 return this.shape;
 }});
-_2("dojox.gfx.shape.Ellipse",_a.Shape,{constructor:function(_2f){
+_a.Ellipse=_2("dojox.gfx.shape.Ellipse",_a.Shape,{constructor:function(_36){
 this.shape=g.getDefault("Ellipse");
-this.rawNode=_2f;
+this.rawNode=_36;
 },getBoundingBox:function(){
 if(!this.bbox){
-var _30=this.shape;
-this.bbox={x:_30.cx-_30.rx,y:_30.cy-_30.ry,width:2*_30.rx,height:2*_30.ry};
+var _37=this.shape;
+this.bbox={x:_37.cx-_37.rx,y:_37.cy-_37.ry,width:2*_37.rx,height:2*_37.ry};
 }
 return this.bbox;
 }});
-_2("dojox.gfx.shape.Circle",_a.Shape,{constructor:function(_31){
+_a.Circle=_2("dojox.gfx.shape.Circle",_a.Shape,{constructor:function(_38){
 this.shape=g.getDefault("Circle");
-this.rawNode=_31;
+this.rawNode=_38;
 },getBoundingBox:function(){
 if(!this.bbox){
-var _32=this.shape;
-this.bbox={x:_32.cx-_32.r,y:_32.cy-_32.r,width:2*_32.r,height:2*_32.r};
+var _39=this.shape;
+this.bbox={x:_39.cx-_39.r,y:_39.cy-_39.r,width:2*_39.r,height:2*_39.r};
 }
 return this.bbox;
 }});
-_2("dojox.gfx.shape.Line",_a.Shape,{constructor:function(_33){
+_a.Line=_2("dojox.gfx.shape.Line",_a.Shape,{constructor:function(_3a){
 this.shape=g.getDefault("Line");
-this.rawNode=_33;
+this.rawNode=_3a;
 },getBoundingBox:function(){
 if(!this.bbox){
-var _34=this.shape;
-this.bbox={x:Math.min(_34.x1,_34.x2),y:Math.min(_34.y1,_34.y2),width:Math.abs(_34.x2-_34.x1),height:Math.abs(_34.y2-_34.y1)};
+var _3b=this.shape;
+this.bbox={x:Math.min(_3b.x1,_3b.x2),y:Math.min(_3b.y1,_3b.y2),width:Math.abs(_3b.x2-_3b.x1),height:Math.abs(_3b.y2-_3b.y1)};
 }
 return this.bbox;
 }});
-_2("dojox.gfx.shape.Polyline",_a.Shape,{constructor:function(_35){
+_a.Polyline=_2("dojox.gfx.shape.Polyline",_a.Shape,{constructor:function(_3c){
 this.shape=g.getDefault("Polyline");
-this.rawNode=_35;
-},setShape:function(_36,_37){
-if(_36&&_36 instanceof Array){
-this.inherited(arguments,[{points:_36}]);
-if(_37&&this.shape.points.length){
+this.rawNode=_3c;
+},setShape:function(_3d,_3e){
+if(_3d&&_3d instanceof Array){
+this.inherited(arguments,[{points:_3d}]);
+if(_3e&&this.shape.points.length){
 this.shape.points.push(this.shape.points[0]);
 }
 }else{
-this.inherited(arguments,[_36]);
+this.inherited(arguments,[_3d]);
 }
 return this;
 },_normalizePoints:function(){
 var p=this.shape.points,l=p&&p.length;
 if(l&&typeof p[0]=="number"){
-var _38=[];
+var _3f=[];
 for(var i=0;i<l;i+=2){
-_38.push({x:p[i],y:p[i+1]});
+_3f.push({x:p[i],y:p[i+1]});
 }
-this.shape.points=_38;
+this.shape.points=_3f;
 }
 },getBoundingBox:function(){
 if(!this.bbox&&this.shape.points.length){
 var p=this.shape.points;
 var l=p.length;
 var t=p[0];
-var _39={l:t.x,t:t.y,r:t.x,b:t.y};
+var _40={l:t.x,t:t.y,r:t.x,b:t.y};
 for(var i=1;i<l;++i){
 t=p[i];
-if(_39.l>t.x){
-_39.l=t.x;
+if(_40.l>t.x){
+_40.l=t.x;
 }
-if(_39.r<t.x){
-_39.r=t.x;
+if(_40.r<t.x){
+_40.r=t.x;
 }
-if(_39.t>t.y){
-_39.t=t.y;
+if(_40.t>t.y){
+_40.t=t.y;
 }
-if(_39.b<t.y){
-_39.b=t.y;
+if(_40.b<t.y){
+_40.b=t.y;
 }
 }
-this.bbox={x:_39.l,y:_39.t,width:_39.r-_39.l,height:_39.b-_39.t};
+this.bbox={x:_40.l,y:_40.t,width:_40.r-_40.l,height:_40.b-_40.t};
 }
 return this.bbox;
 }});
-_2("dojox.gfx.shape.Image",_a.Shape,{constructor:function(_3a){
+_a.Image=_2("dojox.gfx.shape.Image",_a.Shape,{constructor:function(_41){
 this.shape=g.getDefault("Image");
-this.rawNode=_3a;
+this.rawNode=_41;
 },getBoundingBox:function(){
 return this.shape;
 },setStroke:function(){
@@ -348,60 +402,60 @@ return this;
 },setFill:function(){
 return this;
 }});
-_2("dojox.gfx.shape.Text",_a.Shape,{constructor:function(_3b){
+_a.Text=_2(_a.Shape,{constructor:function(_42){
 this.fontStyle=null;
 this.shape=g.getDefault("Text");
-this.rawNode=_3b;
+this.rawNode=_42;
 },getFont:function(){
 return this.fontStyle;
-},setFont:function(_3c){
-this.fontStyle=typeof _3c=="string"?g.splitFontString(_3c):g.makeParameters(g.defaultFont,_3c);
+},setFont:function(_43){
+this.fontStyle=typeof _43=="string"?g.splitFontString(_43):g.makeParameters(g.defaultFont,_43);
 this._setFont();
 return this;
 }});
-_a.Creator={createShape:function(_3d){
-switch(_3d.type){
+_a.Creator={createShape:function(_44){
+switch(_44.type){
 case g.defaultPath.type:
-return this.createPath(_3d);
+return this.createPath(_44);
 case g.defaultRect.type:
-return this.createRect(_3d);
+return this.createRect(_44);
 case g.defaultCircle.type:
-return this.createCircle(_3d);
+return this.createCircle(_44);
 case g.defaultEllipse.type:
-return this.createEllipse(_3d);
+return this.createEllipse(_44);
 case g.defaultLine.type:
-return this.createLine(_3d);
+return this.createLine(_44);
 case g.defaultPolyline.type:
-return this.createPolyline(_3d);
+return this.createPolyline(_44);
 case g.defaultImage.type:
-return this.createImage(_3d);
+return this.createImage(_44);
 case g.defaultText.type:
-return this.createText(_3d);
+return this.createText(_44);
 case g.defaultTextPath.type:
-return this.createTextPath(_3d);
+return this.createTextPath(_44);
 }
 return null;
 },createGroup:function(){
 return this.createObject(g.Group);
-},createRect:function(_3e){
-return this.createObject(g.Rect,_3e);
-},createEllipse:function(_3f){
-return this.createObject(g.Ellipse,_3f);
-},createCircle:function(_40){
-return this.createObject(g.Circle,_40);
-},createLine:function(_41){
-return this.createObject(g.Line,_41);
-},createPolyline:function(_42){
-return this.createObject(g.Polyline,_42);
-},createImage:function(_43){
-return this.createObject(g.Image,_43);
-},createText:function(_44){
-return this.createObject(g.Text,_44);
-},createPath:function(_45){
-return this.createObject(g.Path,_45);
-},createTextPath:function(_46){
-return this.createObject(g.TextPath,{}).setText(_46);
-},createObject:function(_47,_48){
+},createRect:function(_45){
+return this.createObject(g.Rect,_45);
+},createEllipse:function(_46){
+return this.createObject(g.Ellipse,_46);
+},createCircle:function(_47){
+return this.createObject(g.Circle,_47);
+},createLine:function(_48){
+return this.createObject(g.Line,_48);
+},createPolyline:function(_49){
+return this.createObject(g.Polyline,_49);
+},createImage:function(_4a){
+return this.createObject(g.Image,_4a);
+},createText:function(_4b){
+return this.createObject(g.Text,_4b);
+},createPath:function(_4c){
+return this.createObject(g.Path,_4c);
+},createTextPath:function(_4d){
+return this.createObject(g.TextPath,{}).setText(_4d);
+},createObject:function(_4e,_4f){
 return null;
 }};
 return _a;

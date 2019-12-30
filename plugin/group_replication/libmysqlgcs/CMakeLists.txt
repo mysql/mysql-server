@@ -40,7 +40,6 @@ INCLUDE(rpcgen.cmake)
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include/   # byteorder.h
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
 )
 
@@ -131,7 +130,7 @@ ADD_DEFINITIONS(-DXCOM_HAVE_OPENSSL)
 ### Configuration ###
 
 # Used to inhibit false posives on CLang 3.8/8.0
-IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
                     COMPILE_FLAGS
                     "-Wno-conditional-uninitialized")
@@ -149,8 +148,7 @@ IF(MSVC)
     ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
   ENDIF()
-ELSEIF(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR
-       CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
     "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
@@ -164,7 +162,23 @@ ADD_COMPILE_DEFINITIONS(
 ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
   COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
-ADD_CONVENIENCE_LIBRARY(${GCS_LIBRARY} ${XCOM_SOURCES} ${GCS_SOURCES})
+# Warn about variable shadowing
+IF(MYSQL_MAINTAINER_MODE)
+  IF(MY_COMPILER_IS_CLANG)
+    ADD_COMPILE_OPTIONS("-Wshadow")
+  ELSEIF(MY_COMPILER_IS_GNU)
+    # GCC's -Wshadow is too noisy. Starting with GCC 7 we can use the
+    # more surgical -Wshadow=compatible-local
+    IF(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0)
+      ADD_COMPILE_OPTIONS("-Wshadow=compatible-local")
+    ENDIF()
+  ENDIF()
+ENDIF()
+
+ADD_LIBRARY(${GCS_LIBRARY} STATIC ${XCOM_SOURCES} ${GCS_SOURCES})
+# Dependency on mysys from gcs_logging_system.cc
+# but pick up symbols from the server:
+# TARGET_LINK_LIBRARIES(${GCS_LIBRARY} mysys)
 
 IF(TIRPC_LIBRARIES)
   TARGET_LINK_LIBRARIES(${GCS_LIBRARY} ${TIRPC_LIBRARIES})

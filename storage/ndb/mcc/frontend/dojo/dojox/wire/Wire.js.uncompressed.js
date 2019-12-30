@@ -1,14 +1,13 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/Wire", ["dijit","dojo","dojox","dojo/require!dojox/wire/_base"], function(dijit,dojo,dojox){
+define("dojox/wire/Wire", ["dojo","dijit","dojox","dojo/require!dojox/wire/_base"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.Wire");
 
 dojo.require("dojox.wire._base");
 
 dojo.declare("dojox.wire.Wire", null, {
-	//	summary:
+	// summary:
 	//		A default and base Wire to access an object property
-	//	description:
+	// description:
 	//		This class accesses a property of an object with a dotted notation
 	//		specified to 'property' property, such as "a.b.c", which identifies
 	//		a descendant property, "object.a.b.c".
@@ -25,22 +24,19 @@ dojo.declare("dojox.wire.Wire", null, {
 	_wireClass: "dojox.wire.Wire",
 	
 	constructor: function(/*Object*/args){
-		//	summary:
+		// summary:
 		//		Initialize properties
-		//	description:
+		// description:
 		//		If 'converter' property is specified and is a string for
 		//		a converter class, an instanceof the converter class is
 		//		created.
-		//	args:
-		//		Arguments to initialize properties
-		//		object:
-		//			A root object (or another Wire to access a root object)
-		//		property:
-		//			A dotted notation to a descendant property
-		//		type:
-		//			A type of the return value (for the source Wire)
-		//		converter:
-		//			A converter object (or class name) to convert the return
+		// args:
+		//		Arguments to initialize properties:
+		//
+		//		- object: A root object (or another Wire to access a root object)
+		//		- property: A dotted notation to a descendant property
+		//		- type: A type of the return value (for the source Wire)
+		//		- converter: A converter object (or class name) to convert the return
 		//			value (for the source Wire)
 		dojo.mixin(this, args);
 
@@ -86,17 +82,19 @@ dojo.declare("dojox.wire.Wire", null, {
 	},
 
 	getValue: function(/*Object||Array*/defaultObject){
-		//	summary:
+		// summary:
 		//		Return a value of an object
-		//	description:
-		//		This method first determins a root object as follows:
-		//		1. If 'object' property specified,
-		//		1.1 If 'object' is a Wire, its getValue() method is called to
-		//	    	obtain a root object.
-		//		1.2 Otherwise, use 'object' as a root object.
-		//		2. Otherwise, use 'defaultObject' argument.
-		//		3. If 'property' is specified, it is used to get a property
-		//			value.
+		// description:
+		//		This method first determines a root object as follows:
+		//
+		//			1. If 'object' property specified,
+		//			1.1 If 'object' is a Wire, its getValue() method is called to
+		//			obtain a root object.
+		//			1.2 Otherwise, use 'object' as a root object.
+		//			2. Otherwise, use 'defaultObject' argument.
+		//			3. If 'property' is specified, it is used to get a property
+		//				value.
+		//
 		//		Then, if a sub-class implements _getValue() method, it is
 		//		called with the root object to get the return value.
 		//		Otherwise, the root object (typically, a property valye) is
@@ -106,9 +104,9 @@ dojo.declare("dojox.wire.Wire", null, {
 		//		"boolean" and "array").
 		//		If 'converter' property is specified, its convert() method is
 		//		called to convert the value.
-		//	defaultObject:
+		// defaultObject:
 		//		A default root object
-		//	returns:
+		// returns:
 		//		A value found
 		var object = undefined;
 		if(dojox.wire.isWire(this.object)){
@@ -156,17 +154,19 @@ dojo.declare("dojox.wire.Wire", null, {
 	},
 
 	setValue: function(/*anything*/value, /*Object||Array*/defaultObject){
-		//	summary:
+		// summary:
 		//		Set a value to an object
-		//	description:
-		//		This method first determins a root object as follows:
-		//		1. If 'object' property specified,
-		//		1.1 If 'object' is a Wire, its getValue() method is called to
-		//	    	obtain a root object.
-		//		1.2 Otherwise, use 'object' as a root object.
-		//		2. Otherwise, use 'defaultObject' argument.
-		//		3. If 'property' is specified, it is used to get a property
-		//			value.
+		// description:
+		//		This method first determines a root object as follows:
+		//
+		//			1. If 'object' property specified,
+		//			1.1 If 'object' is a Wire, its getValue() method is called to
+		//				obtain a root object.
+		//			1.2 Otherwise, use 'object' as a root object.
+		//			2. Otherwise, use 'defaultObject' argument.
+		//			3. If 'property' is specified, it is used to get a property
+		//				value.
+		//
 		//		Then, if a sub-class implements _setValue() method, it is
 		//		called with the root object and 'value' argument to set
 		//		the value.
@@ -175,9 +175,9 @@ dojo.declare("dojox.wire.Wire", null, {
 		//		If the root object is undefined and 'object' property is a Wire
 		//		and a new object is created and returned by _setValue() it is
 		//		set through 'object' (setValue() method).
-		//	value:
+		// value:
 		//		A value to set
-		//	defaultObject:
+		// defaultObject:
 		//		A default root object
 		var object = undefined;
 		if(dojox.wire.isWire(this.object)){
@@ -242,9 +242,9 @@ dojo.declare("dojox.wire.Wire", null, {
 	},
 
 	_getPropertyValue: function(/*Object||Array*/object, /*String*/property){
-		//	summary:
+		// summary:
 		//		Return a property value of an object
-		//	description:
+		// description:
 		//		A value for 'property' of 'object' is returned.
 		//		If 'property' ends with an array index, it is used to indentify
 		//		an element of an array property.
@@ -252,11 +252,11 @@ dojo.declare("dojox.wire.Wire", null, {
 		//		'property' to obtain the property value.
 		//		If 'object' implements a getter for the property, it is called
 		//		to obtain the property value.
-		//	object:
+		// object:
 		//		A default root object
-		//	property:
+		// property:
 		//		A property name
-		//	returns:
+		// returns:
 		//		A value found, otherwise 'undefined'
 		var value = undefined;
 		var i1 = property.indexOf('[');
@@ -294,9 +294,9 @@ dojo.declare("dojox.wire.Wire", null, {
 	},
 
 	_setPropertyValue: function(/*Object||Array*/object, /*String*/property, /*anything*/value){
-		//	summary:
+		// summary:
 		//		Set a property value to an object
-		//	description:
+		// description:
 		//		'value' is set to 'property' of 'object'.
 		//		If 'property' ends with an array index, it is used to indentify
 		//		an element of an array property to set the value.
@@ -304,11 +304,11 @@ dojo.declare("dojox.wire.Wire", null, {
 		//		'property' and 'value' to set the property value.
 		//		If 'object' implements a setter for the property, it is called
 		//		with 'value' to set the property value.
-		//	object:
+		// object:
 		//		An object
-		//	property:
+		// property:
 		//		A property name
-		//	value:
+		// value:
 		//		A value to set
 		var i1 = property.indexOf('[');
 		if(i1 >= 0){

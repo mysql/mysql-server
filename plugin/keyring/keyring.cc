@@ -111,9 +111,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 
   try {
     SSL_library_init();  // always returns 1
-#ifndef HAVE_WOLFSSL
     ERR_load_BIO_strings();
-#endif
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 
@@ -155,11 +153,9 @@ static int keyring_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 static int keyring_deinit(void *arg MY_ATTRIBUTE((unused))) {
 // not taking a lock here as the calls to keyring_deinit are serialized by
 // the plugin framework
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
   ERR_free_strings();
   EVP_cleanup();
   CRYPTO_cleanup_all_ex_data();
@@ -261,5 +257,5 @@ mysql_declare_plugin(keyring_file){
     NULL,                          /*   status variables                */
     keyring_file_system_variables, /*   system variables                */
     NULL,
-    0,
+    PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

@@ -133,7 +133,7 @@ k=5;
 if(b==4){
 k=2;
 }else{
-this.fromRadix(s,b);
+this._fromRadix(s,b);
 return;
 }
 }

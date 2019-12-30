@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/mobile/app/ImageThumbView", ["dijit","dojo","dojox","dojo/require!dijit/_WidgetBase,dojo/string"], function(dijit,dojo,dojox){
+define("dojox/mobile/app/ImageThumbView", ["dojo","dijit","dojox","dojo/require!dijit/_WidgetBase,dojo/string"], function(dojo,dijit,dojox){
 dojo.provide("dojox.mobile.app.ImageThumbView");
 dojo.experimental("dojox.mobile.app.ImageThumbView");
 

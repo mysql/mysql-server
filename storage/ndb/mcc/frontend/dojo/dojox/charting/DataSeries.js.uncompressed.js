@@ -1,17 +1,16 @@
-//>>built
-define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/_base/connect", "dojox/lang/functional"], 
-	function(Lang, declare, ArrayUtil, Hub, df){
+define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "dojo/_base/connect", "dojox/lang/functional"],
+	function(Lang, declare, ArrayUtil, connect, df){
 
 	return declare("dojox.charting.DataSeries", null, {
 		constructor: function(store, kwArgs, value){
-			//	summary:
+			// summary:
 			//		Series adapter for dojo.data stores.
-			//	store: Object:
+			// store: Object
 			//		A dojo.data store object.
-			//	kwArgs: Object:
+			// kwArgs: Object
 			//		A store-specific keyword parameters used for fetching items.
-			//		See dojo.data.api.Read.fetch().
-			//	value: Function|Object|String|Null:
+			//		See dojo/data/api/Read.fetch().
+			// value: Function|Object|String
 			//		Function, which takes a store, and an object handle, and
 			//		produces an output possibly inspecting the store's item. Or
 			//		a dictionary object, which tells what names to extract from
@@ -40,25 +39,26 @@ define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "d
 	
 			if(this.store.getFeatures()["dojo.data.api.Notification"]){
 				this._events.push(
-					Hub.connect(this.store, "onNew", this, "_onStoreNew"),
-					Hub.connect(this.store, "onDelete", this, "_onStoreDelete"),
-					Hub.connect(this.store, "onSet", this, "_onStoreSet")
+					connect.connect(this.store, "onNew", this, "_onStoreNew"),
+					connect.connect(this.store, "onDelete", this, "_onStoreDelete"),
+					connect.connect(this.store, "onSet", this, "_onStoreSet")
 				);
 			}
-	
+
+			this._initialRendering = true;
 			this.fetch();
 		},
 	
 		destroy: function(){
-			//	summary:
+			// summary:
 			//		Clean up before GC.
-			ArrayUtil.forEach(this._events, Hub.disconnect);
+			ArrayUtil.forEach(this._events, connect.disconnect);
 		},
 	
 		setSeriesObject: function(series){
-			//	summary:
+			// summary:
 			//		Sets a dojox.charting.Series object we will be working with.
-			//	series: dojox.charting.Series:
+			// series: dojox.charting.Series
 			//		Our interface to the chart.
 			this.series = series;
 		},
@@ -84,7 +84,7 @@ define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "d
 		// store fetch loop
 	
 		fetch: function(){
-			//	summary:
+			// summary:
 			//		Fetches data from the store and updates a chart.
 			if(!this._inFlight){
 				this._inFlight = true;
@@ -106,9 +106,9 @@ define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "d
 		},
 	
 		onFetchError: function(errorData, request){
-			//	summary:
+			// summary:
 			//		As stub to process fetch errors. Provide so user can attach to
-			//		it with dojo.connect(). See dojo.data.api.Read fetch() for
+			//		it with dojo.connect(). See dojo/data/api/Read fetch() for
 			//		details: onError property.
 			this._inFlight = false;
 		},
@@ -125,7 +125,8 @@ define("dojox/charting/DataSeries", ["dojo/_base/lang", "dojo/_base/declare", "d
 	
 		_pushDataChanges: function(){
 			if(this.series){
-				this.series.chart.updateSeries(this.series.name, this);
+				this.series.chart.updateSeries(this.series.name, this, this._initialRendering);
+				this._initialRendering = false;
 				this.series.chart.delayedRender();
 			}
 		},

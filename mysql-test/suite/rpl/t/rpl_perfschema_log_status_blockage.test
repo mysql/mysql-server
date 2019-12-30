@@ -21,7 +21,8 @@
 #
 # WL#9452: Log Position Lock
 #
-
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE

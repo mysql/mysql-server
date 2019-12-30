@@ -21,6 +21,12 @@ c6 DOUBLE,
 c7 FLOAT,
 c8 DECIMAL,
 c9 NUMERIC);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CREATE TABLE t_date (c1 DATE,
 c2 TIME,
 c3 TIMESTAMP,
@@ -31,6 +37,8 @@ c2 VARCHAR(128) BINARY,
 c3 VARCHAR(128),
 c4 BINARY(128),
 c5 VARBINARY(2048));
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE TABLE t_lob (c1  TINYBLOB,
 c2  BLOB,
 c3  MEDIUMBLOB,
@@ -43,6 +51,11 @@ c9  TINYTEXT BINARY,
 c10 TEXT BINARY,
 c11 MEDIUMTEXT BINARY,
 c12 LONGTEXT BINARY);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CREATE TABLE t_spec (c1 BIT(16),
 c2 ENUM('v1','v2','v3'),
 c3 SET('v1','v2','v3'));

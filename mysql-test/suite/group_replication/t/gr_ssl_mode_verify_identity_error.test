@@ -8,12 +8,12 @@
 #      validating server certificate against the CA plus
 #      validating that server hostname matches server
 #      certificate hostname, the member will not be able to
-#      join the group, since the certificate does contain the
-#      hostname 'localhost' and the hostname is '127.0.0.1'.
+#      join the group, since the certificate contains an invalid
+#      hostname.
 #   3. Clean up.
 #
 --source include/big_test.inc
---source include/have_ssl_crypto_functs.inc
+--source include/check_openssl_version.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -46,26 +46,25 @@ SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 --source include/rpl_connection.inc
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 
---let $group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
---let $group_replication_local_address= `SELECT REPLACE('$group_replication_local_address', 'localhost', '127.0.0.1')`
 --disable_query_log
 --eval SET GLOBAL group_replication_group_name= '$group_replication_group_name'
---eval SET GLOBAL group_replication_local_address= '$group_replication_local_address'
 --enable_query_log
 SET GLOBAL group_replication_ssl_mode= VERIFY_IDENTITY;
 
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
---let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
---let $grep_pattern= Group communication SSL configuration: group_replication_ssl_mode: "VERIFY_IDENTITY"
---let $grep_output= print_count
---source include/grep_pattern.inc
+--let $assert_text= Check that Group Replication is running with SSL VERIFY_IDENTITY enabled
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--let $assert_select= group_replication_ssl_mode: "VERIFY_IDENTITY"
+--let $assert_count= 1
+--source include/assert_grep.inc
 
---let $grep_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
---let $grep_pattern= Expected hostname is 'localhost' but found the name '127.0.0.1' in the server certificate
---let $grep_output= boolean
---source include/grep_pattern.inc
+--let $assert_text= Check that Group Replication errors out when a certificate with a wrong hostname is provided
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--let $assert_select= Failed to verify the server certificate via X509 certificate matching functions
+--let $assert_count= 1
+--source include/assert_grep.inc
 
 
 --echo

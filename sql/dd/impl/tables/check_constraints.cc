@@ -102,11 +102,11 @@ Object_key *Check_constraints::create_key_by_check_constraint_name(
 bool Check_constraints::check_constraint_exists(
     THD *thd, Object_id schema_id, const String_type &check_cons_name,
     bool *exists) {
-  DBUG_ENTER("Check_constraints::check_constraint_exists");
+  DBUG_TRACE;
 
   Transaction_ro trx(thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<dd::Check_constraint>();
-  if (trx.otx.open_tables()) DBUG_RETURN(true);
+  if (trx.otx.open_tables()) return true;
 
   const std::unique_ptr<Object_key> key(
       create_key_by_check_constraint_name(schema_id, check_cons_name.c_str()));
@@ -116,14 +116,14 @@ bool Check_constraints::check_constraint_exists(
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;
-  if (table->find_record(*key, record)) DBUG_RETURN(true);
+  if (table->find_record(*key, record)) return true;
 
   if (record.get())
     *exists = true;
   else
     *exists = false;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -38,8 +38,8 @@
 #include "routing_mocks.h"
 #include "test/helpers.h"
 
-using ::testing::Return;
 using ::testing::_;
+using ::testing::Return;
 
 class XProtocolTest : public ::testing::Test {
  protected:

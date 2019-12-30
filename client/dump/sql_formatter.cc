@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -173,6 +173,17 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
   row_string += ";\n";
 
   this->append_output(row_string);
+  /*
+    user account is dumped in the form of INSERT statements, thus need
+    to append FLUSH PRIVILEGES
+  */
+  if (!use_show_create_user) {
+    std::string schema = row_group->m_source_table->get_schema();
+    std::string name = row_group->m_source_table->get_name();
+    if ((schema == "mysql") && (name == "user")) {
+      this->append_output("/*! FLUSH PRIVILEGES */;\n");
+    }
+  }
 }
 
 void Sql_formatter::format_table_indexes(

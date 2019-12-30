@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/DataSelection", [
 	"dojo/_base/declare",
 	"./_SelectionPreserver",

@@ -1,9 +1,14 @@
-//>>built
 define("dojo/_base/json", ["./kernel", "../json"], function(dojo, json){
-  // module:
-  //    dojo/_base/json
-  // summary:
-  //    This module defines the dojo JSON API.
+
+// module:
+//		dojo/_base/json
+
+/*=====
+return {
+	// summary:
+	//		This module defines the dojo JSON API.
+};
+=====*/
 
 dojo.fromJson = function(/*String*/ js){
 	// summary:
@@ -16,7 +21,7 @@ dojo.fromJson = function(/*String*/ js){
 	//		implementation uses the (faster) native JSON parse when available.
 	// js:
 	//		a string literal of a JavaScript expression, for instance:
-	//			`'{ "foo": [ "bar", 1, { "baz": "thud" } ] }'`
+	//		`'{ "foo": [ "bar", 1, { "baz": "thud" } ] }'`
 
 	return eval("(" + js + ")"); // Object
 };
@@ -56,7 +61,7 @@ dojo.toJson = function(/*Object*/ it, /*Boolean?*/ prettyPrint){
 	//		Note that if native JSON support is available, it will be used for serialization,
 	//		and native implementations vary on the exact spacing used in pretty printing.
 	// returns:
-	// 		A JSON string serialization of the passed-in object.
+	//		A JSON string serialization of the passed-in object.
 	// example:
 	//		simple serialization of a trivial object
 	//		|	var jsonStr = dojo.toJson({ howdy: "stranger!", isStrange: true });

@@ -1,21 +1,15 @@
-//>>built
 define("dojox/mobile/TextArea", [
 	"dojo/_base/declare",
 	"dojo/dom-construct",
 	"./TextBox"
 ], function(declare, domConstruct, TextBox){
 
-	/*=====
-		TextBox = dojox.mobile.TextBox;
-	=====*/
 	return declare("dojox.mobile.TextArea",TextBox, {
 		// summary:
 		//		Non-templated TEXTAREA widget.
-		//
 		// description:
 		//		A textarea widget that wraps an HTML TEXTAREA element.
 		//		Takes all the parameters (name, value, etc.) that a vanilla textarea takes.
-		//
 		// example:
 		// |	<textarea dojoType="dojox.mobile.TextArea">...</textarea>
 

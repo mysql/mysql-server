@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/_FormSelectWidget", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",

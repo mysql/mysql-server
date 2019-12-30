@@ -25,7 +25,9 @@
 #include "plugin/x/src/streaming_command_delegate.h"
 
 #include <stddef.h>
+#include <cinttypes>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <type_traits>
 
@@ -37,7 +39,8 @@
 #include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
-#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/protocol/encoders/encoding_xrow.h"
+#include "plugin/x/src/notices.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
@@ -99,6 +102,7 @@ class Convert_if_necessary {
 Streaming_command_delegate::Streaming_command_delegate(
     ngs::Session_interface *session)
     : m_proto(&session->proto()),
+      m_metadata(m_proto->get_metadata_builder()->get_columns()),
       m_notice_queue(&session->get_notice_output_queue()),
       m_sent_result(false),
       m_compact_metadata(false),
@@ -116,14 +120,16 @@ void Streaming_command_delegate::reset() {
 
 int Streaming_command_delegate::start_result_metadata(
     uint num_cols, uint flags, const CHARSET_INFO *resultcs) {
-  log_debug("Streaming_command_delegate::start_result_metadata flags:%i",
-            (int)flags);
+  log_debug("Streaming_command_delegate::start_result_metadata flags:%u",
+            static_cast<int>(flags));
   if (Command_delegate::start_result_metadata(num_cols, flags, resultcs))
     return true;
 
   m_sent_result = true;
   m_resultcs = resultcs;
-  m_proto->get_metadata_builder()->start_metadata_encoding();
+  m_proto->get_metadata_builder()->begin_metdata(num_cols);
+  m_filled_column_counter = 0;
+
   return false;
 }
 
@@ -132,9 +138,9 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   log_debug("Streaming_command_delegate::field_metadata");
   if (Command_delegate::field_metadata(field, charset)) return true;
 
+  auto &column_info = m_metadata[m_filled_column_counter++];
   enum_field_types type = field->type;
   int32_t flags = 0;
-  ngs::Column_info_builder column_info;
 
   if (field->flags & NOT_NULL_FLAG) flags |= MYSQLX_COLUMN_FLAGS_NOT_NULL;
 
@@ -283,9 +289,12 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BIT);
       break;
+
+    default:
+      DBUG_ASSERT(0);  // Shouldn't happen
   }
 
-  DBUG_ASSERT(column_info.get().m_type !=
+  DBUG_ASSERT(column_info.get()->m_type !=
               (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
   if (!m_compact_metadata) {
@@ -295,8 +304,6 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   }
 
   if (flags) column_info.set_flags(flags);
-
-  m_proto->get_metadata_builder()->encode_metadata(&column_info.get());
 
   return false;
 }
@@ -309,16 +316,13 @@ int Streaming_command_delegate::end_result_metadata(uint server_status,
 
   m_handle_ok_received = false;
 
-  const auto &meta = m_proto->get_metadata_builder()->stop_metadata_encoding();
+  for (auto &column : m_metadata) {
+    m_proto->send_column_metadata(column.get());
+  }
 
-  CodedOutputStream(m_proto->get_buffer()).WriteString(meta);
-
-  if (0 == meta.size()) return false;
-
-  m_proto->get_flusher()->on_message(
-      Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
-
-  if (m_proto->get_flusher()->try_flush()) return false;
+  if (xpl::iface::Protocol_flusher::Result::k_error !=
+      m_proto->get_flusher()->try_flush())
+    return false;
 
   my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
 
@@ -361,16 +365,16 @@ ulong Streaming_command_delegate::get_client_capabilities() {
 
 /****** Getting data ******/
 int Streaming_command_delegate::get_null() {
-  log_debug("Streaming_command_delegate::get_time");
-  m_proto->row_builder().add_null_field();
+  log_debug("Streaming_command_delegate::get_null");
+  m_proto->row_builder()->field_null();
 
   return false;
 }
 
 int Streaming_command_delegate::get_integer(longlong value) {
   log_debug("Streaming_command_delegate::get_int %i", (int)value);
-  bool unsigned_flag =
-      (m_field_types[m_proto->row_builder().get_num_fields()].flags &
+  const bool unsigned_flag =
+      (m_field_types[m_proto->row_builder()->get_num_fields()].flags &
        UNSIGNED_FLAG) != 0;
 
   return get_longlong(value, unsigned_flag);
@@ -387,59 +391,60 @@ int Streaming_command_delegate::get_longlong(longlong value,
   // bug-compatibility code here, so that if column metadata reports column to
   // be SIGNED, we will force the data to actually be SIGNED.
   if (unsigned_flag &&
-      (m_field_types[m_proto->row_builder().get_num_fields()].flags &
+      (m_field_types[m_proto->row_builder()->get_num_fields()].flags &
        UNSIGNED_FLAG) == 0)
     unsigned_flag = 0;
 
   // This is a hack to workaround server bug that causes wrong values being
   // sent for TINYINT UNSIGNED type, can be removed when it is fixed.
   if (unsigned_flag &&
-      (m_field_types[m_proto->row_builder().get_num_fields()].type ==
+      (m_field_types[m_proto->row_builder()->get_num_fields()].type ==
        MYSQL_TYPE_TINY)) {
     value &= 0xff;
   }
 
-  m_proto->row_builder().add_longlong_field(value, unsigned_flag);
+  if (unsigned_flag)
+    m_proto->row_builder()->field_unsigned_longlong(value);
+  else
+    m_proto->row_builder()->field_signed_longlong(value);
 
   return false;
 }
 
 int Streaming_command_delegate::get_decimal(const decimal_t *value) {
   log_debug("Streaming_command_delegate::get_decimal");
-  m_proto->row_builder().add_decimal_field(value);
+  m_proto->row_builder()->field_decimal(value);
 
   return false;
 }
 
 int Streaming_command_delegate::get_double(double value, uint32) {
   log_debug("Streaming_command_delegate::get_duble");
-  if (m_field_types[m_proto->row_builder().get_num_fields()].type ==
+  if (m_field_types[m_proto->row_builder()->get_num_fields()].type ==
       MYSQL_TYPE_FLOAT)
-    m_proto->row_builder().add_float_field(static_cast<float>(value));
+    m_proto->row_builder()->field_float(static_cast<float>(value));
   else
-    m_proto->row_builder().add_double_field(value);
+    m_proto->row_builder()->field_double(value);
   return false;
 }
 
 int Streaming_command_delegate::get_date(const MYSQL_TIME *value) {
   log_debug("Streaming_command_delegate::get_date");
-  m_proto->row_builder().add_date_field(value);
+  m_proto->row_builder()->field_date(value);
 
   return false;
 }
 
-int Streaming_command_delegate::get_time(const MYSQL_TIME *value,
-                                         uint decimals) {
+int Streaming_command_delegate::get_time(const MYSQL_TIME *value, uint) {
   log_debug("Streaming_command_delegate::get_time");
-  m_proto->row_builder().add_time_field(value, decimals);
+  m_proto->row_builder()->field_time(value);
 
   return false;
 }
 
-int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value,
-                                             uint decimals) {
+int Streaming_command_delegate::get_datetime(const MYSQL_TIME *value, uint) {
   log_debug("Streaming_command_delegate::get_datetime");
-  m_proto->row_builder().add_datetime_field(value, decimals);
+  m_proto->row_builder()->field_datetime(value);
 
   return false;
 }
@@ -449,33 +454,32 @@ int Streaming_command_delegate::get_string(const char *const value,
                                            const CHARSET_INFO *const valuecs) {
   log_debug("Streaming_command_delegate::get_string");
   const enum_field_types type =
-      m_field_types[m_proto->row_builder().get_num_fields()].type;
+      m_field_types[m_proto->row_builder()->get_num_fields()].type;
   const unsigned int flags =
-      m_field_types[m_proto->row_builder().get_num_fields()].flags;
+      m_field_types[m_proto->row_builder()->get_num_fields()].flags;
 
   switch (type) {
     case MYSQL_TYPE_NEWDECIMAL:
-      m_proto->row_builder().add_decimal_field(value, length);
+      m_proto->row_builder()->field_decimal(value, length);
       break;
     case MYSQL_TYPE_SET: {
       Convert_if_necessary conv(m_resultcs, value, length, valuecs);
-      m_proto->row_builder().add_set_field(conv.get_ptr(), conv.get_length());
+      m_proto->row_builder()->field_set(conv.get_ptr(), conv.get_length());
       break;
     }
     case MYSQL_TYPE_BIT:
-      m_proto->row_builder().add_bit_field(value, length);
+      m_proto->row_builder()->field_bit(value, length);
       break;
     case MYSQL_TYPE_STRING:
       if (flags & SET_FLAG) {
         Convert_if_necessary conv(m_resultcs, value, length, valuecs);
-        m_proto->row_builder().add_set_field(conv.get_ptr(), conv.get_length());
+        m_proto->row_builder()->field_set(conv.get_ptr(), conv.get_length());
         break;
       }
       /* fall through */
     default: {
       Convert_if_necessary conv(m_resultcs, value, length, valuecs);
-      m_proto->row_builder().add_string_field(conv.get_ptr(),
-                                              conv.get_length());
+      m_proto->row_builder()->field_string(conv.get_ptr(), conv.get_length());
       break;
     }
   }
@@ -488,11 +492,11 @@ void Streaming_command_delegate::handle_ok(uint32_t server_status,
                                            uint64_t affected_rows,
                                            uint64_t last_insert_id,
                                            const char *const message) {
-  log_debug(
-      "Streaming_command_delegate::handle_ok %i, warnings: %i, "
-      "affected_rows:%i, last_insert_id: %i, msg: %s",
-      (int)server_status, (int)statement_warn_count, (int)affected_rows,
-      (int)last_insert_id, message);
+  log_debug("Streaming_command_delegate::handle_ok %" PRIu32
+            ", warnings: %" PRIu32 ", affected_rows:%" PRIu64
+            ", last_insert_id: %" PRIu64 ", msg: %s",
+            server_status, statement_warn_count, affected_rows, last_insert_id,
+            message);
 
   if (m_sent_result && !(server_status & SERVER_MORE_RESULTS_EXISTS)) {
     m_wait_for_fetch_done = false;
@@ -526,6 +530,7 @@ bool Streaming_command_delegate::try_send_notices(
 }
 
 void Streaming_command_delegate::on_destruction() {
+  DBUG_TRACE;
   if (m_send_notice_deferred) {
     try_send_notices(m_info.server_status, m_info.num_warnings,
                      m_info.affected_rows, m_info.last_insert_id,
@@ -539,6 +544,7 @@ bool Streaming_command_delegate::defer_on_warning(
     const uint32_t server_status, const uint32_t statement_warn_count,
     const uint64_t affected_rows, const uint64_t last_insert_id,
     const char *const message) {
+  DBUG_TRACE;
   if (!m_send_notice_deferred) {
     Command_delegate::handle_ok(server_status, statement_warn_count,
                                 affected_rows, last_insert_id, message);

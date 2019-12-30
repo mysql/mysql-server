@@ -3,7 +3,6 @@
 #
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart
-SET @orig_undo_log_truncate = @@GLOBAL.innodb_undo_log_truncate;
 SET GLOBAL innodb_undo_log_truncate = OFF;
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
@@ -259,12 +258,30 @@ Level	Code	Message
 Error	3119	InnoDB: An undo tablespace cannot contain tables.
 Error	1478	Table storage engine 'InnoDB' does not support the create option 'TABLESPACE'
 #
+# Show that a missing undo tablespace can be dropped
+#
+# restart
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_004	Undo	empty
+undo_005	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_004	NULL	./undo_004.ibu
+Warnings:
+Warning	1812	Tablespace is missing for table undo_004.
+DROP UNDO TABLESPACE undo_004;
+#
 # Cleanup
 #
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 DROP PROCEDURE populate_t1;
-DROP UNDO TABLESPACE undo_004;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 DROP UNDO TABLESPACE undo_005;
-SET GLOBAL innodb_undo_log_truncate = @orig_undo_log_truncate;

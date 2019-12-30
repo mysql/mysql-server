@@ -26,11 +26,11 @@ Mysqlx.Connection.CapabilitiesSet {
     capabilities {
       name: "NotExistingCapability"
       value {
-	type: SCALAR
-	scalar {
-	  type: V_BOOL
-	  v_bool: 1
-	}
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
       }
     }
   }

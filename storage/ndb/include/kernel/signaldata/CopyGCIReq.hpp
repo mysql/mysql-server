@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
  * Since the Sysfile can be larger than on StartMeConf signal,
  *   there might be more than on of these signals sent before
  *   the entire sysfile is transfered
-
  */
 class CopyGCIReq {
   /**
@@ -67,6 +66,7 @@ private:
   /**
    * No of free words to carry data
    */
+  STATIC_CONST( SignalLength = 3);
   STATIC_CONST( DATA_SIZE = 22 );
   
   Uint32 data[DATA_SIZE];

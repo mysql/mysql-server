@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -231,6 +231,9 @@ void dtype_new_store_for_order_and_null_size(
   buf[0] |= 64;
   }
   */
+  if (type->prtype & DATA_MULTI_VALUE) {
+    buf[0] |= 64;
+  }
 
   buf[1] = (byte)(type->prtype & 0xFFUL);
 
@@ -291,6 +294,10 @@ void dtype_new_read_for_order_and_null_size(
 
   if (buf[0] & 128) {
     type->prtype |= DATA_BINARY_TYPE;
+  }
+
+  if (buf[0] & 64) {
+    type->prtype |= DATA_MULTI_VALUE;
   }
 
   if (buf[4] & 128) {

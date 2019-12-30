@@ -1,4 +1,3 @@
-//>>built
 define("dojox/sketch/Slider", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",

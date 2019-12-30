@@ -4276,11 +4276,11 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
-  /*
-    Verifies that for production build we allow construction of
-    MDL_key with too long database or object names, but they are
-    truncated.
-  */
+/*
+  Verifies that for production build we allow construction of
+  MDL_key with too long database or object names, but they are
+  truncated.
+*/
 
 #if defined(DBUG_OFF)
 TEST_F(MDLKeyTest, TruncateTooLongNames) {

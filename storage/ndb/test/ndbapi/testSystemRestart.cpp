@@ -3239,6 +3239,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug46412(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Uint32 partialSR = ctx->getProperty("PartialSRvar");
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter res;
   const Uint32 nodeCount = res.getNumDbNodes();
@@ -3264,7 +3265,9 @@ loop:
 
     Bitmask<256/32> ng;
     int cnt = 0;
+    int cnt_stop_partial = 0;
     int restartnodes[256];
+    int stopnodes_partial[256];
 
     Uint32 limit = (nodeCount / 2);
     for (Uint32 i = 0; i<limit; i++)
@@ -3283,6 +3286,7 @@ loop:
         }
         else
         {
+          stopnodes_partial[cnt_stop_partial++] = nodes[i];
           ng.set(tmp);
           ndbout_c(" OK");
         }
@@ -3304,33 +3308,67 @@ loop:
       if (res.waitClusterStarted())
         return NDBT_FAILED;
 
-      goto loop;
+      if (partialSR == 0)
+        goto loop;
     }
 
     int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
     res.dumpStateAllNodes(val2, 2);
 
-    Bitmask<256/32> mask;
-    for (Uint32 i = 0; i<(nodeCount / 2); i++)
+    if (partialSR == 0)
     {
-      int node = nodes[(nodeCount / 2) - (i + 1)];
-      mask.set(node);
-      res.insertErrorInNode(node, 7218);
-    }
+      Bitmask<256/32> mask;
+      for (Uint32 i = 0; i<(nodeCount / 2); i++)
+      {
+        int node = nodes[(nodeCount / 2) - (i + 1)];
+        mask.set(node);
+        res.insertErrorInNode(node, 7218);
+      }
     
-    for (Uint32 i = 0; i<nodeCount; i++)
-    {
-      int node = nodes[i];
-      if (mask.get(node))
-        continue;
-      res.insertErrorInNode(node, 7220);
+      for (Uint32 i = 0; i<nodeCount; i++)
+      {
+        int node = nodes[i];
+        if (mask.get(node))
+          continue;
+        res.insertErrorInNode(node, 7220);
+      }
+
+      int lcp = 7099;
+      res.dumpStateAllNodes(&lcp, 1);
+
+      res.waitClusterNoStart();
+      res.startAll();
     }
-
-    int lcp = 7099;
-    res.dumpStateAllNodes(&lcp, 1);
-
-    res.waitClusterNoStart();
-    res.startAll();
+    else
+    {
+      ndbout_c("cnt_stop_partial = %u", cnt_stop_partial);
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        int node = nodes[i];
+        bool found = false;
+        for (int j = 0; j < cnt_stop_partial; j++)
+        {
+          if (stopnodes_partial[j] == node)
+            found = true;
+        }
+        if (found)
+        {
+          ndbout_c("Stop node %u", node);
+          res.restartOneDbNode(node, false, true, true, true);
+        }
+      }
+      ndbout_c("Wait for a while to allow the first set of nodes to stop");
+      sleep(6);
+      ndbout_c("Cluster restart");
+      res.restartAll(false, true, true, true);
+      res.waitClusterNoStart();
+      for (Uint32 i = 0; i < nodeCount; i++)
+      {
+        ndbout_c("Start node %u", nodes[i]);
+        res.startNodes(&nodes[i], 1);
+        sleep(4);
+      }
+    }
     if (res.waitClusterStarted())
       return NDBT_FAILED;
   }
@@ -4565,6 +4603,12 @@ TESTCASE("Bug46651", "")
 }
 TESTCASE("Bug46412", "")
 {
+  TC_PROPERTY("PartialSRvar", Uint32(0));
+  INITIALIZER(runBug46412);
+}
+TESTCASE("PartialSR", "")
+{
+  TC_PROPERTY("PartialSRvar", Uint32(1));
   INITIALIZER(runBug46412);
 }
 TESTCASE("Bug48436", "")

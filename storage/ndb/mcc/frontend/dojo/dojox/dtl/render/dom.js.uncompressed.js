@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dtl/render/dom", [
 	"dojo/_base/lang",
 	"dojo/dom",
@@ -6,20 +5,18 @@ define("dojox/dtl/render/dom", [
 	"../dom",
 	"../_base"
 ], function(lang,dom,ddc,dddom,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.render.dom", true);
 
-	dd.render.dom.Render = function(/*DOMNode?*/ attachPoint, /*dojox.dtl.DomTemplate?*/ tpl){
+	dd.render.dom.Render = function(/*DOMNode?*/ attachPoint, /*dojox/dtl/DomTemplate?*/ tpl){
 		this._tpl = tpl;
 		this.domNode = dom.byId(attachPoint);
-	}
+	};
 	lang.extend(dd.render.dom.Render, {
 		setAttachPoint: function(/*Node*/ node){
 			this.domNode = node;
 		},
-		render: function(/*Object*/ context, /*dojox.dtl.DomTemplate?*/ tpl, /*dojox.dtl.DomBuffer?*/ buffer){
+		render: function(/*Object*/ context, /*dojox/dtl/DomTemplate?*/ tpl, /*dojox/dtl/DomBuffer?*/ buffer){
 			if(!this.domNode){
 				throw new Error("You cannot use the Render object without specifying where you want to render it");
 			}
@@ -34,7 +31,9 @@ define("dojox/dtl/render/dom", [
 			}
 
 			if(this.domNode !== frag){
-				this.domNode.parentNode.replaceChild(frag, this.domNode);
+				if(this.domNode.parentNode){
+					this.domNode.parentNode.replaceChild(frag, this.domNode);
+				}
 				this.domNode = frag;
 			}
 		}

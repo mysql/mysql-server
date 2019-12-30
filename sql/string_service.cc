@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,12 +93,13 @@ mysql_string_iterator_handle mysql_string_get_iterator(
 int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle) {
   int char_len, char_type, tmp_len;
   st_string_iterator *iterator = (st_string_iterator *)iterator_handle;
-  String *str = iterator->iterator_str;
+  const String *str = iterator->iterator_str;
   const CHARSET_INFO *cs = str->charset();
-  char *end = (char *)str->ptr() + str->length();
-  if (iterator->iterator_ptr >= (const char *)end) return (0);
-  char_len = (cs->cset->ctype(cs, &char_type, (uchar *)iterator->iterator_ptr,
-                              (uchar *)end));
+  const char *end = str->ptr() + str->length();
+  if (iterator->iterator_ptr >= end) return (0);
+  char_len = (cs->cset->ctype(
+      cs, &char_type, pointer_cast<const uchar *>(iterator->iterator_ptr),
+      pointer_cast<const uchar *>(end)));
   iterator->ctype = char_type;
   tmp_len = (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
   if (iterator->iterator_ptr + tmp_len > end)
@@ -154,8 +155,7 @@ mysql_string_handle mysql_string_to_lowercase(
     size_t len = str->length() * cs->casedn_multiply;
     res->set_charset(cs);
     res->alloc(len);
-    len = cs->cset->casedn(cs, (char *)str->ptr(), str->length(),
-                           (char *)res->ptr(), len);
+    len = cs->cset->casedn(cs, str->ptr(), str->length(), res->ptr(), len);
     res->length(len);
   }
   return (res);

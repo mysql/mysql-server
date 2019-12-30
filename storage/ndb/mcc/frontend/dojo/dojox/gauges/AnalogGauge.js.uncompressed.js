@@ -1,12 +1,7 @@
-//>>built
 define("dojox/gauges/AnalogGauge", ["dojo/_base/kernel","dojo/_base/declare","dojo/_base/array","dojo/_base/lang","dojo/_base/html","dojo/_base/event",
 		"dojox/gfx", "./_Gauge","./AnalogLineIndicator", "dojo/dom-geometry"],
 	function(dojo, declare, arr, lang, html, event, 
 			gfx, Gauge, AnalogLineIndicator, domGeometry) {
-
-/*=====
-	Gauge = dojox.gauges._Gauge;
-=====*/
 
 return declare("dojox.gauges.AnalogGauge",Gauge,{
 	// summary:
@@ -37,27 +32,27 @@ return declare("dojox.gauges.AnalogGauge",Gauge,{
 	//	|	</div>
 
 	// startAngle: Number
-	// 		angle (in degrees) for start of gauge (default is -90)
+	//		angle (in degrees) for start of gauge (default is -90)
 	startAngle: -90,
 
 	// endAngle: Number
-	// 		angle (in degrees) for end of gauge (default is 90)
+	//		angle (in degrees) for end of gauge (default is 90)
 	endAngle: 90,
 
 	// cx: Number
-	// 		center of gauge x coordinate (default is gauge width / 2)
+	//		center of gauge x coordinate (default is gauge width / 2)
 	cx: 0,
 
 	// cy: Number
-	// 		center of gauge x coordinate (default is gauge height / 2)
+	//		center of gauge x coordinate (default is gauge height / 2)
 	cy: 0,
 
 	// radius: Number
-	// 		radius of gauge (default is smaller of cx-25 or cy-25)
+	//		radius of gauge (default is smaller of cx-25 or cy-25)
 	radius: 0,
 	
 	// orientation: String
-	// 		The orientation of the gauge. The value can be 'clockwise' or 'cclockwise' (default is 'clockwise')
+	//		The orientation of the gauge. The value can be 'clockwise' or 'cclockwise' (default is 'clockwise')
 	orientation: "clockwise",
 
 	// _defaultIndicator: dojox.gauges._Indicator
@@ -145,7 +140,7 @@ return declare("dojox.gauges.AnalogGauge",Gauge,{
 	_getAngleRange: function(){
 		// summary:
 		//		This is a helper function that returns the angle range
-		//      from startAngle to endAngle according to orientation.
+		//		from startAngle to endAngle according to orientation.
 		var range;
 		var startAngle = this._mod360(this.startAngle);
 		var endAngle = this._mod360(this.endAngle);
@@ -189,14 +184,14 @@ return declare("dojox.gauges.AnalogGauge",Gauge,{
 	},
 	
 	_isScaleCircular: function(){
-		// summary: 
+		// summary:
 		//		internal method to check if the scale is fully circular
 		return (this._mod360(this.startAngle) == this._mod360(this.endAngle));
 	},
 	
 	_mod360:function(v){
 		// summary:
-		//     returns the angle between 0 and 360;
+		//		returns the angle between 0 and 360;
 		while (v>360) v = v - 360;
 		while (v<0) v = v + 360;
 		return v;
@@ -339,15 +334,15 @@ return declare("dojox.gauges.AnalogGauge",Gauge,{
 	_dragIndicator: function(/*Object*/ widget, /*Object*/ e){
 		// summary:
 		//		Handles the dragging of an indicator to the event position, including moving/re-drawing
-		// 		get angle for mouse position
+		//		get angle for mouse position
 		this._dragIndicatorAt(widget, e.pageX, e.pageY);
 		event.stop(e);
 	},
 		
 	_dragIndicatorAt: function(/*Object*/ widget, x,y){
 		// summary:
-		// 		Handles the dragging of an indicator to a specific position, including moving/re-drawing
-		// 		get angle for mouse position
+		//		Handles the dragging of an indicator to a specific position, including moving/re-drawing
+		//		get angle for mouse position
 		var pos = domGeometry.position(widget.gaugeContent, true),
 			xf = x - pos.x,
 			yf = y - pos.y,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -140,7 +140,7 @@ public:
       if (ret_pid == -1)
       {
         fprintf(stderr,
-                "Error occured when waiting for process %d, ret: %d, errno: %d\n",
+                "Error occurred when waiting for process %d, ret: %d, errno: %d\n",
                 m_pid, status, errno);
         return false;
       }

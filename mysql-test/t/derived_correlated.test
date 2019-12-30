@@ -270,7 +270,7 @@ DROP TABLE t11,t12;
 
 --echo LATERAL
 
---echo # prevents join buffer
+--echo # prevents join buffer if materialized (but not if merged)
 explain select dt.a from t1, lateral (select t1.a from t2) dt;
 
 --echo # no right join
@@ -306,6 +306,7 @@ lateral (select dt.a) as dt1 ON dt.a=dt1.a;
 
 --echo # Placing lateral outer ref in SELECT list then HAVING
 
+--sorted_result
 select t1.a, dt.a from t1, lateral (select t1.a+t2.a as a from t2) dt;
 
 select t1.a, dt.a from t1, lateral (select t2.a as a from t2 having t1.a) dt;
@@ -315,6 +316,7 @@ create view v1 as
  select t1.a as f1, dt.a as f2
  from t1, lateral (select t1.a+t2.a as a from t2) dt;
 show create view v1;
+--sorted_result
 select * from v1;
 drop view v1;
 
@@ -511,6 +513,7 @@ let $query=
 select straight_join * from t1, lateral (select t1.a) as dt, t2;
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 show status like "handler_write";
 
@@ -518,6 +521,7 @@ let $query=
 select straight_join * from t2, t1, lateral (select t1.a) as dt;
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 --echo # Due to join buffer, order t2-t1 produces rows as a
 --echo # non-buffered t1-t2 plan: t1 buffers all rows of t2, then for
@@ -561,6 +565,7 @@ let $query=
 select * from t1, lateral (select t1.a) as dt, t2;
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 show status like "handler_write";
 
@@ -571,6 +576,7 @@ let $query=
 select * from t2, t1, lateral (select t1.a) as dt;
 eval explain $query;
 flush status;
+--sorted_result
 eval $query;
 show status like "handler_write";
 
@@ -582,7 +588,7 @@ select trace from information_schema.optimizer_trace;
 
 --echo # LDT depending on const table only
 
-create table t3(a int) engine=myisam;
+create table t3(a int) engine=innodb;
 insert into t3 values(3);
 analyze table t3;
 let $query=
@@ -606,6 +612,7 @@ select * from t2, t1, lateral (select t1.a) as dt,
                       lateral (select t1.a+1) as dt2;
 eval explain $query;
 eval explain format=json $query;
+--sorted_result
 eval $query;
 
 --echo # One LDT depending on two tables. The "rematerialize" tag is
@@ -726,6 +733,40 @@ eval $query;
 
 DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug #29268512: ASSERTION FAILED: INITED == NONE INTERMITTENTLY
+--echo #
+
+CREATE TABLE t1 (
+  f1 integer
+);
+
+INSERT INTO t1 VALUES (0),(1);
+
+CREATE TABLE t2 (
+  f2 integer
+);
+
+SELECT * FROM t1, LATERAL ( SELECT MAX(1) FROM t2 GROUP BY t1.f1 ) AS l1;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #29334082: Still crashing in actual_key_parts() / assert inited == INDEX
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER );
+CREATE TABLE t2 ( f2 LONGBLOB );
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES ('abc'),('def');
+
+# The longblob requires deduplication by means of a hidden hash field,
+# which triggers a special path in MaterializeIterator that involves an index.
+SELECT STD(0) FROM t2, LATERAL ( SELECT f1 FROM t1 GROUP BY f2,f1 ) AS d1;
+
+DROP TABLE t1, t2;
 
 --echo #
 --echo # Bug#28954838 ASSERTION `(REMAINING_TABLES_AFTER != 0) || ((CUR_EMBEDDING_MAP == 0) && (JOIN->
@@ -869,3 +910,44 @@ GROUP BY 1, 1;
 
 DROP TABLE t0007, t0008, t0009;
 SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug #29514504: WRONG RESULT WITH CORRELATED LATERAL JOIN
+--echo #
+
+#
+# In this case, the derived table has an aggregation function that can get zero
+# input rows, _and_ is evaluated multiple times (due to LATERAL). If so,
+# we have to be careful to properly reset the value we write to the derived
+# table, or the value from the previous iteration would leak through.
+#
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (20), (20);
+SELECT * FROM t1 JOIN LATERAL (
+  SELECT GROUP_CONCAT(t.id) AS c FROM t2 t WHERE (t.id = t1.id)
+) d0 ON (1);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #30110851: SUBQUERY INVOLVES COUNT() AGGREGATE FUNCTION PERFORMANCE REGRESSION
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE TABLE t2 ( f1 INTEGER NOT NULL, f2 INTEGER NOT NULL );
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t2.f1 ) AS f3 FROM t2;
+
+#
+# Both materializations here should be marked as non-rematerialize
+# (ie., not “Temporary table”). In particular, the materialization
+# in the SELECT clause should be reused for each iteration, even though
+# the index lookup against it is outer-correlated, and it is part of
+# a query block which is also itself outer-correlated.
+#
+EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
+
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;

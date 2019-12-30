@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,12 +34,12 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::Args;
 using ::testing::DoAll;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::_;
 
 using namespace mysql_protocol;
 
@@ -312,9 +312,6 @@ TEST_F(ClassicProtocolRoutingTest, NoValidDestinations) {
 
   EXPECT_CALL(*mock_socket_operations_, shutdown(client_socket));
   EXPECT_CALL(*mock_socket_operations_, close(client_socket));
-  EXPECT_CALL(*mock_socket_operations_, getpeername(_, _, _))
-      .WillOnce(DoAll(SetArgPointee<1>(*((sockaddr *)(&client_addr_storage))),
-                      Return(0)));
 
   EXPECT_CALL(*mock_socket_operations_, inetntop(_, _, _, _))
       .WillOnce(Return("127.0.0.1"));

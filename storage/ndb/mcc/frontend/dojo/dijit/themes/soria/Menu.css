@@ -24,6 +24,7 @@
 	padding:1px;
 }
 .soria .dijitMenuPassive .dijitMenuItemHover,
+.soria .dijitComboBoxMenu .dijitMenuItemHover,
 .soria .dijitMenuItemSelected {
 	background-color: #d9e6f9; 
 	color: #243C5F;

@@ -189,7 +189,7 @@ SELECT ('a%b' LIKE 'ax%b' ESCAPE ('x', 'y'));
 SELECT ('a%b' LIKE 'ax%b' ESCAPE x) FROM t1;
 
 # Also test on an indexed column to exercise the range optimizer.
-# (The range optimizer will give up because it doesn't know the
+# (The range optimizer will give up because it does not know the
 # value of the escape character, so the query execution plan will
 # not actually use range optimization.)
 CREATE TABLE t2(x int, y varchar(100)) ENGINE=InnoDB;
@@ -249,7 +249,80 @@ SET NAMES DEFAULT;
 SELECT 'aa' LIKE CONVERT('%a' USING utf8);
 
 --echo #
+--echo # Bug#29175461: LIKE RESULT ERROR IF ESCAPE IS % OF WILDCARD CHARACTERS
+--echo #
+# Multibyte wildcmp
+SET NAMES big5;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# UCA wildcmp
+SET NAMES utf8mb4;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# GB18030 wildcmp
+SET NAMES gb18030;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Binary wildcmp
+SET NAMES binary;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# 8bit wildcmp
+SET NAMES latin1;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Multibyte binary wildcmp
+SET NAMES gb2312;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+# Unicode wildcmp
+SET NAMES utf8;
+select 1 where 'b%a' like '%%a' escape '%';
+select 1 where 'b_a' like '__a' escape '_';
+select 1 where 'b%a' like '#%a' escape '#';
+select 1 where 'b_a' like '#_a' escape '#';
+
+SET NAMES default;
+
+--echo #
 --echo # Bug#29368521: ASSERTION `!THD->IS_ERROR()' FAILED
 --echo #
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
+
+
+--echo #
+--echo # Bug#29590129 UBSAN: MEMBER CALL ON NULL POINTER OF TYPE
+--echo #              'STRUCT STRING' IN ITEM_FUNC_LIKE::VA
+--echo #
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (42);
+
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM t1 WHERE
+( EXISTS
+   (SELECT * WHERE '520:33:32.77' < (c1 - INTERVAL(1) MONTH))
+) LIKE (c1);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#29904751: LIKE CONDITION FOR DATE COLUMN RETURNS ERROR
+--echo #
+CREATE TABLE t(col1 DATE);
+INSERT INTO t(col1) VALUES('2019-06-13'), ('2019-07-13');
+SELECT * FROM t WHERE col1 LIKE '2019%';
+SELECT * FROM t WHERE col1 LIKE '2019-06-1%';
+DROP TABLE t;
+

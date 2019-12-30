@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/_PluginManager", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
@@ -13,24 +12,25 @@ define("dojox/grid/enhanced/_PluginManager", [
 var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 	// summary:
 	//		Singleton plugin manager
-	//
 	// description:
-	//		Plugin manager is responsible for
-	//		1. Loading required plugins
-	//		2. Handling collaborat	ion and dependencies among plugins
+	//		Plugin manager is responsible for:
 	//
-	//      Some plugin dependencies:
+	//		1. Loading required plugins
+	//		2. Handling collaboration and dependencies among plugins
+	//
+	//		Some plugin dependencies:
+	//
 	//		- "columnReordering" attribute won't work when either DnD or Indirect Selections plugin is on.
 		
-	//_options: Object
+	// _options: Object
 	//		Normalized plugin options
 	_options: null,
 
-	//_plugins: Array
+	// _plugins: Array
 	//		Plugin list
 	_plugins: null,
 
-	//_connects: Array
+	// _connects: Array
 	//		Connection list
 	_connects: null,
 
@@ -97,8 +97,8 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 				this._normalize(p, plugins, registry, loading);
 			}
 		}
-		//"columnReordering" attribute won't work when either DnD or Indirect Selections plugin is used.
-		if(options.dnd || options.indirectSelection){
+		//"columnReordering" attribute won't work when DnD plugin is turned on.
+		if(options.dnd){
 			options.columnReordering = false;
 		}
 		
@@ -159,7 +159,7 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 		//		Load required plugin("name")
 		// name: String
 		//		Plugin name
-		// return: Object
+		// returns: Object
 		//		The newly loaded plugin
 		var option = this._options[name];
 		if(!option){ return null; } //return if no plugin option
@@ -192,7 +192,7 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 		//		Check if plugin("name") existed
 		// name: String
 		//		Plugin name
-		// return: Boolean
+		// returns: Boolean
 		//		True - existed | False - not existed
 		return !!this.getPlugin(name);
 	},
@@ -201,7 +201,7 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 		//		Get plugin("name")
 		// name: String
 		//		Plugin name
-		// return: Object
+		// returns: Object
 		//		Plugin instance
 		var plugins = this._plugins;
 		name = name.toLowerCase();
@@ -215,7 +215,7 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 	getPluginClazz: function(clazz){
 		// summary:
 		//		Load target plugin which must be already required (require(..))
-		// clazz: class | String
+		// clazz: Class|String
 		//		Plugin class
 		if(lang.isFunction(clazz)){
 			return clazz;//return if it's already a clazz
@@ -234,7 +234,7 @@ var _PluginManager = declare("dojox.grid.enhanced._PluginManager", null, {
 		//		See if target cell(column) is fixed or not.
 		// cell: Object
 		//		Target cell(column)
-		// return: Boolean
+		// returns: Boolean
 		//		True - fixed| False - not fixed
 
 		//target cell can use Boolean attributes named "isRowSelector" or "fixedPos" to mark it's a fixed cell(column)
@@ -259,7 +259,7 @@ _PluginManager.registerPlugin = function(clazz, props){
 		//		Register plugins - TODO, a better way rather than global registry?
 		// clazz: String
 		//		Full class name, e.g. "dojox.grid.enhanced.plugins.DnD"
-		// props: Object - Optional
+		// props: Object?
 		//		Plugin properties e.g. {"dependency": ["nestedSorting"], ...}
 	if(!clazz){
 		console.warn("Failed to register plugin, class missed!");

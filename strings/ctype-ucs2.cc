@@ -458,7 +458,7 @@ bs:
   return (negative ? -((longlong)res) : (longlong)res);
 }
 
-static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, char *nptr,
+static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
                                     size_t length, const char **endptr,
                                     int *err) {
   char buf[256];
@@ -766,6 +766,7 @@ end4:
   *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
+    if (li == MAX_NEGATIVE_NUMBER) return LLONG_MIN;
     return -((longlong)li);
   }
   return (longlong)li;
@@ -2096,6 +2097,7 @@ end4:
   *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
+    if (li == MAX_NEGATIVE_NUMBER) return LLONG_MIN;
     return -((longlong)li);
   }
   return (longlong)li;

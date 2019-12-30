@@ -1,6 +1,6 @@
 //>>built
-define("dojox/mvc/_Container",["dojo/_base/declare","dojo/_base/lang","dijit/_WidgetBase","dojo/regexp"],function(_1,_2,_3,_4){
-return _1("dojox.mvc._Container",[_3],{stopParser:true,exprchar:"$",templateString:"",_containedWidgets:[],_parser:null,_createBody:function(){
+define("dojox/mvc/_Container",["dojo/_base/declare","dojo/_base/lang","dojo/when","dijit/_WidgetBase","dojo/regexp"],function(_1,_2,_3,_4,_5){
+return _1("dojox.mvc._Container",_4,{stopParser:true,exprchar:"$",templateString:"",inlineTemplateString:"",_containedWidgets:[],_parser:null,_createBody:function(){
 if(!this._parser){
 try{
 this._parser=require("dojo/parser");
@@ -14,8 +14,11 @@ console.error("Add explicit require(['dojo/parser']) or explicit require(['dojox
 }
 }
 }
+var _6=this;
 if(this._parser){
-this._containedWidgets=this._parser.parse(this.srcNodeRef,{template:true,inherited:{dir:this.dir,lang:this.lang},propsThis:this,scope:"dojo"});
+return _3(this._parser.parse(this.srcNodeRef,{template:true,inherited:{dir:this.dir,lang:this.lang},propsThis:this,scope:"dojo"}),function(_7){
+_6._containedWidgets=_7;
+});
 }
 },_destroyBody:function(){
 if(this._containedWidgets&&this._containedWidgets.length>0){
@@ -26,20 +29,20 @@ w.destroy();
 }
 }
 }
-},_exprRepl:function(_5){
-var _6=this,_7=function(_8,_9){
-if(!_8){
+},_exprRepl:function(_8){
+var _9=this,_a=function(_b,_c){
+if(!_b){
 return "";
 }
-var _a=_8.substr(2);
-_a=_a.substr(0,_a.length-1);
-with(_6){
-return eval(_a);
+var _d=_b.substr(2);
+_d=_d.substr(0,_d.length-1);
+with(_9){
+return eval(_d);
 }
 };
-_7=_2.hitch(this,_7);
-return _5.replace(new RegExp(_4.escapeString(this.exprchar)+"({.*?})","g"),function(_b,_c,_d){
-return _7(_b,_c).toString();
+_a=_2.hitch(this,_a);
+return _8.replace(new RegExp(_5.escapeString(this.exprchar)+"({.*?})","g"),function(_e,_f,_10){
+return _a(_e,_f).toString();
 });
 }});
 });

@@ -29,6 +29,7 @@
 SET(HEADERS
   errmsg.h
   my_command.h
+  my_compress.h
   my_list.h
   mysql.h
   mysql_com.h
@@ -43,8 +44,15 @@ SET(HEADERS_MYSQL_DIR
   mysql/udf_registration_types.h
 )
 
-INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
-INSTALL(FILES ${HEADERS_MYSQL_DIR} DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development)
+INSTALL(FILES ${HEADERS}
+  DESTINATION ${INSTALL_INCLUDEDIR}
+  COMPONENT Development
+  )
+
+INSTALL(FILES ${HEADERS_MYSQL_DIR}
+  DESTINATION ${INSTALL_INCLUDEDIR}/mysql
+  COMPONENT Development
+  )
 
 # openssl/applink.c must be built into applications linking with libmysql.dll
 IF (WIN32 AND OPENSSL_APPLINK_C)

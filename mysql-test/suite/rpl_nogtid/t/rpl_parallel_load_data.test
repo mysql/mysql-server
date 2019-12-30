@@ -4,6 +4,7 @@
 
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
 
 let $max_workers= 4;

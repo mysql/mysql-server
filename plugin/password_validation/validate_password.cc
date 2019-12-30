@@ -511,7 +511,8 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
 static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                               SYS_VAR *var MY_ATTRIBUTE((unused)),
                               void *var_ptr, const void *save) {
-  *(const char **)var_ptr = *(const char **)save;
+  *static_cast<const char **>(var_ptr) =
+      *static_cast<const char **>(const_cast<void *>(save));
   read_dictionary_file();
 }
 
@@ -526,7 +527,7 @@ static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                           SYS_VAR *var MY_ATTRIBUTE((unused)), void *var_ptr,
                           const void *save) {
   /* check if there is an actual change */
-  if (*((int *)var_ptr) == *((int *)save)) return;
+  if (*static_cast<int *>(var_ptr) == *static_cast<const int *>(save)) return;
 
   /*
     set new value for system variable.
@@ -535,7 +536,7 @@ static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
     to the location at which corresponding static variable is
     declared in this file.
   */
-  *((int *)var_ptr) = *((int *)save);
+  *static_cast<int *>(var_ptr) = *static_cast<const int *>(save);
 
   readjust_validate_password_length();
 }

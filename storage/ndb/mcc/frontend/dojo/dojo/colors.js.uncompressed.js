@@ -1,21 +1,18 @@
-//>>built
-define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_base/array"], function(dojo, lang, Color, ArrayUtil) {
+define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_base/array"], function(dojo, lang, Color, ArrayUtil){
 	// module:
 	//		dojo/colors
-	// summary:
-	//		TODOC
 
-	var ColorExt = lang.getObject("dojo.colors", true);
+	/*=====
+	return {
+		// summary:
+		//		Color utilities, extending Base dojo.Color
+	};
+	=====*/
+
+	var ColorExt = {};
+	lang.setObject("dojo.colors", ColorExt);
 
 //TODO: this module appears to break naming conventions
-
-/*=====
-	lang.mixin(dojo, {
-		colors: {
-			// summary: Color utilities, extending Base dojo.Color
-		}
-	});
-=====*/
 
 	// this is a standard conversion prescribed by the CSS3 Color Module
 	var hue2rgb = function(m1, m2, h){
@@ -28,7 +25,7 @@ define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_ba
 		return m1;
 	};
 	// Override base Color.fromRgb with the impl in this module
-	dojo.colorFromRgb = Color.fromRgb = function(/*String*/ color, /*dojo.Color?*/ obj){
+	dojo.colorFromRgb = Color.fromRgb = function(/*String*/ color, /*dojo/_base/Color?*/ obj){
 		// summary:
 		//		get rgb(a) array from css-style color declarations
 		// description:
@@ -45,9 +42,9 @@ define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_ba
 						return parseFloat(x) * 2.56;
 					});
 					if(l == 4){ a[3] = c[3]; }
-					return Color.fromArray(a, obj); // dojo.Color
+					return Color.fromArray(a, obj); // dojo/_base/Color
 				}
-				return Color.fromArray(c, obj); // dojo.Color
+				return Color.fromArray(c, obj); // dojo/_base/Color
 			}
 			if((t == "hsl" && l == 3) || (t == "hsla" && l == 4)){
 				// normalize hsl values
@@ -65,10 +62,10 @@ define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_ba
 					1
 				];
 				if(l == 4){ a[3] = c[3]; }
-				return Color.fromArray(a, obj); // dojo.Color
+				return Color.fromArray(a, obj); // dojo/_base/Color
 			}
 		}
-		return null;	// dojo.Color
+		return null;	// dojo/_base/Color
 	};
 
 	var confine = function(c, low, high){
@@ -80,18 +77,20 @@ define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_ba
 	};
 
 	Color.prototype.sanitize = function(){
-		// summary: makes sure that the object has correct attributes
+		// summary:
+		//		makes sure that the object has correct attributes
 		var t = this;
 		t.r = Math.round(confine(t.r, 0, 255));
 		t.g = Math.round(confine(t.g, 0, 255));
 		t.b = Math.round(confine(t.b, 0, 255));
 		t.a = confine(t.a, 0, 1);
-		return this;	// dojo.Color
+		return this;	// dojo/_base/Color
 	};
 
 	ColorExt.makeGrey = Color.makeGrey = function(/*Number*/ g, /*Number?*/ a){
-		// summary: creates a greyscale color with an optional alpha
-		return Color.fromArray([g, g, g, a]);	// dojo.Color
+		// summary:
+		//		creates a greyscale color with an optional alpha
+		return Color.fromArray([g, g, g, a]);	// dojo/_base/Color
 	};
 
 	// mixin all CSS3 named colors not already in _base, along with SVG 1.0 variant spellings
@@ -229,5 +228,5 @@ define("dojo/colors", ["./_base/kernel", "./_base/lang", "./_base/Color", "./_ba
 		"yellowgreen":	[154,205,50]
 	});
 
-	return Color;
+	return Color;	// TODO: return ColorExt, not Color
 });

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   size_t nchars;
   uint dummy_errors;
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
 
   switch (level) {
     case INFORMATION_LEVEL:
@@ -110,17 +110,17 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   }
 
   // Message successfully written to the event log.
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   // map error appropriately
   my_osmaperr(GetLastError());
-  DBUG_RETURN(-1);
+  return -1;
 
 #else
   int _level = LOG_INFO;
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
 
   switch (level) {
     case INFORMATION_LEVEL:
@@ -138,7 +138,7 @@ err:
   }
 
   syslog(_level, "%s", msg);
-  DBUG_RETURN(0);
+  return 0;
 
 #endif /* _WIN32 */
 }
@@ -178,10 +178,10 @@ static int windows_eventlog_create_registry_entry(const char *key) {
 
   int ret = 0;
 
-  DBUG_ENTER("my_syslog");
+  DBUG_TRACE;
 
   if ((buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
-    DBUG_RETURN(-1);
+    return -1;
 
   snprintf(buff, l, "%s%s", registry_prefix, key);
 
@@ -202,7 +202,7 @@ static int windows_eventlog_create_registry_entry(const char *key) {
                         "logging for that application.",
                         MYF(0));
     }
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   /* Name of the PE module that contains the message resource */
@@ -222,7 +222,7 @@ static int windows_eventlog_create_registry_entry(const char *key) {
 
   RegCloseKey(hRegKey);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 #endif
 
@@ -245,30 +245,30 @@ int my_openlog(const char *name, int option, int facility) {
 #ifndef _WIN32
   int opts = (option & MY_SYSLOG_PIDS) ? LOG_PID : 0;
 
-  DBUG_ENTER("my_openlog");
+  DBUG_TRACE;
   openlog(name, opts | LOG_NDELAY, facility);
 
 #else
 
   HANDLE hEL_new;
 
-  DBUG_ENTER("my_openlog");
+  DBUG_TRACE;
 
   // OOM failsafe.  Not needed for syslog.
-  if (name == NULL) DBUG_RETURN(-1);
+  if (name == NULL) return -1;
 
   if ((windows_eventlog_create_registry_entry(name) != 0) ||
       !(hEL_new = RegisterEventSource(NULL, name))) {
     // map error appropriately
     my_osmaperr(GetLastError());
-    DBUG_RETURN((hEventLog == NULL) ? -1 : -2);
+    return (hEventLog == NULL) ? -1 : -2;
   } else {
     if (hEventLog != NULL) DeregisterEventSource(hEventLog);
     hEventLog = hEL_new;
   }
 #endif
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -282,20 +282,20 @@ int my_openlog(const char *name, int option, int facility) {
     -1 Error
 */
 int my_closelog(void) {
-  DBUG_ENTER("my_closelog");
+  DBUG_TRACE;
 #ifndef _WIN32
   closelog();
-  DBUG_RETURN(0);
+  return 0;
 #else
   if ((hEventLog != NULL) && (!DeregisterEventSource(hEventLog))) goto err;
 
   hEventLog = NULL;
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   hEventLog = NULL;
   // map error appropriately
   my_osmaperr(GetLastError());
-  DBUG_RETURN(-1);
+  return -1;
 #endif
 }

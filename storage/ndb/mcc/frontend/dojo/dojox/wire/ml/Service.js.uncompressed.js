@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/Service", ["dijit","dojo","dojox","dojo/require!dijit/_Widget,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/Service", ["dojo","dijit","dojox","dojo/require!dijit/_Widget,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.Service");
 
 dojo.require("dijit._Widget");
@@ -9,31 +8,36 @@ dojo.require("dojox.wire._base");
 dojo.require("dojox.wire.ml.util");
 
 dojo.declare("dojox.wire.ml.Service", dijit._Widget, {
-	//	summary:
+	// summary:
 	//		A widget for a service
-	//	description:
+	// description:
 	//		This widget represents a service defined by a service description
 	//		specified with 'url' attribute.
 	//		If 'serviceType' and 'serviceUrl' attributes are specified, 'url'
 	//		attribute can be omitted.
-	//	url:
+
+	// url:
 	//		A URL to a service description
-	//	serviceUrl:
-	//		A URL to a service
-	//	serviceType:
-	//		A service type
-	//	handlerClass:
-	//		A service handler class name
 	url: "",
+
+	// serviceUrl:
+	//		A URL to a service
 	serviceUrl: "",
+
+	// serviceType:
+	//		A service type
 	serviceType: "",
+
+	// handlerClass:
+	//		A service handler class name
 	handlerClass: "",
+
 	preventCache: true,
 
 	postCreate: function(){
-		//	summary:
+		// summary:
 		//		Call _createHandler()
-		//	description:
+		// description:
 		//		See _createHandler().
 		this.handler = this._createHandler();
 	},
@@ -46,14 +50,15 @@ dojo.declare("dojox.wire.ml.Service", dijit._Widget, {
 	},
 
 	_createHandler: function(){
-		//	summary:
+		// summary:
 		//		Create a service handler
-		//	desription:
+		// description:
 		//		A service handler class is determined by:
+		//
 		//		1. 'handlerClass' attribute
 		//		2. 'serviceType' attribute
 		//		3. 'serviceType' property in a service description
-		//	returns:
+		// returns:
 		//		A service handler
 		if(this.url){
 			var self = this;
@@ -92,11 +97,11 @@ dojo.declare("dojox.wire.ml.Service", dijit._Widget, {
 	},
 
 	callMethod: function(method, parameters){
-		//	summary:
+		// summary:
 		//		Call a service method with parameters
-		//	method:
+		// method:
 		//		A method name
-		//	parameters:
+		// parameters:
 		//		An array parameters
 		var deferred = new dojo.Deferred();
 		this.handler.bind(method, parameters, deferred, this.serviceUrl);

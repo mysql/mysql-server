@@ -67,6 +67,8 @@ CREATE TABLE t1 (a INT);
 SELECT @@GLOBAL.GTID_EXECUTED;
 @@GLOBAL.GTID_EXECUTED
 aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1
+SET GTID_NEXT = 'AUTOMATIC';
+FLUSH LOGS;
 include/assert_grep.inc [Found the expected warning "The transaction owned GTID is already in the gtid_executed table, which is caused by an explicit modifying from user client" in slave's error log.]
 SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
 DROP TABLE t1;

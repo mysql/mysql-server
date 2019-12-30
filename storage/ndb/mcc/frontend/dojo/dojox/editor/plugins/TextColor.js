@@ -1,9 +1,9 @@
 //>>built
-define("dojox/editor/plugins/TextColor",["dojo","dijit","dojox","dijit/_base/popup","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dijit/TooltipDialog","dijit/form/Button","dijit/form/DropDownButton","dijit/_editor/_Plugin","dojox/widget/ColorPicker","dojo/_base/connect","dojo/_base/declare","dojo/i18n","dojo/i18n!dojox/editor/plugins/nls/TextColor"],function(_1,_2,_3){
+define("dojox/editor/plugins/TextColor",["dojo","dijit","dojox","dijit/_base/popup","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dijit/_editor/_Plugin","dijit/TooltipDialog","dijit/form/Button","dijit/form/DropDownButton","dojox/widget/ColorPicker","dojo/_base/connect","dojo/_base/declare","dojo/i18n","dojo/i18n!dojox/editor/plugins/nls/TextColor"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 _1.experimental("dojox.editor.plugins.TextColor");
-_1.declare("dojox.editor.plugins._TextColorDropDown",[_2._Widget,_2._TemplatedMixin,_2._WidgetsInTemplateMixin],{templateString:"<div style='display: none; position: absolute; top: -10000; z-index: -10000'>"+"<div dojoType='dijit.TooltipDialog' dojoAttachPoint='dialog' class='dojoxEditorColorPicker'>"+"<div dojoType='dojox.widget.ColorPicker' dojoAttachPoint='_colorPicker'></div>"+"<br>"+"<center>"+"<button dojoType='dijit.form.Button' type='button' dojoAttachPoint='_setButton'>${setButtonText}</button>"+"&nbsp;"+"<button dojoType='dijit.form.Button' type='button' dojoAttachPoint='_cancelButton'>${cancelButtonText}</button>"+"</center>"+"</div>"+"</div>",widgetsInTemplate:true,constructor:function(){
-var _4=_1.i18n.getLocalization("dojox.editor.plugins","TextColor");
-_1.mixin(this,_4);
+_1.declare("dojox.editor.plugins._TextColorDropDown",[_5,_6,_7],{templateString:"<div style='display: none; position: absolute; top: -10000; z-index: -10000'>"+"<div dojoType='dijit.TooltipDialog' dojoAttachPoint='dialog' class='dojoxEditorColorPicker'>"+"<div dojoType='dojox.widget.ColorPicker' dojoAttachPoint='_colorPicker'></div>"+"<br>"+"<center>"+"<button dojoType='dijit.form.Button' type='button' dojoAttachPoint='_setButton'>${setButtonText}</button>"+"&nbsp;"+"<button dojoType='dijit.form.Button' type='button' dojoAttachPoint='_cancelButton'>${cancelButtonText}</button>"+"</center>"+"</div>"+"</div>",widgetsInTemplate:true,constructor:function(){
+var _9=_1.i18n.getLocalization("dojox.editor.plugins","TextColor");
+_1.mixin(this,_9);
 },startup:function(){
 if(!this._started){
 this.inherited(arguments);
@@ -16,61 +16,61 @@ this.onCancel();
 }));
 _1.style(this.domNode,"display","block");
 }
-},_setValueAttr:function(_5,_6){
-this._colorPicker.set("value",_5,_6);
+},_setValueAttr:function(_a,_b){
+this._colorPicker.set("value",_a,_b);
 },_getValueAttr:function(){
 return this._colorPicker.get("value");
-},onChange:function(_7){
+},onChange:function(_c){
 },onCancel:function(){
 }});
-_1.declare("dojox.editor.plugins.TextColor",_2._editor._Plugin,{buttonClass:_2.form.DropDownButton,useDefaultCommand:false,constructor:function(){
+_1.declare("dojox.editor.plugins.TextColor",_8,{buttonClass:_2.form.DropDownButton,useDefaultCommand:false,constructor:function(){
 this._picker=new _3.editor.plugins._TextColorDropDown();
 _1.body().appendChild(this._picker.domNode);
 this._picker.startup();
 this.dropDown=this._picker.dialog;
-this.connect(this._picker,"onChange",function(_8){
-this.editor.execCommand(this.command,_8);
+this.connect(this._picker,"onChange",function(_d){
+this.editor.execCommand(this.command,_d);
 });
 this.connect(this._picker,"onCancel",function(){
 this.editor.focus();
 });
 },updateState:function(){
-var _9=this.editor;
-var _a=this.command;
-if(!_9||!_9.isLoaded||!_a.length){
+var _e=this.editor;
+var _f=this.command;
+if(!_e||!_e.isLoaded||!_f.length){
 return;
 }
-var _b=this.get("disabled");
-var _c;
+var _10=this.get("disabled");
+var _11;
 if(this.button){
-this.button.set("disabled",_b);
-if(_b){
+this.button.set("disabled",_10);
+if(_10){
 return;
 }
 try{
-_c=_9.queryCommandValue(_a)||"";
+_11=_e.queryCommandValue(_f)||"";
 }
 catch(e){
-_c="";
+_11="";
 }
 }
-if(_c==""){
-_c="#000000";
+if(_11==""){
+_11="#000000";
 }
-if(_c=="transparent"){
-_c="#ffffff";
+if(_11=="transparent"){
+_11="#ffffff";
 }
-if(typeof _c=="string"){
-if(_c.indexOf("rgb")>-1){
-_c=_1.colorFromRgb(_c).toHex();
+if(typeof _11=="string"){
+if(_11.indexOf("rgb")>-1){
+_11=_1.colorFromRgb(_11).toHex();
 }
 }else{
-_c=((_c&255)<<16)|(_c&65280)|((_c&16711680)>>>16);
-_c=_c.toString(16);
-_c="#000000".slice(0,7-_c.length)+_c;
+_11=((_11&255)<<16)|(_11&65280)|((_11&16711680)>>>16);
+_11=_11.toString(16);
+_11="#000000".slice(0,7-_11.length)+_11;
 }
-if(_c!==this._picker.get("value")){
-this._picker.set("value",_c,false);
+if(_11!==this._picker.get("value")){
+this._picker.set("value",_11,false);
 }
 },destroy:function(){
 this.inherited(arguments);

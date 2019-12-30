@@ -58,7 +58,7 @@ ngs::Error_code Crud_command_handler::execute(
     return error;
   }
   log_debug("CRUD query: %s", m_qb.get().c_str());
-  ngs::Error_code error = m_session->data_context().execute(
+  ngs::Error_code error = m_session->data_context().execute_sql(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
   notice_handling(resultset.get_info(), builder, msg);
@@ -81,7 +81,7 @@ void Crud_command_handler::notice_handling_common(
     notices::send_warnings(m_session->data_context(), m_session->proto());
 
   if (!info.message.empty())
-    notices::send_message(m_session->proto(), info.message);
+    m_session->proto().send_notice_txt_message(info.message);
 }
 
 namespace {
@@ -142,14 +142,13 @@ void Crud_command_handler::notice_handling(
     const Insert_statement_builder &builder,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(info);
-  notices::send_rows_affected(m_session->proto(), info.affected_rows);
+  m_session->proto().send_notice_rows_affected(info.affected_rows);
   if (is_table_data_model(msg)) {
     if (info.last_insert_id > 0)
-      notices::send_generated_insert_id(m_session->proto(),
-                                        info.last_insert_id);
+      m_session->proto().send_notice_last_insert_id(info.last_insert_id);
   } else {
-    notices::send_generated_document_ids(
-        m_session->proto(), m_session->get_document_id_aggregator().get_ids());
+    m_session->proto().send_notice_generated_document_ids(
+        m_session->get_document_id_aggregator().get_ids());
   }
 }
 
@@ -188,7 +187,7 @@ void Crud_command_handler::notice_handling(
     const Update_statement_builder & /*builder*/,
     const Mysqlx::Crud::Update & /*msg*/) const {
   notice_handling_common(info);
-  notices::send_rows_affected(m_session->proto(), info.affected_rows);
+  m_session->proto().send_notice_rows_affected(info.affected_rows);
 }
 
 // -- Delete
@@ -208,7 +207,7 @@ void Crud_command_handler::notice_handling(
     const Delete_statement_builder & /*builder*/,
     const Mysqlx::Crud::Delete & /*msg*/) const {
   notice_handling_common(info);
-  notices::send_rows_affected(m_session->proto(), info.affected_rows);
+  m_session->proto().send_notice_rows_affected(info.affected_rows);
 }
 
 // -- Find

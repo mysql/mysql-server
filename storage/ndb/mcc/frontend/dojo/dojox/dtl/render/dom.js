@@ -19,7 +19,9 @@ if(!_b){
 throw new Error("Rendered template does not have a root node");
 }
 if(this.domNode!==_b){
+if(this.domNode.parentNode){
 this.domNode.parentNode.replaceChild(_b,this.domNode);
+}
 this.domNode=_b;
 }
 }});

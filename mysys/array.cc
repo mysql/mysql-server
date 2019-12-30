@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@
 bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
                            uint element_size, void *init_buffer,
                            uint init_alloc, uint alloc_increment) {
-  DBUG_ENTER("my_init_dynamic_array");
+  DBUG_TRACE;
   if (!alloc_increment) {
     alloc_increment = MY_MAX((8192 - MALLOC_OVERHEAD) / element_size, 16);
     if (init_alloc > 8 && alloc_increment > init_alloc * 2)
@@ -82,7 +82,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
   array->alloc_increment = alloc_increment;
   array->size_of_element = element_size;
   array->m_psi_key = psi_key;
-  if ((array->buffer = static_cast<uchar *>(init_buffer))) DBUG_RETURN(false);
+  if ((array->buffer = static_cast<uchar *>(init_buffer))) return false;
   /*
     Since the dynamic array is usable even if allocation fails here malloc
     should not throw an error
@@ -90,7 +90,7 @@ bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key psi_key,
   if (!(array->buffer =
             (uchar *)my_malloc(psi_key, element_size * init_alloc, MYF(0))))
     array->max_element = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*

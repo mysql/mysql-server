@@ -1,7 +1,7 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/lang/observable"],function(_1,_2,_3){
-_2.provide("dojox.secure.DOM");
-_2.require("dojox.lang.observable");
+define("dojox/secure/DOM",["dojo","dijit","dojox","dojo/require!dojox/lang/observable"],function(_1,_2,_3){
+_1.provide("dojox.secure.DOM");
+_1.require("dojox.lang.observable");
 _3.secure.DOM=function(_4){
 function _5(_6){
 if(!_6){
@@ -89,7 +89,7 @@ if(el.tagName.match(/script/i)){
 var src=el.src;
 if(src&&src!=""){
 el.parentNode.removeChild(el);
-_2.xhrGet({url:src,secure:true}).addCallback(function(_13){
+_1.xhrGet({url:src,secure:true}).addCallback(function(_13){
 _d.evaluate(_13);
 });
 }else{
@@ -118,7 +118,7 @@ src=el.src;
 if(src&&src!=""){
 alert("src"+src);
 el.src=null;
-_2.xhrGet({url:src,secure:true}).addCallback(function(_18){
+_1.xhrGet({url:src,secure:true}).addCallback(function(_18){
 _15(_10(_18));
 });
 }
@@ -184,7 +184,7 @@ return _27[_25](_28[0]);
 var _29={appendChild:_24("appendChild",0),insertBefore:_24("insertBefore",0),replaceChild:_24("replaceChild",1),cloneNode:function(_2a,_2b){
 return _2a.cloneNode(_2b[0]);
 },addEventListener:function(_2c,_2d){
-_2.connect(_2c,"on"+_2d[0],this,function(_2e){
+_1.connect(_2c,"on"+_2d[0],this,function(_2e){
 _2e=_b(_2e||window.event);
 _2d[1].call(this,_2e);
 });

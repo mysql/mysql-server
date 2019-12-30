@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,30 +20,32 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (REPLICATION_SOURCES
-     statement_events.cpp
-     control_events.cpp
-     load_data_events.cpp
-     rows_event.cpp
-     binlog_event.cpp
-     binary_log_funcs.cpp
-     uuid.cpp
-     event_reader.cpp
-    )
+SET(REPLICATION_SOURCES
+  binary_log_funcs.cpp
+  binlog_event.cpp
+  control_events.cpp
+  event_reader.cpp
+  load_data_events.cpp
+  rows_event.cpp
+  statement_events.cpp
+  uuid.cpp
+  )
 
 # Configure for building static library
-ADD_CONVENIENCE_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
+ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
 
 IF(STANDALONE_BINLOG)
   TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES})
 ELSE()
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
+  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys)
   ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 
-SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
-                      OUTPUT_NAME "binlogevents")
+SET_TARGET_PROPERTIES(binlogevents_static
+  PROPERTIES OUTPUT_NAME "binlogevents"
+  )
 
-SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
-  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
-
+SET_TARGET_PROPERTIES(binlogevents_static
+  PROPERTIES
+  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib
+  )

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include <stddef.h>
 #ifdef HAVE_SYS_SOCKET_H
@@ -71,6 +72,7 @@ void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
 
 void pfs_set_socket_thread_owner_v1(PSI_socket *socket);
 
+#endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_SOCKET_INTERFACE */

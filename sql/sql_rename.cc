@@ -154,7 +154,7 @@ static void find_and_set_explicit_duration_for_schema_mdl(
 
 bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
   TABLE_LIST *ren_table = 0;
-  DBUG_ENTER("mysql_rename_tables");
+  DBUG_TRACE;
 
   mysql_ha_rm_tables(thd, table_list);
 
@@ -202,7 +202,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            DBUG_RETURN(true);
+            return true;
           }
         } else {
           if (to_table) {
@@ -212,7 +212,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
             */
             my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), ren_table->table_name,
                      ren_table->table_name);
-            DBUG_RETURN(true);
+            return true;
           } else {
             /* save the name of the log table to report an error */
             rename_log_table[log_table_rename] = ren_table->table_name;
@@ -227,7 +227,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
       else
         my_error(ER_CANT_RENAME_LOG_TABLE, MYF(0), rename_log_table[1],
                  rename_log_table[1]);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -271,7 +271,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
       if (new_name_it == new_names.end()) {
         if (check_if_owns_upgradable_mdl(thd, ren_table->db,
                                          ren_table->table_name))
-          DBUG_RETURN(true);
+          return true;
       } else {
         new_names.erase(new_name_it);
       }
@@ -289,7 +289,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
   if (lock_table_names(thd, table_list, 0, thd->variables.lock_wait_timeout, 0,
                        &schema_reqs) ||
       lock_trigger_names(thd, table_list))
-    DBUG_RETURN(true);
+    return true;
 
   const dd::Table *table_def = nullptr;
   TABLE_LIST *table;
@@ -300,7 +300,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     }
     if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE) {
       my_error(ER_NO_SUCH_TABLE, MYF(0), table->db, table->table_name);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -501,7 +501,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
 
   if (!error) my_ok(thd);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -557,7 +557,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
   const char *new_alias = new_table_name;
   const char *old_alias = ren_table->table_name;
 
-  DBUG_ENTER("do_rename");
+  DBUG_TRACE;
 
   if (lower_case_table_names == 2) {
     old_alias = ren_table->alias;
@@ -576,26 +576,26 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       thd->dd_client()->acquire(new_db, new_alias, &to_table) ||
       thd->dd_client()->acquire_for_modification(
           ren_table->db, ren_table->table_name, &from_at))
-    DBUG_RETURN(true);
+    return true;
 
   if (to_table != nullptr) {
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (from_schema == nullptr) {
     my_error(ER_BAD_DB_ERROR, MYF(0), ren_table->db);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (to_schema == nullptr) {
     my_error(ER_BAD_DB_ERROR, MYF(0), new_db);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (from_at == nullptr) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // So here we know the source table exists and the target table does
@@ -605,14 +605,14 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       handlerton *hton = NULL;
       dd::Table *from_table = dynamic_cast<dd::Table *>(from_at);
       // If the engine is not found, my_error() has already been called
-      if (dd::table_storage_engine(thd, from_table, &hton)) DBUG_RETURN(true);
+      if (dd::table_storage_engine(thd, from_table, &hton)) return true;
 
       if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && (hton->post_ddl))
         post_ddl_htons->insert(hton);
 
       if (check_table_triggers_are_not_in_the_same_schema(ren_table->db,
                                                           *from_table, new_db))
-        DBUG_RETURN(true);
+        return true;
 
       // The below code assumes that only SE capable of atomic DDL support FK.
       DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
@@ -633,7 +633,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       dd::Encrypt_result new_er =
           dd::is_tablespace_encrypted(thd, *from_table, &is_general_tablespace);
       if (new_er.error) {
-        DBUG_RETURN(true);
+        return true;
       }
       is_table_encrypted = new_er.value;
       if (!is_general_tablespace &&
@@ -654,13 +654,12 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         if (opt_table_encryption_privilege_check) {
           if (check_table_encryption_admin_access(thd)) {
             my_error(ER_CANNOT_SET_TABLE_ENCRYPTION, MYF(0));
-            DBUG_RETURN(true);
+            return true;
           }
         } else if (to_schema->default_encryption() && !is_table_encrypted) {
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
-              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                       ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
         }
       }
 
@@ -702,7 +701,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
                                   &orphans_mdl_requests)) {
             // See explanation for clearing foreign key invalidator below.
             fk_invalidator->clear();
-            DBUG_RETURN(true);
+            return true;
           }
 
           MDL_request_list::Iterator it(orphans_mdl_requests);
@@ -715,7 +714,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
                                              mdl_request->key.name())) {
               // See explanation for clearing foreign key invalidator below.
               fk_invalidator->clear();
-              DBUG_RETURN(true);
+              return true;
             }
           }
         }
@@ -734,13 +733,13 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
             happen. So it is safe to clear invalidator.
           */
           fk_invalidator->clear();
-          DBUG_RETURN(true);
+          return true;
         }
       }
 
       if (lock_check_constraint_names_for_rename(thd, ren_table->db, old_alias,
                                                  from_table, new_db, new_alias))
-        DBUG_RETURN(true);
+        return true;
 
       /*
         We commit changes to data-dictionary immediately after renaming
@@ -779,7 +778,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           */
           fk_invalidator->clear();
         }
-        DBUG_RETURN(true);
+        return true;
       }
 
       /*
@@ -795,7 +794,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
             step of non-atomic RENAME TABLE.
           */
           fk_invalidator->clear();
-          DBUG_RETURN(true);
+          return true;
         }
       }
 
@@ -827,7 +826,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db)) {
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, new_db);
-        DBUG_RETURN(true);
+        return true;
       }
 
       /* Rename view in the data-dictionary. */
@@ -843,11 +842,11 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           // Full rollback in case we have THD::transaction_rollback_request.
           trans_rollback(thd);
         }
-        DBUG_RETURN(true);
+        return true;
       }
 
       if (*int_commit_done) {
-        if (trans_commit_stmt(thd) || trans_commit(thd)) DBUG_RETURN(true);
+        if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
       }
 
       sp_cache_invalidate();
@@ -861,7 +860,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
   thd->add_to_binlog_accessed_dbs(ren_table->db);
   thd->add_to_binlog_accessed_dbs(new_db);
 
-  DBUG_RETURN(false);
+  return false;
 }
 /*
   Rename all tables in list;
@@ -902,14 +901,14 @@ static TABLE_LIST *rename_tables(
 {
   TABLE_LIST *ren_table, *new_table;
 
-  DBUG_ENTER("rename_tables");
+  DBUG_TRACE;
 
   for (ren_table = table_list; ren_table; ren_table = new_table->next_local) {
     new_table = ren_table->next_local;
     if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
                   new_table->alias, int_commit_done, post_ddl_htons,
                   fk_invalidator))
-      DBUG_RETURN(ren_table);
+      return ren_table;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

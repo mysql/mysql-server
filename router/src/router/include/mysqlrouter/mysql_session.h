@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,6 @@
 #ifndef _ROUTER_MYSQL_SESSION_H_
 #define _ROUTER_MYSQL_SESSION_H_
 
-#include "mysqlrouter/log_filter.h"
-
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -35,6 +33,7 @@
 
 #include <mysql.h>  // enum mysql_ssl_mode
 
+#include "mysqlrouter/log_filter.h"
 #ifdef FRIEND_TEST
 class MockMySQLSession;
 #endif
@@ -101,11 +100,12 @@ class MySQLSession {
 
   class ResultRow {
    public:
+    ResultRow(Row row) : row_{std::move(row)} {}
     virtual ~ResultRow() {}
     size_t size() const { return row_.size(); }
-    const char *operator[](size_t i) { return row_[i]; }
+    const char *&operator[](size_t i) { return row_[i]; }
 
-   protected:
+   private:
     Row row_;
   };
 
@@ -137,7 +137,8 @@ class MySQLSession {
   virtual void query(
       const std::string &query,
       const RowProcessor &processor);  // throws Error, std::logic_error
-  virtual ResultRow *query_one(const std::string &query);  // throws Error
+  virtual std::unique_ptr<ResultRow> query_one(
+      const std::string &query);  // throws Error
 
   virtual uint64_t last_insert_id() noexcept;
 

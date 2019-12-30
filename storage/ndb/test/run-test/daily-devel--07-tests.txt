@@ -172,11 +172,11 @@ cmd: testNdbApi
 args: -n NdbClusterConnectNR_slow_nostart T1
 max-time: 1800
 
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n ConsistencyUnderLoad T1
 max-time: 360
 
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
 max-time: 1200
 
@@ -207,4 +207,8 @@ max-time: 180
 cmd: testDict
 args: -n CreateManyDataFiles T1
 max-time: 360
+
+cmd: testNdbApi
+args: -n PkLockingReadNoWait T1
+max-time:30
 

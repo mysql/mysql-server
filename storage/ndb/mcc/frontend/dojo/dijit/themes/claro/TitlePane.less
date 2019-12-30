@@ -22,14 +22,10 @@
 
 .claro .dijitTitlePaneTitle {
 	background-color: @unselected-background-color;	// TODO: Mailed Jason, shouldn't this toggle to @selected-background-color when pane opened?
-	background-image: url(@image-titlebar);
-	background-repeat:repeat-x;
+	.standard-gradient;
 	border:1px solid @border-color;
 	padding: 0 7px 3px 7px;
 	min-height:17px;
-}
-.dj_ie6 .claro .dijitTitlePaneTitle {
-	background-image: none;
 }
 .claro .dijitTitlePaneTitleHover {
 	background-color: @hovered-background-color;
@@ -38,7 +34,7 @@
 .claro .dijitTitlePaneTitleActive {
 	background-color: @pressed-background-color;
 	border-color: @pressed-border-color;
-	background-position:0 -136px;
+	.active-gradient;
 }
 .claro .dijitTitlePaneTitleFocus {
 	margin-top:3px;

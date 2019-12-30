@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"setButtonText": "เซ็ต",
-	"cancelButtonText": "ยกเลิก"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/th/TextColor",({"setButtonText":"เซ็ต","cancelButtonText":"ยกเลิก"}));

@@ -1,13 +1,7 @@
-//>>built
 define("dojox/validate/check", ["dojo/_base/kernel", "dojo/_base/lang", "./_base"], 
  function(kernel, lang, validate){
 kernel.experimental("dojox.validate.check");
 
-/*=====
-
-	validate = dojox.validate;
-
-=====*/
 /**
 	FIXME: How much does this overlap with dojox.form.Manager and friends?
 
@@ -76,15 +70,16 @@ kernel.experimental("dojox.validate.check");
 */
 
 validate.check = function(/*HTMLFormElement*/form, /*Object*/profile){
-	// summary: validates user input of an HTML form based on input profile
-	//
+	// summary:
+	//		validates user input of an HTML form based on input profile
 	// description:
-	//	returns an object that contains several methods summarizing the results of the validation
-	//
-	// form: form to be validated
-	// profile: specifies how the form fields are to be validated
-	// {trim:Array, uppercase:Array, lowercase:Array, ucfirst:Array, digit:Array,
-	//	required:Array, dependencies:Object, constraints:Object, confirm:Object}
+	//		returns an object that contains several methods summarizing the results of the validation
+	// form:
+	//		form to be validated
+	// profile:
+	//		specifies how the form fields are to be validated
+	//		{trim:Array, uppercase:Array, lowercase:Array, ucfirst:Array, digit:Array,
+	//		required:Array, dependencies:Object, constraints:Object, confirm:Object}
 
 	// Essentially private properties of results object
 	var missing = [];
@@ -301,24 +296,27 @@ validate.check = function(/*HTMLFormElement*/form, /*Object*/profile){
 //TODO: evaluateConstraint doesn't use profile or fieldName args?
 validate.evaluateConstraint=function(profile, /*Array*/constraint, fieldName, elem){
 	// summary:
-	//	Evaluates dojo.validate.check() constraints that are specified as array
-	//	arguments
+	//		Evaluates dojo.validate.check() constraints that are specified as array
+	//		arguments
+	// description:
+	//		The arrays are expected to be in the format of:
+	//	|    constraints:{
+	//	|            fieldName: [functionToCall, param1, param2, etc.],
+	//	|            fieldName: [[functionToCallFirst, param1],[functionToCallSecond,param2]]
+	//	|    }
 	//
-	// description: The arrays are expected to be in the format of:
-	//      constraints:{
-	//              fieldName: [functionToCall, param1, param2, etc.],
-	//              fieldName: [[functionToCallFirst, param1],[functionToCallSecond,param2]]
-	//      }
+	//		This function evaluates a single array function in the format of:
+	//		[functionName, argument1, argument2, etc]
 	//
-	//  This function evaluates a single array function in the format of:
-	//      [functionName, argument1, argument2, etc]
-	//
-	//  The function will be parsed out and evaluated against the incoming parameters.
-	//
-	// profile: The dojo.validate.check() profile that this evaluation is against.
-	// constraint: The single [] array of function and arguments for the function.
-	// fieldName: The form dom name of the field being validated.
-	// elem: The form element field.
+	//		The function will be parsed out and evaluated against the incoming parameters.
+	// profile:
+	//		The dojo.validate.check() profile that this evaluation is against.
+	// constraint:
+	//		The single [] array of function and arguments for the function.
+	// fieldName:
+	//		The form dom name of the field being validated.
+	// elem:
+	//		The form element field.
 	
  	var isValidSomething = constraint[0];
 	var params = constraint.slice(1);

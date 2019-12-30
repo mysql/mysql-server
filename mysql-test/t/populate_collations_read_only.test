@@ -15,11 +15,6 @@
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---echo # 1.3 Search for the expected warning in the log file.
---let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let SEARCH_PATTERN= Skip re-populating collations and character sets tables in read-only mode.
---source include/search_pattern.inc
-
 --echo # 2. Server restart with --innodb-read-only:
 
 --echo # 2.1 Request shutdown and wait for disconnect.

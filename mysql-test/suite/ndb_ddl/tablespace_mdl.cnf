@@ -1,0 +1,7 @@
+!include suite/ndb_ddl/my.cnf
+
+[mysqld]
+# Reduce the metadata check interval to 5 seconds for the entirety of the
+# test. This increases the frequency of the SHARED MDL taken during
+# metadata change detection]
+ndb_metadata_check_interval = 5

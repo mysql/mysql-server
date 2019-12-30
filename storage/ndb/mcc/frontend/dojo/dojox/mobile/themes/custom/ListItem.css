@@ -31,84 +31,117 @@
 	-webkit-transform: scaleX(0.7) rotate(135deg);
 	border-width: 3px 4px 0px 0px;
 	border-style: solid;
-	border-color: #314E84;
+	border-color: #314e84;
 }
 .mblListItem {
   position: relative;
-  list-style-type: none;
-  vertical-align: bottom;
+  overflow: hidden;
   
-  padding: 0 0 0 8px;
-  height: 50px;
-  border-bottom: 1px solid #b5bcc7;
-  font-size: 18px;
-  font-family: Helvetica;
-  font-weight: normal;
-  text-shadow: none;
-  color: #131313;
-  line-height: 50px;
+  padding: 0 8px;
+  height: 43px;
+  list-style-type: none;
+  line-height: 43px;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+  border-bottom: 1px solid #cccccc;
+  background-color: #ffffff;
+  color: black;
+  font-weight: bold;
 }
 .mblListItem.mblVariableHeight {
+  padding: 11px 8px;
   height: auto;
-  padding: 11px 0px 10px 6px;
   line-height: normal;
 }
-.mblListItem .mblListItemAnchor {
-  display: block;
-  height: 100%;
-  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-  background-position: 9px 7px;
-  text-decoration: none;
-  padding-right: 7px;
+.mblListItemSelected {
+  color: white;
+  background-image: -webkit-gradient(linear, left top, left bottom, from(#bbbbbb), to(#666666));
 }
-.mblListItem .mblListItemAnchor * {
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.2);
-}
-.mblItemSelected {
-  background-color: #5cb0ff;
-  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #ffffff), color-stop(3.3333333333333335%, rgba(255, 255, 255, 0.1)), color-stop(0.5, rgba(255, 255, 255, 0.6)), color-stop(1, rgba(255, 255, 255, 0.3)));
-}
-.mblItemSelected .mblListItemAnchor {
-  color: #000000;
-}
-.mblItemSelected .mblDomButton div {
+.mblListItemSelected .mblDomButton div {
   border-color: white;
 }
-.mblListItemTextBoxSelected {
-  background-color: #5cb0ff;
+.mblListItemLabelSelected {
+  background-color: #048bf4;
 }
 .mblListItemChecked {
-  color: #000000;
+  color: #314e84;
 }
-.mblListItemIcon {
+.mblListItemChecked .mblListItemRightIcon {
+  visibility: visible;
+}
+.mblListItemChecked .mblListItemUncheckIcon {
+  position: absolute;
+  visibility: hidden;
+}
+.mblListItemUnchecked .mblListItemRightIcon {
+  visibility: hidden;
+}
+.mblListItemUnchecked .mblListItemUncheckIcon {
+  visibility: visible;
+}
+.mblListItemDeleteIcon {
+  position: relative;
   float: left;
   line-height: normal;
-  margin-top: 10.5px;
+  margin-top: 7px;
+  margin-bottom: -7px;
   margin-right: 11px;
 }
-.mblListItemSpriteIcon {
-  position: absolute;
-  margin-top: 10.5px;
-  margin-left: 8px;
+.mblListItemIcon {
+  position: relative;
+  float: left;
+  line-height: normal;
+  margin-top: 7px;
+  margin-bottom: -7px;
+  margin-right: 11px;
 }
-.mblListItemRightIcon, .mblListItemRightIcon2 {
+.mblListItemRightIcon, .mblListItemRightIcon2, .mblListItemUncheckIcon {
   position: relative;
   float: right;
   line-height: normal;
-  margin-top: 10.5px;
+  margin-top: 7px;
+  margin-bottom: -7px;
 }
 .mblListItemRightText {
   position: relative;
   float: right;
   line-height: normal;
-  color: #131313;
-  margin: 14px 4px 0 0;
+  margin-right: 4px;
+  color: black;
+  margin-top: 12px;
 }
-.mblListItemTextBox {
+.mblListItemLabel {
+  position: relative;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  height: 100%;
 }
-.mblVariableHeight .mblListItemTextBox {
+.mblVariableHeight .mblListItemLabel {
   white-space: normal;
+}
+.mblListItemSubText {
+  font-size: 14px;
+  color: gray;
+}
+.mblListItemLayoutLeft {
+  position: relative;
+  float: left;
+  margin-right: 11px;
+}
+.mblListItemLayoutCenter {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+}
+.mblListItemLayoutRight {
+  position: relative;
+  float: right;
+}
+.mblListItemFloat {
+  position: absolute;
+  border: 1px solid gray;
+  opacity: 0.5;
+  -webkit-box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+  -webkit-border-radius: 0px !important;
+  -moz-border-radius: 0px !important;
 }

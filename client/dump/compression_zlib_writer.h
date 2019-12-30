@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,8 @@
 #include <sys/types.h>
 #include <zlib.h>
 #include <functional>
+#include <mutex>
 
-#include "client/base/mutex.h"
 #include "client/dump/abstract_output_writer_wrapper.h"
 #include "client/dump/i_output_writer.h"
 #include "my_inttypes.h"
@@ -52,6 +52,7 @@ class Compression_zlib_writer : public I_output_writer,
 
   ~Compression_zlib_writer();
 
+  bool init();
   void append(const std::string &data_to_append);
 
   // Fix "inherits ... via dominance" warnings
@@ -71,8 +72,9 @@ class Compression_zlib_writer : public I_output_writer,
  private:
   void process_buffer(bool flush_stream);
 
-  my_boost::mutex m_zlib_mutex;
+  std::mutex m_zlib_mutex;
   z_stream m_compression_context;
+  uint m_compression_level;
   std::vector<char> m_buffer;
 
   const static int buffer_size = 128 * 1024;

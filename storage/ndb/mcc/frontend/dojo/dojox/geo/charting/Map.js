@@ -1,5 +1,5 @@
 //>>built
-define("dojox/geo/charting/Map",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","dojo/_base/html","dojo/dom","dojo/dom-geometry","dojo/dom-class","dojo/_base/xhr","dojo/_base/connect","dojo/_base/window","dojox/gfx","dojox/geo/charting/_base","dojox/geo/charting/Feature","dojox/geo/charting/_Marker","dojo/number","dojo/_base/sniff"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,has){
+define("dojox/geo/charting/Map",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","dojo/_base/html","dojo/dom","dojo/dom-geometry","dojo/dom-class","dojo/_base/xhr","dojo/_base/connect","dojo/_base/window","dojox/gfx","./_base","./Feature","./_Marker","dojo/number","dojo/_base/sniff"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,_e,_f,has){
 return _3("dojox.geo.charting.Map",null,{defaultColor:"#B7B7B7",highlightColor:"#D5D5D5",series:[],dataBindingAttribute:null,dataBindingValueFunction:null,dataStore:null,showTooltips:true,enableFeatureZoom:true,colorAnimationDuration:0,_idAttributes:null,_onSetListener:null,_onNewListener:null,_onDeleteListener:null,constructor:function(_10,_11){
 _4.style(_10,"display","block");
 this.container=_10;

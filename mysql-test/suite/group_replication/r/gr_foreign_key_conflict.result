@@ -13,6 +13,11 @@ INSERT INTO t1 VALUES(1);
 include/rpl_sync.inc
 
 ############################################################
+# Checking the negative case in which there is a conflict.
+############################################################
+
+
+############################################################
 # 0. Initial setup and checks.
 [connection server1]
 SET SESSION sql_log_bin= 0;
@@ -172,7 +177,7 @@ SET SESSION sql_log_bin= 1;
 ############################################################
 # Check the data sanity
 [connection server1]
-include/assert.inc [Table t1 will contain row after the above execution]
+include/assert.inc [Table t2 will contain row after the above execution]
 include/assert.inc [Table t1 will contain row after the above execution]
 include/assert.inc [Table t1 will contain row after the above execution]
 include/assert.inc [Table t2 will contain 1 rows after the above execution]

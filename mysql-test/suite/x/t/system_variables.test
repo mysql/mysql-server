@@ -103,4 +103,3 @@ let $wait_condition=
 --let $assert_text= Mysqlx_enable_hello_notice must be 0, the default value
 --let $assert_cond= "[SHOW GLOBAL VARIABLES LIKE "Mysqlx_enable_hello_notice", Value, 1]" = "ON"
 --source include/assert.inc
-

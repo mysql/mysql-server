@@ -1,4 +1,7 @@
-# Test needs myisam for some myisam specific testcases
+# Start the server with MyISAM
+--source include/force_myisam_default.inc
+
+# Skip the test incase MyISAM is not available
 --source include/have_myisam.inc
 #
 # Some special cases with empty tables

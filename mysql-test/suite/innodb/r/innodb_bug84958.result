@@ -19,6 +19,9 @@ DECLARE ret INT;
 SELECT number_pages_get FROM information_schema.innodb_buffer_pool_stats INTO ret;
 RETURN ret;
 END~~
+SET GLOBAL innodb_purge_stop_now = ON;
+SET GLOBAL innodb_dict_stats_disabled_debug = ON;
+SET GLOBAL innodb_checkpoint_disabled = ON;
 #
 # Create a table with one record in it and start an RR transaction
 #
@@ -67,3 +70,7 @@ test.t1	check	status	OK
 DROP TABLE t1;
 DROP PROCEDURE insert_n;
 DROP FUNCTION num_pages_get;
+SET GLOBAL innodb_purge_stop_now = default;
+SET GLOBAL innodb_purge_run_now = ON;
+SET GLOBAL innodb_dict_stats_disabled_debug = default;
+SET GLOBAL innodb_checkpoint_disabled = default;

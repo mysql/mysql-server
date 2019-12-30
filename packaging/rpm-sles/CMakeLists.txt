@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
-  SET(SPECFILENAME "mysql.spec")
-  # Left in current directory, to be taken during build
-  CONFIGURE_FILE(mysql.spec.in ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
-
-  FOREACH(fedfile mysql.init)
-    CONFIGURE_FILE(${fedfile} ${CMAKE_CURRENT_BINARY_DIR}/${fedfile} COPYONLY)
-  ENDFOREACH()
+  SET(spec "mysql.spec")
+  CONFIGURE_FILE(${spec}.in ${CMAKE_CURRENT_BINARY_DIR}/${spec} @ONLY)
 ENDIF()
 

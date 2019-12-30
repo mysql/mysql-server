@@ -14,7 +14,7 @@ include/start_and_bootstrap_group_replication.inc
 #
 server2
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Error while sending message for group replication recovery");
+call mtr.add_suppression("Error while sending message in the group replication incremental recovery process.");
 call mtr.add_suppression("Error while sending stats message");
 SET SESSION sql_log_bin= 1;
 SET @debug_save= @@GLOBAL.DEBUG;

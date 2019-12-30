@@ -1,7 +1,3 @@
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Skip re-populating collations and character sets tables in read-only mode.");
-call mtr.add_suppression("Skip updating information_schema metadata in read-only mode.");
-SET SESSION sql_log_bin= 1;
 
 ############################################################
 # 1. Restart server with both --group_replication_start_on_boot

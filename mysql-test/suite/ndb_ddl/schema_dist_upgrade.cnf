@@ -4,3 +4,6 @@
 # Don't allow mysqld to upgrade schema distribution table
 ndb-schema-dist-upgrade-allowed=false
 
+# Force mysqld to create old version of ndb_schema table
+debug=d,ndb_schema_skip_create_schema_op_id
+

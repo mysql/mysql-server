@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -139,7 +139,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     )
 
   # Relevant only for RelWithDebInfo builds
-  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
     RETURN()
   ENDIF()
 
@@ -181,6 +181,28 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       SET(debug_target_location
         "${CMAKE_BINARY_DIR}/${MODULE_DIRECTORY}/Debug/${target_name}${DLL_SUFFIX}")
     ENDIF()
+  # libprotobuf-debug libprotobuf-lite-debug
+  ELSEIF(target_type STREQUAL "SHARED_LIBRARY")
+    GET_TARGET_PROPERTY(debug_postfix ${target} DEBUG_POSTFIX)
+    GET_TARGET_PROPERTY(library_version ${target} VERSION)
+
+    IF(BUILD_IS_SINGLE_CONFIG)
+      SET(debug_target_location "${DEBUGBUILDDIR}")
+    ELSE()
+      SET(debug_target_location "${CMAKE_BINARY_DIR}")
+    ENDIF()
+    STRING_APPEND(debug_target_location "/library_output_directory")
+    IF(NOT BUILD_IS_SINGLE_CONFIG)
+      STRING_APPEND(debug_target_location "/Debug")
+    ENDIF()
+    STRING_APPEND(debug_target_location "/${CMAKE_SHARED_LIBRARY_PREFIX}")
+    STRING_APPEND(debug_target_location "${target_name}${debug_postfix}")
+    STRING_APPEND(debug_target_location "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    IF(NOT WIN32)
+      STRING_APPEND(debug_target_location ".${library_version}")
+    ENDIF()
+
+    MESSAGE(STATUS "INSTALL_DEBUG_TARGET ${debug_target_location}")
   ENDIF()
 
   # This is only used for mysqld / mysqld-debug
@@ -228,10 +250,6 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       GROUP_READ
       WORLD_READ)
 
-  IF(LINUX_INSTALL_RPATH_ORIGIN)
-    SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
-  ENDIF()
-
   INSTALL(FILES ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
@@ -259,3 +277,61 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ENDIF()
 ENDFUNCTION()
 
+
+FUNCTION(INSTALL_PRIVATE_LIBRARY TARGET)
+  IF(APPLE)
+    INSTALL(TARGETS ${TARGET}
+      DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
+      )
+  ELSEIF(WIN32)
+    INSTALL(TARGETS ${TARGET}
+      DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries
+      )
+  ELSEIF(UNIX)
+    INSTALL(TARGETS ${TARGET}
+      LIBRARY
+      DESTINATION "${INSTALL_PRIV_LIBDIR}"
+      COMPONENT SharedLibraries
+      NAMELINK_SKIP
+      )
+  ENDIF()
+ENDFUNCTION()
+
+
+# On Unix: add to RPATH of an executable when it is installed.
+# Use 'chrpath' to inspect results.
+# For Solaris, use 'elfdump -d'
+MACRO(ADD_INSTALL_RPATH TARGET VALUE)
+  GET_TARGET_PROPERTY(CURRENT_RPATH_${TARGET} ${TARGET} INSTALL_RPATH)
+  IF(NOT CURRENT_RPATH_${TARGET})
+    SET(CURRENT_RPATH_${TARGET})
+  ENDIF()
+  LIST(APPEND CURRENT_RPATH_${TARGET} ${VALUE})
+  SET_TARGET_PROPERTIES(${TARGET}
+    PROPERTIES INSTALL_RPATH "${CURRENT_RPATH_${TARGET}}")
+ENDMACRO()
+
+
+# For APPLE: set INSTALL_RPATH, and adjust path dependecy for libprotobuf.
+# Use 'otool -L' to inspect results.
+# For UNIX: extend INSTALL_RPATH with libprotobuf location.
+MACRO(ADD_INSTALL_RPATH_FOR_PROTOBUF TARGET)
+  IF(APPLE)
+    SET_PROPERTY(TARGET ${TARGET} PROPERTY INSTALL_RPATH "@loader_path")
+    # install_name_tool [-change old new] input
+    # Changing it to @loader_path/../lib/ works in build sandbox
+    # because we have a symlink to ./library_output_directory.
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND install_name_tool -change
+      "@rpath/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      "@loader_path/../lib/$<TARGET_FILE_NAME:libprotobuf-lite>"
+      "$<TARGET_FILE:${TARGET}>"
+      COMMAND install_name_tool -change
+      "@rpath/$<TARGET_FILE_NAME:libprotobuf>"
+      "@loader_path/../lib/$<TARGET_FILE_NAME:libprotobuf>"
+      "$<TARGET_FILE:${TARGET}>"
+      )
+  ELSEIF(UNIX)
+    ADD_INSTALL_RPATH(${TARGET} "\$ORIGIN/../${INSTALL_PRIV_LIBDIR}")
+  ENDIF()
+ENDMACRO()

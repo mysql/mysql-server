@@ -1,5 +1,5 @@
 //>>built
-define("dijit/typematic",["dojo/_base/array","dojo/_base/connect","dojo/_base/event","dojo/_base/kernel","dojo/_base/lang","dojo/on","dojo/_base/sniff","."],function(_1,_2,_3,_4,_5,on,_6,_7){
+define("dijit/typematic",["dojo/_base/array","dojo/_base/connect","dojo/_base/event","dojo/_base/kernel","dojo/_base/lang","dojo/on","dojo/sniff","./main"],function(_1,_2,_3,_4,_5,on,_6,_7){
 var _8=(_7.typematic={_fireEventAndReload:function(){
 this._timer=null;
 this._callback(++this._count,this._node,this._evt);
@@ -12,13 +12,20 @@ this._initialDelay=_f||500;
 this._subsequentDelay=_e||0.9;
 this._minDelay=_10||10;
 this._obj=_d;
-this._evt=_9;
 this._node=_b;
 this._currentTimeout=-1;
 this._count=-1;
 this._callback=_5.hitch(_a,_c);
+this._evt={faux:true};
+for(var _11 in _9){
+if(_11!="layerX"&&_11!="layerY"){
+var v=_9[_11];
+if(typeof v!="function"&&typeof v!="undefined"){
+this._evt[_11]=v;
+}
+}
+}
 this._fireEventAndReload();
-this._evt=_5.mixin({faux:true},_9);
 }
 },stop:function(){
 if(this._timer){
@@ -29,65 +36,65 @@ if(this._obj){
 this._callback(-1,this._node,this._evt);
 this._obj=null;
 }
-},addKeyListener:function(_11,_12,_13,_14,_15,_16,_17){
-if(_12.keyCode){
-_12.charOrCode=_12.keyCode;
+},addKeyListener:function(_12,_13,_14,_15,_16,_17,_18){
+if(_13.keyCode){
+_13.charOrCode=_13.keyCode;
 _4.deprecated("keyCode attribute parameter for dijit.typematic.addKeyListener is deprecated. Use charOrCode instead.","","2.0");
 }else{
-if(_12.charCode){
-_12.charOrCode=String.fromCharCode(_12.charCode);
+if(_13.charCode){
+_13.charOrCode=String.fromCharCode(_13.charCode);
 _4.deprecated("charCode attribute parameter for dijit.typematic.addKeyListener is deprecated. Use charOrCode instead.","","2.0");
 }
 }
-var _18=[on(_11,_2._keypress,_5.hitch(this,function(evt){
-if(evt.charOrCode==_12.charOrCode&&(_12.ctrlKey===undefined||_12.ctrlKey==evt.ctrlKey)&&(_12.altKey===undefined||_12.altKey==evt.altKey)&&(_12.metaKey===undefined||_12.metaKey==(evt.metaKey||false))&&(_12.shiftKey===undefined||_12.shiftKey==evt.shiftKey)){
+var _19=[on(_12,_2._keypress,_5.hitch(this,function(evt){
+if(evt.charOrCode==_13.charOrCode&&(_13.ctrlKey===undefined||_13.ctrlKey==evt.ctrlKey)&&(_13.altKey===undefined||_13.altKey==evt.altKey)&&(_13.metaKey===undefined||_13.metaKey==(evt.metaKey||false))&&(_13.shiftKey===undefined||_13.shiftKey==evt.shiftKey)){
 _3.stop(evt);
-_8.trigger(evt,_13,_11,_14,_12,_15,_16,_17);
+_8.trigger(evt,_14,_12,_15,_13,_16,_17,_18);
 }else{
-if(_8._obj==_12){
+if(_8._obj==_13){
 _8.stop();
 }
 }
-})),on(_11,"keyup",_5.hitch(this,function(){
-if(_8._obj==_12){
+})),on(_12,"keyup",_5.hitch(this,function(){
+if(_8._obj==_13){
 _8.stop();
 }
 }))];
 return {remove:function(){
-_1.forEach(_18,function(h){
+_1.forEach(_19,function(h){
 h.remove();
 });
 }};
-},addMouseListener:function(_19,_1a,_1b,_1c,_1d,_1e){
-var _1f=[on(_19,"mousedown",_5.hitch(this,function(evt){
-_3.stop(evt);
-_8.trigger(evt,_1a,_19,_1b,_19,_1c,_1d,_1e);
-})),on(_19,"mouseup",_5.hitch(this,function(evt){
+},addMouseListener:function(_1a,_1b,_1c,_1d,_1e,_1f){
+var _20=[on(_1a,"mousedown",_5.hitch(this,function(evt){
+evt.preventDefault();
+_8.trigger(evt,_1b,_1a,_1c,_1a,_1d,_1e,_1f);
+})),on(_1a,"mouseup",_5.hitch(this,function(evt){
 if(this._obj){
-_3.stop(evt);
+evt.preventDefault();
 }
 _8.stop();
-})),on(_19,"mouseout",_5.hitch(this,function(evt){
-_3.stop(evt);
-_8.stop();
-})),on(_19,"mousemove",_5.hitch(this,function(evt){
+})),on(_1a,"mouseout",_5.hitch(this,function(evt){
+if(this._obj){
 evt.preventDefault();
-})),on(_19,"dblclick",_5.hitch(this,function(evt){
-_3.stop(evt);
-if(_6("ie")){
-_8.trigger(evt,_1a,_19,_1b,_19,_1c,_1d,_1e);
+}
+_8.stop();
+})),on(_1a,"dblclick",_5.hitch(this,function(evt){
+evt.preventDefault();
+if(_6("ie")<9){
+_8.trigger(evt,_1b,_1a,_1c,_1a,_1d,_1e,_1f);
 setTimeout(_5.hitch(this,_8.stop),50);
 }
 }))];
 return {remove:function(){
-_1.forEach(_1f,function(h){
+_1.forEach(_20,function(h){
 h.remove();
 });
 }};
-},addListener:function(_20,_21,_22,_23,_24,_25,_26,_27){
-var _28=[this.addKeyListener(_21,_22,_23,_24,_25,_26,_27),this.addMouseListener(_20,_23,_24,_25,_26,_27)];
+},addListener:function(_21,_22,_23,_24,_25,_26,_27,_28){
+var _29=[this.addKeyListener(_22,_23,_24,_25,_26,_27,_28),this.addMouseListener(_21,_24,_25,_26,_27,_28)];
 return {remove:function(){
-_1.forEach(_28,function(h){
+_1.forEach(_29,function(h){
 h.remove();
 });
 }};

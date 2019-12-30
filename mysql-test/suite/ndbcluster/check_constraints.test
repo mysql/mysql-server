@@ -1,0 +1,16 @@
+#
+--source include/have_ndb.inc
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29706621 - CHECK CONSTRAINT COMPARING COLUMNS IS NOT ALWAYS
+--echo #                ENFORCED WITH UPDATE QUERIES.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (id INT PRIMARY KEY,
+                 a CHAR(10) NOT NULL,
+                 b LONGTEXT NOT NULL,
+                 CHECK (LOCATE(a, b) != 0)) ENGINE=NDBCLUSTER;
+INSERT INTO t1 VALUES (1, "a", "abcd"), (2, "b", "abcde"), (3, "c", "abcd");
+--echo # Without additional fix to read_set evaluation the below statement
+--echo # has failed due constraint evaluated on wrong data.
+UPDATE t1 SET a = 'e' WHERE id = 2;
+DROP TABLE t1;

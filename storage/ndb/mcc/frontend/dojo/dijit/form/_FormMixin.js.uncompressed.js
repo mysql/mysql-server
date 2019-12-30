@@ -1,22 +1,19 @@
-//>>built
 define("dijit/form/_FormMixin", [
 	"dojo/_base/array", // array.every array.filter array.forEach array.indexOf array.map
 	"dojo/_base/declare", // declare
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/_base/lang", // lang.hitch lang.isArray
+	"dojo/on",
 	"dojo/window" // winUtils.scrollIntoView
-], function(array, declare, kernel, lang, winUtils){
+], function(array, declare, kernel, lang, on, winUtils){
 
 	// module:
 	//		dijit/form/_FormMixin
-	// summary:
-	//		Mixin for containers of form widgets (i.e. widgets that represent a single value
-	//		and can be children of a <form> node or dijit.form.Form widget)
 
 	return declare("dijit.form._FormMixin", null, {
 		// summary:
 		//		Mixin for containers of form widgets (i.e. widgets that represent a single value
-		//		and can be children of a <form> node or dijit.form.Form widget)
+		//		and can be children of a `<form>` node or `dijit/form/Form` widget)
 		// description:
 		//		Can extract all the form widgets
 		//		values and combine them into a single javascript object, or alternately
@@ -44,14 +41,13 @@ define("dijit/form/_FormMixin", [
 		//		which indicates that the form is ready to be submitted.
 		state: "",
 
-		//	TODO:
+		// TODO:
 		//	* Repeater
 		//	* better handling for arrays.  Often form elements have names with [] like
 		//	* people[3].sex (for a list of people [{name: Bill, sex: M}, ...])
-		//
-		//
 
-		_getDescendantFormWidgets: function(/*dijit._WidgetBase[]?*/ children){
+
+		_getDescendantFormWidgets: function(/*dijit/_WidgetBase[]?*/ children){
 			// summary:
 			//		Returns all form widget descendants, searching through non-form child widgets like BorderContainer
 			var res = [];
@@ -76,11 +72,10 @@ define("dijit/form/_FormMixin", [
 		validate: function(){
 			// summary:
 			//		returns if the form is valid - same as isValid - but
-			//		provides a few additional (ui-specific) features.
-			//		1 - it will highlight any sub-widgets that are not
-			//			valid
-			//		2 - it will call focus() on the first invalid
-			//			sub-widget
+			//		provides a few additional (ui-specific) features:
+			//
+			//		1. it will highlight any sub-widgets that are not valid
+			//		2. it will call focus() on the first invalid sub-widget
 			var didFocus = false;
 			return array.every(array.map(this._getDescendantFormWidgets(), function(widget){
 				// Need to set this so that "required" widgets get their
@@ -93,8 +88,8 @@ define("dijit/form/_FormMixin", [
 					widget.focus();
 					didFocus = true;
 				}
-	 			return valid;
-	 		}), function(item){ return item; });
+				return valid;
+			}), function(item){ return item; });
 		},
 
 		setValues: function(val){
@@ -143,7 +138,7 @@ define("dijit/form/_FormMixin", [
 			}
 
 			/***
-			 * 	TODO: code for plain input boxes (this shouldn't run for inputs that are part of widgets)
+			 *	TODO: code for plain input boxes (this shouldn't run for inputs that are part of widgets)
 
 			array.forEach(this.containerNode.elements, function(element){
 				if(element.name == ''){return};	// like "continue"
@@ -211,8 +206,8 @@ define("dijit/form/_FormMixin", [
 						element.value = myObj[name] || "";
 						break;
 				}
-	  		});
-	  		*/
+			});
+			*/
 
 			// Note: no need to call this._set("value", ...) as the child updates will trigger onChange events
 			// which I am monitoring.
@@ -224,7 +219,7 @@ define("dijit/form/_FormMixin", [
 		},
 		_getValueAttr: function(){
 			// summary:
-			// 		Returns Object representing form values.   See description of `value` for details.
+			//		Returns Object representing form values.   See description of `value` for details.
 			// description:
 
 			// The value is updated into this.value every time a child has an onChange event,
@@ -232,7 +227,7 @@ define("dijit/form/_FormMixin", [
 			// that wouldn't work when:
 			//
 			// 1. User presses return key to submit a form.  That doesn't fire an onchange event,
-			// and even if it did it would come too late due to the setTimeout(..., 0) in _handleOnChange()
+			// and even if it did it would come too late due to the defer(...) in _handleOnChange()
 			//
 			// 2. app for some reason calls this.get("value") while the user is typing into a
 			// form field.   Not sure if that case needs to be supported or not.
@@ -346,9 +341,9 @@ define("dijit/form/_FormMixin", [
 			return obj;
 		},
 
-	 	isValid: function(){
-	 		// summary:
-	 		//		Returns true if all of the widgets are valid.
+		isValid: function(){
+			// summary:
+			//		Returns true if all of the widgets are valid.
 			//		Deprecated, will be removed in 2.0.  Use get("state") instead.
 
 			return this.state == "";
@@ -376,99 +371,84 @@ define("dijit/form/_FormMixin", [
 
 		disconnectChildren: function(){
 			// summary:
-			//		Remove connections to monitor changes to children's value, error state, and disabled state,
-			//		in order to update Form.value and Form.state.
-			array.forEach(this._childConnections || [], lang.hitch(this, "disconnect"));
-			array.forEach(this._childWatches || [], function(w){ w.unwatch(); });
+			//		Deprecated method.   Applications no longer need to call this.   Remove for 2.0.
 		},
 
 		connectChildren: function(/*Boolean*/ inStartup){
 			// summary:
-			//		Setup connections to monitor changes to children's value, error state, and disabled state,
-			//		in order to update Form.value and Form.state.
-			//
 			//		You can call this function directly, ex. in the event that you
 			//		programmatically add a widget to the form *after* the form has been
 			//		initialized.
 
-			var _this = this;
-
-			// Remove old connections, if any
-			this.disconnectChildren();
+			// TODO: rename for 2.0
 
 			this._descendants = this._getDescendantFormWidgets();
 
-			// (Re)set this.value and this.state.   Send watch() notifications but not on startup.
-			var set = inStartup ? function(name, val){ _this[name] = val; } : lang.hitch(this, "_set");
-			set("value", this.get("value"));
-			set("state", this._getState());
-
-			// Monitor changes to error state and disabled state in order to update
-			// Form.state
-			var conns = (this._childConnections = []),
-				watches = (this._childWatches = []);
-			array.forEach(array.filter(this._descendants,
-				function(item){ return item.validate; }
-			),
-			function(widget){
-				// We are interested in whenever the widget changes validity state - or
-				// whenever the disabled attribute on that widget is changed.
-				array.forEach(["state", "disabled"], function(attr){
-					watches.push(widget.watch(attr, function(){
-						_this.set("state", _this._getState());
-					}));
-				});
+			// To get notifications from children they need to be started.   Children didn't used to need to be started,
+			// so for back-compat, start them here
+			array.forEach(this._descendants, function(child){
+				if(!child._started){ child.startup(); }
 			});
 
-			// And monitor calls to child.onChange so we can update this.value
-			var onChange = function(){
-				// summary:
-				//		Called when child's value or disabled state changes
+			if(!inStartup){
+				this._onChildChange();
+			}
+		},
 
-				// Use setTimeout() to collapse value changes in multiple children into a single
-				// update to my value.   Multiple updates will occur on:
-				//	1. Form.set()
-				//	2. Form.reset()
-				//	3. user selecting a radio button (which will de-select another radio button,
-				//		 causing two onChange events)
-				if(_this._onChangeDelayTimer){
-					clearTimeout(_this._onChangeDelayTimer);
+		_onChildChange: function(/*String*/ attr){
+			// summary:
+			//		Called when child's value or disabled state changes
+
+			// The unit tests expect state update to be synchronous, so update it immediately.
+			if(!attr || attr == "state" || attr == "disabled"){
+				this._set("state", this._getState());
+			}
+
+			// Use defer() to collapse value changes in multiple children into a single
+			// update to my value.   Multiple updates will occur on:
+			//	1. Form.set()
+			//	2. Form.reset()
+			//	3. user selecting a radio button (which will de-select another radio button,
+			//		 causing two onChange events)
+			if(!attr || attr == "value" || attr == "disabled" || attr == "checked"){
+				if(this._onChangeDelayTimer){
+					this._onChangeDelayTimer.remove();
 				}
-				_this._onChangeDelayTimer = setTimeout(function(){
-					delete _this._onChangeDelayTimer;
-					_this._set("value", _this.get("value"));
+				this._onChangeDelayTimer = this.defer(function(){
+					delete this._onChangeDelayTimer;
+					this._set("value", this.get("value"));
 				}, 10);
-			};
-			array.forEach(
-				array.filter(this._descendants, function(item){ return item.onChange; } ),
-				function(widget){
-					// When a child widget's value changes,
-					// the efficient thing to do is to just update that one attribute in this.value,
-					// but that gets a little complicated when a checkbox is checked/unchecked
-					// since this.value["checkboxName"] contains an array of all the checkboxes w/the same name.
-					// Doing simple thing for now.
-					conns.push(_this.connect(widget, "onChange", onChange));
-
-					// Disabling/enabling a child widget should remove it's value from this.value.
-					// Again, this code could be more efficient, doing simple thing for now.
-					watches.push(widget.watch("disabled", onChange));
-				}
-			);
+			}
 		},
 
 		startup: function(){
 			this.inherited(arguments);
 
-			// Initialize value and valid/invalid state tracking.  Needs to be done in startup()
-			// so that children are initialized.
-			this.connectChildren(true);
+			// Set initial this.value and this.state.   Don't emit watch() notifications.
+			this._descendants = this._getDescendantFormWidgets();
+			this.value = this.get("value");
+			this.state = this._getState();
+
+			// Initialize value and valid/invalid state tracking.
+			var self = this;
+			this.own(
+				on(
+					this.containerNode,
+					"attrmodified-state, attrmodified-disabled, attrmodified-value, attrmodified-checked",
+					function(evt){
+						if(evt.target == self.domNode){
+							return;	// ignore events that I fire on myself because my children changed
+						}
+						self._onChildChange(evt.type.replace("attrmodified-", ""));
+					}
+				)
+			);
 
 			// Make state change call onValidStateChange(), will be removed in 2.0
 			this.watch("state", function(attr, oldVal, newVal){ this.onValidStateChange(newVal == ""); });
 		},
 
 		destroy: function(){
-			this.disconnectChildren();
 			this.inherited(arguments);
 		}
 

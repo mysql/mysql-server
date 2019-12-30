@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ ELSE()
   IF(IS_ABSOLUTE "${ROUTER_INSTALL_RUNTIMEDIR}")
     SET(_runtimedir ${ROUTER_INSTALL_RUNTIMEDIR})
   ELSEIF(NOT ROUTER_INSTALL_RUNTIMEDIR)
-    SET(_logdir "/var/run/mysqlrouter/")
+    SET(_runtimedir "/var/run/mysqlrouter/")
   ELSE()
     SET(_runtimedir ${CMAKE_INSTALL_PREFIX}/${ROUTER_INSTALL_RUNTIMEDIR})
   ENDIF()

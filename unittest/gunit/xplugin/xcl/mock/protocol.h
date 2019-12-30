@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
@@ -59,6 +60,15 @@ class Mock_protocol : public XProtocol {
                          XError *out_error));
   MOCK_METHOD2(recv_single_message_raw,
                Message *(Server_message_type_id *out_mid, XError *out_error));
+
+  MOCK_METHOD2(send_compressed_frame,
+               XError(const Client_message_type_id mid, const Message &msg));
+  MOCK_METHOD2(send_compressed_frames,
+               XError(const Client_message_type_id mid,
+                      const std::vector<Message *> &msg));
+  MOCK_METHOD1(send_compressed_group_of_frames,
+               XError(const std::vector<
+                      std::pair<Client_message_type_id, Message *>> &messages));
   MOCK_METHOD2(send,
                XError(const Client_message_type_id mid, const Message &msg));
   MOCK_METHOD3(send, XError(const Header_message_type_id mid,
@@ -124,6 +134,8 @@ class Mock_protocol : public XProtocol {
                XQuery_result *(const Mysqlx::Cursor::Fetch &m,
                                std::unique_ptr<XQuery_result> &cursor_open_res,
                                XError *out_error));
+
+  MOCK_METHOD1(use_compression, void(const Compression_algorithm algo));
 
  private:
   using XQuery_result_ptr = std::unique_ptr<XQuery_result>;

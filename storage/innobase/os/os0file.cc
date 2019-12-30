@@ -200,9 +200,9 @@ bool os_is_o_direct_supported() {
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 }
 
-  /* This specifies the file permissions InnoDB uses when it creates files in
-  Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
-  my_umask */
+/* This specifies the file permissions InnoDB uses when it creates files in
+Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
+my_umask */
 
 #ifndef _WIN32
 /** Umask for creating files */
@@ -221,8 +221,8 @@ i.e.: SRV_N_PENDING_IOS_PER_THREAD */
 /** In simulated aio, merge at most this many consecutive i/os */
 static const ulint OS_AIO_MERGE_N_CONSECUTIVE = 64;
 
-/** Flag indicating if the page_cleaner is in active state. */
-extern bool buf_page_cleaner_is_active;
+/** Checks if the page_cleaner is in active state. */
+bool buf_flush_page_cleaner_is_active();
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************
@@ -298,7 +298,7 @@ struct Slot {
   bool is_reserved{false};
 
   /** time when reserved */
-  time_t reservation_time{0};
+  ib_time_monotonic_t reservation_time{0};
 
   /** buffer used in i/o */
   byte *buf{nullptr};
@@ -798,7 +798,7 @@ ulint os_n_pending_writes = 0;
 /** Number of pending read operations */
 ulint os_n_pending_reads = 0;
 
-static time_t os_last_printout;
+static ib_time_monotonic_t os_last_printout;
 bool os_has_said_disk_full = false;
 
 /** Default Zip compression level */
@@ -1330,9 +1330,9 @@ ulint AIO::pending_io_count() const {
 @param[out]	dst		Compressed page contents
 @param[out]	dst_len		Length in bytes of dst contents
 @return buffer data, dst_len will have the length of the data */
-static byte *os_file_compress_page(Compression compression, ulint block_size,
-                                   byte *src, ulint src_len, byte *dst,
-                                   ulint *dst_len) {
+byte *os_file_compress_page(Compression compression, ulint block_size,
+                            byte *src, ulint src_len, byte *dst,
+                            ulint *dst_len) {
   ulint len = 0;
   ulint compression_level = page_zip_level;
   ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
@@ -2076,7 +2076,7 @@ static dberr_t os_file_punch_hole_posix(os_file_t fh, os_offset_t off,
 
 #elif defined(UNIV_SOLARIS)
 
-// Use F_FREESP
+  // Use F_FREESP
 
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
@@ -2131,8 +2131,8 @@ class LinuxAIOHandler {
 
   /** @return true if a shutdown was detected */
   bool is_shutdown() const {
-    return (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS &&
-            !buf_page_cleaner_is_active);
+    return (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
+            !buf_flush_page_cleaner_is_active());
   }
 
   /** If no slot was found then the m_array->m_mutex will be released.
@@ -2379,8 +2379,8 @@ void LinuxAIOHandler::collect() {
       m_array->release();
     }
 
-    if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
-        !buf_page_cleaner_is_active || ret > 0) {
+    if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS ||
+        !buf_flush_page_cleaner_is_active() || ret > 0) {
       break;
     }
 
@@ -3203,7 +3203,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE ||
        type == OS_CLONE_DATA_FILE || type == OS_CLONE_LOG_FILE ||
-       type == OS_BUFFERED_FILE);
+       type == OS_BUFFERED_FILE || type == OS_REDO_LOG_ARCHIVE_FILE);
 
   ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
@@ -3479,6 +3479,29 @@ os_file_size_t os_file_get_size(const char *filename) {
   return (file_size);
 }
 
+/** Get available free space on disk
+@param[in]	path		pathname of a directory or file in disk
+@param[out]	free_space	free space available in bytes
+@return DB_SUCCESS if all OK */
+static dberr_t os_get_free_space_posix(const char *path, uint64_t &free_space) {
+  struct statvfs stat;
+  auto ret = statvfs(path, &stat);
+
+  if (ret && (errno == ENOENT || errno == ENOTDIR)) {
+    /* file or directory  does not exist */
+    return (DB_NOT_FOUND);
+
+  } else if (ret) {
+    /* file exists, but stat call failed */
+    os_file_handle_error_no_exit(path, "statvfs", false);
+    return (DB_FAIL);
+  }
+
+  free_space = stat.f_bsize;
+  free_space *= stat.f_bavail;
+  return (DB_SUCCESS);
+}
+
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
 @param[out]	stat_info	information of a file in a directory
@@ -3591,9 +3614,9 @@ void os_aio_simulated_put_read_threads_to_sleep() { /* No op on non Windows */
 }
 
 /** Depth first traversal of the directory starting from basedir
-@param[in]	basedir		Start scanning from this directory
-@param[in]      recursive       True if scan should be recursive
-@param[in]	f		Function to call for each entry */
+@param[in]  basedir     Start scanning from this directory
+@param[in]  recursive  `true` if scan should be recursive
+@param[in]  f           Function to call for each entry */
 void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
@@ -3605,6 +3628,12 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
     Entry current = directories.top();
 
     directories.pop();
+
+    /* Ignore hidden directories and files. */
+    if (Fil_path::is_hidden(current.m_path)) {
+      ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, current.m_path.c_str());
+      continue;
+    }
 
     DIR *parent = opendir(current.m_path.c_str());
 
@@ -3641,9 +3670,14 @@ void Dir_Walker::walk_posix(const Path &basedir, bool recursive, Function &&f) {
 
       path.append(dirent->d_name);
 
+      /* Ignore hidden subdirectories and files. */
+      if (Fil_path::is_hidden(path)) {
+        ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, path.c_str());
+        continue;
+      }
+
       if (is_directory(path) && recursive) {
         directories.push(Entry(path, current.m_depth + 1));
-
       } else {
         f(path, current.m_depth + 1);
       }
@@ -3854,8 +3888,9 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
         << "Operating system error number " << err << " in a file operation.";
 
     if (err == ERROR_PATH_NOT_FOUND) {
-      ib::error(ER_IB_MSG_787) << "The error means the system"
-                                  " cannot find the path specified.";
+      ib::error(ER_IB_MSG_787) << "The error means the system cannot find"
+                                  " the path specified. It might be too long"
+                                  " or it might not exist.";
 
 #ifndef UNIV_HOTBACKUP
       if (srv_is_being_started) {
@@ -3900,6 +3935,8 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   if (err == ERROR_FILE_NOT_FOUND) {
     return (OS_FILE_NOT_FOUND);
+  } else if (err == ERROR_PATH_NOT_FOUND) {
+    return (OS_FILE_NAME_TOO_LONG);
   } else if (err == ERROR_DISK_FULL) {
     return (OS_FILE_DISK_FULL);
   } else if (err == ERROR_FILE_EXISTS) {
@@ -3939,7 +3976,11 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
   DWORD access;
   DWORD create_flag;
   DWORD attributes = 0;
+#ifdef UNIV_HOTBACKUP
+  DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;
+#else
   DWORD share_mode = FILE_SHARE_READ;
+#endif /* UNIV_HOTBACKUP */
 
   ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
   ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
@@ -4572,6 +4613,50 @@ os_file_size_t os_file_get_size(const char *filename) {
   return (file_size);
 }
 
+/** Get available free space on disk
+@param[in]	path		pathname of a directory or file in disk
+@param[out]	block_size	Block size to use for IO in bytes
+@param[out]	free_space	free space available in bytes
+@return DB_SUCCESS if all OK */
+static dberr_t os_get_free_space_win32(const char *path, uint32_t &block_size,
+                                       uint64_t &free_space) {
+  char volname[MAX_PATH];
+  BOOL result = GetVolumePathName(path, volname, MAX_PATH);
+
+  if (!result) {
+    ib::error(ER_IB_MSG_806)
+        << "os_file_get_status_win32: "
+        << "Failed to get the volume path name for: " << path
+        << "- OS error number " << GetLastError();
+
+    return (DB_FAIL);
+  }
+
+  DWORD sectorsPerCluster;
+  DWORD bytesPerSector;
+  DWORD numberOfFreeClusters;
+  DWORD totalNumberOfClusters;
+
+  result =
+      GetDiskFreeSpace((LPCSTR)volname, &sectorsPerCluster, &bytesPerSector,
+                       &numberOfFreeClusters, &totalNumberOfClusters);
+
+  if (!result) {
+    ib::error(ER_IB_MSG_807) << "GetDiskFreeSpace(" << volname << ",...) "
+                             << "failed "
+                             << "- OS error number " << GetLastError();
+
+    return (DB_FAIL);
+  }
+
+  block_size = bytesPerSector * sectorsPerCluster;
+
+  free_space = static_cast<uint64_t>(block_size);
+  free_space *= numberOfFreeClusters;
+
+  return (DB_SUCCESS);
+}
+
 /** This function returns information about the specified file
 @param[in]	path		pathname of the file
 @param[out]	stat_info	information of a file in a directory
@@ -4630,37 +4715,12 @@ static dberr_t os_file_get_status_win32(const char *path,
       }
     }
 
-    char volname[MAX_PATH];
-    BOOL result = GetVolumePathName(path, volname, MAX_PATH);
+    uint64_t free_space;
+    auto err = os_get_free_space_win32(path, stat_info->block_size, free_space);
 
-    if (!result) {
-      ib::error(ER_IB_MSG_806)
-          << "os_file_get_status_win32: "
-          << "Failed to get the volume path name for: " << path
-          << "- OS error number " << GetLastError();
-
-      return (DB_FAIL);
+    if (err != DB_SUCCESS) {
+      return (err);
     }
-
-    DWORD sectorsPerCluster;
-    DWORD bytesPerSector;
-    DWORD numberOfFreeClusters;
-    DWORD totalNumberOfClusters;
-
-    result =
-        GetDiskFreeSpace((LPCSTR)volname, &sectorsPerCluster, &bytesPerSector,
-                         &numberOfFreeClusters, &totalNumberOfClusters);
-
-    if (!result) {
-      ib::error(ER_IB_MSG_807) << "GetDiskFreeSpace(" << volname << ",...) "
-                               << "failed "
-                               << "- OS error number " << GetLastError();
-
-      return (DB_FAIL);
-    }
-
-    stat_info->block_size = bytesPerSector * sectorsPerCluster;
-
     /* On Windows the block size is not used as the allocation
     unit for sparse files. The underlying infra-structure for
     sparse files is based on NTFS compression. The punch hole
@@ -4772,10 +4832,9 @@ void AIO::simulated_put_read_threads_to_sleep() {
 }
 
 /** Depth first traversal of the directory starting from basedir
-@param[in]	basedir		Start scanning from this directory
-@param[in]      recursive       true if scan should be recursive
-@param[in]	f		Callback for each entry found
-@param[in,out]	args		Optional arguments for f */
+@param[in]      basedir    Start scanning from this directory
+@param[in]      recursive  `true` if scan should be recursive
+@param[in]      f          Callback for each entry found */
 void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
   using Stack = std::stack<Entry>;
 
@@ -4816,6 +4875,11 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 
     directories.pop();
 
+    if (Fil_path::is_hidden(current.m_path)) {
+      ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, current.m_path.c_str());
+      continue;
+    }
+
     HANDLE h;
     WIN32_FIND_DATA dirent;
 
@@ -4842,6 +4906,12 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 
       path.resize(path.size() - 1);
       path.append(dirent.cFileName);
+
+      /* Ignore hidden files and directories. */
+      if (Fil_path::is_hidden(dirent) || Fil_path::is_hidden(path)) {
+        ib::info(ER_IB_MSG_SKIP_HIDDEN_DIR, path.c_str());
+        continue;
+      }
 
       if ((dirent.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) && recursive) {
         path.append("\\*");
@@ -4890,7 +4960,6 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   if (type.is_compressed()) {
     /* We don't compress the first page of any file. */
     ut_ad(offset > 0);
-
     block = os_file_compress_page(type, buf, &n);
   } else {
     block = NULL;
@@ -5104,6 +5173,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 /** Requests a synchronous positioned read operation.
 @return DB_SUCCESS if request was successful, false if fail
 @param[in]	type		IO flags
+@param[in]  file_name file name
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset from the start where to read
@@ -5112,8 +5182,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    os_file_read_page(IORequest &type, os_file_t file, void *buf,
-                      os_offset_t offset, ulint n, ulint *o, bool exit_on_err) {
+    os_file_read_page(IORequest &type, const char *file_name, os_file_t file,
+                      void *buf, os_offset_t offset, ulint n, ulint *o,
+                      bool exit_on_err) {
   dberr_t err;
 
 #ifdef UNIV_HOTBACKUP
@@ -5159,12 +5230,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         << ", but was only able to read " << n_bytes;
 
     if (exit_on_err) {
-      if (!os_file_handle_error(NULL, "read")) {
+      if (!os_file_handle_error(file_name, "read")) {
         /* Hard error */
         break;
       }
 
-    } else if (!os_file_handle_error_no_exit(NULL, "read", false)) {
+    } else if (!os_file_handle_error_no_exit(file_name, "read", false)) {
       /* Hard error */
       break;
     }
@@ -5530,16 +5601,18 @@ function!
 Requests a synchronous positioned read operation.
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
 @param[in]	type		IO flags
+@param[in]  file_name file name
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
 @return DB_SUCCESS or error code */
-dberr_t os_file_read_func(IORequest &type, os_file_t file, void *buf,
-                          os_offset_t offset, ulint n) {
+dberr_t os_file_read_func(IORequest &type, const char *file_name,
+                          os_file_t file, void *buf, os_offset_t offset,
+                          ulint n) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file, buf, offset, n, NULL, true));
+  return (os_file_read_page(type, file_name, file, buf, offset, n, NULL, true));
 }
 
 /** NOTE! Use the corresponding macro os_file_read_first_page(), not
@@ -5547,23 +5620,24 @@ directly this function!
 Requests a synchronous positioned read operation of page 0 of IBD file
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
 @param[in]	type		IO flags
+@param[in]  file_name file name
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	n		number of bytes to read, starting from offset
 @return DB_SUCCESS or error code */
-dberr_t os_file_read_first_page_func(IORequest &type, os_file_t file, void *buf,
-                                     ulint n) {
+dberr_t os_file_read_first_page_func(IORequest &type, const char *file_name,
+                                     os_file_t file, void *buf, ulint n) {
   ut_ad(type.is_read());
 
-  dberr_t err =
-      os_file_read_page(type, file, buf, 0, UNIV_ZIP_SIZE_MIN, NULL, true);
+  dberr_t err = os_file_read_page(type, file_name, file, buf, 0,
+                                  UNIV_ZIP_SIZE_MIN, NULL, true);
 
   if (err == DB_SUCCESS) {
     uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
     const page_size_t page_size(flags);
     ut_ad(page_size.physical() <= n);
-    err =
-        os_file_read_page(type, file, buf, 0, page_size.physical(), NULL, true);
+    err = os_file_read_page(type, file_name, file, buf, 0, page_size.physical(),
+                            NULL, true);
   }
   return (err);
 }
@@ -5603,8 +5677,8 @@ static dberr_t os_file_copy_read_write(os_file_t src_file,
       request_size = size;
     }
 
-    err = os_file_read_func(read_request, src_file, buf_ptr, src_offset,
-                            request_size);
+    err = os_file_read_func(read_request, nullptr, src_file, buf_ptr,
+                            src_offset, request_size);
 
     if (err != DB_SUCCESS) {
       return (err);
@@ -5699,18 +5773,21 @@ not directly this function!
 Requests a synchronous positioned read operation.
 @return DB_SUCCESS if request was successful, DB_IO_ERROR on failure
 @param[in]	type		IO flags
+@param[in]  file_name file name
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
 @param[out]	o		number of bytes actually read
 @return DB_SUCCESS or error code */
-dberr_t os_file_read_no_error_handling_func(IORequest &type, os_file_t file,
-                                            void *buf, os_offset_t offset,
-                                            ulint n, ulint *o) {
+dberr_t os_file_read_no_error_handling_func(IORequest &type,
+                                            const char *file_name,
+                                            os_file_t file, void *buf,
+                                            os_offset_t offset, ulint n,
+                                            ulint *o) {
   ut_ad(type.is_read());
 
-  return (os_file_read_page(type, file, buf, offset, n, o, false));
+  return (os_file_read_page(type, file_name, file, buf, offset, n, o, false));
 }
 
 /** NOTE! Use the corresponding macro os_file_write(), not directly
@@ -5798,6 +5875,18 @@ bool os_is_sparse_file_supported(const char *path, pfs_os_file_t fh) {
 
   return (err == DB_SUCCESS);
 #endif /* _WIN32 */
+}
+
+dberr_t os_get_free_space(const char *path, uint64_t &free_space) {
+#ifdef _WIN32
+  uint32_t block_size;
+  auto err = os_get_free_space_win32(path, block_size, free_space);
+
+#else
+  auto err = os_get_free_space_posix(path, free_space);
+
+#endif /* _WIN32 */
+  return (err);
 }
 
 /** This function returns information about the specified file
@@ -6176,7 +6265,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
     os_aio_segment_wait_events[i] = os_event_create(0);
   }
 
-  os_last_printout = ut_time();
+  os_last_printout = ut_time_monotonic();
 
   return (true);
 }
@@ -6350,8 +6439,8 @@ bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
   }
 #endif /* _WIN32 */
 
-    /* Get sector size for DIRECT_IO. In this case, we need to
-    know the sector size for aligning the write buffer. */
+  /* Get sector size for DIRECT_IO. In this case, we need to
+  know the sector size for aligning the write buffer. */
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   os_fusionio_get_sector_size();
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -6541,7 +6630,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   }
 
   slot->is_reserved = true;
-  slot->reservation_time = ut_time();
+  slot->reservation_time = ut_time_monotonic();
   slot->m1 = m1;
   slot->m2 = m2;
   slot->file = file;
@@ -6829,8 +6918,8 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
     segment = AIO::get_array_and_local_segment(&array, segment);
   }
 
-    /* NOTE! We only access constant fields in os_aio_array. Therefore
-    we do not have to acquire the protecting mutex yet */
+  /* NOTE! We only access constant fields in os_aio_array. Therefore
+  we do not have to acquire the protecting mutex yet */
 
 #ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());
@@ -6852,11 +6941,11 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 
   if (
 #ifndef UNIV_HOTBACKUP
-      srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+      srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
 #else  /* !UNIV_HOTBACKUP */
       true
 #endif /* !UNIV_HOTBACKUP */
-      && array->is_empty() && !buf_page_cleaner_is_active) {
+      && array->is_empty() && !buf_flush_page_cleaner_is_active()) {
 
     *m1 = NULL;
     *m2 = NULL;
@@ -6902,8 +6991,8 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
   array->release();
 
   if (retry) {
-  /* Retry failed read/write operation synchronously.
-  No need to hold array->m_mutex. */
+    /* Retry failed read/write operation synchronously.
+    No need to hold array->m_mutex. */
 
 #ifdef UNIV_PFS_IO
     /* This read/write does not go through os_file_read
@@ -7008,7 +7097,7 @@ dberr_t os_aio_func(IORequest &type, AIO_mode aio_mode, const char *name,
     and os_file_write_func() */
 
     if (type.is_read()) {
-      return (os_file_read_func(type, file.m_file, buf, offset, n));
+      return (os_file_read_func(type, name, file.m_file, buf, offset, n));
     }
 
     ut_ad(type.is_write());
@@ -7300,8 +7389,8 @@ class SimulatedAIOHandler {
   /** Do the file read
   @param[in,out]	slot		Slot that has the IO context */
   void read(Slot *slot) {
-    dberr_t err = os_file_read_func(slot->type, slot->file.m_file, slot->ptr,
-                                    slot->offset, slot->len);
+    dberr_t err = os_file_read_func(slot->type, slot->name, slot->file.m_file,
+                                    slot->ptr, slot->offset, slot->len);
     ut_a(err == DB_SUCCESS);
   }
 
@@ -7374,9 +7463,9 @@ class SimulatedAIOHandler {
   /** Select the slot if it is older than the current oldest slot.
   @param[in]	slot		The slot to check */
   void select_if_older(Slot *slot) {
-    ulint age;
+    const auto time_diff = ut_time_monotonic() - slot->reservation_time;
 
-    age = (ulint)difftime(ut_time(), slot->reservation_time);
+    const uint64_t age = time_diff > 0 ? (uint64_t)time_diff : 0;
 
     if ((age >= 2 && age > m_oldest) ||
         (age >= 2 && age == m_oldest && slot->offset < m_lowest_offset)) {
@@ -7431,8 +7520,8 @@ class SimulatedAIOHandler {
 @return the number of slots */
 ulint SimulatedAIOHandler::check_pending(ulint global_segment,
                                          os_event_t event) {
-/* NOTE! We only access constant fields in os_aio_array.
-Therefore we do not have to acquire the protecting mutex yet */
+  /* NOTE! We only access constant fields in os_aio_array.
+  Therefore we do not have to acquire the protecting mutex yet */
 
 #ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());
@@ -7507,8 +7596,8 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
     } else if (n_reserved == 0
 #ifndef UNIV_HOTBACKUP
-               && !buf_page_cleaner_is_active &&
-               srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+               && !buf_flush_page_cleaner_is_active() &&
+               srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
 #endif /* !UNIV_HOTBACKUP */
     ) {
 
@@ -7719,8 +7808,6 @@ void AIO::print_all(FILE *file) {
 /** Prints info of the aio arrays.
 @param[in,out]	file		file where to print */
 void os_aio_print(FILE *file) {
-  time_t current_time;
-  double time_elapsed;
   double avg_bytes_read;
 
 #ifndef UNIV_HOTBACKUP
@@ -7743,8 +7830,8 @@ void os_aio_print(FILE *file) {
   AIO::print_all(file);
 
   putc('\n', file);
-  current_time = ut_time();
-  time_elapsed = 0.001 + difftime(current_time, os_last_printout);
+  const auto current_time = ut_time_monotonic();
+  const auto time_elapsed = 0.001 + (current_time - os_last_printout);
 
   fprintf(file,
           "Pending flushes (fsync) log: " ULINTPF
@@ -7796,7 +7883,7 @@ void os_aio_refresh_stats() {
 
   os_bytes_read_since_printout = 0;
 
-  os_last_printout = ut_time();
+  os_last_printout = ut_time_monotonic();
 }
 
 /** Checks that all slots in the system have been freed, that is, there are
@@ -7862,6 +7949,10 @@ void os_aio_print_pending_io(FILE *file) { AIO::print_to_file(file); }
 Set the file create umask
 @param[in]	umask		The umask to use for file creation. */
 void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
+
+/** Get the file create umask
+@return the umask to use for file creation. */
+ulint os_file_get_umask() { return (os_innodb_umask); }
 
 /**
 @param[in]      type            The encryption type
@@ -8004,20 +8095,23 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   extern ib_mutex_t master_key_id_mutex;
   bool key_id_locked = false;
 
-  if (s_master_key_id == 0) {
+  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
+    /* Take mutex as master_key_id is going to change. */
     mutex_enter(&master_key_id_mutex);
     key_id_locked = true;
   }
 
   memset(key_name, 0x0, sizeof(key_name));
 
-  if (s_master_key_id == 0) {
+  /* Check for s_master_key_id again, as a parallel rotation might have caused
+  it to change. */
+  if (s_master_key_id == ENCRYPTION_DEFAULT_MASTER_KEY_ID) {
     ut_ad(strlen(server_uuid) > 0);
     memset(s_uuid, 0x0, sizeof(s_uuid));
 
-    /* If m_master_key is 0, means there's no encrypted
-    tablespace, we need to generate the first master key,
-    and store it to key ring. */
+    /* If m_master_key is ENCRYPTION_DEFAULT_MASTER_KEY_ID, it means there's
+    no encrypted tablespace yet. Generate the first master key now and store
+    it to keyring. */
     memcpy(s_uuid, server_uuid, sizeof(s_uuid) - 1);
 
     /* Prepare the server s_uuid. */
@@ -8099,38 +8193,35 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
 #endif /* !UNIV_HOTBACKUP */
 }
 
-/** Fill the encryption information.
-@param[in]	key		encryption key
-@param[in]	iv		encryption iv
-@param[in,out]	encrypt_info	encryption information
-@param[in]	is_boot		if it's for bootstrap
-@return true if success */
 bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
-                                      bool is_boot) {
+                                      bool is_boot, bool encrypt_key) {
   byte *master_key = nullptr;
-  ulint master_key_id;
+  ulint master_key_id = 0;
   bool is_default_master_key = false;
 
   /* Get master key from key ring. For bootstrap, we use a default
   master key which master_key_id is 0. */
-  if (is_boot
+  if (encrypt_key) {
+    if (is_boot
 #ifndef UNIV_HOTBACKUP
-      || (strlen(server_uuid) == 0)
+        || (strlen(server_uuid) == 0)
 #endif
-  ) {
-    master_key_id = 0;
+    ) {
+      master_key_id = 0;
 
-    master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
+      master_key = static_cast<byte *>(ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 
-    ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
+      ut_ad(ENCRYPTION_KEY_LEN >= sizeof(ENCRYPTION_DEFAULT_MASTER_KEY));
 
-    strcpy(reinterpret_cast<char *>(master_key), ENCRYPTION_DEFAULT_MASTER_KEY);
-    is_default_master_key = true;
-  } else {
-    get_master_key(&master_key_id, &master_key);
+      strcpy(reinterpret_cast<char *>(master_key),
+             ENCRYPTION_DEFAULT_MASTER_KEY);
+      is_default_master_key = true;
+    } else {
+      get_master_key(&master_key_id, &master_key);
 
-    if (master_key == nullptr) {
-      return (false);
+      if (master_key == nullptr) {
+        return (false);
+      }
     }
   }
 
@@ -8160,14 +8251,19 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   memcpy(key_info + ENCRYPTION_KEY_LEN, iv, ENCRYPTION_KEY_LEN);
 
-  /* Encrypt key and iv. */
-  auto elen =
-      my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
-                     ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
+  if (encrypt_key) {
+    /* Encrypt key and iv. */
+    auto elen =
+        my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
+                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-  if (elen == MY_AES_BAD_DATA) {
-    my_free(master_key);
-    return (false);
+    if (elen == MY_AES_BAD_DATA) {
+      my_free(master_key);
+      return (false);
+    }
+  } else {
+    /* Keep tablespace key unencrypted. Used by clone. */
+    memcpy(ptr, key_info, sizeof(key_info));
   }
 
   ptr += sizeof(key_info);
@@ -8177,10 +8273,13 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 
   mach_write_to_4(ptr, crc);
 
-  if (is_default_master_key) {
-    ut_free(master_key);
-  } else {
-    my_free(master_key);
+  if (encrypt_key) {
+    ut_ad(master_key != nullptr);
+    if (is_default_master_key) {
+      ut_free(master_key);
+    } else {
+      my_free(master_key);
+    }
   }
 
   return (true);
@@ -8280,16 +8379,12 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
-/** Decoding the encryption info from the first page of a tablespace.
-@param[in,out]	key		key
-@param[in,out]	iv		iv
-@param[in]	encryption_info	encryption info
-@return true if success */
 bool Encryption::decode_encryption_info(byte *key, byte *iv,
-                                        byte *encryption_info) {
+                                        byte *encryption_info,
+                                        bool decrypt_key) {
   byte *ptr;
   byte *master_key = nullptr;
-  uint32 m_key_id;
+  uint32 master_key_id = 0;
   byte key_info[ENCRYPTION_KEY_LEN * 2];
   ulint crc1;
   ulint crc2;
@@ -8325,39 +8420,50 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
 
   ptr += ENCRYPTION_MAGIC_SIZE;
 
-  /* Get master key by key id. */
-  ptr =
-      get_master_key_from_info(ptr, version, &m_key_id, srv_uuid, &master_key);
+  if (decrypt_key) {
+    /* Get master key by key id. */
+    ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
+                                   &master_key);
 
-  /* If can't find the master key, return failure. */
-  if (master_key == nullptr) {
-    return (false);
-  }
+    /* If can't find the master key, return failure. */
+    if (master_key == nullptr) {
+      return (false);
+    }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
+    {
+      std::ostringstream msg;
 
-    ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
+      ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
 
-    ib::info(ER_IB_MSG_838)
-        << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
-  }
+      ib::info(ER_IB_MSG_838)
+          << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
+    }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  /* Decrypt tablespace key and iv. */
-  auto len = my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
-                            ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
+    /* Decrypt tablespace key and iv. */
+    auto len =
+        my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
+                       ENCRYPTION_KEY_LEN, my_aes_256_ecb, nullptr, false);
 
-  if (m_key_id == 0) {
-    ut_free(master_key);
+    if (master_key_id == 0) {
+      ut_free(master_key);
+    } else {
+      my_free(master_key);
+    }
+
+    /* If decryption failed, return error. */
+    if (len == MY_AES_BAD_DATA) {
+      return (false);
+    }
   } else {
-    my_free(master_key);
-  }
+    ut_ad(version == ENCRYPTION_VERSION_3);
+    /* Skip master Key and server UUID*/
+    ptr += sizeof(uint32);
+    ptr += ENCRYPTION_SERVER_UUID_LEN;
 
-  /* If decryption failed, return error. */
-  if (len == MY_AES_BAD_DATA) {
-    return (false);
+    /* Get tablespace key information. */
+    memcpy(key_info, ptr, sizeof(key_info));
   }
 
   /* Check checksum bytes. */
@@ -8367,6 +8473,9 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   crc2 = ut_crc32(key_info, sizeof(key_info));
 
   if (crc1 != crc2) {
+    /* This check could fail only while decrypting key. */
+    ut_ad(decrypt_key);
+
     ib::error(ER_IB_MSG_839)
         << "Failed to decrypt encryption information,"
         << " please check whether key file has been changed!";
@@ -8396,8 +8505,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
-  if (s_master_key_id < m_key_id) {
-    s_master_key_id = m_key_id;
+  if (decrypt_key && (s_master_key_id < master_key_id)) {
+    s_master_key_id = master_key_id;
     memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
   }
 

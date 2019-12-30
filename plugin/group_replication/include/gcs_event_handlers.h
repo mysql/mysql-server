@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,14 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   */
   void set_stop_wait_timeout(ulong timeout) { stop_wait_timeout = timeout; }
 
+  /**
+    This function disable read-only mode when member version is compatible with
+    group.
+
+    @param[in]  force_check  Compatibility is mandatory re-checked
+  */
+  void disable_read_mode_for_compatible_members(bool force_check = false) const;
+
  private:
   /*
    Individual handling methods for all possible message types
@@ -143,7 +151,7 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
     This method handles the election of a new primary node when the plugin runs
     in single primary mode.
 
-    @param enum_primary_election_mode election mode
+    @param election_mode     election type
     @param suggested_primary what should be the next primary to elect
 
     @note This function unsets the super read only mode on primary node
@@ -244,11 +252,6 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
       @retval true   a primary election is running
   */
   bool is_group_running_a_primary_election() const;
-
-  /**
-    This method submits a request to leave the group
-  */
-  void leave_group_on_error() const;
 
   /**
     This method checks if member was expelled from the group due

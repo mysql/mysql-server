@@ -674,7 +674,7 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
   }
 
   if (cursor->flag == BTR_CUR_HASH_FAIL) {
-  /* Update the hash node reference, if appropriate */
+    /* Update the hash node reference, if appropriate */
 
 #ifdef UNIV_SEARCH_PERF_STAT
     btr_search_n_hash_fail++;
@@ -734,7 +734,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
   match = 0;
 
   offsets = rec_get_offsets(rec, cursor->index, offsets, n_unique, &heap);
-  cmp = cmp_dtuple_rec_with_match(tuple, rec, cursor->index, offsets, &match);
+  cmp = tuple->compare(rec, cursor->index, offsets, &match);
 
   if (mode == PAGE_CUR_GE) {
     if (cmp > 0) {
@@ -787,8 +787,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
 
     offsets =
         rec_get_offsets(prev_rec, cursor->index, offsets, n_unique, &heap);
-    cmp = cmp_dtuple_rec_with_match(tuple, prev_rec, cursor->index, offsets,
-                                    &match);
+    cmp = tuple->compare(prev_rec, cursor->index, offsets, &match);
     if (mode == PAGE_CUR_GE) {
       success = cmp > 0;
     } else {
@@ -814,8 +813,7 @@ static ibool btr_search_check_guess(btr_cur_t *cursor,
 
     offsets =
         rec_get_offsets(next_rec, cursor->index, offsets, n_unique, &heap);
-    cmp = cmp_dtuple_rec_with_match(tuple, next_rec, cursor->index, offsets,
-                                    &match);
+    cmp = tuple->compare(next_rec, cursor->index, offsets, &match);
     if (mode == PAGE_CUR_LE) {
       success = cmp < 0;
       cursor->up_match = match;
@@ -1021,9 +1019,9 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
     ut_ad(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
   }
 
-    /* NOTE that it is theoretically possible that the above assertions
-    fail if the page of the cursor gets removed from the buffer pool
-    meanwhile! Thus it might not be a bug. */
+  /* NOTE that it is theoretically possible that the above assertions
+  fail if the page of the cursor gets removed from the buffer pool
+  meanwhile! Thus it might not be a bug. */
 #endif
   info->last_hash_succ = TRUE;
 

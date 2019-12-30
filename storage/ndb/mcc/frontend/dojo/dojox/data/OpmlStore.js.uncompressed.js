@@ -1,20 +1,21 @@
-//>>built
 define("dojox/data/OpmlStore", ["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/xhr", "dojo/data/util/simpleFetch", "dojo/data/util/filter",
-		"dojo/_base/window"], 
-  function(declare, lang, xhr, simpleFetch, filterUtil, winUtil) {
+		"dojo/_base/kernel"],
+  function(declare, lang, xhr, simpleFetch, filterUtil, kernel) {
 
 var OpmlStore = declare("dojox.data.OpmlStore", null, {
-	/* summary:
-	 *   The OpmlStore implements the dojo.data.api.Read API.
-	 */
-	 
-	/* examples:
-	 *   var opmlStore = new dojo.data.OpmlStore({url:"geography.xml"});
-	 *   var opmlStore = new dojo.data.OpmlStore({url:"http://example.com/geography.xml"});
-	 */
+	// summary:
+	//		The OpmlStore implements the dojo/data/api/Read API.
+	// examples:
+	//	|	var opmlStore = new dojo.data.OpmlStore({url:"geography.xml"});
+	//	|	var opmlStore = new dojo.data.OpmlStore({url:"http://example.com/geography.xml"});
+
 	constructor: function(/* Object */ keywordParameters){
-		// summary: constructor
-		// keywordParameters: {url: String, label: String}  Where label is optional and configures what should be used as the return from getLabel()
+		// summary:
+		//		constructor
+		// keywordParameters:
+		//		- {url: String, label: String}
+		//
+		//		Where label is optional and configures what should be used as the return from getLabel()
 		this._xmlData = null;
 		this._arrayOfTopLevelItems = [];
 		this._arrayOfAllItems = [];
@@ -53,10 +54,10 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 		}
 	},
 	
-	_assertIsAttribute: function(/* item || String */ attribute){
-		//	summary:
-		//      This function tests whether the item passed in is indeed a valid 'attribute' like type for the store.
-		//	attribute:
+	_assertIsAttribute: function(/*dojo/data/api/Item|String */ attribute){
+		// summary:
+		//		This function tests whether the item passed in is indeed a valid 'attribute' like type for the store.
+		// attribute:
 		//		The attribute to test for being contained by the store.
 		if(!lang.isString(attribute)){
 			throw new Error("dojox.data.OpmlStore: a function was passed an attribute argument that was not an attribute object nor an attribute name string");
@@ -117,14 +118,13 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 	_checkChildNodes: function(node /*Node*/){
-		//	summary:
+		// summary:
 		//		Internal function to recurse over all child nodes from the store and add them
 		//		As non-toplevel items
-		//	description:
+		// description:
 		//		Internal function to recurse over all child nodes from the store and add them
 		//		As non-toplevel items
-		//
-		//	node:
+		// node:
 		//		The child node to walk.
 		if(node.firstChild){
 			for(var i = 0; i < node.childNodes.length; i++){
@@ -140,9 +140,9 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 	_getItemsArray: function(/*object?*/queryOptions){
-		//	summary:
+		// summary:
 		//		Internal function to determine which list of items to search over.
-		//	queryOptions: The query options parameter, if any.
+		// queryOptions: The query options parameter, if any.
 		if(queryOptions && queryOptions.deep){
 			return this._arrayOfAllItems;
 		}
@@ -150,13 +150,13 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 /***************************************
-     dojo.data.api.Read API
+     dojo/data/api/Read API
 ***************************************/
 	getValue: function( /* item */ item,
-						/* attribute || attribute-name-string */ attribute,
+						/* attribute|attribute-name-string */ attribute,
 						/* value? */ defaultValue){
-		//	summary:
-		//      See dojo.data.api.Read.getValue()
+		// summary:
+		//		See dojo/data/api/Read.getValue()
 		this._assertIsItem(item);
 		this._assertIsAttribute(attribute);
 		if(attribute == 'children'){
@@ -168,9 +168,9 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 	
 	getValues: function(/* item */ item,
-						/* attribute || attribute-name-string */ attribute){
-		//	summary:
-		//		See dojo.data.api.Read.getValues()
+						/* attribute|attribute-name-string */ attribute){
+		// summary:
+		//		See dojo/data/api/Read.getValues()
 		this._assertIsItem(item);
 		this._assertIsAttribute(attribute);
 		var array = [];
@@ -185,8 +185,8 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 	
 	getAttributes: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getAttributes()
+		// summary:
+		//		See dojo/data/api/Read.getAttributes()
 		this._assertIsItem(item);
 		var attributes = [];
 		var xmlNode = item;
@@ -202,17 +202,17 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 	
 	hasAttribute: function( /* item */ item,
-							/* attribute || attribute-name-string */ attribute){
-		//	summary:
-		//		See dojo.data.api.Read.hasAttribute()
+							/* attribute|attribute-name-string */ attribute){
+		// summary:
+		//		See dojo/data/api/Read.hasAttribute()
 		return (this.getValues(item, attribute).length > 0); //Boolean
 	},
 	
 	containsValue: function(/* item */ item,
-							/* attribute || attribute-name-string */ attribute,
+							/* attribute|attribute-name-string */ attribute,
 							/* anything */ value){
-		//	summary:
-		//		See dojo.data.api.Read.containsValue()
+		// summary:
+		//		See dojo/data/api/Read.containsValue()
 		var regexp = undefined;
 		if(typeof value === "string"){
 			regexp = filterUtil.patternToRegExp(value, false);
@@ -221,23 +221,22 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 	_containsValue: function(	/* item */ item,
-								/* attribute || attribute-name-string */ attribute,
+								/* attribute|attribute-name-string */ attribute,
 								/* anything */ value,
 								/* RegExp?*/ regexp){
-		//	summary:
+		// summary:
 		//		Internal function for looking at the values contained by the item.
-		//	description:
+		// description:
 		//		Internal function for looking at the values contained by the item.  This
 		//		function allows for denoting if the comparison should be case sensitive for
 		//		strings or not (for handling filtering cases where string case should not matter)
-		//
-		//	item:
+		// item:
 		//		The data item to examine for attribute values.
-		//	attribute:
+		// attribute:
 		//		The attribute to inspect.
-		//	value:
+		// value:
 		//		The value to match.
-		//	regexp:
+		// regexp:
 		//		Optional regular expression generated off value if value was of string type to handle wildcarding.
 		//		If present and attribute values are string, then it can be used for comparison instead of 'value'
 		var values = this.getValues(item, attribute);
@@ -256,9 +255,9 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 			
 	isItem: function(/* anything */ something){
-		//	summary:
-		//		See dojo.data.api.Read.isItem()
-		//	description:
+		// summary:
+		//		See dojo/data/api/Read.isItem()
+		// description:
 		//		Four things are verified to ensure that "something" is an item:
 		//		something can not be null, the nodeType must be an XML Element,
 		//		the tagName must be "outline", and the node must be a member of
@@ -270,25 +269,27 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 	
 	isItemLoaded: function(/* anything */ something){
-		//	summary:
-		//		See dojo.data.api.Read.isItemLoaded()
-		// 		OpmlStore loads every item, so if it's an item, then it's loaded.
+		// summary:
+		//		See dojo/data/api/Read.isItemLoaded().
+		//		OpmlStore loads every item, so if it's an item, then it's loaded.
 		return this.isItem(something); //Boolean
 	},
 	
 	loadItem: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.loadItem()
-		//	description:
+		// summary:
+		//		See dojo/data/api/Read.loadItem()
+		// description:
 		//		The OpmlStore always loads all items, so if it's an item, then it's loaded.
-		//		From the dojo.data.api.Read.loadItem docs:
+		//
+		//		From the dojo/data/api/Read.loadItem docs:
+		//
 		//			If a call to isItemLoaded() returns true before loadItem() is even called,
 		//			then loadItem() need not do any work at all and will not even invoke the callback handlers.
 	},
 
 	getLabel: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getLabel()
+		// summary:
+		//		See dojo/data/api/Read.getLabel()
 		if(this.isItem(item)){
 			return this.getValue(item,this.label); //String
 		}
@@ -296,18 +297,18 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 	getLabelAttributes: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getLabelAttributes()
+		// summary:
+		//		See dojo/data/api/Read.getLabelAttributes()
 		return [this.label]; //array
 	},
 
-	// The dojo.data.api.Read.fetch() function is implemented as
+	// The dojo/data/api/Read.fetch() function is implemented as
 	// a mixin from dojo.data.util.simpleFetch.
 	// That mixin requires us to define _fetchItems().
 	_fetchItems: function(	/* Object */ keywordArgs,
 							/* Function */ findCallback,
 							/* Function */ errorCallback){
-		//	summary:
+		// summary:
 		//		See dojo.data.util.simpleFetch.fetch()
 		
 		var self = this;
@@ -388,7 +389,8 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 	
 	getFeatures: function(){
-		// summary: See dojo.data.api.Read.getFeatures()
+		// summary:
+		//		See dojo/data/api/Read.getFeatures()
 		var features = {
 			'dojo.data.api.Read': true,
 			'dojo.data.api.Identity': true
@@ -397,13 +399,13 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 /***************************************
-     dojo.data.api.Identity API
+     dojo/data/api/Identity API
 ***************************************/
 	getIdentity: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Identity.getIdentity()
+		// summary:
+		//		See dojo/data/api/Identity.getIdentity()
 		if(this.isItem(item)){
-			//No ther way to do this other than O(n) without
+			//No other way to do this other than O(n) without
 			//complete rework of how the tree stores nodes.
 			for(var i in this._identityMap){
 				if(this._identityMap[i] === item){
@@ -415,8 +417,8 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 	},
 
 	fetchItemByIdentity: function(/* Object */ keywordArgs){
-		//	summary:
-		//		See dojo.data.api.Identity.fetchItemByIdentity()
+		// summary:
+		//		See dojo/data/api/Identity.fetchItemByIdentity()
 
 		//Hasn't loaded yet, we have to trigger the load.
 		if(!this._loadFinished){
@@ -435,7 +437,7 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 						};
 					var getHandler = xhr.get(getArgs);
 					getHandler.addCallback(function(data){
-						var scope = keywordArgs.scope ? keywordArgs.scope : winUtil.global;
+						var scope = keywordArgs.scope ? keywordArgs.scope : kernel.global;
 						try{
 							self._processRawXmlTree(data);
 							var item = self._identityMap[keywordArgs.identity];
@@ -455,7 +457,7 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 					getHandler.addErrback(function(error){
 						this._loadInProgress = false;
 						if(keywordArgs.onError){
-							var scope = keywordArgs.scope ? keywordArgs.scope : winUtil.global;
+							var scope = keywordArgs.scope ? keywordArgs.scope : kernel.global;
 							keywordArgs.onError.call(scope, error);
 						}
 					});
@@ -468,7 +470,7 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 					item = null;
 				}
 				if(keywordArgs.onItem){
-					var scope = keywordArgs.scope ? keywordArgs.scope : winUtil.global;
+					var scope = keywordArgs.scope ? keywordArgs.scope : kernel.global;
 					keywordArgs.onItem.call(scope, item);
 				}
 			}
@@ -479,24 +481,25 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 				item = null;
 			}
 			if(keywordArgs.onItem){
-				var scope = keywordArgs.scope ? keywordArgs.scope : winUtil.global;
+				var scope = keywordArgs.scope ? keywordArgs.scope : kernel.global;
 				keywordArgs.onItem.call(scope, item);
 			}
 		}
 	},
 
 	getIdentityAttributes: function(/* item */ item){
-		 //	summary:
-		 //		See dojo.data.api.Identity.getIdentifierAttributes()
-		 
-		 //Identity isn't a public attribute in the item, it's the node count.
-		 //So, return null.
-		 return null;
+		// summary:
+		//		See dojo/data/api/Identity.getIdentifierAttributes()
+
+		//Identity isn't a public attribute in the item, it's the node count.
+		//So, return null.
+		return null;
 	},
 
 	_handleQueuedFetches: function(){
-		//	summary:
+		// summary:
 		//		Internal function to execute delayed request in the store.
+		
 		//Execute any deferred fetches now.
 		if(this._queuedFetches.length > 0){
 			for(var i = 0; i < this._queuedFetches.length; i++){
@@ -513,9 +516,9 @@ var OpmlStore = declare("dojox.data.OpmlStore", null, {
 		}
 	},
 
-	close: function(/*dojo.data.api.Request || keywordArgs || null */ request){
-		 //	summary:
-		 //		See dojo.data.api.Read.close()
+	close: function(/*dojo/data/api/Request|Object?*/ request){
+		// summary:
+		//		See dojo/data/api/Read.close()
 	}
 });
 //Mix in the simple fetch implementation to this class.

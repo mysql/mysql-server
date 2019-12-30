@@ -44,8 +44,8 @@
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 

@@ -34,9 +34,9 @@
 
 namespace item_like_unittest {
 
-using ::testing::Return;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using ::testing::Return;
 
 const char haystack[] =
     "CAAAACCACTATGAGATATCATCTCACACCAGTTAGAATGGCAATCATTA"

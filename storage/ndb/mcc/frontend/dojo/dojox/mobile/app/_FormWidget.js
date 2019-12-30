@@ -1,11 +1,11 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojo/window,dijit/_WidgetBase,dijit/focus"],function(_1,_2,_3){
-_2.provide("dojox.mobile.app._FormWidget");
-_2.experimental("dojox.mobile.app._FormWidget");
-_2.require("dojo.window");
-_2.require("dijit._WidgetBase");
-_2.require("dijit.focus");
-_2.declare("dojox.mobile.app._FormWidget",_1._WidgetBase,{name:"",alt:"",value:"",type:"text",disabled:false,intermediateChanges:false,scrollOnFocus:false,attributeMap:_2.delegate(_1._WidgetBase.prototype.attributeMap,{value:"focusNode",id:"focusNode",alt:"focusNode",title:"focusNode"}),postMixInProperties:function(){
+define("dojox/mobile/app/_FormWidget",["dojo","dijit","dojox","dojo/require!dojo/window,dijit/_WidgetBase,dijit/focus"],function(_1,_2,_3){
+_1.provide("dojox.mobile.app._FormWidget");
+_1.experimental("dojox.mobile.app._FormWidget");
+_1.require("dojo.window");
+_1.require("dijit._WidgetBase");
+_1.require("dijit.focus");
+_1.declare("dojox.mobile.app._FormWidget",_2._WidgetBase,{name:"",alt:"",value:"",type:"text",disabled:false,intermediateChanges:false,scrollOnFocus:false,attributeMap:_1.delegate(_2._WidgetBase.prototype.attributeMap,{value:"focusNode",id:"focusNode",alt:"focusNode",title:"focusNode"}),postMixInProperties:function(){
 this.nameAttrSetting=this.name?("name=\""+this.name.replace(/'/g,"&quot;")+"\""):"";
 this.inherited(arguments);
 },postCreate:function(){
@@ -13,17 +13,17 @@ this.inherited(arguments);
 this.connect(this.domNode,"onmousedown","_onMouseDown");
 },_setDisabledAttr:function(_4){
 this.disabled=_4;
-_2.attr(this.focusNode,"disabled",_4);
+_1.attr(this.focusNode,"disabled",_4);
 if(this.valueNode){
-_2.attr(this.valueNode,"disabled",_4);
+_1.attr(this.valueNode,"disabled",_4);
 }
 },_onFocus:function(e){
 if(this.scrollOnFocus){
-_2.window.scrollIntoView(this.domNode);
+_1.window.scrollIntoView(this.domNode);
 }
 this.inherited(arguments);
 },isFocusable:function(){
-return !this.disabled&&!this.readOnly&&this.focusNode&&(_2.style(this.domNode,"display")!="none");
+return !this.disabled&&!this.readOnly&&this.focusNode&&(_1.style(this.domNode,"display")!="none");
 },focus:function(){
 this.focusNode.focus();
 },compare:function(_5,_6){
@@ -52,7 +52,7 @@ if(this._onChangeActive){
 if(this._onChangeHandle){
 clearTimeout(this._onChangeHandle);
 }
-this._onChangeHandle=setTimeout(_2.hitch(this,function(){
+this._onChangeHandle=setTimeout(_1.hitch(this,function(){
 this._onChangeHandle=null;
 this.onChange(_8);
 }),0);
@@ -69,7 +69,7 @@ this.onChange(this._lastValueReported);
 this.inherited(arguments);
 },_onMouseDown:function(e){
 if(this.isFocusable()){
-var _a=this.connect(_2.body(),"onmouseup",function(){
+var _a=this.connect(_1.body(),"onmouseup",function(){
 if(this.isFocusable()){
 this.focus();
 }
@@ -77,23 +77,23 @@ this.disconnect(_a);
 });
 }
 },selectInputText:function(_b,_c,_d){
-var _e=_2.global;
-var _f=_2.doc;
-_b=_2.byId(_b);
+var _e=_1.global;
+var _f=_1.doc;
+_b=_1.byId(_b);
 if(isNaN(_c)){
 _c=0;
 }
 if(isNaN(_d)){
 _d=_b.value?_b.value.length:0;
 }
-_1.focus(_b);
+_2.focus(_b);
 if(_e["getSelection"]&&_b.setSelectionRange){
 _b.setSelectionRange(_c,_d);
 }
 }});
-_2.declare("dojox.mobile.app._FormValueWidget",_3.mobile.app._FormWidget,{readOnly:false,attributeMap:_2.delegate(_3.mobile.app._FormWidget.prototype.attributeMap,{value:"",readOnly:"focusNode"}),_setReadOnlyAttr:function(_10){
+_1.declare("dojox.mobile.app._FormValueWidget",_3.mobile.app._FormWidget,{readOnly:false,attributeMap:_1.delegate(_3.mobile.app._FormWidget.prototype.attributeMap,{value:"",readOnly:"focusNode"}),_setReadOnlyAttr:function(_10){
 this.readOnly=_10;
-_2.attr(this.focusNode,"readOnly",_10);
+_1.attr(this.focusNode,"readOnly",_10);
 },postCreate:function(){
 this.inherited(arguments);
 if(this._resetValue===undefined){

@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/random/prng4"
 define("dojox/math/random/prng4", ["dojo", "dojox"], function(dojo, dojox) {
 	
@@ -19,9 +18,9 @@ define("dojox/math/random/prng4", ["dojo", "dojox"], function(dojo, dojox) {
 	dojo.extend(Arcfour, {
 		init: function(key){
 			// summary:
-			//	Initialize arcfour context
-			// key: Array:
-			//	an array of ints, each from [0..255]
+			//		Initialize arcfour context
+			// key: int[]
+			//		an array of ints, each from [0..255]
 			var i, j, t, S = this.S, len = key.length;
 			for(i = 0; i < 256; ++i){
 				S[i] = i;

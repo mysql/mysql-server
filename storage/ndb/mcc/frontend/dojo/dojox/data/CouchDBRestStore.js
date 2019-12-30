@@ -17,7 +17,7 @@ return _8;
 },fetch:function(_9){
 _9.query=_9.query||"_all_docs?";
 if(_9.start){
-_9.query=(_9.query?(_9.query+"&"):"")+"startkey="+_9.start;
+_9.query=(_9.query?(_9.query+"&"):"")+"skip="+_9.start;
 delete _9.start;
 }
 if(_9.count){

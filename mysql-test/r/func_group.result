@@ -74,8 +74,13 @@ NULL	NULL
 2	3	c
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00);
 CREATE TABLE t2 (id int(11),name char(20));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'Set One'),(2,'Set Two');
 select id, avg(value1), std(value1), variance(value1) from t1 group by id;
 id	avg(value1)	std(value1)	variance(value1)
@@ -117,6 +122,8 @@ id	avg(rating+0.0e0)
 3	2
 drop table t1,t2;
 create table t1 (a smallint(6) primary key, c char(10), b text);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'1','1');
 INSERT INTO t1 VALUES (2,'2','2');
 INSERT INTO t1 VALUES (4,'4','4');
@@ -164,6 +171,8 @@ create table t1 (
 num float(5,2),
 user char(20)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t1 values (10.3,'nem'),(20.53,'monty'),(30.23,'sinisa');
 insert into t1 values (30.13,'nem'),(20.98,'monty'),(10.45,'sinisa');
 insert into t1 values (5.2,'nem'),(8.64,'monty'),(11.12,'sinisa');
@@ -211,10 +220,10 @@ insert into t2 values('AAA', 10, 0.5);
 insert into t2 values('BBB', 20, 1.0);
 select t1.a1, t1.a2, t2.a1, t2.a2 from t1,t2;
 a1	a2	a1	a2
-10	aaa	AAA	10
-10	aaa	BBB	20
 10	NULL	AAA	10
 10	NULL	BBB	20
+10	aaa	AAA	10
+10	aaa	BBB	20
 10	bbb	AAA	10
 10	bbb	BBB	20
 20	zzz	AAA	10
@@ -482,7 +491,7 @@ select max(a3) from t1 where a2 is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where isnull(`test`.`t1`.`a2`)
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where (`test`.`t1`.`a2` is null)
 select max(a3) from t1 where a2 is null;
 max(a3)
 MIN
@@ -545,7 +554,7 @@ select max(a3) from t1 where a2 is null and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where false
 select max(a3) from t1 where a2 is null and a2 = 2;
 max(a3)
 NULL
@@ -653,7 +662,7 @@ select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where false
 select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
 min(a3)
 NULL
@@ -708,7 +717,7 @@ select min(a3) from t1 where (a2 +1 ) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	k1	16	NULL	15	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where isnull((`test`.`t1`.`a2` + 1))
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where ((`test`.`t1`.`a2` + 1) is null)
 explain
 select min(a3) from t1 where (a2 + 1) = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -839,6 +848,7 @@ val enum('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
@@ -854,6 +864,7 @@ val set('one','two','three') NOT NULL default 'one',
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES
 (1,'one'),(2,'two'),(3,'three'),(4,'one'),(5,'two');
@@ -1003,6 +1014,9 @@ cast(min(ifl) as decimal(5,2))
 1.00
 drop table t1, t2, t3;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,0.00),(1,1.00), (1,2.00), (2,10.00), (2,11.00), (2,12.00), (2,13.00);
 select id, stddev_pop(value1), var_pop(value1), stddev_samp(value1), var_samp(value1) from t1 group by id;
 id	stddev_pop(value1)	var_pop(value1)	stddev_samp(value1)	var_samp(value1)
@@ -1527,6 +1541,8 @@ AVG(a)	CAST(AVG(a) AS DECIMAL)
 15	15
 DROP TABLE t1;
 CREATE TABLE derived1 (a bigint(21));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO derived1 VALUES (2);
 CREATE TABLE D (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1536,6 +1552,10 @@ filler blob,
 PRIMARY KEY (pk),
 KEY int_key (int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO D VALUES 
 (39,40,4,repeat('  X', 42)),
 (43,56,4,repeat('  X', 42)),
@@ -1654,161 +1674,161 @@ select a.f1 as a, b.f1 as b, a.f1 > b.f1 as gt,
 a.f1 < b.f1 as lt, a.f1<=>b.f1 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998	0	0	1
-2000	1998	1	0	0
-2002	1998	1	0	0
-2060	1998	1	0	0
-1970	1998	0	1	0
-NULL	1998	NULL	NULL	0
-1998	2000	0	1	0
-2000	2000	0	0	1
-2002	2000	1	0	0
-2060	2000	1	0	0
-1970	2000	0	1	0
-NULL	2000	NULL	NULL	0
-1998	2002	0	1	0
-2000	2002	0	1	0
-2002	2002	0	0	1
-2060	2002	1	0	0
-1970	2002	0	1	0
-NULL	2002	NULL	NULL	0
-1998	2060	0	1	0
-2000	2060	0	1	0
-2002	2060	0	1	0
-2060	2060	0	0	1
-1970	2060	0	1	0
-NULL	2060	NULL	NULL	0
-1998	1970	1	0	0
-2000	1970	1	0	0
-2002	1970	1	0	0
-2060	1970	1	0	0
 1970	1970	0	0	1
-NULL	1970	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998	0	1	0
+1970	2000	0	1	0
+1970	2002	0	1	0
+1970	2060	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970	1	0	0
+1998	1998	0	0	1
+1998	2000	0	1	0
+1998	2002	0	1	0
+1998	2060	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970	1	0	0
+2000	1998	1	0	0
+2000	2000	0	0	1
+2000	2002	0	1	0
+2000	2060	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970	1	0	0
+2002	1998	1	0	0
+2002	2000	1	0	0
+2002	2002	0	0	1
+2002	2060	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970	1	0	0
+2060	1998	1	0	0
+2060	2000	1	0	0
+2060	2002	1	0	0
+2060	2060	0	0	1
+2060	NULL	NULL	NULL	0
+NULL	1970	NULL	NULL	0
+NULL	1998	NULL	NULL	0
+NULL	2000	NULL	NULL	0
+NULL	2002	NULL	NULL	0
+NULL	2060	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f2 as b, a.f1 > b.f2 as gt,
 a.f1 < b.f2 as lt, a.f1<=>b.f2 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998	0	0	1
-2000	1998	1	0	0
-2002	1998	1	0	0
-2060	1998	1	0	0
-1970	1998	0	1	0
-NULL	1998	NULL	NULL	0
-1998	2000	0	1	0
-2000	2000	0	0	1
-2002	2000	1	0	0
-2060	2000	1	0	0
-1970	2000	0	1	0
-NULL	2000	NULL	NULL	0
-1998	2002	0	1	0
-2000	2002	0	1	0
-2002	2002	0	0	1
-2060	2002	1	0	0
-1970	2002	0	1	0
-NULL	2002	NULL	NULL	0
-1998	2060	0	1	0
-2000	2060	0	1	0
-2002	2060	0	1	0
-2060	2060	0	0	1
-1970	2060	0	1	0
-NULL	2060	NULL	NULL	0
-1998	1970	1	0	0
-2000	1970	1	0	0
-2002	1970	1	0	0
-2060	1970	1	0	0
 1970	1970	0	0	1
-NULL	1970	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998	0	1	0
+1970	2000	0	1	0
+1970	2002	0	1	0
+1970	2060	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970	1	0	0
+1998	1998	0	0	1
+1998	2000	0	1	0
+1998	2002	0	1	0
+1998	2060	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970	1	0	0
+2000	1998	1	0	0
+2000	2000	0	0	1
+2000	2002	0	1	0
+2000	2060	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970	1	0	0
+2002	1998	1	0	0
+2002	2000	1	0	0
+2002	2002	0	0	1
+2002	2060	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970	1	0	0
+2060	1998	1	0	0
+2060	2000	1	0	0
+2060	2002	1	0	0
+2060	2060	0	0	1
+2060	NULL	NULL	NULL	0
+NULL	1970	NULL	NULL	0
+NULL	1998	NULL	NULL	0
+NULL	2000	NULL	NULL	0
+NULL	2002	NULL	NULL	0
+NULL	2060	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f3 as b, a.f1 > b.f3 as gt,
 a.f1 < b.f3 as lt, a.f1<=>b.f3 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998-01-01	0	1	0
-2000	1998-01-01	1	0	0
-2002	1998-01-01	1	0	0
-2060	1998-01-01	1	0	0
-1970	1998-01-01	0	1	0
-NULL	1998-01-01	NULL	NULL	0
-1998	2000-01-01	0	1	0
-2000	2000-01-01	0	1	0
-2002	2000-01-01	1	0	0
-2060	2000-01-01	1	0	0
-1970	2000-01-01	0	1	0
-NULL	2000-01-01	NULL	NULL	0
-1998	2002-01-01	0	1	0
-2000	2002-01-01	0	1	0
-2002	2002-01-01	0	1	0
-2060	2002-01-01	1	0	0
-1970	2002-01-01	0	1	0
-NULL	2002-01-01	NULL	NULL	0
-1998	2060-01-01	0	1	0
-2000	2060-01-01	0	1	0
-2002	2060-01-01	0	1	0
-2060	2060-01-01	0	1	0
-1970	2060-01-01	0	1	0
-NULL	2060-01-01	NULL	NULL	0
-1998	1970-01-01	1	0	0
-2000	1970-01-01	1	0	0
-2002	1970-01-01	1	0	0
-2060	1970-01-01	1	0	0
 1970	1970-01-01	0	1	0
-NULL	1970-01-01	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998-01-01	0	1	0
+1970	2000-01-01	0	1	0
+1970	2002-01-01	0	1	0
+1970	2060-01-01	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970-01-01	1	0	0
+1998	1998-01-01	0	1	0
+1998	2000-01-01	0	1	0
+1998	2002-01-01	0	1	0
+1998	2060-01-01	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970-01-01	1	0	0
+2000	1998-01-01	1	0	0
+2000	2000-01-01	0	1	0
+2000	2002-01-01	0	1	0
+2000	2060-01-01	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970-01-01	1	0	0
+2002	1998-01-01	1	0	0
+2002	2000-01-01	1	0	0
+2002	2002-01-01	0	1	0
+2002	2060-01-01	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970-01-01	1	0	0
+2060	1998-01-01	1	0	0
+2060	2000-01-01	1	0	0
+2060	2002-01-01	1	0	0
+2060	2060-01-01	0	1	0
+2060	NULL	NULL	NULL	0
+NULL	1970-01-01	NULL	NULL	0
+NULL	1998-01-01	NULL	NULL	0
+NULL	2000-01-01	NULL	NULL	0
+NULL	2002-01-01	NULL	NULL	0
+NULL	2060-01-01	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select a.f1 as a, b.f4 as b, a.f1 > b.f4 as gt,
 a.f1 < b.f4 as lt, a.f1<=>b.f4 as eq
 from t1 a, t1 b;
 a	b	gt	lt	eq
-1998	1998-01-01 00:00:00	0	1	0
-2000	1998-01-01 00:00:00	1	0	0
-2002	1998-01-01 00:00:00	1	0	0
-2060	1998-01-01 00:00:00	1	0	0
-1970	1998-01-01 00:00:00	0	1	0
-NULL	1998-01-01 00:00:00	NULL	NULL	0
-1998	2000-01-01 00:00:01	0	1	0
-2000	2000-01-01 00:00:01	0	1	0
-2002	2000-01-01 00:00:01	1	0	0
-2060	2000-01-01 00:00:01	1	0	0
-1970	2000-01-01 00:00:01	0	1	0
-NULL	2000-01-01 00:00:01	NULL	NULL	0
-1998	2002-01-01 23:59:59	0	1	0
-2000	2002-01-01 23:59:59	0	1	0
-2002	2002-01-01 23:59:59	0	1	0
-2060	2002-01-01 23:59:59	1	0	0
-1970	2002-01-01 23:59:59	0	1	0
-NULL	2002-01-01 23:59:59	NULL	NULL	0
-1998	2060-01-01 11:11:11	0	1	0
-2000	2060-01-01 11:11:11	0	1	0
-2002	2060-01-01 11:11:11	0	1	0
-2060	2060-01-01 11:11:11	0	1	0
-1970	2060-01-01 11:11:11	0	1	0
-NULL	2060-01-01 11:11:11	NULL	NULL	0
-1998	1970-11-11 22:22:22	1	0	0
-2000	1970-11-11 22:22:22	1	0	0
-2002	1970-11-11 22:22:22	1	0	0
-2060	1970-11-11 22:22:22	1	0	0
 1970	1970-11-11 22:22:22	0	1	0
-NULL	1970-11-11 22:22:22	NULL	NULL	0
-1998	NULL	NULL	NULL	0
-2000	NULL	NULL	NULL	0
-2002	NULL	NULL	NULL	0
-2060	NULL	NULL	NULL	0
+1970	1998-01-01 00:00:00	0	1	0
+1970	2000-01-01 00:00:01	0	1	0
+1970	2002-01-01 23:59:59	0	1	0
+1970	2060-01-01 11:11:11	0	1	0
 1970	NULL	NULL	NULL	0
+1998	1970-11-11 22:22:22	1	0	0
+1998	1998-01-01 00:00:00	0	1	0
+1998	2000-01-01 00:00:01	0	1	0
+1998	2002-01-01 23:59:59	0	1	0
+1998	2060-01-01 11:11:11	0	1	0
+1998	NULL	NULL	NULL	0
+2000	1970-11-11 22:22:22	1	0	0
+2000	1998-01-01 00:00:00	1	0	0
+2000	2000-01-01 00:00:01	0	1	0
+2000	2002-01-01 23:59:59	0	1	0
+2000	2060-01-01 11:11:11	0	1	0
+2000	NULL	NULL	NULL	0
+2002	1970-11-11 22:22:22	1	0	0
+2002	1998-01-01 00:00:00	1	0	0
+2002	2000-01-01 00:00:01	1	0	0
+2002	2002-01-01 23:59:59	0	1	0
+2002	2060-01-01 11:11:11	0	1	0
+2002	NULL	NULL	NULL	0
+2060	1970-11-11 22:22:22	1	0	0
+2060	1998-01-01 00:00:00	1	0	0
+2060	2000-01-01 00:00:01	1	0	0
+2060	2002-01-01 23:59:59	1	0	0
+2060	2060-01-01 11:11:11	0	1	0
+2060	NULL	NULL	NULL	0
+NULL	1970-11-11 22:22:22	NULL	NULL	0
+NULL	1998-01-01 00:00:00	NULL	NULL	0
+NULL	2000-01-01 00:00:01	NULL	NULL	0
+NULL	2002-01-01 23:59:59	NULL	NULL	0
+NULL	2060-01-01 11:11:11	NULL	NULL	0
 NULL	NULL	NULL	NULL	1
 select *, f1 = f2 from t1;
 f1	f2	f3	f4	f1 = f2
@@ -1900,6 +1920,8 @@ DROP TABLE t1;
 # aggregated value was NULL"
 #
 CREATE TABLE t1 (col_int_nokey int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (7),(8),(NULL);
 SELECT AVG(DISTINCT col_int_nokey) FROM t1;
 AVG(DISTINCT col_int_nokey)
@@ -1966,6 +1988,10 @@ col_int int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 col_int_key int(11) DEFAULT NULL,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1973,6 +1999,10 @@ col_int int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4,1,2);
 CREATE TABLE t3 (
 col_int int(11) DEFAULT NULL,
@@ -1981,6 +2011,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (3,9,1);
 CREATE TABLE t4 (
 col_int_key int(11) DEFAULT NULL,
@@ -1989,6 +2023,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT (
 SELECT MIN(subquery1_t1.col_int_key)
 FROM t3 AS subquery1_t1

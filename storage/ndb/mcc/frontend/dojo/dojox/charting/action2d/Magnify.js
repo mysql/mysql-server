@@ -30,7 +30,7 @@ var _f={shape:o.shape,duration:this.duration,easing:this.easing,transform:[{name
 if(o.shape){
 _b.push(gf.animateTransform(_f));
 }
-if(o.oultine){
+if(o.outline){
 _f.shape=o.outline;
 _b.push(gf.animateTransform(_f));
 }

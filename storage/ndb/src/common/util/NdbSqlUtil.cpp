@@ -456,20 +456,22 @@ NdbSqlUtil::cmpOlddecimalunsigned(const void* info, const void* p1, unsigned n1,
 int
 NdbSqlUtil::cmpDecimal(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpDecimalunsigned(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  // allow different lengths
-  assert(info != 0);
+  // Require same lengths
+  assert(info != 0 && n1 == n2);
   const uchar* v1 = (const uchar*)p1;
   const uchar* v2 = (const uchar*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
@@ -495,28 +497,32 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
 
 int
 NdbSqlUtil::cmpBinary(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  // allow different lengths
-  assert(info == 0);
-  const uchar* v1 = (const uchar*)p1;
-  const uchar* v2 = (const uchar*)p2;
+  // Require same lengths
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
+}
+
+static int
+cmpVarbinary(const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  // Allow different lengths
   int k = 0;
-  if (n1 < n2) {
-    k = memcmp(v1, v2, n1);
+  if (likely(n1 == n2)) {
+    k = memcmp(p1, p2, n1);
+  } else if (n1 < n2) {
+    k = memcmp(p1, p2, n1);
     if (k == 0)
       k = -1;
-  } else if (n1 > n2) {
-    k = memcmp(v1, v2, n2);
+  } else {  // (n1 > n2)
+    k = memcmp(p1, p2, n2);
     if (k == 0)
       k = +1;
-  } else {
-    k = memcmp(v1, v2, n1);
   }
   return k;
 }
@@ -531,8 +537,7 @@ NdbSqlUtil::cmpVarbinary(const void* info, const void* p1, unsigned n1, const vo
   uint m1 = v1[0];
   uint m2 = v2[0];
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return ::cmpVarbinary(v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -669,8 +674,7 @@ NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const 
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -683,8 +687,7 @@ NdbSqlUtil::cmpLongvarbinary(const void* info, const void* p1, unsigned n1, cons
   uint m1 = v1[0] | (v1[1] << 8);
   uint m2 = v2[0] | (v2[1] << 8);
   require(lb + m1 <= n1 && lb + m2 <= n2);
-  int k = cmpBinary(info, v1 + lb, m1, v2 + lb, m2);
-  return k;
+  return ::cmpVarbinary(v1 + lb, m1, v2 + lb, m2);
 }
 
 int
@@ -718,19 +721,22 @@ NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const vo
 int
 NdbSqlUtil::cmpTime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpDatetime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 int
 NdbSqlUtil::cmpTimestamp2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
 {
-  return cmpBinary(info, p1, n1, p2, n2);
+  assert(info == 0 && n1 == n2);
+  return memcmp(p1, p2, n1);
 }
 
 // like

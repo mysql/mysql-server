@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,9 @@ static volatile t_test_status test_status;
 
 /* declaration of status variable for plugin */
 static SHOW_VAR test_services_status[] = {
-    {"test_services_status", (char *)&test_status, SHOW_INT, SHOW_SCOPE_GLOBAL},
+    {"test_services_status",
+     const_cast<char *>(reinterpret_cast<volatile char *>(&test_status)),
+     SHOW_INT, SHOW_SCOPE_GLOBAL},
     {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /* SQL (system) variables to control test execution                     */
@@ -74,7 +76,7 @@ static SYS_VAR *test_services_sysvars[] = {
 
 /* The test cases for the log_message service. */
 static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_log_plugin_error");
+  DBUG_TRACE;
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
   LogPluginErr(
       INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
@@ -90,20 +92,19 @@ static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
                "This is an error from test plugin for services "
                "testing error report output");
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* the tests of snprintf ans log_message run when INSTALL PLUGIN is called. */
 static int test_services_plugin_init(void *p) {
-  DBUG_ENTER("test_services_plugin_init");
+  DBUG_TRACE;
 
   int ret = 0;
   test_status = BUSY;
   /* Test of service: LogPluginErr/LogPluginErrMsg */
   /* Log the value of the switch in mysqld.err. */
 
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                   "Test_services with_log_message_val: %d",
                   with_log_message_val);
@@ -117,14 +118,14 @@ static int test_services_plugin_init(void *p) {
 
   test_status = READY;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
 static int test_services_plugin_deinit(void *) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_ENTER("test_services_plugin_deinit");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /* Mandatory structure describing the properties of the plugin. */

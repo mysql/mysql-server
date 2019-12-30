@@ -1,25 +1,13 @@
-//>>built
 define("dojox/mobile/RoundRect", [
-	"dojo/_base/array",
 	"dojo/_base/declare",
-	"dojo/_base/window",
-	"dijit/_Contained",
-	"dijit/_Container",
-	"dijit/_WidgetBase"
-], function(array, declare, win, Contained, Container, WidgetBase){
-
-/*=====
-	var Contained = dijit._Contained;
-	var Container = dijit._Container;
-	var WidgetBase = dijit._WidgetBase;
-=====*/
+	"dojo/dom-class",
+	"./Container"
+], function(declare, domClass, Container){
 
 	// module:
 	//		dojox/mobile/RoundRect
-	// summary:
-	//		A simple round rectangle container.
 
-	return declare("dojox.mobile.RoundRect", [WidgetBase, Container, Contained], {
+	return declare("dojox.mobile.RoundRect", Container, {
 		// summary:
 		//		A simple round rectangle container.
 		// description:
@@ -33,17 +21,17 @@ define("dojox/mobile/RoundRect", [
 		//		If true, adds a shadow effect to the container element.
 		shadow: false,
 
-		buildRendering: function(){
-			this.domNode = this.containerNode = this.srcNodeRef || win.doc.createElement("DIV");
-			this.domNode.className = this.shadow ? "mblRoundRect mblShadow" : "mblRoundRect";
-		},
+		/* internal properties */	
+		
+		// baseClass: String
+		//		The name of the CSS class of this widget.
+		baseClass: "mblRoundRect",
 
-		resize: function(){
-			// summary:
-			//		Calls resize() of each child widget.
-			array.forEach(this.getChildren(), function(child){
-				if(child.resize){ child.resize(); }
-			});
+		buildRendering: function(){
+			this.inherited(arguments);
+			if(this.shadow){
+				domClass.add(this.domNode, "mblShadow");
+			}
 		}
 	});
 });

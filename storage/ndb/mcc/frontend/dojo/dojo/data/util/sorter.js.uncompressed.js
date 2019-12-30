@@ -1,17 +1,17 @@
-//>>built
-define("dojo/data/util/sorter", ["dojo/_base/lang"], function(lang) {
+define("dojo/data/util/sorter", ["../../_base/lang"], function(lang){
 	// module:
 	//		dojo/data/util/sorter
 	// summary:
 	//		TODOC
 
-var sorter = lang.getObject("dojo.data.util.sorter", true);
+var sorter = {};
+lang.setObject("dojo.data.util.sorter", sorter);
 
 sorter.basicComparator = function(	/*anything*/ a,
 													/*anything*/ b){
-	//	summary:
-	//		Basic comparision function that compares if an item is greater or less than another item
-	//	description:
+	// summary:
+	//		Basic comparison function that compares if an item is greater or less than another item
+	// description:
 	//		returns 1 if a > b, -1 if a < b, 0 if equal.
 	//		'null' values (null, undefined) are treated as larger values so that they're pushed to the end of the list.
 	//		And compared to each other, null is equivalent to undefined.
@@ -35,25 +35,24 @@ sorter.basicComparator = function(	/*anything*/ a,
 	return r; //int {-1,0,1}
 };
 
-sorter.createSortFunction = function(	/* attributes array */sortSpec, /*dojo.data.core.Read*/ store){
-	//	summary:
+sorter.createSortFunction = function(	/* attributes[] */sortSpec, /*dojo/data/api/Read*/ store){
+	// summary:
 	//		Helper function to generate the sorting function based off the list of sort attributes.
-	//	description:
+	// description:
 	//		The sort function creation will look for a property on the store called 'comparatorMap'.  If it exists
 	//		it will look in the mapping for comparisons function for the attributes.  If one is found, it will
 	//		use it instead of the basic comparator, which is typically used for strings, ints, booleans, and dates.
 	//		Returns the sorting function for this particular list of attributes and sorting directions.
-	//
-	//	sortSpec: array
+	// sortSpec:
 	//		A JS object that array that defines out what attribute names to sort on and whether it should be descenting or asending.
 	//		The objects should be formatted as follows:
-	//		{
-	//			attribute: "attributeName-string" || attribute,
-	//			descending: true|false;   // Default is false.
-	//		}
-	//	store: object
+	// |	{
+	// |		attribute: "attributeName-string" || attribute,
+	// |		descending: true|false;   // Default is false.
+	// |	}
+	// store:
 	//		The datastore object to look up item values from.
-	//
+
 	var sortFunctions=[];
 
 	function createSortFunction(attr, dir, comp, s){

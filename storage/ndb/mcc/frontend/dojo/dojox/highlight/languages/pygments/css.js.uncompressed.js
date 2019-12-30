@@ -1,7 +1,6 @@
-//>>built
-define("dojox/highlight/languages/pygments/css", ["dojox/main", "../../_base", "./_html"], function(dojox){
+define("dojox/highlight/languages/pygments/css", ["../../_base", "./_html"], function(dh){
 
-	var dh = dojox.highlight, dhl = dh.languages;
+	var dhl = dh.languages;
 	dhl.css = {
 		defaultMode: {
 			lexems: ["\\b[a-zA-Z0-9]+\\b", "\\b@media\b"],

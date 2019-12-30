@@ -1,4 +1,9 @@
-//>>built
+/*
+This file was modified by Oracle on 2019-05-23.
+At LN144, we first make button state "BUSY" and only then call onClick. This prevents
+button from receiving multiple clicks while already triggered.
+Modifications copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+*/
 define("dojox/form/BusyButton", [
 	"dojo/_base/lang",
 	"dojo/dom-attr",
@@ -10,17 +15,21 @@ define("dojox/form/BusyButton", [
 	"dojo/i18n!dijit/nls/loading",
 	"dojo/_base/declare"
 ], function(lang, domAttr, domClass, Button, DropDownButton, ComboButton, i18n, nlsLoading, declare){
-	/*=====
-		Button = dijit.form.Button;
-		DropDownButton = dijit.form.DropDownButton;
-		ComboButton = dijit.form.ComboButton;
-	=====*/
+
 var _BusyButtonMixin = declare("dojox.form._BusyButtonMixin", null, {
 
+	// isBusy: Boolean
 	isBusy: false,
-	busyLabel: "", // text while button is busy
+
+	// busyLabel: String
+	//		text while button is busy
+	busyLabel: "",
+
 	timeout: null, // timeout, should be controlled by xhr call
-	useIcon: true, // use a busy icon
+
+	// useIcon: Boolean
+	//		use a busy icon
+	useIcon: true,
 
 	postMixInProperties: function(){
 		this.inherited(arguments);
@@ -46,7 +55,15 @@ var _BusyButtonMixin = declare("dojox.form._BusyButtonMixin", null, {
 		// summary:
 		//		sets state from idle to busy
 		this.isBusy = true;
-		this.set("disabled", true);
+
+		// Webkit does not submit the form if the submit button is disabled when
+		// clicked ( https://bugs.webkit.org/show_bug.cgi?id=14443 ), so disable the button later
+		if(this._disableHandle) {
+			this._disableHandle.remove();
+		}
+		this._disableHandle = this.defer(function() {
+			this.set("disabled", true);
+		});
 
 		this.setLabel(this.busyLabel, this.timeout);
 	},
@@ -54,7 +71,10 @@ var _BusyButtonMixin = declare("dojox.form._BusyButtonMixin", null, {
 	cancel: function(){
 		// summary:
 		//		if no timeout is set or for other reason the user can put the button back
-		//  	to being idle
+		//		to being idle
+		if(this._disableHandle) {
+			this._disableHandle.remove();
+		}
 		this.set("disabled", false);
 		this.isBusy = false;
 		this.setLabel(this._label);
@@ -86,13 +106,12 @@ var _BusyButtonMixin = declare("dojox.form._BusyButtonMixin", null, {
 		// this.inherited(arguments); FIXME: throws an Unknown runtime error
 
 		// Begin IE hack
-		// summary: reset the label (text) of the button; takes an HTML string
 		this.label = content;
 		// remove children
 		while(this.containerNode.firstChild){
 			this.containerNode.removeChild(this.containerNode.firstChild);
 		}
-		this.containerNode.innerHTML = this.label;
+		this.containerNode.appendChild(document.createTextNode(this.label));
 
 		if(this.showLabel == false && !domAttr.get(this.domNode, "title")){
 			this.titleNode.title=lang.trim(this.containerNode.innerText || this.containerNode.textContent || '');
@@ -122,13 +141,22 @@ var _BusyButtonMixin = declare("dojox.form._BusyButtonMixin", null, {
 
 		// only do something if button is not busy
 		if(!this.isBusy){
-			this.inherited(arguments);	// calls onClick()
 			this.makeBusy();
+			this.inherited(arguments);	// calls onClick()
 		}
 	}
 });
 
-var BusyButton = declare("dojox.form.BusyButton", [Button, _BusyButtonMixin], {});
+var BusyButton = declare("dojox.form.BusyButton", [Button, _BusyButtonMixin], {
+	// summary:
+	//		BusyButton is a simple widget which provides implementing more
+	//		user friendly form submission.
+	// description:
+	//		When a form gets submitted by a user, many times it is recommended to disable
+	//		the submit buttons to prevent double submission. BusyButton provides a simple set
+	//		of features for this purpose
+
+});
 declare("dojox.form.BusyComboButton", [ComboButton, _BusyButtonMixin], {});
 declare("dojox.form.BusyDropDownButton", [DropDownButton, _BusyButtonMixin], {});
 return BusyButton;

@@ -1,5 +1,4 @@
  #Get deafult engine value
---source include/no_ps_protocol.inc
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
@@ -96,12 +95,16 @@ drop table t1;
 #
 # CAST to NCHAR with/without length
 #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 select
   cast(_koi8r'ÆÇ'  AS nchar)    as c1,
   cast(_koi8r'Æ '  AS nchar)    as c2,
   cast(_koi8r'ÆÇÈ' AS nchar(2)) as c3,
   cast(_koi8r'Æ  ' AS nchar(2)) as c4,
   cast(_koi8r'Æ'   AS nchar(2)) as c5;
+--enable_ps_protocol
 
 create table t1 select
   cast(_koi8r'ÆÇ'  AS nchar)    as c1,
@@ -119,12 +122,16 @@ drop table t1;
 --echo #
 --echo # Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
 --echo #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
   CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
   CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
   CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
   CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+--enable_ps_protocol
 
 CREATE TABLE t1 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
@@ -376,3 +383,158 @@ INSERT INTO t VALUES ('a'), ('b'), ('c');
 SELECT CAST(c1 AS UNSIGNED) AS c5 FROM t;
 SELECT CAST(c1 AS UNSIGNED) AS c5 FROM (SELECT c1 FROM t) t;
 DROP TABLE t;
+
+--echo #
+--echo # CAST as DOUBLE/FLOAT/REAL
+--echo #
+SELECT CAST(1/3 AS FLOAT) as float_col,
+       CAST(1/3 AS DOUBLE) as double_col,
+       CAST(1/3 AS DOUBLE PRECISION) as double_prec_col,
+       CAST(1/3 AS REAL) as real_col;
+
+SELECT CAST(1/3 AS FLOAT(10)), CAST(1/3 AS FLOAT(53));
+--error ER_PARSE_ERROR
+SELECT CAST(1/3 AS FLOAT(-1));
+--error ER_TOO_BIG_PRECISION
+SELECT CAST(1/3 AS FLOAT(54));
+--error ER_PARSE_ERROR
+SELECT CAST(1/3 AS DOUBLE(52));
+--error ER_PARSE_ERROR
+SELECT CAST(1/3 AS REAL(34));
+
+--error ER_PARSE_ERROR
+SELECT CAST(999.00009 AS FLOAT(7,4)) as float_col;
+--error ER_PARSE_ERROR
+SELECT CAST(999.00009 AS DOUBLE(7,4)) as double_col;
+--error ER_PARSE_ERROR
+SELECT CAST(999.00009 AS REAL(7,4)) as real_col;
+
+SELECT ADDDATE(CAST("20010101235959.9" AS DOUBLE), INTERVAL 1 DAY);
+SELECT TIMEDIFF(CAST("101112" AS DOUBLE), TIME'101010');
+
+SELECT CAST(DATE'2000-01-01' AS FLOAT), CAST(DATE'2000-01-01' AS DOUBLE);
+SELECT CAST(TIME'23:59:59' AS FLOAT), CAST(TIME'23:59:59' AS DOUBLE);
+SELECT CAST(TIME'23:59:59.123456' AS FLOAT),
+       CAST(TIME'23:59:59.123456' AS DOUBLE);
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59' AS FLOAT),
+       CAST(TIMESTAMP'2000-01-01 23:59:59' AS DOUBLE);
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS FLOAT),
+       CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS DOUBLE);
+
+CREATE TABLE t1 as SELECT CAST(1/3 AS FLOAT) as float_col,
+                          CAST(1/3 AS DOUBLE) as double_col,
+                          CAST(CAST(999.00009 AS DECIMAL(7,4)) AS DOUBLE) as d2;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+# Function that forces Item_typecast_real::val_int() to be called to generate overflow
+--error ER_DATA_OUT_OF_RANGE
+SELECT PERIOD_ADD(200905, CAST(3.14e19 AS DOUBLE));
+SELECT -1.0 *  CAST(3.14e19 AS DOUBLE);
+--error ER_DATA_OUT_OF_RANGE
+SELECT CAST("3.14e100" AS FLOAT);
+--error ER_DATA_OUT_OF_RANGE
+SELECT CAST(-1e308 as FLOAT);
+SELECT CONCAT("value=", CAST("3.4e5" AS FLOAT));
+
+CREATE VIEW v1 AS SELECT CAST(1/3 AS REAL), CAST(1/3 AS FLOAT(2)), CAST(1/3 AS FLOAT(50));
+SHOW CREATE VIEW v1;
+DROP VIEW v1;
+
+
+SELECT CAST(NULL AS REAL), CAST(NULL AS FLOAT), CAST(NULL AS DOUBLE);
+
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=REAL_AS_FLOAT;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+DROP TABLE t;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+SELECT MAKETIME(1, 2, CAST("1.6" AS FLOAT));
+
+--echo #
+--echo # WL#12108: Inject type cast nodes into the item tree to avoid data
+--echo # type mismatches.
+--echo #
+
+CREATE TABLE dt_t (dt DATETIME, d DATE, t TIME);
+CREATE TABLE n_t (i INT, d DECIMAL, f FLOAT, dc DECIMAL);
+
+--echo #
+--echo # DATETIME + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.f;
+
+--echo #
+--echo # DATE + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.f;
+EXPLAIN SELECT * from dt_t JOIN n_t on dt_t.d = n_t.dc;
+
+--echo #
+--echo # TIME + NUMERICS
+--echo #
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.i;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.d;
+EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.f;
+
+--echo #
+--echo # DATETIME + DATE
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.d;
+
+--echo #
+--echo # DATETIME + TIME
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.t;
+
+--echo #
+--echo # DATE + TIME
+--echo #
+EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.t;
+
+# No CAST is expected when the data type is the same
+EXPLAIN SELECT * FROM dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.d;
+
+# In the SELECT list
+EXPLAIN SELECT dt_t.dt = n_t.i from dt_t, n_t;
+# In HAVING expression
+EXPLAIN SELECT MAX(dt_t.d) AS max_d, MAX(n_t.i) AS max_i
+FROM dt_t, n_t HAVING max_d = max_i;
+# In ORDER BY clause
+EXPLAIN SELECT dt=d from dt_t ORDER BY dt = d;
+EXPLAIN SELECT * from dt_t ORDER BY dt = d;
+# In WINDOW ORDER BY clause
+EXPLAIN SELECT d=t, LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+EXPLAIN SELECT LEAD(d,1) OVER w FROM dt_t WINDOW w AS (ORDER BY d=t);
+
+DROP TABLE dt_t, n_t;
+
+# When an argument is a grouped or windowed aggregate function
+CREATE TABLE t1 (spID int, userID int, date date);
+
+INSERT INTO t1 VALUES (1,1,'1998-01-01');
+INSERT INTO t1 VALUES (2,2,'2001-02-03');
+INSERT INTO t1 VALUES (3,1,'1988-12-20');
+INSERT INTO t1 VALUES (4,2,'1972-12-12');
+
+EXPLAIN SELECT MIN(t1.userID) = MIN(date) FROM t1  GROUP BY userid;
+EXPLAIN SELECT FIRST_VALUE(date) OVER (ORDER BY spID = date) FROM t1;
+EXPLAIN SELECT date, spid = FIRST_VALUE(date) OVER (ORDER BY date ) FROM t1;
+
+--echo #
+--echo # No casts when constants or constant functions are involved
+--echo #
+EXPLAIN SELECT * from t1 WHERE userID = DATE'2012-02-20';
+EXPLAIN SELECT * FROM t1 WHERE date = NULL;
+EXPLAIN SELECT * FROM t1 WHERE date = CAST('20:21:22' AS TIME);
+
+DROP TABLE t1;
+

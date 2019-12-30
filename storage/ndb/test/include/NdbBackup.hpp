@@ -1,4 +1,6 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +41,7 @@ public:
 	    unsigned int user_backup_id= 0,
 	    unsigned int logtype= 0);
   int start() { unsigned unused =0; return start(unused); }
-  int restore(unsigned _backup_id, bool restore_meta = true, bool restore_data = true, unsigned error_insert = 0);
+  int restore(unsigned _backup_id, bool restore_meta = true, bool restore_data = true, unsigned error_insert = 0, bool restore_epoch = false);
 
   int NFMaster(NdbRestarter& _restarter);
   int NFMasterAsSlave(NdbRestarter& _restarter);
@@ -60,13 +62,14 @@ private:
 
   int execRestore(bool _restore_data,
 		  bool _restore_meta,
+                  bool _restore_epoch,
 		  int _node_id,
 		  unsigned _backup_id,
                   unsigned error_insert=0);
 
   const char * getBackupDataDirForNode(int _node_id);
   NdbLogEventHandle log_handle;
-  
+  BaseString getNdbRestoreBinaryPath();
 };
 
 #endif

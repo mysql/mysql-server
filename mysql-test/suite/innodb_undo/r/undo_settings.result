@@ -599,7 +599,7 @@ COUNT(*)
 9
 # restart: --innodb_read_only  --innodb_rollback_segments=8
 CREATE UNDO TABLESPACE `undo_007` ADD DATAFILE 'undo_007.ibu';
-ERROR HY000: Table 'tablespaces' is read only
+ERROR HY000: Running in read-only mode
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	7

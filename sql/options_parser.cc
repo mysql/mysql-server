@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ struct result {
   */
   parser_status status;
   /**
-    Information about the specific error that occured.
+    Information about the specific error that occurred.
   */
   std::string msg;
   /**
@@ -194,9 +194,8 @@ result parse_options_string(String *str, char delimiter,
         parser_result.c = delimiter;
         return parser_result;
       }
-      substring_endpos -=
-          1;  // Decrement to set end position at position before
-              // delimiter.
+      substring_endpos -= 1;  // Decrement to set end position at position
+                              // before delimiter.
     }
 
     size_t key_value_separator_count =

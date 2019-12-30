@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,10 +287,13 @@ enum_gcs_error Gcs_output_sink::initialize() {
   if (ret_out == 0) {
     m_initialized = true;
   } else {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno)
+    std::cerr << "Unable to invoke setvbuf correctly! " << strerror(errno_gcs)
               << std::endl;
   }
   return ret_out ? GCS_NOK : GCS_OK;
@@ -332,10 +335,6 @@ enum_gcs_error Gcs_default_debugger::initialize() {
 }
 
 enum_gcs_error Gcs_default_debugger::finalize() { return m_sink->finalize(); }
-
-void Gcs_default_debugger::log_event(const std::string &message) {
-  MYSQL_GCS_LOG_DEBUG(message.c_str());
-}
 
 /**
   Reference to the default debugger which is used internally by GCS and XCOM.
@@ -405,11 +404,14 @@ enum_gcs_error Gcs_file_sink::initialize() {
 
   if ((m_fd = my_create(file_name_buffer, 0640, O_CREAT | O_WRONLY | O_APPEND,
                         MYF(0))) < 0) {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error openning file '"
-                        << file_name_buffer << "':" << strerror(errno) << ".");
+    MYSQL_GCS_LOG_ERROR("Error openning file '" << file_name_buffer << "':"
+                                                << strerror(errno_gcs) << ".");
     return GCS_NOK;
   }
 
@@ -439,10 +441,13 @@ void Gcs_file_sink::log_event(const char *message, size_t message_size) {
   written = my_write(m_fd, (const uchar *)message, message_size, MYF(0));
 
   if (written == MY_FILE_ERROR) {
-#if defined(WIN_32) || defined(WIN_64)
-    int errno = WSAGetLastError();
+    int errno_gcs = 0;
+#if defined(_WIN32)
+    errno_gcs = WSAGetLastError();
+#else
+    errno_gcs = errno;
 #endif
-    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno)
+    MYSQL_GCS_LOG_ERROR("Error writting to debug file: " << strerror(errno_gcs)
                                                          << ".");
   }
 }

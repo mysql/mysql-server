@@ -10,6 +10,8 @@ PRIMARY KEY (c1))
 ENGINE = archive
 DATA DIRECTORY = 'MYSQL_TMP_DIR/archive' INDEX DIRECTORY = 'MYSQL_TMP_DIR/archive';
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1618	<DATA DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
 INSERT INTO t1 VALUES (NULL, "first", 1);

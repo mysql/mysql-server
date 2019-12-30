@@ -1,0 +1,188 @@
+#
+# Bug#24807594 SDI FILE LOSTS AFTER ALTERING DATABASE
+# Verify that .sdi files are cleaned up correctly
+#
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+RENAME TABLE t1 TO tt1;
+# Should only see tt1_XXX.sdi
+tt1_XXX.sdi
+RENAME TABLE tt1 TO tt1tt1;
+# Should only see tt1tt1_XXX.sdi
+tt1tt1_XXX.sdi
+RENAME TABLE tt1tt1 TO ttt1ttt1ttt1ttt1_xyz;
+# Should only see ttt1ttt1ttt1ttt1_XXX.sdi
+ttt1ttt1ttt1ttt1_XXX.sdi
+RENAME TABLE ttt1ttt1ttt1ttt1_xyz TO tttttttttttttttt1_abc;
+# Should only see tttttttttttttttt_XXX.sdi
+tttttttttttttttt_XXX.sdi
+RENAME TABLE tttttttttttttttt1_abc TO t1;
+# Should only see t1_XXX.sdi
+t1_XXX.sdi
+DROP TABLE t1;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect  con1, localhost, root,,;
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+#
+# Non-atomic RENAME TABLES which fails but is fully
+# reverted should restore set of locked tables and
+# state of metadata locks.
+CREATE TABLE t0 (m INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT) ENGINE=InnoDB;
+CREATE TABLE t4 (l INT) ENGINE=InnoDB;
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t0 WRITE;
+RENAME TABLES t0 TO t00, t1 TO t01, t2 TO t4;
+ERROR 42S01: Table 't4' already exists
+# Tables are available under old names.
+SELECT * FROM t0;
+m
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+j
+# Including untouched table.
+SELECT * FROM t3;
+k
+# And not under new names.
+SELECT * FROM t00;
+ERROR HY000: Table 't00' was not locked with LOCK TABLES
+SELECT * FROM t01;
+ERROR HY000: Table 't01' was not locked with LOCK TABLES
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t0;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# And access to untouched table too.
+SELECT * FROM t3;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM t00;
+ERROR 42S02: Table 'test.t00' doesn't exist
+SELECT * FROM t01;
+ERROR 42S02: Table 'test.t01' doesn't exist
+SELECT * FROM t4;
+l
+connection default;
+UNLOCK TABLES;
+DROP TABLES t0, t1, t2, t3, t4;
+#
+# 7) RENAME TABLES under LOCK TABLES which moves tables
+#    between schemas.
+#
+# 7.1) RENAME TABLES under LOCK TABLES which moves table
+#      to different schema acquires IX lock on it and keeps
+#      it until UNLOCK TABLES.
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+RENAME TABLE t1 TO mysqltest.t1;
+# Table is available in new schema!
+INSERT INTO mysqltest.t1 VALUES (1);
+# And not in the old one.
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+connection con1;
+# Access in the new schema from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM mysqltest.t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# But not when trying to find table in old schema.
+SELECT * FROM test.t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+# Also IX metadata lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+UNLOCK TABLES;
+DROP TABLE mysqltest.t1;
+#
+# 7.2) Atomic RENAME TABLES which moves table to different schema
+#      and fails at late stage should be fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT);
+CREATE TABLE t4 (l INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE;
+RENAME TABLES t1 TO mysqltest.t1, t2 TO t3;
+ERROR 42S01: Table 't3' already exists
+# Tables are available under old names.
+SELECT * FROM t1;
+i
+SELECT * FROM t2;
+j
+# And not under new names.
+SELECT * FROM mysqltest.t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM mysqltest.t1;
+ERROR 42S02: Table 'mysqltest.t1' doesn't exist
+SELECT * FROM t3;
+k
+# There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+#
+# 7.3) Non-atomic RENAME TABLES which moves table to different schema, fails
+#      but is fully reverted should restore set of locked tables and
+#      state of metadata locks too.
+# This part of the test resides in rename_myisam.test.
+LOCK TABLES t4 WRITE, t1 WRITE;
+RENAME TABLES t4 TO mysqltest.t4, t1 TO t3;
+ERROR 42S01: Table 't3' already exists
+# Tables are available under old names.
+SELECT * FROM t4;
+l
+SELECT * FROM t1;
+i
+# And not under new names.
+SELECT * FROM mysqltest.t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+SELECT * FROM t3;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+connection con1;
+# Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+SELECT * FROM t4;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+# New names should not be locked.
+SELECT * FROM mysqltest.t4;
+ERROR 42S02: Table 'mysqltest.t4' doesn't exist
+SELECT * FROM t3;
+k
+# There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t2, t3, t4;
+DROP DATABASE mysqltest;
+# Clean-up.
+connection con1;
+disconnect con1;
+connection default;

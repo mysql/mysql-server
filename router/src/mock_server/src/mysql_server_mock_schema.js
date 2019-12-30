@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -278,6 +278,25 @@
           "$ref": "#/definitions/ExecTime"
         }
       }
+    },
+
+    "Notice": {
+      "description": "X-protocol notice definition",
+      "type": "object",
+      "properties" : {
+        "type" : {
+          "description": "type (id) of the notice message",
+          "type": "integer"
+        },
+        "scope" : {
+          "description": "scope of the notice (LOCAL or GLOBAL)",
+          "type": "string"
+        },
+        "payload" : {
+          "description": "Notice protobuf message as json object",
+          "type": "object"
+        }
+      }
     }
   },
 
@@ -305,6 +324,13 @@
       "type": "array",
       "items": {
         "$ref": "#/definitions/RPC"
+      }
+    },
+    "notices": {
+      "description": "X-protocol notices to be sent to the connected client asynchronously",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Notice"
       }
     }
   },

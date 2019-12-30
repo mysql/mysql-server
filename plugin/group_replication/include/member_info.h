@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: 1 bytes
     PIT_DEFAULT_TABLE_ENCRYPTION = 18,
 
+    // Length of the payload item: variable
+    PIT_PURGED_GTID = 19,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 19
+    PIT_MAX = 20
   };
 
   /*
@@ -189,8 +192,8 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] psi_mutex_key_arg                      mutex key
     @param[in] default_table_encryption_arg           default_table_encryption
    */
-  Group_member_info(char *hostname_arg, uint port_arg, char *uuid_arg,
-                    int write_set_extraction_algorithm,
+  Group_member_info(const char *hostname_arg, uint port_arg,
+                    const char *uuid_arg, int write_set_extraction_algorithm,
                     const std::string &gcs_member_id_arg,
                     Group_member_info::Group_member_status status_arg,
                     Member_version &member_version_arg,
@@ -247,6 +250,7 @@ class Group_member_info : public Plugin_gcs_message {
     check
     @param[in] member_weight_arg                      member_weight
     @param[in] lower_case_table_names_arg             lower case table names
+    @param[in] default_table_encryption_arg           default table encryption
    */
   void update(char *hostname_arg, uint port_arg, char *uuid_arg,
               int write_set_extraction_algorithm,
@@ -304,6 +308,11 @@ class Group_member_info : public Plugin_gcs_message {
     @return the member GTID_EXECUTED set
    */
   std::string get_gtid_executed();
+
+  /**
+    @return the member GTID_PURGED set
+   */
+  std::string get_gtid_purged();
 
   /**
     @return the member GTID_RETRIEVED set for the applier channel
@@ -372,9 +381,10 @@ class Group_member_info : public Plugin_gcs_message {
     Updates this object GTID sets
 
     @param[in] executed_gtids the status to set
+    @param[in] purged_gtids   the status to set
     @param[in] retrieve_gtids the status to set
    */
-  void update_gtid_sets(std::string &executed_gtids,
+  void update_gtid_sets(std::string &executed_gtids, std::string &purged_gtids,
                         std::string &retrieve_gtids);
 
   /**
@@ -501,7 +511,7 @@ class Group_member_info : public Plugin_gcs_message {
 
   /**
     Sets if the member is currently running a primary election
-    @param is_runnning is an election running
+    @param is_running is an election running
   */
   void set_is_primary_election_running(bool is_running);
 
@@ -532,9 +542,10 @@ class Group_member_info : public Plugin_gcs_message {
   Gcs_member_identifier *gcs_member_id;
   Member_version *member_version;
   std::string executed_gtid_set;
+  std::string purged_gtid_set;
   std::string retrieved_gtid_set;
   uint write_set_extraction_algorithm;
-  ulonglong gtid_assignment_block_size;
+  uint64 gtid_assignment_block_size;
   bool unreachable;
   Group_member_role role;
   uint32 configuration_flags;
@@ -591,6 +602,14 @@ class Group_member_info_manager_interface {
     @return reference to a Group_member_info. NULL if not managed
    */
   virtual Group_member_info *get_group_member_info_by_index(int idx) = 0;
+
+  /**
+    Return lowest member version.
+
+    @return group lowest version, if used at place where member can be OFFLINE
+            or in ERROR state, version 0xFFFFFF may be returned(not found)
+   */
+  virtual Member_version get_group_lowest_online_version() = 0;
 
   /**
     Retrieves a registered Group member by its backbone GCS identifier
@@ -663,10 +682,12 @@ class Group_member_info_manager_interface {
 
     @param[in] uuid            member uuid
     @param[in] gtid_executed   the member executed GTID set
+    @param[in] purged_gtids    the server purged GTID set
     @param[in] gtid_retrieved  the member retrieved GTID set for the applier
   */
   virtual void update_gtid_sets(const std::string &uuid,
                                 std::string &gtid_executed,
+                                std::string &purged_gtids,
                                 std::string &gtid_retrieved) = 0;
   /**
     Updates the role of a single member
@@ -793,6 +814,13 @@ class Group_member_info_manager_interface {
     @return hosts and port of all ONLINE and RECOVERING members
   */
   virtual std::string get_string_current_view_active_hosts() const = 0;
+
+  /**
+    This method returns the update lock for consistent read of member state.
+
+    @return update_lock reference
+  */
+  virtual mysql_mutex_t *get_update_lock() = 0;
 };
 
 /**
@@ -817,6 +845,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
 
   Group_member_info *get_group_member_info_by_index(int idx);
 
+  Member_version get_group_lowest_online_version();
+
   Group_member_info *get_group_member_info_by_member_id(
       Gcs_member_identifier idx);
 
@@ -836,7 +866,7 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
                             Notification_context &ctx);
 
   void update_gtid_sets(const std::string &uuid, std::string &gtid_executed,
-                        std::string &gtid_retrieved);
+                        std::string &purged_gtids, std::string &gtid_retrieved);
 
   void update_member_role(const std::string &uuid,
                           Group_member_info::Group_member_role new_role,
@@ -869,6 +899,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   bool is_recovering_member_present();
 
   std::string get_string_current_view_active_hosts() const;
+
+  mysql_mutex_t *get_update_lock() { return &update_lock; }
 
  private:
   void clear_members();

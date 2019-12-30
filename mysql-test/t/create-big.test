@@ -546,25 +546,6 @@ source include/show_binlog_events.inc;
 --echo #
 
 #
-# MyISAM has limits imposed by the server
-
-let $colnum= 4095;
-let $str= c text;
-while ($colnum)
-{
-  let $str= c$colnum int, $str;
-  dec $colnum;
-}
---eval CREATE TABLE t1 ($str) engine= myisam;
---error ER_TOO_MANY_FIELDS
-ALTER TABLE t1 ADD COLUMN too_much int;
-DROP TABLE t1;
-
-let $str= c4096 int, $str;
---error ER_TOO_MANY_FIELDS
---eval CREATE TABLE t1 ($str) engine= myisam;
-
-#
 # InnoDB has separate internal limits
 
 let $colnum= 1016;
@@ -591,25 +572,6 @@ let $str= c1017 int, $str;
 --echo # 1: Max number of ENUM/SET columns
 
 #
-# MyISAM has limits imposed by the server
-
-let $colnum= 4095;
-let $str= c4096 ENUM('a');
-while ($colnum)
-{
-  let $str= c$colnum ENUM('a$colnum'), $str;
-  dec $colnum;
-}
---eval CREATE TABLE t1 ($str) engine= myisam
---error ER_TOO_MANY_FIELDS
-ALTER TABLE t1 ADD COLUMN too_much ENUM('a9999');
-DROP TABLE t1;
-
-let $str= $str, too_much ENUM('a9999');
---error ER_TOO_MANY_FIELDS
---eval CREATE TABLE t1 ($str) engine= myisam
-
-#
 # InnoDB has separate internal limits
 
 let $colnum= 1016;
@@ -627,25 +589,6 @@ DROP TABLE t1;
 let $str= $str, too_much ENUM('a9999');
 --error ER_TOO_MANY_FIELDS
 --eval CREATE TABLE t1 ($str) engine= innodb
-
-#
-# MyISAM has limits imposed by the server
-
-let $colnum= 4095;
-let $str= c4096 SET('a');
-while ($colnum)
-{
-  let $str= c$colnum SET('a$colnum'), $str;
-  dec $colnum;
-}
---eval CREATE TABLE t1 ($str) engine= myisam
---error ER_TOO_MANY_FIELDS
-ALTER TABLE t1 ADD COLUMN too_much SET('a9999');
-DROP TABLE t1;
-
-let $str= $str, too_much SET('a9999');
---error ER_TOO_MANY_FIELDS
---eval CREATE TABLE t1 ($str) engine= myisam
 
 #
 # InnoDB has separate internal limits

@@ -13,6 +13,7 @@ call mtr.add_suppression("Member was expelled from the group due to network fail
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
 call mtr.add_suppression("The member configuration is not compatible with the group configuration. Variables such as single_primary_mode or enforce_update_everywhere_checks.*");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET sql_log_bin = 1;
 include/gr_autorejoin_monitoring.inc
 SET @debug_saved = @@GLOBAL.DEBUG;

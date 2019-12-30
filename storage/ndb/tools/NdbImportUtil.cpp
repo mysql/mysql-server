@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <NdbDictionaryImpl.hpp>
 
 #include <Vector.hpp>
+#include <inttypes.h>
 // STL
 #include <cmath>
 
@@ -48,6 +49,7 @@ NdbImportUtil::~NdbImportUtil()
   log_debug(1, "dtor");
   delete c_blobs_free;
   delete c_rows_free;
+  require(c_tables.m_tables.empty());
 }
 
 NdbOut&
@@ -768,7 +770,7 @@ NdbImportUtil::Table::Table()
   m_tabid = Inval_uint;
   m_tab = 0;
   m_rec = 0;
-  m_keyrec = 0;
+  m_keyrec = NULL;
   m_recsize = 0;
   m_has_hidden_pk = false;
 }
@@ -1071,6 +1073,18 @@ NdbImportUtil::get_table(uint tabid)
   return table;
 }
 
+void
+NdbImportUtil::remove_table(NdbDictionary::Dictionary* dic, uint tabid)
+{
+  std::map<uint, Table>::const_iterator it;
+  it = c_tables.m_tables.find(tabid);
+  require(it != c_tables.m_tables.end());
+  const Table& table = it->second;
+
+  dic->releaseRecord(const_cast<NdbRecord*>(table.m_keyrec));
+  c_tables.m_tables.erase(it);
+}
+
 // rows
 
 NdbImportUtil::Row::Row()
@@ -1089,6 +1103,17 @@ NdbImportUtil::Row::Row()
 NdbImportUtil::Row::~Row()
 {
   delete [] m_data;
+
+  for (uint i = 0; i < m_blobs.size(); ++i)
+  {
+    Blob* blob = m_blobs[i];
+    if (blob != NULL)
+    {
+      delete blob;
+    }
+  }
+
+  m_blobs.clear();
 }
 
 void
@@ -1123,6 +1148,11 @@ NdbImportUtil::RowList::RowList()
 
 NdbImportUtil::RowList::~RowList ()
 {
+  Row *one_row;
+  while ((one_row = pop_front()) != NULL)
+  {
+    delete one_row;
+  }
 }
 
 void
@@ -1382,8 +1412,24 @@ NdbImportUtil::alloc_rows(const Table& table, uint cnt, RowList& dst)
 }
 
 void
+NdbImportUtil::free_blobs_from_row(Row *row)
+{
+  for (uint i = 0; i < row->m_blobs.size(); ++i)
+  {
+    Blob* blob = row->m_blobs[i];
+    if (blob != NULL)
+    {
+      free_blob(blob);
+    }
+  }
+  row->m_blobs.clear();
+}
+
+void
 NdbImportUtil::free_row(Row* row)
 {
+  free_blobs_from_row(row);
+
   RowList& rows = *c_rows_free;
   rows.lock();
   rows.push_back(row);
@@ -1393,9 +1439,16 @@ NdbImportUtil::free_row(Row* row)
 void
 NdbImportUtil::free_rows(RowList& src)
 {
+  RowList blob_freed_rows;
+  while (!src.empty())
+  {
+    Row *one_row = src.pop_front();
+    free_blobs_from_row(one_row);
+    blob_freed_rows.push_back(one_row);
+  }
   RowList& rows = *c_rows_free;
   rows.lock();
-  rows.push_back_from(src);
+  rows.push_back_from(blob_freed_rows);
   rows.unlock();
 }
 
@@ -1419,6 +1472,12 @@ NdbImportUtil::BlobList::BlobList()
 
 NdbImportUtil::BlobList::~BlobList()
 {
+
+  Blob *blob = NULL;
+  while ((blob = pop_front()) != NULL)
+  {
+    delete blob;
+  }
 }
 
 void
@@ -2672,7 +2731,7 @@ NdbImportUtil::File::do_seek(uint64 offset)
 #endif
   {
     m_util.set_error_os(m_error, __LINE__,
-                        "%s: lseek %llu failed", path, offset);
+                        "%s: lseek %" PRIu64 " failed", path, offset);
     return -1;
   }
   return 0;
@@ -2947,7 +3006,7 @@ NdbImportUtil::Timer::stop()
     m_start = m_stop;
   }
   struct ndb_rusage ru;
-  if (Ndb_GetRUsage(&ru) == 0)
+  if (Ndb_GetRUsage(&ru, false) == 0)
   {
     m_utime_msec = ru.ru_utime / 1000;
     m_stime_msec = ru.ru_stime / 1000;
@@ -3908,7 +3967,7 @@ testmain()
   if (mycase("teststat") && teststat() != 0)
     return -1;
   struct ndb_rusage ru;
-  require(Ndb_GetRUsage(&ru) == 0);
+  require(Ndb_GetRUsage(&ru, false) == 0);
   ndbout << "utime=" << ru.ru_utime/1000
          << " stime=" << ru.ru_stime/1000 << " (ms)" << endl;
   return 0;

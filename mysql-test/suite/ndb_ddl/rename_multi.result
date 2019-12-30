@@ -1,2 +1,79 @@
 RENAME TABLE t1 to t1_new_name, t3 to ndb_ddl_test2.t3, t4 to ndb_ddl_test2.t4_new_name;
 == verify_mysql_dd.inc ==
+USE ndb_ddl_test;
+RENAME TABLE t5 to t50, t2 to t2;
+ERROR 42S01: Table 't2' already exists
+== verify_mysql_dd.inc ==
+USE ndb_ddl_test;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`,`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c`,`b`,`a`,`d`),
+  KEY `d` (`d`),
+  KEY `c` (`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+RENAME TABLE t2 to t2_temp_name, t5 to t2, t2_temp_name to t5;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c`,`b`,`a`,`d`),
+  KEY `d` (`d`),
+  KEY `c` (`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`,`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==
+USE ndb_ddl_test;
+RENAME TABLE t5 to t50, t50 to t500, t500 to t2;
+ERROR 42S01: Table 't2' already exists
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  `d` int(11) NOT NULL,
+  `e` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c`,`b`,`a`,`d`),
+  KEY `d` (`d`),
+  KEY `c` (`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  `c` datetime DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`,`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+== verify_mysql_dd.inc ==

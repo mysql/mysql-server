@@ -1,15 +1,12 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/tools/Path", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.tools.Path");
+define("dojox/drawing/tools/Path", ["dojo/_base/lang", "../util/oo", "../manager/_registry", "../stencil/Path"],
+function(lang, oo, registry, StencilPath){
 
-dojox.drawing.tools.Path = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Class for a drawable Path
-	//
-	dojox.drawing.stencil.Path,
+//dojox.drawing.tools.Path
+var Path = oo.declare(
+	StencilPath,
 	function(){
-		// summary: constructor
+		// summary:
+		//		constructor
 		
 		this.pathMode = "";
 		this.currentPathMode = "";
@@ -18,6 +15,9 @@ dojox.drawing.tools.Path = dojox.drawing.util.oo.declare(
 		
 	},
 	{
+		// summary:
+		//		Class for a drawable Path
+
 		draws:true,
 		onDown: function(obj){
 			if(!this._started){
@@ -195,13 +195,14 @@ dojox.drawing.tools.Path = dojox.drawing.util.oo.declare(
 	}
 );
 
-dojox.drawing.tools.Path.setup = {
-	// summary: See Base ToolsSetup
-	//
+lang.setObject("dojox.drawing.tools.Path", Path);
+Path.setup = {
 	name:"dojox.drawing.tools.Path",
 	tooltip:"Path Tool",
 	iconClass:"iconLine"
 };
 
-dojox.drawing.register(dojox.drawing.tools.Path.setup, "tool");
+registry.register(Path.setup, "tool");
+
+return Path;
 });

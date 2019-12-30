@@ -1,15 +1,13 @@
 
 .mblSlider {
-  outline: none;
-  -webkit-user-select: none;
-  
-  -webkit-box-sizing: content-box;
-  
   margin: 15px;
-  
-  border: #B0B0B0 1px inset;
+  border-style: inset;
+  border-width: 1px;
+  border-radius: 2px;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#bdbebd), to(#f7f3f7));
-  -webkit-border-radius: 2px;
+  -webkit-user-select: none;
+  -webkit-box-sizing: content-box;
+  border-color: #b0b0b0;
 }
 .mblSliderH {
   width: 200px;
@@ -32,16 +30,18 @@
   left: 50%;
 }
 .mblSliderProgressBar {
+  border-radius: 2px;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#00a200), to(#00d300), color-stop(0.2, #00ba00), color-stop(0.2, #00ba00));
-  -webkit-border-radius: 2px;
 }
 .mblSliderHandle {
   margin: -10px 0 0 -10px;
   width: 18px;
   height: 18px;
-  border: #9D9D9D 1px outset;
-  -webkit-border-radius: 2px;
+  border-style: outset;
+  border-width: 1px;
+  border-radius: 2px;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#9c9a9c), to(#848284));
+  border-color: #9d9d9d;
 }
 .mblSliderTransition {
   -webkit-transition-duration: 400ms;

@@ -8,6 +8,8 @@
 --source include/have_debug_sync.inc
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 --echo # FTWRL takes two global metadata locks -- a global shared
 --echo # metadata lock and the commit blocker lock.
@@ -1430,6 +1432,7 @@ let $skip_3rd_check= ;
 --echo # 31.c.I) SET PASSWORD is incompatible with FTWRL as it changes data.
 create user mysqltest_u1;
 let $statement= ALTER USER 'mysqltest_u1' IDENTIFIED BY '';
+let $waitfor= ALTER USER 'mysqltest_u1'@'%' IDENTIFIED BY <secret>;
 let $cleanup_stmt1= ;
 --echo # Skip last part of compatibility testing as our helper debug
 --echo # sync-point doesn't work for SET statements.

@@ -88,6 +88,7 @@ class Item_func_to_days final : public Item_int_func {
   Item_func_to_days(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_days"; }
+  enum Functype functype() const override { return TO_DAYS_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(6);
     maybe_null = true;
@@ -328,8 +329,7 @@ class Item_func_year final : public Item_int_func {
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool resolve_type(THD *) override {
-    fix_char_length(4); /* 9999 */
-    unsigned_flag = true;
+    fix_char_length(5); /* 9999 plus sign */
     maybe_null = true;
     return false;
   }
@@ -1327,6 +1327,7 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
         int_type(type_arg),
         date_sub_interval(neg_arg) {}
   const char *func_name() const override { return "date_add_interval"; }
+  enum Functype functype() const override { return DATEADD_FUNC; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
   void print(const THD *thd, String *str,
@@ -1385,10 +1386,10 @@ class Item_extract final : public Item_int_func {
   }
 };
 
-class Item_date_typecast final : public Item_date_func {
+class Item_typecast_date final : public Item_date_func {
  public:
-  Item_date_typecast(Item *a) : Item_date_func(a) { maybe_null = 1; }
-  Item_date_typecast(const POS &pos, Item *a) : Item_date_func(pos, a) {
+  Item_typecast_date(Item *a) : Item_date_func(a) { maybe_null = 1; }
+  Item_typecast_date(const POS &pos, Item *a) : Item_date_func(pos, a) {
     maybe_null = 1;
   }
 
@@ -1400,18 +1401,18 @@ class Item_date_typecast final : public Item_date_func {
   const char *cast_type() const { return "date"; }
 };
 
-class Item_time_typecast final : public Item_time_func {
+class Item_typecast_time final : public Item_time_func {
   bool detect_precision_from_arg;
 
  public:
-  Item_time_typecast(Item *a) : Item_time_func(a) {
+  Item_typecast_time(Item *a) : Item_time_func(a) {
     detect_precision_from_arg = true;
   }
-  Item_time_typecast(const POS &pos, Item *a) : Item_time_func(pos, a) {
+  Item_typecast_time(const POS &pos, Item *a) : Item_time_func(pos, a) {
     detect_precision_from_arg = true;
   }
 
-  Item_time_typecast(const POS &pos, Item *a, uint8 dec_arg)
+  Item_typecast_time(const POS &pos, Item *a, uint8 dec_arg)
       : Item_time_func(pos, a) {
     detect_precision_from_arg = false;
     decimals = dec_arg;
@@ -1430,18 +1431,18 @@ class Item_time_typecast final : public Item_time_func {
   }
 };
 
-class Item_datetime_typecast final : public Item_datetime_func {
+class Item_typecast_datetime final : public Item_datetime_func {
   bool detect_precision_from_arg;
 
  public:
-  Item_datetime_typecast(Item *a) : Item_datetime_func(a) {
+  Item_typecast_datetime(Item *a) : Item_datetime_func(a) {
     detect_precision_from_arg = true;
   }
-  Item_datetime_typecast(const POS &pos, Item *a) : Item_datetime_func(pos, a) {
+  Item_typecast_datetime(const POS &pos, Item *a) : Item_datetime_func(pos, a) {
     detect_precision_from_arg = true;
   }
 
-  Item_datetime_typecast(const POS &pos, Item *a, uint8 dec_arg)
+  Item_typecast_datetime(const POS &pos, Item *a, uint8 dec_arg)
       : Item_datetime_func(pos, a) {
     detect_precision_from_arg = false;
     decimals = dec_arg;
@@ -1547,6 +1548,8 @@ class Item_func_timestamp_diff final : public Item_int_func {
                            interval_type type_arg)
       : Item_int_func(pos, a, b), int_type(type_arg) {}
   const char *func_name() const override { return "timestampdiff"; }
+  enum Functype functype() const override { return TIMESTAMPDIFF_FUNC; }
+  interval_type intervaltype() const { return int_type; }
   longlong val_int() override;
   bool resolve_type(THD *) override {
     maybe_null = true;

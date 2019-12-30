@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,8 @@ class Connection_manager {
 
   void connect_default(const bool send_cap_password_expired = false,
                        const bool client_interactive = false,
-                       const bool no_auth = false);
+                       const bool no_auth = false,
+                       const bool connect_attrs = true);
   void create(const std::string &name, const std::string &user,
               const std::string &password, const std::string &db,
               const std::vector<std::string> &auth_methods,

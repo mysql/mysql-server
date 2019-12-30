@@ -772,3 +772,73 @@ LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NU
 DROP TABLE t3;
 --remove_file $MYSQLTEST_VARDIR/mysql
 --remove_file $file
+
+--echo #
+--echo # Bug#28460369 LOAD DATA INFILE THROWS ERROR WITH NOT NULL COLUMN DEFINED
+--echo #              VIA SET
+--echo #
+--echo # Verify that LOAD DATA rejects rows with no data for GEOMETRY NOT NULL
+--echo # columns. However, if the column is set using the SET clause,
+--echo # LOAD DATA should succeed.
+CREATE TABLE t1 (x DOUBLE, y DOUBLE, g GEOMETRY NOT NULL SRID 4326);
+
+--error ER_NO_DEFAULT_FOR_FIELD
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y);
+
+LOAD DATA INFILE '../../std_data/x_y_data.csv'
+  INTO TABLE t1
+  FIELDS TERMINATED BY ','
+  (x, y) SET g = ST_SRID(POINT(x, y), 4326);
+SELECT x, y, ST_AsText(g), ST_SRID(g) FROM t1;
+
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#30126375 - LOAD DATA WITH SET CLAUSE IGNORES NO_AUTO_VALUE_ON_ZERO
+--echo #                MODE
+--echo #-----------------------------------------------------------------------
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j INT);
+INSERT INTO t1 VALUES (0, 1);
+--echo # NO_AUTO_VALUE_ON_ZERO should prevent generation of new
+--echo # auto-increment value. So row should get 0 as id.
+SELECT * FROM t1;
+
+--echo # LOAD DATA from file with separators.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt'
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 SET j = 2;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from file in fixed row format.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * FROM t1 INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' FIELDS TERMINATED BY '' ENCLOSED BY ''
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' SET j = 3;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row too.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+
+--echo # LOAD DATA from XML file.
+--echo # Use mysqldump --xml to produce t1.xml file.
+--exec $MYSQL_DUMP --xml test t1 > "$MYSQLTEST_VARDIR/tmp/t1.xml" 2>&1
+DELETE FROM t1;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD XML INFILE "$MYSQLTEST_VARDIR/tmp/t1.xml" IGNORE INTO TABLE t1 SET j = 4;
+--echo # The above LOAD DATA should preserve id (i.e. 0) for the row as well.
+SELECT * FROM t1;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.xml
+
+--echo # Clean up.
+DROP TABLE t1;
+SET sql_mode=@old_sql_mode;

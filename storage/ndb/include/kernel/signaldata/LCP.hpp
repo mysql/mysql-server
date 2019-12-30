@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,12 +49,12 @@ struct StartLcpReq {
   friend bool printSTART_LCP_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
 
-  STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask::Size + 1 );
+  STATIC_CONST( SignalLength = 2 + 2 * NdbNodeBitmask48::Size + 1 );
   Uint32 senderRef;
   Uint32 lcpId;
-  
-  NdbNodeBitmask participatingDIH;
-  NdbNodeBitmask participatingLQH;
+
+  NdbNodeBitmask48 participatingDIH_v1;
+  NdbNodeBitmask48 participatingLQH_v1;
 
   enum PauseStart
   {
@@ -73,6 +73,8 @@ public:
    *                immediately after it.
    */
   PauseStart pauseStart;
+  NdbNodeBitmask participatingDIH; // Not part of signal, but first section
+  NdbNodeBitmask participatingLQH; // Not part of signal, but second section
 };
 
 class StartLcpConf {

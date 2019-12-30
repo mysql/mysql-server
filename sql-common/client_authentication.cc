@@ -38,7 +38,6 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include "crypt_genhash_impl.h"
 #include "errmsg.h"
 #include "m_ctype.h"
@@ -51,7 +50,6 @@
     defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
-#include <wolfssl_fix_namespace_pollution.h>
 #include "client_async_authentication.h"
 #include "mysql/plugin.h"
 #include "sha2.h"
@@ -121,9 +119,7 @@ static RSA *rsa_init(MYSQL *mysql) {
   mysql_mutex_unlock(&g_public_key_mutex);
   fclose(pub_key_file);
   if (g_public_key == NULL) {
-#if !defined(HAVE_WOLFSSL)
     ERR_clear_error();
-#endif
     my_message_local(WARNING_LEVEL, EE_PUBLIC_KEY_NOT_IN_PEM_FORMAT,
                      mysql->options.extension->server_public_key_path);
     return 0;
@@ -145,17 +141,15 @@ static RSA *rsa_init(MYSQL *mysql) {
 
 int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
-#if !defined(HAVE_WOLFSSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
   RSA *public_key = NULL;
   bool got_public_key_from_server = false;
-#endif
   bool connection_is_secure = false;
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
 
-  DBUG_ENTER("sha256_password_auth_client");
+  DBUG_TRACE;
 
   /*
     Get the scramble from the server because we need it when sending encrypted
@@ -163,11 +157,11 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   */
   if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1) {
     DBUG_PRINT("info", ("Scramble is not of correct length."));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
   if (pkt[SCRAMBLE_LENGTH] != '\0') {
     DBUG_PRINT("info", ("Missing protocol token in scramble data."));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
   /*
     Copy the scramble to the stack or it will be lost on the next use of the
@@ -179,39 +173,35 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   /* If connection isn't secure attempt to get the RSA public key file */
   if (!connection_is_secure) {
-#if !defined(HAVE_WOLFSSL)
     public_key = rsa_init(mysql);
-#endif
   }
 
   if (!uses_password) {
     /* We're not using a password */
     static const unsigned char zero_byte = '\0';
-    if (vio->write_packet(vio, &zero_byte, 1)) DBUG_RETURN(CR_ERROR);
+    if (vio->write_packet(vio, &zero_byte, 1)) return CR_ERROR;
   } else {
     /* Password is a 0-terminated byte array ('\0' character included) */
     unsigned int passwd_len =
         static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     if (!connection_is_secure) {
-#if !defined(HAVE_WOLFSSL)
       /*
         If no public key; request one from the server.
       */
       if (public_key == NULL) {
         if (vio->write_packet(vio, (const unsigned char *)&request_public_key,
                               1))
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
 
         int pkt_len = 0;
         unsigned char *pkt;
-        if ((pkt_len = vio->read_packet(vio, &pkt)) == -1)
-          DBUG_RETURN(CR_ERROR);
+        if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {
           ERR_clear_error();
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
         }
         got_public_key_from_server = true;
       }
@@ -229,7 +219,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (passwd_len > sizeof(passwd_scramble)) {
         /* password too long for the buffer */
         if (got_public_key_from_server) RSA_free(public_key);
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
       }
       memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -245,7 +235,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (passwd_len + 41 >= (unsigned)cipher_length) {
         /* password message is to long */
         if (got_public_key_from_server) RSA_free(public_key);
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
       }
       RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
                          encrypted_password, public_key,
@@ -253,21 +243,15 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
       if (got_public_key_from_server) RSA_free(public_key);
 
       if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
-        DBUG_RETURN(CR_ERROR);
-#else
-      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
-                               ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
-                               "Authentication requires SSL encryption");
-      DBUG_RETURN(CR_ERROR);  // If no openssl support
-#endif
+        return CR_ERROR;
     } else {
       /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar *)mysql->passwd, passwd_len))
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
     }
   }
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }
 
 /**
@@ -276,14 +260,12 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
                                                          MYSQL *mysql,
                                                          int *result) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   net_async_status status = NET_ASYNC_NOT_READY;
-#if !defined(HAVE_WOLFSSL)
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];
   static char request_public_key = '\1';
   static RSA *public_key = NULL;
   bool got_public_key_from_server = false;
-#endif
   int io_result;
   bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != NULL);
   unsigned char scramble_pkt[20];
@@ -297,17 +279,17 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
     case client_auth_sha256_password_plugin_status::SHA256_READING_PASSWORD:
       status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result != SCRAMBLE_LENGTH + 1) {
         DBUG_PRINT("info", ("Scramble is not of correct length."));
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       if (pkt[SCRAMBLE_LENGTH] != '\0') {
         DBUG_PRINT("info", ("Missing protocol token in scramble data."));
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       memcpy(scramble_pkt, pkt, SCRAMBLE_LENGTH);
       if (connection_is_secure)
@@ -318,8 +300,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         ctx->client_auth_plugin_state =
             client_auth_sha256_password_plugin_status::
                 SHA256_REQUEST_PUBLIC_KEY;
-      DBUG_RETURN(NET_ASYNC_NOT_READY);
-#if !defined(HAVE_WOLFSSL)
+      return NET_ASYNC_NOT_READY;
     case client_auth_sha256_password_plugin_status::SHA256_REQUEST_PUBLIC_KEY: {
       public_key = rsa_init(mysql);
       /* If no public key; request one from the server. */
@@ -327,18 +308,18 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         status = vio->write_packet_nonblocking(
             vio, (const unsigned char *)&request_public_key, 1, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
-          DBUG_RETURN(NET_ASYNC_NOT_READY);
+          return NET_ASYNC_NOT_READY;
         }
         if (io_result) {
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
       }
       set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
                                "Authentication requires SSL encryption");
       *result = CR_ERROR;
-      DBUG_RETURN(NET_ASYNC_COMPLETE);
+      return NET_ASYNC_COMPLETE;
     }
       ctx->client_auth_plugin_state =
           client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY;
@@ -347,11 +328,11 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
       if (public_key == NULL) {
         status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
-          DBUG_RETURN(NET_ASYNC_NOT_READY);
+          return NET_ASYNC_NOT_READY;
         }
         if (io_result <= 0) {
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         BIO *bio = BIO_new_mem_buf(pkt, io_result);
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
@@ -359,7 +340,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         if (public_key == 0) {
           ERR_clear_error();
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         got_public_key_from_server = true;
       }
@@ -375,7 +356,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         /* password too long for the buffer */
         if (got_public_key_from_server) RSA_free(public_key);
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -392,7 +373,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         /* password message is to long */
         if (got_public_key_from_server) RSA_free(public_key);
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
                          encrypted_password, public_key,
@@ -401,31 +382,30 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
       status = vio->write_packet_nonblocking(vio, (uchar *)encrypted_password,
                                              cipher_length, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result < 0) {
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
     } break;
-#endif
     case client_auth_sha256_password_plugin_status::
         SHA256_SEND_PLAIN_PASSWORD: {
       status = vio->write_packet_nonblocking(vio, (uchar *)mysql->passwd,
                                              passwd_len, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result < 0) {
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
     } break;
     default:
       assert(0);
   }
   *result = CR_OK;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 }
 /* caching_sha2_password */
 
@@ -475,7 +455,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   unsigned char scramble_pkt[20];
   unsigned char *pkt;
 
-  DBUG_ENTER("caching_sha2_password_auth_client");
+  DBUG_TRACE;
 
   /*
     Get the scramble from the server because we need it when sending encrypted
@@ -483,11 +463,11 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   */
   if (vio->read_packet(vio, &pkt) != SCRAMBLE_LENGTH + 1) {
     DBUG_PRINT("info", ("Scramble is not of correct length."));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
   if (pkt[SCRAMBLE_LENGTH] != '\0') {
     DBUG_PRINT("info", ("Missing protocol token in scramble data."));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
 
   /*
@@ -501,8 +481,8 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   if (!uses_password) {
     /* We're not using a password */
     static const unsigned char zero_byte = '\0';
-    if (vio->write_packet(vio, &zero_byte, 1)) DBUG_RETURN(CR_ERROR);
-    DBUG_RETURN(CR_OK);
+    if (vio->write_packet(vio, &zero_byte, 1)) return CR_ERROR;
+    return CR_OK;
   } else {
     /* Password is a 0-terminated byte array ('\0' character included) */
     unsigned int passwd_len =
@@ -518,22 +498,22 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
                                  ER_CLIENT(CR_AUTH_PLUGIN_ERR),
                                  "caching_sha2_password",
                                  "Failed to generate scramble");
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
       }
 
       if (vio->write_packet(vio, sha2_scramble, SHA2_SCRAMBLE_LENGTH))
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
 
-      if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) DBUG_RETURN(CR_ERROR);
+      if ((pkt_len = vio->read_packet(vio, &pkt)) == -1) return CR_ERROR;
 
-      if (pkt_len == 1 && *pkt == fast_auth_success) DBUG_RETURN(CR_OK);
+      if (pkt_len == 1 && *pkt == fast_auth_success) return CR_OK;
 
       /* An OK packet would follow */
     }
 
     if (pkt_len != 1 || *pkt != perform_full_authentication) {
       DBUG_PRINT("info", ("Unexpected reply from server."));
-      DBUG_RETURN(CR_ERROR);
+      return CR_ERROR;
     }
 
     /* If connection isn't secure attempt to get the RSA public key file */
@@ -545,18 +525,16 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         // If no public key; request one from the server.
         if (vio->write_packet(vio, (const unsigned char *)&request_public_key,
                               1))
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
 
-        if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) DBUG_RETURN(CR_ERROR);
+        if ((pkt_len = vio->read_packet(vio, &pkt)) <= 0) return CR_ERROR;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {
-#ifndef HAVE_WOLFSSL
           ERR_clear_error();
-#endif /* !HAVE_WOLFSSL */
           DBUG_PRINT("info", ("Failed to parse public key"));
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
         }
         got_public_key_from_server = true;
       }
@@ -576,7 +554,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
           /* password too long for the buffer */
           if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long."));
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
         }
         memmove(passwd_scramble, mysql->passwd, passwd_len);
 
@@ -594,7 +572,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
           if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long to be encrypted using "
                               "given public key."));
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
         }
         RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
                            encrypted_password, public_key,
@@ -602,22 +580,22 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
         if (got_public_key_from_server) RSA_free(public_key);
 
         if (vio->write_packet(vio, (uchar *)encrypted_password, cipher_length))
-          DBUG_RETURN(CR_ERROR);
+          return CR_ERROR;
       } else {
         set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                  ER_CLIENT(CR_AUTH_PLUGIN_ERR),
                                  "caching_sha2_password",
                                  "Authentication requires secure connection.");
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
       }
     } else {
       /* The vio is encrypted already; just send the plain text passwd */
       if (vio->write_packet(vio, (uchar *)mysql->passwd, passwd_len))
-        DBUG_RETURN(CR_ERROR);
+        return CR_ERROR;
     }
   }
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }
 
 /**
@@ -625,7 +603,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 */
 net_async_status caching_sha2_password_auth_client_nonblocking(
     MYSQL_PLUGIN_VIO *vio, MYSQL *mysql, int *result) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   int io_result;
   net_async_status status = NET_ASYNC_NOT_READY;
   static unsigned char encrypted_password[MAX_CIPHER_LENGTH];
@@ -648,17 +626,17 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       */
       status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result != SCRAMBLE_LENGTH + 1) {
         DBUG_PRINT("info", ("Scramble is not of correct length."));
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       if (pkt[SCRAMBLE_LENGTH] != '\0') {
         DBUG_PRINT("info", ("Missing protocol token in scramble data."));
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       /*
         Copy the scramble to the stack or it will be lost on the next use
@@ -676,14 +654,14 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         static const unsigned char zero_byte = '\0';
         status = vio->write_packet_nonblocking(vio, &zero_byte, 1, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
-          DBUG_RETURN(NET_ASYNC_NOT_READY);
+          return NET_ASYNC_NOT_READY;
         }
         if (io_result) {
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         *result = CR_OK;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       } else {
         /* Password is a 0-terminated byte array ('\0' character included) */
         passwd_len = static_cast<unsigned int>(strlen(mysql->passwd) + 1);
@@ -697,16 +675,16 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
                                    "caching_sha2_password",
                                    "Failed to generate scramble");
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         status = vio->write_packet_nonblocking(
             vio, sha2_scramble, SHA2_SCRAMBLE_LENGTH, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
-          DBUG_RETURN(NET_ASYNC_NOT_READY);
+          return NET_ASYNC_NOT_READY;
         }
         if (io_result) {
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
       }
       ctx->client_auth_plugin_state =
@@ -717,20 +695,20 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         CACHING_SHA2_CHALLENGE_RESPONSE:
       status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result == -1) {
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       if (io_result == 1 && *pkt == fast_auth_success) {
         *result = CR_OK;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       if (io_result != 1 || *pkt != perform_full_authentication) {
         DBUG_PRINT("info", ("Unexpected reply from server."));
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       if (!connection_is_secure)
         ctx->client_auth_plugin_state =
@@ -740,7 +718,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
         ctx->client_auth_plugin_state =
             client_auth_caching_sha2_password_plugin_status::
                 CACHING_SHA2_SEND_PLAIN_PASSWORD;
-      DBUG_RETURN(NET_ASYNC_NOT_READY);
+      return NET_ASYNC_NOT_READY;
       /* FALLTHROUGH */
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_REQUEST_PUBLIC_KEY:
@@ -753,11 +731,11 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
           status = vio->write_packet_nonblocking(
               vio, (const unsigned char *)&request_public_key, 1, &io_result);
           if (status == NET_ASYNC_NOT_READY) {
-            DBUG_RETURN(NET_ASYNC_NOT_READY);
+            return NET_ASYNC_NOT_READY;
           }
           if (io_result) {
             *result = CR_ERROR;
-            DBUG_RETURN(NET_ASYNC_COMPLETE);
+            return NET_ASYNC_COMPLETE;
           }
         }
       }
@@ -771,23 +749,21 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
           mysql->options.extension->get_server_public_key) {
         status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
         if (status == NET_ASYNC_NOT_READY) {
-          DBUG_RETURN(NET_ASYNC_NOT_READY);
+          return NET_ASYNC_NOT_READY;
         }
         if (io_result <= 0) {
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         int pkt_len = 0;
         BIO *bio = BIO_new_mem_buf(pkt, pkt_len);
         public_key = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL);
         BIO_free(bio);
         if (public_key == 0) {
-#ifndef HAVE_WOLFSSL
           ERR_clear_error();
-#endif /* !HAVE_WOLFSSL */
           DBUG_PRINT("info", ("Failed to parse public key"));
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         got_public_key_from_server = true;
       }
@@ -798,7 +774,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
           if (got_public_key_from_server) RSA_free(public_key);
           DBUG_PRINT("info", ("Password is too long."));
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         memmove(passwd_scramble, mysql->passwd, passwd_len);
         /* Obfuscate the plain text password with the session scramble */
@@ -816,7 +792,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
           DBUG_PRINT("info", ("Password is too long to be encrypted using "
                               "given public key."));
           *result = CR_ERROR;
-          DBUG_RETURN(NET_ASYNC_COMPLETE);
+          return NET_ASYNC_COMPLETE;
         }
         RSA_public_encrypt(passwd_len, (unsigned char *)passwd_scramble,
                            encrypted_password, public_key,
@@ -828,7 +804,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
                                  "caching_sha2_password",
                                  "Authentication requires secure connection.");
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
     }
       ctx->client_auth_plugin_state =
@@ -840,11 +816,11 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       status = vio->write_packet_nonblocking(vio, (uchar *)encrypted_password,
                                              cipher_length, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result < 0) {
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
     } break;
     case client_auth_caching_sha2_password_plugin_status::
@@ -852,27 +828,26 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       status = vio->write_packet_nonblocking(vio, (uchar *)mysql->passwd,
                                              passwd_len, &io_result);
       if (status == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       if (io_result < 0) {
         *result = CR_ERROR;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
     } break;
     default:
       assert(0);
   }
   *result = CR_OK;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 }
 
 void STDCALL mysql_reset_server_public_key(void) {
-  DBUG_ENTER("mysql_reset_server_public_key");
+  DBUG_TRACE;
   mysql_mutex_lock(&g_public_key_mutex);
   if (g_public_key) RSA_free(g_public_key);
   g_public_key = NULL;
   mysql_mutex_unlock(&g_public_key_mutex);
-  DBUG_VOID_RETURN;
 }
 
 #endif

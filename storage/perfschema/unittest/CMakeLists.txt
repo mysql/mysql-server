@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
-ADD_CONVENIENCE_LIBRARY(pfs_server_stubs pfs_server_stubs.cc)
+ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
 
 ADD_DEPENDENCIES(pfs_server_stubs GenError)
 
@@ -54,25 +54,20 @@ ENDIF()
 
 # We need the server libs to test the blob parser.
 # Add sql_builtin.cc here, to force linkage of plugins below.
-# Also add mysys/my_string.cc (see Bug#45488)
 MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   pfs_connect_attr-t.cc
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_SOURCE_DIR}/mysys/my_string.cc
   ${MYSQLD_EXTRA_SOURCES}
+  EXCLUDE_ON_SOLARIS
   ADD_TEST pfs_connect_attr
 )
-ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
-# We need to explicitly link in everything referenced in sql/sql_builtin.cc
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t ${MYSQLD_STATIC_PLUGIN_LIBS})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main binlog rpl master slave)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql_main sql_dd sql_gis sql_main sql_dd)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug mysys ${ZLIB_LIBRARY})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema ${ICU_LIBRARIES})
 
-# ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
-# TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
-# ADD_TEST(pfs_benchmark pfs_benchmark-t)
+ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
+# We need to explicitly link in everything referenced in sql/sql_builtin.cc
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t
+  mytap
+  perfschema
+  sql_main
+  ${MYSQLD_STATIC_PLUGIN_LIBS}
+  ${ICU_LIBRARIES}
+  )

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 #define SQL_GIS_RTREE_SUPPORT_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -203,8 +203,9 @@ double compute_area(const dd::Spatial_reference_system *srs, const double *a,
 ///
 /// @retval 0 The geometry is valid.
 /// @retval -1 The geometry is invalid.
-int get_mbr_from_store(const dd::Spatial_reference_system *srs, uchar *store,
-                       uint size, uint n_dims, double *mbr, gis::srid_t *srid);
+int get_mbr_from_store(const dd::Spatial_reference_system *srs,
+                       const uchar *store, uint size, uint n_dims, double *mbr,
+                       gis::srid_t *srid);
 
 /// Computes the extra area covered if an MBR is expanded to cover another MBR.
 ///

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -387,6 +387,22 @@ byte *trx_undo_rec_get_pars(
     table_id_t *table_id,     /*!< out: table id */
     type_cmpl_t &type_cmpl);  /*!< out: type compilation info. */
 
+/** Get the max free space of undo log by assuming it's a fresh new page
+and the free space doesn't count for the undo log header too. */
+size_t trx_undo_max_free_space();
+
+/** Decide if the following undo log record is a multi-value virtual column
+@param[in]     undo_rec        undo log record
+@return true if this is a multi-value virtual column log, otherwise false */
+bool trx_undo_rec_is_multi_value(const byte *undo_rec);
+
+/** Read from an undo log record a non-virtual column value.
+@param[in,out]	ptr	pointer to remaining part of the undo record
+@param[in,out]	field	stored field
+@param[in,out]	heap	memory heap
+@return remaining part of undo log record after reading these values */
+const byte *trx_undo_rec_get_multi_value(const byte *ptr, dfield_t *field,
+                                         mem_heap_t *heap);
 #include "trx0rec.ic"
 
 #endif /* !UNIV_HOTBACKUP */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,9 +186,9 @@ struct HP_INFO {
 typedef uchar *HEAP_PTR;
 
 struct HP_HEAP_POSITION {
-  HEAP_PTR ptr;
-  ulong record_no; /* Number of current record in table scan order (starting at
-                      0) */
+  HEAP_PTR ptr{nullptr};
+  ulong record_no{0}; /* Number of current record in table scan order (starting
+                      at 0) */
 };
 
 struct HP_CREATE_INFO {

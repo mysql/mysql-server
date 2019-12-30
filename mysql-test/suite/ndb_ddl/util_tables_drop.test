@@ -4,11 +4,14 @@
 # Test behavior of ndbcluster and in particular the "ndb binlog thread"
 # when its util tables are dropped from NDB.
 # - the tables are vital for the functionality of binlog and schema distribution
-# - currently there arte two util tables created by ndbcluster:
+# - currently there are three util tables created by ndbcluster:
 #  1) mysql.ndb_schema
 #  -- communication between the MySQL Servers during schema distribution
 #  -- hidden for both DDL and DML for a MySQL Server user
-#  2) mysql.ndb_apply_status
+#  2) mysql.ndb_schema_result
+#  -- communication between the MySQL Servers during schema distribution
+#  -- hidden for both DDL and DML for a MySQL Server user
+#  3) mysql.ndb_apply_status
 #  -- keeps a record of the operations that have been replicated
 #  -- currently not hidden for either DDL or DML for a MySQL Server user
 # - if any of the tables are dropped from NDB, the "ndb binlog thread" will
@@ -36,3 +39,7 @@ let $util_table_name = ndb_schema;
 
 let $util_table_name = ndb_apply_status;
 --source check_util_table_drop.inc
+
+let $util_table_name = ndb_schema_result;
+--source check_util_table_drop.inc
+

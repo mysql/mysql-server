@@ -1,111 +1,122 @@
 //>>built
-define("dojox/charting/plot2d/Scatter",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","./Base","./common","dojox/lang/functional","dojox/lang/functional/reversed","dojox/lang/utils","dojox/gfx/fx","dojox/gfx/gradutils"],function(_1,_2,_3,_4,dc,df,_5,du,fx,_6){
-var _7=_5.lambda("item.purgeGroup()");
-return _3("dojox.charting.plot2d.Scatter",_4,{defaultParams:{hAxis:"x",vAxis:"y",shadows:null,animate:null},optionalParams:{markerStroke:{},markerOutline:{},markerShadow:{},markerFill:{},markerFont:"",markerFontColor:""},constructor:function(_8,_9){
+define("dojox/charting/plot2d/Scatter",["dojo/_base/lang","dojo/_base/array","dojo/_base/declare","./CartesianBase","./_PlotEvents","./common","dojox/lang/functional","dojox/lang/functional/reversed","dojox/lang/utils","dojox/gfx/fx","dojox/gfx/gradutils"],function(_1,_2,_3,_4,_5,dc,df,_6,du,fx,_7){
+var _8=_6.lambda("item.purgeGroup()");
+return _3("dojox.charting.plot2d.Scatter",[_4,_5],{defaultParams:{hAxis:"x",vAxis:"y",shadows:null,animate:null},optionalParams:{markerStroke:{},markerOutline:{},markerShadow:{},markerFill:{},markerFont:"",markerFontColor:"",styleFunc:null},constructor:function(_9,_a){
 this.opt=_1.clone(this.defaultParams);
-du.updateWithObject(this.opt,_9);
-du.updateWithPattern(this.opt,_9,this.optionalParams);
+du.updateWithObject(this.opt,_a);
+du.updateWithPattern(this.opt,_a,this.optionalParams);
 this.series=[];
 this.hAxis=this.opt.hAxis;
 this.vAxis=this.opt.vAxis;
 this.animate=this.opt.animate;
-},render:function(_a,_b){
+},render:function(_b,_c){
 if(this.zoom&&!this.isDataDirty()){
-return this.performZoom(_a,_b);
+return this.performZoom(_b,_c);
 }
 this.resetEvents();
 this.dirty=this.isDirty();
 if(this.dirty){
-_2.forEach(this.series,_7);
+_2.forEach(this.series,_8);
 this._eventSeries={};
 this.cleanGroup();
 var s=this.group;
-df.forEachRev(this.series,function(_c){
-_c.cleanGroup(s);
+df.forEachRev(this.series,function(_d){
+_d.cleanGroup(s);
 });
 }
-var t=this.chart.theme,_d=this.events();
+var t=this.chart.theme,_e=this.events();
 for(var i=this.series.length-1;i>=0;--i){
-var _e=this.series[i];
-if(!this.dirty&&!_e.dirty){
+var _f=this.series[i];
+if(!this.dirty&&!_f.dirty){
 t.skip();
-this._reconnectEvents(_e.name);
+this._reconnectEvents(_f.name);
 continue;
 }
-_e.cleanGroup();
-if(!_e.data.length){
-_e.dirty=false;
+_f.cleanGroup();
+if(!_f.data.length){
+_f.dirty=false;
 t.skip();
 continue;
 }
-var _f=t.next("marker",[this.opt,_e]),s=_e.group,_10,ht=this._hScaler.scaler.getTransformerFromModel(this._hScaler),vt=this._vScaler.scaler.getTransformerFromModel(this._vScaler);
-if(typeof _e.data[0]=="number"){
-_10=_2.map(_e.data,function(v,i){
-return {x:ht(i+1)+_b.l,y:_a.height-_b.b-vt(v)};
+var _10=t.next("marker",[this.opt,_f]),s=_f.group,_11,ht=this._hScaler.scaler.getTransformerFromModel(this._hScaler),vt=this._vScaler.scaler.getTransformerFromModel(this._vScaler);
+if(typeof _f.data[0]=="number"){
+_11=_2.map(_f.data,function(v,i){
+return {x:ht(i+1)+_c.l,y:_b.height-_c.b-vt(v)};
 },this);
 }else{
-_10=_2.map(_e.data,function(v,i){
-return {x:ht(v.x)+_b.l,y:_a.height-_b.b-vt(v.y)};
+_11=_2.map(_f.data,function(v,i){
+return {x:ht(v.x)+_c.l,y:_b.height-_c.b-vt(v.y)};
 },this);
 }
-var _11=new Array(_10.length),_12=new Array(_10.length),_13=new Array(_10.length);
-_2.forEach(_10,function(c,i){
-var _14=typeof _e.data[i]=="number"?t.post(_f,"marker"):t.addMixin(_f,"marker",_e.data[i],true),_15="M"+c.x+" "+c.y+" "+_14.symbol;
-if(_14.marker.shadow){
-_11[i]=s.createPath("M"+(c.x+_14.marker.shadow.dx)+" "+(c.y+_14.marker.shadow.dy)+" "+_14.symbol).setStroke(_14.marker.shadow).setFill(_14.marker.shadow.color);
-if(this.animate){
-this._animateScatter(_11[i],_a.height-_b.b);
+var _12=new Array(_11.length),_13=new Array(_11.length),_14=new Array(_11.length);
+_2.forEach(_11,function(c,i){
+var _15=_f.data[i],_16;
+if(this.opt.styleFunc||typeof _15!="number"){
+var _17=typeof _15!="number"?[_15]:[];
+if(this.opt.styleFunc){
+_17.push(this.opt.styleFunc(_15));
 }
-}
-if(_14.marker.outline){
-var _16=dc.makeStroke(_14.marker.outline);
-_16.width=2*_16.width+_14.marker.stroke.width;
-_13[i]=s.createPath(_15).setStroke(_16);
-if(this.animate){
-this._animateScatter(_13[i],_a.height-_b.b);
-}
-}
-var _17=dc.makeStroke(_14.marker.stroke),_18=this._plotFill(_14.marker.fill,_a,_b);
-if(_18&&(_18.type==="linear"||_18.type=="radial")){
-var _19=_6.getColor(_18,{x:c.x,y:c.y});
-if(_17){
-_17.color=_19;
-}
-_12[i]=s.createPath(_15).setStroke(_17).setFill(_19);
+_16=t.addMixin(_10,"marker",_17,true);
 }else{
-_12[i]=s.createPath(_15).setStroke(_17).setFill(_18);
+_16=t.post(_10,"marker");
+}
+var _18="M"+c.x+" "+c.y+" "+_16.symbol;
+if(_16.marker.shadow){
+_12[i]=s.createPath("M"+(c.x+_16.marker.shadow.dx)+" "+(c.y+_16.marker.shadow.dy)+" "+_16.symbol).setStroke(_16.marker.shadow).setFill(_16.marker.shadow.color);
+if(this.animate){
+this._animateScatter(_12[i],_b.height-_c.b);
+}
+}
+if(_16.marker.outline){
+var _19=dc.makeStroke(_16.marker.outline);
+_19.width=2*_19.width+_16.marker.stroke.width;
+_14[i]=s.createPath(_18).setStroke(_19);
+if(this.animate){
+this._animateScatter(_14[i],_b.height-_c.b);
+}
+}
+var _1a=dc.makeStroke(_16.marker.stroke),_1b=this._plotFill(_16.marker.fill,_b,_c);
+if(_1b&&(_1b.type==="linear"||_1b.type=="radial")){
+var _1c=_7.getColor(_1b,{x:c.x,y:c.y});
+if(_1a){
+_1a.color=_1c;
+}
+_13[i]=s.createPath(_18).setStroke(_1a).setFill(_1c);
+}else{
+_13[i]=s.createPath(_18).setStroke(_1a).setFill(_1b);
 }
 if(this.animate){
-this._animateScatter(_12[i],_a.height-_b.b);
+this._animateScatter(_13[i],_b.height-_c.b);
 }
 },this);
-if(_12.length){
-_e.dyn.stroke=_12[_12.length-1].getStroke();
-_e.dyn.fill=_12[_12.length-1].getFill();
+if(_13.length){
+_f.dyn.marker=_10.symbol;
+_f.dyn.markerStroke=_13[_13.length-1].getStroke();
+_f.dyn.markerFill=_13[_13.length-1].getFill();
 }
-if(_d){
-var _1a=new Array(_12.length);
-_2.forEach(_12,function(s,i){
-var o={element:"marker",index:i,run:_e,shape:s,outline:_13&&_13[i]||null,shadow:_11&&_11[i]||null,cx:_10[i].x,cy:_10[i].y};
-if(typeof _e.data[0]=="number"){
+if(_e){
+var _1d=new Array(_13.length);
+_2.forEach(_13,function(s,i){
+var o={element:"marker",index:i,run:_f,shape:s,outline:_14&&_14[i]||null,shadow:_12&&_12[i]||null,cx:_11[i].x,cy:_11[i].y};
+if(typeof _f.data[0]=="number"){
 o.x=i+1;
-o.y=_e.data[i];
+o.y=_f.data[i];
 }else{
-o.x=_e.data[i].x;
-o.y=_e.data[i].y;
+o.x=_f.data[i].x;
+o.y=_f.data[i].y;
 }
 this._connectEvents(o);
-_1a[i]=o;
+_1d[i]=o;
 },this);
-this._eventSeries[_e.name]=_1a;
+this._eventSeries[_f.name]=_1d;
 }else{
-delete this._eventSeries[_e.name];
+delete this._eventSeries[_f.name];
 }
-_e.dirty=false;
+_f.dirty=false;
 }
 this.dirty=false;
 return this;
-},_animateScatter:function(_1b,_1c){
-fx.animateTransform(_1.delegate({shape:_1b,duration:1200,transform:[{name:"translate",start:[0,_1c],end:[0,0]},{name:"scale",start:[0,0],end:[1,1]},{name:"original"}]},this.animate)).play();
+},_animateScatter:function(_1e,_1f){
+fx.animateTransform(_1.delegate({shape:_1e,duration:1200,transform:[{name:"translate",start:[0,_1f],end:[0,0]},{name:"scale",start:[0,0],end:[1,1]},{name:"original"}]},this.animate)).play();
 }});
 });

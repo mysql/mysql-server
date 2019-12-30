@@ -52,10 +52,10 @@ Handler_discover	0
 Handler_external_lock	2
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -100,10 +100,10 @@ Handler_discover	0
 Handler_external_lock	4
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -148,10 +148,10 @@ Handler_discover	0
 Handler_external_lock	2
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	1
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -222,10 +222,10 @@ Handler_discover	0
 Handler_external_lock	2
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -276,10 +276,10 @@ Handler_discover	0
 Handler_external_lock	2
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -401,10 +401,10 @@ Handler_discover	0
 Handler_external_lock	4
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -449,10 +449,10 @@ Handler_discover	0
 Handler_external_lock	4
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -484,10 +484,10 @@ Handler_discover	0
 Handler_external_lock	2
 Handler_mrr_init	0
 Handler_prepare	0
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	3
+Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
@@ -539,6 +539,18 @@ c
 3
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 c
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+EXPLAIN
+-> Filter: (c > 7)
+    -> Count rows in t_innodb
+
+EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
+EXPLAIN
+-> Filter: (c > 7)
+    -> Rows fetched before execution
+
+SELECT COUNT(*) c FROM t_innodb LIMIT 10 OFFSET 5;
+c
 set sql_mode=default;
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb;
 COUNT(*)
@@ -546,4 +558,17 @@ COUNT(*)
 SELECT SQL_BIG_RESULT COUNT(*) FROM t_innodb, t_myisam;
 COUNT(*)
 6
+SELECT /*+ BNL(t2) */ -(t1.c1 + t2.c1) FROM t_innodb t1, t_innodb t2
+UNION ALL SELECT COUNT(*) FROM t_innodb;
+-(t1.c1 + t2.c1)
+-2
+-3
+-3
+-4
+-4
+-4
+-5
+-5
+-6
+3
 DROP TABLE t_innodb, t_myisam;

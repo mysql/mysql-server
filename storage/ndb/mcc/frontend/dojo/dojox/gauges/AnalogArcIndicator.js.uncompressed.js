@@ -1,10 +1,5 @@
-//>>built
 define("dojox/gauges/AnalogArcIndicator", ["dojo/_base/declare","dojo/_base/lang","dojo/_base/connect","dojo/_base/fx","./AnalogIndicatorBase"],
-function(declare, lang, connect, fx, AnalogIndicatorBase) { 
-
-/*=====
-	AnalogIndicatorBase = dojox.gauges.AnalogIndicatorBase;
-=====*/
+function(declare, lang, connect, fx, AnalogIndicatorBase) {
 
 return declare("dojox.gauges.AnalogArcIndicator",[AnalogIndicatorBase],{
 	

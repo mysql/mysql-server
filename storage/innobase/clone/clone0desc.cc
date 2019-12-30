@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -306,10 +306,11 @@ size_t Chunk_Info::get_serialized_length(uint32_t num_tasks) {
   size_t ret_size = 4;
 
   auto num_elements = m_incomplete_chunks.size();
+  auto suggested_elements = 2 * num_tasks;
 
   /* Have bigger allocated length if requested */
-  if (num_tasks > num_elements) {
-    num_elements = num_tasks;
+  if (suggested_elements > num_elements) {
+    num_elements = suggested_elements;
   }
 
   /* Add size for incomplete chunks data. Serialized element
@@ -431,9 +432,12 @@ void Chunk_Info::deserialize(const byte *desc_chunk, uint &len_left) {
 
   len_left -= 4;
 
+  auto max_map_size = static_cast<uint32_t>(2 * CLONE_MAX_TASKS);
   /* Each task can have one incomplete chunk at most */
-  if (chunk_map_size > CLONE_MAX_TASKS) {
+  if (chunk_map_size > max_map_size) {
     ut_ad(false);
+    ib::error(ER_IB_CLONE_RESTART)
+        << "Clone too many incomplete chunks: " << chunk_map_size;
     return;
   }
 
@@ -582,14 +586,47 @@ void Clone_Desc_Locator::deserialize(const byte *desc_loc, uint desc_len,
   }
 }
 
+/** Check a specific bit in flag.
+@param[in]	flag	bit flag
+@param[in]	bit	check bit
+@return true, iff bit is set in flag. */
+inline bool DESC_CHECK_FLAG(ulint flag, ulint bit) {
+  return ((flag & (1ULL << (bit - 1))) > 0);
+}
+
+/** Set a specific bit in flag.
+@param[in]	flag	bit flag
+@param[in]	bit	set bit */
+inline void DESC_SET_FLAG(ulint &flag, ulint bit) {
+  flag |= static_cast<ulint>(1ULL << (bit - 1));
+}
+
 /** File Metadata: Snapshot state in 4 bytes */
 static const uint CLONE_FILE_STATE_OFFSET = CLONE_DESC_HEADER_LEN;
 
 /** File Metadata: File size in 8 bytes */
 static const uint CLONE_FILE_SIZE_OFFSET = CLONE_FILE_STATE_OFFSET + 4;
 
+/** File Metadata: Sparse file allocation size on disk in 8 bytes */
+static const uint CLONE_FILE_ALLOC_SIZE_OFFSET = CLONE_FILE_SIZE_OFFSET + 8;
+
+/** File Metadata: FSP flags in 4 bytes */
+static const uint CLONE_FILE_FSP_OFFSET = CLONE_FILE_ALLOC_SIZE_OFFSET + 8;
+
+/** File Metadata: File system block size for compressed tables in 4 bytes. */
+static const uint CLONE_FILE_FSBLK_OFFSET = CLONE_FILE_FSP_OFFSET + 4;
+
+/** File Metadata: File space flags in next 2 bytes [Maximum 16 flags] */
+static const uint CLONE_FILE_FLAGS_OFFSET = CLONE_FILE_FSBLK_OFFSET + 4;
+/** Clone File Flag: Compression type ZLIB*/
+static const uint CLONE_DESC_FILE_FLAG_ZLIB = 1;
+/** Clone File Flag: Compression type LZ4*/
+static const uint CLONE_DESC_FILE_FLAG_LZ4 = 2;
+/** Clone File Flag: Encryption type AES */
+static const uint CLONE_DESC_FILE_FLAG_AES = 3;
+
 /** File Metadata: Tablespace ID in 4 bytes */
-static const uint CLONE_FILE_SPACE_ID_OFFSET = CLONE_FILE_SIZE_OFFSET + 8;
+static const uint CLONE_FILE_SPACE_ID_OFFSET = CLONE_FILE_FLAGS_OFFSET + 2;
 
 /** File Metadata: File index in 4 bytes */
 static const uint CLONE_FILE_IDX_OFFSET = CLONE_FILE_SPACE_ID_OFFSET + 4;
@@ -636,6 +673,25 @@ void Clone_Desc_File_MetaData::serialize(byte *&desc_file, uint &len,
   mach_write_to_4(desc_file + CLONE_FILE_STATE_OFFSET, m_state);
 
   mach_write_to_8(desc_file + CLONE_FILE_SIZE_OFFSET, m_file_meta.m_file_size);
+  mach_write_to_8(desc_file + CLONE_FILE_ALLOC_SIZE_OFFSET,
+                  m_file_meta.m_alloc_size);
+  mach_write_to_4(desc_file + CLONE_FILE_FSP_OFFSET, m_file_meta.m_fsp_flags);
+
+  mach_write_to_4(desc_file + CLONE_FILE_FSBLK_OFFSET,
+                  m_file_meta.m_fsblk_size);
+  /* Set file compression type for sparse file. */
+  ulint file_flags = 0;
+  if (m_file_meta.m_compress_type == Compression::ZLIB) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_ZLIB);
+  } else if (m_file_meta.m_compress_type == Compression::LZ4) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_LZ4);
+  }
+  /* Set file encryption type */
+  if (m_file_meta.m_encrypt_type == Encryption::AES) {
+    DESC_SET_FLAG(file_flags, CLONE_DESC_FILE_FLAG_AES);
+  }
+  mach_write_to_2(desc_file + CLONE_FILE_FLAGS_OFFSET, file_flags);
+
   mach_write_to_4(desc_file + CLONE_FILE_SPACE_ID_OFFSET,
                   m_file_meta.m_space_id);
   mach_write_to_4(desc_file + CLONE_FILE_IDX_OFFSET, m_file_meta.m_file_index);
@@ -666,13 +722,38 @@ bool Clone_Desc_File_MetaData::deserialize(const byte *desc_file,
   }
   desc_len -= CLONE_FILE_BASE_LEN;
 
-  uint int_type;
-  int_type = mach_read_from_4(desc_file + CLONE_FILE_STATE_OFFSET);
+  auto int_type = mach_read_from_4(desc_file + CLONE_FILE_STATE_OFFSET);
 
   m_state = static_cast<Snapshot_State>(int_type);
 
   m_file_meta.m_file_size =
       mach_read_from_8(desc_file + CLONE_FILE_SIZE_OFFSET);
+  m_file_meta.m_alloc_size =
+      mach_read_from_8(desc_file + CLONE_FILE_ALLOC_SIZE_OFFSET);
+
+  m_file_meta.m_fsp_flags = mach_read_from_4(desc_file + CLONE_FILE_FSP_OFFSET);
+  m_file_meta.m_fsblk_size =
+      mach_read_from_4(desc_file + CLONE_FILE_FSBLK_OFFSET);
+
+  m_file_meta.m_punch_hole = false;
+
+  m_file_meta.m_compress_type = Compression::NONE;
+  auto file_flags =
+      static_cast<ulint>(mach_read_from_2(desc_file + CLONE_FILE_FLAGS_OFFSET));
+
+  /* Get file compression type for sparse file. */
+  if (DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_ZLIB)) {
+    m_file_meta.m_compress_type = Compression::ZLIB;
+  } else if (DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_LZ4)) {
+    m_file_meta.m_compress_type = Compression::LZ4;
+  }
+
+  /* Get file encryption information */
+  m_file_meta.m_encrypt_type = Encryption::NONE;
+  if (DESC_CHECK_FLAG(file_flags, CLONE_DESC_FILE_FLAG_AES)) {
+    m_file_meta.m_encrypt_type = Encryption::AES;
+  }
+
   m_file_meta.m_space_id =
       mach_read_from_4(desc_file + CLONE_FILE_SPACE_ID_OFFSET);
   m_file_meta.m_file_index =
@@ -721,22 +802,17 @@ static const uint CLONE_DESC_STATE_NUM_CHUNKS = CLONE_DESC_TASK_OFFSET + 4;
 /** Clone State: Number of files in 4 bytes */
 static const uint CLONE_DESC_STATE_NUM_FILES = CLONE_DESC_STATE_NUM_CHUNKS + 4;
 
-/** Clone State: Estimated nuber of bytes in 8 bytes */
+/** Clone State: Estimated number of bytes in 8 bytes */
 static const uint CLONE_DESC_STATE_EST_BYTES = CLONE_DESC_STATE_NUM_FILES + 4;
 
+/** Clone State: Estimated number of bytes in 8 bytes */
+static const uint CLONE_DESC_STATE_EST_DISK = CLONE_DESC_STATE_EST_BYTES + 8;
+
 /** Clone State: flags in 2 byte [max 16 flags] */
-static const uint CLONE_DESC_STATE_FLAGS = CLONE_DESC_STATE_EST_BYTES + 8;
+static const uint CLONE_DESC_STATE_FLAGS = CLONE_DESC_STATE_EST_DISK + 8;
 
 /** Clone State: Total length */
 static const uint CLONE_DESC_STATE_LEN = CLONE_DESC_STATE_FLAGS + 2;
-
-UNIV_INLINE bool DESC_CHECK_FLAG(ulint flag, ulint bit) {
-  return (!!((flag & (1ULL << (bit - 1))) > 0));
-}
-
-UNIV_INLINE void DESC_SET_FLAG(ulint &flag, ulint bit) {
-  flag |= static_cast<ulint>(1ULL << (bit - 1));
-}
 
 /** Clone State Flag: Start processing state */
 static const uint CLONE_DESC_STATE_FLAG_START = 1;
@@ -771,6 +847,7 @@ void Clone_Desc_State::serialize(byte *&desc_state, uint &len,
   mach_write_to_4(desc_state + CLONE_DESC_STATE_NUM_CHUNKS, m_num_chunks);
   mach_write_to_4(desc_state + CLONE_DESC_STATE_NUM_FILES, m_num_files);
   mach_write_to_8(desc_state + CLONE_DESC_STATE_EST_BYTES, m_estimate);
+  mach_write_to_8(desc_state + CLONE_DESC_STATE_EST_DISK, m_estimate_disk);
 
   ulint state_flags = 0;
 
@@ -803,6 +880,7 @@ bool Clone_Desc_State::deserialize(const byte *desc_state, uint desc_len) {
   m_num_chunks = mach_read_from_4(desc_state + CLONE_DESC_STATE_NUM_CHUNKS);
   m_num_files = mach_read_from_4(desc_state + CLONE_DESC_STATE_NUM_FILES);
   m_estimate = mach_read_from_8(desc_state + CLONE_DESC_STATE_EST_BYTES);
+  m_estimate_disk = mach_read_from_8(desc_state + CLONE_DESC_STATE_EST_DISK);
 
   auto state_flags =
       static_cast<ulint>(mach_read_from_2(desc_state + CLONE_DESC_STATE_FLAGS));

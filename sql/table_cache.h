@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -476,7 +476,7 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
     /* The ex-unused table must be fully functional. */
     DBUG_ASSERT(table->db_stat && table->file);
     /* The children must be detached from the table. */
-    DBUG_ASSERT(!table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+    DBUG_ASSERT(!table->file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   }
 
   return table;

@@ -1,4 +1,3 @@
-//>>built
 define("dojox/widget/TitleGroup", ["dojo", "dijit/registry", "dijit/_Widget", "dijit/TitlePane"], function(dojo, registry, widget, titlepane){
 	
 	var tp = titlepane.prototype,
@@ -11,7 +10,8 @@ define("dojox/widget/TitleGroup", ["dojo", "dijit/registry", "dijit/_Widget", "d
 	
 	// this might hide this uberprivate function from the docparser.
 	tp._dxfindParent = function(){
-		// summary: TitlePane's MUST be first-children of a TitleGroup. only used by
+		// summary:
+		//		TitlePane's MUST be first-children of a TitleGroup. only used by
 		//		`dojox.widget.TitleGroup`. Finds a possible parent TitleGroup of a TitlePane
 		var n = this.domNode.parentNode;
 		if(n){
@@ -32,16 +32,15 @@ define("dojox/widget/TitleGroup", ["dojo", "dijit/registry", "dijit/_Widget", "d
 	});
 		
 	return dojo.declare("dojox.widget.TitleGroup", dijit._Widget, {
-		// summary: A container which controls a series of `dijit.TitlePane`s,
+		// summary:
+		//		A container which controls a series of `dijit.TitlePane`s,
 		//		allowing one to be visible and hiding siblings
-		//
 		// description:
 		//		A container which controls a series of `dijit.TitlePane`s,
 		//		allowing one to be visible and hiding siblings. Behaves similarly
 		//		to a `dijit.layout.AccordionContainer` in that the children
 		//		are all stacked, though merges the TitlePane behavior of
 		//		variable height
-		//
 		// example:
 		//	|	var group = new dojox.widget.TitleGroup().placeAt(dojo.body());
 		//	|	new dijit.TitlePane({ title:"One" }, "fromsource").placeAt(group);
@@ -50,18 +49,19 @@ define("dojox/widget/TitleGroup", ["dojo", "dijit/registry", "dijit/_Widget", "d
 		"class":"dojoxTitleGroup",
 
 		addChild: function(widget, position){
-			// summary: Add a passed widget reference to this container at an optional
+			// summary:
+			//		Add a passed widget reference to this container at an optional
 			//		position index.
-			//
 			// widget: dijit.TitlePane
 			//		A widget reference to add
-			// position: String?|Int?
+			// position: String|Int?
 			//		An optional index or position to pass. defaults to "last"
 			return widget.placeAt(this.domNode, position); // dijit.TitlePane
 		},
 		
 		removeChild: function(widget){
-			// summary: Remove the passed widget from this container. Does not destroy
+			// summary:
+			//		Remove the passed widget from this container. Does not destroy
 			//		child.
 			
 			this.domNode.removeChild(widget.domNode);
@@ -69,13 +69,14 @@ define("dojox/widget/TitleGroup", ["dojo", "dijit/registry", "dijit/_Widget", "d
 		},
 		
 		selectChild: function(widget){
-			// summary: close all found titlePanes within this group, excluding
-			// the one the we pass to select
+			// summary:
+			//		close all found titlePanes within this group, excluding
+			//		the one the we pass to select
 			widget && dojo.query("> .dijitTitlePane", this.domNode).forEach(function(n){
 				var tp = registry.byNode(n);
 				tp && tp !== widget && tp.open && tp.toggle(); // could race if open is set onEnd of slide
 			});
-			return widget; // dijit.TitlePane
+			return widget; // dijit/TitlePane
 		}
 	
 	});

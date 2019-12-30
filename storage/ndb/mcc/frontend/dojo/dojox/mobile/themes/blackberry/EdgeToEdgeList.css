@@ -1,11 +1,9 @@
 
 .mblEdgeToEdgeList {
-  position: relative;
-  
-  margin: 0px;
-  padding: 0px;
+  margin: 0;
+  padding: 0;
   background-color: white;
 }
 .mblEdgeToEdgeList .mblListItem:last-child {
-  border-bottom-width: 0px;
+  border-bottom-width: 0;
 }

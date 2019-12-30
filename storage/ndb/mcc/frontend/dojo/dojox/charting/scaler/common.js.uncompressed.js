@@ -1,8 +1,8 @@
-//>>built
 define("dojox/charting/scaler/common", ["dojo/_base/lang"], function(lang){
 
 	var eq = function(/*Number*/ a, /*Number*/ b){
-		// summary: compare two FP numbers for equality
+		// summary:
+		//		compare two FP numbers for equality
 		return Math.abs(a - b) <= 1e-6 * (Math.abs(a) + Math.abs(b));	// Boolean
 	};
 	
@@ -25,13 +25,6 @@ define("dojox/charting/scaler/common", ["dojo/_base/lang"], function(lang){
 				return ifnotloaded();
 			}
 		},
-		findString: function(/*String*/ val, /*Array*/ text){
-			val = val.toLowerCase();
-			for(var i = 0; i < text.length; ++i){
-				if(val == text[i]){ return true; }
-			}
-			return false;
-		},
 		getNumericLabel: function(/*Number*/ number, /*Number*/ precision, /*Object*/ kwArgs){
 			var def = "";
 			common.doIfLoaded("dojo/number", function(numberLib){
@@ -47,6 +40,7 @@ define("dojox/charting/scaler/common", ["dojo/_base/lang"], function(lang){
 			}
 			if(kwArgs.labels){
 				// classic binary search
+				// TODO: working only if the array is sorted per value should be better documented or sorted automatically
 				var l = kwArgs.labels, lo = 0, hi = l.length;
 				while(lo < hi){
 					var mid = Math.floor((lo + hi) / 2), val = l[mid].value;

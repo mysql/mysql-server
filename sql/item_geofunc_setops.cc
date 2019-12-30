@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1212,7 +1212,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1271,7 +1271,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1357,7 +1357,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1416,7 +1416,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -2229,7 +2229,7 @@ Geometry *Item_func_spatial_operation::bg_geo_set_op(Geometry *g1, Geometry *g2,
   }
 
   /*
-    null_value is set in above xxx_operatoin calls if error occured.
+    null_value is set in above xxx_operatoin calls if error occurred.
   */
   if (null_value) {
     error_str();
@@ -2415,9 +2415,8 @@ Geometry *Item_func_spatial_operation::simplify_multilinestring(
     size_t oldlength = result->length();
     linestrings->begin()->as_geometry(result, false);
     size_t newlength = result->length();
-    linestringresult->set_ptr(
-        const_cast<char *>(result->ptr()) + oldlength + GEOM_HEADER_SIZE,
-        (newlength - oldlength) - GEOM_HEADER_SIZE);
+    linestringresult->set_ptr(result->ptr() + oldlength + GEOM_HEADER_SIZE,
+                              (newlength - oldlength) - GEOM_HEADER_SIZE);
     linestringresult->set_ownmem(false);
     retgeo = linestringresult;
   } else if (points->size() == 0 && linestrings->size() > 1) {
@@ -2432,9 +2431,8 @@ Geometry *Item_func_spatial_operation::simplify_multilinestring(
     size_t oldlength = result->length();
     points->begin()->as_geometry(result, false);
     size_t newlength = result->length();
-    pointresult->set_ptr(
-        const_cast<char *>(result->ptr()) + oldlength + GEOM_HEADER_SIZE,
-        (newlength - oldlength) - GEOM_HEADER_SIZE);
+    pointresult->set_ptr(result->ptr() + oldlength + GEOM_HEADER_SIZE,
+                         (newlength - oldlength) - GEOM_HEADER_SIZE);
     pointresult->set_ownmem(false);
     retgeo = pointresult;
   } else if (points->size() > 1 && linestrings->size() == 0) {
@@ -2629,7 +2627,7 @@ inline Geometry::wkbType base_type(Geometry::wkbType gt) {
 bool simplify_multi_geometry(String *str, String *result_buffer) {
   if (str->length() < GEOM_HEADER_SIZE) return false;
 
-  char *p = const_cast<char *>(str->ptr());
+  char *p = str->ptr();
   Geometry::wkbType gtype = get_wkb_geotype(p + 5);
   bool ret = false;
 
@@ -2640,7 +2638,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
       if (result_buffer) {
         result_buffer->length(0);
         result_buffer->append(*str);
-        p = const_cast<char *>(result_buffer->ptr());
+        p = result_buffer->ptr();
         str = result_buffer;
       }
       DBUG_ASSERT((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
@@ -2659,7 +2657,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
       if (result_buffer) {
         result_buffer->length(0);
         result_buffer->append(*str);
-        p = const_cast<char *>(result_buffer->ptr());
+        p = result_buffer->ptr();
         str = result_buffer;
       }
       p = write_wkb_header(p + 4, ex.get_type());
@@ -2679,7 +2677,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
   Writes geometry set operation result into str_value_arg in wkb format.
  */
 String *Item_func_spatial_operation::val_str(String *str_value_arg) {
-  DBUG_ENTER("Item_func_spatial_operation::val_str");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
 
   m_tmp_value1.length(0);
@@ -2704,14 +2702,14 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   if (!(g1 = Geometry::construct(&buffer1, res1)) ||
       !(g2 = Geometry::construct(&buffer2, res2))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   // The two geometry operand must be in the same coordinate system.
   if (g1->get_srid() != g2->get_srid()) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), g1->get_srid(),
              g2->get_srid());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   str_value_arg->set_charset(&my_charset_bin);
@@ -2724,11 +2722,11 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_str());  // Error has already been flagged.
+      return error_str();  // Error has already been flagged.
 
     if (srs == nullptr) {
       my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
 
     if (!srs->is_cartesian()) {
@@ -2737,7 +2735,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       parameters.append(", ").append(g2->get_class_info()->m_name.str);
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
                parameters.c_str());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
   }
 
@@ -2768,18 +2766,17 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       forget them in order not to free the buffers before the Item_xxx
       owner nodes are destroyed.
     */
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(res1->ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(res2->ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(m_tmp_value1.ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(m_tmp_value2.ptr()));
+    m_bg_resbuf_mgr.forget_buffer(res1->ptr());
+    m_bg_resbuf_mgr.forget_buffer(res2->ptr());
+    m_bg_resbuf_mgr.forget_buffer(m_tmp_value1.ptr());
+    m_bg_resbuf_mgr.forget_buffer(m_tmp_value2.ptr());
 
     /*
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
     */
     if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-      m_bg_resbuf_mgr.set_result_buffer(
-          const_cast<char *>(str_value_arg->ptr()));
+      m_bg_resbuf_mgr.set_result_buffer(str_value_arg->ptr());
     m_bg_resbuf_mgr.free_intermediate_result_buffers();
   } catch (...) {
     had_except2 = true;
@@ -2791,7 +2788,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       delete gres;
       gres = NULL;
     }
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   DBUG_ASSERT(gres != NULL && !null_value && str_value_arg->length() > 0);
@@ -2848,7 +2845,7 @@ exit:
   // Result and argument SRIDs must be the same.
   DBUG_ASSERT(null_value ||
               uint4korr(str_value_arg->ptr()) == uint4korr(res1->ptr()));
-  DBUG_RETURN(null_value ? NULL : str_value_arg);
+  return null_value ? NULL : str_value_arg;
 }
 
 inline bool is_areal(const Geometry *g) {
@@ -2964,8 +2961,7 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
       String tmpres;
       Geometry *gres2 = NULL;
       tmpres.append(result->ptr(), result->length());
-      const void *data_start =
-          static_cast<const char *>(tmpres.ptr()) + GEOM_HEADER_SIZE;
+      const void *data_start = tmpres.ptr() + GEOM_HEADER_SIZE;
 
       switch (gres->get_geotype()) {
         case Geometry::wkb_point:

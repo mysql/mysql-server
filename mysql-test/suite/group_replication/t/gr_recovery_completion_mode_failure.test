@@ -52,12 +52,13 @@ CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 call mtr.add_suppression("It is not possible to ensure the execution of group*");
 call mtr.add_suppression("Unable to ensure the execution of group*");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication.*");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The member is already leaving or joining a group.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Can't evaluate the group replication applier execution status. Group replication recovery will shutdown to avoid data corruption.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET SESSION sql_log_bin=1;
 
 --echo #

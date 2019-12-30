@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -414,7 +414,7 @@ Blob Handshake_client::process_data(const Blob &data) {
 */
 
 int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
-  DBUG_ENTER("win_auth_handshake_client");
+  DBUG_TRACE;
 
   /*
     Check if we should enable logging.
@@ -445,7 +445,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 
   if (con.error() || service_name.is_null()) {
     ERROR_LOG(ERROR, ("Error reading initial packet"));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
   DBUG_PRINT("info", ("Got initial packet of length %d", service_name.len()));
 
@@ -456,7 +456,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
                           service_name.len());
   if (hndshk.error()) {
     ERROR_LOG(ERROR, ("Could not create authentication handshake context"));
-    DBUG_RETURN(CR_ERROR);
+    return CR_ERROR;
   }
 
   DBUG_ASSERT(!hndshk.error());
@@ -467,9 +467,9 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     (see Handshake_client::read_packet()) as we already have read the
     first packet to establish service name.
   */
-  if (hndshk.packet_processing_loop()) DBUG_RETURN(CR_ERROR);
+  if (hndshk.packet_processing_loop()) return CR_ERROR;
 
   DBUG_ASSERT(!hndshk.error() && hndshk.is_complete());
 
-  DBUG_RETURN(CR_OK);
+  return CR_OK;
 }

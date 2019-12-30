@@ -41,10 +41,7 @@ B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -55,42 +52,42 @@ B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after set:
+Here are the memcached results after set:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after add:
+Here are the memcached results after add:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after replace:
+Here are the memcached results after replace:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after add Frankfurt|Airport:
+Here are the memcached results after add Frankfurt|Airport:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
 C	Cc	Cottbus	West
 D	Dd	Darmstadt	City
 H	Hh	Hamburg	Norderstedt
-Here the memcached results after replace Frankfurt a.M|Sachsenhausen.:
+Here are the memcached results after replace Frankfurt a.M|Sachsenhausen.:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
@@ -102,7 +99,7 @@ UNINSTALL PLUGIN daemon_memcached;
 ALTER TABLE test.t1 DROP PRIMARY KEY;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 connection mysqltest1;
-Here the memcached results after set:
+Here are the memcached results after set:
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
 B	Bb	Berlin	Mitte
@@ -127,7 +124,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `it1` (`c11`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 connection mysqltest1;
-Here the memcached results after set:
+Here are the memcached results after set:
 Hamburg|Norderstedt
 SELECT c1,c11,c2,c21 FROM t1;
 c1	c11	c2	c21
@@ -140,7 +137,7 @@ UNINSTALL PLUGIN daemon_memcached;
 ALTER TABLE test.t1 DROP COLUMN c1;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 connection mysqltest1;
-Here the memcached results after add:
+Here are the memcached results after add:
 Essen|Ost
 Frankfurt|Sachsenhause
 Hamburg|Norderstedt

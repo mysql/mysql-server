@@ -4,14 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 #
-# Reduce the max_allowed_packet value to just 1MB
+# Reduce the slave_max_allowed_packet value to just  0.125 MB
 #
 [connection server1]
-SET @start_global_value_s1 = @@global.max_allowed_packet;
-SET @@global.max_allowed_packet = 1024*512;
+SET @start_global_value_s1 = @@global.slave_max_allowed_packet;
+SET @@global.slave_max_allowed_packet=1024*128;
 [connection server2]
-SET @start_global_value_s2 = @@global.max_allowed_packet;
-SET @@global.max_allowed_packet = 1024*512;
+SET @start_global_value_s2 = @@global.slave_max_allowed_packet;
+SET @@global.slave_max_allowed_packet=1024*128;
 #
 # Initiate a 2 member group
 # Make sure the certification garbage collector is not executed
@@ -37,7 +37,7 @@ DO
 BEGIN
 DECLARE v INTEGER;
 SET v=0;
-WHILE v < 3900
+WHILE v < 975
 DO
 INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
 SET v = v+1;
@@ -54,7 +54,7 @@ DO
 BEGIN
 DECLARE v INTEGER;
 SET v=0;
-WHILE v < 3900
+WHILE v < 975
 DO
 INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
 SET v = v+1;
@@ -76,7 +76,7 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 #
 # Start member 3
-# The certification info transmitted to member 3 should be below 1 MB
+# The certification info transmitted to member 3 should be below 0.125 MB
 #
 [connection server3]
 include/start_group_replication.inc
@@ -86,9 +86,9 @@ include/start_group_replication.inc
 INSERT INTO test.mytable (f2) VALUES (CONCAT('testing data from ' , @@hostname, @@port));
 include/rpl_sync.inc
 [connection server1]
-include/assert.inc ['There are 7801 values in the table']
+include/assert.inc ['There are 1951 values in the table']
 [connection server2]
-include/assert.inc ['There are 7801 values in the table']
+include/assert.inc ['There are 1951 values in the table']
 #
 # Cleanup
 #
@@ -99,7 +99,7 @@ DROP EVENT IF EXISTS test.event1;
 SET SESSION sql_log_bin= 1;
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.max_allowed_packet = @start_global_value_s1;
+SET @@global.slave_max_allowed_packet = @start_global_value_s1;
 [connection server2]
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event2 DISABLE;
@@ -107,7 +107,7 @@ DROP EVENT IF EXISTS test.event2;
 SET SESSION sql_log_bin= 1;
 SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
-SET @@global.max_allowed_packet = @start_global_value_s2;
+SET @@global.slave_max_allowed_packet = @start_global_value_s2;
 [connection server1]
 DROP TABLE mytable;
 include/group_replication_end.inc

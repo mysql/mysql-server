@@ -4,7 +4,7 @@
 --echo ########################################################################
 
 --source include/have_case_sensitive_file_system.inc
---source include/no_valgrind_without_big.inc
+--source include/not_valgrind.inc
 
 --echo ########################################################################
 --echo # Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
@@ -33,17 +33,15 @@
 --exec unzip -qo $MYSQL_TMP_DIR/data_80013_sql_modes.zip -d $MYSQL_TMP_DIR
 --let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80013_sql_modes
 --let $MYSQLD_LOG_UPGRADE = $MYSQLTEST_VARDIR/log/save_dd_upgrade_sql_modes.log
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
 
 --echo ########################################################################
 --echo # Restart the server to trigger upgrade.
 --echo ########################################################################
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG_UPGRADE MYSQLD_LOG_UPGRADE
+--source include/restart_mysqld.inc
 
 --echo ########################################################################
 --echo # Verify that the entities have retained the SQL mode.
@@ -58,13 +56,12 @@ SHOW CREATE TRIGGER trg;
 --echo ########################################################################
 --echo # Stop the server and do cleanup.
 --echo ########################################################################
+--let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
---source include/wait_until_disconnected.inc
 --remove_file $MYSQL_TMP_DIR/data_80013_sql_modes.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80013_sql_modes
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
-
 
 --echo #-----------------------------------------------------------------------
 --echo # WL#929: CHECK Constraint
@@ -87,16 +84,12 @@ SHOW CREATE TRIGGER trg;
 --echo # Check that the file exits after unzip
 --file_exists $MYSQL_TMP_DIR/data_80014
 
---echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---echo # Start the DB server
---exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--echo # Stop / restart DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $restart_parameters=  restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
 
 USE test;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
@@ -116,8 +109,8 @@ DROP TABLE t1;
 --remove_file $MYSQL_TMP_DIR/data_80014.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80014
 --echo # Restart the server with default options.
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
 
 
 --echo #
@@ -140,16 +133,12 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data_80012/data_80012;
 --echo # Check that the file exits after unzip
 --file_exists $MYSQL_TMP_DIR/data_80012/data_80012
 
---echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---echo # Start the DB server
---exec echo "restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--echo # Stop / start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 3000
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
 
 --echo # Without fix, following views are listed as invalid.
 SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
@@ -166,5 +155,186 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --remove_file $MYSQL_TMP_DIR/data_80012.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80012
 --echo # Restart the server with default options.
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
+
+--echo #
+--echo # Bug#29697670: OVERRIDING SERVER DEFAULT CHARSET/COLLATION AFFECTS UPGRADE
+--echo #
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_3.log
+
+--echo # Copy the remote tablespace & DB zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80015.zip $MYSQL_TMP_DIR/data_80015.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data_80015.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80015.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/data_80015
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQLD_DATADIR
+
+--echo # Stop / start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --character-set-server=utf8 --collation-server=utf8_unicode_ci
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Bug##29865428: UPGRADE OF HELP TABLES FAILED ON 8.0.16
+--echo #
+--echo # A server restart with --upgrade=force would fail without the patch when
+--echo # also submitting --autocommit=0 and --completion_type=chain, because when
+--echo # the SRS table updates end with a commit, a new transaction is started, so
+--echo # when the statements in fill_help_tables.sql are executed, and sql_log_bin
+--echo # is being set, this fails since it's not allowed within the scope of an
+--echo # active transaction.
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_4.log
+
+--let $shutdown_server_timeout= 300
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --autocommit=0 --completion_type=chain --upgrade=force
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data_80015.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
+--echo #
+--echo # Bug#29917793: REJECT UPGRADE 8.0.14-16 -> 8.0.17 FOR LCTN=1 AND PARTITIONED TABLES
+--echo #
+--echo # This is the test case for case sensitive file systems. A corresponding test case
+--echo # for case insensitive file systems can be found in dd_upgrade_ci.test.
+--echo #
+
+--echo # Test with lctn=1 and no partitioned tables. Upgrade should succeed.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_5.log
+--let $name_base = data_80016_lctn1_lin_nopart
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different path for --datadir and check that it exists.
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+--file_exists $MYSQLD_DATADIR
+
+--echo # Upgrade the server.
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
+--echo # Test with lctn=1 and partitioned tables. Upgrade should be rejected unless submitting --upgrade=FORCE.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_6.log
+--let $name_base = data_80016_lctn1_lin_part
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different path for --datadir and check that it exists.
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+--file_exists $MYSQLD_DATADIR
+
+--echo # Upgrading the server should be rejected.
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=1
+
+--let SEARCH_FILE = $MYSQLD_LOG
+--let SEARCH_PATTERN = with partitioned tables and lower_case_table_names == 1
+--source include/search_pattern.inc
+
+--echo # Retry upgrading the server.
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=1 --upgrade=force
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Table rebuild will fail.
+--error ER_GET_ERRNO
+ALTER TABLE test.t ENGINE = InnoDB;
+
+--echo # After RENAME, table rebuild will succeed.
+RENAME TABLE test.t TO test.t_new;
+RENAME TABLE test.t_new TO test.t;
+ALTER TABLE test.t ENGINE = InnoDB;
+SHOW CREATE TABLE test.t;
+
+--echo # Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+--let SEARCH_FILE=$MYSQLD_LOG
+--let SEARCH_PATTERN=Table 'information_schema.TABLES' doesn't exist
+source include/search_pattern.inc;
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
+--echo # Test with lctn=0 and no partitioned tables. Upgrade should succeed.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_7.log
+--let $name_base = data_80016_lctn0_lin_nopart
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different path for --datadir and check that it exists.
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+--file_exists $MYSQLD_DATADIR
+
+--echo # Upgrade the server.
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
+--echo # Test with lctn=0 and partitioned tables. Upgrade should succeed.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_8.log
+--let $name_base = data_80016_lctn0_lin_part
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/$name_base.zip $MYSQL_TMP_DIR/$name_base.zip
+--file_exists $MYSQL_TMP_DIR/$name_base.zip
+--exec unzip -qo $MYSQL_TMP_DIR/$name_base.zip -d $MYSQL_TMP_DIR
+
+--echo # Set different path for --datadir and check that it exists.
+--let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
+--file_exists $MYSQLD_DATADIR
+
+--echo # Upgrade the server.
+--let $wait_counter= 3000
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
+
+--echo # Table rebuild will succeed.
+ALTER TABLE test.t ENGINE = InnoDB;
+
+--echo # Stop the server and do cleanup.
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQL_TMP_DIR/$name_base.zip
+--force-rmdir $MYSQLD_DATADIR
+
+
+--echo # Restart the server with default options.
+--let $restart_parameters= restart:
+--source include/start_mysqld.inc

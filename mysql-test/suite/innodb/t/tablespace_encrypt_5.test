@@ -12,6 +12,8 @@
 # --source include/no_valgrind_without_big.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000;
 
 --echo #########
 --echo # SETUP #
@@ -25,7 +27,6 @@ let ts_name=encrypt_ts.ibd;
 --echo # RESTART 1 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
-let $explicit_default_wait_counter=4000;
 --source include/restart_mysqld_no_echo.inc
 
 --echo # Create a new 'unencrypted' tablespace 'encrypt_ts'

@@ -1,3 +1,4 @@
+--source include/big_test.inc
 
 --echo ##############################################
 --echo # Test instant ADD COLUMN for REDUNDANT format
@@ -44,5 +45,31 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, c INT NOT NUL
 ALTER TABLE t1 REORGANIZE PARTITION p1 INTO (PARTITION p1_a VALUES LESS THAN (5), PARTITION p1_b VALUES LESS THAN (10));
 
 ALTER TABLE t1 ADD COLUMN d INT GENERATED ALWAYS AS ((b * 2)) VIRTUAL, ALGORITHM = INSTANT;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Check adding a stored columns(along with virtual columns)
+--echo # after the last stored column of a table with functional index
+--echo # should be fine
+--echo #
+
+CREATE TABLE t1 (col1 INT, col2 INT AS (col1 + col1), INDEX (col2));
+
+INSERT INTO t1(col1) VALUES(10), (20), (30), (40);
+
+ALTER TABLE t1 ADD COLUMN new_col INT AFTER col1, ALGORITHM=INSTANT;
+
+SELECT * FROM t1;
+
+ALTER TABLE t1 ADD COLUMN new_col_1 INT AFTER new_col, ADD COLUMN new_col_2 INT GENERATED ALWAYS AS (new_col * 3), ALGORITHM=INSTANT;
+
+INSERT INTO t1(col1, new_col, new_col_1) VALUES(100, 200, 300);
+SELECT * FROM t1;
+
+SHOW CREATE TABLE t1;
+
+CHECK TABLE t1;
 
 DROP TABLE t1;

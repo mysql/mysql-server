@@ -249,3 +249,14 @@ DROP TABLE D;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
+--echo #
+--echo # Bug#29669251: !THD->IS_ERROR() IN JOIN_READ_CONST_TABLE()
+--echo #
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES(1),(2);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+WITH
+  cte1 AS (SELECT STD(a) AS a1 FROM t ),
+  cte2 AS (SELECT (JSON_INSERT('$.KEY3', NULL, NULL)) AS a2 FROM t)
+  SELECT cte1.a1 FROM cte1,cte2 WHERE cte1.a1 LIKE cte2.a2;
+DROP TABLE t;

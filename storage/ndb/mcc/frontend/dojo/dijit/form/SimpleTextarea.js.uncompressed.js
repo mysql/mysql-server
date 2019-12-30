@@ -1,34 +1,25 @@
-//>>built
 define("dijit/form/SimpleTextarea", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-class", // domClass.add
-	"dojo/_base/sniff", // has("ie") has("opera")
-	"dojo/_base/window", // win.doc.selection win.doc.selection.createRange
+	"dojo/sniff", // has("ie") has("opera")
 	"./TextBox"
-], function(declare, domClass, has, win, TextBox){
-
-/*=====
-	var TextBox = dijit.form.TextBox;
-=====*/
+], function(declare, domClass, has, TextBox){
 
 // module:
 //		dijit/form/SimpleTextarea
-// summary:
-//		A simple textarea that degrades, and responds to
-// 		minimal LayoutContainer usage, and works with dijit.form.Form.
-//		Doesn't automatically size according to input, like Textarea.
+
 
 return declare("dijit.form.SimpleTextarea", TextBox, {
 	// summary:
 	//		A simple textarea that degrades, and responds to
-	// 		minimal LayoutContainer usage, and works with dijit.form.Form.
+	//		minimal LayoutContainer usage, and works with dijit/form/Form.
 	//		Doesn't automatically size according to input, like Textarea.
 	//
 	// example:
-	//	|	<textarea data-dojo-type="dijit.form.SimpleTextarea" name="foo" value="bar" rows=30 cols=40></textarea>
+	//	|	<textarea data-dojo-type="dijit/form/SimpleTextarea" name="foo" value="bar" rows=30 cols=40></textarea>
 	//
 	// example:
-	//	|	new dijit.form.SimpleTextarea({ rows:20, cols:30 }, "foo");
+	//	|	new SimpleTextarea({ rows:20, cols:30 }, "foo");
 
 	baseClass: "dijitTextBox dijitTextArea",
 
@@ -83,9 +74,9 @@ return declare("dijit.form.SimpleTextarea", TextBox, {
 					}
 					this.textbox.value = value.substring(0,pos-overflow-cr)+value.substring(pos-cr);
 					textarea.setSelectionRange(pos-overflow, pos-overflow);
-				}else if(win.doc.selection){ //IE
+				}else if(this.ownerDocument.selection){ //IE
 					textarea.focus();
-					var range = win.doc.selection.createRange();
+					var range = this.ownerDocument.selection.createRange();
 					// delete overflow characters
 					range.moveStart("character", -overflow);
 					range.text = '';

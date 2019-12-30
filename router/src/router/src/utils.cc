@@ -750,8 +750,8 @@ static void set_user_priv(const std::string &username,
   assert(sys_user_operations != nullptr);
 
   sys_user_operations->initgroups(
-      (char *)username.c_str(),
-      (SysUserOperationsBase::gid_type)user_info_arg->pw_gid);
+      username.c_str(),
+      static_cast<SysUserOperationsBase::gid_type>(user_info_arg->pw_gid));
 
   if (permanently) {
     if (sys_user_operations->setgid(user_info_arg->pw_gid) == -1) {

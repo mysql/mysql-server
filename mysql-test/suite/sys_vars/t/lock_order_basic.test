@@ -1,0 +1,32 @@
+
+--source include/have_lock_order.inc
+
+#
+# Only global
+#
+
+select @@global.lock_order;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lock_order;
+
+show global variables like 'lock_order';
+
+show session variables like 'lock_order';
+
+select * from performance_schema.global_variables
+  where variable_name='lock_order';
+
+select * from performance_schema.session_variables
+  where variable_name='lock_order';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lock_order=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lock_order=1;
+

@@ -1,6 +1,5 @@
-//>>built
 require({cache:{
-'url:dijit/form/templates/DropDownBox.html':"<div class=\"dijit dijitReset dijitInline dijitLeft\"\n\tid=\"widget_${id}\"\n\trole=\"combobox\"\n\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton dijitArrowButtonContainer'\n\t\tdata-dojo-attach-point=\"_buttonNode, _popupStateNode\" role=\"presentation\"\n\t\t><input class=\"dijitReset dijitInputField dijitArrowButtonInner\" value=\"&#9660; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t\t\t${_buttonInputDisabled}\n\t/></div\n\t><div class='dijitReset dijitValidationContainer'\n\t\t><input class=\"dijitReset dijitInputField dijitValidationIcon dijitValidationInner\" value=\"&#935; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t/></div\n\t><div class=\"dijitReset dijitInputField dijitInputContainer\"\n\t\t><input class='dijitReset dijitInputInner' ${!nameAttrSetting} type=\"text\" autocomplete=\"off\"\n\t\t\tdata-dojo-attach-point=\"textbox,focusNode\" role=\"textbox\" aria-haspopup=\"true\"\n\t/></div\n></div>\n"}});
+'url:dijit/form/templates/DropDownBox.html':"<div class=\"dijit dijitReset dijitInline dijitLeft\"\n\tid=\"widget_${id}\"\n\trole=\"combobox\"\n\taria-haspopup=\"true\"\n\tdata-dojo-attach-point=\"_popupStateNode\"\n\t><div class='dijitReset dijitRight dijitButtonNode dijitArrowButton dijitDownArrowButton dijitArrowButtonContainer'\n\t\tdata-dojo-attach-point=\"_buttonNode\" role=\"presentation\"\n\t\t><input class=\"dijitReset dijitInputField dijitArrowButtonInner\" value=\"&#9660; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"button presentation\" aria-hidden=\"true\"\n\t\t\t${_buttonInputDisabled}\n\t/></div\n\t><div class='dijitReset dijitValidationContainer'\n\t\t><input class=\"dijitReset dijitInputField dijitValidationIcon dijitValidationInner\" value=\"&#935; \" type=\"text\" tabIndex=\"-1\" readonly=\"readonly\" role=\"presentation\"\n\t/></div\n\t><div class=\"dijitReset dijitInputField dijitInputContainer\"\n\t\t><input class='dijitReset dijitInputInner' ${!nameAttrSetting} type=\"text\" autocomplete=\"off\"\n\t\t\tdata-dojo-attach-point=\"textbox,focusNode\" role=\"textbox\"\n\t/></div\n></div>\n"}});
 define("dijit/form/_DateTimeTextBox", [
 	"dojo/date", // date date.compare
 	"dojo/date/locale", // locale.regexp
@@ -12,31 +11,10 @@ define("dijit/form/_DateTimeTextBox", [
 	"dojo/text!./templates/DropDownBox.html"
 ], function(date, locale, stamp, declare, lang, RangeBoundTextBox, _HasDropDown, template){
 
-/*=====
-	var _HasDropDown = dijit._HasDropDown;
-	var RangeBoundTextBox = dijit.form.RangeBoundTextBox;
-=====*/
-
 	// module:
 	//		dijit/form/_DateTimeTextBox
-	// summary:
-	//		Base class for validating, serializable, range-bound date or time text box.
-
 
 	new Date("X"); // workaround for #11279, new Date("") == NaN
-
-	/*=====
-	declare(
-		"dijit.form._DateTimeTextBox.__Constraints",
-		[RangeBoundTextBox.__Constraints, locale.__FormatOptions], {
-		// summary:
-		//		Specifies both the rules on valid/invalid values (first/last date/time allowed),
-		//		and also formatting options for how the date/time is displayed.
-		// example:
-		//		To restrict to dates within 2004, displayed in a long format like "December 25, 2005":
-		//	|		{min:'2004-01-01',max:'2004-12-31', formatLength:'long'}
-	});
-	=====*/
 
 	var _DateTimeTextBox = declare("dijit.form._DateTimeTextBox", [RangeBoundTextBox, _HasDropDown], {
 		// summary:
@@ -48,27 +26,31 @@ define("dijit/form/_DateTimeTextBox", [
 		//		Set this textbox to display a down arrow button, to open the drop down list.
 		hasDownArrow: true,
 
-		// openOnClick: [const] Boolean
-		//		Set to true to open drop down upon clicking anywhere on the textbox.
-		openOnClick: true,
+		// Set classes like dijitDownArrowButtonHover depending on mouse action over button node
+		cssStateNodes: {
+			"_buttonNode": "dijitDownArrowButton"
+		},
 
 		/*=====
-		// constraints: dijit.form._DateTimeTextBox.__Constraints
+		// constraints: _DateTimeTextBox.__Constraints
 		//		Despite the name, this parameter specifies both constraints on the input
 		//		(including starting/ending dates/times allowed) as well as
 		//		formatting options like whether the date is displayed in long (ex: December 25, 2005)
-		//		or short (ex: 12/25/2005) format.  See `dijit.form._DateTimeTextBox.__Constraints` for details.
+		//		or short (ex: 12/25/2005) format.  See `dijit/form/_DateTimeTextBox.__Constraints` for details.
 		constraints: {},
 		======*/
 
-		// Override ValidationTextBox.regExpGen().... we use a reg-ex generating function rather
+		// Override ValidationTextBox.pattern.... we use a reg-ex generating function rather
 		// than a straight regexp to deal with locale  (plus formatting options too?)
-		regExpGen: locale.regexp,
+		pattern: locale.regexp,
 
 		// datePackage: String
-		//		JavaScript namespace to find calendar routines.	 Uses Gregorian calendar routines
-		//		at dojo.date, by default.
-		datePackage: date,
+		//		JavaScript namespace to find calendar routines.	 If unspecified, uses Gregorian calendar routines
+		//		at dojo/date and dojo/date/locale.
+		datePackage: "",
+		//		TODO: for 2.0, replace datePackage with dateModule and dateLocalModule attributes specifying MIDs,
+		//		or alternately just get rid of this completely and tell user to use module ID remapping
+		//		via require
 
 		postMixInProperties: function(){
 			this.inherited(arguments);
@@ -85,7 +67,7 @@ define("dijit/form/_DateTimeTextBox", [
 		// flag to _HasDropDown to make drop down Calendar width == <input> width
 		forceWidth: true,
 
-		format: function(/*Date*/ value, /*dojo.date.locale.__FormatOptions*/ constraints){
+		format: function(/*Date*/ value, /*locale.__FormatOptions*/ constraints){
 			// summary:
 			//		Formats the value as a Date, according to specified locale (second argument)
 			// tags:
@@ -94,7 +76,7 @@ define("dijit/form/_DateTimeTextBox", [
 			return this.dateLocaleModule.format(value, constraints);
 		},
 
-		"parse": function(/*String*/ value, /*dojo.date.locale.__FormatOptions*/ constraints){
+		"parse": function(/*String*/ value, /*locale.__FormatOptions*/ constraints){
 			// summary:
 			//		Parses as string as a Date, according to constraints
 			// tags:
@@ -117,7 +99,7 @@ define("dijit/form/_DateTimeTextBox", [
 
 		// value: Date
 		//		The value of this widget as a JavaScript Date object.  Use get("value") / set("value", val) to manipulate.
-		//		When passed to the parser in markup, must be specified according to `dojo.date.stamp.fromISOString`
+		//		When passed to the parser in markup, must be specified according to `dojo/date/stamp.fromISOString()`
 		value: new Date(""),	// value.toString()="NaN"
 
 		_blankValue: null,	// used by filter() when the textbox is blank
@@ -134,14 +116,20 @@ define("dijit/form/_DateTimeTextBox", [
 		//		Subclass must specify this.
 		_selector: "",
 
-		constructor: function(/*Object*/ args){
-			this.datePackage = args.datePackage || this.datePackage;
-			this.dateFuncObj = typeof this.datePackage == "string" ?
-				lang.getObject(this.datePackage, false) :// "string" part for back-compat, remove for 2.0
-				this.datePackage;
-			this.dateClassObj = this.dateFuncObj.Date || Date;
-			this.dateLocaleModule = lang.getObject("locale", false, this.dateFuncObj);
-			this.regExpGen = this.dateLocaleModule.regexp;
+		constructor: function(params /*===== , srcNodeRef =====*/){
+			// summary:
+			//		Create the widget.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree
+
+			this.dateModule = params.datePackage ? lang.getObject(params.datePackage, false) : date;
+			this.dateClassObj = this.dateModule.Date || Date;
+			this.dateLocaleModule = params.datePackage ? lang.getObject(params.datePackage+".locale", false) : locale;
+			this._set('pattern', this.dateLocaleModule.regexp);
 			this._invalidDate = this.constructor.prototype.value.toString();
 		},
 
@@ -152,10 +140,9 @@ define("dijit/form/_DateTimeTextBox", [
 				this._buttonNode.style.display = "none";
 			}
 
-			// If openOnClick is true, we basically just want to treat the whole widget as the
-			// button.  We need to do that also if the actual drop down button will be hidden,
-			// so that there's a mouse method for opening the drop down.
-			if(this.openOnClick || !this.hasDownArrow){
+			// If hasDownArrow is false, we basically just want to treat the whole widget as the
+			// button.
+			if(!this.hasDownArrow){
 				this._buttonNode = this.domNode;
 				this.baseClass += " dijitComboBoxOpenOnClick";
 			}
@@ -166,7 +153,7 @@ define("dijit/form/_DateTimeTextBox", [
 			constraints.fullYear = true; // see #5465 - always format with 4-digit years
 			var fromISO = stamp.fromISOString;
 			if(typeof constraints.min == "string"){ constraints.min = fromISO(constraints.min); }
- 			if(typeof constraints.max == "string"){ constraints.max = fromISO(constraints.max); }
+			if(typeof constraints.max == "string"){ constraints.max = fromISO(constraints.max); }
 			this.inherited(arguments);
 		},
 
@@ -193,6 +180,9 @@ define("dijit/form/_DateTimeTextBox", [
 				}
 			}
 			this.inherited(arguments);
+			if(this.value instanceof Date){
+				this.filterString = "";
+			}
 			if(this.dropDown){
 				this.dropDown.set('value', value, false);
 			}
@@ -209,8 +199,8 @@ define("dijit/form/_DateTimeTextBox", [
 		_setDropDownDefaultValueAttr: function(/*Date*/ val){
 			if(this._isInvalidDate(val)){
 				// convert null setting into today's date, since there needs to be *some* default at all times.
-				 val = new this.dateClassObj()
-						}
+				 val = new this.dateClassObj();
+			}
 			this.dropDownDefaultValue = val;
 		},
 
@@ -225,24 +215,22 @@ define("dijit/form/_DateTimeTextBox", [
 			this.dropDown = new PopupProto({
 				onChange: function(value){
 					// this will cause InlineEditBox and other handlers to do stuff so make sure it's last
-					_DateTimeTextBox.superclass._setValueAttr.call(textBox, value, true);
+					textBox.set('value', value, true);
 				},
 				id: this.id + "_popup",
 				dir: textBox.dir,
 				lang: textBox.lang,
 				value: value,
 				currentFocus: !this._isInvalidDate(value) ? value : this.dropDownDefaultValue,
-					constraints: textBox.constraints,
+				constraints: textBox.constraints,
 				filterString: textBox.filterString, // for TimeTextBox, to filter times shown
-
-					datePackage: textBox.datePackage,
-
-					isDisabledDate: function(/*Date*/ date){
-						// summary:
-						// 	disables dates outside of the min/max of the _DateTimeTextBox
-						return !textBox.rangeCheck(date, textBox.constraints);
-					}
-				});
+				datePackage: textBox.params.datePackage,
+				isDisabledDate: function(/*Date*/ date){
+					// summary:
+					//		disables dates outside of the min/max of the _DateTimeTextBox
+					return !textBox.rangeCheck(date, textBox.constraints);
+				}
+			});
 
 			this.inherited(arguments);
 		},
@@ -255,6 +243,18 @@ define("dijit/form/_DateTimeTextBox", [
 			this._setValueAttr(this.parse(value, this.constraints), priorityChange, value);
 		}
 	});
+
+
+	/*=====
+	 _DateTimeTextBox.__Constraints = declare([RangeBoundTextBox.__Constraints, locale.__FormatOptions], {
+		 // summary:
+		 //		Specifies both the rules on valid/invalid values (first/last date/time allowed),
+		 //		and also formatting options for how the date/time is displayed.
+		 // example:
+		 //		To restrict to dates within 2004, displayed in a long format like "December 25, 2005":
+		 //	|		{min:'2004-01-01',max:'2004-12-31', formatLength:'long'}
+	 });
+	 =====*/
 
 	return _DateTimeTextBox;
 });

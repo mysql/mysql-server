@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,10 +54,10 @@ class Mock_capability_handler : public Capability_handler {
   MOCK_METHOD1(set_impl, ngs::Error_code(const ::Mysqlx::Datatypes::Any &));
 
   // Workaround for GMOCK undefined behaviour with ResultHolder
-  MOCK_METHOD1(get_void, bool(::Mysqlx::Datatypes::Any &));
+  MOCK_METHOD1(get_void, bool(::Mysqlx::Datatypes::Any *));
   MOCK_METHOD0(commit_void, bool());
 
-  void get_impl(::Mysqlx::Datatypes::Any &any) { get_void(any); }
+  void get_impl(::Mysqlx::Datatypes::Any *any) { get_void(any); }
 
   void commit() { commit_void(); }
 };

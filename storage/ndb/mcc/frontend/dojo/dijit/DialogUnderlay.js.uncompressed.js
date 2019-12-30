@@ -1,30 +1,21 @@
-//>>built
 define("dijit/DialogUnderlay", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
-	"dojo/_base/window", // win.body
 	"dojo/window", // winUtils.getBox
 	"./_Widget",
 	"./_TemplatedMixin",
 	"./BackgroundIframe"
-], function(declare, domAttr, win, winUtils, _Widget, _TemplatedMixin, BackgroundIframe){
-
-/*=====
-	var _Widget = dijit._Widget;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-=====*/
+], function(declare, domAttr, winUtils, _Widget, _TemplatedMixin, BackgroundIframe){
 
 	// module:
 	//		dijit/DialogUnderlay
-	// summary:
-	//		The component that blocks the screen behind a `dijit.Dialog`
 
 	return declare("dijit.DialogUnderlay", [_Widget, _TemplatedMixin], {
 		// summary:
 		//		The component that blocks the screen behind a `dijit.Dialog`
 		//
 		// description:
-		// 		A component used to block input behind a `dijit.Dialog`. Only a single
+		//		A component used to block input behind a `dijit.Dialog`. Only a single
 		//		instance of this widget is created by `dijit.Dialog`, and saved as
 		//		a reference to be shared between all Dialogs as `dijit._underlay`
 		//
@@ -61,7 +52,7 @@ define("dijit/DialogUnderlay", [
 		postCreate: function(){
 			// summary:
 			//		Append the underlay to the body
-			win.body().appendChild(this.domNode);
+			this.ownerDocumentBody.appendChild(this.domNode);
 		},
 
 		layout: function(){
@@ -84,7 +75,7 @@ define("dijit/DialogUnderlay", [
 			os.display = "none";
 
 			// then resize and show
-			var viewport = winUtils.getBox();
+			var viewport = winUtils.getBox(this.ownerDocument);
 			os.top = viewport.t + "px";
 			os.left = viewport.l + "px";
 			is.width = viewport.w + "px";

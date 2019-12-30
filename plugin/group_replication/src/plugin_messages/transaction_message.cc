@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,19 +37,17 @@ my_off_t Transaction_message::length() { return m_data.size(); }
 
 void Transaction_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_message::encode_payload");
+  DBUG_TRACE;
 
   encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
                                       m_data.size());
   buffer->insert(buffer->end(), m_data.begin(), m_data.end());
-
-  DBUG_VOID_RETURN;
 }
 
 /* purecov: begin inspected */
 void Transaction_message::decode_payload(const unsigned char *buffer,
                                          const unsigned char *) {
-  DBUG_ENTER("Transaction_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -58,7 +56,5 @@ void Transaction_message::decode_payload(const unsigned char *buffer,
                                       &payload_item_length);
   m_data.clear();
   m_data.insert(m_data.end(), slider, slider + payload_item_length);
-
-  DBUG_VOID_RETURN;
 }
 /* purecov: end */

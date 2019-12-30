@@ -1,15 +1,4 @@
 var statements = require("common_statements");
-var gr_memberships = require("gr_memberships");
-
-var gr_membership = gr_memberships.single_host("127.0.0.1", [
-  [ process.env.SECONDARY_1_PORT, "ONLINE" ],
-  [ process.env.SECONDARY_2_PORT, "ONLINE" ],
-]);
-
-var test_options = {
-  group_replication_membership: gr_membership,
-  group_replication_primary_member: gr_membership[0][0],
-};
 
 /**
  *

@@ -37,9 +37,11 @@
 
 SET sql_log_bin = 0;
 call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("\\[GCS\\] The member has left the group but the new view will not be installed*");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
 SET sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -118,7 +120,7 @@ SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_entering_loop";
 --echo # sysvar when an auto-rejoin is ongoing.
 --echo ####
 --echo
---error ER_GRP_RPL_STARTED_AUTO_REJOIN
+--error ER_DA_GRP_RPL_STARTED_AUTO_REJOIN
 SET GLOBAL group_replication_autorejoin_tries = 1;
 
 SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_enter_loop";

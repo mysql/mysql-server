@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_start_gr_cmd_offline_mode.2.err

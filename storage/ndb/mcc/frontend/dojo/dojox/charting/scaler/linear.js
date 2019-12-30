@@ -1,66 +1,76 @@
 //>>built
 define("dojox/charting/scaler/linear",["dojo/_base/lang","./common"],function(_1,_2){
 var _3=_1.getObject("dojox.charting.scaler.linear",true);
-var _4=3,_5=_2.findString,_6=_2.getNumericLabel;
-var _7=function(_8,_9,_a,_b,_c,_d,_e){
-_a=_1.delegate(_a);
-if(!_b){
-if(_a.fixUpper=="major"){
-_a.fixUpper="minor";
-}
-if(_a.fixLower=="major"){
-_a.fixLower="minor";
+var _4=3,_5=_2.getNumericLabel;
+function _6(_7,_8){
+_7=_7.toLowerCase();
+for(var i=_8.length-1;i>=0;--i){
+if(_7===_8[i]){
+return true;
 }
 }
-if(!_c){
-if(_a.fixUpper=="minor"){
-_a.fixUpper="micro";
-}
-if(_a.fixLower=="minor"){
-_a.fixLower="micro";
-}
-}
-if(!_d){
-if(_a.fixUpper=="micro"){
-_a.fixUpper="none";
-}
-if(_a.fixLower=="micro"){
-_a.fixLower="none";
-}
-}
-var _f=_5(_a.fixLower,["major"])?Math.floor(_a.min/_b)*_b:_5(_a.fixLower,["minor"])?Math.floor(_a.min/_c)*_c:_5(_a.fixLower,["micro"])?Math.floor(_a.min/_d)*_d:_a.min,_10=_5(_a.fixUpper,["major"])?Math.ceil(_a.max/_b)*_b:_5(_a.fixUpper,["minor"])?Math.ceil(_a.max/_c)*_c:_5(_a.fixUpper,["micro"])?Math.ceil(_a.max/_d)*_d:_a.max;
-if(_a.useMin){
-_8=_f;
-}
-if(_a.useMax){
-_9=_10;
-}
-var _11=(!_b||_a.useMin&&_5(_a.fixLower,["major"]))?_8:Math.ceil(_8/_b)*_b,_12=(!_c||_a.useMin&&_5(_a.fixLower,["major","minor"]))?_8:Math.ceil(_8/_c)*_c,_13=(!_d||_a.useMin&&_5(_a.fixLower,["major","minor","micro"]))?_8:Math.ceil(_8/_d)*_d,_14=!_b?0:(_a.useMax&&_5(_a.fixUpper,["major"])?Math.round((_9-_11)/_b):Math.floor((_9-_11)/_b))+1,_15=!_c?0:(_a.useMax&&_5(_a.fixUpper,["major","minor"])?Math.round((_9-_12)/_c):Math.floor((_9-_12)/_c))+1,_16=!_d?0:(_a.useMax&&_5(_a.fixUpper,["major","minor","micro"])?Math.round((_9-_13)/_d):Math.floor((_9-_13)/_d))+1,_17=_c?Math.round(_b/_c):0,_18=_d?Math.round(_c/_d):0,_19=_b?Math.floor(Math.log(_b)/Math.LN10):0,_1a=_c?Math.floor(Math.log(_c)/Math.LN10):0,_1b=_e/(_9-_8);
-if(!isFinite(_1b)){
-_1b=1;
-}
-return {bounds:{lower:_f,upper:_10,from:_8,to:_9,scale:_1b,span:_e},major:{tick:_b,start:_11,count:_14,prec:_19},minor:{tick:_c,start:_12,count:_15,prec:_1a},micro:{tick:_d,start:_13,count:_16,prec:0},minorPerMajor:_17,microPerMinor:_18,scaler:_3};
+return false;
 };
-return _1.mixin(_3,{buildScaler:function(min,max,_1c,_1d){
+var _9=function(_a,_b,_c,_d,_e,_f,_10){
+_c=_1.delegate(_c);
+if(!_d){
+if(_c.fixUpper=="major"){
+_c.fixUpper="minor";
+}
+if(_c.fixLower=="major"){
+_c.fixLower="minor";
+}
+}
+if(!_e){
+if(_c.fixUpper=="minor"){
+_c.fixUpper="micro";
+}
+if(_c.fixLower=="minor"){
+_c.fixLower="micro";
+}
+}
+if(!_f){
+if(_c.fixUpper=="micro"){
+_c.fixUpper="none";
+}
+if(_c.fixLower=="micro"){
+_c.fixLower="none";
+}
+}
+var _11=_6(_c.fixLower,["major"])?Math.floor(_c.min/_d)*_d:_6(_c.fixLower,["minor"])?Math.floor(_c.min/_e)*_e:_6(_c.fixLower,["micro"])?Math.floor(_c.min/_f)*_f:_c.min,_12=_6(_c.fixUpper,["major"])?Math.ceil(_c.max/_d)*_d:_6(_c.fixUpper,["minor"])?Math.ceil(_c.max/_e)*_e:_6(_c.fixUpper,["micro"])?Math.ceil(_c.max/_f)*_f:_c.max;
+if(_c.useMin){
+_a=_11;
+}
+if(_c.useMax){
+_b=_12;
+}
+var _13=(!_d||_c.useMin&&_6(_c.fixLower,["major"]))?_a:Math.ceil(_a/_d)*_d,_14=(!_e||_c.useMin&&_6(_c.fixLower,["major","minor"]))?_a:Math.ceil(_a/_e)*_e,_15=(!_f||_c.useMin&&_6(_c.fixLower,["major","minor","micro"]))?_a:Math.ceil(_a/_f)*_f,_16=!_d?0:(_c.useMax&&_6(_c.fixUpper,["major"])?Math.round((_b-_13)/_d):Math.floor((_b-_13)/_d))+1,_17=!_e?0:(_c.useMax&&_6(_c.fixUpper,["major","minor"])?Math.round((_b-_14)/_e):Math.floor((_b-_14)/_e))+1,_18=!_f?0:(_c.useMax&&_6(_c.fixUpper,["major","minor","micro"])?Math.round((_b-_15)/_f):Math.floor((_b-_15)/_f))+1,_19=_e?Math.round(_d/_e):0,_1a=_f?Math.round(_e/_f):0,_1b=_d?Math.floor(Math.log(_d)/Math.LN10):0,_1c=_e?Math.floor(Math.log(_e)/Math.LN10):0,_1d=_10/(_b-_a);
+if(!isFinite(_1d)){
+_1d=1;
+}
+return {bounds:{lower:_11,upper:_12,from:_a,to:_b,scale:_1d,span:_10},major:{tick:_d,start:_13,count:_16,prec:_1b},minor:{tick:_e,start:_14,count:_17,prec:_1c},micro:{tick:_f,start:_15,count:_18,prec:0},minorPerMajor:_19,microPerMinor:_1a,scaler:_3};
+};
+return _1.mixin(_3,{buildScaler:function(min,max,_1e,_1f,_20,_21){
 var h={fixUpper:"none",fixLower:"none",natural:false};
-if(_1d){
-if("fixUpper" in _1d){
-h.fixUpper=String(_1d.fixUpper);
+if(_1f){
+if("fixUpper" in _1f){
+h.fixUpper=String(_1f.fixUpper);
 }
-if("fixLower" in _1d){
-h.fixLower=String(_1d.fixLower);
+if("fixLower" in _1f){
+h.fixLower=String(_1f.fixLower);
 }
-if("natural" in _1d){
-h.natural=Boolean(_1d.natural);
+if("natural" in _1f){
+h.natural=Boolean(_1f.natural);
 }
 }
-if("min" in _1d){
-min=_1d.min;
+_21=!_21||_21<_4?_4:_21;
+if("min" in _1f){
+min=_1f.min;
 }
-if("max" in _1d){
-max=_1d.max;
+if("max" in _1f){
+max=_1f.max;
 }
-if(_1d.includeZero){
+if(_1f.includeZero){
 if(min>0){
 min=0;
 }
@@ -72,136 +82,139 @@ h.min=min;
 h.useMin=true;
 h.max=max;
 h.useMax=true;
-if("from" in _1d){
-min=_1d.from;
+if("from" in _1f){
+min=_1f.from;
 h.useMin=false;
 }
-if("to" in _1d){
-max=_1d.to;
+if("to" in _1f){
+max=_1f.to;
 h.useMax=false;
 }
 if(max<=min){
-return _7(min,max,h,0,0,0,_1c);
+return _9(min,max,h,0,0,0,_1e);
 }
-var mag=Math.floor(Math.log(max-min)/Math.LN10),_1e=_1d&&("majorTickStep" in _1d)?_1d.majorTickStep:Math.pow(10,mag),_1f=0,_20=0,_21;
-if(_1d&&("minorTickStep" in _1d)){
-_1f=_1d.minorTickStep;
+if(!_20){
+_20=max-min;
+}
+var mag=Math.floor(Math.log(_20)/Math.LN10),_22=_1f&&("majorTickStep" in _1f)?_1f.majorTickStep:Math.pow(10,mag),_23=0,_24=0,_25;
+if(_1f&&("minorTickStep" in _1f)){
+_23=_1f.minorTickStep;
 }else{
 do{
-_1f=_1e/10;
-if(!h.natural||_1f>0.9){
-_21=_7(min,max,h,_1e,_1f,0,_1c);
-if(_21.bounds.scale*_21.minor.tick>_4){
+_23=_22/10;
+if(!h.natural||_23>0.9){
+_25=_9(min,max,h,_22,_23,0,_1e);
+if(_25.bounds.scale*_25.minor.tick>_21){
 break;
 }
 }
-_1f=_1e/5;
-if(!h.natural||_1f>0.9){
-_21=_7(min,max,h,_1e,_1f,0,_1c);
-if(_21.bounds.scale*_21.minor.tick>_4){
+_23=_22/5;
+if(!h.natural||_23>0.9){
+_25=_9(min,max,h,_22,_23,0,_1e);
+if(_25.bounds.scale*_25.minor.tick>_21){
 break;
 }
 }
-_1f=_1e/2;
-if(!h.natural||_1f>0.9){
-_21=_7(min,max,h,_1e,_1f,0,_1c);
-if(_21.bounds.scale*_21.minor.tick>_4){
+_23=_22/2;
+if(!h.natural||_23>0.9){
+_25=_9(min,max,h,_22,_23,0,_1e);
+if(_25.bounds.scale*_25.minor.tick>_21){
 break;
 }
 }
-return _7(min,max,h,_1e,0,0,_1c);
+return _9(min,max,h,_22,0,0,_1e);
 }while(false);
 }
-if(_1d&&("microTickStep" in _1d)){
-_20=_1d.microTickStep;
-_21=_7(min,max,h,_1e,_1f,_20,_1c);
+if(_1f&&("microTickStep" in _1f)){
+_24=_1f.microTickStep;
+_25=_9(min,max,h,_22,_23,_24,_1e);
 }else{
 do{
-_20=_1f/10;
-if(!h.natural||_20>0.9){
-_21=_7(min,max,h,_1e,_1f,_20,_1c);
-if(_21.bounds.scale*_21.micro.tick>_4){
+_24=_23/10;
+if(!h.natural||_24>0.9){
+_25=_9(min,max,h,_22,_23,_24,_1e);
+if(_25.bounds.scale*_25.micro.tick>_4){
 break;
 }
 }
-_20=_1f/5;
-if(!h.natural||_20>0.9){
-_21=_7(min,max,h,_1e,_1f,_20,_1c);
-if(_21.bounds.scale*_21.micro.tick>_4){
+_24=_23/5;
+if(!h.natural||_24>0.9){
+_25=_9(min,max,h,_22,_23,_24,_1e);
+if(_25.bounds.scale*_25.micro.tick>_4){
 break;
 }
 }
-_20=_1f/2;
-if(!h.natural||_20>0.9){
-_21=_7(min,max,h,_1e,_1f,_20,_1c);
-if(_21.bounds.scale*_21.micro.tick>_4){
+_24=_23/2;
+if(!h.natural||_24>0.9){
+_25=_9(min,max,h,_22,_23,_24,_1e);
+if(_25.bounds.scale*_25.micro.tick>_4){
 break;
 }
 }
-_20=0;
+_24=0;
 }while(false);
 }
-return _20?_21:_7(min,max,h,_1e,_1f,0,_1c);
-},buildTicks:function(_22,_23){
-var _24,_25,_26,_27=_22.major.start,_28=_22.minor.start,_29=_22.micro.start;
-if(_23.microTicks&&_22.micro.tick){
-_24=_22.micro.tick,_25=_29;
+return _24?_25:_9(min,max,h,_22,_23,0,_1e);
+},buildTicks:function(_26,_27){
+var _28,_29,_2a,_2b=_26.major.start,_2c=_26.minor.start,_2d=_26.micro.start;
+if(_27.microTicks&&_26.micro.tick){
+_28=_26.micro.tick,_29=_2d;
 }else{
-if(_23.minorTicks&&_22.minor.tick){
-_24=_22.minor.tick,_25=_28;
+if(_27.minorTicks&&_26.minor.tick){
+_28=_26.minor.tick,_29=_2c;
 }else{
-if(_22.major.tick){
-_24=_22.major.tick,_25=_27;
+if(_26.major.tick){
+_28=_26.major.tick,_29=_2b;
 }else{
 return null;
 }
 }
 }
-var _2a=1/_22.bounds.scale;
-if(_22.bounds.to<=_22.bounds.from||isNaN(_2a)||!isFinite(_2a)||_24<=0||isNaN(_24)||!isFinite(_24)){
+var _2e=1/_26.bounds.scale;
+if(_26.bounds.to<=_26.bounds.from||isNaN(_2e)||!isFinite(_2e)||_28<=0||isNaN(_28)||!isFinite(_28)){
 return null;
 }
-var _2b=[],_2c=[],_2d=[];
-while(_25<=_22.bounds.to+_2a){
-if(Math.abs(_27-_25)<_24/2){
-_26={value:_27};
-if(_23.majorLabels){
-_26.label=_6(_27,_22.major.prec,_23);
+var _2f=[],_30=[],_31=[];
+while(_29<=_26.bounds.to+_2e){
+if(Math.abs(_2b-_29)<_28/2){
+_2a={value:_2b};
+if(_27.majorLabels){
+_2a.label=_5(_2b,_26.major.prec,_27);
 }
-_2b.push(_26);
-_27+=_22.major.tick;
-_28+=_22.minor.tick;
-_29+=_22.micro.tick;
+_2f.push(_2a);
+_2b+=_26.major.tick;
+_2c+=_26.minor.tick;
+_2d+=_26.micro.tick;
 }else{
-if(Math.abs(_28-_25)<_24/2){
-if(_23.minorTicks){
-_26={value:_28};
-if(_23.minorLabels&&(_22.minMinorStep<=_22.minor.tick*_22.bounds.scale)){
-_26.label=_6(_28,_22.minor.prec,_23);
+if(Math.abs(_2c-_29)<_28/2){
+if(_27.minorTicks){
+_2a={value:_2c};
+if(_27.minorLabels&&(_26.minMinorStep<=_26.minor.tick*_26.bounds.scale)){
+_2a.label=_5(_2c,_26.minor.prec,_27);
 }
-_2c.push(_26);
+_30.push(_2a);
 }
-_28+=_22.minor.tick;
-_29+=_22.micro.tick;
+_2c+=_26.minor.tick;
+_2d+=_26.micro.tick;
 }else{
-if(_23.microTicks){
-_2d.push({value:_29});
+if(_27.microTicks){
+_31.push({value:_2d});
 }
-_29+=_22.micro.tick;
+_2d+=_26.micro.tick;
 }
 }
-_25+=_24;
+_29+=_28;
 }
-return {major:_2b,minor:_2c,micro:_2d};
-},getTransformerFromModel:function(_2e){
-var _2f=_2e.bounds.from,_30=_2e.bounds.scale;
+return {major:_2f,minor:_30,micro:_31};
+},getTransformerFromModel:function(_32){
+var _33=_32.bounds.from,_34=_32.bounds.scale;
 return function(x){
-return (x-_2f)*_30;
+return (x-_33)*_34;
 };
-},getTransformerFromPlot:function(_31){
-var _32=_31.bounds.from,_33=_31.bounds.scale;
+},getTransformerFromPlot:function(_35){
+var _36=_35.bounds.from,_37=_35.bounds.scale;
 return function(x){
-return x/_33+_32;
+return x/_37+_36;
 };
 }});
 });

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,8 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0byte.h"
 
 #ifndef UNIV_HOTBACKUP
-/** Flag indicating if the page_cleaner is in active state. */
-extern bool buf_page_cleaner_is_active;
+/** Checks if the page_cleaner is in active state. */
+bool buf_flush_page_cleaner_is_active();
 
 #ifdef UNIV_DEBUG
 
@@ -70,6 +70,12 @@ void buf_flush_relocate_on_flush_list(
 void buf_flush_write_complete(buf_page_t *bpage);
 
 #endif /* !UNIV_HOTBACKUP */
+
+/** Check if page type is uncompressed.
+@param[in]	page	page frame
+@return true if uncompressed page type. */
+bool page_is_uncompressed_type(const byte *page);
+
 /** Initialize a page for writing to the tablespace.
 @param[in]      block           buffer block; NULL if bypassing the buffer pool
 @param[in,out]  page            page frame
@@ -244,8 +250,9 @@ ulint buf_pool_get_dirty_pages_count(
 void buf_flush_sync_all_buf_pools(void);
 
 /** Request IO burst and wake page_cleaner up.
-@param[in]	lsn_limit	upper limit of LSN to be flushed */
-void buf_flush_request_force(lsn_t lsn_limit);
+@param[in]	lsn_limit	upper limit of LSN to be flushed
+@return true if we requested higher lsn than ever requested so far */
+bool buf_flush_request_force(lsn_t lsn_limit);
 
 /** Checks if all flush lists are empty. It is supposed to be used in
 single thread, during startup or shutdown. Hence it does not acquire

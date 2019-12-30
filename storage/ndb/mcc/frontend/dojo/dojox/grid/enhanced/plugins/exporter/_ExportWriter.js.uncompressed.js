@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/exporter/_ExportWriter", [
 	"dojo/_base/declare"
 ], function(declare){
@@ -10,11 +9,14 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 	//		This is an abstract class for all kinds of writers used in the Exporter plugin.
 	//		It utilizes the strategy pattern to break the export work into several stages,
 	//		and provide interfaces for all of them.
-	//			Implementations might choose some of the functions in this class to override,
+	//
+	//		Implementations might choose some of the functions in this class to override,
 	//		thus providing their own functionalities.
-	//			The Exporter will go through the grid line by line. So in every line, all the Views
+	//
+	//		The Exporter will go through the grid line by line. So in every line, all the Views
 	//		will be reached, and the header line is only handled once.
-	//			An *argObj* object is passed to most functions of this class.
+	//
+	//		An *argObj* object is passed to most functions of this class.
 	//		It carries context arguments that make sense when they are called.
 
 /*=====
@@ -50,20 +52,20 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		Reference to the current cell.
 		cell: null,
 		
-		//cellIdx: int
+		// cellIdx: int
 		//		The index of the current cell in the current subrow.
 		//		It's different from cell.index, which is the index in the whole line.
 		cellIdx: -1,
 		
-		//row: item
+		// row: item
 		//		The current row of data (logically), a.k.a.: current item.
 		row: null,
 		
-		//rowIdx: int
+		// rowIdx: int
 		//		The index of the current row (item).
 		rowIdx: -1,
 		
-		// spCols: Array<int>
+		// spCols: int[]
 		//		An array of special column indexes(flat,not regarding structure).
 		//		Special columns are typically attached to grid as a kind of UI facility
 		//		by the grid widget, instead of some real data.
@@ -75,8 +77,9 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		If the grid has a _RowSelector view or something else, this view will NOT be
 		//		passed to the user in argObj. So the column index (cell.index) will appear shifted
 		//		(start from 1 instead of 0). This colOffset is provided to remove this shift.
-		// usage:
-		//		var correctColIndex = argObj.cell.index + argObj.colOffset;
+		//
+		//		usage:
+		//		|	var correctColIndex = argObj.cell.index + argObj.colOffset;
 		colOffset: 0
 	},
 =====*/
@@ -102,9 +105,9 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		Is there anything we should do now?
 		// tags:
 		//		protected extension
-		// return:
-		//		true: go on hanling the header row and then call afterHeader.
-		//		false: skip the header row, won't call afterHeader.
+		// returns:
+		//		- true: go on handling the header row and then call afterHeader.
+		//		- false: skip the header row, won't call afterHeader.
 		return true;	//Boolean
 	},
 	afterHeader: function(){
@@ -122,9 +125,9 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// items:
 		//		All the items fetched from the store
-		// return:
-		//		true: go on handling the contents and then call afterContent.
-		//		false: skip all the contents, won't call afterContent.
+		// returns:
+		//		- true: go on handling the contents and then call afterContent.
+		//		- false: skip all the contents, won't call afterContent.
 		return true;	//Boolean
 	},
 	afterContent: function(){
@@ -143,14 +146,14 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			row,rowIdx,
-		//			spCols
-		//		}
-		// return:
-		//		true: go on handling the current data row and then call afterContentRow.
-		//		false: skip the current data row, won't call afterContentRow.
+		// |	{
+		// |		grid,isHeader,
+		// |		row,rowIdx,
+		// |		spCols
+		// |	}
+		// returns:
+		//		- true: go on handling the current data row and then call afterContentRow.
+		//		- false: skip the current data row, won't call afterContentRow.
 		return true;	//Boolean
 	},
 	afterContentRow: function(/* object */argObj){
@@ -160,11 +163,11 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			row,rowIdx,
-		//			spCols
-		//		}
+		// |	{
+		// |		grid,isHeader,
+		// |		row,rowIdx,
+		// |		spCols
+		// |	}
 		// returns:
 		//		undefined
 	},
@@ -175,14 +178,14 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			view,viewIdx,
-		//			spCols(if isHeader==false)
-		//		}
-		// return:
-		//		true: go on handling the current view and then call afterView.
-		//		false: skip the current view, won't call afterView.
+		// |	{
+		// |		grid,isHeader,
+		// |		view,viewIdx,
+		// |		spCols(if isHeader==false)
+		// |	}
+		// returns:
+		//		- true: go on handling the current view and then call afterView.
+		//		- false: skip the current view, won't call afterView.
 		return true;	//Boolean
 	},
 	afterView: function(/* object */argObj){
@@ -192,11 +195,11 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			view,viewIdx,
-		//			spCols(if isHeader==false)
-		//		}
+		// |	{
+		// |		grid,isHeader,
+		// |		view,viewIdx,
+		// |		spCols(if isHeader==false)
+		// |	}
 		// tags:
 		//		protected extension
 		// returns:
@@ -209,16 +212,16 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			row,rowIdx,
-		//			view,viewIdx,
-		//			subrow,subrowIdx,
-		//			spCols(if isHeader==false)
-		//		}
-		// return:
-		//		true: go on handling the current subrow and then call afterSubrow.
-		//		false: skip the current subrow, won't call afterSubrow.
+		// |	{
+		// |		grid,isHeader,
+		// |		row,rowIdx,
+		// |		view,viewIdx,
+		// |		subrow,subrowIdx,
+		// |		spCols(if isHeader==false)
+		// |	}
+		// returns:
+		//		- true: go on handling the current subrow and then call afterSubrow.
+		//		- false: skip the current subrow, won't call afterSubrow.
 		return true;	//Boolean
 	},
 	afterSubrow: function(/* object */argObj){
@@ -228,13 +231,13 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			row,rowIdx,
-		//			view,viewIdx,
-		//			subrow,subrowIdx,
-		//			spCols(if isHeader==false)
-		//		}
+		// |	{
+		// |		grid,isHeader,
+		// |		row,rowIdx,
+		// |		view,viewIdx,
+		// |		subrow,subrowIdx,
+		// |		spCols(if isHeader==false)
+		// |	}
 		// returns:
 		//		undefined
 	},
@@ -245,14 +248,14 @@ return declare("dojox.grid.enhanced.plugins.exporter._ExportWriter", null, {
 		//		protected extension
 		// argObj:
 		//		An object with at least the following context properties available:
-		//		{
-		//			grid,isHeader,
-		//			row,rowIdx,
-		//			view,viewIdx,
-		//			subrow,subrowIdx,
-		//			cell,cellIdx,
-		//			spCols(if isHeader==false)
-		//		}
+		// |	{
+		// |		grid,isHeader,
+		// |		row,rowIdx,
+		// |		view,viewIdx,
+		// |		subrow,subrowIdx,
+		// |		cell,cellIdx,
+		// |		spCols(if isHeader==false)
+		// |	}
 		// returns:
 		//		undefined
 	},

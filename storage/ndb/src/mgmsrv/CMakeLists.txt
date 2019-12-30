@@ -23,16 +23,19 @@
 INCLUDE_DIRECTORIES(
   ${NDB_SOURCE_DIR}/src/mgmapi
   ${NDB_SOURCE_DIR}/src/ndbapi
-  ${NDB_SOURCE_DIR}/src/mgmclient)
-
+  ${NDB_SOURCE_DIR}/src/mgmclient
+  ${NDB_SOURCE_DIR}/src/common/mgmcommon
+  )
 
 ADD_CONVENIENCE_LIBRARY(ndbconf
-               Config.cpp
-               ConfigInfo.cpp
-               InitConfigFileParser.cpp
-               ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
-)
-TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
+  Config.cpp
+  ConfigInfo.cpp
+  InitConfigFileParser.cpp
+  ${NDB_SOURCE_DIR}/src/common/mgmcommon/ConfigObject.cpp
+  ${NDB_SOURCE_DIR}/src/common/mgmcommon/ConfigSection.cpp
+  ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
+  LINK_LIBRARIES ndbmgmapi
+  )
 
 IF(WITHOUT_SERVER)
   RETURN()
@@ -62,13 +65,21 @@ IF(WIN32)
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(ndb_mgmd
-  MgmtSrvr.cpp main.cpp Services.cpp ConfigManager.cpp
   ${NDB_MGMD_EXTRA_SRC}
-  DESTINATION ${INSTALL_SBINDIR}
-  COMPONENT ClusterManagementServer)
-TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient_static ndbmgmclient)
-IF(UNIX)
-  TARGET_LINK_LIBRARIES(ndb_mgmd ${EDITLINE_LIBRARY})
-ENDIF(UNIX)
+  ConfigManager.cpp
+  MgmtSrvr.cpp
+  Services.cpp
+  main.cpp
 
-NDB_ADD_TEST(MgmConfig-t testConfig.cpp LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib)
+  DESTINATION ${INSTALL_SBINDIR}
+  COMPONENT ClusterManagementServer
+  LINK_LIBRARIES
+  ${EDITLINE_LIBRARY}
+  ndbclient_static
+  ndbconf
+  ndbmgmclient
+  )
+
+NDB_ADD_TEST(MgmConfig-t testConfig.cpp
+  LIBS ndbmgmapi ndbtrace ndbconf ndblogger ndbgeneral ndbportlib
+  )

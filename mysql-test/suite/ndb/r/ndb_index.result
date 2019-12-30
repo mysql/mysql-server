@@ -186,42 +186,42 @@ INSERT INTO t1 (a ,b ,c) VALUES
 (NULL , '1', 'test');
 explain select count(a) from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `count(a)` from `test`.`t1` group by `test`.`t1`.`a`
 explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`a`) AS `count(a)` from `test`.`t1` FORCE INDEX FOR GROUP BY (PRIMARY) group by `test`.`t1`.`a`
 explain select count(b) from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	b	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`b`) AS `count(b)` from `test`.`t1` group by `test`.`t1`.`b`
 explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	b	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(`test`.`t1`.`b`) AS `count(b)` from `test`.`t1` FORCE INDEX FOR GROUP BY (`b`) group by `test`.`t1`.`b`
 explain select distinct a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 explain select distinct a from t1 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 explain select distinct b from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	b	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`b` AS `b` from `test`.`t1`
 explain select distinct b from t1 group by b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	b	4	NULL	10	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	b	b	4	NULL	10	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b` from `test`.`t1` group by `test`.`t1`.`b`
 select count(a) from t1 group by a;
@@ -551,6 +551,10 @@ PRIMARY KEY  (id),
 KEY klantid (klantid),
 KEY `klantid/productcode` (klantid,productcode)
 ) ENGINE=NDBCLUSTER DEFAULT CHARSET=latin1 AUTO_INCREMENT=34 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO inleveroverzicht (id, klantid, productcode, aantal) VALUES 
 (33, 31, '15674', 11),
 (32, 31, '0001256', 1);
@@ -571,6 +575,8 @@ KEY `fk_similar_id` (`similar_id`),
 KEY `ix_id_similarity` (`id`,`similarity`) USING BTREE
 ) ENGINE=ndb CHARACTER SET utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into indexmerge values(1, 2, REPEAT("A",512));
 insert into indexmerge values(2, 1, REPEAT("B",512));

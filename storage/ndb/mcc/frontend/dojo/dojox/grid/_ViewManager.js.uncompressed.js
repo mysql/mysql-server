@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_ViewManager", [
 	"dojo/_base/declare",
 	"dojo/_base/sniff",
@@ -99,7 +98,7 @@ return declare('dojox.grid._ViewManager', null, {
 	
 			//Work around odd FF3 rendering bug: #8864.
 			//A one px increase fixes FireFox 3's rounding bug for fractional font sizes.
-			if((has("mozilla") || has("ie") > 8 ) && h){h++;}
+			if((has('mozilla') || has('ie') > 8 ) && h){h++;}
 		}
 		for(i=0; (n=inRowNodes[i]); i++){
 			if(currHeights[i] != h){
@@ -189,12 +188,14 @@ return declare('dojox.grid._ViewManager', null, {
 
 			if(!self.grid.isLeftToRight()){
 				ds.right = l + 'px';
-				// fixed rtl, the scrollbar is on the right side in FF or WebKit
-				if (has("ff") < 4 || has("webkit")){
+				// fixed rtl, the scrollbar is on the right side in FF < 4
+				if(has('ff') < 4){
 					hs.right = l + v.getScrollbarWidth() + 'px';
-					hs.width = parseInt(hs.width, 10) - v.getScrollbarWidth() + 'px';
 				}else{
 					hs.right = l + 'px';
+				}
+				if(!has('webkit')){
+					hs.width = parseInt(hs.width, 10) - v.getScrollbarWidth() + 'px';					
 				}
 			}else{
 				ds.left = l + 'px';
@@ -286,7 +287,7 @@ return declare('dojox.grid._ViewManager', null, {
 			top = v.setScrollTop(inTop);
 			// Work around IE not firing scroll events that cause header offset
 			// issues to occur.
-			if(has("ie") && v.headerNode && v.scrollboxNode){
+			if(has('ie') && v.headerNode && v.scrollboxNode){
 				v.headerNode.scrollLeft = v.scrollboxNode.scrollLeft;
 			}
 		}
@@ -295,7 +296,8 @@ return declare('dojox.grid._ViewManager', null, {
 	},
 	
 	getFirstScrollingView: function(){
-		// summary: Returns the first grid view with a scroll bar
+		// summary:
+		//		Returns the first grid view with a scroll bar
 		for(var i=0, v; (v=this.views[i]); i++){
 			if(v.hasHScrollbar() || v.hasVScrollbar()){
 				return v;

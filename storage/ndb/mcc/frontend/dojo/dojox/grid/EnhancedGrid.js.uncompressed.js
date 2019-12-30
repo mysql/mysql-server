@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/EnhancedGrid", [
 	"dojo/_base/kernel",
 	"../main",
@@ -8,14 +7,13 @@ define("dojox/grid/EnhancedGrid", [
 	"dojo/_base/sniff",
 	"dojo/dom",
 	"dojo/dom-geometry",
-	"dojo/i18n",
 	"./DataGrid",
 	"./DataSelection",
 	"./enhanced/_PluginManager",
 	"./enhanced/plugins/_SelectionPreserver",//default loaded plugin
 	"dojo/i18n!./enhanced/nls/EnhancedGrid"
-], function(dojo, dojox, declare, lang, array, has, dom, domGeometry, i18n,
-	DataGrid, DataSelection, _PluginManager, _SelectionPreserver){
+], function(dojo, dojox, declare, lang, array, has, dom, domGeometry,
+	DataGrid, DataSelection, _PluginManager, _SelectionPreserver, nls){
 
 dojo.experimental("dojox.grid.EnhancedGrid");
 
@@ -40,7 +38,9 @@ var EnhancedGrid = declare("dojox.grid.EnhancedGrid", DataGrid, {
 	// |	</script>
 	//
 	//		Step 2. Use EnhancedGrid
+	//
 	//		- Via HTML markup
+	//
 	// |	<div dojoType="dojox.grid.EnhancedGrid" ...
 	// |		plugins="{nestedSorting: true, dnd: true, indirectSelection: true,
 	// |		menus:{headerMenu:"headerMenuId", rowMenu:"rowMenuId", cellMenu:"cellMenuId",
@@ -49,6 +49,7 @@ var EnhancedGrid = declare("dojox.grid.EnhancedGrid", DataGrid, {
 	// |	</div>
 	//
 	//		- Or via JavaScript
+	//
 	// |	<script type="text/javascript">
 	// |		var grid = new dojox.grid.EnhancedGrid({plugins : {nestedSorting: true, dnd: true, indirectSelection: true,
 	// |	               menus:{headerMenu:"headerMenuId", rowMenu:"rowMenuId", cellMenu:"cellMenuId",selectedRegionMenu:"selectedRegionMenuId"}},
@@ -61,25 +62,25 @@ var EnhancedGrid = declare("dojox.grid.EnhancedGrid", DataGrid, {
 	//		[Note: Plugin support is still experimental]
 	//
 	//		You can either customize the default plugins or add new ones, more details please see
+	//
 	//		- dojox.grid.enhanced._PluginManager
 	//		- dojox.grid.enhanced._Plugin
 	//		- dojox.grid.enhanced.plugins.*
 
-	//plugins: Object
+	// plugins: Object
 	//		Plugin properties, e.g. {nestedSorting: true, dnd: true, ...}
 	plugins: null,
 
-	//pluginMgr: Object
+	// pluginMgr: Object
 	//		Singleton plugin manager
 	pluginMgr: null,
 
-	//_pluginMgrClass: Object
+	// _pluginMgrClass: Object
 	//		Default plugin manager class
 	_pluginMgrClass: _PluginManager,
 
 	postMixInProperties: function(){
-		//load nls bundle
-		this._nls = i18n.getLocalization("dojox.grid.enhanced", "EnhancedGrid", this.lang);
+		this._nls = nls;
 		this.inherited(arguments);
 	},
 	postCreate: function(){
@@ -194,10 +195,10 @@ var EnhancedGrid = declare("dojox.grid.EnhancedGrid", DataGrid, {
 	},
 	onMouseUp: function(e){	},
 	createView: function(){
-		// summary
+		// summary:
 		//		Overwrite: rewrite getCellX of view.header
 		var view = this.inherited(arguments);
-		if(has("mozilla")){
+		if(has('mozilla')){
 			var ascendDom = function(inNode, inWhile){
 				for(var n = inNode; n && inWhile(n); n = n.parentNode){}
 				return n;

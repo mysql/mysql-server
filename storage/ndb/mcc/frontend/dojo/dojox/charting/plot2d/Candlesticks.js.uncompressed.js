@@ -1,10 +1,6 @@
-//>>built
-define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "./Base", "./common", 
+define("dojox/charting/plot2d/Candlesticks", ["dojo/_base/lang", "dojo/_base/declare", "dojo/_base/array", "./CartesianBase", "./_PlotEvents", "./common",
 		"dojox/lang/functional", "dojox/lang/functional/reversed", "dojox/lang/utils", "dojox/gfx/fx"], 
-	function(lang, declare, arr, Base, dc, df, dfr, du, fx){
-/*=====
-var Base = dojox.charting.plot2d.Base;
-=====*/
+	function(lang, declare, arr, CartesianBase, _PlotEvents, dc, df, dfr, du, fx){
 
 	var purgeGroup = dfr.lambda("item.purgeGroup()");
 
@@ -13,8 +9,8 @@ var Base = dojox.charting.plot2d.Base;
 	//	{ x?, open, close, high, low, mid? }
 	//	if x is not provided, the array index is used.
 	//	failing to provide the OHLC values will throw an error.
-	return declare("dojox.charting.plot2d.Candlesticks", Base, {
-		//	summary:
+	return declare("dojox.charting.plot2d.Candlesticks", [CartesianBase, _PlotEvents], {
+		// summary:
 		//		A plot that represents typical candlesticks (financial reporting, primarily).
 		//		Unlike most charts, the Candlestick expects data points to be represented by
 		//		an object of the form { x?, open, close, high, low, mid? }, where both
@@ -39,11 +35,11 @@ var Base = dojox.charting.plot2d.Base;
 		},
 
 		constructor: function(chart, kwArgs){
-			//	summary:
+			// summary:
 			//		The constructor for a candlestick chart.
-			//	chart: dojox.charting.Chart
+			// chart: dojox/charting/Chart
 			//		The chart this plot belongs to.
-			//	kwArgs: dojox.charting.plot2d.__BarCtorArgs?
+			// kwArgs: dojox.charting.plot2d.__BarCtorArgs?
 			//		An optional keyword arguments object to help define the plot.
 			this.opt = lang.clone(this.defaultParams);
 			du.updateWithObject(this.opt, kwArgs);
@@ -55,13 +51,13 @@ var Base = dojox.charting.plot2d.Base;
 		},
 
 		collectStats: function(series){
-			//	summary:
+			// summary:
 			//		Collect all statistics for drawing this chart.  Since the common
 			//		functionality only assumes x and y, Candlesticks must create it's own
 			//		stats (since data has no y value, but open/close/high/low instead).
-			//	series: dojox.charting.Series[]
+			// series: dojox.charting.Series[]
 			//		The data series array to be drawn on this plot.
-			//	returns: Object
+			// returns: Object
 			//		Returns an object in the form of { hmin, hmax, vmin, vmax }.
 
 			//	we have to roll our own, since we need to use all four passed
@@ -89,24 +85,24 @@ var Base = dojox.charting.plot2d.Base;
 		},
 
 		getSeriesStats: function(){
-			//	summary:
+			// summary:
 			//		Calculate the min/max on all attached series in both directions.
-			//	returns: Object
+			// returns: Object
 			//		{hmin, hmax, vmin, vmax} min/max in both directions.
 			var stats = this.collectStats(this.series);
 			stats.hmin -= 0.5;
 			stats.hmax += 0.5;
-			return stats;
+			return stats; // Object
 		},
 
 		render: function(dim, offsets){
-			//	summary:
+			// summary:
 			//		Run the calculations for any axes for this plot.
-			//	dim: Object
+			// dim: Object
 			//		An object in the form of { width, height }
-			//	offsets: Object
+			// offsets: Object
 			//		An object of the form { l, r, t, b}.
-			//	returns: dojox.charting.plot2d.Candlesticks
+			// returns: dojox/charting/plot2d/Candlesticks
 			//		A reference to this plot for functional chaining.
 			if(this.zoom && !this.isDataDirty()){
 				return this.performZoom(dim, offsets);
@@ -182,7 +178,7 @@ var Base = dojox.charting.plot2d.Base;
 								}).setStroke(doFill ? "white" : finalTheme.series.stroke);
 							}
 
-							//	TODO: double check this.
+							// TODO: double check this.
 							run.dyn.fill   = finalTheme.series.fill;
 							run.dyn.stroke = finalTheme.series.stroke;
 							if(events){
@@ -212,7 +208,7 @@ var Base = dojox.charting.plot2d.Base;
 				run.dirty = false;
 			}
 			this.dirty = false;
-			return this;	//	dojox.charting.plot2d.Candlesticks
+			return this;	//	dojox/charting/plot2d/Candlesticks
 		},
 		_animateCandlesticks: function(shape, voffset, vsize){
 			fx.animateTransform(lang.delegate({

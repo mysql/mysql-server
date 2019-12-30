@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <algorithm>
@@ -32,6 +33,9 @@
 // Check that various mysys path functions produce a valid
 // ('\0'-terminated) c-string, do not write more than FN_REFLEN bytes
 // into the destination buffer.
+
+using ::testing::MatchesRegex;
+using ::testing::StartsWith;
 
 namespace mysys_pathfuncs {
 char dest[FN_REFLEN];
@@ -135,4 +139,94 @@ TEST(Mysys, LoadPathOverflow) {
   EXPECT_EQ('\0', dst[FN_REFLEN - 1]);
   EXPECT_EQ('a', dst[FN_REFLEN - 2]);
 }
+
+#ifdef HAVE_O_TMPFILE
+TEST(Mysys, CreateTempFile) {
+  char dst[FN_REFLEN];
+  aset(dst, 0xaa);
+
+  char prefix[FN_REFLEN + 5];
+  aset(prefix, 'a');
+  prefix[sizeof(prefix) - 1] = '\0';
+
+  File fileno = create_temp_file(dst, "/tmp", prefix, 42, UNLINK_FILE, 0);
+  EXPECT_GE(fileno, 0);
+  my_close(fileno, 0);
+  EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+fd=[0-9]+"));
+  aset(dst, 0xaa);
+
+  char *env_tmpdir = getenv("TMPDIR");
+  fileno = create_temp_file(dst, nullptr, prefix, 42, UNLINK_FILE, 0);
+  EXPECT_GE(fileno, 0);
+  if (env_tmpdir != nullptr) {
+    EXPECT_THAT(dst, StartsWith(env_tmpdir));
+  } else {
+    EXPECT_THAT(dst, StartsWith("/tmp"));
+  }
+  my_close(fileno, 0);
+  aset(dst, 0xaa);
+
+  char longdirname[FN_REFLEN];
+  aset(longdirname, 'x');
+  longdirname[0] = '/';
+  fileno = create_temp_file(dst, longdirname, "hello", 42, UNLINK_FILE, 0);
+  EXPECT_LT(fileno, 0);
+  EXPECT_EQ(errno, ENAMETOOLONG);
+}
+#endif  // HAVE_O_TMPFILE
+
+// Verify that unpack_dirname works correctly with ~/ and ~user
+TEST(Mysys, UnpackDirname) {
+  char dst[FN_REFLEN];
+  aset(dst, 0xaa);
+
+  char src[FN_REFLEN + 5];
+  aset(src, 'a');
+  std::fill_n(src + FN_REFLEN, 4, 'b');
+  src[FN_REFLEN + 4] = '\0';
+
+  // Verify that destination array does not overflow when source is larger
+  unpack_dirname(dst, src);
+  EXPECT_EQ('\0', dst[FN_REFLEN - 1]);
+  EXPECT_EQ(FN_LIBCHAR, dst[FN_REFLEN - 2]);
+  EXPECT_EQ('a', dst[FN_REFLEN - 3]);
+
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "/an/absolute/path");
+  EXPECT_STREQ(
+      FN_ROOTDIR "an" FN_ROOTDIR "absolute" FN_ROOTDIR "path" FN_ROOTDIR, dst);
+
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "a/relative/path");
+  EXPECT_STREQ("a" FN_ROOTDIR "relative" FN_ROOTDIR "path" FN_ROOTDIR, dst);
+
+  // Verify that ~ is expanded to home_dir+/
+  // If home_dir is not set (WIN32) tilde expansion does not happen.
+  std::string hd{home_dir ? home_dir : "~"};
+  hd.append(1, FN_LIBCHAR);
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~");
+  EXPECT_EQ(hd, std::string{dst});
+
+  // Verify that /~ is expanded to home_dir+/
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~/");
+  EXPECT_EQ(hd, std::string{dst});
+
+  // Verify that ~root is expanded to somthing starting with / and which
+  // contains /dir (exact name of root's home dir varies between platforms)
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~root/dir");
+#ifdef HAVE_GETPWNAM
+  EXPECT_EQ('/', dst[0]);
+  EXPECT_LE(dst, strstr(dst, "/dir"));
+#else
+  // On platforms which do not have getpwnam no expansion of ~user is performed
+  EXPECT_STREQ("~root" FN_ROOTDIR "dir" FN_ROOTDIR, dst);
+#endif
+  // Verify that ~ is not expanded when the user does not exist
+  unpack_dirname(dst, "~___/dir");
+  EXPECT_STREQ("~___" FN_ROOTDIR "dir" FN_ROOTDIR, dst);
+}
+
 }  // namespace mysys_pathfuncs

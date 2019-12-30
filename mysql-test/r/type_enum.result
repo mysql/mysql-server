@@ -1679,6 +1679,8 @@ a	int(11)	YES		1
 b	enum('value','๖ไü_value','สรี')	NO		NULL	
 drop table t1;
 CREATE TABLE t1 (c enum('a', 'A') BINARY);
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES ('a'),('A');
 SELECT * FROM t1;
 c
@@ -1867,7 +1869,7 @@ EXPLAIN SELECT a FROM t1 WHERE a=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '' AS `a` from `test`.`t1` where true
 SELECT a FROM t1 WHERE a=0;
 a
 

@@ -6,7 +6,6 @@
 #########################################
 
 --source include/master-slave.inc
---source include/have_myisam.inc
 # Needed since test uses CREATE TABLE ... SELECT
 
 disable_query_log;
@@ -16,9 +15,6 @@ enable_query_log;
 # --disable_warnings/--enable_warnings added before/after query 
 # if one uses UUID() function because we need to avoid warnings
 # for STATEMENT binlog format
-
-# Non-transactional engine
---let $engine_type= myisam
 
 # Transactional engine
 --let $engine_type2= innodb
@@ -30,13 +26,11 @@ enable_query_log;
 
 USE test;
 --disable_warnings
-DROP VIEW IF EXISTS v1,v11;
-DROP TABLE IF EXISTS t1,t2,t3,t11,t12,t13;
-DROP PROCEDURE IF EXISTS p1;
+DROP VIEW IF EXISTS v11;
+DROP TABLE IF EXISTS t11,t12,t13;
 DROP PROCEDURE IF EXISTS p11;
 DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
-DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
 --enable_warnings
 
@@ -46,18 +40,6 @@ DROP EVENT IF EXISTS e11;
 #
 
 # Create tables
-
---echo
-eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type;
-INSERT INTO t1 VALUES (1,1,'1');
---disable_warnings
-INSERT INTO t1 VALUES (2,2,UUID());
---enable_warnings
-eval CREATE TABLE t2 (a INT UNIQUE, b INT, c VARCHAR(64)) ENGINE=$engine_type;
-INSERT INTO t2 VALUES (1,1,'1');
---disable_warnings
-INSERT INTO t2 VALUES (2,2,UUID());
---enable_warnings
 
 eval CREATE TABLE t11 (a INT NOT NULL PRIMARY KEY, b INT, c VARCHAR(64)) ENGINE=$engine_type2;
 INSERT INTO t11 VALUES (1,1,'1');
@@ -72,24 +54,11 @@ INSERT INTO t12 VALUES (2,2,UUID());
 
 # Create invoked features
 --echo
-# Create view for tables t1,t11
-CREATE VIEW v1 AS SELECT * FROM t1;
+# Create view for table t11
 CREATE VIEW v11 AS SELECT * FROM t11;
 
-# Create triggers for t1,t11
+# Create triggers for t11
 DELIMITER |;
-
-CREATE TRIGGER t1_tr1 BEFORE INSERT ON t1 FOR EACH ROW 
-BEGIN
-  INSERT INTO t2 VALUES (NEW.a, NEW.b, NEW.c);
-  INSERT INTO t3 VALUES (NEW.a, NEW.b, NEW.c);
-END|
-
-CREATE TRIGGER t1_tr2 BEFORE UPDATE ON t1 FOR EACH ROW 
-BEGIN
-  UPDATE t2 SET c = '';
-  UPDATE t3 SET c = '';
-END|
 
 CREATE TRIGGER t11_tr1 BEFORE INSERT ON t11 FOR EACH ROW 
 BEGIN
@@ -104,11 +73,6 @@ BEGIN
 END|
 
 # Create events which will run every 1 sec
-CREATE EVENT e1 ON SCHEDULE EVERY 1 SECOND DISABLE DO
-BEGIN
-  ALTER EVENT e1 DISABLE;
-  CALL p1(10, '');  
-END|
 
 CREATE EVENT e11 ON SCHEDULE EVERY 1 SECOND DISABLE DO
 BEGIN
@@ -130,11 +94,6 @@ BEGIN
   RETURN f1(x);
 END|
 
-CREATE PROCEDURE p1 (IN x INT, IN y VARCHAR(64))
-BEGIN
-  INSERT IGNORE INTO t1 VALUES (x,x,y);
-END|
-
 CREATE PROCEDURE p11 (IN x INT, IN y VARCHAR(64))
 BEGIN
   INSERT IGNORE INTO t11 VALUES (x,x,y);
@@ -146,28 +105,6 @@ DELIMITER ;|
 #
 # Start test case
 #
-
-# Do some actions for non-transactional tables
---echo
-CREATE TABLE t3 SELECT * FROM v1;
-INSERT INTO t1 VALUES (3,3,'');
-UPDATE t1 SET c='2' WHERE a = 1;
---disable_warnings
-INSERT INTO t1 VALUES(4,4,f1(4));
---enable_warnings
-INSERT INTO t1 VALUES (100,100,'');
---disable_warnings
-CALL p1(5, UUID());
---enable_warnings
-INSERT INTO t1 VALUES (101,101,'');
---disable_warnings
-INSERT INTO t1 VALUES(6,6,f1(6));
---enable_warnings
-INSERT INTO t1 VALUES (102,102,'');
---disable_warnings
-INSERT INTO t1 VALUES(7,7,f2(7));
---enable_warnings
-INSERT INTO t1 VALUES (103,103,'');
 
 # Do some actions for transactional tables
 --echo
@@ -191,9 +128,6 @@ INSERT INTO t11 VALUES (103,103,'');
 SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER = on;
 # Wait while events will executed
-ALTER EVENT e1 ENABLE;
-let $wait_condition= SELECT COUNT(*) = 1 FROM t1 WHERE t1.a = 10;
---source include/wait_condition_or_abort.inc
 ALTER EVENT e11 ENABLE;
 let $wait_condition= SELECT COUNT(*) = 1 FROM t11 WHERE t11.a = 10;
 --source include/wait_condition_or_abort.inc
@@ -213,14 +147,6 @@ SELECT routine_type, routine_name FROM information_schema.routines WHERE routine
 SELECT event_name, status FROM information_schema.events WHERE event_schema='test';
 
 # Check original data
---echo
-SELECT COUNT(*) FROM t1;
-SELECT a,b FROM t1 ORDER BY a;
-SELECT COUNT(*) FROM t2;
-SELECT a,b FROM t2 ORDER BY a;
-SELECT COUNT(*) FROM t3;
-SELECT a,b FROM t3 ORDER BY a;
-SELECT a,b FROM v1 ORDER BY a;
 SELECT COUNT(*) FROM t11;
 SELECT a,b FROM t11 ORDER BY a;
 SELECT COUNT(*) FROM t12;
@@ -247,13 +173,6 @@ SELECT event_name, status FROM information_schema.events WHERE event_schema='tes
 
 # Check replicated data
 --echo
-SELECT COUNT(*) FROM t1;
-SELECT a,b FROM t1 ORDER BY a;
-SELECT COUNT(*) FROM t2;
-SELECT a,b FROM t2 ORDER BY a;
-SELECT COUNT(*) FROM t3;
-SELECT a,b FROM t3 ORDER BY a;
-SELECT a,b FROM v1 ORDER BY a;
 SELECT COUNT(*) FROM t11;
 SELECT a,b FROM t11 ORDER BY a;
 SELECT COUNT(*) FROM t12;
@@ -266,16 +185,12 @@ SELECT a,b FROM v11 ORDER BY a;
 
 --connection master
 --echo
-UPDATE t1 SET c='';
-UPDATE t2 SET c='';
-UPDATE t3 SET c='';
 --disable_warnings
 UPDATE t11 SET c='';
 --enable_warnings
 UPDATE t12 SET c='';
 UPDATE t13 SET c='';
 
-ALTER TABLE t3 ORDER BY a;
 ALTER TABLE t13 ORDER BY a;
 
 --let $sync_slave_connection= slave
@@ -300,13 +215,11 @@ ALTER TABLE t13 ORDER BY a;
 # Remove tables,views,procedures,functions
 --connection master
 --echo
-DROP VIEW IF EXISTS v1,v11;
-DROP TABLE IF EXISTS t1,t2,t3,t11,t12,t13;
-DROP PROCEDURE IF EXISTS p1;
+DROP VIEW IF EXISTS v11;
+DROP TABLE IF EXISTS t11,t12,t13;
 DROP PROCEDURE IF EXISTS p11;
 DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
-DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e11;
 
 --let $sync_slave_connection= slave

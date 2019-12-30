@@ -1,0 +1,1043 @@
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (bandID MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, payoutID SMALLINT UNSIGNED NOT NULL) engine=myisam;
+insert into t1 (bandID,payoutID) VALUES (1,6),(2,6),(3,4),(4,9),(5,10),(6,1),(7,12),(8,12);
+alter table t1 add column new_col int, order by payoutid,bandid;
+select * from t1;
+bandID	payoutID	new_col
+6	1	NULL
+3	4	NULL
+1	6	NULL
+2	6	NULL
+4	9	NULL
+5	10	NULL
+7	12	NULL
+8	12	NULL
+alter table t1 order by bandid,payoutid;
+select * from t1;
+bandID	payoutID	new_col
+1	6	NULL
+2	6	NULL
+3	4	NULL
+4	9	NULL
+5	10	NULL
+6	1	NULL
+7	12	NULL
+8	12	NULL
+drop table t1;
+CREATE TABLE t1 (
+id int(11) unsigned NOT NULL default '0',
+category_id tinyint(4) unsigned NOT NULL default '0',
+type_id tinyint(4) unsigned NOT NULL default '0',
+body text NOT NULL,
+user_id int(11) unsigned NOT NULL default '0',
+status enum('new','old') NOT NULL default 'new',
+PRIMARY KEY (id)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ALTER TABLE t1 ORDER BY t1.id, t1.status, t1.type_id, t1.user_id, t1.body;
+DROP TABLE t1;
+CREATE TABLE t1 (AnamneseId int(10) unsigned NOT NULL auto_increment,B BLOB,PRIMARY KEY (AnamneseId)) engine=myisam;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t1 values (null,"hello");
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 ADD Column new_col int not null;
+UNLOCK TABLES;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+DROP TABLE t1;
+create table t1 (n1 int not null, n2 int, n3 int, n4 float,
+unique(n1),
+key (n1, n2, n3, n4), 
+key (n2, n3, n4, n1), 
+key (n3, n4, n1, n2), 
+key (n4, n1, n2, n3) ) engine=Myisam;
+alter table t1 disable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	n1	1	n1	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	1	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n1_2	2	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n1_2	3	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n1_2	4	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	1	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	2	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	3	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n2	4	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n3	1	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n3	2	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n3	3	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n3	4	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	1	n4	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	2	n1	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+t1	1	n4	3	n2	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+t1	1	n4	4	n3	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+insert into t1 values(10,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(9,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(8,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(7,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(6,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(5,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(4,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(3,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(2,RAND()*1000,RAND()*1000,RAND());
+insert into t1 values(1,RAND()*1000,RAND()*1000,RAND());
+alter table t1 enable keys;
+show keys from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	n1	1	n1	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	1	n1	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	n1_2	2	n2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n1_2	3	n3	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n1_2	4	n4	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	1	n2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	2	n3	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	3	n4	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n2	4	n1	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	n3	1	n3	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n3	2	n4	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n3	3	n1	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	n3	4	n2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	1	n4	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	2	n1	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	1	n4	3	n2	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	n4	4	n3	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+drop table t1;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+ALTER TABLE t1 DISABLE KEYS;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost',''),('games','monty');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+ALTER TABLE t1 ENABLE KEYS;
+UNLOCK TABLES;
+CHECK TABLES t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User),
+KEY  (Host)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 VALUES ('localhost','root'),('localhost','');
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+ALTER TABLE t1 ENABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+UNLOCK TABLES;
+CHECK TABLES t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 RENAME t2;
+UNLOCK TABLES;
+select * from t2;
+Host	User
+localhost	
+localhost	root
+DROP TABLE t2;
+CREATE TABLE t1 (
+Host varchar(16) binary NOT NULL default '',
+User varchar(16) binary NOT NULL default '',
+PRIMARY KEY  (Host,User),
+KEY  (Host)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+LOCK TABLES t1 WRITE;
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	PRIMARY	1	Host	A	NULL	NULL	NULL		BTREE			YES	NULL
+t1	0	PRIMARY	2	User	A	0	NULL	NULL		BTREE			YES	NULL
+t1	1	Host	1	Host	A	NULL	NULL	NULL		BTREE	disabled		YES	NULL
+DROP TABLE t1;
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
+create table t1 ( a varchar(10) not null primary key ) engine=myisam;
+create table t2 ( a varchar(10) not null primary key ) engine=merge union=(t1);
+flush tables;
+alter table t1 modify a varchar(10);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`)
+flush tables;
+alter table t1 modify a varchar(10) not null;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` varchar(10) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`)
+drop table if exists t1, t2;
+create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+Warning	1364	Field 'e' doesn't have a default value
+Warning	1364	Field 'f' doesn't have a default value
+Warning	1364	Field 'g' doesn't have a default value
+Warning	1364	Field 'h' doesn't have a default value
+Warning	1364	Field 'i' doesn't have a default value
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	utf8mb4_0900_ai_ci	NULL		
+alter table t1 modify a int;
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	utf8mb4_0900_ai_ci	NULL		
+drop table t1;
+create table t1 (a int not null, b int not null, c int not null, d int not null, e int not null, f int not null, g int not null, h int not null,i int not null, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
+insert into t1 (a) values(1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+Warning	1364	Field 'e' doesn't have a default value
+Warning	1364	Field 'f' doesn't have a default value
+Warning	1364	Field 'g' doesn't have a default value
+Warning	1364	Field 'h' doesn't have a default value
+Warning	1364	Field 'i' doesn't have a default value
+show table status like 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	1	37	X	X	X	X	X	X	X	X	utf8mb4_0900_ai_ci	NULL		
+drop table t1;
+CREATE TABLE T12207(a int) engine=MyISAM;
+ALTER TABLE T12207 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 'T12207' doesn't have this option
+DROP TABLE T12207;
+drop table if exists t1;
+create table t1 (a int, key(a)) engine=myisam;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+"this used not to disable the index"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 add b char(10), disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+alter table t1 add c decimal(10,2), enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+"this however did"
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+desc t1;
+Field	Type	Null	Key	Default	Extra
+a	bigint(20)	YES	MUL	NULL	
+b	char(10)	YES		NULL	
+c	decimal(10,2)	YES		NULL	
+alter table t1 add d decimal(15,5);
+"The key should still be disabled"
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+drop table t1;
+"Now will test with one unique index"
+create table t1(a int, b char(10), unique(a)) engine=myisam;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"Unique index, no change"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+"Change the type implying data copy"
+"Unique index, no change"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 modify a bigint;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+drop table t1;
+"Now will test with one unique and one non-unique index"
+create table t1(a int, b char(10), unique(a), key(b)) engine=myisam;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+alter table t1 disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+alter table t1 enable keys;
+"If no copy on noop change, this won't touch the data file"
+"The non-unique index will be disabled"
+alter table t1 modify a int, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+alter table t1 enable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+"Change the type implying data copy"
+"The non-unique index will be disabled"
+alter table t1 modify a bigint, disable keys;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+"Change again the type, but leave the indexes as_is"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+"Try the same. When data is no copied on similar tables, this is noop"
+alter table t1 modify a int;
+show indexes from t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	0	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t1	1	b	1	b	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+drop table t1;
+CREATE TABLE t1(a INT) ENGINE=MyISAM ROW_FORMAT=FIXED;
+CREATE INDEX i1 ON t1(a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  KEY `i1` (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
+DROP INDEX i1 ON t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
+DROP TABLE t1;
+DROP TABLE IF EXISTS bug24219;
+DROP TABLE IF EXISTS bug24219_2;
+CREATE TABLE bug24219 (a INT, INDEX(a)) ENGINE=MyISAM;
+SHOW INDEX FROM bug24219;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+bug24219	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+ALTER TABLE bug24219 RENAME TO bug24219_2, DISABLE KEYS;
+SHOW INDEX FROM bug24219_2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+bug24219_2	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE	disabled		YES	NULL
+DROP TABLE bug24219_2;
+create table t1(id int(8) primary key auto_increment) engine=heap;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+insert into t1 values (null);
+insert into t1 values (null);
+select * from t1;
+id
+1
+2
+alter table t1 auto_increment = 50;
+alter table t1 engine = myisam;
+insert into t1 values (null);
+select * from t1;
+id
+1
+2
+50
+alter table t1 engine = heap;
+insert into t1 values (null);
+select * from t1;
+id
+1
+2
+50
+51
+drop table t1;
+set sql_mode= default;
+create table t1(f1 int) engine=myisam;
+alter table t1 add column f2 datetime not null, add column f21 date not null;
+insert into t1 values(1,'2000-01-01','2000-01-01');
+alter table t1 add column f3 datetime not null;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'f3' at row 1
+alter table t1 add column f3 date not null;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'f3' at row 1
+alter table t1 add column f4 datetime not null default '2002-02-02',
+add column f41 date not null;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'f41' at row 1
+alter table t1 add column f4 datetime not null default '2002-02-02',
+add column f41 date not null default '2002-02-02';
+select * from t1;
+f1	f2	f21	f4	f41
+1	2000-01-01 00:00:00	2000-01-01	2002-02-02 00:00:00	2002-02-02
+drop table t1;
+create table t1 (t varchar(255) default null, key t (t(80)))
+engine=myisam default charset=latin1;
+alter table t1 change t t text;
+drop table t1;
+create table t1(f1 int not null, f2 int not null, key  (f1), key (f2)) engine=myisam;
+select index_length into @unpaked_keys_size from
+information_schema.tables where table_name='t1';
+alter table t1 pack_keys=1;
+select index_length into @paked_keys_size from
+information_schema.tables where table_name='t1';
+select (@unpaked_keys_size > @paked_keys_size);
+(@unpaked_keys_size > @paked_keys_size)
+0
+select max_data_length into @orig_max_data_length from
+information_schema.tables where table_name='t1';
+alter table t1 max_rows=100;
+select max_data_length into @changed_max_data_length from
+information_schema.tables where table_name='t1';
+select (@orig_max_data_length > @changed_max_data_length);
+(@orig_max_data_length > @changed_max_data_length)
+0
+drop table t1;
+CREATE TABLE t1 (f1 TIMESTAMP NULL DEFAULT NULL,
+f2 INT(11) DEFAULT NULL) ENGINE=MYISAM DEFAULT CHARSET=utf8;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+INSERT INTO t1 VALUES (NULL, NULL), ("2009-10-09 11:46:19", 2);
+this should affect no rows as there is no real change
+ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+DROP TABLE t1;
+#
+# Test for bug #12652385 - "61493: REORDERING COLUMNS TO POSITION
+#                           FIRST CAN CAUSE DATA TO BE CORRUPTED".
+#
+# Use MyISAM engine as the fact that InnoDB doesn't support
+# in-place ALTER TABLE in cases when columns are being renamed
+# hides some bugs.
+create table t1 (i int, j int) engine=myisam;
+insert into t1 value (1, 2);
+# First, test for original problem described in the bug report.
+select * from t1;
+i	j
+1	2
+# Change of column order by the below ALTER TABLE statement should
+# affect both column names and column contents.
+alter table t1 modify column j int first;
+select * from t1;
+j	i
+2	1
+# Now test for similar problem with the same root.
+# The below ALTER TABLE should change not only the name but
+# also the value for the last column of the table.
+alter table t1 drop column i, add column k int default 0;
+select * from t1;
+j	k
+2	0
+# Clean-up.
+drop table t1;
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+#
+# At some point the below test case failed on assertion.
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 (i int) ENGINE=MyISAM;
+ALTER TABLE t1 DISCARD TABLESPACE;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+DROP TABLE t1;
+#
+# 3) Test coverage for handling of RENAME INDEX clause in
+#    various storage engines and using different ALTER
+#    algorithm.
+#
+# 3.a) Test coverage for simple storage engines (MyISAM/Heap).
+create table t1 (i int, key k(i)) engine=myisam;
+insert into t1 values (1);
+create table t2 (i int, key k(i)) engine=memory;
+insert into t2 values (1);
+# MyISAM and Heap should be able to handle key renaming in-place.
+alter table t1 algorithm=inplace, rename key k to kk;
+alter table t2 algorithm=inplace, rename key k to kk;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kk` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kk` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# So by default in-place algorithm should be chosen.
+# (ALTER TABLE should report 0 rows affected).
+alter table t1 rename key kk to kkk;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+alter table t2 rename key kk to kkk;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kkk` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kkk` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Copy algorithm should work as well.
+alter table t1 algorithm=copy, rename key kkk to kkkk;
+alter table t2 algorithm=copy, rename key kkk to kkkk;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kkkk` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL,
+  KEY `kkkk` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# When renaming is combined with other in-place operation
+# it still works as expected (i.e. works in-place).
+alter table t1 algorithm=inplace, rename key kkkk to k, alter column i set default 100;
+alter table t2 algorithm=inplace, rename key kkkk to k, alter column i set default 100;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '100',
+  KEY `k` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT '100',
+  KEY `k` (`i`)
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Combining with non-inplace operation results in the whole ALTER
+# becoming non-inplace.
+alter table t1 algorithm=inplace, rename key k to kk, add column j int;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t2 algorithm=inplace, rename key k to kk, add column j int;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+drop table t1, t2;
+#
+# WL#5534 Online ALTER, Phase 1
+#
+# Single thread tests.
+# See innodb_mysql_sync.test for multi thread tests.
+CREATE TABLE m1(a INT PRIMARY KEY, b INT) engine=MyISAM;
+INSERT INTO m1 VALUES (1,1), (2,2);
+#
+# 1: Test ALGORITHM keyword
+#
+# --enable_info allows us to see how many rows were updated
+# by ALTER TABLE. in-place will show 0 rows, while copy > 0.
+ALTER TABLE m1 ENABLE KEYS;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= DEFAULT;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE;
+affected rows: 0
+#
+# 4: Test LOCK keyword
+#
+ALTER TABLE m1 ENABLE KEYS, LOCK= DEFAULT;
+ALTER TABLE m1 ENABLE KEYS, LOCK= NONE;
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
+ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED;
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
+ALTER TABLE m1 ENABLE KEYS, LOCK= EXCLUSIVE;
+#
+# 5: Test ALGORITHM + LOCK
+#
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
+affected rows: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED.
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= SHARED;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= EXCLUSIVE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE m1;
+#
+# 6: Possible deadlock involving thr_lock.c
+#
+CREATE TABLE t1(a INT PRIMARY KEY, b INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,2);
+START TRANSACTION;
+INSERT INTO t1 VALUES (3,3);
+# Connection con1
+# Sending:
+ALTER TABLE t1 DISABLE KEYS;
+# Connection default
+# Waiting until ALTER TABLE is blocked.
+UPDATE t1 SET b = 4;
+COMMIT;
+# Connection con1
+# Reaping: ALTER TABLE t1 DISABLE KEYS
+# Connection default
+DROP TABLE t1;
+#
+# 7: Which operations require copy and which can be done in-place?
+#
+# Test which ALTER TABLE operations are done in-place and
+# which operations are done using temporary table copy.
+#
+# --enable_info allows us to see how many rows were updated
+# by ALTER TABLE. in-place will show 0 rows, while copy > 0.
+#
+# Single operation tests
+CREATE TABLE tm1(a INT NOT NULL, b INT, c INT) engine=MyISAM;
+CREATE TABLE tm2(a INT PRIMARY KEY AUTO_INCREMENT, b INT, c INT) engine=MyISAM;
+INSERT INTO tm1 VALUES (1,1,1), (2,2,2);
+INSERT INTO tm2 VALUES (1,1,1), (2,2,2);
+ALTER TABLE tm1;
+affected rows: 0
+ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN d2 VARCHAR(200);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN e ENUM('a', 'b') FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN f INT AFTER a;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD INDEX im1(b);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD UNIQUE INDEX im2 (c);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD FULLTEXT INDEX im4 (d2);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD PRIMARY KEY(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP INDEX im3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP COLUMN d2;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD CONSTRAINT fm1 FOREIGN KEY (b) REFERENCES tm2(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ALTER COLUMN b SET DEFAULT 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ALTER COLUMN b DROP DEFAULT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHANGE COLUMN f g INT;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHANGE COLUMN g h VARCHAR(20);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e ENUM('a', 'b', 'c');
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN c INT NULL;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30) AFTER d;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP COLUMN h;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP INDEX im2;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP PRIMARY KEY;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP FOREIGN KEY fm1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 RENAME TO tm3;
+affected rows: 0
+ALTER TABLE tm3 RENAME TO tm1;
+affected rows: 0
+ALTER TABLE tm1 ORDER BY b;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CONVERT TO CHARACTER SET utf16;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DEFAULT CHARACTER SET utf8;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+ALTER TABLE tm1 FORCE;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 AUTO_INCREMENT 3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 AVG_ROW_LENGTH 10;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 CHECKSUM 1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 COMMENT 'test';
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MAX_ROWS 100;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 MIN_ROWS 1;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 PACK_KEYS 1;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+DROP TABLE tm1,tm2;
+affected rows: 0
+#
+# 8: Scenario in which ALTER TABLE was returning an unwarranted
+#    ER_ILLEGAL_HA error at some point during work on this WL.
+#
+CREATE TABLE tm1(i INT DEFAULT 1) engine=MyISAM;
+ALTER TABLE tm1 ADD INDEX ii1(i), ALTER COLUMN i DROP DEFAULT;
+DROP TABLE tm1;
+#
+#BUG#20106553: ALTER TABLE WHICH CHANGES INDEX COMMENT IS NOT
+#              LONGER INPLACE/FAST OPERATION.
+#Without the patch, the ALTER TABLE to change the index
+#comment using INPLACE algorithm reports an error.
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'test') ENGINE= MyISAM;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		test	YES	NULL
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1), ALGORITHM=INPLACE;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1(fld1 int, key key1(fld1) COMMENT 'old comment') ENGINE=MyISAM;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		old comment	YES	NULL
+ALTER TABLE t1 DROP INDEX key1, ADD INDEX key1(fld1) COMMENT 'new comment',
+ALGORITHM= INPLACE;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	key1	1	fld1	A	NULL	NULL	NULL	YES	BTREE		new comment	YES	NULL
+DROP TABLE t1;
+#
+# BUG#20106837: ALTER TABLE WHICH DROPS AND ADDS THE SAME FULLTEXT
+#               INDEX IS NOT INPLACE/FAST.
+CREATE TABLE t1(fld1 varchar(200), FULLTEXT(fld1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES('ABCD');
+#Without patch, it was not fast a INPLACE ALTER.
+ALTER TABLE t1 DROP INDEX fld1, ADD FULLTEXT INDEX fld1(fld1);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+#Without patch, reports an error 'ER_ALTER_OPERATION_NOT_SUPPORTED'.
+ALTER TABLE t1 ALGORITHM=INPLACE, DROP INDEX fld1,
+ADD FULLTEXT INDEX fld1(fld1);
+DROP TABLE t1;
+#
+# Bug#20146455: FIND_KEY_CI RETURNS NULL, CAUSES CRASH IN
+#               FILL_ALTER_INPLACE_INFO
+#
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
+FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= MyISAM;
+ALTER TABLE t1 RENAME INDEX b TO w, ADD FOREIGN KEY (b) REFERENCES t1(a);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `w` (`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# WL#10761 : ALTER TABLE RENAME COLUMN
+#
+CREATE TABLE t2(a INT, b VARCHAR(30), c FLOAT) ENGINE=MyIsam;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` varchar(30) DEFAULT NULL,
+  `c` float DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t2 VALUES(1,'abcd',1.234);
+ALTER TABLE t2 RENAME COLUMN a TO d, RENAME COLUMN b TO e, RENAME COLUMN c to f;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `d` int(11) DEFAULT NULL,
+  `e` varchar(30) DEFAULT NULL,
+  `f` float DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+d	e	f
+1	abcd	1.234
+CREATE VIEW v1 AS SELECT d,e,f FROM t2;
+CREATE TRIGGER trg1 BEFORE UPDATE on t2 FOR EACH ROW SET NEW.d=OLD.d + 10;
+CREATE PROCEDURE sp1() INSERT INTO t2(d) VALUES(10);
+ALTER TABLE t2 RENAME COLUMN d TO g;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `g` int(11) DEFAULT NULL,
+  `e` varchar(30) DEFAULT NULL,
+  `f` float DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`d` AS `d`,`t2`.`e` AS `e`,`t2`.`f` AS `f` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+Warnings:
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+SELECT * FROM v1;
+ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+UPDATE t2 SET f = f + 10;
+ERROR 42S22: Unknown column 'd' in 'OLD'
+CALL sp1();
+ERROR 42S22: Unknown column 'd' in 'field list'
+DROP TRIGGER trg1;
+DROP PROCEDURE sp1;
+DROP TABLE t2;
+DROP VIEW v1;
+#
+# Basic test coverage for ALGORITHM=INSTANT support on SQL-layer.
+#
+#
+# 1) For MyISAM tables we support INSTANT algorithm for metadata-only
+#    changes as well.
+#
+CREATE TABLE t1 (i INT, j ENUM('a', 'b'), KEY(i)) ENGINE=MyISAM;
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 10, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT '10',
+  `j` enum('a','b') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN i DROP DEFAULT, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e'), ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN i k INT, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `i` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME INDEX i TO k, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME TO t2, ALGORITHM=INSTANT;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 2) And you can still use ALGORITHM=INPLACE for the same operations
+#    for MyISAM tables too.
+#
+ALTER TABLE t2 RENAME TO t1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN k SET DEFAULT 11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11) DEFAULT '11',
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ALTER COLUMN k DROP DEFAULT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11),
+  `j` enum('a','b','c','d','e') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 MODIFY COLUMN j ENUM('a', 'b', 'c', 'd', 'e', 'f', 'g'), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k` int(11),
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `k` (`k`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 CHANGE COLUMN k i INT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `k` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME INDEX k TO i, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` enum('a','b','c','d','e','f','g') DEFAULT NULL,
+  KEY `i` (`i`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 3) Indeed, some options are not supported as INSTANT
+#
+ALTER TABLE t1 ADD COLUMN l INT, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ALTER COLUMN i SET DEFAULT 12, DROP COLUMN j, ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+DROP TABLE t1;
+# Tests added for coverage.
+CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
+# Conversion of unpacked keys to packed keys reports
+# error for INPLACE Alter.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# Succeeds with index rebuild.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=COPY;
+DROP TABLE t1;
+# Tests added for coverage.
+CREATE TABLE t1(fld1 VARCHAR(3), KEY(fld1)) ENGINE=MYISAM;
+# Conversion of unpacked keys to packed keys reports
+# error for INPLACE Alter.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# Succeeds with index rebuild.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10), ALGORITHM=COPY;
+# Cleanup.
+DROP TABLE t1;

@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/CsvStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/xhr","dojo/_base/window","dojo/data/util/filter","dojo/data/util/simpleFetch"],function(_1,_2,_3,_4,_5,_6){
+define("dojox/data/CsvStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/xhr","dojo/_base/kernel","dojo/data/util/filter","dojo/data/util/simpleFetch"],function(_1,_2,_3,_4,_5,_6){
 var _7=_2("dojox.data.CsvStore",null,{constructor:function(_8){
 this._attributes=[];
 this._attributeIndexes={};

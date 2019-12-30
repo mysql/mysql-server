@@ -1,19 +1,40 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/plugins/drawing/GreekPalette", ["dijit","dojo","dojox","dojo/i18n!dojox/editor/plugins/nls/latinEntities","dojo/require!dojox/drawing/library/greek,dijit/focus,dijit/_Widget,dijit/_TemplatedMixin,dijit/_PaletteMixin,dojo/i18n"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.plugins.drawing.GreekPalette");
+define("dojox/drawing/plugins/drawing/GreekPalette", ["dojo","dijit/popup","../../library/greek","dijit/focus","dijit/_Widget","dijit/_TemplatedMixin",
+"dijit/_PaletteMixin","dojo/i18n!dojox/editor/plugins/nls/latinEntities"],
+function(dojo, popup, greek, focus, Widget, TemplatedMixin, PaletteMixin, latinEntities){
 
-dojo.require("dojox.drawing.library.greek");
-dojo.require("dijit.focus");
-dojo.require("dijit._Widget");
-dojo.require("dijit._TemplatedMixin");
-dojo.require("dijit._PaletteMixin");
-dojo.require("dojo.i18n");
+//dojo.requireLocalization("dojox.editor.plugins", "latinEntities");
 
-dojo.requireLocalization("dojox.editor.plugins", "latinEntities");
+var Greeks = dojo.declare(null,
+{
+	// summary:
+	//		Represents a character.
+	//		Initialized using an alias for the character (like cent) rather
+	//		than with the character itself.
 
-dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
-	[dijit._Widget, dijit._TemplatedMixin, dijit._PaletteMixin],
+	constructor: function(/*String*/ alias){
+		// summary:
+		//	 Construct JS object representing an entity (associated w/a cell
+		//		in the palette)
+		// value: String
+		//		alias name: 'cent', 'pound' ..
+		this._alias = alias;
+	},
+
+	getValue: function(){
+		// summary:
+		//		Returns HTML representing the character, like &amp;
+
+		return this._alias;
+	},
+
+	fillCell: function(/*DOMNode*/ cell){
+		// Deal with entities that have keys which are reserved words.
+		cell.innerHTML = "&"+this._alias+";";
+	}
+});
+
+return dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
+  [Widget, TemplatedMixin, PaletteMixin],
 	{
 	// summary:
 	//		This plugin uses the palette dijit in order to give tips for
@@ -34,14 +55,13 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	//		so it calls show (all actual popup management happens here).
 	//		In order to activate the plugin require it and then include the
 	//		markup in the example:
-	//
 	// example:
 	// |	<!--Because this is a widget it is included in markup and NOT like the other plugins-->
 	// |	<div dojoType="dojox.drawing.plugins.drawing.GreekPalette" id="greekPalette"></div>
 	
 	postMixInProperties: function(){
 		// Convert hash of entities into two-dimensional rows/columns table (array of arrays)
-		var choices = dojox.drawing.library.greek;
+		var choices = greek;//dojox.drawing.library.greek;
 		var numChoices = 0;
 		var entityKey;
 		for(entityKey in choices){numChoices++;}
@@ -66,12 +86,12 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	
 	show: function(obj){
 		dojo.mixin(obj, {popup: this});
-		dijit.popup.open(obj);
+		popup.open(obj);
 	},
 	
 	onChange: function(val){
 		var textBlock = this._textBlock;
-		dijit.popup.hide(this);
+		popup.hide(this);
 		textBlock.insertText(this._pushChangeTo,val);
 		textBlock._dropMode = false;
 	},
@@ -79,7 +99,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	onCancel: function(/*Boolean*/ closeAll){
 		// summary:
 		//		attach point for notification about when the user cancels the current menu
-		dijit.popup.hide(this);
+		popup.hide(this);
 		this._textBlock._dropMode = false;
 	},
 
@@ -118,7 +138,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	//	  Whether the preview pane will be displayed, to show details about the selected entity.
 	showPreview: true,
 
-	dyeClass: 'dojox.drawing.plugins.Greeks',
+	dyeClass: Greeks, //'dojox.drawing.plugins.Greeks',
 
 	// domNodeClass [protected] String
 	paletteClass: 'editorLatinEntityPalette',
@@ -128,7 +148,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	buildRendering: function(){
 		this.inherited(arguments);
 
-		var i18n = dojo.i18n.getLocalization("dojox.editor.plugins", "latinEntities");
+		var i18n = latinEntities;//dojo.i18n.getLocalization("dojox.editor.plugins", "latinEntities");
 
 		this._preparePalette(
 			this._palette,
@@ -171,7 +191,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 		// Use setTimeout because IE doesn't like changing focus inside of an event handler.
 		this._setCurrent(target);
 		setTimeout(dojo.hitch(this, function(){
-			dijit.focus(target);
+			focus(target);
 			this._setValueAttr(value, true);
 		}));
 
@@ -188,7 +208,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 		if(!this.showPreview){
 			dojo.style(this.previewNode,"display","none");
 		}
-		dijit.popup.moveOffScreen(this);
+		popup.moveOffScreen(this);
 	},
 
 	_setCurrent: function(/*DOMNode*/ node){
@@ -197,7 +217,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 		// description:
    		//		At any point in time there's exactly one
 		//		cell with tabIndex != -1.   If focus is inside the palette then
-		// 		focus is on that cell.
+		//		focus is on that cell.
 		//
 		//		After calling this method, arrow key handlers and mouse click handlers
 		//		should focus the cell in a setTimeout().
@@ -247,7 +267,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 		this._cells = [];
 		var url = this._blankGif;
 		
-		var dyeClassObj = dojo.getObject(this.dyeClass);
+		var dyeClassObj = typeof this.dyeClass === 'string' ? dojo.getObject(this.dyeClass) : this.dyeClass;
 
 		for(var row=0; row < choices.length; row++){
 			var rowNode = dojo.create("tr", {tabIndex: "-1"}, this.gridNode);
@@ -270,7 +290,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 
 					dojo.place(cellNode, rowNode);
 
-					cellNode.index = this._cells.length;
+					cellNode.idx = this._cells.length;
 
 					// save cell info into _cells
 					this._cells.push({node:cellNode, dye:cellObject});
@@ -285,9 +305,9 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	_navigateByArrow: function(evt){
 		// summary:
 		// 	  	This is a departure from the dijit, the textBlock needs
-		// 		navigation without losing focus, this allows that
+		//		navigation without losing focus, this allows that
 		// increment:
-		// 		How much the key is navigated.
+		//		How much the key is navigated.
 		// tags:
 		//		private
 		var keyIncrementMap = {
@@ -300,7 +320,7 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 		};
 		
 		var increment = keyIncrementMap[evt.keyCode];
-		var newFocusIndex = this._currentFocus.index + increment;
+		var newFocusIndex = this._currentFocus.idx + increment;
 		if(newFocusIndex < this._cells.length && newFocusIndex > -1){
 			var focusNode = this._cells[newFocusIndex].node;
 			this._setCurrent(focusNode);
@@ -308,33 +328,4 @@ dojo.declare("dojox.drawing.plugins.drawing.GreekPalette",
 	}
 });
 
-dojo.declare("dojox.drawing.plugins.Greeks",
-        null,
-{
-	// summary:
-	//		Represents a character.
-	//		Initialized using an alias for the character (like cent) rather
-	//		than with the character itself.
-
-	constructor: function(/*String*/ alias){
-		// summary:
-		//	 Construct JS object representing an entity (associated w/a cell
-		//		in the palette)
-		// value: String
-		//		alias name: 'cent', 'pound' ..
-		this._alias = alias;
-	},
-
-	getValue: function(){
-		// summary:
-		//   Returns HTML representing the character, like &amp;
-		//
-		return this._alias;
-	},
-
-	fillCell: function(/*DOMNode*/ cell){
-		// Deal with entities that have keys which are reserved words.
-		cell.innerHTML = "&"+this._alias+";";
-	}
-});
 });

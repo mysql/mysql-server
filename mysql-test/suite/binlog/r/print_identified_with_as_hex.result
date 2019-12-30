@@ -1,0 +1,17 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# This corresponds to CREATE USER foo@localhost IDENTIFIED BY 'bar'
+# But because of the salt we peg the whole hash instead.
+CREATE USER foo@localhost IDENTIFIED WITH 'caching_sha2_password' AS 0x244124303035240C4D7A6D25436F2C0A08515310644615383E2A123961484C6276734178425A446172436B58446A582F6178544A692E6F644E4F2F4E596E666276454B563336 PASSWORD HISTORY DEFAULT;
+include/sync_slave_sql_with_master.inc
+[On Slave]
+# The statement should be printed without the hex, according to the default value for the option
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '$A$005$Mzm%Co,\nQSdF8>*9aHLbvsAxBZDarCkXDjX/axTJi.odNO/NYnfbvEKV36' PASSWORD HISTORY DEFAULT
+# cleanup
+DROP USER foo@localhost;
+include/rpl_end.inc

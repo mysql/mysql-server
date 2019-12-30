@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_PROCESSOR_INDIGESTION_PROCESSOR_H_
 #define PLUGIN_X_TESTS_DRIVER_PROCESSOR_INDIGESTION_PROCESSOR_H_
 
-#include "common/utils_string_parsing.h"
-#include "processor/block_processor.h"
-#include "processor/execution_context.h"
+#include "plugin/x/tests/driver/common/utils_string_parsing.h"
+#include "plugin/x/tests/driver/processor/block_processor.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 
 class Indigestion_processor : public Block_processor {
  public:

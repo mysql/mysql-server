@@ -5,7 +5,7 @@ this.inherited(arguments);
 var _8=this;
 this.button.loadDropDown=function(_9){
 _1(["../../ColorPalette"],_4.hitch(this,function(_a){
-this.dropDown=new _a({value:_8.value,onChange:function(_b){
+this.dropDown=new _a({dir:_8.editor.dir,ownerDocument:_8.editor.ownerDocument,value:_8.value,onChange:function(_b){
 _8.editor.execCommand(_8.command,_b);
 }});
 _9();

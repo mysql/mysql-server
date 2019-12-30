@@ -75,12 +75,17 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 # Note: Retrieval of information within information_schema.columns about
 #       information_schema.tables is in is_columns_is.test.
 
-# Show that several columns are always NULL.
+# Note: Do not use mtr --sorted_result:
+# the result set contains the trigger body (sql statements),
+# which itself contains several lines.
+# This confuses --sorted_result
+
 --replace_column 17 #
 SELECT * FROM information_schema.triggers
 WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
    OR action_condition IS NOT NULL OR action_reference_old_table IS NOT NULL
-   OR action_reference_new_table IS NOT NULL;
+   OR action_reference_new_table IS NOT NULL
+   ORDER BY TRIGGER_CATALOG, TRIGGER_SCHEMA, TRIGGER_NAME;
 
 
 --echo ##################################################################################

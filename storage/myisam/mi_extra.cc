@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function);
 int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_extra");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("function: %d", (int)function));
 
   switch (function) {
@@ -204,7 +204,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
     tmp[0] = function;
     myisam_log_command(MI_LOG_EXTRA, info, (uchar *)tmp, 1, error);
   }
-  DBUG_RETURN(error);
+  return error;
 } /* mi_extra */
 
 void mi_set_index_cond_func(MI_INFO *info, index_cond_func_t func,
@@ -236,7 +236,7 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function) {
 int mi_reset(MI_INFO *info) {
   int error = 0;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_reset");
+  DBUG_TRACE;
   /*
     Free buffers and reset the following flags:
     EXTRA_CACHE, EXTRA_WRITE_CACHE, EXTRA_KEYREAD, EXTRA_QUICK
@@ -261,5 +261,5 @@ int mi_reset(MI_INFO *info) {
   info->page_changed = 1;
   info->update = ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                   HA_STATE_PREV_FOUND);
-  DBUG_RETURN(error);
+  return error;
 }

@@ -1,10 +1,9 @@
-//>>built
 define("dojox/editor/plugins/PasteFromWord", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/_base/manager",
 	"dijit/_editor/_Plugin",
+	"dijit/_base/manager",
 	"dijit/_editor/RichText",
 	"dijit/form/Button",
 	"dijit/Dialog",
@@ -13,12 +12,14 @@ define("dojox/editor/plugins/PasteFromWord", [
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/string",
-	"dojo/i18n!dojox/editor/plugins/nls/PasteFromWord"
-], function(dojo, dijit, dojox) {
+	"dojo/i18n!dojox/editor/plugins/nls/PasteFromWord",
+	"dojo/i18n!dijit/nls/common",
+	"dojo/i18n!dijit/_editor/nls/commands"
+], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.PasteFromWord",dijit._editor._Plugin,{
+var PasteFromWord = dojo.declare("dojox.editor.plugins.PasteFromWord", _Plugin, {
 	// summary:
-	//		This plugin provides PasteFromWord cabability to the editor.  When
+	//		This plugin provides PasteFromWord capability to the editor.  When
 	//		clicked, a dialog opens with a spartan RichText instance to paste
 	//		word content into via the keyboard commands.  The contents are
 	//		then filtered to remove word style classes and other meta-junk
@@ -46,7 +47,7 @@ dojo.declare("dojox.editor.plugins.PasteFromWord",dijit._editor._Plugin,{
 							"<td align='center'>",
 								"<button type='button' dojoType='dijit.form.Button' id='${uId}_paste'>${paste}</button>",
 								"&nbsp;",
-								"<button type='button' dojoType='dijit.form.Button' id='${uId}_cancel'>${cancel}</button>",
+								"<button type='button' dojoType='dijit.form.Button' id='${uId}_cancel'>${buttonCancel}</button>",
 							"</td>",
 						"</tr>",
 					"</tbody>",
@@ -71,15 +72,19 @@ dojo.declare("dojox.editor.plugins.PasteFromWord",dijit._editor._Plugin,{
 		// Strip out styles containing mso defs and margins, as likely added in IE and are not good to have as it mangles presentation.
 		{regexp: /(style="[^"]*mso-[^;][^"]*")|(style="margin:\s*[^;"]*;")/gi, handler: ""},
 		// Scripts (if any)
-		{regexp: /(<\s*script[^>]*>((.|\s)*?)<\\?\/\s*script\s*>)|(<\s*script\b([^<>]|\s)*>?)|(<[^>]*=(\s|)*[("|')]javascript:[^$1][(\s|.)]*[$1][^>]*>)/ig, handler: ""}
+		{regexp: /(<\s*script[^>]*>((.|\s)*?)<\\?\/\s*script\s*>)|(<\s*script\b([^<>]|\s)*>?)|(<[^>]*=(\s|)*[("|')]javascript:[^$1][(\s|.)]*[$1][^>]*>)/ig, handler: ""},
+		// Word 10 odd o:p tags.
+		{regexp: /<(\/?)o\:p[^>]*>/gi, handler: ""}
 	],
 
 	_initButton: function(){
-		this._filters = this._filters.slice(0); 
-		
 		// summary:
 		//		Over-ride for creation of the save button.
+		this._filters = this._filters.slice(0); 
+			
 		var strings = dojo.i18n.getLocalization("dojox.editor.plugins", "PasteFromWord");
+		dojo.mixin(strings, dojo.i18n.getLocalization("dijit", "common"));
+		dojo.mixin(strings, dojo.i18n.getLocalization("dijit._editor", "commands"));
 		this.button = new dijit.form.Button({
 			label: strings["pasteFromWord"],
 			showLabel: false,
@@ -169,6 +174,7 @@ dojo.declare("dojox.editor.plugins.PasteFromWord",dijit._editor._Plugin,{
 		content = dojox.html.format.prettyPrint(content);
 
 		// Paste it in.
+		this.editor.focus();
 		this.editor.execCommand("inserthtml", content);
 	},
 
@@ -213,12 +219,12 @@ dojo.subscribe(dijit._scopeName + ".Editor.getPlugin",null,function(o){
 	if(o.plugin){ return; }
 	var name = o.args.name.toLowerCase();
 	if(name === "pastefromword"){
-		o.plugin = new dojox.editor.plugins.PasteFromWord({
+		o.plugin = new PasteFromWord({
 			width: ("width" in o.args)?o.args.width:"400px",
 			height: ("height" in o.args)?o.args.width:"300px"
 		});
 	}
 });
 
-return dojox.editor.plugins.PasteFromWord;
+return PasteFromWord;
 });

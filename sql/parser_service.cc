@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -168,33 +168,33 @@ void *parser_service_start_routine(void *arg) {
   THD *thd = tt->m_thd;
   my_thread_init();
 
-  DBUG_ENTER("parser_service_start_routine");
+  {
+    DBUG_TRACE;
 
-  Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
-  thd->thread_stack = reinterpret_cast<char *>(&thd);
-  thd->set_new_thread_id();
-  mysql_thread_set_psi_id(thd->thread_id());
-  thd->store_globals();
-  thd->set_time();
+    Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
+    thd->thread_stack = reinterpret_cast<char *>(&thd);
+    thd->set_new_thread_id();
+    mysql_thread_set_psi_id(thd->thread_id());
+    thd->store_globals();
+    thd->set_time();
 
-  thd_manager->add_thd(thd);
-  (tt->m_fun)(tt->m_arg);
+    thd_manager->add_thd(thd);
+    (tt->m_fun)(tt->m_arg);
 
-  trans_commit_stmt(thd);
-  close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
-  close_mysql_tables(thd);
+    trans_commit_stmt(thd);
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
+    close_mysql_tables(thd);
 
-  thd->release_resources();
-  thd->restore_globals();
-  thd_manager->remove_thd(thd);
+    thd->release_resources();
+    thd->restore_globals();
+    thd_manager->remove_thd(thd);
 
-  LEX *lex = thd->lex;
-  delete thd;
-  delete lex;
-  delete tt;
-
-  DBUG_LEAVE;
+    LEX *lex = thd->lex;
+    delete thd;
+    delete lex;
+    delete tt;
+  }
   my_thread_end();
   my_thread_exit(0);
   return 0;
@@ -344,14 +344,12 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item) {
 void mysql_parser_free_string(MYSQL_LEX_STRING string) { delete[] string.str; }
 
 MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd) {
-  MYSQL_LEX_STRING str = {(char *)thd->query().str, thd->query().length};
+  MYSQL_LEX_STRING str = {const_cast<char *>(thd->query().str),
+                          thd->query().length};
   return str;
 }
 
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(MYSQL_THD thd) {
   String normalized_query = thd->normalized_query();
-
-  MYSQL_LEX_STRING str = {const_cast<char *>(normalized_query.ptr()),
-                          normalized_query.length()};
-  return str;
+  return normalized_query.lex_string();
 }

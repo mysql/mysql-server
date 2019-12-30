@@ -1,0 +1,119 @@
+# Test clone command
+
+--source ../include/clone_connection_begin.inc
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Non innodb table: .* is not cloned and is empty.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data for provisioning: .*");
+--enable_query_log
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+
+SELECT * from t1 ORDER BY col1;
+
+SELECT count(*) FROM mysql.general_log;
+SELECT count(*) FROM mysql.slow_log;
+
+# Create MyIsam and CSV tables in common schema
+CREATE TABLE t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO t_myisam VALUES(10, 'myisam not cloned row 1');
+SELECT * from t_myisam ORDER BY col1;
+
+CREATE TABLE t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO t_csv VALUES(10, 'csv not cloned row 1');
+SELECT * from t_csv ORDER BY col1;
+
+# Create MyIsam and CSV tables in separate schema
+CREATE SCHEMA non_innodb;
+CREATE TABLE non_innodb.t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO non_innodb.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO non_innodb.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO non_innodb.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+
+CREATE TABLE non_innodb.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO non_innodb.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO non_innodb.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO non_innodb.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+
+# Install Clone Plugin
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%clone%';
+
+# Clone data
+--connection clone_conn_1
+--source ../include/clone_command.inc
+
+if (!$clone_remote_replace) {
+  --connection default
+  # Restart server on cloned data directory
+  --replace_result $CLONE_DATADIR CLONE_DATADIR
+  --let restart_parameters="restart: --datadir=$CLONE_DATADIR"
+  --source include/restart_mysqld.inc
+}
+
+# Validate data
+SELECT * from t1 ORDER BY col1;
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+
+# Check MyISAM and CSV table data
+INSERT INTO t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from t_myisam ORDER BY col1;
+
+INSERT INTO t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from t_csv ORDER BY col1;
+
+INSERT INTO non_innodb.t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+
+INSERT INTO non_innodb.t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+
+# Validate query log tables;
+SELECT count(*) FROM mysql.general_log;
+SELECT count(*) FROM mysql.slow_log;
+
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+
+#Cleanup
+if (!$clone_remote_replace) {
+  --let restart_parameters="restart:"
+  --source include/restart_mysqld.inc
+}
+--connection default
+
+SELECT * from t1 ORDER BY col1;
+
+DROP TABLE t1;
+
+DROP TABLE t_myisam;
+DROP TABLE t_csv;
+
+DROP TABLE non_innodb.t_myisam;
+DROP TABLE non_innodb.t_csv;
+
+DROP SCHEMA non_innodb;
+
+if (!$clone_remote_replace) {
+  --force-rmdir $CLONE_DATADIR
+}
+
+# Clean recipient by cloning the cleaned up donor
+if ($clone_remote_replace) {
+  --connection clone_conn_1
+  --source ../include/clone_command.inc
+}
+--source ../include/clone_connection_end.inc
+
+UNINSTALL PLUGIN clone;

@@ -26,8 +26,8 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_thread_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v2);
+REQUIRES_SERVICE_PLACEHOLDER(psi_thread_v3);
 
-#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v2->M
+#define PSI_THREAD_CALL(M) mysql_service_psi_thread_v3->M
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_H */

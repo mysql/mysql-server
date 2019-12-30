@@ -125,10 +125,10 @@ inline void debug_msg(const char *fmt, ...) {
 #undef DBUG_PRINT
 #define DBUG_PRINT(Keyword, Msg) DBUG_PRINT_DO(Keyword, Msg)
 
-  /*
-    Redefine few more debug macros to make sure that no symbols from
-    dbug library are used.
-  */
+/*
+  Redefine few more debug macros to make sure that no symbols from
+  dbug library are used.
+*/
 
 #undef DBUG_ENTER
 #define DBUG_ENTER(X) \

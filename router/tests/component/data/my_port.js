@@ -1,124 +1,19 @@
-{
-    "stmts": [
-        {
-            "stmt": "select @@port",
-            "result": {
-                "columns": [
-                    {
-                        "name": "@@port",
-                        "type": "STRING"
-                    }
-                ],
+var common_stmts = require("common_statements");
 
-                "rows": [
-                    [
-                       process.env.MY_PORT
-                    ]
+var select_port = common_stmts.get("select_port");
 
-                ]
-
-            }
-
-       },
-      {
-          "stmt": "select @@port",
-          "result": {
-              "columns": [
-                  {
-                      "name": "@@port",
-                      "type": "STRING"
-                  }
-              ],
-
-              "rows": [
-                  [
-                     process.env.MY_PORT
-                  ]
-
-              ]
-
-          }
-
-     },
-    {
-        "stmt": "select @@port",
-        "result": {
-            "columns": [
-                {
-                    "name": "@@port",
-                    "type": "STRING"
-                }
-            ],
-
-            "rows": [
-                [
-                   process.env.MY_PORT
-                ]
-
-            ]
-
+({
+  stmts: function (stmt) {
+    if (stmt === select_port.stmt) {
+      return select_port;
+    } else {
+      return {
+        error: {
+          code: 1273,
+          sql_state: "HY001",
+          message: "Syntax Error at: " + stmt
         }
-
-   },
-       {
-        "stmt": "select @@port",
-        "result": {
-            "columns": [
-                {
-                    "name": "@@port",
-                    "type": "STRING"
-                }
-            ],
-
-            "rows": [
-                [
-                   process.env.MY_PORT
-                ]
-
-            ]
-
-        }
-
-   },
-       {
-        "stmt": "select @@port",
-        "result": {
-            "columns": [
-                {
-                    "name": "@@port",
-                    "type": "STRING"
-                }
-            ],
-
-            "rows": [
-                [
-                   process.env.MY_PORT
-                ]
-
-            ]
-
-        }
-
-   },
-       {
-        "stmt": "select @@port",
-        "result": {
-            "columns": [
-                {
-                    "name": "@@port",
-                    "type": "STRING"
-                }
-            ],
-
-            "rows": [
-                [
-                   process.env.MY_PORT
-                ]
-
-            ]
-
-        }
-
-   }
-    ]
-}
+      };
+    }
+  }
+})

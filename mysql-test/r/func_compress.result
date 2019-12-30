@@ -28,7 +28,7 @@ uncompressed_length(compress(@test_compress_string))
 select length(compress(@test_compress_string))<length(@test_compress_string);
 length(compress(@test_compress_string))<length(@test_compress_string)
 1
-create table t1 (a blob, b binary(255), c char(4)) engine=myisam;
+create table t1 (a blob, b binary(255), c char(4)) engine=innodb;
 insert into t1 (a,b,c) values (compress(@test_compress_string),compress(@test_compress_string),'d ');
 select uncompress(a) from t1;
 uncompress(a)
@@ -101,7 +101,7 @@ explain select * from t1 where uncompress(a) is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where isnull(uncompress(`test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (uncompress(`test`.`t1`.`a`) is null)
 select * from t1 where uncompress(a) is null;
 a
 foo

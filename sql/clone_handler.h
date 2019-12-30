@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@ Clone handler interface to access clone plugin
 #ifndef CLONE_HANDLER_INCLUDED
 #define CLONE_HANDLER_INCLUDED
 
+#include <atomic>
 #include <string>
 
 #include "my_io.h"
@@ -84,12 +85,96 @@ class Clone_handler {
   @return error code */
   int clone_remote_server(THD *thd, MYSQL_SOCKET socket);
 
+  /** @return true, if clone provisioning in progress. */
+  static bool is_provisioning() { return (s_provision_in_progress > 0); }
+
+  /** @return true, if ordered commit should be forced. Currently
+  clone would force ordered commit at end while blocking XA operations */
+  static bool need_commit_order() { return (s_xa_block_op.load()); }
+
+  /* Initialize XA counters and mutex. */
+  static void init_xa();
+
+  /* Destroy XA mutex. */
+  static void uninit_xa();
+
+  /* RAII guard for XA operation synchronization with clone. */
+  struct XA_Operation {
+    /** Constructor: mark XA operation begin.
+    @param[in]	thd	session thread */
+    explicit XA_Operation(THD *thd);
+
+    /** Destructor: mark XA operation end. */
+    ~XA_Operation();
+
+    /** Disable copy construction */
+    XA_Operation(XA_Operation const &) = delete;
+
+    /** Disable assignment */
+    XA_Operation &operator=(XA_Operation const &) = delete;
+
+   private:
+    /** Session thread holding the guard. */
+    THD *m_thd;
+  };
+
+  /* RAII guard for blocking and unblocking XA operations. */
+  struct XA_Block {
+    /** Constructor: Block all XA operations.
+    @param[in]	thd	session thread */
+    explicit XA_Block(THD *thd);
+
+    /** Destructor: unblock XA operations. */
+    ~XA_Block();
+
+    /** Disable copy construction */
+    XA_Block(XA_Block const &) = delete;
+
+    /** Disable assignment */
+    XA_Block &operator=(XA_Block const &) = delete;
+
+    /** @return true, if XA blocking is unsuccessful. */
+    bool failed() const;
+
+   private:
+    /** If blocking is successful and there is no XA operations. */
+    bool m_success;
+  };
+
  private:
+  /** Block new active XA operations and wait for existing ones to complete.
+  @param[in]	thd	session thread */
+  static bool block_xa_operation(THD *thd);
+
+  /** Unblock waiting XA operations. */
+  static void unblock_xa_operation();
+
+  /** Increment XA operation count and wait if blocked by clone.
+  @param[in]	thd	session thread */
+  static void begin_xa_operation(THD *thd);
+
+  /** Decrement XA operation count. */
+  static void end_xa_operation();
+
   /** Validate clone data directory and convert to os format
   @param[in]	in_dir	user specified clone directory
   @param[out]	out_dir	data directory in native os format
   @return error code */
   int validate_dir(const char *in_dir, char *out_dir);
+
+ private:
+  /** Number of XA operations (prepare/commit/rollback) in progress. */
+  static std::atomic<int> s_xa_counter;
+
+  /** Set when clone blocks XA operations. XA operations currently are
+  not ordered between binlog and SE and needs to be synchronized for clone. */
+  static std::atomic<bool> s_xa_block_op;
+
+  /** True if clone provisioning in progress. */
+  static std::atomic<int> s_provision_in_progress;
+
+  /** Mutex to synchronize blocking XA operation. */
+  static mysql_mutex_t s_xa_mutex;
 
   /** Clone plugin name */
   std::string m_plugin_name;

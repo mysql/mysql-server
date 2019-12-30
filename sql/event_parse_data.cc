@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@
 */
 
 void Event_parse_data::init_name(THD *thd, sp_name *spn) {
-  DBUG_ENTER("Event_parse_data::init_name");
+  DBUG_TRACE;
 
   /* We have to copy strings to get them into the right memroot */
   dbname.length = spn->m_db.length;
@@ -66,8 +66,6 @@ void Event_parse_data::init_name(THD *thd, sp_name *spn) {
   name.str = thd->strmake(spn->m_name.str, spn->m_name.length);
 
   if (spn->m_qname.length == 0) spn->init_qname(thd);
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -163,9 +161,9 @@ int Event_parse_data::init_execute_at(THD *thd) {
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_execute_at");
+  DBUG_TRACE;
 
-  if (!item_execute_at) DBUG_RETURN(0);
+  if (!item_execute_at) return 0;
 
   if (item_execute_at->fix_fields(thd, &item_execute_at)) goto wrong_value;
 
@@ -187,11 +185,11 @@ int Event_parse_data::init_execute_at(THD *thd) {
 
   execute_at_null = false;
   execute_at = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "AT", item_execute_at);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -211,8 +209,8 @@ int Event_parse_data::init_interval(THD *thd) {
   String value;
   Interval interval_tmp;
 
-  DBUG_ENTER("Event_parse_data::init_interval");
-  if (!item_expression) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_expression) return 0;
 
   switch (interval) {
     case INTERVAL_MINUTE_MICROSECOND:
@@ -221,7 +219,7 @@ int Event_parse_data::init_interval(THD *thd) {
     case INTERVAL_SECOND_MICROSECOND:
     case INTERVAL_MICROSECOND:
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
-      DBUG_RETURN(EVEX_BAD_PARAMS);
+      return EVEX_BAD_PARAMS;
     default:
       break;
   }
@@ -286,14 +284,14 @@ int Event_parse_data::init_interval(THD *thd) {
   if (interval_tmp.neg || expression == 0 ||
       expression > EVEX_MAX_INTERVAL_VALUE) {
     my_error(ER_EVENT_INTERVAL_NOT_POSITIVE_OR_TOO_BIG, MYF(0));
-    DBUG_RETURN(EVEX_BAD_PARAMS);
+    return EVEX_BAD_PARAMS;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "INTERVAL", item_expression);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -321,8 +319,8 @@ int Event_parse_data::init_starts(THD *thd) {
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_starts");
-  if (!item_starts) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_starts) return 0;
 
   if (item_starts->fix_fields(thd, &item_starts)) goto wrong_value;
 
@@ -337,11 +335,11 @@ int Event_parse_data::init_starts(THD *thd) {
 
   starts_null = false;
   starts = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 wrong_value:
   report_bad_value(thd, "STARTS", item_starts);
-  DBUG_RETURN(ER_WRONG_VALUE);
+  return ER_WRONG_VALUE;
 }
 
 /*
@@ -369,8 +367,8 @@ int Event_parse_data::init_ends(THD *thd) {
   MYSQL_TIME ltime;
   my_time_t ltime_utc;
 
-  DBUG_ENTER("Event_parse_data::init_ends");
-  if (!item_ends) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (!item_ends) return 0;
 
   if (item_ends->fix_fields(thd, &item_ends)) goto error_bad_params;
 
@@ -389,11 +387,11 @@ int Event_parse_data::init_ends(THD *thd) {
 
   ends_null = false;
   ends = ltime_utc;
-  DBUG_RETURN(0);
+  return 0;
 
 error_bad_params:
   my_error(ER_EVENT_ENDS_BEFORE_STARTS, MYF(0));
-  DBUG_RETURN(EVEX_BAD_PARAMS);
+  return EVEX_BAD_PARAMS;
 }
 
 /*
@@ -430,13 +428,13 @@ void Event_parse_data::report_bad_value(THD *thd, const char *item_name,
 
 bool Event_parse_data::check_parse_data(THD *thd) {
   bool ret;
-  DBUG_ENTER("Event_parse_data::check_parse_data");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("execute_at: %p  expr=%p  starts=%p  ends=%p", item_execute_at,
               item_expression, item_starts, item_ends));
 
   if (is_invalid_string(to_lex_cstring(comment), system_charset_info))
-    DBUG_RETURN(true);
+    return true;
 
   init_name(thd, identifier);
 
@@ -445,7 +443,7 @@ bool Event_parse_data::check_parse_data(THD *thd) {
   ret = init_execute_at(thd) || init_interval(thd) || init_starts(thd) ||
         init_ends(thd);
   check_originator_id(thd);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*
@@ -457,7 +455,7 @@ bool Event_parse_data::check_parse_data(THD *thd) {
 */
 
 void Event_parse_data::init_definer(THD *thd) {
-  DBUG_ENTER("Event_parse_data::init_definer");
+  DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->definer);
 
@@ -483,8 +481,6 @@ void Event_parse_data::init_definer(THD *thd) {
   memcpy(definer.str + definer_user_len + 1, definer_host, definer_host_len);
   definer.str[definer.length] = '\0';
   DBUG_PRINT("info", ("definer [%s] initted", definer.str));
-
-  DBUG_VOID_RETURN;
 }
 
 /**

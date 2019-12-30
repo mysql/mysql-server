@@ -5,9 +5,6 @@
 # -----------
 # Numeric floating point.
 
---disable_warnings
-drop table if exists t1,t2;
---enable_warnings
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 SELECT 6e-16, -6e-16, --6e-16, -6e-16+1.000000;
@@ -45,10 +42,7 @@ create table t1 (c1 double, c2 varchar(20));
 insert t1 values (121,"16");
 select c1 + c1 * (c2 / 100) as col from t1;
 create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round(c1, 35) as col3, sqrt(c1*1e-15) col4 from t1;
-# Floats are a bit different in PS
---disable_ps_protocol
 select * from t2;
---enable_ps_protocol
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -126,26 +120,6 @@ select * from t1;
 drop table t1;
 
 #
-# Test of comparison of integer with float-in-range (Bug #7840)
-# This is needed because some ODBC applications (like Foxpro) uses
-# floats for everything.
-#
-
-CREATE TABLE t1 (
-  reckey int unsigned NOT NULL,
-  recdesc varchar(50) NOT NULL,
-  PRIMARY KEY  (reckey)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-
-INSERT INTO t1 VALUES (108, 'Has 108 as key');
-INSERT INTO t1 VALUES (109, 'Has 109 as key');
-select * from t1 where reckey=108;
-select * from t1 where reckey=1.08E2;
-select * from t1 where reckey=109;
-select * from t1 where reckey=1.09E2;
-drop table t1;
-
-#
 # Bug #13372 (decimal union)
 #
 create table t1 (d double(10,1));
@@ -197,7 +171,7 @@ insert into t1 values
 (5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
 (3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
---replace_result 27 26 25 26
+ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;
@@ -205,7 +179,7 @@ select sum(b) s from t1 group by a having s <> 0 order by s;
 select sum(b) s from t1 group by a having s <=> 0;
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 alter table t1 add key (a, b);
---replace_result 27 26 25 26
+ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;
@@ -369,3 +343,147 @@ SELECT * from t5u;
 SELECT * from t5s;
 
 DROP TABLE t5u, t5s;
+
+--echo #
+--echo # WL#12575: Deprecate AUTO_INCREMENT on DOUBLE and FLOAT
+--echo #
+
+CREATE TABLE t1(a FLOAT PRIMARY KEY AUTO_INCREMENT);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3(a FLOAT);
+ALTER TABLE t3 MODIFY COLUMN a FLOAT PRIMARY KEY AUTO_INCREMENT;
+CREATE TABLE t4(a INT PRIMARY KEY);
+ALTER TABLE t4 DROP PRIMARY KEY, ADD COLUMN b FLOAT PRIMARY KEY AUTO_INCREMENT;
+DROP TABLE t4, t3, t2, t1;
+
+CREATE TABLE t1(a DOUBLE PRIMARY KEY AUTO_INCREMENT);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3(a DOUBLE);
+ALTER TABLE t3 MODIFY COLUMN a DOUBLE PRIMARY KEY AUTO_INCREMENT;
+CREATE TABLE t4(a INT PRIMARY KEY);
+ALTER TABLE t4 DROP PRIMARY KEY, ADD COLUMN b DOUBLE PRIMARY KEY AUTO_INCREMENT;
+DROP TABLE t4, t3, t2, t1;
+
+--echo #
+--echo # WL#12595: Deprecate the ability to specify number of digits
+--echo #           for floating point types
+--echo #
+
+CREATE TABLE t1(a FLOAT(255,0));
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a FLOAT);
+ALTER TABLE t4 MODIFY COLUMN a FLOAT(255,0);
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b FLOAT(255,0);
+# This statement should not give a warning.
+CREATE TABLE t6(a FLOAT(12)); # Not supported for DOUBLE/REAL
+DROP TABLE t6, t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a DOUBLE(42,12));
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE(42,12);
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE(42,12);
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a DOUBLE PRECISION(42,12));
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE PRECISION(42,12);
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE PRECISION(42,12);
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a REAL(42,12));
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a REAL);
+ALTER TABLE t4 MODIFY COLUMN a REAL(42,12);
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b REAL(42,12);
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE FUNCTION f1(a FLOAT(255,0)) RETURNS DOUBLE(12,3) RETURN 1;
+DROP FUNCTION f1;
+delimiter ||;
+CREATE PROCEDURE p1(IN a FLOAT(255,0), OUT b DOUBLE(12,3))
+BEGIN
+  SELECT 1 INTO b;
+END||
+delimiter ;||
+DROP PROCEDURE p1;
+
+--echo #
+--echo # WL#12391: Deprecate unsigned attribute for DECIMAL and FLOAT data types
+--echo #
+
+CREATE TABLE t1(a FLOAT UNSIGNED);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a FLOAT);
+ALTER TABLE t4 MODIFY COLUMN a FLOAT UNSIGNED;
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b FLOAT UNSIGNED;
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a DOUBLE UNSIGNED);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a DOUBLE);
+ALTER TABLE t4 MODIFY COLUMN a DOUBLE UNSIGNED;
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DOUBLE UNSIGNED;
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a REAL UNSIGNED);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a REAL);
+ALTER TABLE t4 MODIFY COLUMN a REAL UNSIGNED;
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b REAL UNSIGNED;
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE TABLE t1(a DECIMAL(4,2) UNSIGNED);
+# This statement should not give a warning.
+ALTER TABLE t1 ADD COLUMN b INT;
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+CREATE TABLE t4(a DECIMAL(4,2));
+ALTER TABLE t4 MODIFY COLUMN a DECIMAL(4,2) UNSIGNED;
+CREATE TABLE t5(a INT PRIMARY KEY);
+ALTER TABLE t5 ADD COLUMN b DECIMAL(4,2) UNSIGNED;
+DROP TABLE t5, t4, t3, t2, t1;
+
+CREATE FUNCTION f1(a FLOAT UNSIGNED) RETURNS DOUBLE UNSIGNED RETURN 1;
+DROP FUNCTION f1;
+delimiter ||;
+CREATE PROCEDURE p1(IN a FLOAT UNSIGNED, OUT b DOUBLE UNSIGNED)
+BEGIN
+  SELECT 1 INTO b;
+END||
+delimiter ;||
+DROP PROCEDURE p1;
+

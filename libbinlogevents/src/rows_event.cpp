@@ -85,7 +85,7 @@ Table_map_event::Table_map_event(const char *buf,
 
   if (READER_CALL(available_to_read) > 0) {
     READER_TRY_SET(m_field_metadata_size, net_field_length_ll);
-    if (m_field_metadata_size > (m_colcnt * 2))
+    if (m_field_metadata_size > (m_colcnt * 4))
       READER_THROW("Invalid m_field_metadata_size");
     unsigned int num_null_bytes = (m_colcnt + 7) / 8;
     READER_TRY_CALL(alloc_and_memcpy, &m_field_metadata, m_field_metadata_size,
@@ -469,7 +469,7 @@ bool Rows_event::Extra_row_info::compare_extra_row_info(
     int source_part_id_arg) {
   const unsigned char *ndb_row_info = m_extra_row_ndb_info;
   bool ndb_info = ((ndb_info_arg == ndb_row_info) ||
-                   ((ndb_info_arg != NULL) && (ndb_row_info != NULL) &&
+                   ((ndb_info_arg != nullptr) && (ndb_row_info != nullptr) &&
                     (ndb_info_arg[EXTRA_ROW_INFO_LEN_OFFSET] ==
                      ndb_row_info[EXTRA_ROW_INFO_LEN_OFFSET]) &&
                     (memcmp(ndb_info_arg, ndb_row_info,

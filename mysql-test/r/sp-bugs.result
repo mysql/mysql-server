@@ -372,9 +372,13 @@ SET sql_mode= default;
 #
 CREATE FUNCTION crc(_text TEXT) RETURNS BIGINT(20) UNSIGNED DETERMINISTIC
 RETURN CONV(LEFT(MD5(_text),16),16,10);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t1 (
 id bigint(20) UNSIGNED NOT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (id) VALUES (crc('photos'));
 INSERT INTO t1 (id) VALUES (crc('photos1'));
 ALTER TABLE t1 ADD INDEX idx (id);

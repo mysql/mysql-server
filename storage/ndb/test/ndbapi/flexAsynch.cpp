@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include <NdbTest.hpp>
 #include <NDBT_Stats.hpp>
 #include <NdbLockCpuUtil.h>
+#include <ndb_limits.h>
 
 #define MAX_PARTS 4 
 #define MAX_SEEK 16 
@@ -50,7 +51,7 @@
 #define MAX_EXECUTOR_THREADS 384
 #define MAX_DEFINER_THREADS 32
 #define MAX_REAL_THREADS 416
-#define NDB_MAX_NODES 48
+#define NDB_MAX_NODES (MAX_NDB_NODES - 1)
 #define NDB_MAX_RECEIVE_CPUS 128
 /*
   NDB_MAXTHREADS used to be just MAXTHREADS, which collides with a
@@ -848,7 +849,7 @@ executeCallback(int result, NdbConnection* transObject, void* aObject)
       /* What can we do here? */
       ndbout_c("execute: %s", transObject->getNdbError().message);
     }//if(retCode == 3)
-    //    ndbout << "Error occured in poll:" << endl;
+    //    ndbout << "Error occurred in poll:" << endl;
     //    ndbout << NdbObject->getNdbError() << endl;
     failed++ ;
   }//if

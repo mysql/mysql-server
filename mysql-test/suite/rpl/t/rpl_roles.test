@@ -85,10 +85,51 @@ SELECT * FROM mysql.role_edges;
 START SLAVE IO_THREAD;
 --source include/wait_for_slave_io_to_start.inc
 
+--echo
+--echo # Verify if 'DEFAULT ROLE' clause is bin-logged.
+--echo
+--enable_connect_log
+--source include/rpl_connection_master.inc
+CREATE USER u2@localhost DEFAULT ROLE r1, r2;
+CREATE USER u3@localhost DEFAULT ROLE r1;
+--echo
+SHOW GRANTS FOR u2@localhost;
+--echo
+SHOW GRANTS FOR u3@localhost;
+--source include/sync_slave_sql_with_master.inc
+# Check if roles are granted to the users on slave
+SHOW GRANTS FOR u2@localhost;
+SHOW GRANTS FOR u3@localhost;
+--echo
+SHOW CREATE USER u2@localhost;
+SHOW CREATE USER u3@localhost;
+--source include/rpl_connection_master.inc
+--echo
+ALTER USER u2@localhost DEFAULT ROLE NONE;
+SHOW GRANTS FOR u3@localhost;
+ALTER USER u2@localhost DEFAULT ROLE r1;
+GRANT r2 TO u3@localhost;
+ALTER USER u3@localhost DEFAULT ROLE ALL;
+SHOW GRANTS FOR u3@localhost;
+ALTER USER u3@localhost DEFAULT ROLE r2;
+# Now, u2 and u3 should have only one role on master
+SHOW GRANTS FOR u2@localhost;
+SHOW GRANTS FOR u3@localhost;
+--echo
+--source include/sync_slave_sql_with_master.inc
+# u2 and u3 should have only one role on slave as well
+SHOW GRANTS FOR u2@localhost;
+SHOW GRANTS FOR u3@localhost;
+--echo
+SHOW CREATE USER u2@localhost;
+SHOW CREATE USER u3@localhost;
+--disable_connect_log
+
+--echo
 --echo # Cleanup Statement
 --source include/rpl_connection_master.inc
 DROP ROLE r1, r2, r3,r4;
-DROP USER u1@localhost;
+DROP USER u1@localhost, u2@localhost, u3@localhost;
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;

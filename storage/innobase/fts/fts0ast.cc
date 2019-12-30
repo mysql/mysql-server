@@ -356,9 +356,8 @@ fts_ast_node_t *fts_ast_add_node(
 }
 
 /** Set the wildcard attribute of a term. */
-void fts_ast_term_set_wildcard(
-    fts_ast_node_t *node) /*!< in/out: set attribute of
-                          a term node */
+void fts_ast_term_set_wildcard(fts_ast_node_t *node) /*!< in/out: set attribute
+                                                     of a term node */
 {
   if (!node) {
     return;

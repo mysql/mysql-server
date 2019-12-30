@@ -1,0 +1,857 @@
+--source include/no_valgrind_without_big.inc
+--source include/have_innodb_max_16k.inc
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS UNSIGNED ARRAY)));
+INSERT INTO t1(f1) VALUES(CAST('[1333,1321]' AS JSON));
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS CHAR(10) ARRAY)));
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (
+  j4 json ,
+  KEY mv_idx_binary ((( CAST(j4->'$[*]' AS BINARY(10) ARRAY))), (json_depth(j4)), (json_valid(j4))) USING BTREE);
+
+INSERT INTO t1 VALUES ('["foobar"]');
+SELECT * FROM t1 WHERE "foobar" MEMBER OF (j4->'$[*]');
+DELETE FROM t1;
+
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS DECIMAL(4,2) ARRAY)));
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+UPDATE t1 SET f1 = NULL;
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE f1 IS NULL;
+UPDATE t1 SET f1 = CAST('["13.33","13.21"]' AS JSON);
+SELECT * FROM t1 WHERE f1 IS NULL;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+UPDATE t1 SET f1 = CAST('["12.34","56.78"]' AS JSON);
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+UPDATE t1 SET f1 = CAST('["43.21","98.76", "76.54"]' AS JSON);
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 43.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+DROP TABLE t1;
+
+
+CREATE TEMPORARY TABLE IF NOT EXISTS t1 (
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary (( CAST(j->'$[*]' AS CHAR(10) ARRAY) ))  );
+
+INSERT INTO t1 VALUES() ;
+SELECT * FROM t1;
+UPDATE t1 SET j = CAST('["HelloMySQL"]' AS JSON);
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+DELETE FROM t1;
+
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1(j JSON, KEY i1((CAST(j AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES('[1,2,3]'), ('[]'), (NULL);
+SELECT * FROM t1;
+UPDATE t1 SET j = '[]' WHERE j IS NULL;
+SELECT * FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 VALUES('[1,2,3]'), ('[]'), (NULL);
+UPDATE t1 SET j = NULL;
+SELECT * FROM t1;
+DELETE FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary ((CAST(j->'$[*]' AS BINARY(10) ARRAY))));
+INSERT INTO t1 VALUES();
+ALTER TABLE t1 DROP INDEX mv_idx_binary ;
+CREATE INDEX mv_idx_binary ON t1 ((CAST( j -> '$[*]' AS BINARY(10) ARRAY))) VISIBLE;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+
+
+CREATE TABLE IF NOT EXISTS t1 (
+  j2 JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)),
+  j3 JSON DEFAULT (CAST('["foobar"]' AS JSON)),
+  KEY mv_idx_unsigned (( CAST(j2->'$[*]' AS UNSIGNED ARRAY) )) ,
+  KEY mv_idx_char (( CAST(j3->'$[*]' AS CHAR(10) ARRAY) ))
+);
+INSERT INTO t1(j3) VALUES(CAST('[ "foobar", "HelloWorld", "MySQL", "1234" ]' AS JSON));
+INSERT INTO t1(j3) VALUES(CAST('[ "Hello", "World", "InnoDB", "56" ]' AS JSON));
+SELECT * FROM t1;
+DELETE FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1 (j JSON, key i1((cast(j->"$.id" AS CHAR(10) ARRAY))), key i2((cast(j->"$.id" AS UNSIGNED ARRAY))));
+INSERT INTO t1 VALUES('{"id":1}');
+INSERT INTO t1 VALUES('{"group":2}');
+INSERT INTO t1 VALUES(NULL);
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+
+CREATE TABLE t1(j JSON);
+
+INSERT INTO t1 VALUES('[]'), ('null');
+
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES (CAST('[9,8,0,1]' AS JSON));
+
+CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+
+DROP TABLE t1;
+
+
+
+CREATE TABLE IF NOT EXISTS t1 (
+           i INT DEFAULT 100,
+           j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+           KEY mv_idx_binary (( CAST(j->'$[*]' AS BINARY(10) ARRAY) )) );
+
+INSERT INTO t1 VALUES();
+
+SELECT * FROM t1;
+
+connect (conn1,localhost,root,,);
+START TRANSACTION;
+DELETE FROM t1;
+
+connection default;
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+
+connection conn1;
+COMMIT;
+disconnect conn1;
+
+connection default;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+
+# Test a SELECT should read the consistent result with concurrent UPDATE
+CREATE TABLE t1 (f1 JSON, UNIQUE KEY i1((CAST(f1->"$[*]" AS CHAR(10) ARRAY))));
+INSERT INTO t1(f1) VALUES(CAST('["abc", "abc "]' AS JSON));
+
+connect (conn1,localhost,root,,);
+START TRANSACTION;
+
+SELECT * FROM t1 WHERE "abc" MEMBER OF (f1->"$[*]");
+
+connection default;
+UPDATE t1 SET f1 = CAST('["def"]' AS JSON);
+
+connection conn1;
+SELECT * FROM t1 WHERE "def" MEMBER OF (f1->"$[*]");
+ROLLBACK;
+
+connection default;
+disconnect conn1;
+
+DROP TABLE t1;
+
+
+
+# Test insert the same value with the deleted one, the purge
+# can handle it properly
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS UNSIGNED ARRAY)));
+
+INSERT INTO t1 VALUES(0, NULL);
+
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES(1, NULL);
+
+SELECT * FROM t1;
+
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES(2, CAST('[10]' AS JSON));
+
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES(3, CAST('[10]' AS JSON));
+
+--source include/wait_innodb_all_purged.inc
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+# Test update the same record several times, the purge
+# can handle it properly
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS DECIMAL(4,2) ARRAY)));
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+UPDATE t1 SET f1 = NULL;
+UPDATE t1 SET f1 = CAST('["13.33","13.21"]' AS JSON);
+
+--source include/wait_innodb_all_purged.inc
+
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE f1 IS NULL;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+
+UPDATE t1 SET f1 = CAST('["12.34","56.78"]' AS JSON);
+UPDATE t1 SET f1 = CAST('["43.21","98.76", "76.54"]' AS JSON);
+
+--source include/wait_innodb_all_purged.inc
+
+CHECK TABLE t1;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 43.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+DROP TABLE t1;
+
+
+
+# Test if any previous DELETE / UPDATE failed, the multi-value
+# position of them will always be reset for next DELETE & UPDATE
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `j1` json DEFAULT (cast(_utf8mb4'[5,-1,0]' as json)),
+  `j2` json DEFAULT (cast(_utf8mb4'[9,8,0,1]' as json)),
+  `j3` json DEFAULT (cast(_utf8mb4'["foobar"]' as json)),
+  `j4` json DEFAULT (cast(_utf8mb4'["HelloWorld"]' as json)),
+  `j5` json DEFAULT (json_array(now())),
+  `j7` json DEFAULT (json_array(cast(now() as time))),
+  `extra` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mv_idx_binary` ((json_length(`j3`)),(cast(json_extract(`j4`,_utf8mb4'$[*]') as binary(10) array)),(json_depth(`j2`))),
+  KEY `mv_idx_signed` ((cast(json_extract(`j1`,_utf8mb4'$[*]') as signed array))),
+  KEY `mv_idx_unsigned` ((cast(json_extract(`j2`,_utf8mb4'$[*]') as unsigned array))),
+  KEY `mv_idx_char` ((cast(json_extract(`j3`,_utf8mb4'$[*]') as char(10) array))),
+  KEY `mv_idx_time` ((cast(json_extract(`j7`,_utf8mb4'$[*]') as time array)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT( 'key1' , CAST( '2019-11-27 03:43:53' AS DATETIME)) );
+INSERT INTO t1 VALUES();
+DELETE FROM t1 WHERE ( JSON_OVERLAPS( JSON_OBJECT( 'key1' , CAST(null AS JSON)) , j1 -> '$[*]' ) ) XOR ( JSON_CONTAINS( j5 -> '$[*]' , JSON_OBJECT('key1' , CAST(CONCAT( '[ 1, 2, 3, ' , null, ', 5 ]' ) AS JSON)) ) );
+
+--error ER_DUP_ENTRY
+UPDATE t1 SET j4 = '["foobar", "HelloWorld", "MySQL", "1234" ]' WHERE NOT ('');
+UPDATE t1 SET j7 = JSON_OBJECT( 'key1' , JSON_OBJECT()) WHERE JSON_OBJECT('key1' , CAST( '[]' AS JSON)) MEMBER OF ( j1 -> '$[*]' );
+DELETE FROM t1;
+
+CHECK TABLE t1;
+DROP TABLE t1;
+
+
+
+# Test DML mixed with DDL
+
+CREATE TABLE IF NOT EXISTS t1 (
+   j2 JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)),
+   j8 JSON DEFAULT (JSON_ARRAY(3.1456,6.022,-1)),
+   KEY mv_idx_unsigned (( CAST(j2->'$[*]' AS UNSIGNED ARRAY) )) ,
+   KEY mv_idx_decimal (( CAST(j8->'$[*]' AS DECIMAL(10,4) ARRAY) )) );
+
+ALTER TABLE t1 DROP INDEX mv_idx_decimal;
+INSERT INTO t1 VALUES();
+DELETE FROM t1;
+ALTER TABLE t1 DROP INDEX mv_idx_unsigned;
+SELECT * FROM t1;
+
+--source include/wait_innodb_all_purged.inc
+# Sleep a while to make sure purge will finish the work
+sleep 3;
+
+DROP TABLE t1;
+
+
+# Test the UPDATE scenario when the update doesn't touch one multi-value
+# data, but the value still need to be calculated and remembered.
+
+CREATE TABLE IF NOT EXISTS t1 ( id int AUTO_INCREMENT PRIMARY KEY, j1 JSON DEFAULT (CAST('[5,-1,0]' AS JSON)), j2 JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)), j3 JSON DEFAULT (CAST('["foobar"]' AS JSON)), j4 JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)), j5 JSON DEFAULT (JSON_ARRAY(NOW())), j6 JSON DEFAULT (JSON_ARRAY(DATE(NOW()), DATE(NOW()), DATE(NOW()))), j7 JSON DEFAULT (JSON_ARRAY(TIME(NOW()))), j8 JSON DEFAULT (JSON_ARRAY(3.1456,6.022,-1)), KEY mv_idx_signed (( CAST(j1->'$[*]' AS SIGNED ARRAY) )) , KEY mv_idx_unsigned (( CAST(j2->'$[*]' AS UNSIGNED ARRAY) )) , KEY mv_idx_char (( CAST(j3->'$[*]' AS CHAR(10) ARRAY) )) , KEY mv_idx_binary (( CAST(j4->'$[*]' AS BINARY(10) ARRAY) )) , KEY mv_idx_datetime (( CAST(j5->'$[*]' AS DATETIME ARRAY) )) , KEY mv_idx_date (( CAST(j6->'$[*]' AS DATE ARRAY) )) , KEY mv_idx_time (( CAST(j7->'$[*]' AS TIME ARRAY) )) , KEY mv_idx_decimal (( CAST(j8->'$[*]' AS DECIMAL(10,4) ARRAY) )) ) ;
+SET autocommit=0 ;
+SET SESSION sql_mode ='' ;
+DELETE FROM t1 WHERE 0 ;
+INSERT INTO t1 SELECT * FROM t1  GROUP BY j2 ;
+INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT( 'key1' , CAST( '2007-08-18' AS DATE)) ) ;
+INSERT INTO t1 VALUES() ;
+# Disable the result log in case of result mismatch for 'Extra' when
+# running with binlog-format=mixed
+--disable_result_log
+EXPLAIN DELETE FROM t1 ;
+--enable_result_log
+ALTER TABLE t1 RENAME KEY mv_idx_signed to new_idx_1 ;
+ALTER TABLE t1 RENAME KEY new_idx_1 to mv_idx_signed ;
+UPDATE t1  SET j5 = JSON_OBJECT( 'key1' , true) WHERE ( 1 ) AND ( 0 ) XOR ( '' ) ;
+ALTER TABLE t1 DROP INDEX mv_idx_datetime ;
+ALTER TABLE t1 ADD COLUMN extra JSON ;
+UPDATE t1 SET extra = j1 ;
+ALTER TABLE t1 DROP INDEX mv_idx_date ;
+INSERT INTO t1 VALUES() ;
+DELETE FROM t1 ;
+EXPLAIN UPDATE t1 IGNORE KEY FOR JOIN ( mv_idx_decimal ) SET j4 = JSON_OBJECT( 'key1' , CAST( '12:58:44' AS TIME)) WHERE ( 1 ) OR ( '' ) ;
+INSERT INTO t1 SELECT * FROM t1  GROUP BY j2 ORDER BY j6 DESC ;
+UPDATE t1 USE INDEX FOR ORDER BY ( mv_idx_char , mv_idx_unsigned , mv_idx_binary ) SET j5 = JSON_ARRAY(CAST(-69.56 AS DECIMAL (10,3)), CAST(PI() AS DECIMAL(10,5)), 1947.95) WHERE 1 ;
+INSERT INTO t1 ( j2 ) VALUES( JSON_OBJECT( 'key1' , 'to' ) ) ;
+ALTER TABLE t1 DROP INDEX mv_idx_decimal ;
+EXPLAIN SELECT * FROM t1  WHERE 0  ORDER BY j6 ;
+INSERT INTO t1 VALUES() ;
+UPDATE t1  SET j1 = CAST( '[ -1 , 10, 7, 6, -999 ]' AS JSON ) WHERE 0 ;
+DELETE FROM t1 WHERE NOT ( '' ) ;
+ALTER TABLE t1 RENAME KEY mv_idx_binary to new_idx_1 ;
+ALTER TABLE t1 RENAME KEY new_idx_1 to mv_idx_binary ;
+EXPLAIN INSERT INTO t1 ( j3 ) VALUES( JSON_OBJECT( 'key1' , CAST(null AS JSON)) ) ;
+DELETE FROM t1 ;
+CREATE  INDEX mv_idx_decimal  ON t1 (( CAST( j8 -> '$[*]' AS DECIMAL(10,4) ARRAY) )) VISIBLE ;
+INSERT INTO t1 VALUES() ;
+INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT() ) ;
+ALTER TABLE t1 RENAME KEY mv_idx_binary to new_idx_1 ;
+ALTER TABLE t1 RENAME KEY new_idx_1 to mv_idx_binary ;
+EXPLAIN DELETE FROM t1 WHERE '' ;
+DELETE FROM t1 WHERE '2034-10-29 21:05:14' MEMBER OF ( j8 -> '$[*]' ) ;
+INSERT INTO t1 VALUES() ;
+UPDATE t1  SET j5 = '[7, 5, 1, -56, -45]' WHERE 0 ;
+ALTER TABLE t1 DROP INDEX mv_idx_time ;
+ALTER TABLE t1 DROP INDEX mv_idx_binary ;
+ALTER TABLE t1 ADD  INDEX mv_idx_date  ( ( JSON_DEPTH( j3 ) ) ,( CAST( j6 -> '$.key1[*]' AS DATE ARRAY) ), ( JSON_LENGTH( j7 ) ) ) VISIBLE ;
+INSERT INTO t1 ( j4 ) VALUES( JSON_OBJECT( 'key1' , CAST( '1978-09-05 12:08:06' AS DATETIME)) ) ;
+ALTER TABLE t1 ADD  INDEX mv_idx_time USING HASH ( ( JSON_LENGTH( j5 ) ) , ( JSON_DEPTH( j1 ) ) ,( CAST( j7 -> '$.key1' AS TIME ARRAY) )) INVISIBLE ;
+INSERT INTO t1 VALUES() ;
+INSERT INTO t1 VALUES() ;
+UPDATE t1  SET j3 = JSON_OBJECT( 'key1' , 3 ) WHERE ( '' ) XOR ( 1 ) OR ( 0 ) ;
+ROLLBACK;
+UPDATE t1  SET j3 = JSON_OBJECT( 'key1' , 3 ) WHERE ( '' ) XOR ( 1 ) OR ( 0 ) ;
+DROP TABLE t1;
+
+SET autocommit = default;
+SET SESSION sql_mode = default;
+
+
+
+# Test re-build table will work properly, because all multi-value columns
+# are also re-built correctly according to table definition.
+SET autocommit=0;
+SET SESSION sql_mode ='';
+
+CREATE TABLE IF NOT EXISTS t1 ( id int AUTO_INCREMENT PRIMARY KEY, j1 JSON DEFAULT (CAST( '[5,-1,0]' AS JSON)), j2 JSON DEFAULT (CAST( '[9,8,0,1]' AS JSON)), j3 JSON DEFAULT (CAST( '["foobar"]' AS JSON)), j4 JSON DEFAULT (CAST( '["HelloWorld"]' AS JSON)), j5 JSON DEFAULT (JSON_ARRAY(NOW())), j6 JSON DEFAULT (JSON_ARRAY(DATE(NOW()), DATE(NOW()), DATE(NOW()))), j7 JSON DEFAULT (JSON_ARRAY(TIME(NOW()))), j8 JSON DEFAULT (JSON_ARRAY(3.1456,6.022,-1)), KEY mv_idx_signed (( CAST(j1-> '$[*]' AS SIGNED ARRAY) )) , KEY mv_idx_unsigned (( CAST(j2-> '$[*]' AS UNSIGNED ARRAY) )) , KEY mv_idx_char (( CAST(j3-> '$[*]' AS CHAR(10) ARRAY) )) , KEY mv_idx_binary (( CAST(j4-> '$[*]' AS BINARY(10) ARRAY) )) , KEY mv_idx_datetime (( CAST(j5-> '$[*]' AS DATETIME ARRAY) )) , KEY mv_idx_date (( CAST(j6-> '$[*]' AS DATE ARRAY) )) , KEY mv_idx_time (( CAST(j7-> '$[*]' AS TIME ARRAY) )) , KEY mv_idx_decimal (( CAST(j8-> '$[*]' AS DECIMAL(10,4) ARRAY) )) );
+
+SELECT * FROM t1  WHERE NOT ( JSON_ARRAY(TIME(NOW()), CAST( '00:00:00' AS TIME)) MEMBER OF ( j2 -> '$[*]' ) ) GROUP BY j4  LIMIT 84;
+INSERT INTO t1 SELECT * FROM t1 FORCE KEY FOR JOIN ( mv_idx_decimal , mv_idx_char );
+SELECT * FROM t1 IGNORE INDEX FOR ORDER BY ( mv_idx_date , mv_idx_binary ) WHERE ( 0 ) XOR ( 1 ) GROUP BY j5 ORDER BY j3;
+ALTER TABLE t1 DROP INDEX mv_idx_time;
+INSERT INTO t1 VALUES();
+CHECK TABLE t1;
+SELECT * FROM t1  WHERE 0;
+DELETE FROM t1;
+CHECK TABLE t1;
+INSERT INTO t1 SELECT * FROM t1  GROUP BY j3 ORDER BY j7;
+INSERT INTO t1 VALUES();
+ALTER TABLE t1 ADD COLUMN extra JSON;
+UPDATE t1 SET extra = j5;
+ALTER TABLE t1 DROP INDEX mv_idx_datetime;
+ALTER TABLE t1 DROP COLUMN j5;
+ALTER TABLE t1 CHANGE COLUMN extra j5 JSON;
+DELETE FROM t1 WHERE '';
+INSERT INTO t1 ( j1 ) VALUES( JSON_OBJECT( 'key1' , CAST( '00:52:03' AS TIME)) );
+ALTER TABLE t1 ADD COLUMN extra JSON;
+UPDATE t1 SET extra = j5;
+ALTER TABLE t1 DROP INDEX mv_idx_date;
+SELECT id, j1, j2, j3, j4 FROM t1;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 DROP COLUMN j5;
+CHECK TABLE t1;
+SELECT id, j1, j2, j3, j4 FROM t1 WHERE "foobar" MEMBER OF (j3->'$[*]');
+SELECT id, j1, j2, j3, j4 FROM t1 WHERE "HelloWorld" MEMBER OF (j4->'$[*]');
+DROP TABLE t1;
+
+SET autocommit = default;
+SET SESSION sql_mode = default;
+
+
+# Test if the multi-value field is not of the first index field.
+SET SESSION sql_mode = '';
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `j1` json DEFAULT (cast(_utf8mb4'[5,-1,0]' as json)),
+  `j2` json DEFAULT (cast(_utf8mb4'[9,8,0,1]' as json)),
+  `j3` json DEFAULT (cast(_utf8mb4'["foobar"]' as json)),
+  `j4` json DEFAULT (cast(_utf8mb4'["HelloWorld"]' as json)),
+  `j5` json DEFAULT (json_array(now())),
+  `j6` json DEFAULT (json_array(cast(now() as date),cast(now() as date),cast(now() as date))),
+  `j7` json DEFAULT (json_array(cast(now() as time))),
+  `j8` json DEFAULT (json_array(3.1456,6.022,-(1))),
+  `extra` json DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mv_idx_signed` ((json_length(`j5`)),(cast(json_extract(`j1`,_utf8mb4'$.key1[*]') as signed array)),(json_depth(`j3`))) USING BTREE,
+  KEY `mv_idx_char` ((cast(json_extract(`j3`,_utf8mb4'$.key2') as char(10) array)),(json_length(`j7`)),(((strcmp(_utf8mb4' ',_utf8mb4'NwKf2G3hn6eKy8TCMVTfh0xgGZfg68dchTUUxQtg9xfvCdePZCAxIZEvUETuWATcdjuOLZx') <> (_utf8mb4'6q' like _utf8mb4'_world_')) and (_utf8mb4'1994-01-16 22:25:11' not between _utf8mb4'2033-04-12 09:41:42' and _utf8mb4'1991-05-20 06:44:18')))),
+  KEY `mv_idx_unsigned` ((json_length(`j3`)),(json_valid(`j4`)),(cast(json_extract(`j2`,_utf8mb4'$[*]') as unsigned array))) USING BTREE /*!80000 INVISIBLE */,
+  KEY `mv_idx_decimal` ((cast(json_extract(`j8`,_utf8mb4'$[*]') as decimal(10, 4) array))) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1283 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+ALTER TABLE t1 ADD UNIQUE INDEX mv_idx_date USING BTREE ( ( JSON_DEPTH( j3 ) ) ,( CAST( j6 -> '$[*]' AS DATE ARRAY) ), ( JSON_LENGTH( j1 ) ) ) VISIBLE;
+
+UPDATE t1  SET j2 = JSON_OBJECT( 'key1' , 1772955722 ) WHERE ( JSON_OVERLAPS( j7 -> '$[*]' , '[ ]' ) ) XOR ( 1 );
+
+INSERT INTO t1 SELECT * FROM t1  WHERE JSON_CONTAINS( JSON_ARRAY(-10,100,65,JSON_ARRAY(-101,25,12,0)) , j6 -> '$[*]' )   LIMIT 55;
+
+INSERT INTO t1 SELECT * FROM t1  GROUP BY j8;
+
+DELETE FROM t1 WHERE ( 0 ) XOR ( 1 ) AND ( JSON_CONTAINS( '[45, 61, 54, 0]' , j3 -> '$[*]' ) );
+
+INSERT INTO t1 VALUES();
+
+UPDATE t1  SET j3 = '["foobar", "HelloWorld", "MySQL", "1234" ]' WHERE JSON_OVERLAPS( JSON_ARRAY(DATE(NOW()), CAST( '2018-01-01' AS DATE), CAST( '0000-00-00' AS DATE)) , j7 -> '$[*]' );
+
+DELETE FROM t1;
+
+SELECT * FROM t1 LIMIT 73;
+
+INSERT INTO t1 VALUES();
+--error 1176
+INSERT INTO t1 SELECT * FROM t1 USE KEY FOR GROUP BY ( mv_idx_unsigned , mv_idx_signed ) GROUP BY j3 ORDER BY j1;
+--error 1176
+SELECT * FROM t1 IGNORE INDEX  ( mv_idx_datetime , mv_idx_char ) WHERE JSON_CONTAINS( j5 -> '$[*]' , JSON_OBJECT( 'key1' , CAST( '1981-06-09' AS DATE)) );
+
+SELECT * FROM t1  WHERE JSON_OVERLAPS( j4 -> '$[*]' , JSON_ARRAY(CAST(-69.56 AS DECIMAL (10,3)), CAST(PI() AS DECIMAL(10,5)), 1947.95) ) GROUP BY j8;
+
+DELETE FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+SET sql_mode = default;
+
+
+
+# Test rollback
+
+CREATE TABLE t1(j json, KEY ((CAST(j->'$' AS UNSIGNED ARRAY))));
+
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+INSERT INTO t1 VALUES ('[]'), ('null');
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS DECIMAL(4,2) ARRAY)));
+CREATE INDEX i2 ON t1((CAST(f1->"$[*]" AS CHAR(10) ARRAY)));
+
+START TRANSACTION;
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+INSERT INTO t1(f1) VALUES(NULL);
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+ROLLBACK;
+CHECK TABLE t1;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+
+
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+START TRANSACTION;
+UPDATE t1 SET f1 = CAST('["12.34", "56.78"]' AS JSON);
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+ROLLBACK;
+CHECK TABLE t1;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+START TRANSACTION;
+UPDATE t1 SET f1 = NULL;
+ROLLBACK;
+CHECK TABLE t1;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+UPDATE t1 SET f1 = NULL;
+START TRANSACTION;
+UPDATE t1 SET f1 = CAST('["12.34", "56.78"]' AS JSON);
+SELECT * FROM t1 WHERE 12.34 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 56.78 MEMBER OF (f1->'$[*]');
+ROLLBACK;
+CHECK TABLE t1;
+SELECT * FROM t1;
+
+UPDATE t1 SET f1 = CAST('["13.33", "13.21"]' AS JSON);
+START TRANSACTION;
+DELETE FROM t1;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+ROLLBACK;
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+CREATE TABLE IF NOT EXISTS t1 ( j1 JSON DEFAULT (CAST('[5,-1,0]' AS JSON)), j2 JSON DEFAULT (CAST('[9,8,0,1]' AS JSON)), j3 JSON DEFAULT (CAST('["foobar"]' AS JSON)), j5 JSON DEFAULT (JSON_ARRAY(NOW())), j6 JSON DEFAULT (JSON_ARRAY(DATE(NOW()), DATE(NOW()), DATE(NOW()))), j7 JSON DEFAULT (JSON_ARRAY(TIME(NOW()))), j8 JSON DEFAULT (JSON_ARRAY(3.1456,6.022,-1)), KEY mv_idx_signed (( CAST(j1->'$[*]' AS SIGNED ARRAY) )) , KEY mv_idx_unsigned (( CAST(j2->'$[*]' AS UNSIGNED ARRAY) )) , KEY mv_idx_char (( CAST(j3->'$[*]' AS CHAR(10) ARRAY) )) , KEY mv_idx_datetime (( CAST(j5->'$[*]' AS DATETIME ARRAY) )) , KEY mv_idx_date (( CAST(j6->'$[*]' AS DATE ARRAY) )) , KEY mv_idx_time (( CAST(j7->'$[*]' AS TIME ARRAY) )) , KEY mv_idx_decimal (( CAST(j8->'$[*]' AS DECIMAL(10,4) ARRAY) )));
+
+INSERT INTO t1( j1 ) VALUES( CAST( '[ 0, -1, 9, -4 ]' AS JSON ) );
+SET autocommit = 0;
+INSERT INTO t1 VALUES();
+ROLLBACK;
+SELECT j1, j2, j3 FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+SET autocommit = default;
+
+
+# Test for the scenario that record on clustered index would be inserted
+# by modify, and the operation has to be rolled back.
+CREATE TABLE IF NOT EXISTS t1 (
+  i INT NOT NULL PRIMARY KEY,
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary (( CAST(j->'$[*]' AS BINARY(10) ARRAY) )) );
+
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON));
+INSERT INTO t1 VALUES(2, CAST('["HelloMySQL", "Hello"]' AS JSON));
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+DELETE FROM t1;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, CAST('["HelloMySQL", "Hello"]' AS JSON));
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+
+--echo # Test the UPDATE which only updates part of the multi-value field,
+--echo # to make sure the partial delete + insert works
+
+# Test update on multi-value field only
+CREATE TABLE IF NOT EXISTS t1 (
+  i INT NOT NULL PRIMARY KEY,
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary (( CAST(j->'$[*]' AS BINARY(12) ARRAY) )) );
+
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON));
+INSERT INTO t1 VALUES(2, CAST('["HelloMySQL", "Hello"]' AS JSON));
+
+UPDATE t1 SET j = CAST('["Helloworld", "Hello"]' AS JSON);
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET j = CAST('["Helloworld", "Hello", "World", "MySQL"]' AS JSON);
+
+SELECT * FROM t1 WHERE "MySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "World" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+INSERT INTO t1 VALUES(3, CAST('["HelloInnoDB", "Hello", "MySQL", "hello"]' AS JSON));
+
+SELECT * FROM t1 WHERE "MySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "World" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloInnoDB" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET j = CAST('["HelloInnoDB", "Hello", "mysql", "HELLO"]' AS JSON) WHERE "hello" MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE "MySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "World" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HELLO" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloInnoDB" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET j = CAST('["HelloInnoDB", "HELLO"]' AS JSON) WHERE "HELLO" MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE "MySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "World" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HELLO" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloInnoDB" MEMBER OF (j->'$[*]');
+
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES(3, CAST('["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X"]' AS JSON));
+
+UPDATE t1 SET j = CAST('["a", "B", "C", "d", "E", "F", "g", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X"]' AS JSON);
+
+SELECT * FROM t1 WHERE "a" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "A" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "d" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "D" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "g" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "H" MEMBER OF (j->'$[*]');
+
+# wait for purge to process the update undo record.
+--source include/wait_innodb_all_purged.inc
+
+CHECK TABLE t1;
+
+TRUNCATE TABLE t1;
+
+SELECT * FROM t1;
+
+
+# Test rollback on multi-value field update only
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON));
+INSERT INTO t1 VALUES(2, CAST('["HelloMySQL", "Hello"]' AS JSON));
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+START TRANSACTION;
+UPDATE t1 SET j = CAST('["Helloworld", "Hello"]' AS JSON);
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Helloworld" MEMBER OF (j->'$[*]');
+
+START TRANSACTION;
+DELETE FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+UPDATE t1 SET j = CAST('["HelloMySQL", "Hello", "hello", "mysql"]' AS JSON);
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+
+DELETE FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+UPDATE t1 SET j = CAST('["HelloMySQL", "Hello", "hello", "mysql", "MySQL"]' AS JSON);
+
+START TRANSACTION;
+UPDATE t1 SET j = CAST('["HelloMySQL", "Hello", "hello", "mySQL", "MYSQL"]' AS JSON);
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+UPDATE t1 SET j = CAST('["HelloMySQL", "Hello"]' AS JSON);
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mysql" MEMBER OF (j->'$[*]');
+
+
+TRUNCATE TABLE t1;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+
+
+# Test update primary key will also lead to multi-value index update
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON));
+INSERT INTO t1 VALUES(2, CAST('["HelloMySQL", "Hello"]' AS JSON));
+
+UPDATE t1 SET i = 3 WHERE i = 2;
+UPDATE t1 SET i = 4, j = CAST('["HelloMySQL", "Hello", "hello", "mySQL", "MYSQL"]' AS JSON) WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+
+START TRANSACTION;
+UPDATE t1 SET i = 5 WHERE i = 4;
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+
+START TRANSACTION;
+UPDATE t1 SET i = 6, j = CAST('["HelloMySQL", "mySQL", "MYSQL"]' AS JSON) WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "mySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+
+DROP TABLE t1;
+
+
+# Test update on the multi-value index with normal fields
+CREATE TABLE t1 (
+  id INT NOT NULL PRIMARY KEY,
+  a INT,
+  b INT,
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary(a, (( CAST(j->'$[*]' AS BINARY(12) ARRAY) )), b));
+
+INSERT INTO t1 VALUES(1, 1, 1, CAST('["HelloWorld", "Hello"]' AS JSON));
+
+UPDATE t1 SET b = 2;
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET a = 2;
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET b = 3, j = CAST('["HelloMySQL", "mySQL", "MYSQL"]' AS JSON) WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET a = 3, j = CAST('["HelloMySQL", "mySQL", "MYSQL", "hello"]' AS JSON) WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+
+CHECK TABLE t1;
+
+TRUNCATE TABLE t1;
+
+INSERT INTO t1 VALUES(1, 1, 1, CAST('["HelloWorld", "Hello"]' AS JSON));
+
+START TRANSACTION;
+UPDATE t1 SET b = 2;
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET a = 2;
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+START TRANSACTION;
+UPDATE t1 SET b = 3, j = CAST('["HelloMySQL", "mySQL", "MYSQL"]' AS JSON) WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+
+UPDATE t1 SET a = 3, j = CAST('["HelloMySQL", "mySQL", "MYSQL", "hello"]' AS JSON) WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "hello" MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE "HelloWorld" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+DROP TABLE t1;
+
+
+
+# Basic test cases for partitioned table with multi-value columns
+CREATE TABLE t1 (i INT, j JSON, KEY mv_idx_int ((CAST(j->'$[*]' AS SIGNED ARRAY))) ) PARTITION BY KEY(i) PARTITIONS 2;
+INSERT INTO t1 VALUES(10,'[4, 5, 6]'), (1, '[1, 2, 3]'), (5, '[3, 4, 5]'), (8, '[4, 14, 24]');
+
+SELECT * FROM t1 PARTITION (p0) WHERE 4 MEMBER OF (j->'$[*]');
+SELECT * FROM t1 PARTITION (p1) WHERE 4 MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE 4 MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 PARTITION (p0) WHERE 1 MEMBER OF (j->'$[*]');
+SELECT * FROM t1 PARTITION (p1) WHERE 1 MEMBER OF (j->'$[*]');
+
+SELECT * FROM t1 WHERE 1 MEMBER OF (j->'$[*]');
+
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

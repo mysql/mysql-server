@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,9 @@ class GcsXcomCommunicationProtocolChangerTest : public GcsBaseTest {
     }));
     ASSERT_FALSE(m_pipeline->set_version(Gcs_protocol_version::V1));
     m_changer = std::make_unique<Gcs_xcom_communication_protocol_changer>(
-        m_myself, m_engine, *m_pipeline);
+        m_engine, *m_pipeline);
+    static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface())
+        ->set_node_address(m_myself.get_member_address());
   }
 
   void TearDown() override { m_engine.finalize(nullptr); }
@@ -174,6 +176,57 @@ TEST_F(GcsXcomCommunicationProtocolChangerTest,
   // Wait for the change to complete, and confirm it.
   s_change_finished.get();
   ASSERT_EQ(m_pipeline->get_version(), Gcs_protocol_version::V2);
+}
+
+/*
+ Validate that the protocol change is properly aborted if the desired
+ protocol is unsupported.
+ */
+TEST_F(GcsXcomCommunicationProtocolChangerTest,
+       SenderThreadFinishesProtocolChangeUnsupportedVersion) {
+  s_change_started = false;
+
+  // Start a protocol change.
+  std::tie(s_change_started, s_change_finished) =
+      m_changer->set_protocol_version(Gcs_protocol_version::MAXIMUM);
+
+  // Confirm it indeed failed.
+  ASSERT_FALSE(s_change_started);
+  ASSERT_EQ(m_pipeline->get_version(), Gcs_protocol_version::V1);
+}
+
+/*
+ Validate that the protocol change is properly aborted if the desired
+ protocol is unsupported.
+ */
+TEST_F(GcsXcomCommunicationProtocolChangerTest,
+       ReceiverThreadFinishesProtocolChangeUnsupportedVersion) {
+  s_change_started = false;
+
+  // Increment the number of packets in transit to one.
+  m_changer->atomically_increment_nr_packets_in_transit(
+      Cargo_type::CT_USER_DATA);
+
+  // Start a protocol change.
+  std::tie(s_change_started, s_change_finished) =
+      m_changer->set_protocol_version(Gcs_protocol_version::MAXIMUM);
+
+  // Confirm it is indeed failed.
+  ASSERT_FALSE(s_change_started);
+
+  // Receive the in transit packet. The receiver thread will try to
+  // finish the protocol change.
+  bool packet_ok;
+  Gcs_packet packet;
+  std::tie(packet_ok, packet) = Gcs_packet::make_outgoing_packet(
+      Cargo_type::CT_USER_DATA, Gcs_protocol_version::V1, {}, {}, 1);
+  ASSERT_TRUE(packet_ok);
+  Gcs_xcom_nodes nodes;
+  nodes.add_node(Gcs_xcom_node_information(m_myself.get_member_address(),
+                                           Gcs_xcom_uuid(), 0, true));
+  m_changer->decrement_nr_packets_in_transit(packet, nodes);
+
+  ASSERT_EQ(m_pipeline->get_version(), Gcs_protocol_version::V1);
 }
 
 }  // namespace gcs_xcom_communication_protocol_changer_unittest

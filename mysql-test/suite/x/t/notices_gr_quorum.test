@@ -29,8 +29,8 @@
 --source include/count_sessions.inc
 --source include/force_restart.inc
 --source include/big_test.inc
---source include/have_group_replication_plugin.inc
 --source include/have_mysqlx_plugin.inc
+--source include/have_group_replication_plugin.inc
 
 ## Test starts here
 --let $xtest=$MYSQL_TMP_DIR/group_replication_setup_and_xnotices_test.tmp

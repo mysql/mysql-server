@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,7 @@ class Simple_cstring {
     set(str_arg, length_arg);
   }
   Simple_cstring(const LEX_STRING arg) { set(arg.str, arg.length); }
+  Simple_cstring(const LEX_CSTRING arg) { set(arg.str, arg.length); }
   void reset() { set(NULL, 0); }
   /**
     Set to a null-terminated string.
@@ -146,7 +147,8 @@ size_t convert_to_printable(char *to, size_t to_len, const char *from,
                             size_t from_len, const CHARSET_INFO *from_cs,
                             size_t nbytes = 0);
 
-size_t bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len);
+size_t bin_to_hex_str(char *to, size_t to_len, const char *from,
+                      size_t from_len);
 
 /**
   Using this class is fraught with peril, and you need to be very careful
@@ -214,7 +216,7 @@ class String {
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
   static void operator delete(void *ptr_arg, size_t size) {
     (void)ptr_arg;
@@ -232,12 +234,14 @@ class String {
   const CHARSET_INFO *charset() const { return m_charset; }
   size_t length() const { return m_length; }
   size_t alloced_length() const { return m_alloced_length; }
-  char &operator[](size_t i) const { return m_ptr[i]; }
+  const char &operator[](size_t i) const { return m_ptr[i]; }
+  char &operator[](size_t i) { return m_ptr[i]; }
   void length(size_t len) { m_length = len; }
   bool is_empty() const { return (m_length == 0); }
   void mark_as_const() { m_alloced_length = 0; }
   /* Returns a pointer to data, may not include NULL terminating character. */
   const char *ptr() const { return m_ptr; }
+  char *ptr() { return m_ptr; }
   char *c_ptr() {
     DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
                 (m_alloced_length >= (m_length + 1)));
@@ -270,7 +274,7 @@ class String {
   void set(String &str, size_t offset, size_t arg_length) {
     DBUG_ASSERT(&str != this);
     mem_free();
-    m_ptr = const_cast<char *>(str.ptr()) + offset;
+    m_ptr = str.ptr() + offset;
     m_length = arg_length;
     m_is_alloced = false;
     if (str.m_alloced_length)
@@ -319,6 +323,16 @@ class String {
   bool set(ulonglong num, const CHARSET_INFO *cs) {
     return set_int((longlong)num, true, cs);
   }
+
+  /**
+    Sets the contents of this string to the string representation of the given
+    double value.
+
+    @param num the double value
+    @param decimals the number of decimals
+    @param cs the character set of the string
+    @return false on success, true on error
+  */
   bool set_real(double num, uint decimals, const CHARSET_INFO *cs);
 
   /*
@@ -525,10 +539,10 @@ class String {
   size_t numchars() const;
   size_t charpos(size_t i, size_t offset = 0) const;
 
-  int reserve(size_t space_needed) {
+  bool reserve(size_t space_needed) {
     return mem_realloc(m_length + space_needed);
   }
-  int reserve(size_t space_needed, size_t grow_by);
+  bool reserve(size_t space_needed, size_t grow_by);
 
   /* Inline (general) functions used by the protocol functions */
 

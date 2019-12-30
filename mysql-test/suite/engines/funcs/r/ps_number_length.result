@@ -800,6 +800,8 @@ zero_rows
 DEALLOCATE PREPARE stmt5;
 DROP TABLE t5;
 CREATE TABLE t4(c1 DOUBLE(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt4 USING @a;
@@ -891,6 +893,8 @@ zero_rows
 0
 DROP TABLE t4;
 CREATE TABLE t5(c1 DOUBLE(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt5 USING @a;
@@ -998,6 +1002,8 @@ zero_rows
 DEALLOCATE PREPARE stmt5;
 DROP TABLE t5;
 CREATE TABLE t4(c1 REAL(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt4 USING @a;
@@ -1089,6 +1095,8 @@ zero_rows
 0
 DROP TABLE t4;
 CREATE TABLE t5(c1 REAL(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt5 USING @a;
@@ -1196,6 +1204,8 @@ zero_rows
 DEALLOCATE PREPARE stmt5;
 DROP TABLE t5;
 CREATE TABLE t4(c1 DOUBLE PRECISION(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt4 USING @a;
@@ -1287,6 +1297,8 @@ zero_rows
 0
 DROP TABLE t4;
 CREATE TABLE t5(c1 DOUBLE PRECISION(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt5 USING @a;
@@ -1394,6 +1406,8 @@ zero_rows
 DEALLOCATE PREPARE stmt5;
 DROP TABLE t5;
 CREATE TABLE t4(c1 FLOAT(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt4 FROM 'INSERT INTO t4 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt4 USING @a;
@@ -1485,6 +1499,8 @@ zero_rows
 0
 DROP TABLE t4;
 CREATE TABLE t5(c1 FLOAT(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 PREPARE stmt5 FROM 'INSERT INTO t5 (c1) VALUES(?)';
 SET @a=0;
 EXECUTE stmt5 USING @a;

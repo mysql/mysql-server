@@ -962,8 +962,6 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 #define NO_NODE_GROUP int(-1)
-#define MAX_NDB_NODES 49
-#define MAX_NDB_NODE_GROUPS 48
 
 static int numNodeGroups;
 static int numNoNodeGroups;
@@ -1150,22 +1148,19 @@ crash_one_node_per_node_group(NdbRestarter & restarter,
 }
 
 void
-crash_two_nodes_per_node_group(NdbRestarter & restarter,
-                               int *dead_nodes,
-                               int & num_dead_nodes,
-                               bool crash_three)
+crash_x_nodes_per_node_group(NdbRestarter & restarter,
+                             int *dead_nodes,
+                             int & num_dead_nodes,
+                             int crash_node_count_per_ng)
 {
   num_dead_nodes = 0;
   for (int i = 0 ; i < numNodeGroups; i++)
   {
     int node_id = getFirstNodeInNodeGroup(restarter, nodeGroupIds[i]);
-    dead_nodes[num_dead_nodes++] = node_id;
-    node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
-    dead_nodes[num_dead_nodes++] = node_id;
-    if (crash_three)
+    for (int j = 0; j < crash_node_count_per_ng; j++)
     {
-      node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
       dead_nodes[num_dead_nodes++] = node_id;
+      node_id = getNextNodeInNodeGroup(restarter, node_id, nodeGroupIds[i]);
     }
   }
   crash_nodes_together(restarter, dead_nodes, num_dead_nodes);
@@ -1329,10 +1324,10 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
   {
     prepare_all_nodes_for_death(restarter);
   }
-  crash_two_nodes_per_node_group(restarter,
-                                 dead_nodes,
-                                 num_dead_nodes,
-                                 false);
+  crash_x_nodes_per_node_group(restarter,
+                               dead_nodes,
+                               num_dead_nodes,
+                               2);
   if (num_replicas == 3)
   {
     set_all_dead(restarter, dead_nodes, num_dead_nodes);
@@ -1349,10 +1344,12 @@ int runMultiCrashTest(NDBT_Context *ctx, NDBT_Step *step)
 
   if (num_replicas == 4)
   {
-    crash_two_nodes_per_node_group(restarter,
-                                   dead_nodes,
-                                   num_dead_nodes,
-                                   true);
+    ndbout_c("Crash three nodes per node group");
+    prepare_all_nodes_for_death(restarter);
+    crash_x_nodes_per_node_group(restarter,
+                                 dead_nodes,
+                                 num_dead_nodes,
+                                 3);
     set_all_dead(restarter, dead_nodes, num_dead_nodes);
     if (!restarter.checkClusterState(dead_nodes, num_dead_nodes))
     {
@@ -2754,10 +2751,10 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   
   if (res.insertErrorInNode(node0, 5010))
     return NDBT_FAILED;
-  
+
   if (res.insertErrorInNode(node1, 1001))
     return NDBT_FAILED;
-  
+
   if (res.startNodes(&node0, 1))
     return NDBT_FAILED;
   

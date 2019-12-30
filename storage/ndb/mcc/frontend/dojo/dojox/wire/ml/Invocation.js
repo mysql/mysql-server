@@ -1,12 +1,12 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/wire/ml/Action"],function(_1,_2,_3){
-_2.provide("dojox.wire.ml.Invocation");
-_2.require("dojox.wire.ml.Action");
-_2.declare("dojox.wire.ml.Invocation",_3.wire.ml.Action,{object:"",method:"",topic:"",parameters:"",result:"",error:"",_run:function(){
+define("dojox/wire/ml/Invocation",["dojo","dijit","dojox","dojo/require!dojox/wire/ml/Action"],function(_1,_2,_3){
+_1.provide("dojox.wire.ml.Invocation");
+_1.require("dojox.wire.ml.Action");
+_1.declare("dojox.wire.ml.Invocation",_3.wire.ml.Action,{object:"",method:"",topic:"",parameters:"",result:"",error:"",_run:function(){
 if(this.topic){
 var _4=this._getParameters(arguments);
 try{
-_2.publish(this.topic,_4);
+_1.publish(this.topic,_4);
 this.onComplete();
 }
 catch(e){
@@ -14,7 +14,7 @@ this.onError(e);
 }
 }else{
 if(this.method){
-var _5=(this.object?_3.wire.ml._getValue(this.object):_2.global);
+var _5=(this.object?_3.wire.ml._getValue(this.object):_1.global);
 if(!_5){
 return;
 }
@@ -48,7 +48,7 @@ _7=true;
 }
 var r=_6.apply(_5,_4);
 if(!_7){
-if(r&&(r instanceof _2.Deferred)){
+if(r&&(r instanceof _1.Deferred)){
 var _a=this;
 r.addCallbacks(function(_b){
 _a.onComplete(_b);
@@ -86,15 +86,15 @@ return _f;
 var _10=[];
 var _11=this.parameters.split(",");
 if(_11.length==1){
-var _12=_3.wire.ml._getValue(_2.trim(_11[0]),_f);
-if(_2.isArray(_12)){
+var _12=_3.wire.ml._getValue(_1.trim(_11[0]),_f);
+if(_1.isArray(_12)){
 _10=_12;
 }else{
 _10.push(_12);
 }
 }else{
 for(var i in _11){
-_10.push(_3.wire.ml._getValue(_2.trim(_11[i]),_f));
+_10.push(_3.wire.ml._getValue(_1.trim(_11[i]),_f));
 }
 }
 return _10;

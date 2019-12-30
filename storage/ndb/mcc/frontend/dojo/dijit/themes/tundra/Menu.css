@@ -22,6 +22,7 @@
 	padding: 2px;
 }
 .tundra .dijitMenuPassive .dijitMenuItemHover,
+.tundra .dijitComboBoxMenu .dijitMenuItemHover,
 .tundra .dijitMenuItemSelected {
 	background-color: #3559ac;
 	color:#fff;

@@ -187,5 +187,5 @@ return _39;
 };
 _1.connect(_6,"onLoad",_7);
 _1.connect(_6,"onUpdate",_7);
-return _2.rpc.OfflineRest;
+return _12;
 });

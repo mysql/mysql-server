@@ -1,0 +1,294 @@
+#
+# Bug #29882690  UNDETECTED DEADLOCK WITH GAP AND INSERT INTENTION LOCKS
+#                IS POSSIBLE
+#
+SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout = 20;
+CREATE TABLE t0 (id INT NOT NULL PRIMARY KEY);
+INSERT INTO t0 VALUES (1), (2), (3);
+CREATE PROCEDURE show_locks ()
+BEGIN
+SELECT engine_transaction_id INTO @con1
+FROM performance_schema.data_locks
+WHERE object_name = 't0' AND lock_data = '1';
+SELECT engine_transaction_id INTO @con2
+FROM performance_schema.data_locks
+WHERE object_name = 't0' AND lock_data = '2';
+SELECT engine_transaction_id INTO @con3
+FROM performance_schema.data_locks
+WHERE object_name = 't0' AND lock_data = '3';
+SELECT
+CASE engine_transaction_id
+WHEN @con1 THEN "con1"
+      WHEN @con2 THEN "con2"
+      WHEN @con3 THEN "con3"
+      ELSE "unknown"
+    END connection,index_name,lock_type,lock_mode,lock_status,lock_data
+FROM performance_schema.data_locks
+WHERE object_name = 't1'
+    ORDER BY 1,2,3,4,5,6;
+END //
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val VARCHAR(200));
+INSERT INTO t1 (id,val) VALUES (1, "a"),     (3, "c"), (4, "d");
+BEGIN;
+SELECT * FROM t0 WHERE id=1 FOR UPDATE;
+id
+1
+BEGIN;
+SELECT * FROM t0 WHERE id=2 FOR UPDATE;
+id
+2
+BEGIN;
+SELECT * FROM t0 WHERE id=3 FOR UPDATE;
+id
+3
+# 1. con1 obtains a GRANTED LOCK_GAP on gap before row id=3
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+# 2. con2 obtains a GRANTED LOCK_X on row id=4
+SELECT * FROM t1 WHERE id=4 FOR UPDATE;
+id	val
+4	d
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+# 3. con2 enqueues a waiting LOCK_INSERT_INTENTION into the gap
+#    before id=3
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+INSERT INTO t1 (id, val) VALUES (2, "b");
+SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+# 4. con3 obtains a GRANTED LOCK_GAP on gap before row id=3
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+con3	NULL	TABLE	IX	GRANTED	NULL
+con3	PRIMARY	RECORD	X,GAP	GRANTED	3
+# 5. con3 enqueues a waiting lock on same row as in step 2.
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con3_will_wait';
+SELECT * FROM t1 WHERE id=4 FOR UPDATE;
+SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+con3	NULL	TABLE	IX	GRANTED	NULL
+con3	PRIMARY	RECORD	X,GAP	GRANTED	3
+con3	PRIMARY	RECORD	X,REC_NOT_GAP	WAITING	4
+# 6. con1 resizes the row with id=3 ("c"->"cccccccccccccccc") causing
+#    locks to be moved
+UPDATE t1 SET val="cccccccccccccccc" WHERE id=3;
+# 7. it depends on implementation of con3's LOCK_GAP lands is in front
+#    of con2's waiting II or not
+# 8. con1 commits
+COMMIT;
+ROLLBACK;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val VARCHAR(200));
+INSERT INTO t1 (id,val) VALUES (1, "a"),     (3, "c"), (4, "d");
+BEGIN;
+SELECT * FROM t0 WHERE id=1 FOR UPDATE;
+id
+1
+BEGIN;
+SELECT * FROM t0 WHERE id=2 FOR UPDATE;
+id
+2
+BEGIN;
+SELECT * FROM t0 WHERE id=3 FOR UPDATE;
+id
+3
+# 1. con1 obtains a GRANTED LOCK_GAP on gap before row id=3
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+# 2. con2 obtains a GRANTED LOCK_X on row id=4
+SELECT * FROM t1 WHERE id=4 FOR UPDATE;
+id	val
+4	d
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+# 3. con2 enqueues a waiting LOCK_INSERT_INTENTION into the gap
+#    before id=3
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+INSERT INTO t1 (id, val) VALUES (2, "b");
+SET DEBUG_SYNC = 'now WAIT_FOR con2_will_wait';
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+# 4. con3 obtains a GRANTED LOCK_GAP on gap before row id=3
+SELECT * FROM t1 WHERE id=2 FOR UPDATE;
+id	val
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+con3	NULL	TABLE	IX	GRANTED	NULL
+con3	PRIMARY	RECORD	X,GAP	GRANTED	3
+# 5. con3 enqueues a waiting lock on same row as in step 2.
+SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con3_will_wait';
+SELECT * FROM t1 WHERE id=4 FOR UPDATE;
+SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
+CALL show_locks();
+connection	index_name	lock_type	lock_mode	lock_status	lock_data
+con1	NULL	TABLE	IX	GRANTED	NULL
+con1	PRIMARY	RECORD	X,GAP	GRANTED	3
+con2	NULL	TABLE	IX	GRANTED	NULL
+con2	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	3
+con2	PRIMARY	RECORD	X,REC_NOT_GAP	GRANTED	4
+con3	NULL	TABLE	IX	GRANTED	NULL
+con3	PRIMARY	RECORD	X,GAP	GRANTED	3
+con3	PRIMARY	RECORD	X,REC_NOT_GAP	WAITING	4
+# We enable CATS algorithm, to force placing GRANTED locks at the
+# front of queue
+# establishing connection cats0
+# establishing connection cats1
+# establishing connection cats2
+# establishing connection cats3
+# establishing connection cats4
+# establishing connection cats5
+# establishing connection cats6
+# establishing connection cats7
+# establishing connection cats8
+# establishing connection cats9
+# establishing connection cats10
+# establishing connection cats11
+# establishing connection cats12
+# establishing connection cats13
+# establishing connection cats14
+# establishing connection cats15
+# establishing connection cats16
+# establishing connection cats17
+# establishing connection cats18
+# establishing connection cats19
+# establishing connection cats20
+# establishing connection cats21
+# establishing connection cats22
+# establishing connection cats23
+# establishing connection cats24
+# establishing connection cats25
+# establishing connection cats26
+# establishing connection cats27
+# establishing connection cats28
+# establishing connection cats29
+# establishing connection cats30
+# establishing connection cats31
+# establishing connection cats32
+# wating for cats1
+# wating for cats2
+# wating for cats3
+# wating for cats4
+# wating for cats5
+# wating for cats6
+# wating for cats7
+# wating for cats8
+# wating for cats9
+# wating for cats10
+# wating for cats11
+# wating for cats12
+# wating for cats13
+# wating for cats14
+# wating for cats15
+# wating for cats16
+# wating for cats17
+# wating for cats18
+# wating for cats19
+# wating for cats20
+# wating for cats21
+# wating for cats22
+# wating for cats23
+# wating for cats24
+# wating for cats25
+# wating for cats26
+# wating for cats27
+# wating for cats28
+# wating for cats29
+# wating for cats30
+# wating for cats31
+# wating for cats32
+# 6. con1 resizes the row with id=3 ("c"->"cccccccccccccccc") causing
+#    locks to be moved
+UPDATE t1 SET val="cccccccccccccccc" WHERE id=3;
+# 7. it depends on implementation of con3's LOCK_GAP lands is in front
+#    of con2's waiting II or not
+# 8. con1 commits
+COMMIT;
+ROLLBACK;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+# Turn of CATS
+# cleaning up connection cats0
+# cleaning up connection cats1
+# cleaning up connection cats2
+# cleaning up connection cats3
+# cleaning up connection cats4
+# cleaning up connection cats5
+# cleaning up connection cats6
+# cleaning up connection cats7
+# cleaning up connection cats8
+# cleaning up connection cats9
+# cleaning up connection cats10
+# cleaning up connection cats11
+# cleaning up connection cats12
+# cleaning up connection cats13
+# cleaning up connection cats14
+# cleaning up connection cats15
+# cleaning up connection cats16
+# cleaning up connection cats17
+# cleaning up connection cats18
+# cleaning up connection cats19
+# cleaning up connection cats20
+# cleaning up connection cats21
+# cleaning up connection cats22
+# cleaning up connection cats23
+# cleaning up connection cats24
+# cleaning up connection cats25
+# cleaning up connection cats26
+# cleaning up connection cats27
+# cleaning up connection cats28
+# cleaning up connection cats29
+# cleaning up connection cats30
+# cleaning up connection cats31
+# cleaning up connection cats32
+DROP TABLE t1;
+DROP PROCEDURE show_locks;
+DROP TABLE t0;
+SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved ;

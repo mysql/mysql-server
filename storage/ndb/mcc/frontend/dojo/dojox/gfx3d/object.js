@@ -528,8 +528,13 @@ var w=_3.isString(dim.width)?parseInt(dim.width):dim.width;
 var h=_3.isString(dim.height)?parseInt(dim.height):dim.height;
 if(this.rawNode){
 var trs=this.rawNode.style;
+if(trs){
 trs.height=h;
 trs.width=w;
+}else{
+this.rawNode.width=w;
+this.rawNode.height=h;
+}
 }
 this.dimension={width:w,height:h};
 }else{

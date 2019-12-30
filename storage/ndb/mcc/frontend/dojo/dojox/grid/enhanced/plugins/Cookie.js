@@ -128,7 +128,7 @@ return _32;
 };
 var _38=function(_39,_3a){
 try{
-if(_3.isObject(_39)){
+if(_39&&_3.isObject(_39)){
 _3a.setSortIndex(_39.idx,_39.asc);
 }
 }

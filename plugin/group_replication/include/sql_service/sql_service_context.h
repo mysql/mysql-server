@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,9 +94,9 @@ class Sql_service_context : public Sql_service_context_base {
   int end_row();
 
   /**
-    An error occured during execution
+    An error occurred during execution
 
-    @details This callback indicates that an error occureded during command
+    @details This callback indicates that an error occurreded during command
     execution and the partial row should be dropped. Server will raise error
     and return.
   */

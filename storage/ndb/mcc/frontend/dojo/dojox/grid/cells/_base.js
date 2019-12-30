@@ -65,7 +65,9 @@ return uw&&(uw!=="auto");
 var uw=this.unitWidth;
 return uw&&_3.isString(uw)&&(uw=="auto"||uw.slice(-1)=="%");
 },applyEdit:function(_1c,_1d){
+if(this.getNode(_1d)){
 this.grid.edit.applyCellEdit(_1c,this,_1d);
+}
 },cancelEdit:function(_1e){
 this.grid.doCancelEdit(_1e);
 },_onEditBlur:function(_1f){

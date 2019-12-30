@@ -15,6 +15,9 @@ drop table if exists t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -153,6 +156,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -339,6 +345,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -442,6 +451,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -545,6 +557,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -632,6 +647,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");
@@ -709,6 +727,9 @@ drop table t1;
 ** Set up table
 SET SESSION DEFAULT_STORAGE_ENGINE = InnoDB;
 create table t1(eta int(11) not null, tipo int(11), c varchar(255));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (7,7, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
 insert into t1 values (8,8, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 insert into t1 values (10,1,"ccccccccccccccccccccccccccccccccccccccccccc");

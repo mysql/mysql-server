@@ -1,4 +1,3 @@
-//>>built
 define("dojox/string/tokenize", [
 	"dojo/_base/lang",
 	"dojo/_base/sniff"	

@@ -1,21 +1,22 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/_base/unload",["./kernel","./connect"],function(_1,_2){
+define("dojo/_base/unload",["./kernel","./lang","../on"],function(_1,_2,on){
 var _3=window;
-_1.addOnWindowUnload=function(_4,_5){
+var _4={addOnWindowUnload:function(_5,_6){
 if(!_1.windowUnloaded){
-_2.connect(_3,"unload",(_1.windowUnloaded=function(){
+on(_3,"unload",(_1.windowUnloaded=function(){
 }));
 }
-_2.connect(_3,"unload",_4,_5);
-};
-_1.addOnUnload=function(_6,_7){
-_2.connect(_3,"beforeunload",_6,_7);
-};
-return {addOnWindowUnload:_1.addOnWindowUnload,addOnUnload:_1.addOnUnload};
+on(_3,"unload",_2.hitch(_5,_6));
+},addOnUnload:function(_7,_8){
+on(_3,"beforeunload",_2.hitch(_7,_8));
+}};
+_1.addOnWindowUnload=_4.addOnWindowUnload;
+_1.addOnUnload=_4.addOnUnload;
+return _4;
 });

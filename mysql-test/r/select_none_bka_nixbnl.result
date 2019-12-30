@@ -6,6 +6,10 @@ CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
 );
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9410,9412);
 select period from t1;
 period
@@ -28,6 +32,11 @@ UNIQUE fld1 (fld1),
 KEY fld3 (fld3),
 PRIMARY KEY (auto)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
@@ -507,7 +516,13 @@ price2     double(11,0),
 key (period),
 key (name)
 );
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 create temporary table tmp engine = myisam select * from t3;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;
@@ -654,7 +669,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	fld1	fld1	4	const	1	100.00	NULL
 1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where true
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -1318,20 +1333,23 @@ companyname char(30) NOT NULL default '',
 PRIMARY KEY (companynr),
 UNIQUE KEY companyname(companyname)
 ) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
+00	Unknown
 29	company 1
 34	company 2
 36	company 3
 37	company 4
 40	company 5
 41	company 6
+50	company 11
 53	company 7
 58	company 8
 65	company 9
 68	company 10
-50	company 11
-00	Unknown
 select SQL_SMALL_RESULT t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
@@ -1388,13 +1406,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	100.00	NULL
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where isnull(`test`.`t4`.`companynr`)
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where (`test`.`t4`.`companynr` is null)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	10.00	Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where isnull(`test`.`t2`.`companynr`)
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t2`.`companynr` is null)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 companynr	companyname
 select count(*) from t2 left join t4 using (companynr) where companynr is not null;
@@ -1404,12 +1422,12 @@ explain select companynr,companyname from t2 left join t4 using (companynr) wher
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on(multiple equal(`test`.`t2`.`companynr`, `test`.`t4`.`companynr`)) where 0
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on(multiple equal(`test`.`t2`.`companynr`, `test`.`t4`.`companynr`)) where false
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on(multiple equal(`test`.`t4`.`companynr`, `test`.`t2`.`companynr`)) where 0
+Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on(multiple equal(`test`.`t4`.`companynr`, `test`.`t2`.`companynr`)) where false
 delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1452,7 +1470,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or isnull(`test`.`t2`.`companynr`))
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` is null))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	NULL
@@ -2013,12 +2031,12 @@ explain select fld3 from t2 where 1>2 or 2>3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 0
+Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where false
 explain select fld3 from t2 where fld1=fld1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where true
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
 companynr	fld1
 34	250501
@@ -2073,6 +2091,16 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
+explain format=tree select min(fld1),max(fld1),count(*) from t2;
+EXPLAIN
+-> Rows fetched before execution
+
+explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
+EXPLAIN
+-> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
+    -> Filter: (rand() > 0.5)  (cost=151.60 rows=1199)
+        -> Index scan on t2 using fld1  (cost=151.60 rows=1199)
+
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
 0	1232609	1199
@@ -2177,14 +2205,37 @@ pseudo varchar(35) NOT NULL default '',
 PRIMARY KEY  (id),
 UNIQUE KEY pseudo (pseudo)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (pseudo) VALUES ('test');
 INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 1 as rnd1 from t1 where rand() > 2;
 rnd1
 DROP TABLE t1;
 CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as the_success,(SUM(CASE b.sampletid WHEN 141 THEN b.samplevalue ELSE 0 END)) as the_fail,(SUM(CASE b.sampletid WHEN 142 THEN b.samplevalue ELSE 0 END)) as the_size,(SUM(CASE b.sampletid WHEN 143 THEN b.samplevalue ELSE 0 END)) as the_time FROM t1 a, t2 b WHERE a.hmid = b.hmid AND a.volid = b.volid AND b.sampletime >= 'wrong-date-value' AND b.sampletime < 'wrong-date-value' AND b.sampletid IN (140, 141, 142, 143) GROUP BY a.gvid;
 ERROR HY000: Incorrect DATETIME value: 'wrong-date-value'
@@ -2192,6 +2243,12 @@ SELECT a.gvid, (SUM(CASE b.sampletid WHEN 140 THEN b.samplevalue ELSE 0 END)) as
 gvid	the_success	the_fail	the_size	the_time
 DROP TABLE t1,t2;
 create table  t1 (  A_Id bigint(20) NOT NULL default '0',  A_UpdateBy char(10) NOT NULL default '',  A_UpdateDate bigint(20) NOT NULL default '0',  A_UpdateSerial int(11) NOT NULL default '0',  other_types bigint(20) NOT NULL default '0',  wss_type bigint(20) NOT NULL default '0');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (102935998719055004,'brade',1029359987,2,102935229116544068,102935229216544093);
 select wss_type from t1 where wss_type ='102935229216544106';
 wss_type
@@ -2267,10 +2324,10 @@ a	a
 select * from (t1 as t2 left join t1 as t3 using (a)) inner join t1 on t1.a>1;
 a	a
 1	2
-2	2
-3	2
 1	3
+2	2
 2	3
+3	2
 3	3
 select * from t1 inner join (t1 as t2 left join t1 as t3 using (a)) on t1.a>1;
 a	a
@@ -2376,8 +2433,13 @@ a
 3
 drop table t1;
 CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
 CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2517), (2518), (2519), (2520), (2521), (2522);
 select * from t1, t2 WHERE t1.t2_id = t2.id and t1.t2_id > 0   order by t1.id   LIMIT 0, 5;
 aa	id	t2_id	id
@@ -2403,7 +2465,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,NULL AS `id3`,`test`.`t4`.`id4` AS `id4`,`test`.`t4`.`id44` AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t4` on(multiple equal(NULL, `test`.`t4`.`id4`)) where ((`test`.`t2`.`id2` = 1) or (`test`.`t4`.`id4` = 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,NULL AS `id3`,NULL AS `id4`,NULL AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t4` on(multiple equal(NULL, NULL)) where ((`test`.`t2`.`id2` = 1) or (NULL = 1))
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id1	id2	id3	id4	id44
@@ -2460,6 +2522,8 @@ c char(10) NOT NULL default '',
 PRIMARY KEY  (i),
 UNIQUE KEY c (c)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'a');
 INSERT INTO t1 VALUES (2,'b');
 INSERT INTO t1 VALUES (3,'c');
@@ -2467,7 +2531,7 @@ EXPLAIN SELECT i FROM t1 WHERE i=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `i` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `i` from `test`.`t1` where true
 DROP TABLE t1;
 CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
@@ -2478,13 +2542,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( city char(30) ) charset utf8mb4;
 INSERT INTO t1 VALUES ('London');
@@ -2513,6 +2577,9 @@ city
 London
 DROP TABLE t1;
 create table t1 (a int(11) unsigned, b int(11) unsigned);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,0), (1,1), (18446744073709551615,0);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 3
@@ -2537,6 +2604,8 @@ cast((a - b) as unsigned)
 4294967295
 drop table t1;
 create table t1 (a int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select all all * from t1;
 a
 select distinct distinct * from t1;
@@ -2556,6 +2625,10 @@ nachname varchar(128) NOT NULL default '',
 geloescht enum('Ja','Nein') NOT NULL default 'Nein',
 firma varchar(128) NOT NULL default ''
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 (3964,3051,1,'Ja','Vorname1','1Nachname','Nein','Print Schau XXXX'),
 (3965,3051111,1,'Ja','Vorname1111','1111Nachname','Nein','Print Schau XXXX');
@@ -2601,15 +2674,24 @@ COUNT(*)
 0
 drop table t1;
 CREATE TABLE t1 (b BIGINT(20) UNSIGNED NOT NULL, PRIMARY KEY (b));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0x8000000000000000);
 SELECT b FROM t1 WHERE b=0x8000000000000000;
 b
 9223372036854775808
 DROP TABLE t1;
 CREATE TABLE `t1` ( `gid` int(11) default NULL, `uid` int(11) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `t2` ( `ident` int(11) default NULL, `level` char(16) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t2` VALUES (0,'READ');
 CREATE TABLE `t3` ( `id` int(11) default NULL, `name` char(16) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t3` VALUES (1,'fs');
 select * from t3 left join t1 on t3.id = t1.uid, t2 where t2.ident in (0, t1.gid, t3.id, 0);
 id	name	gid	uid	ident	level
@@ -2621,6 +2703,9 @@ profile_id smallint(6) default NULL,
 UNIQUE KEY t1$acct_id (acct_id),
 KEY t1$profile_id (profile_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (132,17),(133,18);
 CREATE TABLE t2 (
 profile_id smallint(6) default NULL,
@@ -2628,6 +2713,10 @@ queue_id int(11) default NULL,
 seq int(11) default NULL,
 KEY t2$queue_id (queue_id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (17,31,4),(17,30,3),(17,36,2),(17,37,1);
 CREATE TABLE t3 (
 id int(11) NOT NULL default '0',
@@ -2641,6 +2730,15 @@ default_queue tinyint(4) NOT NULL default '0',
 KEY t3$qtype (qtype),
 KEY t3$id (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (30,1,29,NULL,NULL,0,NULL,0),(31,1,28,NULL,NULL,0,NULL,0),
 (36,1,34,NULL,NULL,0,NULL,0),(37,1,35,NULL,NULL,0,121,0);
 SELECT COUNT(*) FROM t1 a STRAIGHT_JOIN t2 pq STRAIGHT_JOIN t3 q 
@@ -2690,6 +2788,8 @@ WHERE NOT EXISTS
 select found_rows();
 found_rows()
 0
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 SELECT * FROM t1;
 a	b	c
 50	3	3
@@ -2699,16 +2799,24 @@ count(*)
 select found_rows();
 found_rows()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select count(*) from t1 limit 2,3;
 count(*)
 select found_rows();
 found_rows()
-0
+1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 select SQL_CALC_FOUND_ROWS count(*) from t1 limit 2,3;
 count(*)
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
 select found_rows();
 found_rows()
 1
+Warnings:
+Warning	1287	FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead.
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT);
 (SELECT a, b AS c FROM t1) ORDER BY c+1;
@@ -2838,7 +2946,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or (`test`.`t2`.`b` is null))
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2850,7 +2958,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or (`test`.`t2`.`b` is null))
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2858,8 +2966,8 @@ a	b	a	b
 1	NULL	4	10
 2	10	4	10
 DROP TABLE IF EXISTS t1,t2;
-CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
-CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
+CREATE TABLE t1 (key1 double default NULL, UNIQUE KEY key1 (key1));
+CREATE TABLE t2 (key2 double default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
 INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
 explain select max(key1) from t1 where key1 <= 0.6158;
@@ -2890,36 +2998,36 @@ Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)`,min(`test`.`t2`.`key2`) AS `min(key2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`key1` <= 0.6158) and (`test`.`t2`.`key2` >= 1.3762))
 explain select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	t1	NULL	range	key1	key1	9	NULL	2	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)` from `test`.`t1` where ((`test`.`t1`.`key1` <= 0.6158) and ((rand() + 0.5) >= 0.5))
 explain select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	t1	NULL	index	key1	key1	9	NULL	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t1`.`key1`) AS `min(key1)` from `test`.`t1` where ((`test`.`t1`.`key1` >= 0.3762) and ((rand() + 0.5) >= 0.5))
 select max(key1) from t1 where key1 <= 0.6158;
 max(key1)
-0.6158000230789185
+0.6158
 select max(key2) from t2 where key2 <= 1.6158;
 max(key2)
-1.6158000230789185
+1.6158
 select min(key1) from t1 where key1 >= 0.3762;
 min(key1)
-0.37619999051094055
+0.3762
 select min(key2) from t2 where key2 >= 1.3762;
 min(key2)
-1.3761999607086182
+1.3762
 select max(key1), min(key2) from t1, t2
 where key1 <= 0.6158 and key2 >= 1.3762;
 max(key1)	min(key2)
-0.6158000230789185	1.3761999607086182
+0.6158	1.3762
 select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 max(key1)
-0.6158000230789185
+0.6158
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 min(key1)
-0.37619999051094055
+0.3762
 DROP TABLE t1,t2;
 CREATE TABLE t1 (i BIGINT UNSIGNED NOT NULL);
 INSERT INTO t1 VALUES (10);
@@ -2957,6 +3065,8 @@ K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '',
 K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
 F2I4 int(11) NOT NULL default '0' 
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
 ('W%RT', '0100',  1), 
 ('W-RT', '0100', 1), 
@@ -3045,6 +3155,8 @@ select x'10' + 0, X'10' + 0, b'10' + 0, B'10' + 0;
 x'10' + 0	X'10' + 0	b'10' + 0	B'10' + 0
 16	16	2	2
 create table t1 (f1 varchar(6) default NULL, f2 int(6) primary key not null);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (f3 varchar(5) not null, f4 varchar(5) not null, UNIQUE KEY UKEY (f3,f4));
 insert into t1 values (" 2", 2);
 insert into t2 values (" 2", " one "),(" 2", " two ");
@@ -3113,8 +3225,17 @@ a2	c
 drop table t1, t2;
 drop view v2;
 create table t1 (a int(10), t1_val int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (b int(10), t2_val int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t3 (a int(10), b int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,1),(2,2);
 insert into t2 values (1,1),(2,2),(3,3);
 insert into t3 values (1,1),(2,1),(3,1),(4,1);
@@ -3223,7 +3344,13 @@ SELECT id,t3.id FROM (t1 JOIN t2 ON (t2.id=t1.id)) LEFT JOIN t3 USING (id);
 ERROR 23000: Column 'id' in from clause is ambiguous
 drop table t1, t2, t3;
 create table t1 (a int(10),b int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t2 (a int(10),b int(10));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1,10),(2,20),(3,30);
 insert into t2 values (1,10);
 select * from t1 inner join t2 using (A);
@@ -3340,6 +3467,8 @@ id
 drop table t1, t2;
 drop view v1, v2, v3;
 create table t1 (id int(11) not null default '0');
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (123),(191),(192);
 create table t2 (id char(16) character set utf8 not null);
 Warnings:
@@ -3347,6 +3476,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 insert into t2 values ('58013'),('58014'),('58015'),('58016');
 create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 select count(*)
@@ -3474,7 +3604,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where true
 SELECT t2.key_a,foo 
 FROM t1 INNER JOIN t2 ON t2.key_a = t1.key_a
 INNER JOIN t3 ON t1.key_a = t3.key_a
@@ -3490,7 +3620,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where true
 DROP TABLE t1,t2,t3;
 create  table t1 (f1 int);
 insert into t1 values(1),(2);
@@ -3573,7 +3703,16 @@ SET SQL_MODE=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
-insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C;
+# The "ANALYZE TABLE"-command that is executed further down will get
+# different results depending on the order of rows in table t2. Since the
+# INSERT INTO ... SELECT may be executed using different execution plans,
+# we've added ORDER BY to ensure that we rows has the same order every
+# time. If not, the estimated number of rows for t2 (alias 'a') in the
+# EXPLAIN may change on different platforms. Note that both table t1 and
+# t2 may be MyISAM, since many of the test files that includes this file
+# forces MyISAM as the default storage engine.
+insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C
+ORDER BY A.a, B.a, C.a;
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
@@ -3675,7 +3814,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	idx1	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t3	NULL	ref	idx1	idx1	5	const	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, `test`.`t2`.`b`)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
+Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,NULL AS `b`,NULL AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, NULL)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 WHERE t1.id=2;
 id	a	b	c	d	e
@@ -3735,7 +3874,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	const	b	b	82	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `a` from `test`.`t1` left join `test`.`t2` on(multiple equal('c', 'c')) where 1
+Note	1003	/* select#1 */ select '3' AS `a` from `test`.`t1` left join `test`.`t2` on(multiple equal('c', 'c')) where true
 DROP TABLE t1,t2;
 CREATE TABLE t1(id int PRIMARY KEY, b int, e int);
 CREATE TABLE t2(i int, a int, INDEX si(i), INDEX ai(a));
@@ -3830,14 +3969,14 @@ EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
 EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP TABLE t1;
 CREATE TABLE t1 (
 ID1_with_null int NULL,
@@ -3871,19 +4010,19 @@ WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.79	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null=3 IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	27.27	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull((`test`.`t1`.`ID2_with_null` = 3)))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and ((`test`.`t1`.`ID2_with_null` = 3) is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	64.88	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
 EXPLAIN SELECT * FROM t1
@@ -3891,26 +4030,26 @@ WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	73.55	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND 
 (ID2_with_null=1 OR ID2_with_null=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and ((`test`.`t1`.`ID2_with_null` = 1) or (`test`.`t1`.`ID2_with_null` = 2)))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and ((`test`.`t1`.`ID2_with_null` = 1) or (`test`.`t1`.`ID2_with_null` = 2)))
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY ts(ts));
 INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");
@@ -4040,7 +4179,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 aa	aa	2
@@ -4122,7 +4261,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 aa	aa	2
@@ -4196,6 +4335,10 @@ c3 bigint(20) DEFAULT NULL,
 c4 bigint(20) DEFAULT NULL,
 PRIMARY KEY (c1)
 ) charset utf8mb4;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 EXPLAIN
 SELECT  join_2.c1  
 FROM 
@@ -4525,14 +4668,23 @@ f4 varchar(255) NOT NULL default '',
 PRIMARY KEY (f1),
 KEY key1 (f4),
 KEY key2 (f2)) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (f1 int(11) NOT NULL default '0',
 f2 enum('A1','A2','A3') NOT NULL default 'A1',
 f3 int(11) NOT NULL default '0',
 PRIMARY KEY (f1),
 KEY key1 (f3)) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (f1 bigint(20) NOT NULL default '0',
 f2 datetime NOT NULL default '1980-01-01 00:00:00',
 PRIMARY KEY (f1)) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (1, 1, 1, 'abc');
 insert into t1 values (2, 1, 2, 'def');
 insert into t1 values (3, 1, 2, 'def');
@@ -4577,7 +4729,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 1
 1
@@ -4589,7 +4741,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 1
 1
@@ -4638,7 +4790,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4649,7 +4801,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4660,7 +4812,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4671,7 +4823,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL) charset utf8mb4;
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4681,7 +4833,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where false
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
 2001-01-01 00:00:00	2001-01-01
@@ -4689,7 +4841,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4708,7 +4860,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	z	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 #
 # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
@@ -4731,9 +4883,19 @@ SELECT a FROM t1 ORDER BY a;
 DROP TABLE t1;
 CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
 INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
-INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t1 depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
+# Note that the tables may be MyISAM, since many of the test files that
+# includes this file forces MyISAM as the default storage engine.
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
+ORDER BY t11.a, t11.b, t11.c;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
@@ -4835,7 +4997,7 @@ EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where true
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
@@ -4845,17 +5007,17 @@ EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
@@ -4976,7 +5138,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where 1
+Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where true
 EXPLAIN SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
@@ -5017,6 +5179,9 @@ i int(11) DEFAULT NULL,
 v varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2,7,'m');
 INSERT INTO t1 VALUES (3,9,'m');
 SELECT  v
@@ -5032,6 +5197,8 @@ DROP TABLE t1;
 # Bug#49489 Uninitialized cache led to a wrong result.
 #
 CREATE TABLE t1(c1 DOUBLE(5,4));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9.1234);
 SELECT * FROM t1 WHERE c1 < 9.12345;
 c1
@@ -5152,6 +5319,9 @@ CREATE TABLE `cc` (
 KEY `int_key` (`int_key`),
 KEY `varchar_key` (`varchar_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `cc` VALUES
 (0,8,'q','q'),(5,8,'m','m'),(7,3,'j','j'),(1,2,'z','z'),(8,2,'a','a'),(2,6,'',''),(1,8,'e'
 ,'e'),(8,9,'t','t'),(5,2,'q','q'),(4,6,'b','b'),(5,5,'w','w'),(3,2,'m','m'),(0,4,'x','x'),
@@ -5162,7 +5332,7 @@ HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	90.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where (`test`.`cc`.`int_nokey` and (`test`.`cc`.`int_key` <= 4)) having `g1` order by `test`.`cc`.`varchar_key` limit 6
+Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where ((0 <> `test`.`cc`.`int_nokey`) and (`test`.`cc`.`int_key` <= 4)) having (0 <> `g1`) order by `test`.`cc`.`varchar_key` limit 6
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 g1

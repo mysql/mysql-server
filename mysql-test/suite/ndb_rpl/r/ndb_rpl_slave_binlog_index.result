@@ -12,6 +12,8 @@ CREATE TABLE `t1` (
 `b` varchar(1000) DEFAULT NULL,
 PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE DEFINER=`root`@`localhost` PROCEDURE `loadgen`(total int) begin   set @x = 0;   repeat     insert into test.t1 values (1, repeat('B', 10));     insert into test.t1 values (2, repeat('I', 10));     insert into test.t1 values (3,repeat('W', 10));     insert into test.t1 values (4, repeat('G', 10));     insert into test.t1 values (5, repeat('V', 10));     insert into test.t1 values (6, repeat('D', 10));     insert into test.t1 values (7, repeat('P', 10));     delete from test.t1;     set @x = @x + 1;   until @x = total   end repeat; end%
 call loadgen(2000);
 START SLAVE;

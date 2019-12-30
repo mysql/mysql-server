@@ -35,7 +35,7 @@ _7(_3);
 this._options=(_4?_4:{});
 this._requestId=0;
 },_generateService:function(_d,_e){
-if(this[_e]){
+if(this[_d]){
 throw new Error("WARNING: "+_d+" already exists for service. Unable to generate function");
 }
 _e.name=_d;
@@ -53,6 +53,7 @@ _f.id=_2.rpc.Service._nextId++;
 return _f;
 },_getRequest:function(_13,_14){
 var smd=this._smd;
+var i;
 var _15=_2.rpc.envelopeRegistry.match(_13.envelope||smd.envelope||"NONE");
 var _16=(_13.parameters||[]).concat(smd.parameters||[]);
 if(_15.namedParams){
@@ -60,7 +61,7 @@ if((_14.length==1)&&_1.isObject(_14[0])){
 _14=_14[0];
 }else{
 var _17={};
-for(var i=0;i<_13.parameters.length;i++){
+for(i=0;i<_13.parameters.length;i++){
 if(typeof _14[i]!="undefined"||!_13.parameters[i].optional){
 _17[_13.parameters[i].name]=_14[i];
 }
@@ -108,7 +109,7 @@ var _1a=_13._schema||_13.returns;
 var _1b=_15.serialize.apply(this,[smd,_13,_14]);
 _1b._envDef=_15;
 var _1c=(_13.contentType||smd.contentType||_1b.contentType);
-return _1.mixin(_1b,{sync:_2.rpc._sync,contentType:_1c,headers:_13.headers||smd.headers||_1b.headers||{},target:_1b.target||_2.rpc.getTarget(smd,_13),transport:_13.transport||smd.transport||_1b.transport,envelope:_13.envelope||smd.envelope||_1b.envelope,timeout:_13.timeout||smd.timeout,callbackParamName:_13.callbackParamName||smd.callbackParamName,rpcObjectParamName:_13.rpcObjectParamName||smd.rpcObjectParamName,schema:_1a,handleAs:_1b.handleAs||"auto",preventCache:_13.preventCache||smd.preventCache,frameDoc:this._options.frameDoc||undefined});
+return _1.mixin(_1b,{sync:this._options.sync||_2.rpc._sync,contentType:_1c,headers:_13.headers||smd.headers||_1b.headers||{},target:_1b.target||_2.rpc.getTarget(smd,_13),transport:_13.transport||smd.transport||_1b.transport,envelope:_13.envelope||smd.envelope||_1b.envelope,timeout:_13.timeout||smd.timeout,callbackParamName:_13.callbackParamName||smd.callbackParamName,rpcObjectParamName:_13.rpcObjectParamName||smd.rpcObjectParamName,schema:_1a,handleAs:_1b.handleAs||"auto",preventCache:_13.preventCache||smd.preventCache,frameDoc:this._options.frameDoc||undefined});
 },_executeMethod:function(_1d){
 var _1e=[];
 var i;

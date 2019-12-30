@@ -1,6 +1,5 @@
---source include/have_ssl.inc
---source include/have_openssl.inc
 --source include/mysql_upgrade_preparation.inc
+--source include/allowed_ciphers.inc
 
 # This test will intentionally generate errors in the server error log
 # when a broken password is inserted into the mysql.user table.

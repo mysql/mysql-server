@@ -8,6 +8,7 @@
 	position:relative
 }
 .dojoxListInput ul {
+	list-style-type:none;
 	margin:0;
 	padding:0
 }
@@ -22,7 +23,6 @@
 }
 .dojoxListInputItem {
 	float:left;
-	list-style-type:none;
 	margin:1px 5px 1px 1px;
 	padding:0
 }

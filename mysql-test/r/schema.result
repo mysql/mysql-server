@@ -183,30 +183,19 @@ CREATE SCHEMA s;
 CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
-Got one of the listed errors
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 t.ibd
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-ALTER TABLE s.t_myisam ADD COLUMN c INTEGER;
-ERROR HY000: Can't find file: 't_myisam' (errno: 2 - No such file or directory)
 ALTER TABLE s.t_innodb ADD COLUMN c INTEGER;
 Got one of the listed errors
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-SHOW CREATE TABLE s.t_myisam;
-ERROR HY000: Can't find file: 't_myisam' (errno: 2 - No such file or directory)
 DROP SCHEMA s;
 CREATE SCHEMA s;
-CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
-DROP TABLE s.t_myisam;
-ERROR HY000: Storage engine can't drop table 's.t_myisam' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary.
 DROP TABLE s.t_innodb;
 DROP SCHEMA s;
 #

@@ -3,6 +3,10 @@ Restart server 1 to trigger schema synchronization
 # restart
 Restart server 2 to trigger schema synchronization
 # restart
+SET @old_ndb_metadata_check_server2 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
+SET @old_ndb_metadata_check_server1 = @@global.ndb_metadata_check;
+SET GLOBAL ndb_metadata_check = false;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -47,3 +51,24 @@ a
 4
 5
 DROP TABLE t1;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 0;
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+SELECT * FROM t1;
+a	b
+1	a
+2	bb
+3	ccc
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 values (4),(5);
+SELECT * FROM t1;
+a
+1
+2
+3
+4
+5
+DROP TABLE t1;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server2;
+SET GLOBAL ndb_metadata_check = @old_ndb_metadata_check_server1;

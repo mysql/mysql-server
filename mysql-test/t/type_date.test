@@ -23,6 +23,7 @@ INSERT INTO t1 VALUES ('name2','1998-01-02');
 CREATE TABLE t2 (cdate date, note char(6));
 INSERT INTO t2 VALUES ('1998-01-01','note01');
 INSERT INTO t2 VALUES ('1998-01-02','note02');
+--sorted_result
 select name,t1.cdate,note from t1,t2 where t1.cdate=t2.cdate and t1.cdate='1998-01-01';
 drop table t1,t2;
 

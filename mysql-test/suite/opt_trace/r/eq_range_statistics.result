@@ -957,7 +957,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	10	NULL	3	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 5) and ((`test`.`t1`.`b` = 2) or (`test`.`t1`.`b` = 3) or isnull(`test`.`t1`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 5) and ((`test`.`t1`.`b` = 2) or (`test`.`t1`.`b` = 3) or (`test`.`t1`.`b` is null)))
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
@@ -967,7 +967,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where ((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))"
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b` from `t1` where ((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -979,19 +979,19 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))",
+              "original_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or isnull(`t1`.`b`)) and multiple equal(5, `t1`.`a`))"
+                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or (`t1`.`b` is null)) and multiple equal(5, `t1`.`a`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or isnull(`t1`.`b`)) and multiple equal(5, `t1`.`a`))"
+                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or (`t1`.`b` is null)) and multiple equal(5, `t1`.`a`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or isnull(`t1`.`b`)) and multiple equal(5, `t1`.`a`))"
+                  "resulting_condition": "((multiple equal(2, `t1`.`b`) or multiple equal(3, `t1`.`b`) or (`t1`.`b` is null)) and multiple equal(5, `t1`.`a`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1140,13 +1140,13 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))",
+              "original_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))"
+                  "attached": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -1155,8 +1155,8 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))",
-                "final_table_condition   ": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or isnull(`t1`.`b`)))"
+                "original_table_condition": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))",
+                "final_table_condition   ": "((`t1`.`a` = 5) and ((`t1`.`b` = 2) or (`t1`.`b` = 3) or (`t1`.`b` is null)))"
               }
             ] /* finalizing_table_conditions */
           },

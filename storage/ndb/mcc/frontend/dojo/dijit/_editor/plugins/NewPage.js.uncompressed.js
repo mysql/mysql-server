@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_editor/plugins/NewPage", [
 	"dojo/_base/declare", // declare
 	"dojo/i18n", // i18n.getLocalization
@@ -8,15 +7,8 @@ define("dijit/_editor/plugins/NewPage", [
 	"dojo/i18n!../nls/commands"
 ], function(declare, i18n, lang, _Plugin, Button){
 
-/*=====
-	var _Plugin = dijit._editor._Plugin;
-=====*/
-
 // module:
 //		dijit/_editor/plugins/NewPage
-// summary:
-//		This plugin provides a simple 'new page' capability.  In other
-//		words, set content to some default user defined string.
 
 
 var NewPage = declare("dijit._editor.plugins.NewPage",_Plugin,{
@@ -26,7 +18,7 @@ var NewPage = declare("dijit._editor.plugins.NewPage",_Plugin,{
 
 	// content: [public] String
 	//		The default content to insert into the editor as the new page.
-	//		The default is the <br> tag, a single blank line.
+	//		The default is the `<br>` tag, a single blank line.
 	content: "<br>",
 
 	_initButton: function(){
@@ -36,6 +28,7 @@ var NewPage = declare("dijit._editor.plugins.NewPage",_Plugin,{
 			editor = this.editor;
 		this.button = new Button({
 			label: strings["newPage"],
+			ownerDocument: editor.ownerDocument,
 			dir: editor.dir,
 			lang: editor.lang,
 			showLabel: false,
@@ -45,7 +38,7 @@ var NewPage = declare("dijit._editor.plugins.NewPage",_Plugin,{
 		});
 	},
 
-	setEditor: function(/*dijit.Editor*/ editor){
+	setEditor: function(/*dijit/Editor*/ editor){
 		// summary:
 		//		Tell the plugin which Editor it is associated with.
 		// editor: Object

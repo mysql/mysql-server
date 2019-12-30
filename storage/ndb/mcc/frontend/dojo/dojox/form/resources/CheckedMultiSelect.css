@@ -5,9 +5,9 @@
 .dojoxCheckedMultiSelect .dojoxCheckedMultiSelectWrapper {
 	border: solid black 1px;
 	margin: 1px 0;
-	overflow: scroll; 
-	overflow-y: scroll; 
-	overflow-x: hidden; 
+	overflow: scroll;
+	overflow-y: scroll;
+	overflow-x: hidden;
 	height: 100px;
 }
 .dj_ie .dojoxCheckedMultiSelectWrapper,
@@ -94,7 +94,9 @@
 .claro .dojoxCheckedMultiSelectHover .dojoxCheckedMultiSelectWrapper {
 	border-color: #769dc0;
 	background-color: #e9f4fe;
-	background-image: url('../../../dijit/themes/claro/form/images/textBox_back.png');
+	background-image: -moz-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: -webkit-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
 	background-repeat: repeat-x;
 	-webkit-transition-duration:.25s;
 }
@@ -149,7 +151,7 @@
 	border: 1px solid #ffffff;
 	border-top: none;
 	background-color: #efefef;
-	background-image: url("../../../dijit/themes/claro/form/images/formHighlight.png");
+	background-image: url("../../../dijit/themes/claro/images/standardGradient.png");
 	background-repeat: repeat-x;
 }
 .claro .dojoxCheckedMultiSelectButton .dijitArrowButton .dijitArrowButtonInner {
@@ -162,7 +164,9 @@
 .claro .dojoxCheckedMultiSelectButtonHover {
 	border: 1px solid #769dc0;
 	background-color: #e9f4fe;
-	background-image: url('../../../dijit/themes/claro/form/images/textBox_back.png');
+	background-image: -moz-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: -webkit-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+	background-image: linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
 	background-repeat: repeat-x;
 }
 .claro .dojoxCheckedMultiSelectButtonHover .dijitButtonContents {

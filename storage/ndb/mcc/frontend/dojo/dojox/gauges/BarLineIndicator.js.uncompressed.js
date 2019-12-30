@@ -1,10 +1,5 @@
-//>>built
 define("dojox/gauges/BarLineIndicator", ["dojo/_base/declare","dojo/_base/fx","dojo/_base/connect","dojo/_base/lang", "dojox/gfx", "./_Indicator"], 
-  function(declare, fx, connect, lang, gfx, Indicator) { 
-
-/*=====
-	Indicator = dojox.gauges._Indicator;
-=====*/
+  function(declare, fx, connect, lang, gfx, Indicator) {
 
 return declare("dojox.gauges.BarLineIndicator",[Indicator],{
 	
@@ -47,7 +42,7 @@ return declare("dojox.gauges.BarLineIndicator",[Indicator],{
 		return shapes;
 	},
 	draw: function(/*dojox.gfx.Group*/group, /*Boolean?*/ dontAnimate){
-		// summary: 
+		// summary:
 		//		Override of dojox.gauges._Indicator.draw
 		// dontAnimate: Boolean
 		//		Indicates if the drawing should not be animated (vs. the default of doing an animation)
@@ -108,7 +103,7 @@ return declare("dojox.gauges.BarLineIndicator",[Indicator],{
 	},
 	
 	_move: function(/*Boolean?*/ dontAnimate){
-		// summary: 
+		// summary:
 		//		Moves this indicator (since it's already been drawn once)
 		// dontAnimate: Boolean
 		//		Indicates if the drawing should not be animated (vs. the default of doing an animation)

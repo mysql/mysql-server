@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/curves"
 define("dojox/math/curves", ["dojo", "dojox"], function(dojo, dojox) {
 dojo.getObject("math.curves", true, dojox);

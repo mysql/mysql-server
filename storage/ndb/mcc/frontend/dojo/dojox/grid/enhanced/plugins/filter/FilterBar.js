@@ -1,5 +1,6 @@
 //>>built
-define("dojox/grid/enhanced/plugins/filter/FilterBar",["dojo/_base/declare","dojo/_base/array","dojo/_base/connect","dojo/_base/lang","dojo/_base/sniff","dojo/_base/event","dojo/_base/html","dojo/_base/window","dojo/cache","dojo/query","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dojo/fx","dojo/_base/fx","dojo/string","dijit/focus"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,_d,fx,_e,_f,_10){
+require({cache:{"url:dojox/grid/enhanced/templates/FilterBar.html":"<table class=\"dojoxGridFBar\" border=\"0\" cellspacing=\"0\" role=\"presentation\" dojoAttachEvent=\"onclick:_onClickFilterBar, onmouseenter:_onMouseEnter, onmouseleave:_onMouseLeave, onmousemove:_onMouseMove\"\n\t><tr><td class=\"dojoxGridFBarBtnTD\"\n\t\t><span dojoType=\"dijit.form.Button\" class=\"dojoxGridFBarBtn\" dojoAttachPoint=\"defineFilterButton\" label=\"...\" iconClass=\"dojoxGridFBarDefFilterBtnIcon\" showLabel=\"true\" dojoAttachEvent=\"onClick:_showFilterDefDialog, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t></td><td class=\"dojoxGridFBarInfoTD\"\n\t\t><span class=\"dojoxGridFBarInner\"\n\t\t\t><span class=\"dojoxGridFBarStatus\" dojoAttachPoint=\"statusBarNode\">${_noFilterMsg}</span\n\t\t\t><span dojoType=\"dijit.form.Button\" class=\"dojoxGridFBarClearFilterBtn\" dojoAttachPoint=\"clearFilterButton\" \n\t\t\t\tlabel=\"${_filterBarClearBtnLabel}\" iconClass=\"dojoxGridFBarClearFilterBtnIcon\" showLabel=\"true\" \n\t\t\t\tdojoAttachEvent=\"onClick:_clearFilterDefDialog, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t\t\t><span dojotype=\"dijit.form.Button\" class=\"dojoxGridFBarCloseBtn\" dojoAttachPoint=\"closeFilterBarButton\" \n\t\t\t\tlabel=\"${_closeFilterBarBtnLabel}\" iconClass=\"dojoxGridFBarCloseBtnIcon\" showLabel=\"false\" \n\t\t\t\tdojoAttachEvent=\"onClick:_closeFilterBar, onMouseEnter:_onEnterButton, onMouseLeave:_onLeaveButton, onMouseMove:_onMoveButton\"></span\n\t\t></span\n\t></td></tr\n></table>\n"}});
+define("dojox/grid/enhanced/plugins/filter/FilterBar",["dojo/_base/declare","dojo/_base/array","dojo/_base/connect","dojo/_base/lang","dojo/_base/sniff","dojo/_base/event","dojo/_base/html","dojo/_base/window","dojo/query","dijit/_Widget","dijit/_TemplatedMixin","dijit/_WidgetsInTemplateMixin","dojo/fx","dojo/_base/fx","dojo/string","dijit/focus","dojo/text!../../templates/FilterBar.html"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a,_b,_c,fx,_d,_e,_f,_10){
 var _11="dojoxGridFBarHover",_12="dojoxGridFBarFiltered",_13=function(evt){
 try{
 if(evt&&evt.preventDefault){
@@ -9,14 +10,14 @@ _6.stop(evt);
 catch(e){
 }
 };
-return _1("dojox.grid.enhanced.plugins.filter.FilterBar",[_b,_c,_d],{templateString:_9("dojox.grid","enhanced/templates/FilterBar.html"),widgetsInTemplate:true,_timeout_statusTooltip:300,_handle_statusTooltip:null,_curColIdx:-1,plugin:null,postMixInProperties:function(){
+return _1("dojox.grid.enhanced.plugins.filter.FilterBar",[_a,_b,_c],{templateString:_10,widgetsInTemplate:true,_timeout_statusTooltip:300,_handle_statusTooltip:null,_curColIdx:-1,plugin:null,postMixInProperties:function(){
 var _14=this.plugin;
 var nls=_14.nls;
 this._filterBarDefBtnLabel=nls["filterBarDefButton"];
 this._filterBarClearBtnLabel=nls["filterBarClearButton"];
 this._closeFilterBarBtnLabel=nls["closeFilterBarBtn"];
 var _15=_14.args.itemsName||nls["defaultItemsName"];
-this._noFilterMsg=_f.substitute(nls["filterBarMsgNoFilterTemplate"],["",_15]);
+this._noFilterMsg=_e.substitute(nls["filterBarMsgNoFilterTemplate"],["",_15]);
 var t=this.plugin.args.statusTipTimeout;
 if(typeof t=="number"){
 this._timeout_statusTooltip=t;
@@ -74,9 +75,9 @@ _1f-=2;
 return _18?(_1d-_1f):(_1d+_1f);
 })}}};
 _2.forEach(g.views.views,function(_20){
-_1b.push(_e.animateProperty(_4.mixin({"node":_20.domNode},_1e,_1a)),_e.animateProperty(_4.mixin({"node":_20.scrollboxNode},_1e,_1a)));
+_1b.push(_d.animateProperty(_4.mixin({"node":_20.domNode},_1e,_1a)),_d.animateProperty(_4.mixin({"node":_20.scrollboxNode},_1e,_1a)));
 });
-_1b.push(_e.animateProperty(_4.mixin({"node":g.viewsNode},_1e,_1a)));
+_1b.push(_d.animateProperty(_4.mixin({"node":g.viewsNode},_1e,_1a)));
 fx.combine(_1b).play();
 }else{
 _7.style(this.domNode,"display",_18?"":"none");
@@ -85,7 +86,7 @@ g.update();
 },toggleFilterBar:function(_21,_22){
 this.showFilterBar(!this.isFilterBarShown(),_21,_22);
 },getColumnIdx:function(_23){
-var _24=_a("[role='columnheader']",this.plugin.grid.viewsHeaderNode);
+var _24=_9("[role='columnheader']",this.plugin.grid.viewsHeaderNode);
 var idx=-1;
 for(var i=_24.length-1;i>=0;--i){
 var _25=_7.position(_24[i]);
@@ -136,7 +137,7 @@ this._defPaneIsShown=true;
 },_onCloseFilterDefDialog:function(){
 this._defPaneIsShown=false;
 this._curColIdx=-1;
-_10.focus(this.defineFilterButton.domNode);
+_f.focus(this.defineFilterButton.domNode);
 },_onClickFilterBar:function(e){
 _13(e);
 this._clearStatusTipTimeout();
@@ -186,12 +187,12 @@ if(_2c){
 }
 }
 if(this._focusPos===0){
-_10.focus(this.defineFilterButton.focusNode);
+_f.focus(this.defineFilterButton.focusNode);
 }else{
 if(this._focusPos===1&&_2c){
-_10.focus(this.clearFilterButton.focusNode);
+_f.focus(this.clearFilterButton.focusNode);
 }else{
-_10.focus(this.closeFilterBarButton.focusNode);
+_f.focus(this.closeFilterBarButton.focusNode);
 }
 }
 }
@@ -232,10 +233,10 @@ return _2f;
 },_onFiltered:function(_33,_34){
 var p=this.plugin,_35=p.args.itemsName||p.nls["defaultItemsName"],msg="",g=p.grid,_36=g.layer("filter");
 if(_36.filterDef()){
-msg=_f.substitute(p.nls["filterBarMsgHasFilterTemplate"],[_33,_34,_35]);
+msg=_e.substitute(p.nls["filterBarMsgHasFilterTemplate"],[_33,_34,_35]);
 _7.addClass(this.domNode,_12);
 }else{
-msg=_f.substitute(p.nls["filterBarMsgNoFilterTemplate"],[_34,_35]);
+msg=_e.substitute(p.nls["filterBarMsgNoFilterTemplate"],[_34,_35]);
 _7.removeClass(this.domNode,_12);
 }
 this.statusBarNode.innerHTML=msg;
@@ -256,7 +257,9 @@ clearTimeout(this._handle_statusTooltip);
 this._handle_statusTooltip=null;
 },_showStatusTooltip:function(){
 this._handle_statusTooltip=null;
+if(this.plugin){
 this.plugin.filterStatusTip.showDialog(this._tippos.x,this._tippos.y,this.getColumnIdx(this._tippos.x));
+}
 },_highlightHeader:function(_3b){
 if(_3b!=this._previousHeaderIdx){
 var g=this.plugin.grid,_3c=g.getCell(this._previousHeaderIdx);

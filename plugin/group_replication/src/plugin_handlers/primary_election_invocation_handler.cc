@@ -299,7 +299,7 @@ int Primary_election_handler::legacy_primary_election(
 bool Primary_election_handler::pick_primary_member(
     std::string &primary_uuid,
     std::vector<Group_member_info *> *all_members_info) {
-  DBUG_ENTER("Primary_election_handler::pick_primary_member");
+  DBUG_TRACE;
 
   bool am_i_leaving = true;
 #ifndef DBUG_OFF
@@ -374,10 +374,10 @@ bool Primary_election_handler::pick_primary_member(
     }
   }
 
-  if (the_primary == NULL) DBUG_RETURN(1);
+  if (the_primary == NULL) return 1;
 
   primary_uuid.assign(the_primary->get_uuid());
-  DBUG_RETURN(0);
+  return 0;
 }
 
 std::vector<Group_member_info *>::iterator
@@ -405,6 +405,7 @@ sort_and_get_lowest_version_member_position(
 
   /* to avoid read compatibility issue leader should be picked only from lowest
      version members so save position where member version differs.
+     From 8.0.17 patch version will be considered during version comparison.
 
      set lowest_version_end when major version changes
 
@@ -417,9 +418,25 @@ sort_and_get_lowest_version_member_position(
          the members to be considered for election will be:
             5.7.20, 5.7.21
          and member weight based algorithm will be used to elect primary
+
+     eg: for a list: 8.0.17, 8.0.18, 8.0.19
+         the members to be considered for election will be:
+            8.0.17
+
+     eg: for a list: 8.0.13, 8.0.17, 8.0.18
+         the members to be considered for election will be:
+            8.0.13, 8.0.17, 8.0.18
+         and member weight based algorithm will be used to elect primary
   */
+
   for (it = all_members_info->begin() + 1; it != all_members_info->end();
        it++) {
+    if (first_member->get_member_version() >=
+            PRIMARY_ELECTION_PATCH_CONSIDERATION &&
+        (first_member->get_member_version() != (*it)->get_member_version())) {
+      lowest_version_end = it;
+      break;
+    }
     if (lowest_major_version !=
         (*it)->get_member_version().get_major_version()) {
       lowest_version_end = it;
@@ -456,11 +473,11 @@ void Primary_election_handler::unregister_transaction_observer() {
 int Primary_election_handler::before_transaction_begin(
     my_thread_id, ulong gr_consistency, ulong hold_timeout,
     enum_rpl_channel_type channel_type) {
-  DBUG_ENTER("Primary_election_handler::before_transaction_begin");
+  DBUG_TRACE;
 
   if (GR_RECOVERY_CHANNEL == channel_type ||
       GR_APPLIER_CHANNEL == channel_type) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   const enum_group_replication_consistency_level consistency_level =
@@ -469,11 +486,11 @@ int Primary_election_handler::before_transaction_begin(
   if (consistency_level ==
           GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
       consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
-    DBUG_RETURN(
-        hold_transactions->wait_until_primary_failover_complete(hold_timeout));
+    return hold_transactions->wait_until_primary_failover_complete(
+        hold_timeout);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*

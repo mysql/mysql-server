@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,9 @@ class Gcs_xcom_view_identifier : public Gcs_view_identifier {
 
   Gcs_xcom_view_identifier(const Gcs_xcom_view_identifier &) = default;
 
-  uint64_t get_fixed_part() const { return fixed_part; }
+  uint64_t get_fixed_part() const { return m_fixed_part; }
 
-  uint32_t get_monotonic_part() const { return monotonic_part; }
+  uint32_t get_monotonic_part() const { return m_monotonic_part; }
 
   void increment_by_one();
 
@@ -48,10 +48,12 @@ class Gcs_xcom_view_identifier : public Gcs_view_identifier {
 
  private:
   void init(uint64_t fixed_part_arg, uint32_t monotonic_part_arg);
+  virtual bool equals(const Gcs_view_identifier &other) const;
+  virtual bool lessThan(const Gcs_view_identifier &other) const;
 
-  uint64_t fixed_part;
-  uint32_t monotonic_part;
-  std::string representation;
+  uint64_t m_fixed_part;
+  uint32_t m_monotonic_part;
+  std::string m_representation;
 };
 
 #endif /* GCS_XCOM_VIEW_IDENTIFIER_INCLUDED */

@@ -31,6 +31,7 @@
 #include <sys/types.h>
 
 #include "lf.h"
+#include "my_hostname.h" /* HOSTNAME_LENGTH */
 #include "mysql_com.h"
 #include "sql_string.h"
 #include "storage/perfschema/pfs_global.h"

@@ -45,3 +45,19 @@ ALTER TABLE mysql.ndb_schema ALGORITHM=inplace, add column b int null;
 ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
 DROP TABLE mysql.ndb_schema;
 ERROR 42S02: Table 'mysql.ndb_schema' doesn't exist
+# Check that mysql.ndb_schema_result does not show up in
+# information_schema queries
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema_result';
+TABLE_SCHEMA	TABLE_NAME
+# No reading or modifying data
+SELECT * FROM mysql.ndb_schema_result;
+ERROR 42S02: Table 'mysql.ndb_schema_result' doesn't exist
+DELETE FROM mysql.ndb_schema_result
+WHERE nodeid=0;
+ERROR 42S02: Table 'mysql.ndb_schema_result' doesn't exist
+# No DDL
+ALTER TABLE mysql.ndb_schema_result ALGORITHM=copy, add column b int null;
+ERROR 42S02: Table 'mysql.ndb_schema_result' doesn't exist
+DROP TABLE mysql.ndb_schema_result;
+ERROR 42S02: Table 'mysql.ndb_schema_result' doesn't exist

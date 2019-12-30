@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -931,7 +931,8 @@ public:
     {
       LCP_QUEUED = 0,
       LCP_EXECUTING = 1,
-      LCP_EXECUTED = 2
+      LCP_EXECUTED = 2,
+      LCP_EXECUTED_BY_CREATE_TABLE = 3
     };
 
     /* 
@@ -1017,6 +1018,21 @@ public:
     };
     Uint32 lcp_frag_ord_lcp_no;
     Uint32 lcp_frag_ord_lcp_id;
+
+    /**
+     * Fragment was was inserted into LCP fragment queue by a CREATE TABLE
+     * statement. This variable is set to true only when this insertion
+     * happens when no LCP is ongoing.
+     */
+    bool m_create_table_insert_lcp;
+    /**
+     * This variable is always set when inserted into LCP fragment queue by
+     * a CREATE TABLE statement. It is cleared when a LCP_FRAG_ORD is received
+     * for the fragment. Thus by checking this variable at completion of
+     * fragment LCP we know whether to report LCP_FRAG_REP or not.
+     */
+    bool m_create_table_flag_lcp_frag_ord;
+
     LcpExecutionState lcp_frag_ord_state;
     UsageStat m_useStat;
     Uint8 m_copy_complete_flag;
@@ -1134,9 +1150,8 @@ public:
    *       checkpoint that is ongoing. This record is also used as a
    *       system restart record.
    */
-  struct LcpRecord {
-    LcpRecord() { m_EMPTY_LCP_REQ.clear(); }
-    
+  struct LcpRecord
+  {
     enum LcpState {
       LCP_IDLE = 0,
       LCP_COMPLETED = 1,
@@ -1150,6 +1165,23 @@ public:
     bool firstFragmentFlag;
     bool lastFragmentFlag;
 
+    /**
+     * This variable is set to true when starting a new LCP AND
+     * there are fragments inserted into the LCP queue already.
+     * Those have been inserted by CREATE TABLE statements and
+     * need to be executed fully before any other fragments have
+     * their LCPs executed.
+     */
+    bool m_early_lcps_need_synch;
+
+    /**
+     * This is set to true when sending WAIT_LCP_IDLE_REQ and
+     * cleared again when WAIT_LCP_IDLE_CONF is received. It ensures
+     * that we don't start any new fragment LCPs while we are waiting
+     * for the previous ones to be completed.
+     */
+    bool m_wait_early_lcp_synch;
+
     struct FragOrd {
       Uint32 fragPtrI;
       LcpFragOrd lcpFragOrd;
@@ -1157,9 +1189,6 @@ public:
     FragOrd currentPrepareFragment;
     FragOrd currentRunFragment;
     
-    bool   reportEmpty;
-    NdbNodeBitmask m_EMPTY_LCP_REQ;
-
     Uint32 m_outstanding;
 
     Uint64 m_no_of_records;
@@ -1668,12 +1697,12 @@ public:
     Uint16 stopMbyte;
    /**
      *       This variable refers to the file where invalidation is
-     *       occuring during system/node restart.
+     *       occurring during system/node restart.
      */
     Uint16 invalidateFileNo;
     /**
      *       This variable refers to the page where invalidation is
-     *       occuring during system/node restart.
+     *       occurring during system/node restart.
      */
     Uint16 invalidatePageNo;
     /**
@@ -2220,6 +2249,7 @@ public:
 
     Uint32 usageCountR; // readers
     Uint32 usageCountW; // writers
+    Uint32 m_addfragptr_i;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 #endif // DBLQH_STATE_EXTRACT
@@ -2408,7 +2438,8 @@ public:
       OP_DEFERRED_CONSTRAINTS   = 0x8,
       OP_NORMAL_PROTOCOL        = 0x10,
       OP_DISABLE_FK             = 0x20,
-      OP_NO_TRIGGERS            = 0x40
+      OP_NO_TRIGGERS            = 0x40,
+      OP_NOWAIT                 = 0x80
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2481,6 +2512,7 @@ public:
   void send_read_local_sysfile(Signal*);
   void write_local_sysfile_restore_complete(Signal*);
   void write_local_sysfile_gcp_complete(Signal *signal, Uint32 gci);
+  void write_local_sysfile_gcp_complete_late(Signal *signal, Uint32 gci);
   void write_local_sysfile_restart_complete(Signal*);
   void write_local_sysfile_restore_complete_done(Signal*);
   void write_local_sysfile_gcp_complete_done(Signal *signal);
@@ -2494,6 +2526,7 @@ public:
   Dblqh(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dblqh();
 
+  void execLOCAL_LATEST_LCP_ID_REP(Signal*);
   void execTUPKEYCONF(Signal* signal);
   Uint32 get_scan_api_op_ptr(Uint32 scan_ptr_i);
 
@@ -2588,6 +2621,8 @@ private:
   void execDROP_FRAG_REF(Signal*);
   void execDROP_FRAG_CONF(Signal*);
 
+  void insert_new_fragments_into_lcp(Signal*);
+  void execWAIT_LCP_IDLE_CONF(Signal*);
   void execTAB_COMMITREQ(Signal* signal);
   void execACCSEIZECONF(Signal* signal);
   void execACCSEIZEREF(Signal* signal);
@@ -2623,7 +2658,6 @@ private:
 
   void force_lcp(Signal* signal);
   void execLCP_FRAG_ORD(Signal* signal);
-  void execEMPTY_LCP_REQ(Signal* signal);
   
   void execSTART_FRAGREQ(Signal* signal);
   void execSTART_RECREF(Signal* signal);
@@ -2703,7 +2737,6 @@ private:
   
   void removeTable(Uint32 tableId);
   void sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId);
-  void sendEMPTY_LCP_CONF(Signal* signal, bool idle);
   void sendLCP_FRAGIDREQ(Signal* signal);
   void sendLCP_FRAG_REP(Signal * signal, const LcpRecord::FragOrd &,
                         const Fragrecord*) const;
@@ -2723,6 +2756,10 @@ private:
   void sendLqhkeyconfTc(Signal* signal,
                         BlockReference atcBlockref,
                         TcConnectionrecPtr);
+  void sendBatchedLqhkeyreq(Signal* signal,
+                            Uint32 lqhRef,
+                            Uint32 siglen,
+                            SectionHandle* handle);
   void sendCommitLqh(Signal* signal,
                      BlockReference alqhBlockref,
                      const TcConnectionrec*);
@@ -3052,7 +3089,9 @@ private:
   void lcpStartedLab(Signal* signal);
   void completed_fragment_checkpoint(Signal *signal,
                                      const LcpRecord::FragOrd & fragOrd);
-  void prepare_next_fragment_checkpoint(Signal* signal);
+  bool exec_prepare_next_fragment_checkpoint(Signal* signal,
+                                             FragrecordPtr fragptr);
+  void prepare_next_fragment_checkpoint(Signal*, bool);
   void perform_fragment_checkpoint(Signal *signal);
   void handleFirstFragment(Signal *signal);
   void startLcpRoundLab(Signal* signal);
@@ -3891,6 +3930,7 @@ public:
   void set_min_keep_gci(Uint32 max_completed_gci);
 
   void sendRESTORABLE_GCI_REP(Signal*, Uint32 gci);
+  void start_synch_gcp(Signal*);
   void start_local_lcp(Signal*, Uint32 lcpId, Uint32 localLcpId);
 
   void execLCP_ALL_COMPLETE_CONF(Signal*);
@@ -3910,10 +3950,9 @@ public:
    * Some code and variables to serialize access to NDBCNTR for
    * writes of the local sysfile.
    */
-  bool c_start_phase_49_waiting;
+  bool c_start_phase_9_waiting;
   bool c_outstanding_write_local_sysfile;
   bool c_send_gcp_saveref_needed;
-  void check_start_phase_49_waiting(Signal*);
 
   /**
    * Variable that keeps track of maximum GCI that was recorded in the
@@ -4053,6 +4092,8 @@ public:
   void decrement_committed_mbytes(LogPartRecord*, TcConnectionrec*);
   bool is_restore_phase_done();
   bool is_full_local_lcp_running();
+  bool is_lcp_idle(LcpRecord *lcpPtrP);
+  Uint32 m_restart_local_latest_lcp_id;
 #endif
 };
 
@@ -4205,6 +4246,15 @@ bool Dblqh::is_scan_ok(ScanRecord* scanPtrP, Fragrecord::FragStatus fragstatus)
   {
     return true;
   }
+  return false;
+}
+
+inline
+bool Dblqh::is_lcp_idle(LcpRecord *lcpPtrP)
+{
+  if (lcpPtrP->lcpPrepareState == LcpRecord::LCP_IDLE &&
+      lcpPtrP->lcpRunState == LcpRecord::LCP_IDLE)
+    return true;
   return false;
 }
 #endif

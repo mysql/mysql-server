@@ -1,4 +1,3 @@
-//>>built
 define("dijit/form/_FormWidgetMixin", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
@@ -6,27 +5,23 @@ define("dijit/form/_FormWidgetMixin", [
 	"dojo/dom-style", // domStyle.get
 	"dojo/_base/lang", // lang.hitch lang.isArray
 	"dojo/mouse", // mouse.isLeft
-	"dojo/_base/sniff", // has("webkit")
-	"dojo/_base/window", // win.body
+	"dojo/sniff", // has("webkit")
 	"dojo/window", // winUtils.scrollIntoView
 	"../a11y"	// a11y.hasDefaultTabStop
-], function(array, declare, domAttr, domStyle, lang, mouse, has, win, winUtils, a11y){
+], function(array, declare, domAttr, domStyle, lang, mouse, has, winUtils, a11y){
 
 // module:
 //		dijit/form/_FormWidgetMixin
-// summary:
-//		Mixin for widgets corresponding to native HTML elements such as <checkbox> or <button>,
-//		which can be children of a <form> node or a `dijit.form.Form` widget.
 
 return declare("dijit.form._FormWidgetMixin", null, {
 	// summary:
-	//		Mixin for widgets corresponding to native HTML elements such as <checkbox> or <button>,
-	//		which can be children of a <form> node or a `dijit.form.Form` widget.
+	//		Mixin for widgets corresponding to native HTML elements such as `<checkbox>` or `<button>`,
+	//		which can be children of a `<form>` node or a `dijit/form/Form` widget.
 	//
 	// description:
 	//		Represents a single HTML element.
 	//		All these widgets should have these attributes just like native HTML input elements.
-	//		You can set them during widget construction or afterwards, via `dijit._Widget.attr`.
+	//		You can set them during widget construction or afterwards, via `dijit/_WidgetBase.set()`.
 	//
 	//		They also share some common methods.
 
@@ -35,18 +30,22 @@ return declare("dijit.form._FormWidgetMixin", null, {
 	name: "",
 
 	// alt: String
-	//		Corresponds to the native HTML <input> element's attribute.
+	//		Corresponds to the native HTML `<input>` element's attribute.
 	alt: "",
 
 	// value: String
-	//		Corresponds to the native HTML <input> element's attribute.
+	//		Corresponds to the native HTML `<input>` element's attribute.
 	value: "",
 
 	// type: [const] String
-	//		Corresponds to the native HTML <input> element's attribute.
+	//		Corresponds to the native HTML `<input>` element's attribute.
 	type: "text",
 
-	// tabIndex: Integer
+	// type: String
+	//		Apply aria-label in markup to the widget's focusNode
+	"aria-label": "focusNode",
+
+	// tabIndex: String
 	//		Order fields are traversed when user hits the tab key
 	tabIndex: "0",
 	_setTabIndexAttr: "focusNode",	// force copy even when tabIndex default value, needed since Button is <span>
@@ -68,18 +67,13 @@ return declare("dijit.form._FormWidgetMixin", null, {
 	// works with screen reader
 	_setIdAttr: "focusNode",
 
-	postCreate: function(){
-		this.inherited(arguments);
-		this.connect(this.domNode, "onmousedown", "_onMouseDown");
-	},
-
 	_setDisabledAttr: function(/*Boolean*/ value){
 		this._set("disabled", value);
 		domAttr.set(this.focusNode, 'disabled', value);
 		if(this.valueNode){
 			domAttr.set(this.valueNode, 'disabled', value);
 		}
-		this.focusNode.setAttribute("aria-disabled", value);
+		this.focusNode.setAttribute("aria-disabled", value ? "true" : "false");
 
 		if(value){
 			// reset these, because after the domNode is disabled, we can no longer receive
@@ -106,9 +100,29 @@ return declare("dijit.form._FormWidgetMixin", null, {
 		}
 	},
 
-	_onFocus: function(e){
+	_onFocus: function(/*String*/ by){
+		// If user clicks on the widget, even if the mouse is released outside of it,
+		// this widget's focusNode should get focus (to mimic native browser hehavior).
+		// Browsers often need help to make sure the focus via mouse actually gets to the focusNode.
+		if(by == "mouse" && this.isFocusable()){
+			// IE exhibits strange scrolling behavior when refocusing a node so only do it when !focused.
+			var focusConnector = this.connect(this.focusNode, "onfocus", function(){
+				this.disconnect(mouseUpConnector);
+				this.disconnect(focusConnector);
+			});
+			// Set a global event to handle mouseup, so it fires properly
+			// even if the cursor leaves this.domNode before the mouse up event.
+			var mouseUpConnector = this.connect(this.ownerDocumentBody, "onmouseup", function(){
+				this.disconnect(mouseUpConnector);
+				this.disconnect(focusConnector);
+				// if here, then the mousedown did not focus the focusNode as the default action
+				if(this.focused){
+					this.focus();
+				}
+			});
+		}
 		if(this.scrollOnFocus){
-			winUtils.scrollIntoView(this.domNode);
+			this.defer(function(){ winUtils.scrollIntoView(this.domNode); }); // without defer, the input caret position can change on mouse click
 		}
 		this.inherited(arguments);
 	},
@@ -182,15 +196,15 @@ return declare("dijit.form._FormWidgetMixin", null, {
 			this._pendingOnChange = false;
 			if(this._onChangeActive){
 				if(this._onChangeHandle){
-					clearTimeout(this._onChangeHandle);
+					this._onChangeHandle.remove();
 				}
-				// setTimeout allows hidden value processing to run and
+				// defer allows hidden value processing to run and
 				// also the onChange handler can safely adjust focus, etc
-				this._onChangeHandle = setTimeout(lang.hitch(this,
+				this._onChangeHandle = this.defer(
 					function(){
 						this._onChangeHandle = null;
 						this.onChange(newValue);
-					}), 0); // try to collapse multiple onChange's fired faster than can be processed
+					}); // try to collapse multiple onChange's fired faster than can be processed
 			}
 		}
 	},
@@ -203,29 +217,10 @@ return declare("dijit.form._FormWidgetMixin", null, {
 
 	destroy: function(){
 		if(this._onChangeHandle){ // destroy called before last onChange has fired
-			clearTimeout(this._onChangeHandle);
+			this._onChangeHandle.remove();
 			this.onChange(this._lastValueReported);
 		}
 		this.inherited(arguments);
-	},
-
-	_onMouseDown: function(e){
-		// If user clicks on the button, even if the mouse is released outside of it,
-		// this button should get focus (to mimics native browser buttons).
-		// This is also needed on chrome because otherwise buttons won't get focus at all,
-		// which leads to bizarre focus restore on Dialog close etc.
-		// IE exhibits strange scrolling behavior when focusing a node so only do it when !focused.
-		// FF needs the extra help to make sure the mousedown actually gets to the focusNode
-		if((!this.focused || !has("ie")) && !e.ctrlKey && mouse.isLeft(e) && this.isFocusable()){ // !e.ctrlKey to ignore right-click on mac
-			// Set a global event to handle mouseup, so it fires properly
-			// even if the cursor leaves this.domNode before the mouse up event.
-			var mouseUpConnector = this.connect(win.body(), "onmouseup", function(){
-				if(this.isFocusable()){
-					this.focus();
-				}
-				this.disconnect(mouseUpConnector);
-			});
-		}
 	}
 });
 

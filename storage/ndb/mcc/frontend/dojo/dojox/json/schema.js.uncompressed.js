@@ -1,4 +1,3 @@
-//>>built
 define("dojox/json/schema", ["dojo/_base/kernel", "dojox", "dojo/_base/array"], function(dojo, dojox){
 
 dojo.getObject("json.schema", true, dojox);
@@ -6,48 +5,49 @@ dojo.getObject("json.schema", true, dojox);
 
 dojox.json.schema.validate = function(/*Any*/instance,/*Object*/schema){
 	// summary:
-	//  	To use the validator call this with an instance object and an optional schema object.
-	// 		If a schema is provided, it will be used to validate. If the instance object refers to a schema (self-validating),
-	// 		that schema will be used to validate and the schema parameter is not necessary (if both exist,
-	// 		both validations will occur).
-	//	instance:
+	//		To use the validator call this with an instance object and an optional schema object.
+	//		If a schema is provided, it will be used to validate. If the instance object refers to a schema (self-validating),
+	//		that schema will be used to validate and the schema parameter is not necessary (if both exist,
+	//		both validations will occur).
+	// instance:
 	//		The instance value/object to validate
 	// schema:
 	//		The schema to use to validate
 	// description:
-	// 		The validate method will return an object with two properties:
-	// 			valid: A boolean indicating if the instance is valid by the schema
-	// 			errors: An array of validation errors. If there are no errors, then an
-	// 					empty list will be returned. A validation error will have two properties:
-	// 						property: which indicates which property had the error
-	// 						message: which indicates what the error was
+	//		The validate method will return an object with two properties:
 	//
+	//		- valid: A boolean indicating if the instance is valid by the schema
+	//		- errors: An array of validation errors. If there are no errors, then an
+	//		  empty list will be returned. A validation error will have two properties:
+	//		- property: which indicates which property had the error
+	//		- message: which indicates what the error was
+
 	return this._validate(instance,schema,false);
 };
 dojox.json.schema.checkPropertyChange = function(/*Any*/value,/*Object*/schema, /*String*/ property){
 	// summary:
-	// 		The checkPropertyChange method will check to see if an value can legally be in property with the given schema
-	// 		This is slightly different than the validate method in that it will fail if the schema is readonly and it will
-	// 		not check for self-validation, it is assumed that the passed in value is already internally valid.
-	// 		The checkPropertyChange method will return the same object type as validate, see JSONSchema.validate for
-	// 		information.
-	//	value:
+	//		The checkPropertyChange method will check to see if an value can legally be in property with the given schema
+	//		This is slightly different than the validate method in that it will fail if the schema is readonly and it will
+	//		not check for self-validation, it is assumed that the passed in value is already internally valid.
+	//		The checkPropertyChange method will return the same object type as validate, see JSONSchema.validate for
+	//		information.
+	// value:
 	//		The new instance value/object to check
 	// schema:
 	//		The schema to use to validate
-	// return:
-	// 		see dojox.validate.jsonSchema.validate
-	//
+	// returns:
+	//		see dojox.validate.jsonSchema.validate
+
 	return this._validate(value,schema, property || "property");
 };
 dojox.json.schema.mustBeValid = function(result){
-	//	summary:
+	// summary:
 	//		This checks to ensure that the result is valid and will throw an appropriate error message if it is not
 	// result: the result returned from checkPropertyChange or validate
 	if(!result.valid){
 		throw new TypeError(dojo.map(result.errors,function(error){return "for property " + error.property + ': ' + error.message;}).join(", "));
 	}
-}
+};
 dojox.json.schema._validate = function(/*Any*/instance,/*Object*/schema,/*Boolean*/ _changing){
 	
 	var errors = [];

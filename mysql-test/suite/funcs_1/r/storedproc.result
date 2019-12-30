@@ -3304,9 +3304,15 @@ return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 tinyint zerofill ) returns tinyint zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 tinyint unsigned zerofill ) returns tinyint unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 smallint ) returns smallint
 return f1;
@@ -3316,9 +3322,15 @@ return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 smallint zerofill ) returns smallint zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 smallint unsigned zerofill ) returns smallint unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 mediumint ) returns mediumint
 return f1;
@@ -3328,9 +3340,15 @@ return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 mediumint zerofill ) returns mediumint zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 mediumint unsigned zerofill ) returns mediumint unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 int ) returns int
 return f1;
@@ -3355,9 +3373,15 @@ return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 int zerofill ) returns int zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 int unsigned zerofill ) returns int unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 bigint ) returns bigint
 return f1;
@@ -3367,57 +3391,107 @@ return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 bigint zerofill ) returns bigint zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 bigint unsigned zerofill ) returns bigint unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 decimal ) returns decimal
 return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 decimal unsigned ) returns decimal unsigned
 return f1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 decimal zerofill ) returns decimal zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 decimal unsigned zerofill ) returns decimal unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 numeric ) returns numeric
 return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 numeric unsigned ) returns numeric unsigned
 return f1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 numeric zerofill ) returns numeric zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 numeric unsigned zerofill ) returns numeric unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 real ) returns real
 return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 real unsigned ) returns real unsigned
 return f1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 real zerofill ) returns real zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 real unsigned zerofill ) returns real unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 float ) returns float
 return f1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 float unsigned ) returns float unsigned
 return f1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 float zerofill ) returns float zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 float unsigned zerofill ) returns float unsigned zerofill
 return f1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1(f1 date ) returns date
 return f1;
@@ -3936,6 +4010,8 @@ BEGIN
 SELECT count(*) into cnt from t2;
 set @count = cnt;
 END//
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CALL sp1( 10 );
 SELECT @count;
 @count
@@ -3956,6 +4032,8 @@ SELECT count(*) into cnt from t2;
 set @count = cnt;
 SELECT @count;
 END//
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CALL sp1( 10 );
 @count
 10
@@ -7260,6 +7338,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7271,6 +7351,8 @@ BEGIN
 declare x, y, z tinyint unsigned zerofill default 1;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 001	001	001
@@ -7301,6 +7383,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7312,6 +7396,8 @@ BEGIN
 declare x, y, z smallint unsigned zerofill default 1;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 00001	00001	00001
@@ -7342,6 +7428,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7353,6 +7441,8 @@ BEGIN
 declare x, y, z mediumint unsigned zerofill default 1;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 00000001	00000001	00000001
@@ -7383,6 +7473,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7394,6 +7486,8 @@ BEGIN
 declare x, y, z int unsigned zerofill default 1;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 0000000001	0000000001	0000000001
@@ -7424,6 +7518,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7435,6 +7531,8 @@ BEGIN
 declare x, y, z bigint unsigned zerofill default 1;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 00000000000000000001	00000000000000000001	00000000000000000001
@@ -7461,6 +7559,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 @err_no	@err_txt
 1265	Data truncated for column 'z' at row 1
@@ -7475,6 +7575,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1264	Out of range value for column 'z' at row 1
@@ -7489,6 +7591,9 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 @err_no	@err_txt
 1265	Data truncated for column 'z' at row 1
@@ -7517,6 +7622,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 @err_no	@err_txt
 1265	Data truncated for column 'z' at row 1
@@ -7531,6 +7638,8 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 @err_no	@err_txt
 1265	Data truncated for column 'z' at row 1
@@ -7545,6 +7654,9 @@ GET DIAGNOSTICS CONDITION @n @err_no = MYSQL_ERRNO, @err_txt = MESSAGE_TEXT;
 SELECT @err_no, @err_txt;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 @err_no	@err_txt
 1265	Data truncated for column 'z' at row 1
@@ -7565,6 +7677,8 @@ BEGIN
 declare x, y, z real unsigned default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 x	y	z
 1.175494351e-38	1.175494351e-38	1.175494351e-38
@@ -7574,6 +7688,8 @@ BEGIN
 declare x, y, z real zerofill default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 00000001.175494351e-38	00000001.175494351e-38	00000001.175494351e-38
@@ -7583,6 +7699,9 @@ BEGIN
 declare x, y, z real unsigned zerofill default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 x	y	z
 00000001.175494351e-38	00000001.175494351e-38	00000001.175494351e-38
@@ -7601,6 +7720,8 @@ BEGIN
 declare x, y, z float unsigned default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 x	y	z
 1.17549e-38	1.17549e-38	1.17549e-38
@@ -7610,6 +7731,8 @@ BEGIN
 declare x, y, z float zerofill default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp1();
 x	y	z
 01.17549e-38	01.17549e-38	01.17549e-38
@@ -7619,6 +7742,9 @@ BEGIN
 declare x, y, z float unsigned zerofill default 1.175494351e-38;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp1();
 x	y	z
 01.17549e-38	01.17549e-38	01.17549e-38
@@ -15632,6 +15758,8 @@ END//
 CALL sp2( 'insert' );
 SELECT * from t3 where f3 <=5 && f3 >= 0;
 f1	f2	f3
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
+Warnings:
 f1	address	1
 f1	address	1
 f1	address	1
@@ -16766,6 +16894,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn3(1.84e+17);
 fn3(1.84e+17)
 184000000000000000
@@ -16775,6 +16906,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn4(-9.22e+15);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP FUNCTION IF EXISTS fn5;
@@ -16801,6 +16935,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn7(99999999999);
 fn7(99999999999)
 9999999999
@@ -16812,6 +16949,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn8(999999999);
 fn8(999999999)
 1000000000
@@ -16821,6 +16963,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn9(-1.00e+09);
 fn9(-1.00e+09)
 0000000010
@@ -16841,6 +16986,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn11(99999999999);
 fn11(99999999999)
 9999999999
@@ -16852,6 +17000,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn12(999999999);
 fn12(999999999)
 1000000000
@@ -16861,6 +17014,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn13(-1.00e+09);
 fn13(-1.00e+09)
 0000000010
@@ -16881,6 +17037,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn15(1.00e+16);
 fn15(1.00e+16)
 10000000000000000.000000000000000000000000000000
@@ -16890,6 +17049,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn16(1.00e+16);
 fn16(1.00e+16)
 000000000000000010000000000000000.000000000000000000000000000000
@@ -16899,6 +17063,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn17(-1.00e+21);
 fn17(-1.00e+21)
 000000000000000000000000000000010.000000000000000000000000000000
@@ -16919,6 +17086,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn19_du( 100000000000000000000 );
 fn19_du( 100000000000000000000 )
 100000000000000000000
@@ -16928,6 +17098,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn20_duz( 1000000000000000000000000 );
 fn20_duz( 1000000000000000000000000 )
 0000000000000000000000000000000000000001000000000000000000000000
@@ -16937,6 +17112,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn21_d_z(1.00e+00);
 fn21_d_z(1.00e+00)
 0000000000000000000000000000000000000000000000000000000000000010
@@ -16946,6 +17124,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn22(1.00e+00);
 fn22(1.00e+00)
 10
@@ -16955,6 +17136,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn23(1.00e+00);
 fn23(1.00e+00)
 0000000010
@@ -16964,6 +17150,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn24(-1.00e+09);
 fn24(-1.00e+09)
 0000000010
@@ -16984,6 +17173,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn26(1.00e+00);
 fn26(1.00e+00)
 10
@@ -16993,6 +17185,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn27(1.00e+00);
 fn27(1.00e+00)
 10
@@ -17002,6 +17199,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn28(1.00e+00);
 fn28(1.00e+00)
 10
@@ -17020,6 +17220,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn30(1.00e+00);
 fn30(1.00e+00)
 10
@@ -17029,6 +17232,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn31(1.00e+00);
 fn31(1.00e+00)
 10
@@ -17038,6 +17246,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn32(1.00e+00);
 fn32(1.00e+00)
 10
@@ -17056,6 +17267,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn34(1.00e+00);
 fn34(1.00e+00)
 10
@@ -17065,6 +17279,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn35(1.00e+00);
 fn35(1.00e+00)
 10
@@ -17074,6 +17293,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn36(1.00e+00);
 fn36(1.00e+00)
 10
@@ -17092,6 +17314,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn38(1.00e+00);
 fn38(1.00e+00)
 10
@@ -17101,6 +17326,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn39(1.00e+00);
 fn39(1.00e+00)
 10
@@ -17110,6 +17340,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn40(1.00e+00);
 fn40(1.00e+00)
 10
@@ -17128,6 +17361,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn42(1.00e+00);
 fn42(1.00e+00)
 10
@@ -17137,6 +17373,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn43(1.00e+00);
 fn43(1.00e+00)
 10
@@ -17146,6 +17387,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn44(1.00e+00);
 fn44(1.00e+00)
 10
@@ -17164,6 +17408,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn46(1.00e+00);
 fn46(1.00e+00)
 10
@@ -17173,6 +17420,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn47(1.00e+00);
 fn47(1.00e+00)
 10
@@ -17182,6 +17434,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn48(1.00e+00);
 fn48(1.00e+00)
 10
@@ -17211,6 +17466,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn51(4.29e+09);
 fn51(4.29e+09)
 4290000000
@@ -17220,6 +17478,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn52(2.15e+08);
 fn52(2.15e+08)
 215000000
@@ -17247,6 +17508,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn55(16777210);
 fn55(16777210)
 16777210
@@ -17256,6 +17520,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn56(-8388601);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP FUNCTION IF EXISTS fn57;
@@ -17282,6 +17549,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn59(9999999999);
 fn59(9999999999)
 9999999999
@@ -17291,6 +17561,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn60(99999999);
 fn60(99999999)
 0100000000
@@ -17300,6 +17575,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn61(-99999999);
 fn61(-99999999)
 0000000010
@@ -17320,6 +17598,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn63(9999999999);
 fn63(9999999999)
 9999999999
@@ -17329,6 +17610,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn64(99999999);
 fn64(99999999)
 0100000000
@@ -17338,6 +17624,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn65(-99999999);
 fn65(-99999999)
 0000000010
@@ -17360,6 +17649,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn67(1e+36);
 fn67(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
@@ -17371,6 +17663,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn68(1e+36);
 fn68(1e+36)
 999999999999999999999999999999999.999999999999999999999999999999
@@ -17382,6 +17679,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn69(-1e+36);
 fn69(-1e+36)
 000000000000000000000000000000010.000000000000000000000000000000
@@ -17405,6 +17705,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn71_nu( 10000000000000000000000000000000000000000 );
 fn71_nu( 10000000000000000000000000000000000000000 )
 10000000000000000000000000000000000000000
@@ -17414,6 +17717,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn72_nuz( 10000000000000000000000000000000000000000 );
 fn72_nuz( 10000000000000000000000000000000000000000 )
 0000000000000000000000010000000000000000000000000000000000000000
@@ -17423,6 +17731,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn73_n_z( 10000000000000000000000000000000000000000 );
 fn73_n_z( 10000000000000000000000000000000000000000 )
 0000000000000000000000010000000000000000000000000000000000000000
@@ -17432,6 +17743,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn74(999999999);
 fn74(999999999)
 1000000000
@@ -17441,6 +17755,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn75(999999999);
 fn75(999999999)
 1000000000
@@ -17450,6 +17769,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn76(-999999999);
 fn76(-999999999)
 0000000010
@@ -17470,6 +17792,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn78(1.1);
 fn78(1.1)
 10
@@ -17479,6 +17804,11 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT fn79(1.1);
 fn79(1.1)
 10
@@ -17488,6 +17818,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn80(1.1);
 fn80(1.1)
 10
@@ -17515,6 +17848,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn83(65531);
 fn83(65531)
 65532
@@ -17524,6 +17860,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn84(-32601);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP FUNCTION IF EXISTS fn85;
@@ -17550,6 +17889,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn87(201);
 fn87(201)
 202
@@ -17559,6 +17901,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 return f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 SELECT fn88(-101);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP FUNCTION IF EXISTS fn89;
@@ -17765,6 +18110,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp3(1.84e+17);
 f1
 00184000000000000000
@@ -17774,6 +18121,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp4(-9.22e+15);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP PROCEDURE IF EXISTS sp5;
@@ -17800,6 +18149,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp7(99999999999);
 f1
 9999999999
@@ -17811,6 +18162,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp8(999999999);
 f1
 1000000000
@@ -17820,6 +18174,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp9(-1.00e+09);
 f1
 0000000010
@@ -17840,6 +18196,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp11(99999999999);
 f1
 9999999999
@@ -17851,6 +18209,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp12(999999999);
 f1
 1000000000
@@ -17860,6 +18221,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp13(-1.00e+09);
 f1
 0000000010
@@ -17880,6 +18243,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp15(1.00e+16);
 f1
 10000000000000000.000000000000000000000000000000
@@ -17889,6 +18254,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp16(1.00e+16);
 f1
 000000000000000010000000000000000.000000000000000000000000000000
@@ -17898,6 +18266,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp17(-1.00e+21);
 f1
 000000000000000000000000000000010.000000000000000000000000000000
@@ -17921,6 +18291,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp19_du(1.00e+20);
 f1
 100000000000000000000
@@ -17939,6 +18311,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp20_duz(1.00e+20);
 f1
 0000000000000000000000000000000000000000000100000000000000000000
@@ -17957,6 +18332,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp21(1.00e+00);
 f1
 0000000000000000000000000000000000000000000000000000000000000010
@@ -17966,6 +18343,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp22(1.00e+00);
 f1
 10
@@ -17975,6 +18354,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp23(1.00e+00);
 f1
 0000000010
@@ -17984,6 +18366,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp24(-1.00e+09);
 f1
 0000000010
@@ -18004,6 +18388,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp26(1.00e+00);
 f1
 10
@@ -18013,6 +18399,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp27(1.00e+00);
 f1
 0000000000000000000010
@@ -18022,6 +18411,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp28(1.00e+00);
 f1
 0000000000000000000010
@@ -18040,6 +18431,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp30(1.00e+00);
 f1
 10
@@ -18049,6 +18442,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp31(1.00e+00);
 f1
 000000000010
@@ -18058,6 +18454,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp32(1.00e+00);
 f1
 000000000010
@@ -18076,6 +18474,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp34(1.00e+00);
 f1
 10
@@ -18085,6 +18485,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp35(1.00e+00);
 f1
 000000000010
@@ -18094,6 +18497,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp36(1.00e+00);
 f1
 000000000010
@@ -18112,6 +18517,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp38(1.00e+00);
 f1
 10
@@ -18121,6 +18528,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp39(1.00e+00);
 f1
 000000000010
@@ -18130,6 +18540,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp40(1.00e+00);
 f1
 000000000010
@@ -18148,6 +18560,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp42(1.00e+00);
 f1
 10
@@ -18157,6 +18571,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp43(1.00e+00);
 f1
 000000000010
@@ -18166,6 +18583,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp44(1.00e+00);
 f1
 000000000010
@@ -18184,6 +18603,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp46(1.00e+00);
 f1
 10
@@ -18193,6 +18614,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp47(1.00e+00);
 f1
 0000000000000000000010
@@ -18202,6 +18626,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp48(1.00e+00);
 f1
 0000000000000000000010
@@ -18231,6 +18657,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp51(4.29e+09);
 f1
 4290000000
@@ -18240,6 +18668,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp52(2.15e+08);
 f1
 0215000000
@@ -18267,6 +18697,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp55(16777210);
 f1
 16777210
@@ -18276,6 +18708,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp56(-8388601);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP PROCEDURE IF EXISTS sp57;
@@ -18302,6 +18736,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp59(9999999999);
 f1
 9999999999
@@ -18311,6 +18747,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp60(99999999);
 f1
 0100000000
@@ -18320,6 +18759,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp61(-99999999);
 f1
 0000000010
@@ -18340,6 +18781,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp63(9999999999);
 f1
 9999999999
@@ -18349,6 +18792,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp64(99999999);
 f1
 0100000000
@@ -18358,6 +18804,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp65(-99999999);
 f1
 0000000010
@@ -18385,6 +18833,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp67_nu(1e+36);
 f1
 999999999999999999999999999999999.999999999999999999999999999999
@@ -18401,6 +18851,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp68_nuz(1e+36);
 f1
 999999999999999999999999999999999.999999999999999999999999999999
@@ -18417,6 +18870,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp69_n_z(-1e+36);
 f1
 000000000000000000000000000000010.000000000000000000000000000000
@@ -18445,6 +18900,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp71_nu(1.00e+40);
 f1
 10000000000000000000000000000000000000000
@@ -18457,6 +18914,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp72_nuz(1.00e+40);
 f1
 0000000000000000000000010000000000000000000000000000000000000000
@@ -18469,6 +18929,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp73_n_z(1.00e+40);
 f1
 0000000000000000000000010000000000000000000000000000000000000000
@@ -18481,6 +18943,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp74(999999999);
 f1
 1000000000
@@ -18490,6 +18954,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp75(999999999);
 f1
 1000000000
@@ -18499,6 +18966,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp76(-999999999);
 f1
 0000000010
@@ -18519,6 +18988,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp78(1.1);
 f1
 10
@@ -18528,6 +18999,9 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 CALL sp79(1.1);
 f1
 0000000000000000000010
@@ -18537,6 +19011,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp80(1.1);
 f1
 0000000000000000000010
@@ -18564,6 +19040,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp83(65531);
 f1
 65532
@@ -18573,6 +19051,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp84(-32601);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP PROCEDURE IF EXISTS sp85;
@@ -18599,6 +19079,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp87(201);
 f1
 202
@@ -18608,6 +19090,8 @@ BEGIN
 set f1 = (f1 / 2); set f1 = (f1 * 2); set f1 = (f1 - 10); set f1 = (f1 + 10);
 SELECT f1;
 END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 CALL sp88(-101);
 ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 DROP PROCEDURE IF EXISTS sp89;
@@ -18673,6 +19157,8 @@ BEGIN
 set f1 = concat('a', f1);
 SELECT f1;
 END//
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 CALL sp96( 'h');
 f1
 a

@@ -1,41 +1,37 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.drawing.manager.StencilUI");
-(function(){
-var _4,_5;
-_3.drawing.manager.StencilUI=_3.drawing.util.oo.declare(function(_6){
-_4=_6.surface;
-this.canvas=_6.canvas;
-this.defaults=_3.drawing.defaults.copy();
-this.mouse=_6.mouse;
-this.keys=_6.keys;
+define("dojox/drawing/manager/StencilUI",["dojo","../util/oo"],function(_1,oo){
+var _2,_3;
+return oo.declare(function(_4){
+_2=_4.surface;
+this.canvas=_4.canvas;
+this.mouse=_4.mouse;
+this.keys=_4.keys;
 this._mouseHandle=this.mouse.register(this);
 this.stencils={};
-},{register:function(_7){
-this.stencils[_7.id]=_7;
-return _7;
-},onUiDown:function(_8){
+},{register:function(_5){
+this.stencils[_5.id]=_5;
+return _5;
+},onUiDown:function(_6){
+if(!this._isStencil(_6)){
+return;
+}
+this.stencils[_6.id].onDown(_6);
+},onUiUp:function(_7){
+if(!this._isStencil(_7)){
+return;
+}
+this.stencils[_7.id].onUp(_7);
+},onOver:function(_8){
 if(!this._isStencil(_8)){
 return;
 }
-this.stencils[_8.id].onDown(_8);
-},onUiUp:function(_9){
+this.stencils[_8.id].onOver(_8);
+},onOut:function(_9){
 if(!this._isStencil(_9)){
 return;
 }
-this.stencils[_9.id].onUp(_9);
-},onOver:function(_a){
-if(!this._isStencil(_a)){
-return;
-}
-this.stencils[_a.id].onOver(_a);
-},onOut:function(_b){
-if(!this._isStencil(_b)){
-return;
-}
-this.stencils[_b.id].onOut(_b);
-},_isStencil:function(_c){
-return !!_c.id&&!!this.stencils[_c.id]&&this.stencils[_c.id].type=="drawing.library.UI.Button";
+this.stencils[_9.id].onOut(_9);
+},_isStencil:function(_a){
+return !!_a.id&&!!this.stencils[_a.id]&&this.stencils[_a.id].type=="drawing.library.UI.Button";
 }});
-})();
 });

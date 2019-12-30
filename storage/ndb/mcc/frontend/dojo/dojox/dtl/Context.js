@@ -52,5 +52,5 @@ return true;
 }
 return false;
 }});
-return dojox.dtl.Context;
+return dd.Context;
 });

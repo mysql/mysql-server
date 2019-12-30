@@ -6,14 +6,14 @@
 }
 .mblDomButtonWhitePlus > div { 
 	position: absolute;
-	top: 11px;
+	top: 12px;
 	left: 8px;
 	width: 13px;
 	height: 3px;
 	margin: 0px;
 	font-size: 1px;
 	background-color: white;
-	border-top: 1px solid #4A5A71;
+	border-top: 1px solid #4a5a71;
 }
 .mblDomButtonWhitePlus > div > div { 
 	position: absolute;
@@ -24,5 +24,5 @@
 	margin: 0px;
 	font-size: 1px;
 	background-color: white;
-	border-top: 1px solid #4A5A71;
+	border-top: 1px solid #4a5a71;
 }

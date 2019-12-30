@@ -209,6 +209,8 @@ a	b	c	d
 18446744073709551615	18446744073709551615	18446744073709551615	18446744073709551615
 drop table t1;
 create table t1 ( quantity decimal(2) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values (500), (-500), (~0), (-1);
 Warnings:
 Warning	1264	Out of range value for column 'quantity' at row 1
@@ -292,6 +294,25 @@ CREATE TABLE t1 (
 `fix29` DECIMAL(38, 29) NULL,
 `fix30` DECIMAL(38, 30) NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1(`col1`, `col2`, `col3`, `col4`, `col5`, `col6`, `col7`, `col8`, `col9`, `col10`, `col11`, `col12`, `col13`, `col14`, `col15`, `col16`, `col17`, `col18`, `col19`, `col20`, `col21`, `col22`, `col23`, `col24`, `col25`, `col26`, `col27`, `col28`, `col29`, `col30`, `col31`, `col32`, `col33`, `col34`, `col35`, `col36`, `col37`, `col38`, `fix1`, `fix2`, `fix3`, `fix4`, `fix5`, `fix6`, `fix7`, `fix8`, `fix9`, `fix10`, `fix11`, `fix12`, `fix13`, `fix14`, `fix15`, `fix16`, `fix17`, `fix18`, `fix19`, `fix20`, `fix21`, `fix22`, `fix23`, `fix24`, `fix25`, `fix26`, `fix27`, `fix28`, `fix29`, `fix30`)
 VALUES (9, 99, 999, 9999, 99999, 999999, 9999999, 99999999, 999999999,
 9999999999, 99999999999, 999999999999, 9999999999999, 99999999999999,
@@ -411,6 +432,8 @@ drop table t1;
 CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY,
 a BIGINT(20) UNSIGNED,
 b VARCHAR(20));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 (a) VALUES
 (0),
 (CAST(0x7FFFFFFFFFFFFFFF AS UNSIGNED)),
@@ -566,7 +589,7 @@ SET sql_mode = default;
 #
 DO TRIM(-9223372036854775808) XOR '.D-';
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '.D-'
+Warning	1292	Truncated incorrect DOUBLE value: '.D-'
 DO OCT(-9223372036854775808);
 #
 # Bug#27451113 UBSAN: ITEM_FUNC_MOD::INT_OP

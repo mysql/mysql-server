@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,17 +62,19 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD2(listen, int(int fd, int n));
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
   MOCK_METHOD2(connect_non_blocking_wait,
-               int(socket_t sock, std::chrono::milliseconds timeout));
+               int(mysql_harness::socket_t sock,
+                   std::chrono::milliseconds timeout));
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
+  MOCK_METHOD2(set_socket_blocking, void(int, bool));
   MOCK_METHOD0(get_local_hostname, std::string());
-  MOCK_METHOD4(inetntop, const char *(int af, void *, char *, socklen_t));
+  MOCK_METHOD4(inetntop, const char *(int af, const void *, char *, socklen_t));
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
 
   void set_errno(int err) override {
-  // set errno/Windows equivalent. At the time of writing, unit tests
-  // will pass just fine without this, as they are too low-level and the errno
-  // is checked at higher level. But to do an accurate mock, we should set
-  // this.
+    // set errno/Windows equivalent. At the time of writing, unit tests
+    // will pass just fine without this, as they are too low-level and the errno
+    // is checked at higher level. But to do an accurate mock, we should set
+    // this.
 #ifdef _WIN32
     WSASetLastError(err);
 #else
@@ -87,6 +89,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
     return errno;
 #endif
   }
+
+  MOCK_METHOD0(get_error_code, std::error_code());
 };
 
 class MockRoutingSockOps : public routing::RoutingSockOpsInterface {

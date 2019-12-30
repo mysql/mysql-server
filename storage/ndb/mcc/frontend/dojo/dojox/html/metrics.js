@@ -4,11 +4,15 @@ var _8=_2.getObject("dojox.html.metrics",true);
 var _9=_2.getObject("dojox");
 _8.getFontMeasurements=function(){
 var _a={"1em":0,"1ex":0,"100%":0,"12pt":0,"16px":0,"xx-small":0,"x-small":0,"small":0,"medium":0,"large":0,"x-large":0,"xx-large":0};
+var _b;
 if(_3("ie")){
+_b=_6.doc.documentElement.style.fontSize||"";
+if(!_b){
 _6.doc.documentElement.style.fontSize="100%";
 }
-var _b=_6.doc.createElement("div");
-var ds=_b.style;
+}
+var _c=_6.doc.createElement("div");
+var ds=_c.style;
 ds.position="absolute";
 ds.left="-100px";
 ds.top="0";
@@ -20,27 +24,30 @@ ds.padding="0";
 ds.outline="0";
 ds.lineHeight="1";
 ds.overflow="hidden";
-_6.body().appendChild(_b);
+_6.body().appendChild(_c);
 for(var p in _a){
 ds.fontSize=p;
-_a[p]=Math.round(_b.offsetHeight*12/16)*16/12/1000;
+_a[p]=Math.round(_c.offsetHeight*12/16)*16/12/1000;
 }
-_6.body().removeChild(_b);
-_b=null;
+if(_3("ie")){
+_6.doc.documentElement.style.fontSize=_b;
+}
+_6.body().removeChild(_c);
+_c=null;
 return _a;
 };
-var _c=null;
-_8.getCachedFontMeasurements=function(_d){
-if(_d||!_c){
-_c=_8.getFontMeasurements();
+var _d=null;
+_8.getCachedFontMeasurements=function(_e){
+if(_e||!_d){
+_d=_8.getFontMeasurements();
 }
-return _c;
+return _d;
 };
-var _e=null,_f={};
-_8.getTextBox=function(_10,_11,_12){
+var _f=null,_10={};
+_8.getTextBox=function(_11,_12,_13){
 var m,s;
-if(!_e){
-m=_e=_6.doc.createElement("div");
+if(!_f){
+m=_f=_6.doc.createElement("div");
 var c=_6.doc.createElement("div");
 c.appendChild(m);
 s=c.style;
@@ -57,7 +64,7 @@ s.padding="0";
 s.outline="0";
 _6.body().appendChild(c);
 }else{
-m=_e;
+m=_f;
 }
 m.className="";
 s=m.style;
@@ -65,34 +72,35 @@ s.borderWidth="0";
 s.margin="0";
 s.padding="0";
 s.outline="0";
-if(arguments.length>1&&_11){
-for(var i in _11){
-if(i in _f){
+if(arguments.length>1&&_12){
+for(var i in _12){
+if(i in _10){
 continue;
 }
-s[i]=_11[i];
+s[i]=_12[i];
 }
 }
-if(arguments.length>2&&_12){
-m.className=_12;
+if(arguments.length>2&&_13){
+m.className=_13;
 }
-m.innerHTML=_10;
+m.innerHTML=_11;
 var box=_7.position(m);
 box.w=m.parentNode.scrollWidth;
 return box;
 };
-var _13={w:16,h:16};
+var _14={w:16,h:16};
 _8.getScrollbar=function(){
-return {w:_13.w,h:_13.h};
+return {w:_14.w,h:_14.h};
 };
 _8._fontResizeNode=null;
-_8.initOnFontResize=function(_14){
+_8.initOnFontResize=function(_15){
 var f=_8._fontResizeNode=_6.doc.createElement("iframe");
 var fs=f.style;
 fs.position="absolute";
 fs.width="5em";
 fs.height="10em";
 fs.top="-10000px";
+fs.display="none";
 if(_3("ie")){
 f.onreadystatechange=function(){
 if(f.contentWindow.document.readyState=="complete"){
@@ -132,8 +140,8 @@ try{
 var n=_6.doc.createElement("div");
 n.style.cssText="top:0;left:0;width:100px;height:100px;overflow:scroll;position:absolute;visibility:hidden;";
 _6.body().appendChild(n);
-_13.w=n.offsetWidth-n.clientWidth;
-_13.h=n.offsetHeight-n.clientHeight;
+_14.w=n.offsetWidth-n.clientWidth;
+_14.h=n.offsetHeight-n.clientHeight;
 _6.body().removeChild(n);
 delete n;
 }

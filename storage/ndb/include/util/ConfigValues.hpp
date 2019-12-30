@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,77 +27,48 @@
 
 #include <ndb_types.h>
 #include <UtilBuffer.hpp>
+#include <ConfigSection.hpp>
+#include <ConfigObject.hpp>
 
-class ConfigValues {
+class ConfigValues : public ConfigObject {
   friend class ConfigValuesFactory;
-  ConfigValues(Uint32 sz, Uint32 data);
-
+  friend class ConfigObject;
+  friend class ConfigSection;
 public:
-  static ConfigValues* constructInPlace(Uint32 keys, Uint32 data, void* place, size_t size);
-  static size_t sizeInBytes(Uint32 keys, Uint32 data);
+  ConfigValues();
   ~ConfigValues();
   
-  enum ValueType {
-    InvalidType = 0,
-    IntType     = 1,
-    StringType  = 2,
-    SectionType = 3,
-    Int64Type   = 4
-  };
-
-  struct Entry {
-    Uint32 m_key;
-    ValueType m_type;
-    union {
-      Uint32 m_int;
-      Uint64 m_int64;
-      const char * m_string;
-    };
-  };
-  
-  /**
-    This class is used for accessing indvidual ConfigValues::Entry objects
-    within a ConfigValues instance. Despite the name, this is *not* an 
-    iterator. Instead, it provides two-step associative lookup:
-    - First call openSection() to choose a section type (e.g. CFG_SECTION_NODE)
-      and an instance (0..n) of that section type. (_paramId of each 
-      ConfigInfo::m_ParamInfo element with _type==ConfigInfo::CI_SECTION is 
-      a section type identifier.)
-     - Then access config values within that section instance using 
-       get(key,...)
-    After that, possibly call closeSection() and start again if you want to
-    read values from a different section.
-   */
   class ConstIterator {
     friend class ConfigValuesFactory;
     const ConfigValues & m_cfg;
   public:
-    Uint32 m_currentSection;
-    ConstIterator(const ConfigValues&c) : m_cfg(c) { m_currentSection = 0;}
+    ConfigSection *m_curr_section;
+    ConstIterator(const ConfigValues&c) : m_cfg(c)
+    {
+      m_curr_section = nullptr;
+    }
     
     /** 
       Set section and section instance. Return false if no matching section
       or instance was found.
     */
-    bool openSection(Uint32 key, Uint32 no);
+    bool openSection(Uint32 section_type, Uint32 index);
 
     /** Close current section so that you can open another.*/
-    bool closeSection();
+    void closeSection();
 
     /** 
       Get entry within current section. Return false if 'key' was not found.
      */
-    bool get(Uint32 key, Entry *) const;
-    
     bool get(Uint32 key, Uint32 * value) const;
     bool get(Uint32 key, Uint64 * value) const;
     bool get(Uint32 key, const char ** value) const;
-    bool getTypeOf(Uint32 key, ValueType * type) const;
+    bool getTypeOf(Uint32 key, ConfigSection::ValueType * type) const;
     
     Uint32 get(Uint32 key, Uint32 notFound) const;
     Uint64 get64(Uint32 key, Uint64 notFound) const;
     const char * get(Uint32 key, const char * notFound) const;
-    ValueType getTypeOf(Uint32 key) const;
+    ConfigSection::ValueType getTypeOf(Uint32 key) const;
   };
 
   class Iterator : public ConstIterator {
@@ -105,93 +76,128 @@ public:
   public:
     Iterator(ConfigValues&c) : ConstIterator(c), m_cfg(c) {}
     Iterator(ConfigValues&c, const ConstIterator& i):ConstIterator(c),m_cfg(c){
-      m_currentSection = i.m_currentSection;
+      m_curr_section = i.m_curr_section;
     }
     
     bool set(Uint32 key, Uint32 value);
     bool set(Uint32 key, Uint64 value);
     bool set(Uint32 key, const char * value);
   };
-
-  Uint32 getPackedSize() const; // get size in bytes needed to pack
-  Uint32 pack(UtilBuffer&) const;
-  Uint32 pack(void * dst, Uint32 len) const;// pack into dst(of len %d);
-
-  /*
-     Iterate the entries of ConfigValues by index.
-
-     @return: next index or 0 when no more entries
-  */
-  Uint32 getNextEntryByIndex(Uint32 index, Entry* const entry) const;
+  Uint32 pack_v1(UtilBuffer&) const;
+  Uint32 pack_v2(UtilBuffer&, Uint32 node_id = 0) const;
 
 private:
   friend class Iterator;
   friend class ConstIterator;
-
-  bool getByPos(Uint32 pos, Entry *) const;
-  Uint64 * get64(Uint32 index) const;
-  char ** getString(Uint32 index) const;
-
-  Uint32 m_size;
-  Uint32 m_dataSize;
-  Uint32 m_stringCount;
-  Uint32 m_int64Count;
-
-  /**
-   * ConfigValues are constructed with different sizes.
-   * If we used dynamicly sized arrays the end of the
-   * class would look like:
-   *   struct alignas(8) { Uint32 key; Uint32 value_or_index; } m_values[m_size];
-   *   Uint64 alignas(8) m_data[m_int64Count];
-   *   char              m_free[m_dataSize - m_int64Count*8 - m_stringCount*sizeof(char*)];
-   *   char * alignas(sizeof(char *)) m_dataString[m_stringCount];
-   * Where m_dataString grows from top and down with index 0 on top.
-   * But now we only have a place holder for the first entry.
-   */
-  Uint32 m_values[1];
 };
 
 class ConfigValuesFactory {
-  Uint32 m_currentSection;
 public:
-  Uint32 m_sectionCounter;
-  Uint32 m_freeKeys;
-  Uint32 m_freeData;
-
-public:
-  ConfigValuesFactory(Uint32 keys = 50, Uint32 data = 16); // Initial
-  ConfigValuesFactory(ConfigValues * m_cfg);        //
+  ConfigValues * m_cfg;
+  ConfigValuesFactory();
+  ConfigValuesFactory(ConfigValues * m_cfg);
   ~ConfigValuesFactory();
 
-  ConfigValues * m_cfg;
   ConfigValues * getConfigValues();
 
-  bool openSection(Uint32 key, Uint32 no);
-  bool put(const ConfigValues::Entry & );
+  bool begin();
+  bool commit(bool only_sort);
+  bool createSection(Uint32 section_type, Uint32 type);
+  bool put(const ConfigSection::Entry &);
   bool put(Uint32 key, Uint32 value);
   bool put64(Uint32 key, Uint64 value);
   bool put(Uint32 key, const char * value);
-  bool closeSection();
-  
-  void expand(Uint32 freeKeys, Uint32 freeData);
-  void shrink();
+  void closeSection();
 
-  bool unpack(const UtilBuffer&);
-  bool unpack(const void * src, Uint32 len);
+  bool unpack_buf(const UtilBuffer&);
+  bool unpack_v1_buf(const UtilBuffer&);
+  bool unpack_v1(const Uint32* src, Uint32 len);
+  bool unpack_v2_buf(const UtilBuffer&);
+  bool unpack_v2(const Uint32* src, Uint32 len);
+  void print_error_code() const;
+  int  get_error_code() const;
 
-  static ConfigValues * extractCurrentSection(const ConfigValues::ConstIterator &);
-
-private:
-  static ConfigValues * create(Uint32 keys, Uint32 data);
-  void put(const ConfigValues & src);
+  static ConfigValues *extractCurrentSection(const ConfigValues::ConstIterator &);
 };
 
+inline void
+ConfigValuesFactory::print_error_code() const
+{
+  m_cfg->print_error_code();
+}
+
+inline int
+ConfigValuesFactory::get_error_code() const
+{
+  return m_cfg->get_error_code();
+}
+
+inline bool
+ConfigValues::Iterator::set(Uint32 key, Uint32 value)
+{
+  ConfigSection::Entry entry;
+  entry.m_key = key;
+  entry.m_type = ConfigSection::IntTypeId;
+  entry.m_int = value;
+  return m_cfg.set(m_curr_section, entry, true);
+}
+
+inline bool
+ConfigValues::Iterator::set(Uint32 key, Uint64 value)
+{
+  ConfigSection::Entry entry;
+  entry.m_key = key;
+  entry.m_type = ConfigSection::Int64TypeId;
+  entry.m_int64 = value;
+  return m_cfg.set(m_curr_section, entry, true);
+}
+
+inline bool
+ConfigValues::Iterator::set(Uint32 key, const char *value)
+{
+  ConfigSection::Entry entry;
+  entry.m_key = key;
+  entry.m_type = ConfigSection::StringTypeId;
+  entry.m_string = value;
+  return m_cfg.set(m_curr_section, entry, true);
+}
+
+inline bool
+ConfigValuesFactory::begin()
+{
+  return m_cfg->begin();
+}
+
+inline bool
+ConfigValuesFactory::commit(bool only_sort)
+{
+  return m_cfg->commitConfig(only_sort);
+}
+
+inline bool
+ConfigValuesFactory::unpack_v1(const Uint32 *src, Uint32 len)
+{
+  return m_cfg->unpack_v1(src, len);
+}
+
+inline bool
+ConfigValuesFactory::unpack_v2(const Uint32 *src, Uint32 len)
+{
+  return m_cfg->unpack_v2(src, len);
+}
+
 inline
 bool
-ConfigValues::ConstIterator::get(Uint32 key, Uint32 * value) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == IntType){
-    * value = tmp.m_int;
+ConfigValues::ConstIterator::get(Uint32 key, Uint32 * value) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return false;
+  }
+  if (likely(tmp.m_type == ConfigSection::IntTypeId))
+  {
+    *value = tmp.m_int;
     return true;
   }
   return false;
@@ -199,10 +205,16 @@ ConfigValues::ConstIterator::get(Uint32 key, Uint32 * value) const {
 
 inline
 bool
-ConfigValues::ConstIterator::get(Uint32 key, Uint64 * value) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == Int64Type){
-    * value = tmp.m_int64;
+ConfigValues::ConstIterator::get(Uint32 key, Uint64 * value) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return false;
+  }
+  if (likely(tmp.m_type == ConfigSection::Int64TypeId))
+  {
+    *value = tmp.m_int64;
     return true;
   }
   return false;
@@ -210,10 +222,16 @@ ConfigValues::ConstIterator::get(Uint32 key, Uint64 * value) const {
 
 inline
 bool
-ConfigValues::ConstIterator::get(Uint32 key, const char ** value) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == StringType){
-    * value = tmp.m_string;
+ConfigValues::ConstIterator::get(Uint32 key, const char ** value) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return false;
+  }
+  if (likely(tmp.m_type == ConfigSection::StringTypeId))
+  {
+    *value = tmp.m_string;
     return true;
   }
   return false;
@@ -221,20 +239,29 @@ ConfigValues::ConstIterator::get(Uint32 key, const char ** value) const {
 
 inline
 bool 
-ConfigValues::ConstIterator::getTypeOf(Uint32 key, ValueType * type) const{
-  Entry tmp;
-  if(get(key, &tmp)){
-    * type = tmp.m_type;
-    return true;
+ConfigValues::ConstIterator::getTypeOf(Uint32 key,
+                                       ConfigSection::ValueType * type) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return false;
   }
-  return false;
+  *type = tmp.m_type;
+  return true;
 }
 
 inline
 Uint32
-ConfigValues::ConstIterator::get(Uint32 key, Uint32 notFound) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == IntType){
+ConfigValues::ConstIterator::get(Uint32 key, Uint32 notFound) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return notFound;
+  }
+  if (likely(tmp.m_type == ConfigSection::IntTypeId))
+  {
     return tmp.m_int;
   }
   return notFound;
@@ -242,9 +269,15 @@ ConfigValues::ConstIterator::get(Uint32 key, Uint32 notFound) const {
 
 inline
 Uint64
-ConfigValues::ConstIterator::get64(Uint32 key, Uint64 notFound) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == Int64Type){
+ConfigValues::ConstIterator::get64(Uint32 key, Uint64 notFound) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return notFound;
+  }
+  if (likely(tmp.m_type == ConfigSection::Int64TypeId))
+  {
     return tmp.m_int64;
   }
   return notFound;
@@ -252,69 +285,113 @@ ConfigValues::ConstIterator::get64(Uint32 key, Uint64 notFound) const {
 
 inline
 const char *
-ConfigValues::ConstIterator::get(Uint32 key, const char * notFound) const {
-  Entry tmp;
-  if(get(key, &tmp) && tmp.m_type == StringType){
+ConfigValues::ConstIterator::get(Uint32 key, const char * notFound) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return notFound;
+  }
+  if (likely(tmp.m_type == ConfigSection::StringTypeId))
+  {
     return tmp.m_string;
   }
   return notFound;
 }
 
 inline
-ConfigValues::ValueType
-ConfigValues::ConstIterator::getTypeOf(Uint32 key) const{
-  Entry tmp;
-  if(get(key, &tmp)){
-    return tmp.m_type;
+ConfigSection::ValueType
+ConfigValues::ConstIterator::getTypeOf(Uint32 key) const
+{
+  ConfigSection::Entry tmp;
+  if (unlikely(!m_cfg.get(m_curr_section, key, tmp)))
+  {
+    return ConfigSection::InvalidTypeId;
   }
-  return ConfigValues::InvalidType;
+  return tmp.m_type;
 }
 
 inline
 bool
-ConfigValuesFactory::put(Uint32 key, Uint32 val){
-  ConfigValues::Entry tmp;
-  tmp.m_key = key;
-  tmp.m_type = ConfigValues::IntType;
-  tmp.m_int = val;
-  return put(tmp);
+ConfigValuesFactory::put(Uint32 key, Uint32 val)
+{
+  return m_cfg->put(key,val);
 }
 
 inline
 bool
-ConfigValuesFactory::put64(Uint32 key, Uint64 val){
-  ConfigValues::Entry tmp;
-  tmp.m_key = key;
-  tmp.m_type = ConfigValues::Int64Type;
-  tmp.m_int64 = val;
-  return put(tmp);
+ConfigValuesFactory::put64(Uint32 key, Uint64 val)
+{
+  return m_cfg->put64(key,val);
 }
 
 inline
 bool
-ConfigValuesFactory::put(Uint32 key, const char * val){
-  ConfigValues::Entry tmp;
-  tmp.m_key = key;
-  tmp.m_type = ConfigValues::StringType;
-  tmp.m_string = val;
-  return put(tmp);
+ConfigValuesFactory::put(Uint32 key, const char * val)
+{
+  return m_cfg->put(key,val);
 }
 
 inline
 Uint32
-ConfigValues::pack(UtilBuffer& buf) const {
-  Uint32 len = getPackedSize();
+ConfigValues::pack_v1(UtilBuffer& buf) const
+{
+  Uint32 len = get_v1_packed_size();
   void * tmp = buf.append(len);
-  if(tmp == 0){
+  if(unlikely(tmp == 0))
+  {
     return 0;
   }
-  return pack(tmp, len);
+  ConfigObject::pack_v1((Uint32*)tmp, len);
+  return len;
+}
+
+inline
+Uint32
+ConfigValues::pack_v2(UtilBuffer& buf, Uint32 node_id) const
+{
+  Uint32 len = get_v2_packed_size(node_id);
+  void * tmp = buf.append(len);
+  if(unlikely(tmp == 0))
+  {
+    return 0;
+  }
+  ConfigObject::pack_v2((Uint32*)tmp, len, node_id);
+  return len;
 }
 
 inline
 bool
-ConfigValuesFactory::unpack(const UtilBuffer& buf){
-  return unpack(buf.get_data(), buf.length());
+ConfigValuesFactory::unpack_buf(const UtilBuffer& buf)
+{
+  if (OUR_V2_VERSION)
+  {
+    if (!m_cfg->unpack_v2((const Uint32*)buf.get_data(), buf.length()))
+    {
+      return m_cfg->unpack_v1((const Uint32*)buf.get_data(), buf.length());
+    }
+  }
+  else
+  {
+    if (!m_cfg->unpack_v1((const Uint32*)buf.get_data(), buf.length()))
+    {
+      return m_cfg->unpack_v2((const Uint32*)buf.get_data(), buf.length());
+    }
+  }
+  return true;
 }
 
+inline
+bool
+ConfigValuesFactory::unpack_v1_buf(const UtilBuffer& buf)
+{
+  return m_cfg->unpack_v1((const Uint32*)buf.get_data(), buf.length());
+}
+
+inline
+bool
+ConfigValuesFactory::unpack_v2_buf(const UtilBuffer& buf)
+{
+  return m_cfg->unpack_v2((const Uint32*)buf.get_data(), buf.length());
+}
 #endif

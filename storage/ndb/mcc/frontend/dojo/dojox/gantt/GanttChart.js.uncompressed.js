@@ -1,16 +1,36 @@
-//>>built
-// wrapped by build app
-define("dojox/gantt/GanttChart", ["dijit","dojo","dojox","dojo/require!dijit/Tooltip,dojox/gantt/GanttProjectItem,dojox/gantt/GanttResourceItem,dojox/gantt/TabMenu,dojo/date/locale"], function(dijit,dojo,dojox){
-dojo.provide("dojox.gantt.GanttChart");
-
-dojo.require("dijit.Tooltip");
-dojo.require("dojox.gantt.GanttProjectItem");
-dojo.require("dojox.gantt.GanttResourceItem");
-dojo.require("dojox.gantt.TabMenu");
-dojo.require("dojo.date.locale");
-
-(function(){
-	dojo.declare("dojox.gantt.GanttChart", null, {
+// FIXME: documentation
+define("dojox/gantt/GanttChart", [
+    "./GanttProjectItem",
+    "./GanttResourceItem",
+    "./GanttProjectControl",
+    "./GanttTaskControl",
+    "./GanttTaskItem",
+    "./TabMenu",
+    "dijit/Tooltip",
+    "dojo/_base/declare",
+	"dojo/_base/array",
+	"dojo/_base/lang",
+    "dojo/date/locale",
+	"dojo/request",
+	"dojo/request/util",
+	"dojo/on",
+	"dojo/dom",
+	"dojo/dom-class",
+	"dojo/dom-construct",
+	"dojo/dom-style",
+	"dojo/dom-attr",
+	"dojo/dom-geometry",
+	"dojo/keys",
+	"dojo/has",
+	"dojo/_base/window",
+	"dojo/json",
+	"dojo/domReady!"
+], function(GanttProjectItem, GanttResourceItem, GanttProjectControl, 
+		GanttTaskControl, GanttTaskItem, TabMenu,
+		Tooltip, 
+		declare, arrayUtil, lang, locale, request, util, on,
+		dom, domClass, domConstruct, domStyle, domAttr, domGeometry, keys, has, win, JSON){
+	return declare("dojox.gantt.GanttChart", [], {
 		constructor: function(configuration, node){
 			this.resourceChartHeight = configuration.resourceChartHeight !== undefined ? configuration.resourceChartHeight : false;
 			this.withResource = configuration.withResource !== undefined ? configuration.withResource : true;
@@ -22,7 +42,7 @@ dojo.require("dojo.date.locale");
 			this.dataFilePath = configuration.dataFilePath  || "gantt_default.json";
 			this.contentHeight = configuration.height || 400;
 			this.contentWidth = configuration.width || 600;
-			this.content = dojo.byId(node);
+			this.content = dom.byId(node);
 			this.scrollBarWidth = 18;
 			this.panelTimeHeight = 102;
 			this.maxWidthPanelNames = 150;
@@ -58,11 +78,11 @@ dojo.require("dojo.date.locale");
 			this.scale = 1;
 			this.tempDayInPixels = 0;
 			this.resource = null;
-			this.months = dojo.date.locale.getNames("months", "wide");
+			this.months = locale.getNames("months", "wide");
 			this._events = [];
 		},
 		getProject: function(id){
-			return dojo.filter(this.arrProjects, function(proj){
+			return arrayUtil.filter(this.arrProjects, function(proj){
 				return proj.project.id == id;
 			}, this)[0];
 		},
@@ -70,14 +90,12 @@ dojo.require("dojo.date.locale");
 			var widthPred = this.getWidthOnDuration(predTask.duration);
 			var posPred = this.getPosOnDate(predTask.startTime);
 			var posChild = this.getPosOnDate(task.startTime);
-			if((widthPred + posPred) > posChild){
-				return false;
-			}
-			return true;
+			return (widthPred + posPred) <= posChild;
+
 		},
 		correctPosPreviousTask: function(predTask, ctask, ctaskObj){
 			var newDate = new Date(predTask.startTime);
-			newDate.setHours(newDate.getHours() + (predTask.duration / this.hsPerDay * 24))
+			newDate.setHours(newDate.getHours() + (predTask.duration / this.hsPerDay * 24));
 			if(newDate.getHours() > 0){
 				newDate.setHours(0);
 				newDate.setDate(newDate.getDate() + 1);
@@ -86,7 +104,7 @@ dojo.require("dojo.date.locale");
 			if(ctask.parentTask){
 				if(!this.checkPosParentTask(ctask.parentTask, ctask)){
 					var newDate2 = new Date(ctask.parentTask.startTime);
-					newDate2.setHours(newDate2.getHours() + (ctask.parentTask.duration / this.hsPerDay * 24))
+					newDate2.setHours(newDate2.getHours() + (ctask.parentTask.duration / this.hsPerDay * 24));
 					ctask.duration = parseInt((parseInt((newDate2 - ctask.startTime) / (1000 * 60 * 60))) * this.hsPerDay / 24);
 				}
 			}
@@ -200,7 +218,7 @@ dojo.require("dojo.date.locale");
 				}
 				var rowHeight = this.heightTaskItemExtra + this.heightTaskItem;
 				project.nextProject && project.shiftNextProject(project, -rowHeight); //rowHeight: 23
-				this.project = dojo.filter(this.project, function(proj){
+				this.project = arrayUtil.filter(this.project, function(proj){
 					return proj.id != project.project.id;
 				}, this);
 				if((project.previousProject) && (project.nextProject)){
@@ -227,13 +245,13 @@ dojo.require("dojo.date.locale");
 				if(this.project.length == 0){
 					var d = new Date(this.startDate);
 					var t = new Date(d.setDate(d.getDate() + 1));
-					var pi = new dojox.gantt.GanttProjectItem({
+					var pi = new GanttProjectItem({
 						id: 1,
 						name: "New Project",
 						startDate: t
 					});
 					this.project.push(pi);
-					var project = new dojox.gantt.GanttProjectControl(this, pi);
+					var project = new GanttProjectControl(this, pi);
 					project.create();
 					this.arrProjects.push(project);
 					this.contentDataHeight += this.heightTaskItemExtra + this.heightTaskItem;
@@ -249,13 +267,13 @@ dojo.require("dojo.date.locale");
 				return false;
 			}
 			this.checkHeighPanelTasks();
-			var project = new dojox.gantt.GanttProjectItem({
+			var project = new GanttProjectItem({
 				id: id,
 				name: name,
 				startDate: startDate
 			});
 			this.project.push(project);
-			var _project = new dojox.gantt.GanttProjectControl(this, project);
+			var _project = new GanttProjectControl(this, project);
 			for(var i = 0; i < this.arrProjects.length; i++){
 				var curProject = this.arrProjects[i],
 					preProject = this.arrProjects[i-1],
@@ -295,8 +313,8 @@ dojo.require("dojo.date.locale");
 		},
 		openNode: function(parentTask){
 			if(!parentTask.isExpanded){
-				dojo.removeClass(parentTask.cTaskNameItem[2], "ganttImageTreeExpand");
-				dojo.addClass(parentTask.cTaskNameItem[2], "ganttImageTreeCollapse");
+				domClass.remove(parentTask.cTaskNameItem[2], "ganttImageTreeExpand");
+				domClass.add(parentTask.cTaskNameItem[2], "ganttImageTreeCollapse");
 				parentTask.isExpanded = true;
 				parentTask.shiftCurrentTasks(parentTask, parentTask.hideTasksHeight);
 				parentTask.showChildTasks(parentTask, parentTask.isExpanded);
@@ -316,7 +334,7 @@ dojo.require("dojo.date.locale");
 			}
 		},
 		getProjectItemById: function(id){
-			return dojo.filter(this.project, function(proj){
+			return arrayUtil.filter(this.project, function(proj){
 				return proj.id == id;
 			}, this)[0];
 		},
@@ -328,7 +346,9 @@ dojo.require("dojo.date.locale");
 			this.clearEvents();
 		},
 		clearEvents: function(){
-			dojo.forEach(this._events, dojo.disconnect);
+			arrayUtil.forEach(this._events, function(e){
+				e.remove();
+			});
 			this._events = [];
 		},
 		clearData: function(){
@@ -371,7 +391,7 @@ dojo.require("dojo.date.locale");
 			
 			for(var i = 0; i < this.project.length; i++){
 				var proj = this.project[i];
-				var project = new dojox.gantt.GanttProjectControl(this, proj);
+				var project = new GanttProjectControl(this, proj);
 				if(this.arrProjects.length > 0){
 					var previousProject = this.arrProjects[this.arrProjects.length - 1];
 					project.previousProject = previousProject;
@@ -389,44 +409,41 @@ dojo.require("dojo.date.locale");
 		loadJSONData: function(filename){
 			var _this = this;
 			_this.dataFilePath = filename || _this.dataFilePath;
-			dojo.xhrGet({
-				url: _this.dataFilePath,
-				sync: true,
-				load: function(text, ioArgs){
-					_this.loadJSONString(text);
-					_this.buildUIContent();
-					alert("Successfully! Loaded data from: " + _this.dataFilePath);
-				},
-				error: function(err, ioArgs){
-					alert("Failed! Load error: " + _this.dataFilePath);
-				}
+			request.get(_this.dataFilePath, {
+				sync: true
+			}).then(function(response){
+				_this.loadJSONString(response.text);
+				_this.buildUIContent();
+				console.log("Successfully! Loaded data from: " + _this.dataFilePath);
+			}, function(){
+				console.log("Failed! Load error: " + _this.dataFilePath);
 			});
 		},
 		loadJSONString: function(content){
 			//load data
 			if(!content){ return; }
 			this.clearAll();
-			var jsonObj = dojo.fromJson(content);
+			var jsonObj = JSON.parse(content);
 			
 			var items = jsonObj.items;
-			dojo.forEach(items, function(pItem){
+			arrayUtil.forEach(items, function(pItem){
 				var startDate = pItem.startdate.split("-");
-				var project = new dojox.gantt.GanttProjectItem({
+				var project = new GanttProjectItem({
 					id: pItem.id,
 					name: pItem.name,
 					startDate: new Date(startDate[0], (parseInt(startDate[1]) - 1), startDate[2])
 				});
 				var tItems = pItem.tasks;
-				dojo.forEach(tItems, function(tItem){
+				arrayUtil.forEach(tItems, function(tItem){
 					var id = tItem.id,
 						name = tItem.name,
-						starttime = tItem.starttime.split("-");
+						starttime = tItem.starttime.split("-"),
 						duration = tItem.duration,
 						percentage = tItem.percentage,
 						previousTaskId = tItem.previousTaskId,
 						taskOwner = tItem.taskOwner;
 					
-					var task = new dojox.gantt.GanttTaskItem({
+					var task = new GanttTaskItem({
 						id: id,
 						name: name,
 						startTime: new Date(starttime[0], (parseInt(starttime[1]) - 1), starttime[2]),
@@ -445,7 +462,7 @@ dojo.require("dojo.date.locale");
 			 }, this);
 		},
 		buildChildTasksData: function(parentTask, childTaskItems){
-			childTaskItems && dojo.forEach(childTaskItems, function(ctItem){
+			childTaskItems && arrayUtil.forEach(childTaskItems, function(ctItem){
 				var id = ctItem.id,
 					name = ctItem.name,
 					starttime = ctItem.starttime.split("-"),
@@ -454,7 +471,7 @@ dojo.require("dojo.date.locale");
 					previousTaskId = ctItem.previousTaskId,
 					taskOwner = ctItem.taskOwner;
 				
-				var task = new dojox.gantt.GanttTaskItem({
+				var task = new GanttTaskItem({
 					id: id,
 					name: name,
 					startTime: new Date(starttime[0], (parseInt(starttime[1]) - 1), starttime[2]),
@@ -474,7 +491,7 @@ dojo.require("dojo.date.locale");
 		},
 		getJSONData: function(){
 			var jsonObj = {identifier: 'id', items: []};
-			dojo.forEach(this.project, function(proj){
+			arrayUtil.forEach(this.project, function(proj){
 				var project = {
 					id: proj.id,
 					name: proj.name,
@@ -482,7 +499,7 @@ dojo.require("dojo.date.locale");
 					tasks: []
 				};
 				jsonObj.items.push(project);
-				dojo.forEach(proj.parentTasks, function(pTask){
+				arrayUtil.forEach(proj.parentTasks, function(pTask){
 					var task = {
 						id: pTask.id,
 						name: pTask.name,
@@ -500,7 +517,7 @@ dojo.require("dojo.date.locale");
 		},
 		getChildTasksData: function(childTasks){
 			var cTaskObj = [];
-			childTasks && childTasks.length > 0 && dojo.forEach(childTasks, function(childTask){
+			childTasks && childTasks.length > 0 && arrayUtil.forEach(childTasks, function(childTask){
 				var ctask = {
 					id: childTask.id,
 					name: childTask.name,
@@ -517,23 +534,21 @@ dojo.require("dojo.date.locale");
 		},
 		saveJSONData: function(fileName){
 			var _this = this;
-			_this.dataFilePath = (fileName && dojo.trim(fileName).length > 0) ? fileName : this.dataFilePath;
+			_this.dataFilePath = (fileName && lang.trim(fileName).length > 0) ? fileName : this.dataFilePath;
 			try {
-				var td = dojo.xhrPost({
-					url: _this.saveProgramPath,
-					content: {filename: _this.dataFilePath, data: dojo.toJson(_this.getJSONData())},
-					handle: function(res, ioArgs){
-						if((dojo._isDocumentOk(ioArgs.xhr))||
-							(ioArgs.xhr.status == 405)
-						){
-							alert("Successfully! Saved data to " + _this.dataFilePath);
-						}else{
-							alert("Failed! Saved error");
-						}
+				request.post(_this.saveProgramPath, {
+					query: {filename: _this.dataFilePath, data: JSON.stringify(_this.getJSONData())}
+				}).response.then(function(response){
+					if((util.checkStatus(response.options.status))||
+						(response.options.status == 405)
+					){
+						console.log("Successfully! Saved data to " + _this.dataFilePath);
+					}else{
+						console.log("Failed! Saved error");
 					}
 				});
-			} catch (e){
-				alert("exception: " + e.message);
+			} catch(e){
+				console.log("exception: " + e.message);
 			}
 		},
 		sortTaskStartTime: function(a, b){
@@ -543,7 +558,7 @@ dojo.require("dojo.date.locale");
 			return a.startDate < b.startDate ? -1 : (a.startDate > b.startDate ? 1 : 0);
 		},
 		setStartTimeChild: function(parentTask){
-			dojo.forEach(parentTask.cldTasks, function(pcTask){
+			arrayUtil.forEach(parentTask.cldTasks, function(pcTask){
 				if(!pcTask.startTime){
 					pcTask.startTime = parentTask.startTime;
 				}
@@ -553,10 +568,10 @@ dojo.require("dojo.date.locale");
 			}, this);
 		},
 		createPanelTasks: function(){
-			var panelTask = dojo.create("div", {
+			var panelTask = domConstruct.create("div", {
 				className: "ganttTaskPanel"
 			});
-			dojo.style(panelTask, {
+			domStyle.set(panelTask, {
 				height: (this.contentHeight - this.panelTimeHeight - this.scrollBarWidth) + "px"
 			});
 			return panelTask;
@@ -567,9 +582,8 @@ dojo.require("dojo.date.locale");
 			this.pixelsPerHour = this.pixelsPerDay / 24;
 		},
 		createPanelNamesTasksHeader: function(){
-			var _this = this;
-			var panelHeader = dojo.create("div", {className: "ganttPanelHeader"});
-			var tblHeader = dojo.create("table", {
+			var panelHeader = domConstruct.create("div", {className: "ganttPanelHeader"});
+			var tblHeader = domConstruct.create("table", {
 				cellPadding: "0px",
 				border: "0px",
 				cellSpacing: "0px",
@@ -580,117 +594,148 @@ dojo.require("dojo.date.locale");
 			var secondRow = tblHeader.insertRow(tblHeader.rows.length);
 			var thirdRow = tblHeader.insertRow(tblHeader.rows.length);
 			var forthRow = tblHeader.insertRow(tblHeader.rows.length);
-			var zoomIn = dojo.create("td", {
+			var zoomIn = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarZoomIn"
 			}, firstRow);
-			var zoomInFn = dojo.hitch(this, function(){
+			var zoomInFn = lang.hitch(this, function(){
 				if(this.scale * 2 > 5){return;}
 				this.scale = this.scale * 2;
 				this.switchTeleMicroView(this.pixelsPerDay * this.scale);
 			});
-			dojo.disconnect(this.zoomInClickEvent);
-			this.zoomInClickEvent = dojo.connect(zoomIn, "onclick", this, zoomInFn);
+			if(this.zoomInClickEvent){
+				this.zoomInClickEvent.remove();
+			}
+			this.zoomInClickEvent = on(zoomIn, "click", lang.hitch(this, zoomInFn));
 			//a11y support
-			dojo.disconnect(this.zoomInKeyEvent);
-			this.zoomInKeyEvent = dojo.connect(zoomIn, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.zoomInKeyEvent){
+				this.zoomInKeyEvent.remove();
+			}
+			this.zoomInKeyEvent = on(zoomIn, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				zoomInFn();
-			});
-			dojo.attr(zoomIn, "tabIndex", 0);
-			var zoomOut = dojo.create("td", {
+			}));
+
+			domAttr.set(zoomIn, "tabIndex", 0);
+			var zoomOut = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarZoomOut"
 			}, firstRow);
-			var zoomOutFn = dojo.hitch(this, function(){
+			var zoomOutFn = lang.hitch(this, function(){
 				if(this.scale * 0.5 < 0.2){return;}
 				this.scale = this.scale * 0.5;
 				this.switchTeleMicroView(this.pixelsPerDay * this.scale);
 			});
-			dojo.disconnect(this.zoomOutClickEvent);
-			this.zoomOutClickEvent = dojo.connect(zoomOut, "onclick", this, zoomOutFn);
+			if(this.zoomOutClickEvent){
+				this.zoomOutClickEvent.remove();
+			}
+			this.zoomOutClickEvent = on(zoomOut, "click", lang.hitch(this, zoomOutFn));
+
 			//a11y support
-			dojo.disconnect(this.zoomOutKeyEvent);
-			this.zoomOutKeyEvent = dojo.connect(zoomOut, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.zoomOutKeyEvent){
+				this.zoomOutKeyEvent.remove();
+			}
+			this.zoomOutKeyEvent = on(zoomOut, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				zoomOutFn();
-			});
-			dojo.attr(zoomOut, "tabIndex", 0);
-			var micro = dojo.create("td", {
+			}));
+
+			domAttr.set(zoomOut, "tabIndex", 0);
+			var micro = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarMicro"
 			}, secondRow);
-			dojo.disconnect(this.microClickEvent);
-			this.microClickEvent = dojo.connect(micro, "onclick", this, dojo.hitch(this, this.refresh, this.animation?15:1, 0, 2));
+			if(this.microClickEvent){
+				this.microClickEvent.remove();
+			}
+			this.microClickEvent = on(micro, "click", lang.hitch(this, this.refresh, this.animation?15:1, 0, 2));
+
 			//a11y support
-			dojo.disconnect(this.microKeyEvent);
-			this.microKeyEvent = dojo.connect(micro, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.microKeyEvent){
+				this.microKeyEvent.remove();
+			}
+			this.microKeyEvent = on(micro, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				micro.blur();
 				this.refresh(this.animation?15:1, 0, 2);
-			});
-			dojo.attr(micro, "tabIndex", 0);
-			var tele = dojo.create("td", {
+			}));
+
+			domAttr.set(micro, "tabIndex", 0);
+			var tele = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarTele"
 			}, secondRow);
-			dojo.disconnect(this.teleClickEvent);
-			this.teleClickEvent = dojo.connect(tele, "onclick", this, dojo.hitch(this, this.refresh, this.animation?15:1, 0, 0.5));
+			if(this.teleClickEvent){
+				this.teleClickEvent.remove();
+			}
+			this.teleClickEvent = on(tele, "click", lang.hitch(this, this.refresh, this.animation?15:1, 0, 0.5));
 			//a11y support
-			dojo.disconnect(this.teleKeyEvent);
-			this.teleKeyEvent = dojo.connect(tele, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.teleKeyEvent){
+				this.teleKeyEvent.remove();
+			}
+			this.teleKeyEvent = on(tele, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				tele.blur();
 				this.refresh(this.animation?15:1, 0, 0.5);
-			});
-			dojo.attr(tele, "tabIndex", 0);
-			var save = dojo.create("td", {
+			}));
+			domAttr.set(tele, "tabIndex", 0);
+			var save = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarSave"
 			}, thirdRow);
-			dojo.disconnect(this.saveClickEvent);
-			this.saveClickEvent = dojo.connect(save, "onclick", this, dojo.hitch(this, this.saveJSONData, ""));
+			if(this.saveClickEvent){
+				this.saveClickEvent.remove();
+			}
+			this.saveClickEvent = on(save, "click", lang.hitch(this, this.saveJSONData, ""));
 			//a11y support
-			dojo.disconnect(this.saveKeyEvent);
-			this.saveKeyEvent = dojo.connect(save, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.saveKeyEvent){
+				this.saveKeyEvent.remove();
+			}
+			this.saveKeyEvent = on(save, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				this.saveJSONData("");
-			});
-			dojo.attr(save, "tabIndex", 0);
-			var load = dojo.create("td", {
+			}));
+			domAttr.set(save, "tabIndex", 0);
+			var load = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttToolbarLoad"
 			}, thirdRow);
-			dojo.disconnect(this.loadClickEvent);
-			this.loadClickEvent = dojo.connect(load, "onclick", this, dojo.hitch(this, this.loadJSONData, ""));
+			if(this.loadClickEvent){
+				this.loadClickEvent.remove();
+			}
+			this.loadClickEvent = on(load, "click", lang.hitch(this, this.loadJSONData, ""));
 			//a11y support
-			dojo.disconnect(this.loadKeyEvent);
-			this.loadKeyEvent = dojo.connect(load, "onkeydown", this, function(e){
-				if(e.keyCode != dojo.keys.ENTER){return;}
+			if(this.loadKeyEvent){
+				this.loadKeyEvent.remove();
+			}
+			this.loadKeyEvent = on(load, "keydown", lang.hitch(this, function(e){
+				if(e.keyCode != keys.ENTER){return;}
 				this.loadJSONData("");
-			});
-			dojo.attr(load, "tabIndex", 0);
+			}));
+
+			domAttr.set(load, "tabIndex", 0);
 			//action popup description
 			var actions = [zoomIn, zoomOut, micro, tele, save, load],
 				titles = ["Enlarge timeline", "Shrink timeline", "Zoom in time zone(microscope view)", "Zoom out time zone(telescope view)",
 							"Save gantt data to json file", "Load gantt data from json file"];
-			dojo.forEach(actions, function(action, i){
+			arrayUtil.forEach(actions, function(action, i){
 				var title = titles[i];
 				var tooltipShow = function(){
-					dojo.addClass(action, "ganttToolbarActionHover");
+					domClass.add(action, "ganttToolbarActionHover");
+					// FIXME: including dijit/Tooltip moves showTooltip and hideTooltip into the dijit namespace
 					dijit.showTooltip(title, action, ["above", "below"]);
 				};
 				action.onmouseover = tooltipShow;
 				//a11y support
 				action.onfocus = tooltipShow;
 				var tooltipHide = function(){
-					dojo.removeClass(action, "ganttToolbarActionHover");
+					domClass.remove(action, "ganttToolbarActionHover");
 					action && dijit.hideTooltip(action);
 				};
 				action.onmouseout = tooltipHide;
@@ -699,19 +744,19 @@ dojo.require("dojo.date.locale");
 			return panelHeader;
 		},
 		createPanelNamesTasks: function(){
-			var panelNameTask = dojo.create("div", {
+			var panelNameTask = domConstruct.create("div", {
 				innerHTML: "&nbsp;",
 				className: "ganttPanelNames"
 			});
-			dojo.style(panelNameTask, {
+			domStyle.set(panelNameTask, {
 				height: (this.contentHeight - this.panelTimeHeight - this.scrollBarWidth) + "px",
 				width: this.maxWidthPanelNames + "px"
 			});
 			return panelNameTask;
 		},
 		createPanelTime: function(){
-			var panelTime = dojo.create("div", {className: "ganttPanelTime"});
-			var tblTime = dojo.create("table", {
+			var panelTime = domConstruct.create("div", {className: "ganttPanelTime"});
+			var tblTime = domConstruct.create("table", {
 				cellPadding: "0px",
 				border: "0px",
 				cellSpacing: "0px",
@@ -720,7 +765,8 @@ dojo.require("dojo.date.locale");
 			}, panelTime);
 			this.totalDays = this.countDays;
 			//year
-			var newYearRow = tblTime.insertRow(tblTime.rows.length), newYear = oldYear = new Date(this.startDate).getFullYear(), ycount = 0;
+			var newYearRow = tblTime.insertRow(tblTime.rows.length), oldYear, newYear, ycount = 0;
+			newYear = oldYear = new Date(this.startDate).getFullYear();
 			for(var i = 0; i < this.countDays; i++, ycount++){
 				var date = new Date(this.startDate);
 				date.setDate(date.getDate() + i);
@@ -732,27 +778,29 @@ dojo.require("dojo.date.locale");
 				}
 			}
 			this.addYearInPanelTime(newYearRow, ycount, newYear);
-			dojo.style(newYearRow, "display", "none");
+			domStyle.set(newYearRow, "display", "none");
 			//month
-			var newMonthRow = tblTime.insertRow(tblTime.rows.length), newMonth = oldMonth = new Date(this.startDate).getMonth(), mcount = 0, lastYear = 1970;
+			var newMonthRow = tblTime.insertRow(tblTime.rows.length), oldMonth, newMonth, mcount = 0, lastYear = 1970;
+			newMonth = oldMonth = new Date(this.startDate).getMonth();
 			for(var i = 0; i < this.countDays; i++, mcount++){
 				var date = new Date(this.startDate);
 				date.setDate(date.getDate() + i);
 				newMonth = date.getMonth();
 				lastYear = date.getFullYear();
 				if(newMonth != oldMonth){
-					this.addMonthInPanelTime(newMonthRow, mcount, oldMonth, lastYear);
+					this.addMonthInPanelTime(newMonthRow, mcount, oldMonth, oldMonth !== 11 ? lastYear : lastYear - 1);
 					mcount = 0;
 					oldMonth = newMonth;
 				}
 			}
 			this.addMonthInPanelTime(newMonthRow, mcount, newMonth, lastYear);
 			//week
-			var newWeekRow = tblTime.insertRow(tblTime.rows.length), newWeek = oldWeek = dojo.date.locale._getWeekOfYear(new Date(this.startDate)), mcount = 0;
+			var newWeekRow = tblTime.insertRow(tblTime.rows.length), oldWeek, newWeek, mcount = 0;
+			newWeek = oldWeek = locale._getWeekOfYear(new Date(this.startDate));
 			for(var i = 0; i < this.countDays; i++, mcount++){
 				var date = new Date(this.startDate);
 				date.setDate(date.getDate() + i);
-				newWeek = dojo.date.locale._getWeekOfYear(date);
+				newWeek = locale._getWeekOfYear(date);
 				if(newWeek != oldWeek){
 					this.addWeekInPanelTime(newWeekRow, mcount, oldWeek);
 					mcount = 0;
@@ -770,11 +818,11 @@ dojo.require("dojo.date.locale");
 			for(var i = 0; i < this.countDays; i++){
 				this.addHourInPanelTime(newHourRow);
 			}
-			dojo.style(newHourRow, "display", "none");
+			domStyle.set(newHourRow, "display", "none");
 			return panelTime;
 		},
-		adjustPanelTime: function(width){
-			var maxEndPos = dojo.map(this.arrProjects, function(project){
+		adjustPanelTime: function(){
+			var maxEndPos = arrayUtil.map(this.arrProjects, function(project){
 				return (parseInt(project.projectItem[0].style.left) + parseInt(project.projectItem[0].firstChild.style.width)
 					+ project.descrProject.offsetWidth + this.panelTimeExpandDelta);
 			}, this).sort(function(a,b){return b-a})[0];
@@ -783,11 +831,12 @@ dojo.require("dojo.date.locale");
 				var prows = this.panelTime.firstChild.firstChild.rows;
 				for(var i = 0; i <= 4; i++){//prows.length
 					this.removeCell(prows[i]);
-				};
+				}
 				var countDays = Math.round((maxEndPos+this.panelTimeExpandDelta) / this.pixelsPerDay);
 				this.totalDays = countDays;
 				//year
-				var newYear = oldYear = new Date(this.startDate).getFullYear(), ycount = 0;
+				var oldYear, newYear, ycount = 0;
+				newYear = oldYear = new Date(this.startDate).getFullYear();
 				for(var i = 0; i < countDays; i++, ycount++){
 					var date = new Date(this.startDate);
 					date.setDate(date.getDate() + i);
@@ -800,25 +849,27 @@ dojo.require("dojo.date.locale");
 				}
 				this.addYearInPanelTime(prows[0], ycount, newYear);
 				//month
-				var newMonth = oldMonth = new Date(this.startDate).getMonth(), mcount = 0, lastYear = 1970;
+				var oldMonth, newMonth, mcount = 0, lastYear = 1970;
+				newMonth = oldMonth = new Date(this.startDate).getMonth();
 				for(var i = 0; i < countDays; i++, mcount++){
 					var date = new Date(this.startDate);
 					date.setDate(date.getDate() + i);
 					newMonth = date.getMonth();
 					lastYear = date.getFullYear();
 					if(newMonth != oldMonth){
-						this.addMonthInPanelTime(prows[1], mcount, oldMonth, lastYear);
+						this.addMonthInPanelTime(prows[1], mcount, oldMonth, oldMonth !== 11 ? lastYear : lastYear - 1);
 						mcount = 0;
 						oldMonth = newMonth;
 					}
 				}
 				this.addMonthInPanelTime(prows[1], mcount, newMonth, lastYear);
 				//week
-				var newWeek = oldWeek = dojo.date.locale._getWeekOfYear(new Date(this.startDate)), mcount = 0;
+				var oldWeek, newWeek, mcount = 0;
+				newWeek = oldWeek = locale._getWeekOfYear(new Date(this.startDate));
 				for(var i = 0; i < countDays; i++, mcount++){
 					var date = new Date(this.startDate);
 					date.setDate(date.getDate() + i);
-					newWeek = dojo.date.locale._getWeekOfYear(date);
+					newWeek = locale._getWeekOfYear(date);
 					if(newWeek != oldWeek){
 						this.addWeekInPanelTime(prows[2], mcount, oldWeek);
 						mcount = 0;
@@ -841,7 +892,7 @@ dojo.require("dojo.date.locale");
 		},
 		addYearInPanelTime: function(row, count, year){
 			var data = "Year   " + year;
-			var newCell = dojo.create("td", {
+			var newCell = domConstruct.create("td", {
 				colSpan: count,
 				align: "center",
 				vAlign: "middle",
@@ -849,11 +900,11 @@ dojo.require("dojo.date.locale");
 				innerHTML: this.pixelsPerDay * count > 20 ? data : "",
 				innerHTMLData: data
 			}, row);
-			dojo.style(newCell, "width", (this.pixelsPerDay * count) + "px");
+			domStyle.set(newCell, "width", (this.pixelsPerDay * count) + "px");
 		},
 		addMonthInPanelTime: function(row, count, month, year){
 			var data = this.months[month] + (year ? " of " + year : "");
-			var newCell = dojo.create("td", {
+			var newCell = domConstruct.create("td", {
 				colSpan: count,
 				align: "center",
 				vAlign: "middle",
@@ -861,11 +912,11 @@ dojo.require("dojo.date.locale");
 				innerHTML: this.pixelsPerDay * count > 30 ? data : "",
 				innerHTMLData: data
 			}, row);
-			dojo.style(newCell, "width", (this.pixelsPerDay * count) + "px");
+			domStyle.set(newCell, "width", (this.pixelsPerDay * count) + "px");
 		},
 		addWeekInPanelTime: function(row, count, week){
 			var data = "Week   " + week;
-			var newCell = dojo.create("td", {
+			var newCell = domConstruct.create("td", {
 				colSpan: count,
 				align: "center",
 				vAlign: "middle",
@@ -873,12 +924,12 @@ dojo.require("dojo.date.locale");
 				innerHTML: this.pixelsPerDay * count > 20 ? data : "",
 				innerHTMLData: data
 			}, row);
-			dojo.style(newCell, "width", (this.pixelsPerDay * count) + "px");
+			domStyle.set(newCell, "width", (this.pixelsPerDay * count) + "px");
 		},
 		addDayInPanelTime: function(row){
 			var date = new Date(this.startDate);
 			date.setDate(date.getDate() + parseInt(row.cells.length));
-			var newCell = dojo.create("td", {
+			var newCell = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttDayNumber",
@@ -886,47 +937,47 @@ dojo.require("dojo.date.locale");
 				innerHTMLData: String(date.getDate()),
 				data: row.cells.length
 			}, row);
-			dojo.style(newCell, "width", this.pixelsPerDay + "px");
-			(date.getDay() >= 5) && dojo.addClass(newCell, "ganttDayNumberWeekend");
+			domStyle.set(newCell, "width", this.pixelsPerDay + "px");
+			(date.getDay() >= 5) && domClass.add(newCell, "ganttDayNumberWeekend");
 			this._events.push(
-				dojo.connect(newCell, "onmouseover", this, function(event){
+				on(newCell, "mouseover", lang.hitch(this, function(event){
 					var dayTime = event.target || event.srcElement;
 					var date = new Date(this.startDate.getTime());
-					date.setDate(date.getDate() + parseInt(dojo.attr(dayTime, "data")));
+					date.setDate(date.getDate() + parseInt(domAttr.get(dayTime, "data")));
 					dijit.showTooltip(date.getFullYear() + "." + (date.getMonth() + 1) + "." + date.getDate(), newCell, ["above", "below"]);
-				})
+				}))
 			);
 			this._events.push(
-				dojo.connect(newCell, "onmouseout", this, function(event){
+				on(newCell, "mouseout", lang.hitch(this, function(event){
 					var dayTime = event.target || event.srcElement;
 					dayTime && dijit.hideTooltip(dayTime);
-				})
+				}))
 			);
 		},
 		addHourInPanelTime: function(row){
-			var newCell = dojo.create("td", {
+			var newCell = domConstruct.create("td", {
 				align: "center",
 				vAlign: "middle",
 				className: "ganttHourNumber",
 				data: row.cells.length
 			}, row);
-			dojo.style(newCell, "width", this.pixelsPerDay + "px");
+			domStyle.set(newCell, "width", this.pixelsPerDay + "px");
 			
-			var hourTable = dojo.create("table", {
+			var hourTable = domConstruct.create("table", {
 				cellPadding: "0",
 				cellSpacing: "0"
 			}, newCell);
 			var newRow = hourTable.insertRow(hourTable.rows.length);
 			for(var i = 0; i < this.hsPerDay; i++){
-				var hourTD = dojo.create("td", {
+				var hourTD = domConstruct.create("td", {
 					className: "ganttHourClass"
 				}, newRow);
-				dojo.style(hourTD, "width", (this.pixelsPerDay / this.hsPerDay) + "px");
-				dojo.attr(hourTD, "innerHTMLData", String(9 + i));
+				domStyle.set(hourTD, "width", (this.pixelsPerDay / this.hsPerDay) + "px");
+				domAttr.set(hourTD, "innerHTMLData", String(9 + i));
 				if(this.pixelsPerDay / this.hsPerDay > 5){
-					dojo.attr(hourTD, "innerHTML", String(9 + i));
+					domAttr.set(hourTD, "innerHTML", String(9 + i));
 				}
-				dojo.addClass(hourTD, i <= 3?"ganttHourNumberAM":"ganttHourNumberPM");
+				domClass.add(hourTD, i <= 3?"ganttHourNumberAM":"ganttHourNumberPM");
 			}
 		},
 		incHeightPanelTasks: function(height){
@@ -938,8 +989,8 @@ dojo.require("dojo.date.locale");
 			containerNames.style.height = parseInt(containerNames.style.height) + height + "px";
 		},
 		checkPosition: function(){
-			dojo.forEach(this.arrProjects, function(project){
-				dojo.forEach(project.arrTasks, function(task){
+			arrayUtil.forEach(this.arrProjects, function(project){
+				arrayUtil.forEach(project.arrTasks, function(task){
 					task.checkPosition();
 				}, this);
 			}, this);
@@ -975,22 +1026,22 @@ dojo.require("dojo.date.locale");
 					this.resource.refresh();
 				}
 				this.tempDayInPixels = 0;
-				this.panelNameHeadersCover && dojo.style(this.panelNameHeadersCover, "display", "none");
+				this.panelNameHeadersCover && domStyle.set(this.panelNameHeadersCover, "display", "none");
 				return;
 			}
 			if(this.tempDayInPixels == 0){
 				this.tempDayInPixels = this.pixelsPerDay;
 			}
-			this.panelNameHeadersCover && dojo.style(this.panelNameHeadersCover, "display", "");
+			this.panelNameHeadersCover && domStyle.set(this.panelNameHeadersCover, "display", "");
 			var dip = this.tempDayInPixels + this.tempDayInPixels * (multi - 1) * Math.pow((current / count), 2);
 			this.refreshParams(dip);
-			dojo.forEach(this.arrProjects, function(project){
-				dojo.forEach(project.arrTasks, function(task){
+			arrayUtil.forEach(this.arrProjects, function(project){
+				arrayUtil.forEach(project.arrTasks, function(task){
 					task.refresh();
 				}, this);
 				project.refresh();
 			}, this);
-			setTimeout(dojo.hitch(this, function(){
+			setTimeout(lang.hitch(this, function(){
 				this.refresh(count, ++current, multi);
 			}), 15);
 		},
@@ -998,11 +1049,11 @@ dojo.require("dojo.date.locale");
 			var plChild = this.panelTime.firstChild.firstChild;
 			for(var i = 0; i < 5; i++){//0:Y 1:M 2:W 3:D 4:H
 				if(dip > 40){
-					dojo.style(plChild.rows[i], "display", (i==0||i==1)?"none":"");
+					domStyle.set(plChild.rows[i], "display", (i==0||i==1)?"none":"");
 				}else if(dip < 20){
-					dojo.style(plChild.rows[i], "display", (i==2||i==4)?"none":"");
+					domStyle.set(plChild.rows[i], "display", (i==2||i==4)?"none":"");
 				}else{
-					dojo.style(plChild.rows[i], "display", (i==0||i==4)?"none":"");
+					domStyle.set(plChild.rows[i], "display", (i==0||i==4)?"none":"");
 				}
 			}
 		},
@@ -1011,23 +1062,23 @@ dojo.require("dojo.date.locale");
 			this.panelTime.firstChild.style.width = this.pixelsPerDay * this.totalDays + "px";
 			this.panelTime.firstChild.firstChild.style.width = this.pixelsPerDay * this.totalDays + "px";
 			this.switchTeleMicroView(this.pixelsPerDay);
-			dojo.forEach(this.panelTime.firstChild.firstChild.rows, function(row){
-				dojo.forEach(row.childNodes, function(td){
-					var cs = parseInt(dojo.attr(td, "colSpan") || 1);
-					var idata = dojo.trim(dojo.attr(td, "innerHTMLData")||"");
+			arrayUtil.forEach(this.panelTime.firstChild.firstChild.rows, function(row){
+				arrayUtil.forEach(row.childNodes, function(td){
+					var cs = parseInt(domAttr.get(td, "colSpan") || 1);
+					var idata = lang.trim(domAttr.get(td, "innerHTMLData")||"");
 					if(idata.length > 0){
-						dojo.attr(td, "innerHTML", this.pixelsPerDay * cs < 20 ? "" : idata);
+						domAttr.set(td, "innerHTML", this.pixelsPerDay * cs < 20 ? "" : idata);
 					}else{
-						dojo.forEach(td.firstChild.rows[0].childNodes, function(td){
-							var sdata = dojo.trim(dojo.attr(td, "innerHTMLData")||"");
-							dojo.attr(td, "innerHTML", this.pixelsPerDay / this.hsPerDay > 10 ? sdata : "");
+						arrayUtil.forEach(td.firstChild.rows[0].childNodes, function(td){
+							var sdata = lang.trim(domAttr.get(td, "innerHTMLData")||"");
+							domAttr.set(td, "innerHTML", this.pixelsPerDay / this.hsPerDay > 10 ? sdata : "");
 						}, this);
 					}
 					if(cs == 1){
-						dojo.style(td, "width", (this.pixelsPerDay*cs) + "px");
+						domStyle.set(td, "width", (this.pixelsPerDay*cs) + "px");
 						if(idata.length <= 0){
-							dojo.forEach(td.firstChild.rows[0].childNodes, function(td){
-								dojo.style(td, "width", (this.pixelsPerDay*cs / this.hsPerDay) + "px");
+							arrayUtil.forEach(td.firstChild.rows[0].childNodes, function(td){
+								domStyle.set(td, "width", (this.pixelsPerDay*cs / this.hsPerDay) + "px");
 							}, this);
 						}
 					}
@@ -1036,12 +1087,12 @@ dojo.require("dojo.date.locale");
 		},
 		init: function(){
 			this.startDate = this.getStartDate();
-			dojo.style(this.content, {
+			domStyle.set(this.content, {
 				width: this.contentWidth + "px",
 				height: this.contentHeight + "px"
 			});
 			//create Table
-			this.tableControl = dojo.create("table", {
+			this.tableControl = domConstruct.create("table", {
 				cellPadding: "0",
 				cellSpacing: "0",
 				className: "ganttTabelControl"
@@ -1051,45 +1102,45 @@ dojo.require("dojo.date.locale");
 			this.content.appendChild(this.tableControl);
 			this.countDays = this.getCountDays();
 			//Creation panel of time
-			this.panelTime = dojo.create("div", {className: "ganttPanelTimeContainer"});
-			dojo.style(this.panelTime, "height", this.panelTimeHeight + "px");
+			this.panelTime = domConstruct.create("div", {className: "ganttPanelTimeContainer"});
+			domStyle.set(this.panelTime, "height", this.panelTimeHeight + "px");
 			this.panelTime.appendChild(this.createPanelTime());
 			//Creation panel contentData
-			this.contentData = dojo.create("div", {className: "ganttContentDataContainer"});
-			dojo.style(this.contentData, "height", (this.contentHeight - this.panelTimeHeight) + "px");
+			this.contentData = domConstruct.create("div", {className: "ganttContentDataContainer"});
+			domStyle.set(this.contentData, "height", (this.contentHeight - this.panelTimeHeight) + "px");
 			this.contentData.appendChild(this.createPanelTasks());
 			//Creation panel of names
-			var newCellTblControl = dojo.create("td", {
+			var newCellTblControl = domConstruct.create("td", {
 				vAlign: "top"
 			});
 			//Creation panel of task header
-			this.panelNameHeaders = dojo.create("div", {className: "ganttPanelNameHeaders"}, newCellTblControl);
-			dojo.style(this.panelNameHeaders, {
+			this.panelNameHeaders = domConstruct.create("div", {className: "ganttPanelNameHeaders"}, newCellTblControl);
+			domStyle.set(this.panelNameHeaders, {
 				height: this.panelTimeHeight + "px",
 				width: this.maxWidthPanelNames + "px"
 			});
 			this.panelNameHeaders.appendChild(this.createPanelNamesTasksHeader());
-			this.panelNames = dojo.create("div", {className: "ganttPanelNamesContainer"}, newCellTblControl);
+			this.panelNames = domConstruct.create("div", {className: "ganttPanelNamesContainer"}, newCellTblControl);
 			this.panelNames.appendChild(this.createPanelNamesTasks());
 			newRowTblControl.appendChild(newCellTblControl);
 			//add to control contentData and dataTime
-			newCellTblControl = dojo.create("td", {
+			newCellTblControl = domConstruct.create("td", {
 				vAlign: "top"
 			});
-			var divCell = dojo.create("div", {className: "ganttDivCell"});
+			var divCell = domConstruct.create("div", {className: "ganttDivCell"});
 			divCell.appendChild(this.panelTime);
 			divCell.appendChild(this.contentData);
 			newCellTblControl.appendChild(divCell);
 			newRowTblControl.appendChild(newCellTblControl);
 			//Show panel of names
-			dojo.style(this.panelNames, "height", (this.contentHeight - this.panelTimeHeight - this.scrollBarWidth) + "px");
-			dojo.style(this.panelNames, "width", this.maxWidthPanelNames + "px");
-			dojo.style(this.contentData, "width", (this.contentWidth - this.maxWidthPanelNames) + "px");
-			dojo.style(this.contentData.firstChild, "width", this.pixelsPerDay * this.countDays + "px");
-			dojo.style(this.panelTime, "width", (this.contentWidth - this.maxWidthPanelNames - this.scrollBarWidth) + "px");
-			dojo.style(this.panelTime.firstChild, "width", this.pixelsPerDay * this.countDays + "px");
+			domStyle.set(this.panelNames, "height", (this.contentHeight - this.panelTimeHeight - this.scrollBarWidth) + "px");
+			domStyle.set(this.panelNames, "width", this.maxWidthPanelNames + "px");
+			domStyle.set(this.contentData, "width", (this.contentWidth - this.maxWidthPanelNames) + "px");
+			domStyle.set(this.contentData.firstChild, "width", this.pixelsPerDay * this.countDays + "px");
+			domStyle.set(this.panelTime, "width", (this.contentWidth - this.maxWidthPanelNames - this.scrollBarWidth) + "px");
+			domStyle.set(this.panelTime.firstChild, "width", this.pixelsPerDay * this.countDays + "px");
 			if(this.isShowConMenu){
-				this.tabMenu = new dojox.gantt.TabMenu(this);
+				this.tabMenu = new TabMenu(this);
 			}
 			var _this = this;
 			this.contentData.onscroll = function(){
@@ -1103,7 +1154,7 @@ dojo.require("dojo.date.locale");
 				if(_this.resource){
 					_this.resource.contentData.scrollLeft = this.scrollLeft;
 				}
-			}
+			};
 			this.project.sort(this.sortProjStartDate);
 			for(var i = 0; i < this.project.length; i++){
 				var proj = this.project[i];
@@ -1135,7 +1186,7 @@ dojo.require("dojo.date.locale");
 			for(var i = 0; i < this.project.length; i++){
 				//creation project
 				var proj = this.project[i];
-				var project = new dojox.gantt.GanttProjectControl(this, proj);
+				var project = new GanttProjectControl(this, proj);
 				if(this.arrProjects.length > 0){
 					var previousProject = this.arrProjects[this.arrProjects.length - 1];
 					project.previousProject = previousProject;
@@ -1147,7 +1198,7 @@ dojo.require("dojo.date.locale");
 				this.createTasks(project);
 			}
 			if(this.withResource){
-				this.resource = new dojox.gantt.GanttResourceItem(this);
+				this.resource = new GanttResourceItem(this);
 				this.resource.create();
 			}
 			this.postLoadData();
@@ -1155,17 +1206,17 @@ dojo.require("dojo.date.locale");
 			return this;
 		},
 		postLoadData: function(){
-			dojo.forEach(this.arrProjects, function(project){
-				dojo.forEach(project.arrTasks, function(task){
+			arrayUtil.forEach(this.arrProjects, function(project){
+				arrayUtil.forEach(project.arrTasks, function(task){
 					task.postLoadData();
 				}, this);
 				project.postLoadData();
 			}, this);
 			//toolbar cover div
-			var cpos = dojo.coords(this.panelNameHeaders);
+			var cpos = domGeometry.getMarginBox(this.panelNameHeaders);
 			if(!this.panelNameHeadersCover){
-				this.panelNameHeadersCover = dojo.create("div", {className: "ganttHeaderCover"}, this.panelNameHeaders.parentNode);
-				dojo.style(this.panelNameHeadersCover, {
+				this.panelNameHeadersCover = domConstruct.create("div", {className: "ganttHeaderCover"}, this.panelNameHeaders.parentNode);
+				domStyle.set(this.panelNameHeadersCover, {
 					left: cpos.l+"px",
 					top: cpos.t+"px",
 					height: cpos.h+"px",
@@ -1176,9 +1227,9 @@ dojo.require("dojo.date.locale");
 		},
 		postBindEvents: function(){
 			//highlight row
-			var pos = dojo.position(this.tableControl, true);
-			!dojo.isIE && this._events.push(
-				dojo.connect(this.tableControl, "onmousemove", this, function(event){
+			var pos = domGeometry.position(this.tableControl, true);
+			has("dom-addeventlistener") && this._events.push(
+				on(this.tableControl, "mousemove", lang.hitch(this, function(event){
 					var elem = event.srcElement || event.target;
 					if(elem == this.panelNames.firstChild || elem == this.contentData.firstChild){
 						//23: this.heightTaskItem + this.heightTaskItemExtra
@@ -1186,12 +1237,12 @@ dojo.require("dojo.date.locale");
 						var hlTop = parseInt(event.layerY / rowHeight) * rowHeight + this.panelTimeHeight - this.contentData.scrollTop;
 						if(hlTop != this.oldHLTop && hlTop < (pos.h - 50)){
 							if(this.highLightDiv){
-								dojo.style(this.highLightDiv, "top", (pos.y + hlTop) + "px");
+								domStyle.set(this.highLightDiv, "top", (pos.y + hlTop) + "px");
 							}else{
-								this.highLightDiv = dojo.create("div", {
+								this.highLightDiv = domConstruct.create("div", {
 									className: "ganttRowHighlight"
-								}, dojo.body());
-								dojo.style(this.highLightDiv, {
+								}, win.body());
+								domStyle.set(this.highLightDiv, {
 									top: (pos.y + hlTop) + "px",
 									left: pos.x + "px",
 									width: (pos.w - 20) + "px",
@@ -1201,12 +1252,11 @@ dojo.require("dojo.date.locale");
 						}
 						this.oldHLTop = hlTop;
 					}
-				})
+				}))
 			);
-			//TODO: other event bindings
 		},
 		getStartDate: function(){
-			dojo.forEach(this.project, function(proj){
+			arrayUtil.forEach(this.project, function(proj){
 				if(this.startDate){
 					if(proj.startDate < this.startDate){
 						this.startDate = new Date(proj.startDate);
@@ -1222,12 +1272,12 @@ dojo.require("dojo.date.locale");
 			return parseInt((this.contentWidth - this.maxWidthPanelNames) / (this.pixelsPerHour * 24));
 		},
 		createTasks: function(project){
-			dojo.forEach(project.project.parentTasks, function(pppTask, i){
+			arrayUtil.forEach(project.project.parentTasks, function(pppTask, i){
 				if(i > 0){
 					project.project.parentTasks[i - 1].nextParentTask = pppTask;
 					pppTask.previousParentTask = project.project.parentTasks[i - 1];
 				}
-				var task = new dojox.gantt.GanttTaskControl(pppTask, project, this);
+				var task = new GanttTaskControl(pppTask, project, this);
 				project.arrTasks.push(task);
 				task.create();
 				this.checkHeighPanelTasks();
@@ -1237,12 +1287,12 @@ dojo.require("dojo.date.locale");
 			}, this);
 		},
 		createChildItemControls: function(arrChildTasks, project){
-			arrChildTasks && dojo.forEach(arrChildTasks, function(cTask, i){
+			arrChildTasks && arrayUtil.forEach(arrChildTasks, function(cTask, i){
 				if(i > 0){
 					cTask.previousChildTask = arrChildTasks[i - 1];
 					arrChildTasks[i - 1].nextChildTask = cTask;
 				}
-				var task = new dojox.gantt.GanttTaskControl(cTask, project, this);
+				var task = new GanttTaskControl(cTask, project, this);
 				task.create();
 				this.checkHeighPanelTasks();
 				if(cTask.cldTasks.length > 0){
@@ -1265,5 +1315,4 @@ dojo.require("dojo.date.locale");
 			}
 		}
 	});
-})();
 });

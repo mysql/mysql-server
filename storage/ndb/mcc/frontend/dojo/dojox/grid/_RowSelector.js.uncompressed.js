@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/_RowSelector", [
 	"dojo/_base/declare",
 	"./_View"
@@ -31,7 +30,7 @@ return declare('dojox.grid._RowSelector', _View, {
 	},
 	adaptWidth: function(){
 		// Only calculate this here - rather than every call to buildRowContent
-		if(!("contentWidth" in this) && this.contentNode){
+		if(!("contentWidth" in this) && this.contentNode && this.contentNode.offsetWidth > 0){
 			this.contentWidth = this.contentNode.offsetWidth - this.padBorderWidth;
 		}
 	},

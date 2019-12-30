@@ -193,6 +193,11 @@ CREATE TABLE `db1_1gb`.`customer` (
 `C_ISACTIVE` tinyint(1) DEFAULT NULL,
 PRIMARY KEY (`C_CUSTKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE `db1_1gb`.`customer` ADD FULLTEXT (`C_COMMENT`);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -219,6 +224,11 @@ CREATE TABLE `db1_1gb`.`lineitem` (
 `L_TAGS` char(50) DEFAULT NULL,
 PRIMARY KEY (`L_ORDERKEY`,`L_LINENUMBER`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE `db1_1gb`.`lineitem` ADD KEY `l_quantity_index` (`L_QUANTITY`);
 ALTER TABLE `db1_1gb`.`lineitem` ADD KEY `l_discount_index` (`L_DISCOUNT`);
 ALTER TABLE `db1_1gb`.`lineitem` ADD KEY `l_shipinstruct_index` (`L_SHIPINSTRUCT`(10));
@@ -230,6 +240,9 @@ CREATE TABLE `db1_1gb`.`nation` (
 `N_COMMENT` mediumtext,
 PRIMARY KEY (`N_nationKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `db1_1gb`.`nation` VALUES (0,"ALGERIA",0," haggle. carefully final deposits detect slyly agai"),(1,"ARGENTINA",1,"al foxes promise slyly according to the regular accounts. bold requests alon"),(2,"BRAZIL",1,"y alongside of the pending deposits. carefully special packages are about the ironic forges. slyly special "),(3,"CANADA",1,"eas hang ironic, silent packages. slyly regular packages are furiously over the tithes. fluffily bold");
 CREATE TABLE `db1_1gb`.`orders` (
 `O_ORDERKEY` int(11) NOT NULL,
@@ -245,6 +258,10 @@ CREATE TABLE `db1_1gb`.`orders` (
 `O_SUMMARY` longblob NOT NULL,
 PRIMARY KEY (`O_ORDERKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `db1_1gb`.`orders` VALUES (4001,115,"O",95929.46,"1997-05-15","3-MEDIUM","Clerk#000000878",0,"detect. asymptotes sleep furio",2013,"detect. asymptotes sleep furio"),(4002,104,"O",76518.11,"1997-04-08","5-LOW","Clerk#000000097",0," regular braids are. furiously even patterns agains",2013," regular braids are. furiously even patterns agains"),(4003,112,"F",17603.01,"1993-01-27","1-URGENT","Clerk#000000177",0," blithe theodolites are slyly. slyly silent accounts toward",2013," blithe theodolites are slyly. slyly silent accounts toward"),(4004,70,"F",220715.14,"1993-05-07","3-MEDIUM","Clerk#000000273",0,"accounts among the blithely regular sentiments ",2013,"accounts among the blithely regular sentiments ");
 ALTER TABLE `db1_1gb`.`orders` ADD KEY `o_totalprice_index` (`O_TOTALPRICE`);
 ALTER TABLE `db1_1gb`.`orders` ADD KEY `o_orderdate_index` (`O_ORDERDATE`);
@@ -262,6 +279,9 @@ CREATE TABLE `db1_1gb`.`part` (
 `P_SUMMARY` tinyblob NOT NULL,
 PRIMARY KEY (`P_partKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `db1_1gb`.`partsupp` (
 `PS_partKEY` int(11) NOT NULL,
 `PS_SUPPKEY` int(11) NOT NULL,
@@ -270,12 +290,18 @@ CREATE TABLE `db1_1gb`.`partsupp` (
 `PS_COMMENT` varchar(199) NOT NULL,
 PRIMARY KEY (`PS_partKEY`,`PS_SUPPKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `db1_1gb`.`region` (
 `R_regionKEY` int(11) NOT NULL,
 `R_NAME` char(25) NOT NULL,
 `R_COMMENT` longtext,
 PRIMARY KEY (`R_regionKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE `db1_1gb`.`supplier` (
 `S_SUPPKEY` int(11) NOT NULL,
 `S_NAME` char(25) NOT NULL,
@@ -287,6 +313,9 @@ CREATE TABLE `db1_1gb`.`supplier` (
 `S_SUMMARY` blob NOT NULL,
 PRIMARY KEY (`S_SUPPKEY`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 # basic testing
 DROP DATABASE db1;
 DROP DATABASE db2;

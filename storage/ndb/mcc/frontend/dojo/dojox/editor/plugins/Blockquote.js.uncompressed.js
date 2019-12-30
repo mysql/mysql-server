@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/Blockquote", [
 	"dojo",
 	"dijit",
@@ -11,11 +10,11 @@ define("dojox/editor/plugins/Blockquote", [
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/Blockquote"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, range, selection, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
-	//	summary:
-	//		This plugin provides Blockquote cabability to the editor.
+dojo.declare("dojox.editor.plugins.Blockquote", _Plugin, {
+	// summary:
+	//		This plugin provides Blockquote capability to the editor.
 	//		window/tab
 
 	// iconClassPrefix: [const] String
@@ -130,10 +129,8 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 							}
 						}
 						if(bq){
-							dojo.withGlobal(ed.window,
-								"selectElementChildren", dijit._editor.selection, [bq]);
-							dojo.withGlobal(ed.window,
-								"collapse", dijit._editor.selection, [true]);
+							ed._sCall("selectElementChildren", [bq]);
+							ed._sCall("collapse", [true]);
 						}
 					}else{
 						var curNode;
@@ -151,8 +148,7 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 
 						// Try to find the end node.  We have to check the selection junk
 						curNode = start;
-						while(curNode.nextSibling && dojo.withGlobal(ed.window,
-							"inSelection", dijit._editor.selection, [curNode])){
+						while(curNode.nextSibling && ed._sCall("inSelection", [curNode])){
 							curNode = curNode.nextSibling;
 						}
 						end = curNode;
@@ -237,10 +233,8 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 							if(this._isEmpty(bq)){
 								bq.parentNode.removeChild(bq);
 							}else{
-								dojo.withGlobal(ed.window,
-									"selectElementChildren", dijit._editor.selection, [bq]);
-								dojo.withGlobal(ed.window,
-									"collapse", dijit._editor.selection, [true]);
+								ed._sCall("selectElementChildren", [bq]);
+								ed._sCall("collapse", [true]);
 							}
 							bq = null;
 						}
@@ -266,10 +260,8 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 							}
 							elem.parentNode.removeChild(elem);
 							if(lastChild){
-								dojo.withGlobal(ed.window,
-									"selectElementChildren", dijit._editor.selection, [lastChild]);
-								dojo.withGlobal(ed.window,
-									"collapse", dijit._editor.selection, [true]);
+								ed._sCall("selectElementChildren", [lastChild]);
+								ed._sCall("collapse", [true]);
 							}
 						}
 					}else{
@@ -281,8 +273,7 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 						}
 						var selectedNodes = [];
 						var cNode = start;
-						while(cNode && cNode.nextSibling && dojo.withGlobal(ed.window,
-							"inSelection", dijit._editor.selection, [cNode])){
+						while(cNode && cNode.nextSibling && ed._sCall("inSelection", [cNode])){
 							if(cNode.parentNode && this._getTagName(cNode.parentNode) === "blockquote"){
 								cNode = cNode.parentNode;
 							}
@@ -355,7 +346,7 @@ dojo.declare("dojox.editor.plugins.Blockquote",dijit._editor._Plugin,{
 
 	_findBlockQuotes: function(nodeList){
 		// summary:
-		//		function to find a ll the blocknode elements in a collection of
+		//		function to find all the blocknode elements in a collection of
 		//		nodes
 		// nodeList:
 		//		The list of nodes.

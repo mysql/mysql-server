@@ -1,4 +1,4 @@
- # Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+ # Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,19 @@
 
 
 # the Java API wrapper and test
-SET(JAVA_SOURCE_DIRS
-  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi
-  ${CMAKE_CURRENT_SOURCE_DIR}/test)
-
-SET(JAVA_SOURCES "")
-FOREACH(D ${JAVA_SOURCE_DIRS})
-  FILE(GLOB tmp ${D}/*.java)
-  LIST(APPEND JAVA_SOURCES ${tmp})
-ENDFOREACH()
+SET(JAVA_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/A.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/B0.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/B1.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/CI.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/D0.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/D1.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/D2.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/E.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/MyJapi.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/myjapi/MyJapiCtypes.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/MyJapiTest.java
+  )
 
 SET(CLASSPATH
   ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/test/myjapi/target/classes

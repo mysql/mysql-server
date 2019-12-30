@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -252,7 +252,7 @@ void sp_rcontext::exit_handler(THD *thd, sp_pcontext *target_scope) {
 
 bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
                                        const sp_instr *cur_spi) {
-  DBUG_ENTER("sp_rcontext::handle_sql_condition");
+  DBUG_TRACE;
 
   /*
     If this is a fatal sub-statement error, and this runtime
@@ -260,7 +260,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
     handlers from this context are applicable: try to locate one
     in the outer scope.
   */
-  if (thd->is_fatal_sub_stmt_error && m_in_sub_stmt) DBUG_RETURN(false);
+  if (thd->is_fatal_sub_stmt_error && m_in_sub_stmt) return false;
 
   Diagnostics_area *da = thd->get_stmt_da();
   const sp_handler *found_handler = NULL;
@@ -323,7 +323,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
     }
   }
 
-  if (!found_handler) DBUG_RETURN(false);
+  if (!found_handler) return false;
 
   // At this point, we know that:
   //  - there is a pending SQL-condition (error or warning);
@@ -357,7 +357,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
       DECLARE EXIT HANDLER ...     -- this handler does not catch the warning
     END
   */
-  if (!handler_entry) DBUG_RETURN(false);
+  if (!handler_entry) return false;
 
   uint continue_ip = handler_entry->handler->type == sp_handler::CONTINUE
                          ? cur_spi->get_cont_dest()
@@ -368,7 +368,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
       Handler_call_frame(found_handler, found_condition, continue_ip);
   if (!frame) {
     sql_alloc_error_handler();
-    DBUG_RETURN(false);
+    return false;
   }
 
   m_activated_handlers.push_back(frame);
@@ -393,7 +393,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
 
   *ip = handler_entry->first_ip;
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool sp_rcontext::set_variable(THD *thd, Field *field, Item **value) {

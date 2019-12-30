@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,7 +253,7 @@ Thrman::execSTTOR(Signal *signal)
     }
 
     /* Initialise measurements */
-    res = Ndb_GetRUsage(&m_last_50ms_rusage);
+    res = Ndb_GetRUsage(&m_last_50ms_rusage, false);
     if (res == 0)
     {
       jam();
@@ -765,7 +765,7 @@ Thrman::measure_cpu_usage(Signal *signal)
   bool check_1sec = false;
   bool check_20sec = false;
 
-  int res = Ndb_GetRUsage(&curr_rusage);
+  int res = Ndb_GetRUsage(&curr_rusage, false);
   if (res != 0)
   {
     jam();
@@ -2245,7 +2245,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     row.write_uint64(NdbTick_CurrentMillisecond());
 
     struct ndb_rusage os_rusage;
-    Ndb_GetRUsage(&os_rusage);
+    Ndb_GetRUsage(&os_rusage, false);
     row.write_uint64(os_rusage.ru_utime);
     row.write_uint64(os_rusage.ru_stime);
     row.write_uint64(os_rusage.ru_minflt);

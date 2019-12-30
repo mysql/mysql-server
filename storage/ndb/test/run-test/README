@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License, version 2.0,
@@ -27,40 +27,71 @@ This document describes how atrt works and how to use it.
 atrt is a test program driver.
 atrt supports fully distributed test and utilizes ndb_cpcd.
 
-=================================
-atrt has the following main loop:
-
+===================================================
 /**
-  * Pseudo code for atrt
+  * Pseudo code for main atrt algorithm
   */
+
   read config file (default d.txt)
-  contact each ndb_cpcd 
-  start each ndb_mgmd
-  connect to each ndb_mgmd
-  for each read(test case)
-  for (run = 1; run < 1 + test_max_retries; run++)
-  do
-    if previous test failed (or is first test)
-      stop each ndbd
-      start each ndbd
-      wait for ndbd to get started
-     
-    start each mysqld
-     
-    start each test prg
+  contact each ndb_cpcd
 
-    wait while all is running and max time not elapsed
+  read all test cases
 
-    stop each mysqld
+  start cluster
+  if cluster start has failures do
+    report overall critical failure
+    attempt to clean up any left over process
+    exit
+  end if
 
-    stop each test prg
+  for each test case do
+    run test case
+    compute overall return code
+    write result to report file
+  done processing tests
 
-    gather result
 
-  done
 /**
- * End of pseudo code
- */     
+ * End of pseudo code for main atrt algorithm
+ */
 
-=================================
+
+
+/**
+  * Pseudo code for atrt test run algorithm
+  */
+  while test_runs < total_test_run_attemps do
+    if test_forces_restart or previous_retry_failed
+      stop all processes
+      deploy all configurations
+      start all processes
+    end if
+
+    if cluster status not ok
+      attempt new retry
+    end if
+    run test and wait for test to finish
+    gather all log results
+
+  done while retries
+
+  rename result
+
+  stop_cluster = (test status != ok) || cluster_configuration_changed
+  if (stop_cluster)
+  if (test failed or cluster configuration changed)
+    if (stop_all_processes fails)
+      set test result as critical failure
+    end if
+    if (start_all_processes fails)
+      set test result as critical failure
+    end if
+  end if
+  check cluster status
+
+/**
+  * End of pseudo code for atrt test run algorithm
+  */
+
+===================================================
 

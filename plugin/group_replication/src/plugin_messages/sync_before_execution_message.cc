@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,25 +38,21 @@ Sync_before_execution_message::~Sync_before_execution_message() {}
 
 void Sync_before_execution_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Sync_before_execution_message::encode_payload");
+  DBUG_TRACE;
 
   uint32 thread_id_aux = static_cast<uint32>(m_thread_id);
   encode_payload_item_int4(buffer, PIT_MY_THREAD_ID, thread_id_aux);
-
-  DBUG_VOID_RETURN;
 }
 
 void Sync_before_execution_message::decode_payload(const unsigned char *buffer,
                                                    const unsigned char *) {
-  DBUG_ENTER("Sync_before_execution_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
 
   uint32 thread_id_aux = 0;
   decode_payload_item_int4(&slider, &payload_item_type, &thread_id_aux);
   m_thread_id = static_cast<my_thread_id>(thread_id_aux);
-
-  DBUG_VOID_RETURN;
 }
 
 my_thread_id Sync_before_execution_message::get_thread_id() {

@@ -231,4 +231,6 @@ USE x;
 DROP DATABASE x;
 CREATE TABLE test.t1(id INT(11)) ENGINE MYISAM
 DATA DIRECTORY "MYSQLTEST_VARDIR/tmp";
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 DROP TABLE test.t1;

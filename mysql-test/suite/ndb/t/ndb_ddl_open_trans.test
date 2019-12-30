@@ -1,9 +1,22 @@
 -- source include/have_multi_ndb.inc
 
---disable_query_log
-# This test provokes failure to lock metadata on second mysqld  
+
+# Configure the second mysqld to not wait for lock so long during
+# schema distribution.
 connection server2;
-call mtr.add_suppression("Failed to acquire metadata lock");
+let $save_lock_wait_timeout = `select @@ndb_schema_dist_lock_wait_timeout`;
+set @@global.ndb_schema_dist_lock_wait_timeout = 1;
+
+--disable_query_log
+# This test provokes various failures to lock metadata on second mysqld
+connection server2;
+call mtr.add_suppression("Failed to acquire exclusive metadata lock");
+call mtr.add_suppression("Failed to rename table definition in DD, continue");
+call mtr.add_suppression("Failed to update table definition in DD");
+call mtr.add_suppression("Failed to update schema version for database");
+call mtr.add_suppression("Failed to execute 'ALTER DATABASE'");
+call mtr.add_suppression("Failed to execute 'DROP DATABASE'");
+call mtr.add_suppression("NDB: Distribution of ALTER TABLE");
 --enable_query_log
 
 #
@@ -17,6 +30,7 @@ begin;
 insert into t1 values(1);
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter table t1 rename t2;
 
 connection server2;
@@ -44,6 +58,7 @@ begin;
 insert into t1 values(1);
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter table t1 algorithm=inplace, add column b int column_format dynamic;
 
 connection server2;
@@ -59,6 +74,7 @@ set global ndb_dbg_check_shares=1;
 connection server2;
 --error 0,1193
 set global ndb_dbg_check_shares=1;
+
 
 #
 # alter offline add column
@@ -99,6 +115,7 @@ begin;
 insert into t1 values(1, 1);
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 create index ind_b on t1(b) algorithm=inplace;
 
 connection server2;
@@ -126,6 +143,7 @@ begin;
 insert into t1 values(1, 1);
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 drop index ind_b on t1;
 
 connection server2;
@@ -146,6 +164,10 @@ set global ndb_dbg_check_shares=1;
 # alter db
 #
 connection server1;
+# Disable ps protocol for the next test case since the
+# ALTER DATABASE doesn't fail on the participant with
+# ps protocol enabled
+--disable_ps_protocol
 create database testdb;
 create table testdb.t1 (a int) engine = ndb;
 
@@ -154,10 +176,12 @@ begin;
 insert into testdb.t1 values(1);
 
 connection server1;
+replace_regex /Node [0-9]+:/Node <nodeid>/;
 alter database testdb charset = latin1;
 
 connection server2;
 commit;
+--enable_ps_protocol
 
 connection server1;
 drop database testdb;
@@ -169,3 +193,7 @@ set global ndb_dbg_check_shares=1;
 connection server2;
 --error 0,1193
 set global ndb_dbg_check_shares=1;
+
+# Restore intial ndb_schema_dist_lock_wait_timeout value
+--disable_query_log ONCE
+eval set @@global.ndb_schema_dist_lock_wait_timeout = $save_lock_wait_timeout;

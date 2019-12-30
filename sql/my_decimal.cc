@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,8 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
                   : my_decimal_string_length(d));
   int result;
   if (str->alloc(length)) return d->check_result(mask, E_DEC_OOM);
-  result = decimal2string((decimal_t *)d, (char *)str->ptr(), &length,
-                          (int)fixed_prec, fixed_dec, filler);
+  result = decimal2string(d, str->ptr(), &length, (int)fixed_prec, fixed_dec,
+                          filler);
   str->length(length);
   str->set_charset(&my_charset_numeric);
   return d->check_result(mask, result);
@@ -337,7 +337,7 @@ void my_decimal_trim(ulong *precision, uint *scale) {
 }
 
 #ifndef DBUG_OFF
-  /* routines for debugging print */
+/* routines for debugging print */
 
 #define DIG_PER_DEC1 9
 #define ROUND_UP(X) (((X) + DIG_PER_DEC1 - 1) / DIG_PER_DEC1)
@@ -360,7 +360,7 @@ void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length) {
   print_decimal(dec);
   fprintf(DBUG_FILE, "Record: ");
   for (int i = 0; i < length; i++) {
-    fprintf(DBUG_FILE, "%02X ", (uint)((uchar *)ptr)[i]);
+    fprintf(DBUG_FILE, "%02X ", ptr[i]);
   }
   fprintf(DBUG_FILE, "\n");
 }
@@ -368,7 +368,7 @@ void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length) {
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val) {
   int length = DECIMAL_MAX_STR_LENGTH + 1; /* minimum size for buff */
   if (!val) return "NULL";
-  (void)decimal2string((decimal_t *)val, buff, &length, 0, 0, 0);
+  (void)decimal2string(val, buff, &length, 0, 0, 0);
   return buff;
 }
 

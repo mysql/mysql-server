@@ -1524,9 +1524,8 @@ void reset_pfs_status_stats() {
 void system_variable_warning(void) {
   THD *thd = current_thd;
   DBUG_ASSERT(thd != NULL);
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_TOO_FEW_RECORDS,
-                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
-                      "System variable hash changed during query.");
+  push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
+  push_warning(thd, ER_SYSVAR_CHANGE_DURING_QUERY);
 }
 
 /**
@@ -1536,8 +1535,7 @@ void system_variable_warning(void) {
 void status_variable_warning(void) {
   THD *thd = current_thd;
   DBUG_ASSERT(thd != NULL);
-  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_TOO_FEW_RECORDS,
-                      ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
-                      "Global status variable array changed during query.");
+  push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
+  push_warning(thd, ER_GLOBSTAT_CHANGE_DURING_QUERY);
 }
 /** @} */

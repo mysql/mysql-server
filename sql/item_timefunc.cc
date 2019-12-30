@@ -153,10 +153,8 @@ static constexpr const Known_date_time_format known_date_time_formats[6] = {
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
 */
-static const Date_time_format time_ampm_format = {{0},
-                                                  {(char *)"%I:%i:%S %p", 11}};
-static const Date_time_format time_24hrs_format = {{0},
-                                                   {(char *)"%H:%i:%S", 8}};
+static const Date_time_format time_ampm_format = {{0}, {"%I:%i:%S %p", 11}};
+static const Date_time_format time_24hrs_format = {{0}, {"%H:%i:%S", 8}};
 
 /**
   Extract datetime value to MYSQL_TIME struct from string value
@@ -211,7 +209,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
   const char *ptr = format->format.str;
   const char *end = ptr + format->format.length;
   const CHARSET_INFO *cs = &my_charset_bin;
-  DBUG_ENTER("extract_date_time");
+  DBUG_TRACE;
 
   if (!sub_pattern_end) memset(l_time, 0, sizeof(*l_time));
 
@@ -305,7 +303,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Second part */
         case 'f':
           tmp = val_end;
-          if (tmp - val > 6) tmp = (char *)val + 6;
+          if (tmp - val > 6) tmp = val + 6;
           l_time->second_part = (int)my_strtoll10(val, &tmp, &error);
           frac_part = 6 - (int)(tmp - val);
           if (frac_part > 0)
@@ -337,7 +335,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
             goto err;
           break;
         case 'w':
-          tmp = (char *)val + 1;
+          tmp = val + 1;
           if ((weekday = (int)my_strtoll10(val, &tmp, &error)) < 0 ||
               weekday >= 7)
             goto err;
@@ -346,7 +344,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           val = tmp;
           break;
         case 'j':
-          tmp = (char *)val + MY_MIN(val_len, 3);
+          tmp = val + MY_MIN(val_len, 3);
           yearday = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -358,7 +356,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'u':
           sunday_first_n_first_week_non_iso = (*ptr == 'U' || *ptr == 'V');
           strict_week_number = (*ptr == 'V' || *ptr == 'v');
-          tmp = (char *)val + MY_MIN(val_len, 2);
+          tmp = val + MY_MIN(val_len, 2);
           if ((week_number = (int)my_strtoll10(val, &tmp, &error)) < 0 ||
               (strict_week_number && !week_number) || week_number > 53)
             goto err;
@@ -369,7 +367,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'X':
         case 'x':
           strict_week_number_year_type = (*ptr == 'X');
-          tmp = (char *)val + MY_MIN(4, val_len);
+          tmp = val + MY_MIN(4, val_len);
           strict_week_number_year = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -382,14 +380,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           */
           if (extract_date_time(&time_ampm_format, val, (uint)(val_end - val),
                                 l_time, cached_timestamp_type, &val, "time"))
-            DBUG_RETURN(1);
+            return 1;
           break;
 
           /* Time in 24-hour notation */
         case 'T':
           if (extract_date_time(&time_24hrs_format, val, (uint)(val_end - val),
                                 l_time, cached_timestamp_type, &val, "time"))
-            DBUG_RETURN(1);
+            return 1;
           break;
 
           /* Conversion specifiers that match classes of characters */
@@ -423,7 +421,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
   */
   if (sub_pattern_end) {
     *sub_pattern_end = val;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (yearday > 0) {
@@ -487,7 +485,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
       }
     } while (++val != val_end);
   }
-  DBUG_RETURN(0);
+  return 0;
 
 err : {
   char buff[128];
@@ -497,7 +495,7 @@ err : {
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                       date_time_type, buff, "str_to_date");
 }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -932,8 +930,10 @@ longlong Item_datetime_func::val_date_temporal() {
 
 bool Item_date_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_date_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_date_literal *>(item)->cached_time);
 }
 
 void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
@@ -944,8 +944,10 @@ void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
 
 bool Item_datetime_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_datetime_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_datetime_literal *>(item)->cached_time);
 }
 
 void Item_datetime_literal::print(const THD *, String *str,
@@ -957,8 +959,10 @@ void Item_datetime_literal::print(const THD *, String *str,
 
 bool Item_time_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_time_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_time_literal *>(item)->cached_time);
 }
 
 void Item_time_literal::print(const THD *, String *str, enum_query_type) const {
@@ -1392,7 +1396,7 @@ String *Item_timeval_func::val_str(String *str) {
   struct timeval tm;
   if (val_timeval(&tm) || (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *)0;
-  str->length(my_timeval_to_str(&tm, (char *)str->ptr(), decimals));
+  str->length(my_timeval_to_str(&tm, str->ptr(), decimals));
   str->set_charset(collation.collation);
   return str;
 }
@@ -1460,6 +1464,7 @@ bool get_interval_value(Item *args, interval_type int_type, String *str_value,
     my_decimal decimal_value, *val;
     lldiv_t tmp;
     if (!(val = args->val_decimal(&decimal_value))) return true;
+    if (args->null_value) return true;
     int lldiv_result = my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp);
     if (lldiv_result == E_DEC_OVERFLOW) return true;
 
@@ -1831,20 +1836,20 @@ bool Item_func_date_format::resolve_type(THD *thd) {
 }
 
 bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const {
-  Item_func_date_format *item_func;
-
-  if (item->type() != FUNC_ITEM) return 0;
-  if (strcmp(func_name(), ((Item_func *)item)->func_name()) != 0) return 0;
-  if (this == item) return 1;
-  item_func = (Item_func_date_format *)item;
-  if (!args[0]->eq(item_func->args[0], binary_cmp)) return 0;
+  if (item->type() != FUNC_ITEM) return false;
+  if (strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) != 0)
+    return false;
+  if (this == item) return true;
+  const Item_func_date_format *item_func =
+      down_cast<const Item_func_date_format *>(item);
+  if (!args[0]->eq(item_func->args[0], binary_cmp)) return false;
   /*
     We must compare format string case sensitive.
     This needed because format modifiers with different case,
     for example %m and %M, have different meaning.
   */
-  if (!args[1]->eq(item_func->args[1], 1)) return 0;
-  return 1;
+  if (!args[1]->eq(item_func->args[1], 1)) return false;
+  return true;
 }
 
 uint Item_func_date_format::format_length(const String *format) {
@@ -1944,7 +1949,7 @@ String *Item_func_date_format::val_str(String *str) {
   if (str->alloc(size)) goto null_date;
 
   Date_time_format date_time_format;
-  date_time_format.format.str = (char *)format->ptr();
+  date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();
 
   /* Create the result string */
@@ -1972,11 +1977,10 @@ bool Item_func_from_unixtime::get_date(
   lldiv_t lld;
   if (decimals) {
     my_decimal *val, decimal_value;
-    if (!(val = args[0]->val_decimal(&decimal_value)) ||
-        my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &lld)) {
-      null_value = 1;
-      return true;
-    }
+    if (!(val = args[0]->val_decimal(&decimal_value)) || args[0]->null_value)
+      return (null_value = true);
+    if (0 != my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &lld))
+      return (null_value = true);
   } else {
     lld.quot = args[0]->val_int();
     lld.rem = 0;
@@ -2159,6 +2163,21 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime) {
            1000000LL +
        interval.second_part) *
       (interval.neg ? -1 : 1);
+
+  // Possible overflow adding date and interval values below.
+  if (usec1 > 0 && usec2 > 0) {
+    lldiv_t usec2_as_seconds;
+    usec2_as_seconds.quot = usec2 / 1000000;
+    usec2_as_seconds.rem = 0;
+    MYSQL_TIME unused;
+    if ((null_value = sec_to_time(usec2_as_seconds, &unused))) {
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
+          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), "time");
+      return true;
+    }
+  }
+
   longlong diff = usec1 + usec2;
   lldiv_t seconds;
   seconds.quot = diff / 1000000;
@@ -2403,19 +2422,19 @@ longlong Item_extract::val_int() {
 }
 
 bool Item_extract::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return 1;
+  if (this == item) return true;
   if (item->type() != FUNC_ITEM ||
-      functype() != ((Item_func *)item)->functype())
+      functype() != down_cast<const Item_func *>(item)->functype())
     return 0;
 
-  Item_extract *ie = (Item_extract *)item;
-  if (ie->int_type != int_type) return 0;
+  const Item_extract *ie = down_cast<const Item_extract *>(item);
+  if (ie->int_type != int_type) return false;
 
-  if (!args[0]->eq(ie->args[0], binary_cmp)) return 0;
-  return 1;
+  if (!args[0]->eq(ie->args[0], binary_cmp)) return false;
+  return true;
 }
 
-void Item_datetime_typecast::print(const THD *thd, String *str,
+void Item_typecast_datetime::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2425,7 +2444,7 @@ void Item_datetime_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
+bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
                                       my_time_flags_t fuzzy_date) {
   my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
   if (current_thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
@@ -2440,7 +2459,7 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
                                       current_thd->is_fsp_truncate_mode())));
 }
 
-void Item_time_typecast::print(const THD *thd, String *str,
+void Item_typecast_time::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2450,7 +2469,7 @@ void Item_time_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_time_typecast::get_time(MYSQL_TIME *ltime) {
+bool Item_typecast_time::get_time(MYSQL_TIME *ltime) {
   if (get_arg0_time(ltime)) return true;
   my_time_adjust_frac(ltime, decimals, current_thd->is_fsp_truncate_mode());
 
@@ -2462,7 +2481,7 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime) {
   return false;
 }
 
-void Item_date_typecast::print(const THD *thd, String *str,
+void Item_typecast_date::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2471,7 +2490,7 @@ void Item_date_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_date_typecast::get_date(MYSQL_TIME *ltime,
+bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
                                   my_time_flags_t fuzzy_date) {
   bool res = get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN);
   ltime->hour = ltime->minute = ltime->second = ltime->second_part = 0;
@@ -3052,6 +3071,23 @@ bool Item_func_str_to_date::resolve_type(THD *thd) {
   return false;
 }
 
+/**
+  Determines whether this date should be NULL (and a warning raised) under the
+  given sql_mode. Zeroes are allowed in the date if the data type is TIME.
+
+  @param target_type The data type of the time/date.
+  @param time Date and time data
+  @param fuzzy_date What sql_mode dictates.
+  @return Whether the result is valid or NULL.
+*/
+static bool date_should_be_null(enum_field_types target_type,
+                                const MYSQL_TIME &time,
+                                my_time_flags_t fuzzy_date) {
+  return (fuzzy_date & TIME_NO_ZERO_DATE) != 0 &&
+         (target_type != MYSQL_TYPE_TIME) &&
+         (time.year == 0 || time.month == 0 || time.day == 0);
+}
+
 bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
                                          my_time_flags_t fuzzy_date) {
   Date_time_format date_time_format;
@@ -3069,12 +3105,11 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
 
   null_value = 0;
   memset(ltime, 0, sizeof(*ltime));
-  date_time_format.format.str = (char *)format->ptr();
+  date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(), ltime,
                         cached_timestamp_type, 0, "datetime") ||
-      ((fuzzy_date & TIME_NO_ZERO_DATE) &&
-       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))
+      date_should_be_null(data_type(), *ltime, fuzzy_date))
     goto null_date;
   ltime->time_type = cached_timestamp_type;
   if (cached_timestamp_type == MYSQL_TIMESTAMP_TIME && ltime->day) {
@@ -3134,7 +3169,7 @@ bool Item_func_internal_update_time::resolve_type(THD *thd) {
 
 bool Item_func_internal_update_time::get_date(
     MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Item_func_internal_update_time::get_date");
+  DBUG_TRACE;
 
   String schema_name;
   String *schema_name_ptr;
@@ -3195,12 +3230,12 @@ bool Item_func_internal_update_time::get_date(
     if (unixtime) {
       null_value = 0;
       thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)unixtime);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
   null_value = 1;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Item_func_internal_check_time::resolve_type(THD *thd) {
@@ -3213,7 +3248,7 @@ bool Item_func_internal_check_time::resolve_type(THD *thd) {
 
 bool Item_func_internal_check_time::get_date(
     MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Item_func_internal_check_time::get_date");
+  DBUG_TRACE;
 
   String schema_name;
   String *schema_name_ptr;
@@ -3242,7 +3277,7 @@ bool Item_func_internal_check_time::get_date(
     // Convert longlong time to MYSQL_TIME format
     if (my_longlong_to_datetime_with_warn(stat_data, &time, MYF(0))) {
       null_value = 1;
-      DBUG_RETURN(true);
+      return true;
     }
 
     // Convert MYSQL_TIME to epoc second according to local time_zone as
@@ -3277,10 +3312,10 @@ bool Item_func_internal_check_time::get_date(
     if (unixtime) {
       null_value = 0;
       thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)unixtime);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
   null_value = 1;
-  DBUG_RETURN(true);
+  return true;
 }

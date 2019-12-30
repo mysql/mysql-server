@@ -1,0 +1,48 @@
+# ==== Purpose ====
+#
+# Verify that SHOW BINLOG EVENTS FROM <invalid starting offset> shows correct
+# starting offset of an event after the invalid starting offset.
+#
+# ==== Implementation ====
+#
+# 1. Execute SHOW BINLOG EVENTS FROM <invalid starting offset>.
+# 2. Verify that it shows correct starting offset of an event
+#    after the invalid starting offset.
+# 3. Execute SHOW BINLOG EVENTS FROM <valid starting offset>.
+# 4. Verify that it shows correct starting offset of an event
+#    at the valid starting offset.
+#
+# ==== References ====
+#
+# Bug #29039732  SHOW BINLOG EVENTS FROM <BAD OFFSET> IS NOT DIAGNOSED
+
+# This test script will be run only in non GR set up.
+--source include/not_group_replication_plugin.inc
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+--source include/have_log_bin.inc
+
+CREATE TABLE t1 (c1 INT);
+
+--let $assert_text=Verify that the starting offset (4) of an event after the invalid position 1 is displayed.
+--let $assert_cond="[SHOW BINLOG EVENTS FROM 1 LIMIT 1, Pos, 1]" = 4
+--source include/assert.inc
+
+--let $assert_text=Verify that the starting offset (4) of an event at the valid position 4 is displayed.
+--let $assert_cond="[SHOW BINLOG EVENTS FROM 4 LIMIT 1, Pos, 1]" = 4
+--source include/assert.inc
+
+--let $assert_text=Verify that the starting offset (124) of an event after the invalid position 14 is displayed.
+--let $assert_cond="[SHOW BINLOG EVENTS FROM 14 LIMIT 1, Pos, 1]" = 124
+--source include/assert.inc
+
+--let $assert_text=Verify that the starting offset (155) of an event after the invalid position 125 is displayed.
+--let $assert_cond="[SHOW BINLOG EVENTS FROM 125 LIMIT 1, Pos, 1]" = 155
+--source include/assert.inc
+
+--let $assert_text=Verify that the starting offset (155) of an event at the valid position 155 is displayed.
+--let $assert_cond="[SHOW BINLOG EVENTS FROM 155 LIMIT 1, Pos, 1]" = 155
+--source include/assert.inc
+
+DROP TABLE t1;

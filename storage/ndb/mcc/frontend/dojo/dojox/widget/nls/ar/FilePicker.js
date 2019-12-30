@@ -1,10 +1,2 @@
 //>>built
-define(
-({
-name: "الاسم",
-path: "‏المسار‏",
-size: "الحجم (بالبايت)"
-})
-
-
-);
+define("dojox/widget/nls/ar/FilePicker",({name:"الاسم",path:"المسار",size:"الحجم (بالبايت)"}));

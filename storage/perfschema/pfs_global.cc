@@ -224,7 +224,8 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
       if (host_len < INET_ADDRSTRLEN + 1) {
         return 0;
       }
-      struct sockaddr_in *sa4 = (struct sockaddr_in *)(src_addr);
+      const struct sockaddr_in *sa4 =
+          pointer_cast<const struct sockaddr_in *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa4, sizeof(struct sockaddr_in), host,
@@ -239,7 +240,8 @@ uint pfs_get_socket_address(char *host, uint host_len, uint *port,
       if (host_len < INET6_ADDRSTRLEN + 1) {
         return 0;
       }
-      struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)(src_addr);
+      const struct sockaddr_in6 *sa6 =
+          pointer_cast<const struct sockaddr_in6 *>(src_addr);
 #ifdef _WIN32
       /* Older versions of Windows do not support inet_ntop() */
       getnameinfo((struct sockaddr *)sa6, sizeof(struct sockaddr_in6), host,

@@ -1346,6 +1346,8 @@ set sql_warnings = 0;
 # STRCMP()
 set sql_warnings = 1;
 create table t1 (a varchar(9), b varchar(9), c tinyint(1) generated always as (strcmp(a,b)) virtual) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1562,6 +1564,8 @@ set sql_warnings = 0;
 # AND, && 
 set sql_warnings = 1;
 create table t1 (a int, b bool generated always as (a>0 && a<2) virtual) charset latin1;
+Warnings:
+Warning	1287	'&&' is deprecated and will be removed in a future release. Please use AND instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1794,7 +1798,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS (isnull(`a`)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` is null)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (NULL,default);
@@ -1921,6 +1925,8 @@ set sql_warnings = 0;
 # ||, OR
 set sql_warnings = 1;
 create table t1 (a int, b int generated always as (a>5 || a<3) virtual) charset latin1;
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1959,7 +1965,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` xor 5)) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS (((0 <> `a`) xor (0 <> 5))) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (0,default);
 insert into t1 values (1,default);
@@ -2775,6 +2781,41 @@ insert into t1 values ('{}', default);
 select * from t1;
 a	b
 {}	0
+drop table t1;
+set sql_warnings = 0;
+# JSON_SCHEMA_VALID()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as (JSON_SCHEMA_VALID('{"type": "object"}', a)) virtual) charset latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_schema_valid(_utf8mb4'{"type": "object"}',`a`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+insert into t1 values ('[]', default);
+select * from t1;
+a	b
+[]	0
+{}	1
+drop table t1;
+set sql_warnings = 0;
+# JSON_SCHEMA_VALIDATION_REPORT()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as
+(JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', a)) virtual) charset latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_schema_validation_report(_utf8mb4'{"type": "object"}',`a`)) VIRTUAL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+insert into t1 values ('[]', default);
+select * from t1;
+a	b
+[]	{"valid": false, "reason": "The JSON document location '#' failed requirement 'type' at JSON Schema location '#'", "schema-location": "#", "document-location": "#", "schema-failed-keyword": "type"}
+{}	{"valid": true}
 drop table t1;
 set sql_warnings = 0;
 #

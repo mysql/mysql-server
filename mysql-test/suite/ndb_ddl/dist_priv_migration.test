@@ -12,6 +12,12 @@ USE mysql;
 CREATE TABLE mtr__acl_test_table (i int not null primary key, j int)
   ENGINE=ndb;
 
+# Supress errors provoked by the "shadow table" on first mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'mysql.mtr__acl_test_table' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
+
 # Populate the table with some data
 INSERT INTO mtr__acl_test_table values(1,2);
 INSERT INTO mtr__acl_test_table values(2,3);
@@ -54,9 +60,17 @@ SELECT engine FROM INFORMATION_SCHEMA.TABLES
   WHERE table_name='mtr__acl_test_table';
 ALTER TABLE mysql.mtr__acl_test_table ENGINE=InnoDB;
 
+# Supress errors provoked by the "shadow table" on third mysqld
+--disable_query_log
+call mtr.add_suppression("Local table 'mysql.mtr__acl_test_table' .* shadows");
+call mtr.add_suppression("Failed to remove table definition");
+--enable_query_log
+
 --connection mysqld2
 --echo At MySQL Server 2, DROP the NDB table:
 
+# This will not drop the shadow tables in both mysqld1 and mysqld3
+--replace_regex /Node [0-9]+:/Node <nodeid>/
 DROP TABLE mysql.mtr__acl_test_table;
 
 --connection mysqld4

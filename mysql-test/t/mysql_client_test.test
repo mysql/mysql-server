@@ -1,4 +1,6 @@
 --source include/no_valgrind_without_big.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # need to have the dynamic loading turned on for the client plugin tests
 --source include/have_plugin_auth.inc
@@ -40,9 +42,8 @@ let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 
 --echo # Shut server down.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --echo # Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -53,18 +54,17 @@ EOF
 --exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # Restart the server against DDIR.
---exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv= --no-console --log-error=$MYSQLD_LOG
+--replace_result $DDIR DDIR $MYSQLD_LOG MYSQLD_LOG
+--source include/start_mysqld.inc
 
 --echo # Run the single test.
 --echo # Following command would crash if run without fix.
 --exec $MYSQL_CLIENT_TEST test_bug24963580 >> $MYSQLTEST_VARDIR/log/mysql_client_test.out.log 2>&1
 
 --echo # Shutdown server.
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --echo # Cleanup.
 --echo #   Delete \$DDIR.
@@ -73,10 +73,7 @@ EOF
 --remove_files_wildcard $MYSQL_TMP_DIR *.sql
 --echo #   Delete log files.
 --remove_files_wildcard $MYSQL_TMP_DIR *.log
---echo #   Delete expect files.
---remove_files_wildcard $MYSQL_TMP_DIR *.expect
 
 --echo # Restart server without --lower-case-table-names
---exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart:
+--source include/start_mysqld.inc

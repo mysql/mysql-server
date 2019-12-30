@@ -1,22 +1,15 @@
-//>>built
 define("dijit/layout/AccordionPane", [
 	"dojo/_base/declare", // declare
 	"dojo/_base/kernel", // kernel.deprecated
 	"./ContentPane"
 ], function(declare, kernel, ContentPane){
 
-/*=====
-	var ContentPane = dijit.layout.ContentPane;
-=====*/
-
 	// module:
 	//		dijit/layout/AccordionPane
-	// summary:
-	//		Deprecated widget.   Use `dijit.layout.ContentPane` instead.
 
 	return declare("dijit.layout.AccordionPane", ContentPane, {
 		// summary:
-		//		Deprecated widget.   Use `dijit.layout.ContentPane` instead.
+		//		Deprecated widget.   Use `dijit/layout/ContentPane` instead.
 		// tags:
 		//		deprecated
 

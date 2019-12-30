@@ -1,4 +1,3 @@
-//>>built
 define("dojox/timing/Sequence", [
 	"dojo/_base/kernel",
 	"dojo/_base/array",
@@ -45,8 +44,8 @@ define("dojox/timing/Sequence", [
 		},
 
 		go: function(/* Array */defs, /* Function|Array? */doneFunction){
-			// summary: Run the passed sequence definition
-			//
+			// summary:
+			//		Run the passed sequence definition
 			// defs: Array
 			//		The sequence of actions
 			// doneFunction: Function|Array?
@@ -74,7 +73,8 @@ define("dojox/timing/Sequence", [
 		},
 
 		_go: function(){
-			// summary: Execute one task of this._defsResolved.
+			// summary:
+			//		Execute one task of this._defsResolved.
 
 			// if _running was set to false stop the sequence, this is the
 			// case when i.e. stop() was called.
@@ -128,7 +128,8 @@ define("dojox/timing/Sequence", [
 		},
 
 		goOn: function(){
-			// summary: This method just provides a hook from the outside, so that
+			// summary:
+			//		This method just provides a hook from the outside, so that
 			//		an interrupted sequence can be continued.
 			if(this._goOnPause){
 				setTimeout(dojo.hitch(this, "_go"), this._goOnPause);
@@ -137,8 +138,8 @@ define("dojox/timing/Sequence", [
 		},
 
 		stop: function(){
-			// summary:  Stop the currently running sequence.
-			//
+			// summary:
+			//		Stop the currently running sequence.
 			// description:
 			//		This can only interrupt the sequence not the last function that
 			//		had been started. If the last function was i.e. a slideshow

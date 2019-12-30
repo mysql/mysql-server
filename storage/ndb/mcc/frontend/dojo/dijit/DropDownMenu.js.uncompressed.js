@@ -1,6 +1,5 @@
-//>>built
 require({cache:{
-'url:dijit/templates/Menu.html':"<table class=\"dijit dijitMenu dijitMenuPassive dijitReset dijitMenuTable\" role=\"menu\" tabIndex=\"${tabIndex}\" data-dojo-attach-event=\"onkeypress:_onKeyPress\" cellspacing=\"0\">\n\t<tbody class=\"dijitReset\" data-dojo-attach-point=\"containerNode\"></tbody>\n</table>\n"}});
+'url:dijit/templates/Menu.html':"<table class=\"dijit dijitMenu dijitMenuPassive dijitReset dijitMenuTable\" role=\"menu\" tabIndex=\"${tabIndex}\"\n\t   data-dojo-attach-event=\"onkeypress:_onKeyPress\" cellspacing=\"0\">\n\t<tbody class=\"dijitReset\" data-dojo-attach-point=\"containerNode\"></tbody>\n</table>\n"}});
 define("dijit/DropDownMenu", [
 	"dojo/_base/declare", // declare
 	"dojo/_base/event", // event.stop
@@ -10,15 +9,8 @@ define("dijit/DropDownMenu", [
 	"./_MenuBase"
 ], function(declare, event, keys, template, _OnDijitClickMixin, _MenuBase){
 
-/*=====
-	var _MenuBase = dijit._MenuBase;
-	var _OnDijitClickMixin = dijit._OnDijitClickMixin;
-=====*/
-
 	// module:
 	//		dijit/DropDownMenu
-	// summary:
-	//		dijit.DropDownMenu widget
 
 	return declare("dijit.DropDownMenu", [_MenuBase, _OnDijitClickMixin], {
 		// summary:
@@ -29,6 +21,7 @@ define("dijit/DropDownMenu", [
 		baseClass: "dijitMenu",
 
 		postCreate: function(){
+			this.inherited(arguments);
 			var l = this.isLeftToRight();
 			this._openSubMenuKey = l ? keys.RIGHT_ARROW : keys.LEFT_ARROW;
 			this._closeSubMenuKey = l ? keys.LEFT_ARROW : keys.RIGHT_ARROW;

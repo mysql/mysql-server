@@ -145,3 +145,53 @@ DROP TABLESPACE ts3;
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;
 SHOW WARNINGS;
+
+#
+# Bug#29389168 DISK DATA TABLE UNUSABLE ON PARTICIPANT MYSQLD AFTER ALTER TABLESPACE
+#
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+# Create tablespace using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+# Create disk data tables
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+)
+ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+INSERT INTO t1 VALUES(1,'Omar Comin');
+
+CREATE TABLE t2 (
+  a int PRIMARY KEY,
+  b varchar(255)
+)
+ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+INSERT INTO t2 VALUES(2,'Harry - yer a wizard');
+
+--connection server2
+--echo MySQL Server 2
+ALTER TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile2.dat';
+
+--connection server1
+--echo MySQL Server 1
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TABLE t1,t2;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile2.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;

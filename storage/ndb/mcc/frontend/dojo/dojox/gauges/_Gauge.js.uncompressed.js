@@ -1,7 +1,9 @@
-//>>built
-define("dojox/gauges/_Gauge", ["dojo/_base/declare","dojo/_base/lang","dojo/_base/html","dojo/_base/array","dojo/_base/event",
+define("dojox/gauges/_Gauge", ["dojo/_base/kernel", "dojo/_base/declare","dojo/_base/lang","dojo/_base/html","dojo/_base/array","dojo/_base/event",
 		"dojo/_base/connect","dojo/dom-construct", "dijit/_Widget", "dojox/gfx", "./Range", "dojo/fx/easing"], 
-  function(declare, lang, html, arr, event, connect, dom, Widget, gfx, Range) {
+  function(kernel, declare, lang, html, arr, event, connect, dom, Widget, gfx, Range) {
+
+  kernel.deprecated("dojox.gauges", "Use the new extensible dojox.dgauges framework instead", "2.0");
+
 
 	var _tooltipModule =  0;
 	var _numberModule =  0;
@@ -29,50 +31,51 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	height: 0,
 
 	// background: Object
-	// 		The color of the background.  This must be an object of one of two forms:
-	// 		{'color': 'color-name'}
-	// 		OR
-	// 		(for a gradient:)
-	// 		{'type': 'linear', 'x1': 0, 'x2': 0, 'y1': 0, 'y2': 200, 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
+	//		The color of the background.  This must be an object of one of two forms:
+	//		{'color': 'color-name'}
+	//		OR
+	//		(for a gradient:)
+	//		{'type': 'linear', 'x1': 0, 'x2': 0, 'y1': 0, 'y2': 200, 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
 	background: null,
 
 	// image: String
-	// 		Background image for gauge (default is no image)
+	//		Background image for gauge (default is no image)
 	image: null,
 
 	// useRangeStyles: Number
-	// 		Indicates whether to use given css classes (dojoxGaugeRangeXX)
-	// 		to determine the color (and other style attributes?) of the ranges
-	// 		this value should be the number of dojoxGaugeRange classes that are
-	// 		defined, starting at dojoxGaugeRange1 (0 indicates falling to default
-	// 		hardcoded colors)
+	//		Indicates whether to use given css classes (dojoxGaugeRangeXX)
+	//		to determine the color (and other style attributes?) of the ranges
+	//		this value should be the number of dojoxGaugeRange classes that are
+	//		defined, starting at dojoxGaugeRange1 (0 indicates falling to default
+	//		hardcoded colors)
 	useRangeStyles: 0,
 
 	// useTooltip: Boolean
-	// 		Indicates whether tooltips should be displayed for ranges, indicators, etc.
+	//		Indicates whether tooltips should be displayed for ranges, indicators, etc.
 	useTooltip: true,
 	
 	// majorTicks: Object
-	// 		An object representing the tick marks that should be added to the gauge. Major tick marks have a text label
-	// 		indicating the value.  The object can have the following attributes (required are marked with a *):
+	//		An object representing the tick marks that should be added to the gauge. Major tick marks have a text label
+	//		indicating the value.  The object can have the following attributes (required are marked with a *):
+	//
 	//		- offset: the distance from the 'center' of the gauge.  Used differently for Analog vs. Bar
 	//		- width: The width of the mark
 	//		- length: The length of the mark
 	//		- interval: The interval the ticks should be added on
 	//		- color: The color of the mark and text
 	//		- font: an object with any/all of the following parameters:
-	//			{family: "Helvetica", style: "italic", variant: 'small-caps', weight: 'bold', size: "18pt"}
+	// |	{family: "Helvetica", style: "italic", variant: 'small-caps', weight: 'bold', size: "18pt"}
 	majorTicks: null,
 	
 	// minorTicks: Object
-	// 		An object of the same format as majorTicks, indicating where the minor (label-less) marks should be placed
-	// 		The font parameter is ignored if provided since minor tick marks have no text label.
+	//		An object of the same format as majorTicks, indicating where the minor (label-less) marks should be placed
+	//		The font parameter is ignored if provided since minor tick marks have no text label.
 	minorTicks: null,
 
 	// _defaultIndicator: Object
-	// 		Should be overridden by any extending classes and used to indicate what the 'default' indicator is.
-	// 		This object is used as the indicator when creating tick marks or when an anonymous object is passed into 
-	// 		addIndicator.
+	//		Should be overridden by any extending classes and used to indicate what the 'default' indicator is.
+	//		This object is used as the indicator when creating tick marks or when an anonymous object is passed into
+	//		addIndicator.
 	_defaultIndicator: null,
 
 	// defaultColors: Array
@@ -86,22 +89,22 @@ return declare("dojox.gauges._Gauge",[Widget],{
 					[0xDD,0xEE,0xFF,1]],
 	
 	// min: Number
-	// 		The minimum value of the gauge.  Normally not set explicitly, as it will be determined by
-	// 		the ranges that are added.
+	//		The minimum value of the gauge.  Normally not set explicitly, as it will be determined by
+	//		the ranges that are added.
 	min: null,
 	
 	// max: Number
-	// 		The maximum value of the gauge.  Normally not set explicitly, as it will be determined by
-	// 		the ranges that are added.
+	//		The maximum value of the gauge.  Normally not set explicitly, as it will be determined by
+	//		the ranges that are added.
 	max: null,
 	
 	// surface: Object
-	// 		The GFX surface that the shapes are drawn on.  Can be accessed/used by indicators to draw themselves
+	//		The GFX surface that the shapes are drawn on.  Can be accessed/used by indicators to draw themselves
 	surface: null,
 
 	// hideValues: Boolean
-	// 		Indicates whether the text boxes showing the value of the indicator (as text
-	// 		content) should be hidden or shown.  Default is not hidden, aka shown.
+	//		Indicates whether the text boxes showing the value of the indicator (as text
+	//		content) should be hidden or shown.  Default is not hidden, aka shown.
 	hideValues: false,
 
 	// internal data
@@ -176,7 +179,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	},
 	
 	buildRendering: function(){
-		// summary: 
+		// summary:
 		//		Overrides _Widget.buildRendering
 		var n = this.domNode = this.srcNodeRef ? this.srcNodeRef: dom.create("div");
 		this.gaugeContent = dom.create("div", {
@@ -193,7 +196,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	},
 
 	_setTicks: function(/*Object*/ oldTicks, /*Object*/ newTicks, /*Boolean*/ major){
-		// summary: 
+		// summary:
 		//		internal method used to clear existing tick marks, then add new ones
 		var i;
 		if (oldTicks && lang.isArray(oldTicks._ticks)){
@@ -235,7 +238,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	},
 	
 	_isScaleCircular: function(){
-		// summary: 
+		// summary:
 		//		Internal method to check if the scale is fully circular
 		return false;
 	},
@@ -377,10 +380,9 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		as the original background argument.
 		// background: Object
 		//		An object in one of the two forms:
-		//			{'color': 'color-name'}
-		//				OR
-		//			(for a gradient:)
-		//			{'type': 'linear', 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
+		// |		{'color': 'color-name'}
+		//		OR (for a gradient:)
+		// |		{'type': 'linear', 'colors': [{offset: 0, color:'#C0C0C0'}, {offset: 1, color: '#E0E0E0'}] }
 		//		If background is null or undefined, this will set the fill to this._backgroundDefault
 		if(!background){ background = this._backgroundDefault; }
 		this.background = background.color || background;
@@ -540,22 +542,22 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		This function is used draw text onto the gauge.  The text object
 		//		is also returned by the function so that may be removed later
 		//		by calling removeText
-		// group:   dojox.gfx.Group
-		//          The GFX Group where the text will be added.
-		// txt:		String
-		//			The text to be drawn
-		// x:		Number
-		//			The x coordinate at which to place the text
-		// y:		Number
-		//			The y coordinate at which to place the text
-		// align?:	String
-		//			Indicates how to align the text
-		//			Valid value is 'right', otherwise text is left-aligned
-		// color?:	String
-		//			Indicates the color of the text
-		// font?:	Object
-		//			A font object, generally of the following format:
-		//			{family: "Helvetica", style: "italic", variant: 'small-caps', weight: 'bold', size: "18pt"}
+		// group: dojox/gfx/Group
+		//		The GFX Group where the text will be added.
+		// txt:	String
+		//		The text to be drawn
+		// x: Number
+		//		The x coordinate at which to place the text
+		// y: Number
+		//		The y coordinate at which to place the text
+		// align: String?
+		//		Indicates how to align the text
+		//		Valid value is 'right', otherwise text is left-aligned
+		// color: String?
+		//		Indicates the color of the text
+		// font: Object?
+		//		A font object, generally of the following format:
+		//		{family: "Helvetica", style: "italic", variant: 'small-caps', weight: 'bold', size: "18pt"}
 
 		var t = group.createText({x: x, y: y, text: txt, align: align});
 		t.setFill(color ? color: 'black');
@@ -566,7 +568,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	removeText:function(/*String*/t){
 		// summary:
 		//		Removes a text element from the gauge.
-		// t:	String
+		// t: String
 		//		The text to remove.
 		if (t.parent)
 	    	t.parent.remove(t);
@@ -575,7 +577,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 	updateTooltip: function(/*String*/txt, /*Event*/ e){
 		// summary:
 		//		Updates the tooltip for the gauge to display the given text.
-		// txt:		String
+		// txt:	String
 		//		The text to put in the tooltip.
 	
 		if (this.useTooltip) {
@@ -597,7 +599,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support 
 		//		hover text
-		// e:	Object
+		// e: Object
 		//		The event object
 		
 		if (this.image && this.image.overlay){
@@ -635,7 +637,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to show the tooltips
-		// e:	Object
+		// e: Object
 		//		The event object
 			
 		if (this.useTooltip) {
@@ -658,7 +660,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to move indicators
-		// e:	Object
+		// e: Object
 		//		The event object
 		var indicator = this._getInteractiveIndicator();
 		if (indicator){
@@ -670,7 +672,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to drag an indicator to modify it's value
-		// e:	Object
+		// e: Object
 		//		The event object
 		
 		if(this._drag){
@@ -683,7 +685,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to drag an indicator to modify it's value
-		// e:	Object
+		// e: Object
 		//		The event object
 		this._drag = null;
 		
@@ -699,7 +701,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to drag an indicator to modify it's value
 		// indicator: _Indicator 
-		//      The indicator object
+		//		The indicator object
 		// e:Object
 		//		The event object
 		
@@ -720,8 +722,8 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to drag an indicator to modify it's value
 		// indicator: _Indicator 
-		//      The indicator object
-		// e:	Object
+		//		The indicator object
+		// e: Object
 		//		The event object	
 		if (this.useTooltip && !this._drag){
 			
@@ -746,8 +748,8 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		This is an internal handler used by the gauge to support using
 		//		the mouse to drag an indicator to modify it's value
 		// indicator: _Indicator 
-		//      The indicator object
-		// e:	Object
+		//		The indicator object
+		// e: Object
 		//		The event object
 		this._hideTooltip();
 		this.gaugeContent.style.cursor = 'pointer';
@@ -785,8 +787,8 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		//		This is an internal handler used by the gauge to support using
 		//		touch events to drag an indicator to modify it's value
 		// indicator: _Indicator 
-		//      The indicator object
-		// e:	Object
+		//		The indicator object
+		// e: Object
 		//		The event object
 		if (!indicator.noChange){
 			this._drag = indicator;
@@ -798,7 +800,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		touch events to drag an indicator to modify it's value
-		// e:	Object
+		// e: Object
 		//		The touch event object
 		this._drag = this._getInteractiveIndicator();
 		this.handleTouchMove(e); //drag indicator to touch position
@@ -808,7 +810,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		touch events to drag an indicator to modify it's value
-		// e:	Object
+		// e: Object
 		//		The touch e object	
 		if (this._drag){
 			this._drag = null;
@@ -820,7 +822,7 @@ return declare("dojox.gauges._Gauge",[Widget],{
 		// summary:
 		//		This is an internal handler used by the gauge to support using
 		//		touch events to drag an indicator to modify it's value
-		// e:	Object
+		// e: Object
 		//		The touch event object
 		
 		if (this._drag && !this._drag.noChange){

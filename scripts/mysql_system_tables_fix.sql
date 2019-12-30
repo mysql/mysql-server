@@ -80,11 +80,9 @@ ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
 ALTER TABLE tables_priv
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(93) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE tables_priv
@@ -107,7 +105,6 @@ ALTER TABLE columns_priv
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE columns_priv
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
@@ -160,7 +157,9 @@ ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 #
 ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
-ALTER TABLE proxies_priv MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, ENGINE=InnoDB;
+ALTER TABLE proxies_priv MODIFY Proxied_host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db
@@ -180,7 +179,6 @@ alter table func comment='User defined functions';
 # Convert all tables to UTF-8 with binary collation
 # and reset all char columns to correct width
 ALTER TABLE user
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user
@@ -208,7 +206,6 @@ ALTER TABLE user
   MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE db
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
@@ -379,8 +376,6 @@ ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
 
-ALTER TABLE procs_priv
-  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 #
 # EVENT privilege
 #
@@ -499,17 +494,31 @@ SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 
 #
+# Alter mysql.component only if it exists already.
+#
+
+SET @have_component= (select count(*) from information_schema.tables where table_schema='mysql' and table_name='component');
+
+# Change row format to DYNAMIC
+SET @cmd="ALTER TABLE component ROW_FORMAT=DYNAMIC";
+
+SET @str = IF(@have_component = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+#
 # Alter mysql.ndb_binlog_index only if it exists already.
 #
 
 SET @have_ndb_binlog_index= (select count(*) from information_schema.tables where table_schema='mysql' and table_name='ndb_binlog_index');
 
-# Change type from BIGINT to INT
+# Change type from BIGINT to INT and row format to DYNAMIC
 SET @cmd="ALTER TABLE ndb_binlog_index
   MODIFY inserts INT UNSIGNED NOT NULL,
   MODIFY updates INT UNSIGNED NOT NULL,
   MODIFY deletes INT UNSIGNED NOT NULL,
-  MODIFY schemaops INT UNSIGNED NOT NULL";
+  MODIFY schemaops INT UNSIGNED NOT NULL, ROW_FORMAT=DYNAMIC";
 
 SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -608,11 +617,25 @@ INSERT INTO global_grants SELECT user, host, 'XA_RECOVER_ADMIN', IF(grant_priv =
 FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege CLONE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige CLONE_ADMIN.
+SET @hadCloneAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CLONE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'CLONE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadCloneAdminPriv = 0;
+COMMIT;
+
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
 -- provided that there isn't a user who already has the privilege BACKUP_ADMIN.
 SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege INNODB_REDO_LOG_ARCHIVE for every user who has the privilege BACKUP_ADMIN
+-- provided that there isn't a user who already has the privilege INNODB_REDO_LOG_ARCHIVE.
+SET @hadInnodbRedoLogArchivePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'INNODB_REDO_LOG_ARCHIVE');
+INSERT INTO global_grants SELECT user, host, 'INNODB_REDO_LOG_ARCHIVE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadInnodbRedoLogArchivePriv = 0;
 COMMIT;
 
 -- Add the privilege RESOURCE_GROUP_ADMIN for every user who has the privilege SUPER
@@ -634,6 +657,97 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadServiceConnectionAdminPriv = 0;
 SET @hadApplicationPasswordAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'APPLICATION_PASSWORD_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege AUDIT_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige AUDIT_ADMIN.
+SET @hadAuditAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'AUDIT_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'AUDIT_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadAuditAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege BINLOG_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige BINLOG_ADMIN.
+SET @hadBinLogAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BINLOG_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadBinLogAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege BINLOG_ENCRYPTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige BINLOG_ENCRYPTION_ADMIN.
+SET @hadBinLogEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ENCRYPTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BINLOG_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadBinLogEncryptionAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege CONNECTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige CONNECTION_ADMIN.
+SET @hadConnectionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CONNECTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'CONNECTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadConnectionAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege ENCRYPTION_KEY_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige ENCRYPTION_KEY_ADMIN.
+SET @hadEncryptionKeyAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'ENCRYPTION_KEY_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'ENCRYPTION_KEY_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadEncryptionKeyAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege GROUP_REPLICATION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige GROUP_REPLICATION_ADMIN.
+SET @hadGroupReplicationAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'GROUP_REPLICATION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'GROUP_REPLICATION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadGroupReplicationAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege PERSIST_RO_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige PERSIST_RO_VARIABLES_ADMIN.
+SET @hadPersistRoVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'PERSIST_RO_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'PERSIST_RO_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadPersistRoVariablesAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege REPLICATION_SLAVE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige REPLICATION_SLAVE_ADMIN.
+SET @hadReplicationSlaveAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'REPLICATION_SLAVE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'REPLICATION_SLAVE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadReplicationSlaveAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege RESOURCE_GROUP_USER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige RESOURCE_GROUP_USER.
+SET @hadResourceGroupUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_USER');
+INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_USER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupUserPriv = 0;
+COMMIT;
+
+-- Add the privilege ROLE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige ROLE_ADMIN.
+SET @hadRoleAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'ROLE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'ROLE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadRoleAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege SESSION_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SESSION_VARIABLES_ADMIN.
+SET @hadSessionVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SESSION_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SESSION_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSessionVariablesAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege SET_USER_ID for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SET_USER_ID.
+SET @hadSetUserIdPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SET_USER_ID');
+INSERT INTO global_grants SELECT user, host, 'SET_USER_ID', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSetUserIdPriv = 0;
+COMMIT;
+
+-- Add the privilege SYSTEM_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SYSTEM_VARIABLES_ADMIN.
+SET @hadSystemVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSystemVariablesAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege SYSTEM_USER for every user who has privilege SET_USER_ID privilege
@@ -703,6 +817,9 @@ ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Prefe
 
 ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
 
+ALTER TABLE slave_master_info ADD Master_compression_algorithm CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'Compression algorithm supported for data transfer between master and slave.',
+                              ADD Master_zstd_compression_level INTEGER UNSIGNED NOT NULL COMMENT 'Compression level associated with zstd compression algorithm.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -716,6 +833,11 @@ ALTER TABLE slave_master_info
   MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
   COMMENT 'Network namespace used for communication with the master server.'
   AFTER Get_public_key;
+
+# Columns added to keep information about the replication applier thread
+# privilege context user
+ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.',
+                                 ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.';
 
 #
 # Drop legacy NDB distributed privileges function & procedures
@@ -847,12 +969,24 @@ SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.firewall_whitelist "
+         "MODIFY COLUMN USERHOST VARCHAR(288) NOT NULL";
+SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 SET @had_firewall_users =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'firewall_users' AND
            table_type = 'BASE TABLE');
 SET @cmd="ALTER TABLE mysql.firewall_users ENGINE=InnoDB";
+SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.firewall_users "
+         "MODIFY COLUMN USERHOST VARCHAR(288)";
 SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -879,6 +1013,11 @@ SET @had_audit_log_user =
      WHERE table_schema = 'mysql' AND table_name = 'audit_log_user' AND
            table_type = 'BASE TABLE');
 SET @cmd="ALTER TABLE mysql.audit_log_user DROP FOREIGN KEY audit_log_user_ibfk_1";
+SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.audit_log_user MODIFY COLUMN HOST VARCHAR(255) BINARY NOT NULL";
 SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -979,12 +1118,14 @@ DROP PREPARE stmt;
 # This user is disabled for login
 # This user has:
 # Select privileges into performance schema tables the mysql.user table.
-# SUPER, PERSIST_RO_VARIABLES_ADMIN, SYSTEM_VARIABLES_ADMIN privileges
+# SUPER, PERSIST_RO_VARIABLES_ADMIN, SYSTEM_VARIABLES_ADMIN, BACKUP_ADMIN,
+# CLONE_ADMIN, SHUTDOWN privileges
 #
 
-INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
+INSERT IGNORE INTO mysql.user VALUES ('localhost','mysql.session','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','Y','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'caching_sha2_password','$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED','N',CURRENT_TIMESTAMP,NULL,'Y', 'N', 'N', NULL, NULL, NULL, NULL);
 
 UPDATE user SET Create_role_priv= 'N', Drop_role_priv= 'N' WHERE User= 'mysql.session';
+UPDATE user SET Shutdown_priv= 'Y' WHERE User= 'mysql.session';
 
 INSERT IGNORE INTO mysql.tables_priv VALUES ('localhost', 'mysql', 'mysql.session', 'user', 'root\@localhost', CURRENT_TIMESTAMP, 'Select', '');
 
@@ -995,6 +1136,12 @@ INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'PE
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SYSTEM_VARIABLES_ADMIN', 'N');
 
 INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'SESSION_VARIABLES_ADMIN', 'N');
+
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'BACKUP_ADMIN', 'N');
+
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CLONE_ADMIN', 'N');
+
+INSERT IGNORE INTO mysql.global_grants VALUES ('mysql.session', 'localhost', 'CONNECTION_ADMIN', 'N');
 
 # mysql.session is granted the SUPER and other administrative privileges.
 # This user should not be modified inadvertently. Therefore, server grants
@@ -1059,5 +1206,78 @@ ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
+
+
+# Increase host name length. We need a separate ALTER TABLE to
+# alter the CHARACTER SET to ASCII, because the syntax
+# 'CONVERT TO CHARACTER...' above changes all field charset
+# to utf8_bin.
+
+ALTER TABLE db
+  MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE user
+  MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE default_roles
+MODIFY HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY DEFAULT_ROLE_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '%' NOT NULL;
+
+ALTER TABLE role_edges
+MODIFY FROM_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY TO_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE global_grants
+MODIFY HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE password_history
+MODIFY Host CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE servers
+MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '';
+
+ALTER TABLE tables_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+
+ALTER TABLE columns_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE slave_master_info
+MODIFY Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.';
+
+ALTER TABLE procs_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+
+# Update the table row format to DYNAMIC
+ALTER TABLE columns_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE db ROW_FORMAT=DYNAMIC;
+ALTER TABLE default_roles ROW_FORMAT=DYNAMIC;
+ALTER TABLE engine_cost ROW_FORMAT=DYNAMIC;
+ALTER TABLE func ROW_FORMAT=DYNAMIC;
+ALTER TABLE global_grants ROW_FORMAT=DYNAMIC;
+ALTER TABLE gtid_executed ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_category ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_keyword ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_relation ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_topic ROW_FORMAT=DYNAMIC;
+ALTER TABLE plugin ROW_FORMAT=DYNAMIC;
+ALTER TABLE password_history ROW_FORMAT=DYNAMIC;
+ALTER TABLE procs_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE proxies_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE role_edges ROW_FORMAT=DYNAMIC;
+ALTER TABLE servers ROW_FORMAT=DYNAMIC;
+ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_name ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_leap_second ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_transition ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_transition_type ROW_FORMAT=DYNAMIC;
+ALTER TABLE user ROW_FORMAT=DYNAMIC;
 
 SET @@session.sql_mode = @old_sql_mode;

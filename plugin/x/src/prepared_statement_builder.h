@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,15 +34,15 @@ namespace xpl {
 
 class Prepared_statement_builder {
  public:
-  using Placeholder_id_list = Expression_generator::Placeholder_id_list;
+  using Placeholder_list = Expression_generator::Prep_stmt_placeholder_list;
   using Find = ::Mysqlx::Crud::Find;
   using Delete = ::Mysqlx::Crud::Delete;
   using Update = ::Mysqlx::Crud::Update;
   using Insert = ::Mysqlx::Crud::Insert;
   using Stmt = ::Mysqlx::Sql::StmtExecute;
 
-  Prepared_statement_builder(Query_string_builder *qb, Placeholder_id_list *ph)
-      : m_qb{qb}, m_placeholder_ids{ph} {}
+  Prepared_statement_builder(Query_string_builder *qb, Placeholder_list *ph)
+      : m_qb{qb}, m_placeholders{ph} {}
 
   ngs::Error_code build(const Find &msg) const;
   ngs::Error_code build(const Delete &msg) const;
@@ -52,7 +52,7 @@ class Prepared_statement_builder {
 
  private:
   Query_string_builder *m_qb;
-  Placeholder_id_list *m_placeholder_ids;
+  Placeholder_list *m_placeholders;
 };
 
 }  // namespace xpl

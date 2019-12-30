@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	loadingState: "Laster inn...",
-	errorState: "Det oppsto en feil"
-})
-//end v1.x content
-);
+define("dijit/nls/nb/loading",({loadingState:"Laster inn...",errorState:"Det oppsto en feil"}));

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,16 +30,12 @@
 // HTTP Server's public API
 //
 std::shared_ptr<MockServerGlobalScope> MockServerComponent::get_global_scope() {
-  if (auto srv = srv_.lock()) {
-    return srv->get_global_scope();
-  } else {
-    return {};
-  }
+  return server_mock::MySQLServerSharedGlobals::get();
 }
 
-void MockServerComponent::init(
+void MockServerComponent::register_server(
     std::shared_ptr<server_mock::MySQLServerMock> srv) {
-  srv_ = srv;
+  srvs_.push_back(srv);
 }
 
 MockServerComponent &MockServerComponent::get_instance() {
@@ -49,8 +45,10 @@ MockServerComponent &MockServerComponent::get_instance() {
 }
 
 void MockServerComponent::close_all_connections() {
-  // if we have a mock_server instance, call its close_all_connections()
-  if (auto srv = srv_.lock()) {
-    srv->close_all_connections();
+  for (auto &srv : srvs_) {
+    // if we have a mock_server instance, call its close_all_connections()
+    if (auto server = srv.lock()) {
+      server->close_all_connections();
+    }
   }
 }

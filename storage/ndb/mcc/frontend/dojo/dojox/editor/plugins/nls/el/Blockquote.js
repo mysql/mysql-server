@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "Ενότητα παράθεσης"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/el/Blockquote",({"blockquote":"Ενότητα παράθεσης"}));

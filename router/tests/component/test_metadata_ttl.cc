@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,47 +22,49 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
-#include "my_rapidjson_size_t.h"
-#endif
-
-#include <rapidjson/document.h>
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
+#include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
+#include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
 
 #include <chrono>
 #include <thread>
 
-Path g_origin_path;
-using ::testing::PrintToString;
 using mysqlrouter::MySQLSession;
+using ::testing::PrintToString;
+using namespace std::chrono_literals;
 
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:
-  virtual void SetUp() {
-    set_origin(g_origin_path);
-    RouterComponentTest::init();
-  }
-
-  std::string get_metadata_cache_section(unsigned metadata_server_port,
-                                         const std::string &ttl = "0.5") {
+  std::string get_metadata_cache_section(
+      std::vector<uint16_t> metadata_server_ports,
+      const std::string &ttl = "0.5") {
+    std::string bootstrap_server_addresses;
+    bool use_comma = false;
+    for (const auto &port : metadata_server_ports) {
+      if (use_comma) {
+        bootstrap_server_addresses += ",";
+      } else {
+        use_comma = true;
+      }
+      bootstrap_server_addresses += "mysql://localhost:" + std::to_string(port);
+    }
     return "[metadata_cache:test]\n"
            "router_id=1\n"
-           "bootstrap_server_addresses=mysql://localhost:" +
-           std::to_string(metadata_server_port) + "\n" +
+           "bootstrap_server_addresses=" +
+           bootstrap_server_addresses + "\n" +
            "user=mysql_router1_user\n"
+           "connect_timeout=1\n"
            "metadata_cluster=test\n" +
            (ttl.empty() ? "" : std::string("ttl=" + ttl + "\n")) + "\n";
   }
 
-  std::string get_metadata_cache_routing_section(unsigned router_port,
+  std::string get_metadata_cache_routing_section(uint16_t router_port,
                                                  const std::string &role,
                                                  const std::string &strategy,
                                                  const std::string &mode = "") {
@@ -89,37 +91,36 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return json_doc["md_query_count"].GetInt();
   }
 
-  bool wait_for_refresh_thread_started(unsigned timeout_msec) {
+  bool wait_for_refresh_thread_started(const ProcessWrapper &router,
+                                       std::chrono::milliseconds timeout) {
     if (getenv("WITH_VALGRIND")) {
-      timeout_msec *= 10;
+      timeout *= 10;
     }
 
-    const unsigned MSEC_STEP = 10;
+    const auto MSEC_STEP = 10ms;
     bool thread_started = false;
     const auto started = std::chrono::steady_clock::now();
     do {
-      const std::string log_content = get_router_log_output();
+      const std::string log_content = router.get_full_logfile();
       const std::string needle = "Starting metadata cache refresh thread";
       thread_started = (log_content.find(needle) != log_content.npos);
       if (!thread_started) {
-        unsigned step = std::min(timeout_msec, MSEC_STEP);
+        auto step = std::min(timeout, MSEC_STEP);
         std::this_thread::sleep_for(std::chrono::milliseconds(step));
-        timeout_msec -= step;
+        timeout -= step;
       }
     } while (!thread_started &&
-             timeout_msec >
-                 std::chrono::duration_cast<std::chrono::milliseconds>(
-                     std::chrono::steady_clock::now() - started)
-                     .count());
+             timeout > std::chrono::steady_clock::now() - started);
 
     return thread_started;
   }
 
-  RouterComponentTest::CommandHandle launch_router(
-      const std::string &temp_test_dir, const std::string &conf_dir,
-      const std::string &metadata_cache_section,
-      const std::string &routing_section,
-      bool wait_for_md_refresh_started = false) {
+  auto &launch_router(const std::string &temp_test_dir,
+                      const std::string &conf_dir,
+                      const std::string &metadata_cache_section,
+                      const std::string &routing_section,
+                      const int expected_exitcode,
+                      bool wait_for_md_refresh_started = false) {
     auto default_section = get_DEFAULT_defaults();
     init_keyring(default_section, temp_test_dir);
 
@@ -134,11 +135,11 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     const std::string conf_file = create_config_file(
         conf_dir, logger_section + metadata_cache_section + routing_section,
         &default_section);
-    auto router =
-        RouterComponentTest::launch_router("-c " + conf_file, true, false);
+    auto &router = ProcessManager::launch_router(
+        {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
-      bool ready = wait_for_refresh_thread_started(1000);
-      EXPECT_TRUE(ready) << get_router_log_output();
+      bool ready = wait_for_refresh_thread_started(router, 5000ms);
+      EXPECT_TRUE(ready) << router.get_full_logfile();
     }
 
     return router;
@@ -158,10 +159,10 @@ struct MetadataTTLTestParams {
   // value, we should not check for maximum
   bool at_least;
 
-  MetadataTTLTestParams(
-      std::string ttl_,
-      std::chrono::milliseconds router_uptime_ = std::chrono::milliseconds(0),
-      int expected_md_queries_count_ = 0, bool at_least_ = false)
+  MetadataTTLTestParams(std::string ttl_,
+                        std::chrono::milliseconds router_uptime_ = 0ms,
+                        int expected_md_queries_count_ = 0,
+                        bool at_least_ = false)
       : ttl(ttl_),
         router_uptime(router_uptime_),
         expected_md_queries_count(expected_md_queries_count_),
@@ -175,7 +176,7 @@ std::ostream &operator<<(std::ostream &os, const MetadataTTLTestParams &param) {
 
 class MetadataChacheTTLTestParam
     : public MetadataChacheTTLTest,
-      public ::testing::TestWithParam<MetadataTTLTestParams> {
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {
  protected:
   virtual void SetUp() { MetadataChacheTTLTest::SetUp(); }
 };
@@ -190,12 +191,8 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   auto test_params = GetParam();
 
   // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   SCOPED_TRACE(
       "// launch the server mock (it's our metadata server and single cluster "
@@ -205,20 +202,20 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
   const std::string json_metadata =
       get_data_dir().join("metadata_1_node_repeat.js").str();
 
-  auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
-                                                  false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, 1000);
-  EXPECT_TRUE(ready) << metadata_server.get_full_output();
+  auto &metadata_server = launch_mysql_server_mock(
+      json_metadata, md_server_port, EXIT_SUCCESS, false, md_server_http_port);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(metadata_server, md_server_port));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   const auto router_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(md_server_port, test_params.ttl);
+      get_metadata_cache_section({md_server_port}, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto router =
-      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
-                    routing_section, /*wait_for_md_refresh_started=*/true);
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_SUCCESS,
+                    /*wait_for_md_refresh_started=*/true);
 
   // keep the router running to see how many times it queries for metadata
   std::this_thread::sleep_for(test_params.router_uptime);
@@ -234,7 +231,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
     // falls into <expected_count-1, expected_count+1>
     EXPECT_THAT(ttl_count, IsBetween(test_params.expected_md_queries_count - 1,
                                      test_params.expected_md_queries_count + 1))
-        << get_router_log_output();
+        << router.get_full_output();
   } else {
     // we only check that the TTL was queried at least N times
     EXPECT_GE(ttl_count, test_params.expected_md_queries_count);
@@ -258,7 +255,7 @@ INSTANTIATE_TEST_CASE_P(
 
 class MetadataChacheTTLTestParamInvalid
     : public MetadataChacheTTLTest,
-      public ::testing::TestWithParam<MetadataTTLTestParams> {
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {
  protected:
   virtual void SetUp() { MetadataChacheTTLTest::SetUp(); }
 };
@@ -267,12 +264,8 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   auto test_params = GetParam();
 
   // create and RAII-remove tmp dirs
-  const std::string temp_test_dir = get_tmp_dir();
-  std::shared_ptr<void> exit_guard1(nullptr,
-                                    [&](void *) { purge_dir(temp_test_dir); });
-  const std::string conf_dir = get_tmp_dir("conf");
-  std::shared_ptr<void> exit_guard2(nullptr,
-                                    [&](void *) { purge_dir(conf_dir); });
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
 
   // launch the server mock (it's our metadata server and single cluster node)
   auto md_server_port = port_pool_.get_next_available();
@@ -280,22 +273,22 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
   const std::string json_metadata =
       get_data_dir().join("metadata_1_node_repeat.js").str();
 
-  auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
-                                                  false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, 1000);
-  EXPECT_TRUE(ready) << metadata_server.get_full_output();
+  auto &metadata_server = launch_mysql_server_mock(
+      json_metadata, md_server_port, false, md_server_http_port);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(metadata_server, md_server_port));
 
   // launch the router with metadata-cache configuration
   const auto router_port = port_pool_.get_next_available();
   const std::string metadata_cache_section =
-      get_metadata_cache_section(md_server_port, test_params.ttl);
+      get_metadata_cache_section({md_server_port}, test_params.ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto router =
-      launch_router(temp_test_dir, conf_dir, metadata_cache_section,
-                    routing_section, /*wait_for_md_refresh_started=*/false);
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_FAILURE,
+                    /*wait_for_md_refresh_started=*/false);
 
-  EXPECT_EQ(router.wait_for_exit(), 1);
+  check_exit_code(router, EXIT_FAILURE);
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
   EXPECT_TRUE(router.expect_output(
       "Configuration error: option ttl in [metadata_cache:test] needs value "
@@ -309,9 +302,85 @@ INSTANTIATE_TEST_CASE_P(CheckInvalidTTLRefusesStart,
                                           MetadataTTLTestParams("INVALID"),
                                           MetadataTTLTestParams("1,1")));
 
+static size_t count_str_occurences(const std::string &s,
+                                   const std::string &needle) {
+  if (needle.length() == 0) return 0;
+  size_t result = 0;
+  for (size_t pos = s.find(needle); pos != std::string::npos;) {
+    ++result;
+    pos = s.find(needle, pos + needle.length());
+  }
+  return result;
+}
+
+/**
+ * @test Checks that when for some reason the metadata server starts
+ *       returning the information about the cluster nodes in different order we
+ *       will not treat this as a change (Bug#29264764).
+ */
+TEST_F(MetadataChacheTTLTest, InstancesListUnordered) {
+  // create and RAII-remove tmp dirs
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
+
+  const std::string kGroupID = "";
+
+  SCOPED_TRACE("// launch 2 server mocks");
+  std::vector<ProcessWrapper *> nodes;
+  std::vector<uint16_t> node_classic_ports;
+  std::vector<uint16_t> node_http_ports;
+  const std::string json_metadata =
+      get_data_dir().join("metadata_dynamic_nodes.js").str();
+  for (size_t i = 0; i < 2; ++i) {
+    node_classic_ports.push_back(port_pool_.get_next_available());
+    node_http_ports.push_back(port_pool_.get_next_available());
+
+    nodes.push_back(
+        &launch_mysql_server_mock(json_metadata, node_classic_ports[i],
+                                  EXIT_SUCCESS, false, node_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*nodes[i], node_classic_ports[i]));
+
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << nodes[i]->get_full_output();
+  }
+
+  for (size_t i = 0; i < 2; ++i) {
+    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports);
+  }
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const auto router_port = port_pool_.get_next_available();
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(node_classic_ports, "0.1");
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router = launch_router(temp_test_dir.name(), conf_dir.name(),
+                               metadata_cache_section, routing_section,
+                               EXIT_SUCCESS, true);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  SCOPED_TRACE("// instruct the mocks to return nodes in reverse order");
+  std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
+                                                   node_classic_ports.rend());
+  for (size_t i = 0; i < 2; ++i) {
+    set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse,
+                      1);
+  }
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  SCOPED_TRACE("// check it is not treated as a change");
+  const std::string needle = "Potential changes detected in cluster";
+  const std::string log_content = router.get_full_logfile();
+
+  // 1 is expected, that comes from the inital reading of the metadata
+  EXPECT_EQ(1, count_str_occurences(log_content, needle)) << log_content;
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
-  g_origin_path = Path(argv[0]).dirname();
+  ProcessManager::set_origin(Path(argv[0]).dirname());
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

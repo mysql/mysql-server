@@ -4,6 +4,9 @@ gesuchnr int(11) DEFAULT '0' NOT NULL,
 benutzer_id int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (gesuchnr,benutzer_id)
 ) engine=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 replace into t1 (gesuchnr,benutzer_id) values (2,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
 replace into t1 (gesuchnr,benutzer_id) values (1,1);
@@ -43,6 +46,12 @@ i INT(11) DEFAULT NULL,
 PRIMARY KEY (id),
 UNIQUE KEY a (a,b,c)
 ) ENGINE=ndbcluster;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 REPLACE INTO t2 (a,b,c,x,y,z,i) VALUES (1,1,1,'a','a','a',1),(1,1,1,'b','b','b',2), (1,1,1,'c','c','c',3);
 SELECT * FROM t2 ORDER BY id;
 a	b	c	x	y	z	id	i

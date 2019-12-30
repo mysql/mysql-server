@@ -1,12 +1,10 @@
 
-.soria .dojoDndItemBefore {
-	border-top: 2px solid #369;
-}
-.soria .dojoDndItemAfter {
-	border-bottom: 2px solid #369;
-}
 .soria .dojoDndItemOver {
-	cursor:pointer;
+	background-image: url(images/treeHover.png);
+}
+.soria .dojoDndItemAnchor,
+.soria .dojoDndItemSelected {
+	background-color: #B8CBEC;
 }
 .soria table.dojoDndAvatar { -moz-border-radius: 0; border: 1px solid #ccc; border-collapse: collapse; background-color: #fff; font-size: 75%; color: black;}
 .soria .dojoDndAvatar td	{ border: none; }

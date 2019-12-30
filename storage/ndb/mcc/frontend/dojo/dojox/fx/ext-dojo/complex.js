@@ -3,20 +3,19 @@ define("dojox/fx/ext-dojo/complex",["dojo/_base/kernel","dojo/_base/lang","dojo/
 _2.getObject("dojox.fx.ext-dojo.complex",true);
 var da=_7.animateProperty;
 _1.animateProperty=_7.animateProperty=function(_9){
-var d=_1;
 var _a=da(_9);
 _5.connect(_a,"beforeBegin",function(){
 _a.curve.getValue=function(r){
 var _b={};
 for(var p in this._properties){
 var _c=this._properties[p],_d=_c.start;
-if(_d instanceof d.Color){
-_b[p]=d.blendColors(_d,_c.end,r,_c.tempColor).toCss();
+if(_d instanceof _1.Color){
+_b[p]=_1.blendColors(_d,_c.end,r,_c.tempColor).toCss();
 }else{
 if(_d instanceof dojox.fx._Complex){
 _b[p]=_d.getValue(r);
 }else{
-if(!d.isArray(_d)){
+if(!_1.isArray(_d)){
 _b[p]=((_c.end-_d)*r)+_d+(p!="opacity"?_c.units||"px":0);
 }
 }

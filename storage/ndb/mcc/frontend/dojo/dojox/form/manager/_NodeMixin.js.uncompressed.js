@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/manager/_NodeMixin", [
 	"dojo/_base/lang",
 	"dojo/_base/array",
@@ -18,7 +17,7 @@ define("dojox/form/manager/_NodeMixin", [
 		ce = fm.changeEvent = function(node){
 			// summary:
 			//		Function that returns a valid "onchange" event for a given form node.
-			// node: Node:
+			// node: Node
 			//		Form node.
 
 			var eventName = "onclick";
@@ -112,7 +111,7 @@ define("dojox/form/manager/_NodeMixin", [
 		// summary:
 		//		Mixin to orchestrate dynamic forms (works with DOM nodes).
 		// description:
-		//		This mixin provideas a foundation for an enhanced form
+		//		This mixin provides a foundation for an enhanced form
 		//		functionality: unified access to individual form elements,
 		//		unified "onchange" event processing, and general event
 		//		processing. It complements dojox.form.manager._Mixin
@@ -135,9 +134,9 @@ define("dojox/form/manager/_NodeMixin", [
 		registerNode: function(node){
 			// summary:
 			//		Register a node with the form manager
-			// node: String|Node:
+			// node: String|Node
 			//		A node, or its id
-			// returns: Object:
+			// returns: Object
 			//		Returns self
 			if(typeof node == "string"){
 				node = dom.byId(node);
@@ -153,9 +152,9 @@ define("dojox/form/manager/_NodeMixin", [
 			// summary:
 			//		Removes the node by name from internal tables unregistering
 			//		connected observers
-			// name: String:
+			// name: String
 			//		Name of the to unregister
-			// returns: Object:
+			// returns: Object
 			//		Returns self
 			if(name in this.formNodes){
 				array.forEach(this.formNodes[name].connections, this.disconnect, this);
@@ -167,9 +166,9 @@ define("dojox/form/manager/_NodeMixin", [
 		registerNodeDescendants: function(node){
 			// summary:
 			//		Register node's descendants (form nodes) with the form manager
-			// node: String|Node:
+			// node: String|Node
 			//		A widget, or its widgetId, or its DOM node
-			// returns: Object:
+			// returns: Object
 			//		Returns self
 
 			if(typeof node == "string"){
@@ -192,9 +191,9 @@ define("dojox/form/manager/_NodeMixin", [
 		unregisterNodeDescendants: function(node){
 			// summary:
 			//		Unregister node's descendants (form nodes) with the form manager
-			// node: String|Node:
+			// node: String|Node
 			//		A widget, or its widgetId, or its DOM node
-			// returns: Object:
+			// returns: Object
 			//		Returns self
 
 			if(typeof node == "string"){
@@ -217,11 +216,11 @@ define("dojox/form/manager/_NodeMixin", [
 		formNodeValue: function(elem, value){
 			// summary:
 			//		Set or get a form element by name.
-			// elem: String|Node|Array:
+			// elem: String|Node|Array
 			//		Form element's name, DOM node, or array or radio nodes.
-			// value: Object?:
+			// value: Object?
 			//		Optional. The value to set.
-			// returns: Object:
+			// returns: Object
 			//		For a getter it returns the value, for a setter it returns
 			//		self. If the elem is not valid, null will be returned.
 
@@ -330,15 +329,15 @@ define("dojox/form/manager/_NodeMixin", [
 		inspectFormNodes: function(inspector, state, defaultValue){
 			// summary:
 			//		Run an inspector function on controlled form elements returning a result object.
-			// inspector: Function:
+			// inspector: Function
 			//		A function to be called on a form element. Takes three arguments: a name, a node or
 			//		an array of nodes, and a supplied value. Runs in the context of the form manager.
 			//		Returns a value that will be collected and returned as a state.
-			// state: Object?:
+			// state: Object?
 			//		Optional. If a name-value dictionary --- only listed names will be processed.
 			//		If an array, all names in the array will be processed with defaultValue.
 			//		If omitted or null, all form elements will be processed with defaultValue.
-			// defaultValue: Object?:
+			// defaultValue: Object?
 			//		Optional. The default state (true, if omitted).
 
 			var name, result = {};

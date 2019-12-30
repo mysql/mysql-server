@@ -1,5 +1,7 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_plugin_auth.inc
+--source include/mysql_upgrade_preparation.inc
+
 CALL mtr.add_suppression("Plugin test_plugin_server reported: 'Wrong password supplied for plug_dest'");
 
 # Official builds include separate debug enabled plugins to be used by
@@ -468,13 +470,13 @@ DROP USER bug12610784@localhost;
 --echo # Bug # 11766641: 59792: BIN/MYSQL -UUNKNOWN -PUNKNOWN 
 --echo #  .-> USING PASSWORD: NO 
 
---echo # shoud contain "using password=yes"
+--echo # should contain "using password=yes"
 --error 1
---exec $MYSQL -uunknown -punknown 2>&1
+--exec $MYSQL -uunknown -punknown --ssl-mode=REQUIRED 2>&1
 
---echo # shoud contain "using password=no"
+--echo # should contain "using password=no"
 --error 1
---exec $MYSQL -uunknown 2>&1
+--exec $MYSQL -uunknown --ssl-mode=REQUIRED 2>&1
 
 --echo #
 --echo # Bug #12818542: PAM: ADDING PASSWORD FOR AN ACCOUNT DISABLES PAM 
@@ -546,13 +548,9 @@ DROP USER bug12818542_dest@localhost;
 
 --echo # Restart server with disconnect_on_expired_password OFF;
 
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 
---source include/wait_until_disconnected.inc
---exec echo "restart:--disconnect_on_expired_password=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--let $restart_parameters=restart:--disconnect_on_expired_password=0
+--let $shutdown_server_timeout= 300
+--source include/restart_mysqld.inc
 
 CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
 CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';

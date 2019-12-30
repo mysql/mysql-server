@@ -1,16 +1,16 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"],function(_1,_2,_3){
-_2.provide("dojox.wire.ml.XmlHandler");
-_2.require("dojox.wire.ml.RestHandler");
-_2.require("dojox.xml.parser");
-_2.require("dojox.wire._base");
-_2.require("dojox.wire.ml.util");
-_2.declare("dojox.wire.ml.XmlHandler",_3.wire.ml.RestHandler,{contentType:"text/xml",handleAs:"xml",_getContent:function(_4,_5){
+define("dojox/wire/ml/XmlHandler",["dojo","dijit","dojox","dojo/require!dojox/wire/ml/RestHandler,dojox/xml/parser,dojox/wire/_base,dojox/wire/ml/util"],function(_1,_2,_3){
+_1.provide("dojox.wire.ml.XmlHandler");
+_1.require("dojox.wire.ml.RestHandler");
+_1.require("dojox.xml.parser");
+_1.require("dojox.wire._base");
+_1.require("dojox.wire.ml.util");
+_1.declare("dojox.wire.ml.XmlHandler",_3.wire.ml.RestHandler,{contentType:"text/xml",handleAs:"xml",_getContent:function(_4,_5){
 var _6=null;
 if(_4=="POST"||_4=="PUT"){
 var p=_5[0];
 if(p){
-if(_2.isString(p)){
+if(_1.isString(p)){
 _6=p;
 }else{
 var _7=p;

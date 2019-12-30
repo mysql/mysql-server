@@ -1,6 +1,6 @@
 //>>built
-define("dijit/Toolbar",["require","dojo/_base/declare","dojo/_base/kernel","dojo/keys","dojo/ready","./_Widget","./_KeyNavContainer","./_TemplatedMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8){
-if(!_3.isAsync){
+define("dijit/Toolbar",["require","dojo/_base/declare","dojo/has","dojo/keys","dojo/ready","./_Widget","./_KeyNavContainer","./_TemplatedMixin"],function(_1,_2,_3,_4,_5,_6,_7,_8){
+if(_3("dijit-legacy-requires")){
 _5(0,function(){
 var _9=["dijit/ToolbarSeparator"];
 _1(_9);

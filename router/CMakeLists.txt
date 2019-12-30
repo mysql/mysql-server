@@ -20,12 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(SIZEOF_VOIDP EQUAL 8)
-  SET(ARCH_64BIT 1)
-ELSE()
-  SET(ARCH_64BIT 0)
-ENDIF()
-
 INCLUDE(cmake/version.cmake)
 SET(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
@@ -63,16 +57,34 @@ IF(SOLARIS)
 
   # Sun Studio 12.6 creates a bogus code when -x02 is used
   # that crashes whenever std::condition_variable::wait_for() is used
-  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
-      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+  IF(SOLARIS_INTEL)
     STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
     STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
   ENDIF()
 ENDIF()
 
+# ld.lld: error: corrupt input file:
+# version definition index 0 for symbol __gcov_var is out of bounds
+IF(ENABLE_GCOV)
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-Wl,--gdb-index" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+ENDIF()
+
 IF(WIN32)
-  # 'identifier' : class 'type' needs to have dll-interface to be used by clients of class 'type2'
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
+ENDIF()
+
+IF(WIN32)
+  # 'identifier' : class 'type' needs to have dll-interface to be used
+  # by clients of class 'type2'
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251")
 ENDIF()
 
@@ -92,25 +104,12 @@ ENDIF()
 INCLUDE(cmake/settings.cmake)
 INCLUDE(cmake/set_rpath.cmake)
 
-# SSL
-MESSAGE(STATUS "MySQL Router SSL_LIBRARIES:    ${SSL_LIBRARIES}")
-MESSAGE(STATUS "MySQL Router SSL_DEFINES:      ${SSL_DEFINES}")
-MESSAGE(STATUS "MySQL Router SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
-
 # Required tools, libraries, etc..
 INCLUDE(cmake/testing.cmake)  # does not enable testing
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/install_layout.cmake)
 INCLUDE(cmake/configure.cmake)
 INCLUDE(cmake/packaging.cmake)
 INCLUDE(cmake/Plugin.cmake)
 INCLUDE(cmake/fuzzer.cmake)
-
-# Set the proper paths for the mysqlclient library
-SET(MySQL_CLIENT_LIB mysqlclient)
-SET(MySQL_VERSION_HEADER ${CMAKE_BINARY_DIR}/include/mysql_version.h)
-SET(MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/include)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
-LIST(APPEND MySQL_INCLUDE_DIRS ${CMAKE_BINARY_DIR}/include)
 
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/include)
 

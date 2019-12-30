@@ -20,7 +20,8 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 include/start_slave.inc [FOR CHANNEL 'ch3_2']
 [connection server3]
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
-include/rpl_sync.inc
+[connection server1]
+[connection server2]
 
 ############################################################
 # 03. Make server2 block before send its prepare message.
@@ -57,10 +58,8 @@ include/rpl_sync.inc
 [connection server1]
 SET @@SESSION.group_replication_consistency= DEFAULT;
 include/assert.inc ['There is a 1 value in table t1']
-include/assert.inc ['There is a 3 value in table t1']
 [connection server2]
 include/assert.inc ['There is a 1 value in table t1']
-include/assert.inc ['There is a 3 value in table t1']
 [connection server3]
 include/assert.inc ['There is no 1 value in table t1']
 include/assert.inc ['There is a 3 value in table t1']
@@ -70,8 +69,9 @@ include/diff_tables.inc [server1:t1, server2:t1]
 # 09. Clean up.
 [connection server3]
 DROP TABLE t1;
-include/rpl_sync.inc
+[connection server1]
 [connection server2]
+SET DEBUG_SYNC= 'RESET';
 include/stop_slave.inc [FOR CHANNEL 'ch3_2']
 RESET SLAVE ALL FOR CHANNEL 'ch3_2';
 include/group_replication_end.inc

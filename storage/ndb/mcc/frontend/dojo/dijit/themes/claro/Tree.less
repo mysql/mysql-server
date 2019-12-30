@@ -40,8 +40,7 @@
 .claro .dijitTreeNode .dojoDndItemBefore,
 .claro .dijitTreeNode .dojoDndItemAfter {
 	/* so insert line shows up on IE when dropping after a target element */
-	padding: 4px 1px 2px 0;
-	margin: 0 1px;	/* replaced by border for selected/hovered row */
+	padding: 4px 0 2px 0;
 
 	background-color: none;	// IE6 doesn't understand rgba() or transparent below
 	background-color: transparent;	// IE8 doesn't understand rgba() below
@@ -49,8 +48,7 @@
 	background-position:0 0;
 	background-repeat:repeat-x;
 
-	border-color: rgba(118,157,192,0);	// rgba() instead of none to prevent flash on hover fade-in
-	border-width: 0;
+	border: solid 0 transparent;
 
 	color: @text-color;
 
@@ -60,34 +58,29 @@
 }
 
 .claro .dijitTreeRowSelected {
-	background-repeat:repeat-x;
-	background-color:@selected-background-color;
-	background-image: url(@image-common-highlight);
+	background-color: @selected-background-color;
+	.standard-gradient;
 	padding: 3px 0 1px;
-	margin: 0;
-	border:solid 1px @selected-border-color;
-	color:@selected-text-color;
+	border-color: @selected-border-color;
+	border-width: 1px 0;
+	color: @selected-text-color;
 }
 .claro .dijitTreeRowHover {
-	background-color:@hovered-background-color;
-	background-image: url(@image-common-highlight);
+	background-color: @hovered-background-color;
+	.standard-gradient;
 	padding: 3px 0 1px;
-	margin: 0;
-	border:solid 1px @hovered-border-color;
-	color:@hovered-text-color;
+	border-color: @hovered-border-color;
+	border-width: 1px 0;
+	color: @hovered-text-color;
 	.transition-duration(.25s);
 }
 .claro .dijitTreeRowActive {
 	background-color:@pressed-background-color;
-	background-image: url(@image-common-highlight);
-	background-position:0 -177px;
+	.active-gradient;
 	padding: 3px 0 1px;
-	margin-left: 0;
-	border:solid 1px @pressed-border-color;
-	color:@selected-text-color;
-}
-.dj_ie6 .claro .dijitTreeRow {
-	background-image: none;
+	border-color: @pressed-border-color;
+	border-width: 1px 0;
+	color: @selected-text-color;
 }
 .claro .dijitTreeRowFocused {
 	background-repeat: repeat;

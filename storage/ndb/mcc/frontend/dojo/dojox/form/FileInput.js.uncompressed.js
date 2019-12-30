@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/form/resources/FileInput.html':"<div class=\"dijitFileInput\">\n\t<input id=\"${id}\" class=\"dijitFileInputReal\" type=\"file\" dojoAttachPoint=\"fileInput\" name=\"${name}\" />\n\t<div class=\"dijitFakeInput\">\n\t\t<input class=\"dijitFileInputVisible\" type=\"text\" dojoAttachPoint=\"focusNode, inputNode\" />\n\t\t<div class=\"dijitInline dijitFileInputText\" dojoAttachPoint=\"titleNode\">${label}</div>\n\t\t<div class=\"dijitInline dijitFileInputButton\" dojoAttachPoint=\"cancelNode\" \n\t\t\tdojoAttachEvent=\"onclick:reset\">${cancelText}</div>\n\t</div>\n</div>\n"}});
 define("dojox/form/FileInput", [
@@ -14,33 +13,33 @@ define("dojox/form/FileInput", [
 function(declare, kernel, fx, domAttr, domClass, template, FormWidget, Templated){
 kernel.experimental("dojox.form.FileInput");
 
-	/*=====
-		FormWidget = dijit.form._FormWidget;
-	=====*/
-declare("dojox.form.FileInput", FormWidget,
+return declare("dojox.form.FileInput", FormWidget,
 	{
-	// summary: A styled input type="file"
+	// summary:
+	//		A styled input type="file"
 	//
-	// description: A input type="file" form widget, with a button for uploading to be styled via css,
-	//	a cancel button to clear selection, and FormWidget mixin to provide standard dijit.form.Form
-	//	support (FIXME: maybe not fully implemented)
+	// description:
+	//		A input type="file" form widget, with a button for uploading to be styled via css,
+	//		a cancel button to clear selection, and FormWidget mixin to provide standard dijit.form.Form
+	//		support (FIXME: maybe not fully implemented)
 
 	// label: String
-	//	the title text of the "Browse" button
+	//		the title text of the "Browse" button
 	label: "Browse ...",
 
 	// cancelText: String
-	//	the title of the "Cancel" button
+	//		the title of the "Cancel" button
 	cancelText: "Cancel",
 
 	// name: String
-	//	ugh, this should be pulled from this.domNode
+	//		ugh, this should be pulled from this.domNode
 	name: "uploadFile",
 
 	templateString: template,
 
 	startup: function(){
-		// summary: listen for changes on our real file input
+		// summary:
+		//		listen for changes on our real file input
 		this._listener = this.connect(this.fileInput,"onchange","_matchValue");
 		this._keyListener = this.connect(this.fileInput,"onkeyup","_matchValue");
 	},
@@ -50,7 +49,8 @@ declare("dojox.form.FileInput", FormWidget,
 	postCreate: function(){},
 
 	_matchValue: function(){
-		// summary: set the content of the upper input based on the semi-hidden file input
+		// summary:
+		//		set the content of the upper input based on the semi-hidden file input
 		this.inputNode.value = this.fileInput.value;
 		if(this.inputNode.value){
 			this.cancelNode.style.visibility = "visible";
@@ -58,14 +58,16 @@ declare("dojox.form.FileInput", FormWidget,
 		}
 	},
 
-	setLabel: function(/* String */label,/* String? */cssClass){
-		// summary: method to allow use to change button label
+	setLabel: function(/*String*/ label, /*String?*/ cssClass){
+		// summary:
+		//		method to allow use to change button label
 		this.titleNode.innerHTML = label;
 	},
 
-	reset: function(/* Event */e){
-		// summary: on click of cancel button, since we can't clear the input because of
-		// 	security reasons, we destroy it, and add a new one in it's place.
+	reset: function(/*Event*/ e){
+		// summary:
+		//		on click of cancel button, since we can't clear the input because of
+		//		security reasons, we destroy it, and add a new one in it's place.
 		this.disconnect(this._listener);
 		this.disconnect(this._keyListener);
 		if(this.fileInput){
@@ -76,7 +78,7 @@ declare("dojox.form.FileInput", FormWidget,
 		// should we use cloneNode()? can we?
 		this.fileInput = document.createElement('input');
 		// domAttr.set(this.fileInput,{
-		//	"type":"file", "id":this.id, "name": this.name
+		//		"type":"file", "id":this.id, "name": this.name
 		//});
 		this.fileInput.setAttribute("type","file");
 		this.fileInput.setAttribute("id", this.id);
@@ -91,5 +93,4 @@ declare("dojox.form.FileInput", FormWidget,
 
 });
 
-return dojox.form.FileInput;
 });

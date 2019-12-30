@@ -144,6 +144,11 @@ KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
 KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
 KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `C` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
 VALUES (1, 9, '2009-11-04', '2006-10-12 19:52:02', '18:19:40', 'a'),
 (2, 4, '2009-05-21', '2005-09-13 00:00:00', '07:45:25', 'tef'),
@@ -208,6 +213,11 @@ KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
 KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
 KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=73 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `DD` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
 VALUES (10,7,'0000-00-00','2000-02-09 06:46:23','03:56:10','i'),
 (11,5,'2008-12-11','2004-03-07 18:05:11','00:00:00','jrll'),
@@ -318,6 +328,11 @@ KEY `col_int_key_7` (`col_int_key`,`col_date_key`),
 KEY `col_int_key_8` (`col_int_key`,`col_time_key`),
 KEY `col_int_key_9` (`col_int_key`,`col_datetime_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=80 DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `E` (`pk`, `col_int`, `col_date`, `col_datetime`, `col_time`, `col_varchar`)
 VALUES (1, 202, '0000-00-00', '2008-11-25 09:14:26', '07:23:12', 'en'),
 (2, 4, '2005-07-10', '2005-03-15 22:48:25', '23:28:02', 'nchyhu'),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,13 +49,19 @@ printSTART_REC_REQ(FILE * output,
 	  sig->newestGci,
           sig->senderData);
 
-  NdbNodeBitmask mask;
-  mask.assign(NdbNodeBitmask::Size, sig->sr_nodes);
-  
-  char buf[100];
-  fprintf(output,
-          " sr_nodes: %s\n", mask.getText(buf));
+  if (len == sig->SignalLength_v1)
+  {
+    NdbNodeBitmask48 mask;
+    mask.assign(NdbNodeBitmask48::Size, sig->sr_nodes);
 
+    char buf[NdbNodeBitmask48::TextLength + 1];
+    fprintf(output,
+          " sr_nodes: %s\n", mask.getText(buf));
+  }
+  else
+  {
+    fprintf(output , "sr_nodes in signal section\n");
+  }
   return true;
 }
 

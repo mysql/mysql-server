@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -99,11 +99,12 @@ struct merge_file_t {
 
 /** Index field definition */
 struct index_field_t {
-  ulint col_no;      /*!< column offset */
-  ulint prefix_len;  /*!< column prefix length, or 0
-                     if indexing the whole column */
-  bool is_v_col;     /*!< whether this is a virtual column */
-  bool is_ascending; /*!< true=ASC, false=DESC */
+  ulint col_no;        /*!< column offset */
+  ulint prefix_len;    /*!< column prefix length, or 0
+                       if indexing the whole column */
+  bool is_v_col;       /*!< whether this is a virtual column */
+  bool is_multi_value; /*!< whether it has multi-value */
+  bool is_ascending;   /*!< true=ASC, false=DESC */
 };
 
 /** Definition of an index being created */

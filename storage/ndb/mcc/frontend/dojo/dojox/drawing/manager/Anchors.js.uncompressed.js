@@ -1,212 +1,15 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/manager/Anchors", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.manager.Anchors");
+define("dojox/drawing/manager/Anchors", ["dojo", "../util/oo", "../defaults"], 
+function(dojo, oo, defaults){
 
-dojox.drawing.manager.Anchors = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Creates and manages the anchor points that are attached to
-	//		(usually) the corners of a Stencil.
-	// description:
-	//		Used internally, but there are some things that should be known:
-	//		Anchors attach to a Stencil's 'points' (See stencil.points)
-	//		To not display an anchor on a certain point, add noAnchor:true
-	//		to the point.
-	
-	function(/* dojox.__stencilArgs */options){
-		// arguments: See stencil._Base
-		this.mouse = options.mouse;
-		this.undo = options.undo;
-		this.util = options.util;
-		this.drawing = options.drawing;
-		this.items = {};
-	},
-	{
-		onAddAnchor: function(/*Anchor*/anchor){
-			// summary:
-			//		Event fires when anchor is created
-		},
-		
-		
-		onReset: function(/*Stencil*/stencil){
-			// summary:
-			//		Event fires when an anchor's reset method is called
-			//
-			// a desperate hack in order to get the anchor point to reset.
-			// FIXME: Is this still used? I think its item.deselect();item.select();
-			var st = this.util.byId("drawing").stencils;
-			st.onDeselect(stencil);
-			st.onSelect(stencil);
-		},
-		
-		onRenderStencil: function(){
-			// summary:
-			//		Event fires when an anchor calls a Stencil's render method
-			//
-			for(var nm in this.items){
-				dojo.forEach(this.items[nm].anchors, function(a){
-					a.shape.moveToFront();
-				});
-			}
-		},
-		
-		onTransformPoint: function(/*Anchor*/anchor){
-			// summary:
-			//		Event fired on anchor drag
-			//
-			//		If anchors are a "group", it's corresponding anchor
-			//		is set. All anchors then moved to front.
-			var anchors = this.items[anchor.stencil.id].anchors;
-			var item = this.items[anchor.stencil.id].item;
-			var pts = [];
-			dojo.forEach(anchors, function(a, i){
-				
-				
-				if(anchor.id == a.id || anchor.stencil.anchorType!="group"){
-					// nothing
-				}else{
-					if(anchor.org.y == a.org.y){
-						a.setPoint({
-							dx: 0,
-							dy: anchor.shape.getTransform().dy - a.shape.getTransform().dy
-						});
-					}else if(anchor.org.x == a.org.x){
-						a.setPoint({
-							dx: anchor.shape.getTransform().dx - a.shape.getTransform().dx,
-							dy: 0
-						});
-					}
-					a.shape.moveToFront();
-				}
-				
-				var mx = a.shape.getTransform();
-				pts.push({x:mx.dx + a.org.x, y:mx.dy+ a.org.y});
-				
-				if(a.point.t){
-					pts[pts.length-1].t = a.point.t;
-				}
-				
-			}, this);
-			item.setPoints(pts);
-			item.onTransform(anchor);
-			this.onRenderStencil();
-		},
-		
-		onAnchorUp: function(/*Anchor*/anchor){
-			// summary:
-			//		Event fired on anchor mouseup
-		},
-		
-		onAnchorDown: function(/*Anchor*/anchor){
-			// summary:
-			//		Event fired on anchor mousedown
-		},
-		
-		onAnchorDrag: function(/*Anchor*/anchor){
-			// summary:
-			//		Event fired when anchor is moved
-		},
-		
-		onChangeStyle: function(/*Object*/stencil){
-			// summary:
-			// 		if the Stencil changes color while were's selected
-			// 		this moves the anchors to the back. Fix it.
-			
-			for(var nm in this.items){
-				dojo.forEach(this.items[nm].anchors, function(a){
-					a.shape.moveToFront();
-				});
-			}
-		},
-		
-		add: function(/*Stencil*/item){
-			// summary:
-			//		Creates anchor points on a Stencil, based on the
-			//		Stencil's points.
-			//
-			this.items[item.id] = {
-				item:item,
-				anchors:[]
-			};
-			if(item.anchorType=="none"){ return; }
-			var pts = item.points;
-			dojo.forEach(pts, function(p, i){
-				if(p.noAnchor){ return; }
-				if(i==0 || i == item.points.length-1){
-					console.log("ITEM TYPE:", item.type, item.shortType);
-				}
-				var a = new dojox.drawing.manager.Anchor({stencil:item, point:p, pointIdx:i, mouse:this.mouse, util:this.util});
-				this.items[item.id]._cons = [
-					dojo.connect(a, "onRenderStencil", this, "onRenderStencil"),
-					dojo.connect(a, "reset", this, "onReset"),
-					dojo.connect(a, "onAnchorUp", this, "onAnchorUp"),
-					dojo.connect(a, "onAnchorDown", this, "onAnchorDown"),
-					dojo.connect(a, "onAnchorDrag", this, "onAnchorDrag"),
-					dojo.connect(a, "onTransformPoint", this, "onTransformPoint"),
-					// FIXME: this will fire for each anchor. yech.
-					dojo.connect(item, "onChangeStyle", this, "onChangeStyle")
-				];
-				
-				this.items[item.id].anchors.push(a);
-				this.onAddAnchor(a);
-			}, this);
-			
-			if(item.shortType=="path"){
-				// check if we have a double-point of a closed-curve-path
-				var f = pts[0], l = pts[pts.length-1], a = this.items[item.id].anchors;
-				if(f.x ==l.x && f.y==l.y){
-					console.warn("LINK ANVHROS", a[0], a[a.length-1]);
-					a[0].linkedAnchor = a[a.length-1];
-					a[a.length-1].linkedAnchor = a[0];
-				}
-			}
-			
-			if(item.anchorType=="group"){
-				dojo.forEach(this.items[item.id].anchors, function(anchor){
-					dojo.forEach(this.items[item.id].anchors, function(a){
-						if(anchor.id != a.id){
-							if(anchor.org.y == a.org.y){
-								anchor.x_anchor = a;
-							}else if(anchor.org.x == a.org.x){
-								anchor.y_anchor = a;
-							}
-						}
-					},this);
-				},this);
-				
-			}
-		},
-		
-		remove: function(/*Stencil*/item){
-			// summary:
-			//		Destroys the anchor points for a Stencil.
-			//
-			if(!this.items[item.id]){
-				return;
-			}
-			dojo.forEach(this.items[item.id].anchors, function(a){
-				a.destroy();
-			});
-			dojo.forEach(this.items[item.id]._cons, dojo.disconnect, dojo);
-			this.items[item.id].anchors = null;
-			delete this.items[item.id];
-		}
-	}
-);
-
-dojox.drawing.manager.Anchor = dojox.drawing.util.oo.declare(
-	// summary:
-	//		An anchor point that is attached to (usually) one of the
-	//		corners of a Stencil.
-	//		Used internally.
-	function(/* Object */options){
+var Anchor = oo.declare(
+	function(/* Object */ options){
 		// summary:
 		//		constructor.
-		//		arguments:
-		//			dojox.__stencilArgs plus some additional
-		//			data, like which point this is (pointIdx)
-		//
-		this.defaults = dojox.drawing.defaults.copy();
+		// options:
+		//		dojox.__stencilArgs plus some additional
+		//		data, like which point this is (pointIdx)
+
+		this.defaults = defaults.copy();
 		this.mouse = options.mouse;
 		this.point = options.point;
 		this.pointIdx = options.pointIdx;
@@ -225,13 +28,18 @@ dojox.drawing.manager.Anchor = dojox.drawing.util.oo.declare(
 		this.connectMouse();
 	},
 	{
+		// summary:
+		//		An anchor point that is attached to (usually) one of the
+		//		corners of a Stencil.
+		//		Used internally.
+
 		y_anchor:null,
 		x_anchor:null,
 		render: function(){
 			// summary:
 			//		Creates the anchor point. Unlike most render methods
 			//		in Drawing, this is only called once.
-			//
+
 			this.shape && this.shape.removeShape();
 			var d = this.defaults.anchors,
 				z = this.mouse.zoom,
@@ -350,10 +158,7 @@ dojox.drawing.manager.Anchor = dojox.drawing.util.oo.declare(
 						y = conT;
 					}
 				}
-				
-				
-				
-				
+
 				if(this.x_anchor){
 					// prevent x overlap of opposite anchor
 					
@@ -462,6 +267,195 @@ dojox.drawing.manager.Anchor = dojox.drawing.util.oo.declare(
 			dojo.disconnect(this._zCon);
 			this.disconnectMouse();
 			this.shape.removeShape();
+		}
+	}
+);
+
+//dojox.drawing.manager.Anchors = 
+return oo.declare(
+	// summary:
+	//		Creates and manages the anchor points that are attached to
+	//		(usually) the corners of a Stencil.
+	// description:
+	//		Used internally, but there are some things that should be known:
+	//		Anchors attach to a Stencil's 'points' (See stencil.points)
+	//		To not display an anchor on a certain point, add noAnchor:true
+	//		to the point.
+	
+	function(/* dojox.__stencilArgs */options){
+		this.mouse = options.mouse;
+		this.undo = options.undo;
+		this.util = options.util;
+		this.drawing = options.drawing;
+		this.items = {};
+	},
+	{
+		onAddAnchor: function(/*Anchor*/anchor){
+			// summary:
+			//		Event fires when anchor is created
+		},
+		
+		
+		onReset: function(/*Stencil*/stencil){
+			// summary:
+			//		Event fires when an anchor's reset method is called
+
+			// a desperate hack in order to get the anchor point to reset.
+			// FIXME: Is this still used? I think its item.deselect();item.select();
+			var st = this.util.byId("drawing").stencils;
+			st.onDeselect(stencil);
+			st.onSelect(stencil);
+		},
+		
+		onRenderStencil: function(){
+			// summary:
+			//		Event fires when an anchor calls a Stencil's render method
+
+			for(var nm in this.items){
+				dojo.forEach(this.items[nm].anchors, function(a){
+					a.shape.moveToFront();
+				});
+			}
+		},
+		
+		onTransformPoint: function(/*Anchor*/anchor){
+			// summary:
+			//		Event fired on anchor drag
+
+			// If anchors are a "group", it's corresponding anchor
+			// is set. All anchors then moved to front.
+			var anchors = this.items[anchor.stencil.id].anchors;
+			var item = this.items[anchor.stencil.id].item;
+			var pts = [];
+			dojo.forEach(anchors, function(a, i){
+				if(anchor.id == a.id || anchor.stencil.anchorType!="group"){
+					// nothing
+				}else{
+					if(anchor.org.y == a.org.y){
+						a.setPoint({
+							dx: 0,
+							dy: anchor.shape.getTransform().dy - a.shape.getTransform().dy
+						});
+					}else if(anchor.org.x == a.org.x){
+						a.setPoint({
+							dx: anchor.shape.getTransform().dx - a.shape.getTransform().dx,
+							dy: 0
+						});
+					}
+					a.shape.moveToFront();
+				}
+				
+				var mx = a.shape.getTransform();
+				pts.push({x:mx.dx + a.org.x, y:mx.dy+ a.org.y});
+				
+				if(a.point.t){
+					pts[pts.length-1].t = a.point.t;
+				}
+				
+			}, this);
+			item.setPoints(pts);
+			item.onTransform(anchor);
+			this.onRenderStencil();
+		},
+		
+		onAnchorUp: function(/*Anchor*/anchor){
+			// summary:
+			//		Event fired on anchor mouseup
+		},
+		
+		onAnchorDown: function(/*Anchor*/anchor){
+			// summary:
+			//		Event fired on anchor mousedown
+		},
+		
+		onAnchorDrag: function(/*Anchor*/anchor){
+			// summary:
+			//		Event fired when anchor is moved
+		},
+		
+		onChangeStyle: function(/*Object*/stencil){
+			// summary:
+			//		if the Stencil changes color while were's selected
+			//		this moves the anchors to the back. Fix it.
+			
+			for(var nm in this.items){
+				dojo.forEach(this.items[nm].anchors, function(a){
+					a.shape.moveToFront();
+				});
+			}
+		},
+		
+		add: function(/*Stencil*/item){
+			// summary:
+			//		Creates anchor points on a Stencil, based on the
+			//		Stencil's points.
+
+			this.items[item.id] = {
+				item:item,
+				anchors:[]
+			};
+			if(item.anchorType=="none"){ return; }
+			var pts = item.points;
+			dojo.forEach(pts, function(p, i){
+				if(p.noAnchor){ return; }
+				if(i==0 || i == item.points.length-1){
+					console.log("ITEM TYPE:", item.type, item.shortType);
+				}
+				var a = new Anchor({stencil:item, point:p, pointIdx:i, mouse:this.mouse, util:this.util});
+				this.items[item.id]._cons = [
+					dojo.connect(a, "onRenderStencil", this, "onRenderStencil"),
+					dojo.connect(a, "reset", this, "onReset"),
+					dojo.connect(a, "onAnchorUp", this, "onAnchorUp"),
+					dojo.connect(a, "onAnchorDown", this, "onAnchorDown"),
+					dojo.connect(a, "onAnchorDrag", this, "onAnchorDrag"),
+					dojo.connect(a, "onTransformPoint", this, "onTransformPoint"),
+					// FIXME: this will fire for each anchor. yech.
+					dojo.connect(item, "onChangeStyle", this, "onChangeStyle")
+				];
+				
+				this.items[item.id].anchors.push(a);
+				this.onAddAnchor(a);
+			}, this);
+			
+			if(item.shortType=="path"){
+				// check if we have a double-point of a closed-curve-path
+				var f = pts[0], l = pts[pts.length-1], a = this.items[item.id].anchors;
+				if(f.x ==l.x && f.y==l.y){
+					console.warn("LINK ANVHROS", a[0], a[a.length-1]);
+					a[0].linkedAnchor = a[a.length-1];
+					a[a.length-1].linkedAnchor = a[0];
+				}
+			}
+			
+			if(item.anchorType=="group"){
+				dojo.forEach(this.items[item.id].anchors, function(anchor){
+					dojo.forEach(this.items[item.id].anchors, function(a){
+						if(anchor.id != a.id){
+							if(anchor.org.y == a.org.y){
+								anchor.x_anchor = a;
+							}else if(anchor.org.x == a.org.x){
+								anchor.y_anchor = a;
+							}
+						}
+					},this);
+				},this);
+				
+			}
+		},
+		
+		remove: function(/*Stencil*/item){
+			// summary:
+			//		Destroys the anchor points for a Stencil.
+
+			if(!this.items[item.id]){
+				return;
+			}
+			dojo.forEach(this.items[item.id].anchors, function(a){
+				a.destroy();
+			});
+			dojo.forEach(this.items[item.id]._cons, dojo.disconnect, dojo);
+			this.items[item.id].anchors = null;
+			delete this.items[item.id];
 		}
 	}
 );

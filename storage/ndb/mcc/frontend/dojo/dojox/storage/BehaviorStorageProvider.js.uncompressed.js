@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/storage/BehaviorStorageProvider", ["dijit","dojo","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"], function(dijit,dojo,dojox){
+define("dojox/storage/BehaviorStorageProvider", ["dojo","dijit","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"], function(dojo,dijit,dojox){
 dojo.provide("dojox.storage.BehaviorStorageProvider");
 
 dojo.require("dojox.storage.Provider");

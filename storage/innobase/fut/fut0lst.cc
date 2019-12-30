@@ -37,11 +37,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0page.h"
 
 /** Adds a node to an empty list. */
-static void flst_add_to_empty(
-    flst_base_node_t *base, /*!< in: pointer to base node of
-                            empty list */
-    flst_node_t *node,      /*!< in: node to add */
-    mtr_t *mtr)             /*!< in: mini-transaction handle */
+static void flst_add_to_empty(flst_base_node_t *base, /*!< in: pointer to base
+                                                      node of empty list */
+                              flst_node_t *node,      /*!< in: node to add */
+                              mtr_t *mtr) /*!< in: mini-transaction handle */
 {
   space_id_t space;
   fil_addr_t node_addr;

@@ -53,6 +53,7 @@
 	margin-left:24px;
 }
 .thumbWrapper img {
+    border: solid 2px transparent;
 	height: 75px;
 	max-width: 100px;
 	width: expression(this.width > 100 ? 100: true);
@@ -104,4 +105,8 @@
 }
 .thumbWrapper.thumbVert div {
 	padding-bottom: 2px;
+}
+.Thumbnail:hover img,
+.ThumbnailSelected img {    
+    border-color: #F4D061;
 }

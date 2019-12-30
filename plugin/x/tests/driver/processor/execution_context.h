@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,7 @@ class Execution_context {
 
   Options m_options;
   std::string m_command_name;
+  std::string m_command_arguments;
   Connection_manager *m_connection;
   Script_stack m_script_stack;
   Variable_container *m_variables;

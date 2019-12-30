@@ -1,7 +1,8 @@
 //>>built
-require({cache:{"url:dijit/templates/Menu.html":"<table class=\"dijit dijitMenu dijitMenuPassive dijitReset dijitMenuTable\" role=\"menu\" tabIndex=\"${tabIndex}\" data-dojo-attach-event=\"onkeypress:_onKeyPress\" cellspacing=\"0\">\n\t<tbody class=\"dijitReset\" data-dojo-attach-point=\"containerNode\"></tbody>\n</table>\n"}});
+require({cache:{"url:dijit/templates/Menu.html":"<table class=\"dijit dijitMenu dijitMenuPassive dijitReset dijitMenuTable\" role=\"menu\" tabIndex=\"${tabIndex}\"\n\t   data-dojo-attach-event=\"onkeypress:_onKeyPress\" cellspacing=\"0\">\n\t<tbody class=\"dijitReset\" data-dojo-attach-point=\"containerNode\"></tbody>\n</table>\n"}});
 define("dijit/DropDownMenu",["dojo/_base/declare","dojo/_base/event","dojo/keys","dojo/text!./templates/Menu.html","./_OnDijitClickMixin","./_MenuBase"],function(_1,_2,_3,_4,_5,_6){
 return _1("dijit.DropDownMenu",[_6,_5],{templateString:_4,baseClass:"dijitMenu",postCreate:function(){
+this.inherited(arguments);
 var l=this.isLeftToRight();
 this._openSubMenuKey=l?_3.RIGHT_ARROW:_3.LEFT_ARROW;
 this._closeSubMenuKey=l?_3.LEFT_ARROW:_3.RIGHT_ARROW;

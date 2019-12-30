@@ -1501,7 +1501,7 @@ class PFS_key_name : public PFS_key_string<NAME_CHAR_LEN> {
 
   ~PFS_key_name() {}
 
-  bool match(const LEX_STRING *name);
+  bool match(const LEX_CSTRING *name);
   bool match(const char *name, size_t name_length);
   bool match_not_null(const LEX_STRING *name);
   bool match_not_null(const char *name, size_t name_length);

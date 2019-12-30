@@ -25,14 +25,23 @@
 #ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_PROTOCOL_ENCODER_INTERFACE_H_
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_PROTOCOL_ENCODER_INTERFACE_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/encode_column_info.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
-#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 #include "plugin/x/ngs/include/ngs/protocol_flusher.h"
+
+namespace protocol {
+
+class XRow_encoder;
+class XProtocol_encoder;
+class XMessage_encoder;
+
+}  // namespace protocol
 
 namespace ngs {
 
@@ -57,33 +66,6 @@ enum class Frame_type {
   k_server_hello = Mysqlx::Notice::Frame_Type_SERVER_HELLO
 };
 
-struct Encode_column_info {
-  const char *m_catalog = "";
-  const char *m_db_name = "";
-  const char *m_table_name = "";
-  const char *m_org_table_name = "";
-  const char *m_col_name = "";
-  const char *m_org_col_name = "";
-
-  uint64_t m_collation{0};
-  bool m_has_collation{false};
-
-  int32_t m_type{0};
-
-  int32_t m_decimals{0};
-  int32_t m_has_decimals{false};
-
-  uint32_t m_flags{0};
-  bool m_has_flags{false};
-
-  uint32_t m_length{0};
-  bool m_has_length{false};
-
-  uint32_t m_content_type{0};
-
-  bool m_compact{true};
-};
-
 class Protocol_encoder_interface {
  public:
   virtual ~Protocol_encoder_interface() = default;
@@ -92,9 +74,16 @@ class Protocol_encoder_interface {
 
   virtual bool send_ok() = 0;
   virtual bool send_ok(const std::string &message) = 0;
-  virtual bool send_init_error(const Error_code &error_code) = 0;
+  virtual bool send_error(const Error_code &error_code,
+                          const bool init_error = false) = 0;
 
-  virtual void send_rows_affected(uint64_t value) = 0;
+  virtual void send_notice_rows_affected(const uint64_t value) = 0;
+  virtual void send_notice_client_id(const uint64_t id) = 0;
+  virtual void send_notice_last_insert_id(const uint64_t id) = 0;
+  virtual void send_notice_account_expired() = 0;
+  virtual void send_notice_generated_document_ids(
+      const std::vector<std::string> &ids) = 0;
+  virtual void send_notice_txt_message(const std::string &message) = 0;
 
   virtual bool send_notice(const Frame_type type, const Frame_scope scope,
                            const std::string &data,
@@ -110,19 +99,21 @@ class Protocol_encoder_interface {
   virtual bool send_result_fetch_done_more_out_params() = 0;
   virtual bool send_column_metadata(const Encode_column_info *column_info) = 0;
 
-  virtual Row_builder &row_builder() = 0;
+  virtual protocol::XRow_encoder *row_builder() = 0;
+  virtual protocol::XMessage_encoder *raw_encoder() = 0;
   virtual void start_row() = 0;
   virtual void abort_row() = 0;
   // sends the row that was written directly into Encoder's buffer
   virtual bool send_row() = 0;
 
-  virtual Page_output_stream *get_buffer() = 0;
-  virtual Protocol_flusher *get_flusher() = 0;
+  virtual xpl::iface::Protocol_flusher *get_flusher() = 0;
+  virtual std::unique_ptr<xpl::iface::Protocol_flusher> set_flusher(
+      std::unique_ptr<xpl::iface::Protocol_flusher> flusher) = 0;
   virtual Metadata_builder *get_metadata_builder() = 0;
   virtual Protocol_monitor_interface &get_protocol_monitor() = 0;
 
-  virtual bool send_message(uint8_t type, const Message &message,
-                            bool force_buffer_flush = false) = 0;
+  virtual bool send_protobuf_message(const uint8_t type, const Message &message,
+                                     bool force_buffer_flush = false) = 0;
   virtual void on_error(int error) = 0;
 };
 

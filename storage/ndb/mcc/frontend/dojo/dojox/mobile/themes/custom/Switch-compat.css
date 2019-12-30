@@ -1,56 +1,109 @@
 
-.mblSwitchBg {
-	-moz-border-radius: 2px;
-	-o-border-radius: 2px;
-	-ms-border-radius: 2px;
-	border-radius: 2px;
-	-moz-box-sizing: border-box;
-	-o-box-sizing: border-box;
-	-ms-box-sizing: border-box;
-	box-sizing: border-box;
+.dj_gecko .mblSwitchBg {
+  -moz-box-sizing: border-box;
 }
-.mblSwitchBgLeft {
-	background-image: url(compat/ui-widget-bg.png);
+.dj_gecko .mblSwitchKnob {
+  -moz-box-sizing: border-box;
 }
-.mblSwitchBgRight {
-	background-image: url(compat/ui-widget-bg.png);
+.dj_gecko .mblSwitch .mblSwitchBgLeft {
+  background-image: -moz-linear-gradient(top, #bbbbbb 0%, #666666 100%);
 }
-.mblSwitchKnob {
-	background-image: url(compat/ui-widget-bg.png);
-	-moz-border-radius: 2px;
-	-o-border-radius: 2px;
-	-ms-border-radius: 2px;
-	border-radius: 2px;
-	-moz-box-sizing: border-box;
-	-o-box-sizing: border-box;
-	-ms-box-sizing: border-box;
-	box-sizing: border-box;
+.dj_gecko .mblSwitch .mblSwitchBgRight {
+  background-image: -moz-linear-gradient(top, #ffffff 0%, #e2e2e2 100%);
 }
-.mblSwRoundShape1 .mblSwitchBg,
+.dj_gecko .mblSwitch .mblSwitchKnob {
+  background-image: -moz-linear-gradient(top, #e2e2e2 0%, #a4a4a4 100%);
+}
+.dj_ie .mblSwitchBg {
+  border: none;
+  background: none;
+}
+.dj_ie .mblSwitchBgLeft {
+  background-repeat: no-repeat;
+}
+.dj_ie .mblSwitchBgRight {
+  background-repeat: no-repeat;
+}
+.dj_ie .mblSwitchKnob {
+  background: none;
+  background-repeat: no-repeat;
+  border: none;
+}
+.mblSwSquareShape .mblSwitchBg {
+  -moz-border-radius: 2px;
+}
+.mblSwSquareShape .mblSwitchBgLeft {
+  background-image: url(compat/switch-square-l.gif);
+}
+.mblSwSquareShape .mblSwitchBgRight {
+  background-image: url(compat/switch-square-r.gif);
+}
+.mblSwSquareShape .mblSwitchKnob {
+  -moz-border-radius: 2px;
+  background-image: url(compat/switch-square-k.gif);
+}
+.mblSwRoundShape1 .mblSwitchBg {
+  -moz-border-radius: 14px;
+}
+.mblSwRoundShape1 .mblSwitchBgLeft {
+  background-image: url(compat/switch-round1-l.gif);
+}
+.mblSwRoundShape1 .mblSwitchBgRight {
+  background-image: url(compat/switch-round1-r.gif);
+}
+.mblSwRoundShape1 .mblSwitchKnob {
+  -moz-border-radius: 13px;
+  background-image: url(compat/switch-round1-k.gif);
+}
 .mblSwRoundShape2 .mblSwitchBg {
-	-moz-border-radius: 14px;
-	-o-border-radius: 14px;
-	-ms-border-radius: 14px;
-	border-radius: 14px;
+  -moz-border-radius: 14px;
 }
-.mblSwRoundShape1 .mblSwitchKnob,
+.mblSwRoundShape2 .mblSwitchBgLeft {
+  background-image: url(compat/switch-round2-l.gif);
+}
+.mblSwRoundShape2 .mblSwitchBgRight {
+  background-image: url(compat/switch-round2-r.gif);
+}
 .mblSwRoundShape2 .mblSwitchKnob {
-	-moz-border-radius: 13px;
-	-o-border-radius: 13px;
-	-ms-border-radius: 13px;
-	border-radius: 13px;
+  -moz-border-radius: 13px;
+  background-image: url(compat/switch-round2-k.gif);
 }
-.mblSwArcShape1 .mblSwitchBg,
+.mblSwArcShape1 .mblSwitchBg {
+  -moz-border-radius: 5px/14px;
+}
+.mblSwArcShape1 .mblSwitchBgLeft {
+  background-image: url(compat/switch-arc1-l.gif);
+}
+.mblSwArcShape1 .mblSwitchBgRight {
+  background-image: url(compat/switch-arc1-r.gif);
+}
+.mblSwArcShape1 .mblSwitchKnob {
+  -moz-border-radius: 5px/13px;
+  background-image: url(compat/switch-arc1-k.gif);
+}
 .mblSwArcShape2 .mblSwitchBg {
-	-moz-border-radius: 6px/14px;
-	-o-border-radius: 6px/14px;
-	-ms-border-radius: 6px/14px;
-	border-radius: 6px/14px;
+  -moz-border-radius: 5px/14px;
 }
-.mblSwArcShape1 .mblSwitchKnob,
+.mblSwArcShape2 .mblSwitchBgLeft {
+  background-image: url(compat/switch-arc2-l.gif);
+}
+.mblSwArcShape2 .mblSwitchBgRight {
+  background-image: url(compat/switch-arc2-r.gif);
+}
 .mblSwArcShape2 .mblSwitchKnob {
-	-moz-border-radius: 5px/13px;
-	-o-border-radius: 5px/13px;
-	-ms-border-radius: 5px/13px;
-	border-radius: 5px/13px;
+  -moz-border-radius: 5px/13px;
+  background-image: url(compat/switch-arc2-k.gif);
+}
+.mblSwDefaultShape .mblSwitchBg {
+  -moz-border-radius: 2px;
+}
+.mblSwDefaultShape .mblSwitchBgLeft {
+  background-image: url(compat/switch-square-l.gif);
+}
+.mblSwDefaultShape .mblSwitchBgRight {
+  background-image: url(compat/switch-square-r.gif);
+}
+.mblSwDefaultShape .mblSwitchKnob {
+  -moz-border-radius: 2px;
+  background-image: url(compat/switch-square-k.gif);
 }

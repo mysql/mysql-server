@@ -1,19 +1,19 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/xmpp/bosh,dojox/xmpp/util,dojox/data/dom"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.TransportSession");
-_2.require("dojox.xmpp.bosh");
-_2.require("dojox.xmpp.util");
-_2.require("dojox.data.dom");
+define("dojox/xmpp/TransportSession",["dojo","dijit","dojox","dojo/require!dojox/xmpp/bosh,dojox/xmpp/util,dojox/data/dom"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.TransportSession");
+_1.require("dojox.xmpp.bosh");
+_1.require("dojox.xmpp.util");
+_1.require("dojox.data.dom");
 _3.xmpp.TransportSession=function(_4){
 this.sendTimeout=(this.wait+20)*1000;
-if(_4&&_2.isObject(_4)){
-_2.mixin(this,_4);
+if(_4&&_1.isObject(_4)){
+_1.mixin(this,_4);
 if(this.useScriptSrcTransport){
 this.transportIframes=[];
 }
 }
 };
-_2.extend(_3.xmpp.TransportSession,{rid:0,hold:1,polling:1000,secure:false,wait:60,lang:"en",submitContentType:"text/xml; charset=utf=8",serviceUrl:"/httpbind",defaultResource:"dojoIm",domain:"imserver.com",sendTimeout:0,useScriptSrcTransport:false,keepAliveTimer:null,state:"NotReady",transmitState:"Idle",protocolPacketQueue:[],outboundQueue:[],outboundRequests:{},inboundQueue:[],deferredRequests:{},matchTypeIdAttribute:{},open:function(){
+_1.extend(_3.xmpp.TransportSession,{rid:0,hold:1,polling:1000,secure:false,wait:60,lang:"en",submitContentType:"text/xml; charset=utf=8",serviceUrl:"/httpbind",defaultResource:"dojoIm",domain:"imserver.com",sendTimeout:0,useScriptSrcTransport:false,keepAliveTimer:null,state:"NotReady",transmitState:"Idle",protocolPacketQueue:[],outboundQueue:[],outboundRequests:{},inboundQueue:[],deferredRequests:{},matchTypeIdAttribute:{},open:function(){
 this.status="notReady";
 this.rid=Math.round(Math.random()*1000000000);
 this.protocolPacketQueue=[];
@@ -22,9 +22,9 @@ this.outboundRequests={};
 this.inboundQueue=[];
 this.deferredRequests={};
 this.matchTypeIdAttribute={};
-this.keepAliveTimer=setTimeout(_2.hitch(this,"_keepAlive"),10000);
+this.keepAliveTimer=setTimeout(_1.hitch(this,"_keepAlive"),10000);
 if(this.useScriptSrcTransport){
-_3.xmpp.bosh.initialize({iframes:this.hold+1,load:_2.hitch(this,function(){
+_3.xmpp.bosh.initialize({iframes:this.hold+1,load:_1.hitch(this,function(){
 this._sendLogin();
 })});
 }else{
@@ -51,7 +51,7 @@ if(this.state=="wait"||this.isTerminated()){
 return;
 }
 this._dispatchPacket();
-this.keepAliveTimer=setTimeout(_2.hitch(this,"_keepAlive"),10000);
+this.keepAliveTimer=setTimeout(_1.hitch(this,"_keepAlive"),10000);
 },close:function(_e){
 var _f=this.rid++;
 var req={sid:this.sid,rid:_f,type:"terminate"};
@@ -69,7 +69,7 @@ this.state=="Terminate";
 if(msg){
 this.protocolPacketQueue.push(msg);
 }
-var def=new _2.Deferred();
+var def=new _1.Deferred();
 if(_11&&_12){
 def.protocolMatchType=_11;
 def.matchId=_12;
@@ -80,7 +80,7 @@ this.matchTypeIdAttribute[_11]=def.matchProperty;
 }
 this.deferredRequests[def.protocolMatchType+"-"+def.matchId]=def;
 if(!this.dispatchTimer){
-this.dispatchTimer=setTimeout(_2.hitch(this,"_dispatchPacket"),600);
+this.dispatchTimer=setTimeout(_1.hitch(this,"_dispatchPacket"),600);
 }
 return def;
 },_dispatchPacket:function(){
@@ -110,7 +110,7 @@ delete this.lastPollTime;
 if(this.lastPollTime){
 var now=new Date().getTime();
 if(now-this.lastPollTime<this.polling){
-this.dispatchTimer=setTimeout(_2.hitch(this,"_dispatchPacket"),this.polling-(now-this.lastPollTime)+10);
+this.dispatchTimer=setTimeout(_1.hitch(this,"_dispatchPacket"),this.polling-(now-this.lastPollTime)+10);
 return;
 }
 }
@@ -148,12 +148,12 @@ return false;
 this.transmitState="transmitting";
 var def=null;
 if(this.useScriptSrcTransport){
-def=_3.xmpp.bosh.get({rid:rid,url:this.serviceUrl+"?"+encodeURIComponent(_16),error:_2.hitch(this,function(res,io){
+def=_3.xmpp.bosh.get({rid:rid,url:this.serviceUrl+"?"+encodeURIComponent(_16),error:_1.hitch(this,function(res,io){
 this.setState("Terminate","error");
 return false;
 }),timeout:this.sendTimeout});
 }else{
-def=_2.rawXhrPost({contentType:"text/xml",url:this.serviceUrl,postData:_16,handleAs:"xml",error:_2.hitch(this,function(res,io){
+def=_1.rawXhrPost({contentType:"text/xml",url:this.serviceUrl,postData:_16,handleAs:"xml",error:_1.hitch(this,function(res,io){
 return this.processError(io.xhr.responseXML,io.xhr.status,rid);
 }),timeout:this.sendTimeout});
 }
@@ -228,7 +228,7 @@ this.polling=parseInt(_1a.getAttribute("polling"))*1000;
 this.inactivity=_1a.getAttribute("inactivity");
 this.setState("Ready");
 }
-_2.forEach(_1a.childNodes,function(_1d){
+_1.forEach(_1a.childNodes,function(_1d){
 this.processProtocolResponse(_1d,rid);
 },this);
 if(this.transmitState=="idle"){
@@ -261,7 +261,7 @@ this.setState("Terminate",_21);
 return false;
 }else{
 this.removeFromOutboundQueue(rid);
-setTimeout(_2.hitch(this,function(){
+setTimeout(_1.hitch(this,function(){
 this.dispatchPacket();
 }),200);
 return true;
@@ -283,7 +283,7 @@ return false;
 }
 }
 this.transmitState="error";
-setTimeout(_2.hitch(this,function(){
+setTimeout(_1.hitch(this,function(){
 this.dispatchPacket();
 }),200);
 return true;

@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dijit/templates/Tooltip.html':"<div class=\"dijitTooltip dijitTooltipLeft\" id=\"dojoTooltip\"\n\t><div class=\"dijitTooltipContainer dijitTooltipContents\" data-dojo-attach-point=\"containerNode\" role='alert'></div\n\t><div class=\"dijitTooltipConnector\" data-dojo-attach-point=\"connectorNode\"></div\n></div>\n"}});
 define("dijit/Tooltip", [
@@ -7,32 +6,33 @@ define("dijit/Tooltip", [
 	"dojo/_base/fx", // fx.fadeIn fx.fadeOut
 	"dojo/dom", // dom.byId
 	"dojo/dom-class", // domClass.add
-	"dojo/dom-geometry", // domGeometry.getMarginBox domGeometry.position
+	"dojo/dom-geometry", // domGeometry.position
 	"dojo/dom-style", // domStyle.set, domStyle.get
 	"dojo/_base/lang", // lang.hitch lang.isArrayLike
-	"dojo/_base/sniff", // has("ie")
-	"dojo/_base/window", // win.body
+	"dojo/mouse",
+	"dojo/on",
+	"dojo/sniff", // has("ie"), has("trident")
 	"./_base/manager",	// manager.defaultDuration
 	"./place",
 	"./_Widget",
 	"./_TemplatedMixin",
 	"./BackgroundIframe",
 	"dojo/text!./templates/Tooltip.html",
-	"."		// sets dijit.showTooltip etc. for back-compat
-], function(array, declare, fx, dom, domClass, domGeometry, domStyle, lang, has, win,
+	"./main"		// sets dijit.showTooltip etc. for back-compat
+], function(array, declare, fx, dom, domClass, domGeometry, domStyle, lang, mouse, on, has,
 			manager, place, _Widget, _TemplatedMixin, BackgroundIframe, template, dijit){
-
-/*=====
-	var _Widget = dijit._Widget;
-	var BackgroundIframe = dijit.BackgroundIframe;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-=====*/
 
 	// module:
 	//		dijit/Tooltip
-	// summary:
-	//		Defines dijit.Tooltip widget (to display a tooltip), showTooltip()/hideTooltip(), and _MasterTooltip
 
+
+	// TODO: Tooltip should really share more positioning code with TooltipDialog, like:
+	//		- the orient() method
+	//		- the connector positioning code in show()
+	//		- the dijitTooltip[Dialog] class
+	//
+	// The problem is that Tooltip's implementation supplies it's own <iframe> and interacts directly
+	// with dijit/place, rather than going through dijit/popup like TooltipDialog and other popups (ex: Menu).
 
 	var MasterTooltip = declare("dijit._MasterTooltip", [_Widget, _TemplatedMixin], {
 		// summary:
@@ -50,7 +50,7 @@ define("dijit/Tooltip", [
 		templateString: template,
 
 		postCreate: function(){
-			win.body().appendChild(this.domNode);
+			this.ownerDocumentBody.appendChild(this.domNode);
 
 			this.bgIframe = new BackgroundIframe(this.domNode);
 
@@ -65,7 +65,7 @@ define("dijit/Tooltip", [
 			//		(To left if there's no space on the right, or if rtl == true)
 			// innerHTML: String
 			//		Contents of the tooltip
-			// aroundNode: DomNode || dijit.__Rectangle
+			// aroundNode: DomNode|dijit/place.__Rectangle
 			//		Specifies that tooltip should be next to this node / area
 			// position: String[]?
 			//		List of positions to try to position tooltip (ex: ["right", "above"])
@@ -80,17 +80,17 @@ define("dijit/Tooltip", [
 				return;
 			}
 
-			// reset width; it may have been set by orient() on a previous tooltip show()
-			this.domNode.width = "auto";
-
 			if(this.fadeOut.status() == "playing"){
 				// previous tooltip is being hidden; wait until the hide completes then show new one
 				this._onDeck=arguments;
 				return;
 			}
 			this.containerNode.innerHTML=innerHTML;
-			
-			this.set("textDir", textDir);
+
+			if(textDir){
+				this.set("textDir", textDir);
+			}
+
 			this.containerNode.align = rtl? "right" : "left"; //fix the text alignment
 
 			var pos = place.around(this.domNode, aroundNode,
@@ -104,6 +104,10 @@ define("dijit/Tooltip", [
 				this.connectorNode.style.left = "";
 			}else if(pos.corner.charAt(1) == 'M' && pos.aroundCorner.charAt(1) == 'M'){
 				this.connectorNode.style.left = aroundNodeCoords.x + ((aroundNodeCoords.w - this.connectorNode.offsetWidth) >> 1) - pos.x + "px";
+			}else{
+				// Not *-centered, but just above/below/after/before
+				this.connectorNode.style.left = "";
+				this.connectorNode.style.top = "";
 			}
 
 			// show it
@@ -120,10 +124,11 @@ define("dijit/Tooltip", [
 			//		width to whatever width is available
 			// tags:
 			//		protected
+
 			this.connectorNode.style.top = ""; //reset to default
 
-			//Adjust the spaceAvailable width, without changing the spaceAvailable object
-			var tooltipSpaceAvaliableWidth = spaceAvailable.w - this.connectorNode.offsetWidth;
+			var heightAvailable = spaceAvailable.h,
+				widthAvailable = spaceAvailable.w;
 
 			node.className = "dijitTooltip " +
 				{
@@ -139,33 +144,29 @@ define("dijit/Tooltip", [
 					"BL-BR": "dijitTooltipLeft"
 				}[aroundCorner + "-" + tooltipCorner];
 
-			// reduce tooltip's width to the amount of width available, so that it doesn't overflow screen
+			// reset width; it may have been set by orient() on a previous tooltip show()
 			this.domNode.style.width = "auto";
-			var size = domGeometry.getContentBox(this.domNode);
 
-			var width = Math.min((Math.max(tooltipSpaceAvaliableWidth,1)), size.w);
-			var widthWasReduced = width < size.w;
-
-			this.domNode.style.width = width+"px";
-
-			//Adjust width for tooltips that have a really long word or a nowrap setting
-			if(widthWasReduced){
-				this.containerNode.style.overflow = "auto"; //temp change to overflow to detect if our tooltip needs to be wider to support the content
-				var scrollWidth = this.containerNode.scrollWidth;
-				this.containerNode.style.overflow = "visible"; //change it back
-				if(scrollWidth > width){
-					scrollWidth = scrollWidth + domStyle.get(this.domNode,"paddingLeft") + domStyle.get(this.domNode,"paddingRight");
-					this.domNode.style.width = scrollWidth + "px";
-				}
+			// Reduce tooltip's width to the amount of width available, so that it doesn't overflow screen.
+			// Note that sometimes widthAvailable is negative, but we guard against setting style.width to a
+			// negative number since that causes an exception on IE.
+			var size = domGeometry.position(this.domNode);
+			if(has("ie") || has("trident")){
+				// workaround strange IE bug where setting width to offsetWidth causes words to wrap
+				size.w += 2;
 			}
+
+			var width = Math.min((Math.max(widthAvailable,1)), size.w);
+
+			domGeometry.setMarginBox(this.domNode, {w: width});
 
 			// Reposition the tooltip connector.
 			if(tooltipCorner.charAt(0) == 'B' && aroundCorner.charAt(0) == 'B'){
-				var mb = domGeometry.getMarginBox(node);
+				var bb = domGeometry.position(node);
 				var tooltipConnectorHeight = this.connectorNode.offsetHeight;
-				if(mb.h > spaceAvailable.h){
+				if(bb.h > heightAvailable){
 					// The tooltip starts at the top of the page and will extend past the aroundNode
-					var aroundNodePlacement = spaceAvailable.h - ((aroundNodeCoords.h + tooltipConnectorHeight) >> 1);
+					var aroundNodePlacement = heightAvailable - ((aroundNodeCoords.h + tooltipConnectorHeight) >> 1);
 					this.connectorNode.style.top = aroundNodePlacement + "px";
 					this.connectorNode.style.bottom = "";
 				}else{
@@ -174,7 +175,7 @@ define("dijit/Tooltip", [
 					// extend past top of tooltip content
 					this.connectorNode.style.bottom = Math.min(
 						Math.max(aroundNodeCoords.h/2 - tooltipConnectorHeight/2, 0),
-						mb.h - tooltipConnectorHeight) + "px";
+						bb.h - tooltipConnectorHeight) + "px";
 					this.connectorNode.style.top = "";
 				}
 			}else{
@@ -183,7 +184,7 @@ define("dijit/Tooltip", [
 				this.connectorNode.style.bottom = "";
 			}
 
-			return Math.max(0, size.w - tooltipSpaceAvaliableWidth);
+			return Math.max(0, size.w - widthAvailable);
 		},
 
 		_onShow: function(){
@@ -230,43 +231,44 @@ define("dijit/Tooltip", [
 				this._onDeck=null;
 			}
 		},
-		
-		_setAutoTextDir: function(/*Object*/node){
-		    // summary:
-		    //	    Resolve "auto" text direction for children nodes
-		    // tags:
-		    //		private
 
-            this.applyTextDir(node, has("ie") ? node.outerText : node.textContent);
-            array.forEach(node.children, function(child){this._setAutoTextDir(child); }, this);
+		_setAutoTextDir: function(/*Object*/node){
+			// summary:
+			//		Resolve "auto" text direction for children nodes
+			// tags:
+			//		private
+
+			this.applyTextDir(node, has("ie") ? node.outerText : node.textContent);
+			array.forEach(node.children, function(child){this._setAutoTextDir(child); }, this);
 		},
-		
+
 		_setTextDirAttr: function(/*String*/ textDir){
-		    // summary:
-		    //		Setter for textDir.
-		    // description:
-		    //		Users shouldn't call this function; they should be calling
-		    //		set('textDir', value)
-		    // tags:
-		    //		private
-	
-            this._set("textDir", typeof textDir != 'undefined'? textDir : "");
-    	    if (textDir == "auto"){
-    	        this._setAutoTextDir(this.containerNode);
-    	    }else{
-    	        this.containerNode.dir = this.textDir;
-    	    }  		             		        
-        }
+			// summary:
+			//		Setter for textDir.
+			// description:
+			//		Users shouldn't call this function; they should be calling
+			//		set('textDir', value)
+			// tags:
+			//		private
+
+			this._set("textDir", textDir);
+
+			if (textDir == "auto"){
+				this._setAutoTextDir(this.containerNode);
+			}else{
+				this.containerNode.dir = this.textDir;
+			}
+		}
 	});
 
 	dijit.showTooltip = function(innerHTML, aroundNode, position, rtl, textDir){
 		// summary:
 		//		Static method to display tooltip w/specified contents in specified position.
-		//		See description of dijit.Tooltip.defaultPosition for details on position parameter.
-		//		If position is not specified then dijit.Tooltip.defaultPosition is used.
+		//		See description of dijit/Tooltip.defaultPosition for details on position parameter.
+		//		If position is not specified then dijit/Tooltip.defaultPosition is used.
 		// innerHTML: String
 		//		Contents of the tooltip
-		// aroundNode: dijit.__Rectangle
+		// aroundNode: place.__Rectangle
 		//		Specifies that tooltip should be next to this node / area
 		// position: String[]?
 		//		List of positions to try to position tooltip (ex: ["right", "above"])
@@ -275,6 +277,15 @@ define("dijit/Tooltip", [
 		//		means "rtl"; specifies GUI direction, not text direction.
 		// textDir: String?
 		//		Corresponds to `WidgetBase.textdir` attribute; specifies direction of text.
+
+		// After/before don't work, but for back-compat convert them to the working after-centered, before-centered.
+		// Possibly remove this in 2.0.   Alternately, get before/after to work.
+		if(position){
+			position = array.map(position, function(val){
+				return {after: "after-centered", before: "before-centered"}[val] || val;
+			});
+		}
+
 		if(!Tooltip._masterTT){ dijit._masterTT = Tooltip._masterTT = new MasterTooltip(); }
 		return Tooltip._masterTT.show(innerHTML, aroundNode, position, rtl, textDir);
 	};
@@ -288,6 +299,7 @@ define("dijit/Tooltip", [
 	var Tooltip = declare("dijit.Tooltip", _Widget, {
 		// summary:
 		//		Pops up a tooltip (a help message) when you hover over a node.
+		//		Also provides static show() and hide() methods that can be used without instantiating a dijit/Tooltip.
 
 		// label: String
 		//		Text to display in the tooltip.
@@ -299,43 +311,64 @@ define("dijit/Tooltip", [
 		//		the tooltip is displayed.
 		showDelay: 400,
 
-		// connectId: String|String[]
+		// connectId: String|String[]|DomNode|DomNode[]
 		//		Id of domNode(s) to attach the tooltip to.
-		//		When user hovers over specified dom node, the tooltip will appear.
+		//		When user hovers over specified dom node(s), the tooltip will appear.
 		connectId: [],
 
 		// position: String[]
-		//		See description of `dijit.Tooltip.defaultPosition` for details on position parameter.
+		//		See description of `dijit/Tooltip.defaultPosition` for details on position parameter.
 		position: [],
 
-		_setConnectIdAttr: function(/*String|String[]*/ newId){
+		// selector: String?
+		//		CSS expression to apply this Tooltip to descendants of connectIds, rather than to
+		//		the nodes specified by connectIds themselves.    Useful for applying a Tooltip to
+		//		a range of rows in a table, tree, etc.   Use in conjunction with getContent() parameter.
+		//		Ex: connectId: myTable, selector: "tr", getContent: function(node){ return ...; }
+		//
+		//		The application must require() an appropriate level of dojo/query to handle the selector.
+		selector: "",
+
+		// TODO: in 2.0 remove support for multiple connectIds.   selector gives the same effect.
+		// So, change connectId to a "", remove addTarget()/removeTarget(), etc.
+
+		_setConnectIdAttr: function(/*String|String[]}DomNode|DomNode[]*/ newId){
 			// summary:
 			//		Connect to specified node(s)
 
 			// Remove connections to old nodes (if there are any)
 			array.forEach(this._connections || [], function(nested){
-				array.forEach(nested, lang.hitch(this, "disconnect"));
+				array.forEach(nested, function(handle){ handle.remove(); });
 			}, this);
 
 			// Make array of id's to connect to, excluding entries for nodes that don't exist yet, see startup()
 			this._connectIds = array.filter(lang.isArrayLike(newId) ? newId : (newId ? [newId] : []),
-					function(id){ return dom.byId(id); });
+					function(id){ return dom.byId(id, this.ownerDocument); }, this);
 
 			// Make connections
 			this._connections = array.map(this._connectIds, function(id){
-				var node = dom.byId(id);
+				var node = dom.byId(id, this.ownerDocument),
+					selector = this.selector,
+					delegatedEvent = selector ?
+						function(eventType){ return on.selector(selector, eventType); } :
+						function(eventType){ return eventType; },
+					self = this;
 				return [
-					this.connect(node, "onmouseenter", "_onHover"),
-					this.connect(node, "onmouseleave", "_onUnHover"),
-					this.connect(node, "onfocus", "_onHover"),
-					this.connect(node, "onblur", "_onUnHover")
+					on(node, delegatedEvent(mouse.enter), function(){
+						self._onHover(this);
+					}),
+					on(node, delegatedEvent("focusin"), function(){
+						self._onHover(this);
+					}),
+					on(node, delegatedEvent(mouse.leave), lang.hitch(self, "_onUnHover")),
+					on(node, delegatedEvent("focusout"), lang.hitch(self, "_onUnHover"))
 				];
 			}, this);
 
 			this._set("connectId", newId);
 		},
 
-		addTarget: function(/*DOMNODE || String*/ node){
+		addTarget: function(/*OomNode|String*/ node){
 			// summary:
 			//		Attach tooltip to specified node if it's not already connected
 
@@ -347,7 +380,7 @@ define("dijit/Tooltip", [
 			}
 		},
 
-		removeTarget: function(/*DomNode || String*/ node){
+		removeTarget: function(/*DomNode|String*/ node){
 			// summary:
 			//		Detach tooltip from specified node
 
@@ -376,49 +409,57 @@ define("dijit/Tooltip", [
 			array.forEach(lang.isArrayLike(ids) ? ids : [ids], this.addTarget, this);
 		},
 
-		_onHover: function(/*Event*/ e){
+		getContent: function(/*DomNode*/ node){
+			// summary:
+			//		User overridable function that return the text to display in the tooltip.
+			// tags:
+			//		extension
+			return this.label || this.domNode.innerHTML;
+		},
+
+		_onHover: function(/*DomNode*/ target){
 			// summary:
 			//		Despite the name of this method, it actually handles both hover and focus
 			//		events on the target node, setting a timer to show the tooltip.
 			// tags:
 			//		private
 			if(!this._showTimer){
-				var target = e.target;
-				this._showTimer = setTimeout(lang.hitch(this, function(){this.open(target)}), this.showDelay);
+				this._showTimer = this.defer(function(){ this.open(target); }, this.showDelay);
 			}
 		},
 
-		_onUnHover: function(/*Event*/ /*===== e =====*/){
+		_onUnHover: function(){
 			// summary:
 			//		Despite the name of this method, it actually handles both mouseleave and blur
 			//		events on the target node, hiding the tooltip.
 			// tags:
 			//		private
 
-			// keep a tooltip open if the associated element still has focus (even though the
-			// mouse moved away)
-			if(this._focus){ return; }
-
 			if(this._showTimer){
-				clearTimeout(this._showTimer);
+				this._showTimer.remove();
 				delete this._showTimer;
 			}
 			this.close();
 		},
 
 		open: function(/*DomNode*/ target){
- 			// summary:
+			// summary:
 			//		Display the tooltip; usually not called directly.
 			// tags:
 			//		private
 
 			if(this._showTimer){
-				clearTimeout(this._showTimer);
+				this._showTimer.remove();
 				delete this._showTimer;
 			}
-			Tooltip.show(this.label || this.domNode.innerHTML, target, this.position, !this.isLeftToRight(), this.textDir);
 
-			this._connectNode = target;
+			var content = this.getContent(target);
+			if(!content){
+				return;
+			}
+			Tooltip.show(content, target, this.position, !this.isLeftToRight(), this.textDir);
+
+			this._connectNode = target;		// _connectNode means "tooltip currently displayed for this node"
 			this.onShow(target, this.position);
 		},
 
@@ -436,7 +477,7 @@ define("dijit/Tooltip", [
 			}
 			if(this._showTimer){
 				// if tooltip is scheduled to be shown (after a brief delay)
-				clearTimeout(this._showTimer);
+				this._showTimer.remove();
 				delete this._showTimer;
 			}
 		},
@@ -455,8 +496,14 @@ define("dijit/Tooltip", [
 			//		callback
 		},
 
-		uninitialize: function(){
+		destroy: function(){
 			this.close();
+
+			// Remove connections manually since they aren't registered to be removed by _WidgetBase
+			array.forEach(this._connections || [], function(nested){
+				array.forEach(nested, function(handle){ handle.remove(); });
+			}, this);
+
 			this.inherited(arguments);
 		}
 	});
@@ -465,29 +512,31 @@ define("dijit/Tooltip", [
 	Tooltip.show = dijit.showTooltip;		// export function through module return value
 	Tooltip.hide = dijit.hideTooltip;		// export function through module return value
 
-	// dijit.Tooltip.defaultPosition: String[]
-	//		This variable controls the position of tooltips, if the position is not specified to
-	//		the Tooltip widget or *TextBox widget itself.  It's an array of strings with the following values:
-	//
-	//			* before: places tooltip to the left of the target node/widget, or to the right in
-	//			  the case of RTL scripts like Hebrew and Arabic
-	//			* after: places tooltip to the right of the target node/widget, or to the left in
-	//			  the case of RTL scripts like Hebrew and Arabic
-	//			* above: tooltip goes above target node
-	//			* below: tooltip goes below target node
-	//			* top: tooltip goes above target node but centered connector
-	//			* bottom: tooltip goes below target node but centered connector
-	//
-	//		The list is positions is tried, in order, until a position is found where the tooltip fits
-	//		within the viewport.
-	//
-	//		Be careful setting this parameter.  A value of "above" may work fine until the user scrolls
-	//		the screen so that there's no room above the target node.   Nodes with drop downs, like
-	//		DropDownButton or FilteringSelect, are especially problematic, in that you need to be sure
-	//		that the drop down and tooltip don't overlap, even when the viewport is scrolled so that there
-	//		is only room below (or above) the target node, but not both.
-	Tooltip.defaultPosition = ["after", "before"];
+	Tooltip.defaultPosition = ["after-centered", "before-centered"];
 
-
+	/*=====
+	lang.mixin(Tooltip, {
+		 // defaultPosition: String[]
+		 //		This variable controls the position of tooltips, if the position is not specified to
+		 //		the Tooltip widget or *TextBox widget itself.  It's an array of strings with the values
+		 //		possible for `dijit/place.around()`.   The recommended values are:
+		 //
+		 //		- before-centered: centers tooltip to the left of the anchor node/widget, or to the right
+		 //		  in the case of RTL scripts like Hebrew and Arabic
+		 //		- after-centered: centers tooltip to the right of the anchor node/widget, or to the left
+		 //		  in the case of RTL scripts like Hebrew and Arabic
+		 //		- above-centered: tooltip is centered above anchor node
+		 //		- below-centered: tooltip is centered above anchor node
+		 //
+		 //		The list is positions is tried, in order, until a position is found where the tooltip fits
+		 //		within the viewport.
+		 //
+		 //		Be careful setting this parameter.  A value of "above-centered" may work fine until the user scrolls
+		 //		the screen so that there's no room above the target node.   Nodes with drop downs, like
+		 //		DropDownButton or FilteringSelect, are especially problematic, in that you need to be sure
+		 //		that the drop down and tooltip don't overlap, even when the viewport is scrolled so that there
+		 //		is only room below (or above) the target node, but not both.
+	 });
+	=====*/
 	return Tooltip;
 });

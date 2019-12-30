@@ -297,12 +297,10 @@ this.tabbingOut=false;
 this.focusArea(-1,e);
 }
 },_delayedHeaderFocus:function(){
-if(this.isNavHeader()){
+if(this.isNavHeader()&&!_7("ie")){
 this.focusHeader();
 }
 },_delayedCellFocus:function(){
-this.currentArea("header",true);
-this.focusArea(this._currentAreaIdx);
 },_changeMenuBindNode:function(_33,_34){
 var hm=this.grid.headerMenu;
 if(hm&&this._contextMenuBindNode==_33){

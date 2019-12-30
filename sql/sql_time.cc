@@ -64,27 +64,27 @@
 
   @see interval_type, interval_names
 */
-const LEX_STRING interval_type_to_name[INTERVAL_LAST] = {
-    {C_STRING_WITH_LEN("YEAR")},
-    {C_STRING_WITH_LEN("QUARTER")},
-    {C_STRING_WITH_LEN("MONTH")},
-    {C_STRING_WITH_LEN("WEEK")},
-    {C_STRING_WITH_LEN("DAY")},
-    {C_STRING_WITH_LEN("HOUR")},
-    {C_STRING_WITH_LEN("MINUTE")},
-    {C_STRING_WITH_LEN("SECOND")},
-    {C_STRING_WITH_LEN("MICROSECOND")},
-    {C_STRING_WITH_LEN("YEAR_MONTH")},
-    {C_STRING_WITH_LEN("DAY_HOUR")},
-    {C_STRING_WITH_LEN("DAY_MINUTE")},
-    {C_STRING_WITH_LEN("DAY_SECOND")},
-    {C_STRING_WITH_LEN("HOUR_MINUTE")},
-    {C_STRING_WITH_LEN("HOUR_SECOND")},
-    {C_STRING_WITH_LEN("MINUTE_SECOND")},
-    {C_STRING_WITH_LEN("DAY_MICROSECOND")},
-    {C_STRING_WITH_LEN("HOUR_MICROSECOND")},
-    {C_STRING_WITH_LEN("MINUTE_MICROSECOND")},
-    {C_STRING_WITH_LEN("SECOND_MICROSECOND")}};
+const LEX_CSTRING interval_type_to_name[INTERVAL_LAST] = {
+    {STRING_WITH_LEN("YEAR")},
+    {STRING_WITH_LEN("QUARTER")},
+    {STRING_WITH_LEN("MONTH")},
+    {STRING_WITH_LEN("WEEK")},
+    {STRING_WITH_LEN("DAY")},
+    {STRING_WITH_LEN("HOUR")},
+    {STRING_WITH_LEN("MINUTE")},
+    {STRING_WITH_LEN("SECOND")},
+    {STRING_WITH_LEN("MICROSECOND")},
+    {STRING_WITH_LEN("YEAR_MONTH")},
+    {STRING_WITH_LEN("DAY_HOUR")},
+    {STRING_WITH_LEN("DAY_MINUTE")},
+    {STRING_WITH_LEN("DAY_SECOND")},
+    {STRING_WITH_LEN("HOUR_MINUTE")},
+    {STRING_WITH_LEN("HOUR_SECOND")},
+    {STRING_WITH_LEN("MINUTE_SECOND")},
+    {STRING_WITH_LEN("DAY_MICROSECOND")},
+    {STRING_WITH_LEN("HOUR_MICROSECOND")},
+    {STRING_WITH_LEN("MINUTE_MICROSECOND")},
+    {STRING_WITH_LEN("SECOND_MICROSECOND")}};
 
 /**
   Convert a string to 8-bit representation,
@@ -623,8 +623,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
 */
 void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str, uint dec) {
-  uint length = static_cast<uint>(
-      my_time_to_str(*l_time, const_cast<char *>(str->ptr()), dec));
+  uint length = static_cast<uint>(my_time_to_str(*l_time, str->ptr(), dec));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -637,8 +636,7 @@ void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
 */
 void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str) {
-  uint length = static_cast<uint>(
-      my_date_to_str(*l_time, const_cast<char *>(str->ptr())));
+  uint length = static_cast<uint>(my_date_to_str(*l_time, str->ptr()));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -652,8 +650,7 @@ void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
 */
 void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
                    const MYSQL_TIME *l_time, String *str, uint dec) {
-  uint length = static_cast<uint>(
-      my_datetime_to_str(*l_time, const_cast<char *>(str->ptr()), dec));
+  uint length = static_cast<uint>(my_datetime_to_str(*l_time, str->ptr(), dec));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -667,7 +664,7 @@ void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec) {
   if (str->alloc(MAX_DATE_STRING_REP_LENGTH)) return true;
   str->set_charset(&my_charset_numeric);
-  str->length(my_TIME_to_str(*ltime, const_cast<char *>(str->ptr()), dec));
+  str->length(my_TIME_to_str(*ltime, str->ptr(), dec));
   return false;
 }
 

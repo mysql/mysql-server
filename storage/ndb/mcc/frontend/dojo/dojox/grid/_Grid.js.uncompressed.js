@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/grid/resources/_Grid.html':"<div hidefocus=\"hidefocus\" role=\"grid\" dojoAttachEvent=\"onmouseout:_mouseOut\">\n\t<div class=\"dojoxGridMasterHeader\" dojoAttachPoint=\"viewsHeaderNode\" role=\"presentation\"></div>\n\t<div class=\"dojoxGridMasterView\" dojoAttachPoint=\"viewsNode\" role=\"presentation\"></div>\n\t<div class=\"dojoxGridMasterMessages\" style=\"display: none;\" dojoAttachPoint=\"messagesNode\"></div>\n\t<span dojoAttachPoint=\"lastFocusNode\" tabindex=\"0\"></span>\n</div>\n"}});
 define("dojox/grid/_Grid", [
@@ -38,130 +37,106 @@ define("dojox/grid/_Grid", [
 		dojo.isCopyKey = dojo.dnd.getCopyKeyState;
 	}
 	/*=====
-	dojox.grid.__CellDef = function(){
-		//	name: String?
+	dojox.grid.__CellDef = {
+		// name: String?
 		//		The text to use in the header of the grid for this cell.
-		//	get: Function?
+		// get: Function?
 		//		function(rowIndex){} rowIndex is of type Integer.  This
 		//		function will be called when a cell	requests data.  Returns the
 		//		unformatted data for the cell.
-		//	value: String?
+		// value: String?
 		//		If "get" is not specified, this is used as the data for the cell.
-		//	defaultValue: String?
+		// defaultValue: String?
 		//		If "get" and "value" aren't specified or if "get" returns an undefined
 		//		value, this is used as the data for the cell.  "formatter" is not run
 		//		on this if "get" returns an undefined value.
-		//	formatter: Function?
+		// formatter: Function?
 		//		function(data, rowIndex){} data is of type anything, rowIndex
 		//		is of type Integer.  This function will be called after the cell
 		//		has its data but before it passes it back to the grid to render.
 		//		Returns the formatted version of the cell's data.
-		//	type: dojox.grid.cells._Base|Function?
+		// type: dojox.grid.cells._Base|Function?
 		//		TODO
-		//	editable: Boolean?
+		// editable: Boolean?
 		//		Whether this cell should be editable or not.
-		//	hidden: Boolean?
+		// hidden: Boolean?
 		//		If true, the cell will not be displayed.
-		//	noresize: Boolean?
+		// noresize: Boolean?
 		//		If true, the cell will not be able to be resized.
-		//	width: Integer|String?
+		// width: Integer|String?
 		//		A CSS size.  If it's an Integer, the width will be in em's.
-		//	colSpan: Integer?
+		// colSpan: Integer?
 		//		How many columns to span this cell.  Will not work in the first
 		//		sub-row of cells.
-		//	rowSpan: Integer?
+		// rowSpan: Integer?
 		//		How many sub-rows to span this cell.
-		//	styles: String?
+		// styles: String?
 		//		A string of styles to apply to both the header cell and main
 		//		grid cells.  Must end in a ';'.
-		//	headerStyles: String?
+		// headerStyles: String?
 		//		A string of styles to apply to just the header cell.  Must end
 		//		in a ';'
-		//	cellStyles: String?
+		// cellStyles: String?
 		//		A string of styles to apply to just the main grid cells.  Must
 		//		end in a ';'
-		//	classes: String?
+		// classes: String?
 		//		A space separated list of classes to apply to both the header
 		//		cell and the main grid cells.
-		//	headerClasses: String?
+		// headerClasses: String?
 		//		A space separated list of classes to apply to just the header
 		//		cell.
-		//	cellClasses: String?
+		// cellClasses: String?
 		//		A space separated list of classes to apply to just the main
 		//		grid cells.
-		//	attrs: String?
+		// attrs: String?
 		//		A space separated string of attribute='value' pairs to add to
 		//		the header cell element and main grid cell elements.
-		this.name = name;
-		this.value = value;
-		this.get = get;
-		this.formatter = formatter;
-		this.type = type;
-		this.editable = editable;
-		this.hidden = hidden;
-		this.width = width;
-		this.colSpan = colSpan;
-		this.rowSpan = rowSpan;
-		this.styles = styles;
-		this.headerStyles = headerStyles;
-		this.cellStyles = cellStyles;
-		this.classes = classes;
-		this.headerClasses = headerClasses;
-		this.cellClasses = cellClasses;
-		this.attrs = attrs;
-	}
+	};
 	=====*/
 
 	/*=====
-	dojox.grid.__ViewDef = function(){
-		//	noscroll: Boolean?
+	dojox.grid.__ViewDef = {
+		// noscroll: Boolean?
 		//		If true, no scrollbars will be rendered without scrollbars.
-		//	width: Integer|String?
+		// width: Integer|String?
 		//		A CSS size.  If it's an Integer, the width will be in em's. If
 		//		"noscroll" is true, this value is ignored.
-		//	cells: dojox.grid.__CellDef[]|Array[dojox.grid.__CellDef[]]?
+		// cells: dojox.grid.__CellDef[]|Array[dojox.grid.__CellDef[]]?
 		//		The structure of the cells within this grid.
-		//	type: String?
+		// type: String?
 		//		A string containing the constructor of a subclass of
 		//		dojox.grid._View.  If this is not specified, dojox.grid._View
 		//		is used.
-		//	defaultCell: dojox.grid.__CellDef?
+		// defaultCell: dojox.grid.__CellDef?
 		//		A cell definition with default values for all cells in this view.  If
 		//		a property is defined in a cell definition in the "cells" array and
 		//		this property, the cell definition's property will override this
 		//		property's property.
-		//	onBeforeRow: Function?
+		// onBeforeRow: Function?
 		//		function(rowIndex, cells){} rowIndex is of type Integer, cells
 		//		is of type Array[dojox.grid.__CellDef[]].  This function is called
 		//		before each row of data is rendered.  Before the header is
 		//		rendered, rowIndex will be -1.  "cells" is a reference to the
 		//		internal structure of this view's cells so any changes you make to
 		//		it will persist between calls.
-		//	onAfterRow: Function?
+		// onAfterRow: Function?
 		//		function(rowIndex, cells, rowNode){} rowIndex is of type Integer, cells
 		//		is of type Array[dojox.grid.__CellDef[]], rowNode is of type DOMNode.
 		//		This function is called	after each row of data is rendered.  After the
 		//		header is rendered, rowIndex will be -1.  "cells" is a reference to the
 		//		internal structure of this view's cells so any changes you make to
 		//		it will persist between calls.
-		this.noscroll = noscroll;
-		this.width = width;
-		this.cells = cells;
-		this.type = type;
-		this.defaultCell = defaultCell;
-		this.onBeforeRow = onBeforeRow;
-		this.onAfterRow = onAfterRow;
-	}
+	};
 	=====*/
 
 	var _Grid = declare('dojox.grid._Grid',
 		[ _Widget, _TemplatedMixin, _Events ],
 		{
 		// summary:
-		// 		A grid widget with virtual scrolling, cell editing, complex rows,
-		// 		sorting, fixed columns, sizeable columns, etc.
+		//		A grid widget with virtual scrolling, cell editing, complex rows,
+		//		sorting, fixed columns, sizeable columns, etc.
 		//
-		//	description:
+		// description:
 		//		_Grid provides the full set of grid features without any
 		//		direct connection to a data store.
 		//
@@ -171,7 +146,7 @@ define("dojox/grid/_Grid", [
 		//		The grid is rendered based on its structure, an object describing
 		//		column and cell layout.
 		//
-		//	example:
+		// example:
 		//		A quick sample:
 		//
 		//		define a get function
@@ -197,7 +172,7 @@ define("dojox/grid/_Grid", [
 		templateString: template,
 
 		// classTag: String
-		// 		CSS class applied to the grid's domNode
+		//		CSS class applied to the grid's domNode
 		classTag: 'dojoxGrid',
 
 		// settings
@@ -236,7 +211,7 @@ define("dojox/grid/_Grid", [
 		//		If rowHeight is set to a positive number, it will define the height of the rows
 		//		in pixels. This can provide a significant performance advantage, since it
 		//		eliminates the need to measure row sizes during rendering, which is one
-		// 		the primary bottlenecks in the DataGrid's performance.
+		//		the primary bottlenecks in the DataGrid's performance.
 		rowHeight: 0,
 		
 		// autoRender: Boolean
@@ -270,21 +245,21 @@ define("dojox/grid/_Grid", [
 		selectionMode: 'extended',
 
 		// rowSelector: Boolean|String
-		// 		If set to true, will add a row selector view to this grid.  If set to a CSS width, will add
-		// 		a row selector of that width to this grid.
+		//		If set to true, will add a row selector view to this grid.  If set to a CSS width, will add
+		//		a row selector of that width to this grid.
 		rowSelector: '',
 
 		// columnReordering: Boolean
-		// 		If set to true, will add drag and drop reordering to views with one row of columns.
+		//		If set to true, will add drag and drop reordering to views with one row of columns.
 		columnReordering: false,
 
 		// headerMenu: dijit.Menu
-		// 		If set to a dijit.Menu, will use this as a context menu for the grid headers.
+		//		If set to a dijit.Menu, will use this as a context menu for the grid headers.
 		headerMenu: null,
 
 		// placeholderLabel: String
-		// 		Label of placeholders to search for in the header menu to replace with column toggling
-		// 		menu items.
+		//		Label of placeholders to search for in the header menu to replace with column toggling
+		//		menu items.
 		placeholderLabel: "GridColumns",
 		
 		// selectable: Boolean
@@ -295,28 +270,28 @@ define("dojox/grid/_Grid", [
 		_click: null,
 		
 		// loadingMessage: String
-		//  Message that shows while the grid is loading
+		//		Message that shows while the grid is loading
 		loadingMessage: "<span class='dojoxGridLoading'>${loadingState}</span>",
 
 		// errorMessage: String
-		//  Message that shows when the grid encounters an error loading
+		//		Message that shows when the grid encounters an error loading
 		errorMessage: "<span class='dojoxGridError'>${errorState}</span>",
 
 		// noDataMessage: String
-		//  Message that shows if the grid has no data - wrap it in a
-		//  span with class 'dojoxGridNoData' if you want it to be
-		//  styled similar to the loading and error messages
+		//		Message that shows if the grid has no data - wrap it in a
+		//		span with class 'dojoxGridNoData' if you want it to be
+		//		styled similar to the loading and error messages
 		noDataMessage: "",
 		
 		// escapeHTMLInData: Boolean
 		//		This will escape HTML brackets from the data to prevent HTML from
-		// 		user-inputted data being rendered with may contain JavaScript and result in
-		// 		XSS attacks. This is true by default, and it is recommended that it remain
-		// 		true. Setting this to false will allow data to be displayed in the grid without
-		// 		filtering, and should be only used if it is known that the data won't contain
-		// 		malicious scripts. If HTML is needed in grid cells, it is recommended that
-		// 		you use the formatter function to generate the HTML (the output of
-		// 		formatter functions is not filtered, even with escapeHTMLInData set to true).
+		//		user-inputted data being rendered with may contain JavaScript and result in
+		//		XSS attacks. This is true by default, and it is recommended that it remain
+		//		true. Setting this to false will allow data to be displayed in the grid without
+		//		filtering, and should be only used if it is known that the data won't contain
+		//		malicious scripts. If HTML is needed in grid cells, it is recommended that
+		//		you use the formatter function to generate the HTML (the output of
+		//		formatter functions is not filtered, even with escapeHTMLInData set to true).
 		escapeHTMLInData: true,
 		
 		// formatterScope: Object
@@ -326,13 +301,19 @@ define("dojox/grid/_Grid", [
 		formatterScope: null,
 		
 		// editable: boolean
-		// indicates if the grid contains editable cells, default is false
-		// set to true if editable cell encountered during rendering
+		//		indicates if the grid contains editable cells, default is false
+		//		set to true if editable cell encountered during rendering
 		editable: false,
+
+		// summary: String
+		//		Customizable summary descriptions which will be added to grid.domNode
+		summary: '',
+		_setSummaryAttr: 'domNode',
 		
-		// private
+		// sortInfo: [private] Number
 		sortInfo: 0,
-		themeable: true,
+
+		// _placeholders: [private] Array
 		_placeholders: null,
 
 		// _layoutClass: Object
@@ -366,6 +347,9 @@ define("dojox/grid/_Grid", [
 			html.addClass(this.domNode, this.classTag);
 			if(!this.isLeftToRight()){
 				html.addClass(this.domNode, this.classTag+"Rtl");
+			}
+			if(this.rowHeight > 0){
+				html.addClass(this.viewsNode, this.classTag + "FixedRowHeight");
 			}
 		},
 		
@@ -493,7 +477,8 @@ define("dojox/grid/_Grid", [
 		},
 
 		createScroller: function(){
-			// summary: Creates a new virtual scroller
+			// summary:
+			//		Creates a new virtual scroller
 			this.scroller = new _Scroller();
 			this.scroller.grid = this;
 			this.scroller.renderRow = lang.hitch(this, "renderRow");
@@ -501,13 +486,14 @@ define("dojox/grid/_Grid", [
 		},
 
 		createLayout: function(){
-			// summary: Creates a new Grid layout
+			// summary:
+			//		Creates a new Grid layout
 			this.layout = new this._layoutClass(this);
 			this.connect(this.layout, "moveColumn", "onMoveColumn");
 		},
 
 		onMoveColumn: function(){
-			this.render();
+			this.update();
 		},
 		
 		onResizeColumn: function(/*int*/ cellIdx){
@@ -567,7 +553,8 @@ define("dojox/grid/_Grid", [
 		},
 		
 		getColumnTogglingItems: function(){
-			// Summary: returns an array of dijit.CheckedMenuItem widgets that can be
+			// summary:
+			//		returns an array of dijit.CheckedMenuItem widgets that can be
 			//		added to a menu for toggling columns on and off.
 			var items, checkedItems = [];
 			items = array.map(this.layout.cells, function(cell){
@@ -694,13 +681,6 @@ define("dojox/grid/_Grid", [
 			// called.  This saves us an extra call to _resize(), which can
 			// get kind of heavy.
 			
-			// fixes #11101, should ignore resize when in autoheight mode(IE) to avoid a deadlock
-			// e.g when an autoheight editable grid put in dijit.form.Form or other similar containers,
-			// grid switch to editing mode --> grid height change --> From height change
-			// ---> Form call grid.resize() ---> grid height change  --> deaklock
-			if(dojo.isIE && !changeSize && !resultSize && this._autoHeight){
-				return;
-			}
 			this._pendingChangeSize = changeSize;
 			this._pendingResultSize = resultSize;
 			this.sizeChange();
@@ -760,7 +740,7 @@ define("dojox/grid/_Grid", [
 				this.height = this.domNode.style.height;
 				delete this.fitTo;
 			}else if(this.fitTo == "parent"){
-				h = this._parentContentBoxHeight = this._parentContentBoxHeight || html._getContentBox(pn).h;
+				h = this._parentContentBoxHeight = (this._parentContentBoxHeight > 0 ? this._parentContentBoxHeight : html._getContentBox(pn).h);
 				this.domNode.style.height = Math.max(0, h) + "px";
 			}
 			
@@ -792,7 +772,10 @@ define("dojox/grid/_Grid", [
 		},
 
 		adaptWidth: function() {
-			// private: sets width and position for views and update grid width if necessary
+			// summary:
+			//		sets width and position for views and update grid width if necessary
+			// tags:
+			//		private
 			var doAutoWidth = (!this.initialWidth && this.autoWidth);
 			var w = doAutoWidth ? 0 : this.domNode.clientWidth || (this.domNode.offsetWidth - this._getPadBorder().w),
 				vw = this.views.arrange(1, w);
@@ -803,8 +786,11 @@ define("dojox/grid/_Grid", [
 		},
 
 		adaptHeight: function(inHeaderHeight){
-			// private: measures and normalizes header height, then sets view heights, and then updates scroller
-			// content extent
+			// summary:
+			//		measures and normalizes header height, then sets view heights, and then updates scroller
+			//		content extent
+			// tags:
+			//		private
 			var t = inHeaderHeight === undefined ? this._getHeaderHeight() : inHeaderHeight;
 			var h = (this._autoHeight ? -1 : Math.max(this.domNode.clientHeight - t, 0) || 0);
 			this.views.onEach('setSize', [0, h]);
@@ -842,7 +828,7 @@ define("dojox/grid/_Grid", [
 		render: function(){
 			// summary:
 			//	Render the grid, headers, and views. Edit and scrolling states are reset. To retain edit and
-			// scrolling states, see Update.
+			//	scrolling states, see Update.
 
 			if(!this.domNode){return;}
 			if(!this._started){return;}
@@ -888,12 +874,18 @@ define("dojox/grid/_Grid", [
 		},
 
 		renderRow: function(inRowIndex, inNodes){
-			// summary: private, used internally to render rows
+			// summary:
+			//		used internally to render rows
+			// tags:
+			//		private
 			this.views.renderRow(inRowIndex, inNodes, this._skipRowRenormalize);
 		},
 
 		rowRemoved: function(inRowIndex){
-			// summary: private, used internally to remove rows
+			// summary:
+			//		used internally to remove rows
+			// tags:
+			//		private
 			this.views.rowRemoved(inRowIndex);
 		},
 
@@ -986,10 +978,10 @@ define("dojox/grid/_Grid", [
 		},
 
 		updateRowCount: function(inRowCount){
-			//summary:
-			//	Change the number of rows.
+			// summary:
+			//		Change the number of rows.
 			// inRowCount: int
-			//	Number of rows in the grid.
+			//		Number of rows in the grid.
 			if(this.updating){
 				this.invalidated.rowCount = inRowCount;
 			}else{
@@ -1029,7 +1021,7 @@ define("dojox/grid/_Grid", [
 			//		Update grid when the height of a row has changed. Row height is handled automatically as rows
 			//		are rendered. Use this function only to update a row's height outside the normal rendering process.
 			// inRowIndex: Integer
-			// 		index of the row that has changed height
+			//		index of the row that has changed height
 
 			this.views.renormalizeRow(inRowIndex);
 			this.scroller.rowHeightChanged(inRowIndex);
@@ -1044,7 +1036,7 @@ define("dojox/grid/_Grid", [
 
 		// scrollRedrawThreshold: int
 		//	pixel distance a user must scroll vertically to trigger grid scrolling.
-		scrollRedrawThreshold: (has("ie") ? 100 : 50),
+		scrollRedrawThreshold: (has('ie') ? 100 : 50),
 
 		// scroll methods
 		scrollTo: function(inTop){
@@ -1088,12 +1080,15 @@ define("dojox/grid/_Grid", [
 			// summary:
 			//		Scroll the grid to a specific row.
 			// inRowIndex: Integer
-			// 		grid row index
+			//		grid row index
 			this.setScrollTop(this.scroller.findScrollTop(inRowIndex) + 1);
 		},
 
-		// styling (private, used internally to style individual parts of a row)
 		styleRowNode: function(inRowIndex, inRowNode){
+			// summary:
+			//		styling (used internally to style individual parts of a row)
+			// tags:
+			//		private
 			if(inRowNode){
 				this.rows.styleRowNode(inRowIndex, inRowNode);
 			}
@@ -1109,7 +1104,7 @@ define("dojox/grid/_Grid", [
 			// summary:
 			//		Retrieves the cell object for a given grid column.
 			// inIndex: Integer
-			// 		Grid column index of cell to retrieve
+			//		Grid column index of cell to retrieve
 			// returns:
 			//		a grid cell
 			return this.layout.cells[inIndex];
@@ -1120,7 +1115,8 @@ define("dojox/grid/_Grid", [
 		},
 
 		getCellName: function(inCell){
-			// summary: Returns the cell name of a passed cell
+			// summary:
+			//		Returns the cell name of a passed cell
 			return "Cell " + inCell.index; // String
 		},
 
@@ -1130,7 +1126,7 @@ define("dojox/grid/_Grid", [
 			//		Determines if the grid can be sorted
 			// inSortInfo: Integer
 			//		Sort information, 1-based index of column on which to sort, positive for an ascending sort
-			// 		and negative for a descending sort
+			//		and negative for a descending sort
 			// returns: Boolean
 			//		True if grid can be sorted on the given column in the given direction
 		},
@@ -1154,11 +1150,11 @@ define("dojox/grid/_Grid", [
 
 		setSortIndex: function(inIndex, inAsc){
 			// summary:
-			// 		Sort the grid on a column in a specified direction
+			//		Sort the grid on a column in a specified direction
 			// inIndex: Integer
-			// 		Column index on which to sort.
+			//		Column index on which to sort.
 			// inAsc: Boolean
-			// 		If true, sort the grid in ascending order, otherwise in descending order
+			//		If true, sort the grid in ascending order, otherwise in descending order
 			var si = inIndex +1;
 			if(inAsc != undefined){
 				si *= (inAsc ? 1 : -1);

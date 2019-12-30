@@ -2,9 +2,6 @@
 # Check for problems with delete
 #
 
-# Test needs MyISAM for testcase for Bug #53450
---source include/have_myisam.inc
-
 --disable_warnings
 drop table if exists t1,t2,t3,t11,t12;
 --enable_warnings
@@ -551,18 +548,6 @@ DELETE IGNORE FROM t1;
 
 DROP TABLE t1;
 
---echo #
---echo # Bug #53450: Crash/assertion
---echo #    "virtual int ha_myisam::index_first(uchar*)") at assert.c:81
---echo #
-
-CREATE TABLE t1 (a INT,    b INT,    c INT,
-                 INDEX(a), INDEX(b), INDEX(c)) engine=myisam;
-INSERT INTO t1 VALUES (1,2,3), (4,5,6), (7,8,9);
-
-DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
-
-DROP TABLE t1;
 
 --echo #
 --echo # Bug #53034: Multiple-table DELETE statements not accepting
@@ -679,30 +664,6 @@ SELECT * FROM t2;
 DELETE IGNORE FROM t1;
 SELECT * FROM t1;
 DROP TABLE t2,t1;
-
---echo #
---echo # Bug#17787664 : ASSERT `! IS_SET()` IN DIAGNOSTICS_AREA::SET_OK_STATUS
---echo #                ON ER_SUBQUERY_NO_1_ROW
---echo #
-
-CREATE TABLE t1 (a INT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1);
-
-CREATE TABLE t2 (b INT) ENGINE=MyISAM;
-INSERT INTO t2 VALUES (8);
-INSERT INTO t2 VALUES (24);
-
-CREATE TABLE t3 (c INT) ENGINE=MyISAM;
-INSERT INTO t3 VALUES (43);
-INSERT INTO t3 VALUES (1);
-
-#This statement triggers an assert in DEBUG build without the patch.
---error ER_SUBQUERY_NO_1_ROW
-DELETE  FROM OUTR1.* USING t1 AS OUTR1
-    LEFT OUTER JOIN t2 AS OUTR2  ON ( OUTR1.a = OUTR2.b )
-WHERE OUTR1.a < ( SELECT t3.c  from t3 where 1 XOR OUTR2.b IS NOT NULL);
-
-DROP TABLE t1,t2,t3;
 
 --echo #
 --echo # Bug#20460208: !table || (!table->read_set || bitmap_is_set)
@@ -857,6 +818,34 @@ SELECT a,b FROM t1;
 SELECT c,d FROM t2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#29153485: ASSERTION IN JOIN_READ_CONST_TABLE()
+--echo #
+CREATE TABLE d3 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO d3 VALUES (96,9,'t'),(97,0,'x');
+
+CREATE TABLE e3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO e3 VALUES ('v',986);
+--error ER_SUBQUERY_NO_1_ROW
+DELETE OUTR1.* FROM e3 AS OUTR1 INNER JOIN d3 AS OUTR2 ON 
+  ( OUTR1.col_varchar = OUTR2.col_varchar )
+  LEFT JOIN d3 AS OUTR3 ON ( OUTR1. pk = OUTR3.pk )
+  WHERE OUTR1.pk =
+    ( SELECT DISTINCT INNR1.col_int FROM d3 AS INNR1 WHERE INNR1.pk <> 8) ;
+
+DROP TABLE d3,e3;
 
 --echo #
 --echo # Bug#27455809; DELETE FROM ...WHERE NOT EXISTS WITH TABLE ALIAS CREATES AN ERROR 1064 (42000

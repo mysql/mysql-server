@@ -1,0 +1,73 @@
+#WL#12393: Logging: Add new command line option, --log-slow-extra,
+#          for richer slow logging
+
+SET @save_sqlf=@@global.slow_query_log_file;
+SET GLOBAL slow_query_log_file= '.../my_extra_slow2.log';
+SET GLOBAL long_query_time=0;
+DROP TABLE IF EXISTS islow;
+DROP TABLE IF EXISTS mslow;
+CREATE TABLE islow(i INT) ENGINE=innodb;
+INSERT INTO islow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+CREATE TABLE mslow(i INT) ENGINE=myisam;
+INSERT INTO mslow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+SELECT * FROM islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SET GLOBAL slow_query_log=0;
+SET GLOBAL long_query_time=1;
+DROP TABLE islow;
+DROP TABLE mslow;
+#
+# This is a hack to check the log result.
+# We strip off time related fields (non-deterministic) and
+# verify the rest are correct.
+#
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 11 Read_first: 0 Read_last: 0 Read_key: 5 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 11 Read_first: 0 Read_last: 0 Read_key: 5 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 11 Read_first: 0 Read_last: 0 Read_key: 18 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 50 Read_first: 0 Read_last: 0 Read_key: 11 Read_next: 9 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 11 Read_first: 0 Read_last: 0 Read_key: 12 Read_next: 1 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 0  Rows_examined: 0 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 50 Read_first: 0 Read_last: 0 Read_key: 1 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 0 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 106 Read_first: 1 Read_last: 0 Read_key: 1 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 9 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 106 Read_first: 1 Read_last: 0 Read_key: 1 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 9 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 106 Read_first: 0 Read_last: 0 Read_key: 0 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 9 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 106 Read_first: 0 Read_last: 0 Read_key: 0 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 9 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
+SET @@global.slow_query_log_file=@save_sqlf;
+SET GLOBAL slow_query_log=1;

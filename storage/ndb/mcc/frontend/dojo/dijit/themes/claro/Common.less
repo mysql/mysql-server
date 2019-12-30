@@ -20,14 +20,36 @@
 	outline: 1px dotted @focus-outline-color;
 }
 
-/* Drag and Drop */
-.claro .dojoDndItemBefore,
-.claro .dojoDndItemAfter{
-	border-top: 1px solid @dnd-dropseparator-color;
+/* Drag and Drop*/
+.claro .dojoDndItem {
+	border-color: rgba(0,0,0,0);	// rgba() instead of none to prevent flash on hover fade-in
+	.transition-duration(.25s);
+	.transition-property(background-color, border-color)
 }
 .claro .dojoDndItemOver {
-	cursor:pointer;
-	}
+    // Hovered item.  Matches dijitTreeRowHover.
+	background-color:@hovered-background-color;
+	.standard-gradient;
+	padding: 1px;	// reduce from 2px in dijit.css
+	border:solid 1px @hovered-border-color;
+	color:@hovered-text-color;
+}
+.claro .dojoDndItemAnchor,
+.claro .dojoDndItemSelected {
+    // Selected items(s).   Matches dijitTreeRowSelected.
+	background-color:@selected-background-color;
+	.standard-gradient;
+	padding: 1px;	// reduce from 2px in dijit.css
+	border:solid 1px @selected-border-color;
+	color:@selected-text-color;
+}
+
+.claro .dojoDndItemBefore,
+.claro .dojoDndItemAfter {
+    // line to indicate that user is dropping before/after this dojoDndItem
+	border-color: @dnd-dropseparator-color;
+}
+
 .claro table.dojoDndAvatar {
 	border: 1px solid @border-color;
 	border-collapse: collapse;

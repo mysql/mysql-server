@@ -1,15 +1,18 @@
 
 .claro .dijitCalendar {
   border: solid 1px #b5bcc7;
-  background-color: #cfe5fa;
-  background-image: url("images/calendarContainerImages.png");
-  background-position: 0 -448px;
-  background-repeat: repeat-x;
-  text-align: center;
-  padding: 6px 5px 3px 5px;
+  border-collapse: separate;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  border-collapse: separate;
+  background-color: #cfe5fa;
+  background-image: url("images/calendar.png");
+  background-repeat: repeat-x;
+  background-image: -moz-linear-gradient(#ffffff 0px, rgba(255, 255, 255, 0.4) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: -webkit-linear-gradient(#ffffff 0px, rgba(255, 255, 255, 0.4) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: -o-linear-gradient(#ffffff 0px, rgba(255, 255, 255, 0.4) 2px, rgba(255, 255, 255, 0) 100%);
+  background-image: linear-gradient(#ffffff 0px, rgba(255, 255, 255, 0.4) 2px, rgba(255, 255, 255, 0) 100%);
+  text-align: center;
+  padding: 6px 5px 3px 5px;
 }
 .dj_ie6 .claro .dijitCalendar {
   background-image: none;
@@ -76,9 +79,6 @@
 .claro .dijitCalendarDateTemplate {
   text-align: center;
   background-color: #ffffff;
-  background-image: url("images/calendarContainerImages.png");
-  background-position: 0 0;
-  background-repeat: repeat-x;
   border-bottom: 1px solid #d3d3d3;
   padding-top: 0;
   font-size: 0.909em;
@@ -168,8 +168,6 @@
   background-color: #7dbdfa;
 }
 .claro .dijitCalendarActiveDate .dijitCalendarDateLabel, .claro .dijitCalendarEnabledDate:active .dijitCalendarDateLabel {
-  background-image: url("images/calendarContainerImages.png");
-  background-position: 0 -300px;
   background-color: #7dbdfa;
   border: solid 1px #ffffff;
   -webkit-transition-duration: 0.1s;
@@ -196,13 +194,13 @@
   margin-right: -4px;
 }
 .claro .dijitCalendar .dijitDropDownButton .dijitButtonNode {
-  background-color: transparent;
-  background-image: none;
   padding: 0 3px 0 2px;
   border: solid 1px #b5bcc7;
   -webkit-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   -moz-box-shadow: 0 0 0 rgba(0, 0, 0, 0);
   box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  background-color: transparent;
+  background-image: none;
 }
 .claro .dijitCalendar .dijitDropDownButtonHover .dijitButtonNode, .claro .dijitCalendar .dijitDropDownButton:hover .dijitButtonNode {
   background-color: #e5f2fe;
@@ -221,9 +219,12 @@
   padding: 2px 0;
 }
 .claro .dijitCalendarMonthMenu .dijitCalendarMonthLabelHover, .claro .dijitCalendarMonthMenu .dijitCalendarMonthLabel:hover {
-  background-color: #abd6ff;
   border-color: #759dc0;
   border-width: 1px 0;
-  background-image: url("images/commonHighlight.png");
-  background-repeat: repeat-x;
+  background-color: #abd6ff;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  background-image: -webkit-linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  background-image: -o-linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  background-image: linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  filter: progid:DXImageTransform.Microsoft.gradient(startColorstr= #ffffff , endColorstr= #abd6ff );
 }

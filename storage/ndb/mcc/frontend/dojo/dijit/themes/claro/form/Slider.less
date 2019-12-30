@@ -66,7 +66,7 @@
 	background-image: none;
 	border-color: @disabled-border-color;
 }
-.claro .dijitRuleLabel {
+.claro .dijitRuleLabelsContainer {
 	color: @text-color;
 }
 
@@ -77,17 +77,12 @@
 }
 .claro .dijitSlider .dijitSliderProgressBarH,
 .claro .dijitSlider .dijitSliderLeftBumper{
-	background-image: url("../@{image-form-slider-horizontal}");
-	background-repeat:repeat-x;
-	background-position:0 -20px;
 	border-color: @border-color;
 	background-color: @slider-fullbar-background-color;
+	.alpha-white-gradient (top, 1,0px, 1,1px, 0,2px);
 }
 .claro .dijitSlider .dijitSliderRemainingBarH,
 .claro .dijitSlider .dijitSliderRightBumper{
-	background-image: url("../@{image-form-slider-horizontal}");
-	background-repeat:repeat-x;
-	background-position:0 -11px;
 	border-color: @border-color;
 	background-color: @slider-remainingbar-background-color;
 }
@@ -99,27 +94,25 @@
 }
 .claro .dijitSliderHover .dijitSliderProgressBarH,
 .claro .dijitSliderHover .dijitSliderLeftBumper{
-	background-position:0 -20px;
 	background-color: @slider-hovered-fullbar-background-color;
 	border-color: @hovered-border-color;
 }
 .claro .dijitSliderHover .dijitSliderRemainingBarH,
 .claro .dijitSliderHover .dijitSliderRightBumper{
-	background-position:0 0;
 	background-color: @slider-hovered-remainingbar-background-color;
 	border-color: @hovered-border-color;
 }
 .claro .dijitSliderFocused .dijitSliderProgressBarH,
 .claro .dijitSliderFocused .dijitSliderLeftBumper{
-	background-position:0 -30px;
 	background-color: @slider-focused-fullbar-background-color;
 	border-color: @focused-border-color;
+	.box-shadow(inset 0px 1px 1px rgba(0, 0, 0, 0.2));
 }
 .claro .dijitSliderFocused .dijitSliderRemainingBarH,
 .claro .dijitSliderFocused .dijitSliderRightBumper{
-	background-position:0 -9px;
 	background-color: @slider-focused-remainingbar-background-color;
 	border-color: @focused-border-color;
+	.box-shadow(inset 0px 1px 1px rgba(0, 0, 0, 0.2));
 }
 .claro .dijitSliderDisabled .dijitSliderProgressBarH,
 .claro .dijitSliderDisabled .dijitSliderLeftBumper{
@@ -138,17 +131,12 @@
 }
 .claro .dijitSlider .dijitSliderProgressBarV,
 .claro .dijitSlider .dijitSliderBottomBumper{
-	background-image: url("../@{image-form-slider-vertical}");
-	background-repeat:repeat-y;
-	background-position:-36px 0;
 	border-color: @border-color;
 	background-color: @slider-fullbar-background-color;
+	.alpha-white-gradient (left, 1,0px, 0,1px);
 }
 .claro .dijitSlider .dijitSliderRemainingBarV,
 .claro .dijitSlider .dijitSliderTopBumper{
-	background-image: url("../@{image-form-slider-vertical}");
-	background-repeat:repeat-y;
-	background-position:-3px 0;
 	border-color: @border-color;
 	background-color: @slider-remainingbar-background-color;
 }
@@ -160,23 +148,25 @@
 }
 .claro .dijitSliderHover .dijitSliderProgressBarV,
 .claro .dijitSliderHover .dijitSliderBottomBumper{
-	background-position:-36px 0;
 	background-color: @slider-hovered-fullbar-background-color;
+	border-color: @hovered-border-color;
 }
 .claro .dijitSliderHover .dijitSliderRemainingBarV,
 .claro .dijitSliderHover .dijitSliderTopBumper{
-	background-position:0 0;
 	background-color: @slider-hovered-remainingbar-background-color;
+	border-color: @hovered-border-color;
 }
 .claro .dijitSliderFocused .dijitSliderProgressBarV,
 .claro .dijitSliderFocused .dijitSliderBottomBumper{
-	background-position:-56px 0;
 	background-color: @slider-focused-fullbar-background-color;
+	border-color: @focused-border-color;
+	.box-shadow(inset 1px 0px 1px rgba(0, 0, 0, 0.2));
 }
 .claro .dijitSliderFocused .dijitSliderRemainingBarV,
 .claro .dijitSliderFocused .dijitSliderTopBumper{
-	background-position:-18px 0;
 	background-color: @slider-focused-remainingbar-background-color;
+	border-color: @focused-border-color;
+	.box-shadow(inset 1px 0px 1px rgba(0, 0, 0, 0.2));
 }
 .claro .dijitSliderDisabled .dijitSliderProgressBarV,
 .claro .dijitSliderDisabled .dijitSliderBottomBumper{
@@ -351,15 +341,4 @@
 .claro .dijitSliderDisabled .dijitSliderIncrementIconV {
 	background-position:-107px 49%;
 	background-color:@disabled-background-color;
-}
-
-.dj_ie6 .claro .dijitSlider .dijitSliderProgressBarH,
-.dj_ie6 .claro .dijitSlider .dijitSliderLeftBumper,
-.dj_ie6 .claro .dijitSlider .dijitSliderRemainingBarH,
-.dj_ie6 .claro .dijitSlider .dijitSliderRightBumper,
-.dj_ie6 .claro .dijitSlider .dijitSliderProgressBarV,
-.dj_ie6 .claro .dijitSlider .dijitSliderTopBumper,
-.dj_ie6 .claro .dijitSlider .dijitSliderRemainingBarV,
-.dj_ie6 .claro .dijitSlider .dijitSliderBottomBumper {
-	background-image:none;
 }

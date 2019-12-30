@@ -1,0 +1,227 @@
+# Test clone error conditions with incompatible features
+
+--disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+--enable_query_log
+
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
+--let $MYSQLD_DATADIR= `select @@datadir;`
+
+--let $ENCRYPT_DATADIR = $MYSQL_TMP_DIR/data_encrypt
+--let $ENCRYPT_ERROR_FILE = $MYSQL_TMP_DIR/boot_encrypt_log
+
+--let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql
+
+--let $START_PAGE_SIZE= `select @@innodb_page_size`
+
+--echo # create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test DEFAULT CHARACTER SET latin1;
+EOF
+--mkdir $ENCRYPT_DATADIR
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+
+--echo # 1. Check Privilege
+--let $skip_donor_config = 1
+CREATE SCHEMA testdb_clone;
+CREATE USER 'user_clone'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_clone.* TO 'user_clone'@'localhost';
+GRANT SELECT ON performance_schema.* to 'user_clone'@'localhost';
+SELECT USER, HOST, PRIV FROM mysql.global_grants
+WHERE USER = 'user_clone' ORDER BY PRIV;
+
+--echo # Connection without SYSTEM_VARIABLES_ADMIN privilege
+--connect (con1,'localhost','user_clone','123',)
+SELECT user();
+if($remote_clone) {
+  --replace_result $HOST HOST $PORT PORT
+  --error ER_SPECIFIC_ACCESS_DENIED_ERROR
+  --eval SET GLOBAL clone_valid_donor_list = '$HOST:$PORT'
+}
+
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'user_clone'@'localhost';
+
+--echo # Connection without BACKUP privilege
+connection con1;
+SELECT user();
+
+USE testdb_clone;
+
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64));
+
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+
+SELECT * from t1 ORDER BY col1;
+
+--let $clone_err = ER_SPECIFIC_ACCESS_DENIED_ERROR
+--source ../include/clone_command.inc
+--let $clone_err = 0
+
+DROP TABLE t1;
+
+connection default;
+
+--echo # Grant backup privilege to clone user
+GRANT BACKUP_ADMIN on *.* to 'user_clone'@'localhost';
+
+SELECT USER, HOST, PRIV FROM mysql.global_grants
+WHERE USER = 'user_clone' ORDER BY PRIV;
+
+connection con1;
+
+if($remote_clone) {
+  --let $clone_err = ER_CLONE_SYS_CONFIG
+  --source ../include/clone_command.inc
+  --let $clone_err = 0
+
+  connection default;
+
+  --echo # Error: space in clone_valid_donor_list
+  --replace_result $HOST HOST $PORT PORT
+  --error ER_CLONE_SYS_CONFIG
+  --eval SET GLOBAL clone_valid_donor_list = ' $HOST:$PORT'
+
+  --echo # Error: Non digit PORT in clone_valid_donor_list
+  --replace_result $HOST HOST $PORT PORT
+  --error ER_CLONE_SYS_CONFIG
+  --eval SET GLOBAL clone_valid_donor_list = '$HOST:A$PORT'
+
+  --echo # Error: Second entry has issue in clone_valid_donor_list
+  --replace_result $HOST HOST $PORT PORT
+  --error ER_CLONE_SYS_CONFIG
+  --eval SET GLOBAL clone_valid_donor_list = '$HOST:$PORT,$HOST:A$PORT'
+  --let $clone_err = 0
+
+  --echo # Successfully Add HOST and PORT to clone_valid_donor_list
+  --replace_result $HOST HOST $PORT PORT
+  --eval SET GLOBAL clone_valid_donor_list = '$HOST:$PORT'
+  connection con1;
+}
+
+--source ../include/clone_command.inc
+
+--disconnect con1
+
+connection default;
+
+DROP SCHEMA testdb_clone;
+DROP USER 'user_clone'@'localhost';
+--force-rmdir $CLONE_DATADIR
+--let $skip_donor_config = 0
+
+--echo # 1A. Genaral Tablespace with absolute path
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval CREATE TABLESPACE tbs1 ADD DATAFILE '$MYSQL_TMP_DIR/tbs1_data1.ibd'
+CREATE TABLE t2(col1 INT PRIMARY KEY) TABLESPACE = tbs1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $clone_err = ER_FILE_EXISTS_ERROR
+--source ../include/clone_command.inc
+--let $clone_err = 0
+--force-rmdir $CLONE_DATADIR
+
+DROP TABLE t2;
+DROP TABLESPACE tbs1;
+
+UNINSTALL PLUGIN clone;
+
+--echo # 2. Encrypted Table
+--source include/shutdown_mysqld.inc
+--let clone_require_no_ssl = 1
+
+--replace_result $MYSQLD MYSQLD $BOOTSTRAP_SQL BOOTSTRAP_SQL $ENCRYPT_DATADIR ENCRYPT_DATADIR $START_PAGE_SIZE PAGE_SIZE $ENCRYPT_ERROR_FILE ENCRYPT_ERROR_FILE
+--let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --init-file=$BOOTSTRAP_SQL --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_page_size=$START_PAGE_SIZE --datadir=$ENCRYPT_DATADIR > $ENCRYPT_ERROR_FILE  2>&1
+
+--exec $NEW_CMD
+
+--replace_result $KEYRING_PLUGIN KEYRING_PLUGIN $MYSQL_TMP_DIR MYSQL_TMP_DIR $ENCRYPT_DATADIR ENCRYPT_DATADIR
+--let $restart_parameters=restart: --datadir=$ENCRYPT_DATADIR --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring
+--source include/start_mysqld.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+CREATE TABLE t1 (col1 INT PRIMARY KEY)  ENCRYPTION="Y";
+
+--let $clone_remote_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $clone_remote_err = 0
+
+DROP TABLE t1;
+--force-rmdir $CLONE_DATADIR
+
+--echo # 2A. Enable Redo Encryption
+--let clone_require_no_ssl = 1
+
+SET GLOBAL innodb_redo_log_encrypt = ON;
+SELECT @@global.innodb_redo_log_encrypt ;
+SELECT @@global.innodb_undo_log_encrypt ;
+
+--let $clone_remote_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $clone_remote_err = 0
+
+SET GLOBAL innodb_redo_log_encrypt = OFF;
+--force-rmdir $CLONE_DATADIR
+
+--echo # 2B. Enable Undo Encryption
+
+SET GLOBAL innodb_undo_log_encrypt = ON;
+SELECT @@global.innodb_redo_log_encrypt ;
+SELECT @@global.innodb_undo_log_encrypt ;
+
+--let $clone_remote_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $clone_remote_err = 0
+
+SET GLOBAL innodb_undo_log_encrypt = OFF;
+--force-rmdir $CLONE_DATADIR
+
+--echo # 3. Enable sql_require_primary_key
+
+UNINSTALL PLUGIN clone;
+
+SELECT @@sql_require_primary_key into @saved_sql_require_primary_key;
+SET sql_require_primary_key = OFF;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+UNINSTALL PLUGIN clone;
+
+SET sql_require_primary_key = ON;
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+SET global sql_require_primary_key = @saved_sql_require_primary_key;
+
+--echo #Cleanup
+
+UNINSTALL PLUGIN clone;
+UNINSTALL PLUGIN keyring_file;
+
+let $restart_parameters = "restart:";
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+
+--force-rmdir $ENCRYPT_DATADIR
+--remove_file $ENCRYPT_ERROR_FILE
+--remove_file $BOOTSTRAP_SQL
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring

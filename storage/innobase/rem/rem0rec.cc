@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #ifndef UNIV_HOTBACKUP
 
+#include "data0data.h"
 #include "fts0fts.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "gis0geo.h"
@@ -453,15 +454,23 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
         data_size += mach_get_compressed_size(i + REC_MAX_N_FIELDS);
         vfield = dtuple_get_nth_v_field(v_entry, col->v_pos);
 
-        flen = vfield->len;
+        if (dfield_is_multi_value(vfield)) {
+          Multi_value_logger mv_logger(
+              static_cast<multi_value_data *>(dfield_get_data(vfield)),
+              dfield_get_len(vfield));
+          data_size += mv_logger.get_log_len(true);
+        } else {
+          flen = vfield->len;
 
-        if (flen != UNIV_SQL_NULL) {
-          flen = ut_min(flen, static_cast<ulint>(
-                                  DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
-          data_size += flen;
+          if (flen != UNIV_SQL_NULL) {
+            flen = ut_min(
+                flen,
+                static_cast<ulint>(DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
+            data_size += flen;
+          }
+
+          data_size += mach_get_compressed_size(flen);
         }
-
-        data_size += mach_get_compressed_size(flen);
       }
     }
   }
@@ -878,21 +887,28 @@ bool rec_convert_dtuple_to_rec_comp(rec_t *rec, const dict_index_t *index,
 
       vfield = dtuple_get_nth_v_field(v_entry, col->v_pos);
 
-      flen = vfield->len;
+      if (dfield_is_multi_value(vfield)) {
+        Multi_value_logger mv_logger(
+            static_cast<multi_value_data *>(dfield_get_data(vfield)),
+            dfield_get_len(vfield));
+        mv_logger.log(&ptr);
+      } else {
+        flen = vfield->len;
 
-      if (flen != UNIV_SQL_NULL) {
-        /* The virtual column can only be in sec
-        index, and index key length is bound by
-        DICT_MAX_FIELD_LEN_BY_FORMAT */
-        flen = ut_min(flen, static_cast<ulint>(
-                                DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
-      }
+        if (flen != UNIV_SQL_NULL) {
+          /* The virtual column can only be in sec
+          index, and index key length is bound by
+          DICT_MAX_FIELD_LEN_BY_FORMAT */
+          flen = ut_min(flen, static_cast<ulint>(
+                                  DICT_MAX_FIELD_LEN_BY_FORMAT(index->table)));
+        }
 
-      ptr += mach_write_compressed(ptr, flen);
+        ptr += mach_write_compressed(ptr, flen);
 
-      if (flen != UNIV_SQL_NULL) {
-        ut_memcpy(ptr, dfield_get_data(vfield), flen);
-        ptr += flen;
+        if (flen != UNIV_SQL_NULL) {
+          ut_memcpy(ptr, dfield_get_data(vfield), flen);
+          ptr += flen;
+        }
       }
     }
   }

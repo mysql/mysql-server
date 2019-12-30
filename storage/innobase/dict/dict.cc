@@ -113,9 +113,9 @@ void dict_index_add_col(dict_index_t *index, const dict_table_t *table,
     field->fixed_len = 0;
   }
 #if DICT_MAX_FIXED_COL_LEN != 768
-    /* The comparison limit above must be constant.  If it were
-    changed, the disk format of some fixed-length columns would
-    change, which would be a disaster. */
+  /* The comparison limit above must be constant.  If it were
+  changed, the disk format of some fixed-length columns would
+  change, which would be a disaster. */
 #error "DICT_MAX_FIXED_COL_LEN != 768"
 #endif
 

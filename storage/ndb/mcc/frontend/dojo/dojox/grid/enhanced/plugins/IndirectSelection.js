@@ -3,7 +3,8 @@ define("dojox/grid/enhanced/plugins/IndirectSelection",["dojo/_base/declare","do
 var _e=_4.getObject("dojox.grid.cells");
 var _f=_1("dojox.grid.cells.RowSelector",_e._Widget,{inputType:"",map:null,disabledMap:null,isRowSelector:true,_connects:null,_subscribes:null,checkedText:"&#10003;",unCheckedText:"O",constructor:function(){
 this.map={};
-this.disabledMap={},this.disabledCount=0;
+this.disabledMap={};
+this.disabledCount=0;
 this._connects=[];
 this._subscribes=[];
 this.inA11YMode=_5.hasClass(_6.body(),"dijit_a11y");
@@ -21,7 +22,7 @@ this._connects.push(_7.connect(this.grid,"updateRow",this,"_onUpdateRow"));
 },formatter:function(_10,_11,_12){
 var _13=_12;
 var _14=_13.baseClass;
-var _15=_13.getValue(_11);
+var _15=!!_13.getValue(_11);
 var _16=!!_13.disabledMap[_11];
 if(_15){
 _14+=_13.checkedClass;
@@ -33,7 +34,7 @@ if(_16){
 _14+=_13.disabledClass;
 }
 }
-return ["<div tabindex = -1 ","id = '"+_13.grid.id+"_rowSelector_"+_11+"' ","name = '"+_13.grid.id+"_rowSelector' class = '"+_14+"' ","role = 'presentation' aria-pressed = '"+_15+"' aria-disabled = '"+_16+"' aria-label = '"+_b.substitute(_13.grid._nls["indirectSelection"+_13.inputType],[_11+1])+"'>","<span class = '"+_13.statusTextClass+"'>"+(_15?_13.checkedText:_13.unCheckedText)+"</span>","</div>"].join("");
+return ["<div tabindex = -1 ","id = '"+_13.grid.id+"_rowSelector_"+_11+"' ","name = '"+_13.grid.id+"_rowSelector' class = '"+_14+"' ","role = "+_13.inputType.toLowerCase()+" aria-checked = '"+_15+"' aria-disabled = '"+_16+"' aria-label = '"+_b.substitute(_13.grid._nls["indirectSelection"+_13.inputType],[_11+1])+"'>","<span class = '"+_13.statusTextClass+"'>"+(_15?_13.checkedText:_13.unCheckedText)+"</span>","</div>"].join("");
 },setValue:function(_17,_18){
 },getValue:function(_19){
 return this.grid.selection.isSelected(_19);
@@ -77,7 +78,7 @@ _5.toggleClass(_2b,this.checkedClass,_2a);
 if(this.disabledMap[_29]){
 _5.toggleClass(_2b,this.checkedDisabledClass,_2a);
 }
-_2b.setAttribute("aria-pressed",_2a);
+_2b.setAttribute("aria-checked",_2a);
 if(this.inA11YMode){
 _2b.firstChild.innerHTML=(_2a?this.checkedText:this.unCheckedText);
 }
@@ -135,10 +136,10 @@ var _36=e.rowIndex;
 if(this.disabledMap[_36]){
 return;
 }
-this._focusEndingCell(_36,0);
+this._focusEndingCell(_36,e.cellIndex);
 this._nativeSelect(_36,!this.grid.selection.selected[_36]);
 }});
-var _37=_1("dojox.grid.cells.MultipleRowSelector",_f,{inputType:"CheckBox",swipeStartRowIndex:-1,swipeMinRowIndex:-1,swipeMaxRowIndex:-1,toSelect:false,lastClickRowIdx:-1,toggleAllTrigerred:false,unCheckedText:"&#9633;",constructor:function(){
+var _37=_1("dojox.grid.cells.MultipleRowSelector",_f,{inputType:"CheckBox",swipeStartRowIndex:-1,swipeMinRowIndex:-1,swipeMaxRowIndex:-1,toSelect:false,lastClickRowIdx:-1,unCheckedText:"&#9633;",constructor:function(){
 this._connects.push(_7.connect(_6.doc,"onmouseup",this,"_domouseup"));
 this._connects.push(_7.connect(this.grid,"onRowMouseOver",this,"_onRowMouseOver"));
 this._connects.push(_7.connect(this.grid.focus,"move",this,"_swipeByKey"));
@@ -160,7 +161,6 @@ _3a.selectRange(0,_39.rowCount-1);
 }else{
 _3a.deselectAll();
 }
-this.toggleAllTrigerred=true;
 },_onMouseDown:function(e){
 if(e.cell==this){
 this._startSelection(e.rowIndex);
@@ -243,7 +243,7 @@ if(this.disabledMap[_46]){
 return;
 }
 _3.stop(e);
-this._focusEndingCell(_46,0);
+this._focusEndingCell(_46,e.cellIndex);
 var _47=_46-this.lastClickRowIdx;
 var _48=!this.grid.selection.selected[_46];
 if(this.lastClickRowIdx>=0&&!e.ctrlKey&&!e.altKey&&e.shiftKey){
@@ -269,7 +269,7 @@ return;
 }
 _5.empty(_4a);
 var g=this.grid;
-var _4b=_4a.appendChild(_5.create("div",{"aria-label":g._nls["selectAll"],"tabindex":-1,"id":g.id+"_rowSelector_-1","class":this.baseClass,"role":"presentation","innerHTML":"<span class = '"+this.statusTextClass+"'></span><span style='height: 0; width: 0; overflow: hidden; display: block;'>"+g._nls["selectAll"]+"</span>"}));
+var _4b=_4a.appendChild(_5.create("div",{"aria-label":g._nls["selectAll"],"tabindex":-1,"id":g.id+"_rowSelector_-1","class":this.baseClass,"role":"Checkbox","innerHTML":"<span class = '"+this.statusTextClass+"'></span><span style='height: 0; width: 0; overflow: hidden; display: block;'>"+g._nls["selectAll"]+"</span>"}));
 this.map[-1]=_4b;
 var idx=this._headerSelectorConnectIdx;
 if(idx!==undefined){

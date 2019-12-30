@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ class Log_event_handler {
      indicated in the return value.
 
      @retval  false   OK
-     @retval  true    error occured
+     @retval  true    error occurred
   */
   virtual bool log_general(THD *thd, ulonglong event_utime,
                            const char *user_host, size_t user_host_len,

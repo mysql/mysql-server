@@ -1,43 +1,44 @@
-//>>built
 define("dojox/grid/enhanced/plugins/_StoreLayer", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
 	"dojo/_base/lang",
 	"dojo/_base/xhr"
 ], function(declare, array, lang, xhr){
-// summary:
-//		The dojo.data.api.Read API is powerful, but it's difficult to give the store some special commands before
-//		fetch, so that the store content can be temporarily modified or transformed, and acts as another store. The
-//		parameter *query* or *queryOptions* in keywordArgs for *fetch* is not enough because:
-//		1.	users do not have the opportunity to response to the store actions when these options or queries are applied,
-//			especially when the real store is at server side.
-//		2.	the store implementation must be changed to support any new options in 'query' or 'queryOptions', so it'll be
-//			difficult if this implementation is not able to or very hard to be changed, or some new options are required to
-//			be valid for all stores.
-//		This *StoreLayer* framework is dedicated to provide a uniform way for configuring an existing store, so that
-//		it can be easily extended to have special behaviors or act like a totally different store.
-//		The major approach is to wrap the *fetch* function of store, layer by layer. Every layer treats the incoming
-//		store.fetch as a 'black box', thus maintaining the independence between layers.
-//		*fetch* is the most important data retriever in the Read API, almost all other functions are used for a single
-//		item, and require that this item is already retrieved (by and only by *fetch*). So once we've controlled this
-//		*fetch* function, we've controlled almost the whole store. This fact simplifies our implementation of StoreLayer.
-// example:
-//		//ns is for namespace, i.e.:dojox.grid.enhanced.plugins
-//		ns.wrap(ns.wrap(ns.wrap(store, new ns.FilterLayer()), new ns.UniqueLayer()), new ns.TransformLayer());
-//
-//		//every layer has a name, it should be given in the document of this layer.
-//		//if you don't know it's name, you can get it by: ns.SomeLayer.prototype.name();
-//		store.layer("filter").filterDef(...);
-//		store.layer("unique").setUniqueColumns(...);
-//		store.layer("transform").setScheme(...);
-//
-//		//now use the store as usual...
-//
-//		store.unwrap("transform"); //remove the transform layer but retain the other two.
-//
-//		//now use the store as usual...
-//
-//		store.unwrap(); //remove all the layers, get the original store back.
+	// summary:
+	//		The dojo/data/api/Read API is powerful, but it's difficult to give the store some special commands before
+	//		fetch, so that the store content can be temporarily modified or transformed, and acts as another store. The
+	//		parameter *query* or *queryOptions* in keywordArgs for *fetch* is not enough because:
+	//
+	//		1.	users do not have the opportunity to response to the store actions when these options or queries are applied,
+	//			especially when the real store is at server side.
+	//		2.	the store implementation must be changed to support any new options in 'query' or 'queryOptions', so it'll be
+	//			difficult if this implementation is not able to or very hard to be changed, or some new options are required to
+	//			be valid for all stores.
+	//
+	//		This *StoreLayer* framework is dedicated to provide a uniform way for configuring an existing store, so that
+	//		it can be easily extended to have special behaviors or act like a totally different store.
+	//		The major approach is to wrap the *fetch* function of store, layer by layer. Every layer treats the incoming
+	//		store.fetch as a 'black box', thus maintaining the independence between layers.
+	//		*fetch* is the most important data retriever in the Read API, almost all other functions are used for a single
+	//		item, and require that this item is already retrieved (by and only by *fetch*). So once we've controlled this
+	//		*fetch* function, we've controlled almost the whole store. This fact simplifies our implementation of StoreLayer.
+	// example:
+	//	| //ns is for namespace, i.e.:dojox.grid.enhanced.plugins
+	//	| ns.wrap(ns.wrap(ns.wrap(store, new ns.FilterLayer()), new ns.UniqueLayer()), new ns.TransformLayer());
+	//	| 
+	//	| //every layer has a name, it should be given in the document of this layer.
+	//	| //if you don't know it's name, you can get it by: ns.SomeLayer.prototype.name();
+	//	| store.layer("filter").filterDef(...);
+	//	| store.layer("unique").setUniqueColumns(...);
+	//	| store.layer("transform").setScheme(...);
+	//	| 
+	//	| //now use the store as usual...
+	//	| 
+	//	| store.unwrap("transform"); //remove the transform layer but retain the other two.
+	//	| 
+	//	| //now use the store as usual...
+	//	| 
+	//	| store.unwrap(); //remove all the layers, get the original store back.
 
 	var ns = lang.getObject("grid.enhanced.plugins", true, dojox);
 	
@@ -146,7 +147,7 @@ define("dojox/grid/enhanced/plugins/_StoreLayer", [
 		//		The store to be wrapped.
 		// layer: _StoreLayer
 		//		The layer to be used
-		// returns
+		// returns:
 		//		The wrapped store, for nested use only.
 		if(!store._layers){
 			store._layers = [];
@@ -201,12 +202,8 @@ define("dojox/grid/enhanced/plugins/_StoreLayer", [
 			this.__enabled = true;
 		},
 		initialize: function(store){
-			// summary:
-			//
 		},
 		uninitialize: function(store){
-			// summary:
-			//
 		},
 		invalidate: function(){
 			
@@ -314,7 +311,7 @@ define("dojox/grid/enhanced/plugins/_StoreLayer", [
 			// summary:
 			//		If you only want to modify the user request, instead of sending a separate command
 			//		to server before fetch, just call:
-			//			this.useCommand(false);
+			// |		this.useCommand(false);
 			// tags:
 			//		public
 			// toUse: Boolean?
@@ -343,7 +340,7 @@ define("dojox/grid/enhanced/plugins/_StoreLayer", [
 				this.onCommandLoad("", userRequest);
 				this.originFetch(userRequest);
 			}
-			return userRequest;	//dojo.data.api.Request
+			return userRequest;	// dojo/data/api/Request
 		},
 		command: function(/* string */cmdName,/* (string|number|bool|...)? */cmdContent){
 			// summary:
@@ -371,7 +368,7 @@ define("dojox/grid/enhanced/plugins/_StoreLayer", [
 			//		callback extension
 			// response: string
 			//		server response
-			// userRequest: [in|out] dojo.data.api.Request
+			// userRequest: [in|out] dojo/data/api/Request
 			//		The request object for *fetch*. You can modify this object according to the *response*
 			//		so as to change the behavior of *fetch*
 			this._onUserCommandLoad(this.__cmds, userRequest, response);

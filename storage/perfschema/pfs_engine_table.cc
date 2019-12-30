@@ -772,7 +772,7 @@ int compare_table_names(const char *name1, const char *name2) {
 */
 PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
     const char *name) {
-  DBUG_ENTER("PFS_engine_table::find_table_share");
+  DBUG_TRACE;
   PFS_engine_table_share *result;
 
   /* First try to find in native performance schema table shares */
@@ -780,7 +780,7 @@ PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
 
   for (current = &all_shares[0]; (*current) != NULL; current++) {
     if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0) {
-      DBUG_RETURN(*current);
+      return *current;
     }
   }
 
@@ -788,7 +788,7 @@ PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
   result = pfs_external_table_shares.find_share(name, false);
 
   // FIXME : here we return an object that could be destroyed, unsafe.
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**

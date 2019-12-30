@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -313,11 +313,8 @@ cost_constant_error Cost_model_constants::update_engine_cost_constant(
 
 uint Cost_model_constants::find_handler_slot_from_name(
     THD *thd, const LEX_CSTRING &name) const {
-  // Convert storage engine name from const to non-const lex string
-  const LEX_STRING name_non_const = {const_cast<char *>(name.str), name.length};
-
   // Look up the storage engine
-  const plugin_ref plugin = ha_resolve_by_name(thd, &name_non_const, false);
+  const plugin_ref plugin = ha_resolve_by_name(thd, &name, false);
   if (!plugin) return HA_SLOT_UNDEF;
 
   // Find the handlerton for this storage engine

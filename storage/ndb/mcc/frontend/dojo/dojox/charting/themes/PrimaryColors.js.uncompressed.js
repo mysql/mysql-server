@@ -1,4 +1,3 @@
-//>>built
 define("dojox/charting/themes/PrimaryColors", ["../Theme", "./gradientGenerator", "./common"], function(Theme, gradientGenerator, themes){
 
 	var colors = ["#f00", "#0f0", "#00f", "#ff0", "#0ff", "#f0f", "./common"],

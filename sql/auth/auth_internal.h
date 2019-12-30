@@ -101,9 +101,11 @@ extern Rsa_authentication_keys *g_sha256_rsa_keys;
 extern Rsa_authentication_keys *g_caching_sha2_rsa_keys;
 extern char *caching_sha2_rsa_private_key_path;
 extern char *caching_sha2_rsa_public_key_path;
-#if !defined(HAVE_WOLFSSL)
 extern bool caching_sha2_auto_generate_rsa_keys;
-#endif
+class Auth_id;
+template <typename K, typename V>
+class Map_with_rw_lock;
+extern Map_with_rw_lock<Auth_id, uint> *unknown_accounts;
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);
@@ -167,8 +169,8 @@ bool do_update_sctx(Security_context *sctx, LEX_USER *from_user);
 void update_sctx(Security_context *sctx, LEX_USER *to_user);
 
 void clear_and_init_db_cache();
-bool acl_reload(THD *thd);
-bool grant_reload(THD *thd);
+bool acl_reload(THD *thd, bool mdl_locked);
+bool grant_reload(THD *thd, bool mdl_locked);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
 
@@ -209,8 +211,12 @@ bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users = NULL,
                             Rewrite_params *rewrite_params = NULL,
-                            bool extra_error = false, bool log_to_binlog = true,
-                            bool notify_htons = true);
+                            bool extra_error = false,
+                            bool log_to_binlog = true);
+void acl_notify_htons(THD *thd, enum_sql_command operation,
+                      const List<LEX_USER> *users,
+                      const List<LEX_CSTRING> *dynamic_privs = nullptr);
+
 /* sql_authorization */
 bool is_privileged_user_for_credential_change(THD *thd);
 void rebuild_vertex_index(THD *thd);
@@ -304,7 +310,7 @@ bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
 bool set_and_validate_user_attributes(
     THD *thd, LEX_USER *Str, acl_table::Pod_user_what_to_update &what_to_set,
     bool is_privileged_user, bool is_role, TABLE_LIST *history_table,
-    bool *history_check_done, const char *cmd);
+    bool *history_check_done, const char *cmd, Userhostpassword_list &);
 typedef std::pair<std::string, bool> Grant_privilege;
 typedef std::unordered_multimap<const Role_id, Grant_privilege, role_id_hash>
     User_to_dynamic_privileges_map;

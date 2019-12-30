@@ -1,9 +1,9 @@
 //>>built
-define("dojox/av/widget/PlayButton",["dojo","dijit","dijit/_Widget","dijit/_TemplatedMixin"],function(_1,_2){
-_1.declare("dojox.av.widget.PlayButton",[_2._Widget,_2._TemplatedMixin],{templateString:_1.cache("dojox.av.widget","resources/PlayButton.html"),postCreate:function(){
+define("dojox/av/widget/PlayButton",["dojo","dijit","dijit/_Widget","dijit/_TemplatedMixin"],function(_1,_2,_3,_4){
+return _1.declare("dojox.av.widget.PlayButton",[_3,_4],{templateString:_1.cache("dojox.av.widget","resources/PlayButton.html"),postCreate:function(){
 this.showPlay();
-},setMedia:function(_3){
-this.media=_3;
+},setMedia:function(_5){
+this.media=_5;
 _1.connect(this.media,"onEnd",this,"showPlay");
 _1.connect(this.media,"onStart",this,"showPause");
 },onClick:function(){
@@ -31,5 +31,4 @@ this._mode="pause";
 _1.addClass(this.domNode,"Pause");
 _1.removeClass(this.domNode,"Play");
 }});
-return dojox.av.widget.PlayButton;
 });

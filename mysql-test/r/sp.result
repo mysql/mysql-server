@@ -2160,6 +2160,9 @@ msg text not null,
 primary key (id),
 unique key rid (rid, id)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug2460_1|
 create procedure bug2460_1(in v int)
 begin
@@ -2212,6 +2215,8 @@ set @@sql_mode = ''$
 drop function if exists bug2564_3$
 create function bug2564_3(x int, y int) returns int
 return x || y$
+Warnings:
+Warning	1287	'|| as a synonym for OR' is deprecated and will be removed in a future release. Please use OR instead
 set @@sql_mode = 'ANSI'$
 drop function if exists bug2564_4$
 create function bug2564_4(x int, y int) returns int
@@ -2629,6 +2634,9 @@ b smallint(5) unsigned not null,
 c char(32) not null,
 primary key  (a)
 ) engine=myisam default charset=latin1|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t4 values (1, 2, 'oneword')|
 insert into t4 values (2, 2, 'anotherword')|
 drop procedure if exists bug7743|
@@ -2639,6 +2647,8 @@ select a into var from t4 where b = 2 and c = binary searchstring limit 1;
 show warnings;
 select var;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 call bug7743("oneword")|
 Level	Code	Message
 var
@@ -2682,6 +2692,8 @@ drop procedure bug7992_1|
 drop procedure bug7992_2|
 drop table t3|
 create table t3 (  userid bigint(20) not null default 0 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug8116|
 create procedure bug8116(in _userid int)
 select * from t3 where userid = _userid|
@@ -2776,6 +2788,9 @@ create table t3 (
 lpitnumber int(11) default null,
 lrecordtype int(11) default null
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t4 (
 lbsiid int(11) not null default '0',
 ltradingmodeid int(11) not null default '0',
@@ -2783,11 +2798,18 @@ ltradingareaid int(11) not null default '0',
 csellingprice decimal(19,4) default null,
 primary key  (lbsiid,ltradingmodeid,ltradingareaid)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table t5 (
 lbsiid int(11) not null default '0',
 ltradingareaid int(11) not null default '0',
 primary key  (lbsiid,ltradingareaid)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 drop procedure if exists bug8849|
 create procedure bug8849()
 begin
@@ -3494,6 +3516,8 @@ begin
 set f1= concat( 'hello', f1 );
 return f1;
 end|
+Warnings:
+Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 drop function bug9048|
 create function bug9048(f1 char binary) returns char binary
 begin
@@ -3859,6 +3883,8 @@ returns bigint(20)
 main_loop: begin
 return 42;
 end */;;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 show create function bug14723;;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 bug14723		CREATE DEFINER=`root`@`localhost` FUNCTION `bug14723`() RETURNS bigint(20)
@@ -4717,6 +4743,8 @@ primary key (id)
 )|
 create function bug15728() returns int(11)
 return last_insert_id()|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t3 values (0)|
 select last_insert_id()|
 last_insert_id()
@@ -5261,12 +5289,12 @@ BEGIN
 SET @a = 1;
 END|
 ERROR HY000: String '1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhc' is too long for user name (should be no longer than 32)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X
 FUNCTION bug16899_f1() RETURNS INT
 BEGIN
 RETURN 1;
 END|
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 drop procedure if exists bug21416|
 create procedure bug21416() show create procedure bug21416|
 call bug21416()|
@@ -5299,6 +5327,8 @@ PRIMARY KEY (ID),
 KEY Action (Action),
 KEY Action_Date (Action_Date)
 )|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3(Member_ID) VALUES
 ('111111'), ('222222'), ('333333'), ('444444'), ('555555'), ('666666')|
 INSERT INTO t4(Member_ID, Action, Action_Date, Track) VALUES
@@ -6126,6 +6156,8 @@ SELECT c1 FROM v1;
 SET loops = loops - 1;
 END WHILE;
 END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE PROCEDURE p2(IN loops BIGINT(19) UNSIGNED)
 BEGIN
 WHILE loops > 0 DO
@@ -6134,6 +6166,8 @@ CALL p1(@p1_p2_cnt);
 SET loops = loops - 1;
 END WHILE;
 END|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE FUNCTION f1(loops INT UNSIGNED)
 RETURNS INT
 BEGIN
@@ -6386,6 +6420,9 @@ declare x int(11);
 set x=-1;
 return x;
 end|
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create view v1 as select 1 as one, f1() as days;
 show create view test.v1;
 View	Create View	character_set_client	collation_connection
@@ -6548,6 +6585,10 @@ barcode INT(8) UNSIGNED ZEROFILL nOT NULL,
 PRIMARY KEY  (id),
 UNIQUE KEY barcode (barcode)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO t1 (id, barcode) VALUES (1, 12345678);
 INSERT INTO t1 (id, barcode) VALUES (2, 12345679);
@@ -6557,6 +6598,10 @@ id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 barcode BIGINT(11) UNSIGNED ZEROFILL NOT NULL,
 PRIMARY KEY  (id)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 INSERT INTO test.t2 (id, barcode) VALUES (1, 12345106708);
 INSERT INTO test.t2 (id, barcode) VALUES (2, 12345106709);
@@ -6565,6 +6610,9 @@ CREATE FUNCTION f1(p INT(8))
 RETURNS BIGINT(11) UNSIGNED
 READS SQL DATA
 RETURN FLOOR(p/1000)*1000000 + 100000 + FLOOR((p MOD 1000)/10)*100 + (p MOD 10);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
 #
 # - Check.
@@ -7934,12 +7982,12 @@ end|
 call bug4902()|
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call bug4902()|
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop procedure bug4902|
 drop procedure if exists bug4902_2|
@@ -8084,12 +8132,12 @@ create procedure 15298_2 () sql security definer show grants;
 call 15298_1();
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 call 15298_2();
 Grants for root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
 GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 drop user mysqltest_1@localhost;
 drop procedure 15298_1;

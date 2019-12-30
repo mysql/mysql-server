@@ -6,12 +6,12 @@
 	padding: 0.1em 0.2em 0.2em 0.2em;
 	background: #bcd5f0 url("../images/buttonEnabled.png") repeat-x top left;
 }
-.soria .dijitSelect .dijitButtonContents {
-	border-right: none;
-}
 .soria .dijitButtonText {
 	text-align: center;
 	padding: 0 0.3em;
+}
+.soria .dijitInputField {
+	padding: 0; 
 }
 .soria .dijitArrowButton {
 	color: #111;

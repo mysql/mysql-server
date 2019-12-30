@@ -40,23 +40,4 @@ SELECT * FROM t2 ORDER BY a;
 connection master;
 drop table t1,t2;
 --source include/sync_slave_sql_with_master.inc
-#
-# BUG#13236 multi-update with subquery & --replicate-ignore-table
-#
-reset master;
-connection slave;
-RESET MASTER;
-connection master;
-CREATE TABLE t1 ( a INT );
-INSERT INTO t1 VALUES (0);
-UPDATE t1, (SELECT 3 as b) AS x SET t1.a = x.b;
-select * from t1;
-
---source include/sync_slave_sql_with_master.inc
-connection slave;
-select * from t1;
-
-connection master;
-drop table t1;
---source include/sync_slave_sql_with_master.inc
 # End of 4.1 tests

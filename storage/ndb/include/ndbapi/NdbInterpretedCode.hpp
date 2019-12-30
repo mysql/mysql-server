@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,6 +98,13 @@ public:
   NdbInterpretedCode(const NdbDictionary::Table *table= 0,
                      Uint32 *buffer= 0, 
                      Uint32 buffer_word_size= 0);
+
+  /* Constructor variant that obtains table from NdbRecord
+  */
+  NdbInterpretedCode(const NdbRecord &,
+                     Uint32 *buffer= 0,
+                     Uint32 buffer_word_size= 0);
+
 
   ~NdbInterpretedCode();
 
@@ -265,6 +272,24 @@ public:
                     Uint32 Label);
   int branch_col_ge(const void * val, Uint32 unused, Uint32 attrId,
                     Uint32 Label);
+
+  /* Variants of above methods allowing us to compare two Attr
+   * from the same table. Both Attr's has to be of the exact same
+   * data type, including length, precision, scale, etc.
+   *
+   * NOTE that NULL values are compared such that NULL is
+   * less that any non-NULL value, and NULL is equal to NULL.
+   *
+   * BEWARE, that this is not according to the specified SQL
+   * std spec, which is also implemented by MySql.
+   */
+  int branch_col_eq(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+  int branch_col_ne(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+  int branch_col_lt(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+  int branch_col_le(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+  int branch_col_gt(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+  int branch_col_ge(Uint32 attrId1, Uint32 attrId2, Uint32 label);
+
   int branch_col_eq_null(Uint32 attrId, Uint32 Label);
   int branch_col_ne_null(Uint32 attrId, Uint32 Label);
 
@@ -680,6 +705,8 @@ private:
   int write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource);
   int branch_col(Uint32 branch_type, Uint32 attrId, const void * val,
                  Uint32 len, Uint32 label);
+  int branch_col(Uint32 branch_type, Uint32 attrId1, Uint32 attrId2,
+                 Uint32 label);
   int getInfo(Uint32 number, CodeMetaInfo &info) const;
   static int compareMetaInfo(const void *a, 
                              const void *b);

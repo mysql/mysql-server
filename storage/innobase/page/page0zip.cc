@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -959,7 +959,7 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   byte *storage; /* storage of uncompressed
                  columns */
 #ifndef UNIV_HOTBACKUP
-  uintmax_t usec = ut_time_us(NULL);
+  const auto usec = ut_time_monotonic_us();
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
   FILE *logfile = NULL;
@@ -1181,7 +1181,7 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
       dict_index_zip_failure(index);
     }
 
-    uintmax_t time_diff = ut_time_us(NULL) - usec;
+    const auto time_diff = ut_time_monotonic_us() - usec;
     page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
     if (cmp_per_index_enabled) {
       mutex_enter(&page_zip_stat_per_index_mutex);
@@ -1249,7 +1249,7 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   }
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-  uintmax_t time_diff = ut_time_us(NULL) - usec;
+  const auto time_diff = ut_time_monotonic_us() - usec;
   page_zip_stat[page_zip->ssize - 1].compressed_ok++;
   page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
   if (cmp_per_index_enabled) {
@@ -1281,7 +1281,7 @@ ibool page_zip_decompress(
                               after page creation */
 {
 #ifndef UNIV_HOTBACKUP
-  uintmax_t usec = ut_time_us(NULL);
+  const auto usec = ut_time_monotonic_us();
 #endif /* !UNIV_HOTBACKUP */
 
   if (!page_zip_decompress_low(page_zip, page, all)) {
@@ -1289,7 +1289,7 @@ ibool page_zip_decompress(
   }
 
 #ifndef UNIV_HOTBACKUP
-  uintmax_t time_diff = ut_time_us(NULL) - usec;
+  const auto time_diff = ut_time_monotonic_us() - usec;
   page_zip_stat[page_zip->ssize - 1].decompressed++;
   page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
 

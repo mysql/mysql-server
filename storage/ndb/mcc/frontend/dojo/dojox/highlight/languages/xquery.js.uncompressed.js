@@ -1,5 +1,4 @@
-//>>built
-define("dojox/highlight/languages/xquery", ["dojox/main", "../_base"], function(dojox){
+define("dojox/highlight/languages/xquery", ["../_base"], function(dh){
 
 	// Very simple XQuery language file.  Would be nice
 	// to eventually handle more of the enclosed expressions
@@ -37,7 +36,7 @@ define("dojox/highlight/languages/xquery", ["dojox/main", "../_base"], function(
 		'version': 1, 'where': 1, 'xquery': 1
 	};
 
-	var dh = dojox.highlight, dhc = dh.constants;
+	var dhc = dh.constants;
 	dh.languages.xquery = {
 		case_insensitive: true,
 			defaultMode: {

@@ -20,7 +20,8 @@ _a=true;
 _9=this.form;
 }
 var _b=this.getUrl();
-var _c=_5.send({url:_b,form:_9,handleAs:"json",content:_8,error:_3.hitch(this,function(_d){
+var _c=_5.send({url:_b,form:_9,handleAs:"json",content:_8,method:"POST",error:_3.hitch(this,function(_d){
+console.error("error parsing server result",_d);
 if(_a){
 _1.destroy(_9);
 }

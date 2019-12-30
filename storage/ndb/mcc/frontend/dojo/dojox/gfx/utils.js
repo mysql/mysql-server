@@ -2,7 +2,7 @@
 define("dojox/gfx/utils",["dojo/_base/kernel","dojo/_base/lang","./_base","dojo/_base/html","dojo/_base/array","dojo/_base/window","dojo/_base/json","dojo/_base/Deferred","dojo/_base/sniff","require","dojo/_base/config"],function(_1,_2,g,_3,_4,_5,_6,_7,_8,_9,_a){
 var gu=g.utils={};
 _2.mixin(gu,{forEach:function(_b,f,o){
-o=o||_5.global;
+o=o||_1.global;
 f.call(o,_b);
 if(_b instanceof g.Surface||_b instanceof g.Group){
 _4.forEach(_b.children,function(_c){
@@ -187,9 +187,11 @@ svg="<svg xmlns:xlink=\"http://www.w3.org/1999/xlink\""+svg;
 if(svg.indexOf("xlink:href")===-1){
 svg=svg.replace(/href\s*=/g,"xlink:href=");
 }
+svg=svg.replace(/<img\b([^>]*)>/gi,"<image $1 />");
 svg=svg.replace(/\bdojoGfx\w*\s*=\s*(['"])\w*\1/g,"");
 svg=svg.replace(/\b__gfxObject__\s*=\s*(['"])\w*\1/g,"");
 svg=svg.replace(/[=]([^"']+?)(\s|>)/g,"=\"$1\"$2");
+svg=svg.replace(/\bstroke-opacity\w*\s*=\s*(['"])undefined\1/g,"");
 }
 return svg;
 }});

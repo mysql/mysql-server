@@ -1,14 +1,13 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/TableAdapter", ["dijit","dojo","dojox","dojo/require!dojox/wire/CompositeWire"], function(dijit,dojo,dojox){
+define("dojox/wire/TableAdapter", ["dojo","dijit","dojox","dojo/require!dojox/wire/CompositeWire"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.TableAdapter");
 
 dojo.require("dojox.wire.CompositeWire");
 
 dojo.declare("dojox.wire.TableAdapter", dojox.wire.CompositeWire, {
-	//	summary:
+	// summary:
 	//		A composite Wire for table rows
-	//	description:
+	// description:
 	//		This class has multiple child Wires for object properties or array
 	//		elements of a table row.
 	//		The root object for this class must be an array.
@@ -21,31 +20,31 @@ dojo.declare("dojox.wire.TableAdapter", dojox.wire.CompositeWire, {
 	
 	_wireClass: "dojox.wire.TableAdapter",
 	
-	constructor: function(/*Object*/args){
-		//	summary:
+	constructor: function(/*Object*/ args){
+		// summary:
 		//		Initialize properties
-		//	description:
+		// description:
 		//		If object properties or array elements specified in 'columns'
 		//		property are not Wires, Wires are created from them as
 		//		arguments, with 'parent' property set to this Wire instance.
-		//	args:
-		//		Arguments to initialize properties
-		//		columns:
-		//			An object or array containing child Wires for column values
+		// args:
+		//		Arguments to initialize properties:
+		//
+		//		- columns: An object or array containing child Wires for column values
 		this._initializeChildren(this.columns);
 	},
 
 	_getValue: function(/*Array*/object){
-		//	summary:
+		// summary:
 		//		Return an array of table row value (object or array)
-		//	description:
+		// description:
 		//		This method iterates over an array specified to 'object'
 		//		argument and calls getValue() method of the child Wires with
 		//		each element of the array to get a row object or array.
 		//		Finally, an array with the row objects or arrays are retuned.
-		//	object:
+		// object:
 		//		A root array
-		//	returns:
+		// returns:
 		//		An array of table row value
 		if(!object || !this.columns){
 			return object; //Array
@@ -65,18 +64,18 @@ dojo.declare("dojox.wire.TableAdapter", dojox.wire.CompositeWire, {
 	},
 
 	_setValue: function(/*Array*/object, /*Array*/value){
-		//	summary:
+		// summary:
 		//		Not supported
 		throw new Error("Unsupported API: " + this._wireClass + "._setValue");
 	},
 
 	_getRow: function(/*Object||Array*/object){
-		//	summary:
+		// summary:
 		//		Return an array or object for a table row
-		//	description:
+		// description:
 		//		This method calls getValue() method of the child Wires to
 		//		create a row object or array.
-		//	returns:
+		// returns:
 		//		An array or object for a table row
 		var row = (dojo.isArray(this.columns) ? [] : {}); // array or object
 		for(var c in this.columns){

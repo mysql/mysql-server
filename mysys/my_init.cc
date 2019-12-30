@@ -162,20 +162,20 @@ bool my_init() {
     home_dir = intern_filename(home_dir_buff, home_dir);
 
   {
-    DBUG_ENTER("my_init");
+    DBUG_TRACE;
     DBUG_PROCESS(my_progname ? my_progname : "unknown");
 #ifdef _WIN32
     my_win_init();
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
-    DBUG_RETURN(false);
+    return false;
   }
 } /* my_init */
 
 /* End my_sys */
 void my_end(int infoflag) {
   /*
-    We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+    We do not use DBUG_TRACE here, as after cleanup DBUG is no longer
     operational, so we cannot use DBUG_RETURN.
   */
 
@@ -350,12 +350,12 @@ static void win_init_registry() {
   }
 }
 
-  /*------------------------------------------------------------------
-    Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
-    According to Microsoft Developers documentation the first registry
-    entry should be enough to check if TCP/IP is installed, but as expected
-    this doesn't work on all Win32 machines :(
-  ------------------------------------------------------------------*/
+/*------------------------------------------------------------------
+  Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
+  According to Microsoft Developers documentation the first registry
+  entry should be enough to check if TCP/IP is installed, but as expected
+  this doesn't work on all Win32 machines :(
+------------------------------------------------------------------*/
 
 #define TCPIPKEY "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
 #define WINSOCK2KEY "SYSTEM\\CurrentControlSet\\Services\\Winsock2\\Parameters"
@@ -404,7 +404,7 @@ static bool win32_init_tcp_ip() {
 Windows specific initialization of my_sys functions, resources and variables
 */
 static void my_win_init() {
-  DBUG_ENTER("my_win_init");
+  DBUG_TRACE;
 
   /* this is required to make crt functions return -1 appropriately */
   _set_invalid_parameter_handler(my_parameter_handler);
@@ -421,7 +421,6 @@ static void my_win_init() {
 
   win_init_registry();
   win32_init_tcp_ip();
-  DBUG_VOID_RETURN;
 }
 #endif /* _WIN32 */
 

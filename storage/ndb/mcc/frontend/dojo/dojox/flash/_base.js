@@ -1,10 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojo/window"],function(_1,_2,_3){
-_2.provide("dojox.flash._base");
-_2.experimental("dojox.flash");
-_2.require("dojo.window");
-_3.flash=function(){
-};
+define("dojox/flash/_base",["dojo","dijit","dojox","dojo/require!dojo/window"],function(_1,_2,_3){
+_1.provide("dojox.flash._base");
+_1.experimental("dojox.flash");
+_1.require("dojo.window");
 _3.flash={ready:false,url:null,_visible:true,_loadedListeners:[],_installingListeners:[],setSwf:function(_4,_5){
 this.url=_4;
 this._visible=true;
@@ -53,7 +51,7 @@ return false;
 },_detectVersion:function(){
 var _c;
 for(var _d=25;_d>0;_d--){
-if(_2.isIE){
+if(_1.isIE){
 var _e;
 try{
 if(_d>6){
@@ -80,7 +78,7 @@ return;
 }else{
 if(_c!=0){
 var _f;
-if(_2.isIE){
+if(_1.isIE){
 var _10=_c.split(" ");
 var _11=_10[1];
 _f=_11.split(",");
@@ -131,7 +129,7 @@ var _1f;
 var _20=_3.flash.url;
 var _21=_20;
 var _22=_20;
-var _23=_2.baseUrl;
+var _23=_1.baseUrl;
 var _24=document.location.protocol+"//"+document.location.host;
 if(_1e){
 var _25=escape(window.location);
@@ -151,9 +149,9 @@ _22+="&baseUrl="+escape(_23);
 }
 _22+="&xdomain="+escape(_24);
 _1f="<object classid=\"clsid:d27cdb6e-ae6d-11cf-96b8-444553540000\" "+"codebase=\""+this.protocol()+"://fpdownload.macromedia.com/pub/shockwave/cabs/flash/"+"swflash.cab#version=8,0,0,0\"\n "+"width=\""+this.width+"\"\n "+"height=\""+this.height+"\"\n "+"id=\""+this.id+"\"\n "+"name=\""+this.id+"\"\n "+"align=\"middle\">\n "+"<param name=\"allowScriptAccess\" value=\"always\"></param>\n "+"<param name=\"movie\" value=\""+_21+"\"></param>\n "+"<param name=\"quality\" value=\"high\"></param>\n "+"<param name=\"bgcolor\" value=\"#ffffff\"></param>\n "+"<embed src=\""+_22+"\" "+"quality=\"high\" "+"bgcolor=\"#ffffff\" "+"width=\""+this.width+"\" "+"height=\""+this.height+"\" "+"id=\""+this.id+"Embed"+"\" "+"name=\""+this.id+"\" "+"swLiveConnect=\"true\" "+"align=\"middle\" "+"allowScriptAccess=\"always\" "+"type=\"application/x-shockwave-flash\" "+"pluginspage=\""+this.protocol()+"://www.macromedia.com/go/getflashplayer\" "+"></embed>\n"+"</object>\n";
-_2.connect(_2,"loaded",_2.hitch(this,function(){
+_1.connect(_1,"loaded",_1.hitch(this,function(){
 var _27=this.id+"Container";
-if(_2.byId(_27)){
+if(_1.byId(_27)){
 return;
 }
 var div=document.createElement("div");
@@ -174,13 +172,13 @@ _28=_28[0];
 _28.appendChild(div);
 }));
 },get:function(){
-if(_2.isIE||_2.isWebKit){
-return _2.byId(this.id);
+if(_1.isIE||_1.isWebKit){
+return _1.byId(this.id);
 }else{
 return document[this.id+"Embed"];
 }
 },setVisible:function(_29){
-var _2a=_2.byId(this.id+"Container");
+var _2a=_1.byId(this.id+"Container");
 if(_29){
 _2a.style.position="absolute";
 _2a.style.visibility="visible";
@@ -192,17 +190,17 @@ _2a.style.visibility="hidden";
 },center:function(){
 var _2b=this.width;
 var _2c=this.height;
-var _2d=_2.window.getBox();
+var _2d=_1.window.getBox();
 var x=_2d.l+(_2d.w-_2b)/2;
 var y=_2d.t+(_2d.h-_2c)/2;
-var _2e=_2.byId(this.id+"Container");
+var _2e=_1.byId(this.id+"Container");
 _2e.style.top=y+"px";
 _2e.style.left=x+"px";
 }};
 _3.flash.Communicator=function(){
 };
 _3.flash.Communicator.prototype={_addExternalInterfaceCallback:function(_2f){
-var _30=_2.hitch(this,function(){
+var _30=_1.hitch(this,function(){
 var _31=new Array(arguments.length);
 for(var i=0;i<arguments.length;i++){
 _31[i]=this._encodeData(arguments[i]);

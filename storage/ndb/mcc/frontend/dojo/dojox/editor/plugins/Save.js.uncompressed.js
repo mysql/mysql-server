@@ -1,20 +1,19 @@
-//>>built
 define("dojox/editor/plugins/Save", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/form/Button",
 	"dijit/_editor/_Plugin",
+	"dijit/form/Button",
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/Save"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Save",dijit._editor._Plugin,{
+dojo.declare("dojox.editor.plugins.Save", _Plugin, {
 	// summary:
-	//		This plugin provides Save cabability to the editor.  When
-	//		clicked, the document in the editor frame will be osted to the URL
+	//		This plugin provides Save capability to the editor.  When
+	//		clicked, the document in the editor frame will be posted to the URL
 	//		provided, or none, if none provided.  Users who desire a different save
 	//		function can extend this plugin (via dojo.extend) and over-ride the
 	//		save method	while save is in process, the save button is disabled.
@@ -24,11 +23,11 @@ dojo.declare("dojox.editor.plugins.Save",dijit._editor._Plugin,{
 	//		and `command`
 	iconClassPrefix: "dijitAdditionalEditorIcon",
 
-	// url [public]	String
+	// url: [public] String
 	//		The URL to POST the content back to.  Used by the save function.
 	url: "",
 
-	// logErrors [public] boolean
+	// logResults: [public] boolean
 	//		Boolean flag to indicate that the default action for save and
 	//		error handlers is to just log to console.  Default is true.
 	logResults: true,

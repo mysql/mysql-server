@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ uint Group_validation_message::get_member_weight() const {
 
 void Group_validation_message::decode_payload(const unsigned char *buffer,
                                               const unsigned char *) {
-  DBUG_ENTER("Group_validation_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
 
@@ -64,13 +64,11 @@ void Group_validation_message::decode_payload(const unsigned char *buffer,
   uint16 member_weight_aux = 0;
   decode_payload_item_int2(&slider, &payload_item_type, &member_weight_aux);
   member_weight = (uint)member_weight_aux;
-
-  DBUG_VOID_RETURN;
 }
 
 void Group_validation_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Group_validation_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 group_validation_message_type_aux =
       (uint16)group_validation_message_type;
@@ -82,6 +80,4 @@ void Group_validation_message::encode_payload(
 
   uint16 member_weight_aux = (uint16)member_weight;
   encode_payload_item_int2(buffer, PIT_MEMBER_WEIGHT, member_weight_aux);
-
-  DBUG_VOID_RETURN;
 }

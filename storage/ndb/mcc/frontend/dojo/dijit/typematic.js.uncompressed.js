@@ -1,4 +1,3 @@
-//>>built
 define("dijit/typematic", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/connect", // connect.connect
@@ -6,17 +5,12 @@ define("dijit/typematic", [
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/_base/lang", // lang.mixin, lang.hitch
 	"dojo/on",
-	"dojo/_base/sniff", // has("ie")
-	"."		// setting dijit.typematic global
+	"dojo/sniff", // has("ie")
+	"./main"		// setting dijit.typematic global
 ], function(array, connect, event, kernel, lang, on, has, dijit){
 
 // module:
 //		dijit/typematic
-// summary:
-//		These functions are used to repetitively call a user specified callback
-//		method when a specific key or mouse click over a specific DOM node is
-//		held down for a specific amount of time.
-//		Only 1 such event is allowed to occur on the browser page at 1 time.
 
 var typematic = (dijit.typematic = {
 	// summary:
@@ -38,7 +32,7 @@ var typematic = (dijit.typematic = {
 		this._timer = setTimeout(lang.hitch(this, "_fireEventAndReload"), this._currentTimeout);
 	},
 
-	trigger: function(/*Event*/ evt, /*Object*/ _this, /*DOMNode*/ node, /*Function*/ callback, /*Object*/ obj, /*Number*/ subsequentDelay, /*Number*/ initialDelay, /*Number?*/ minDelay){
+	trigger: function(/*Event*/ evt, /*Object*/ _this, /*DOMNode*/ node, /*Function*/ callback, /*Object*/ obj, /*Number?*/ subsequentDelay, /*Number?*/ initialDelay, /*Number?*/ minDelay){
 		// summary:
 		//		Start a timed, repeating callback sequence.
 		//		If already started, the function call is ignored.
@@ -60,12 +54,12 @@ var typematic = (dijit.typematic = {
 		//		key or mouse event object
 		// obj:
 		//		user space object used to uniquely identify each typematic sequence
-		// subsequentDelay (optional):
+		// subsequentDelay:
 		//		if > 1, the number of milliseconds until the 3->n events occur
 		//		or else the fractional time multiplier for the next event's delay, default=0.9
-		// initialDelay (optional):
+		// initialDelay:
 		//		the number of milliseconds until the 2nd event occurs, default=500ms
-		// minDelay (optional):
+		// minDelay:
 		//		the maximum delay in milliseconds for event to fire, default=10ms
 		if(obj != this._obj){
 			this.stop();
@@ -73,13 +67,18 @@ var typematic = (dijit.typematic = {
 			this._subsequentDelay = subsequentDelay || 0.90;
 			this._minDelay = minDelay || 10;
 			this._obj = obj;
-			this._evt = evt;
 			this._node = node;
 			this._currentTimeout = -1;
 			this._count = -1;
 			this._callback = lang.hitch(_this, callback);
+			this._evt = { faux: true };
+			for(var attr in evt){
+				if(attr != "layerX" && attr != "layerY"){ // prevent WebKit warnings
+					var v = evt[attr];
+					if(typeof v != "function" && typeof v != "undefined"){ this._evt[attr] = v }
+				}
+			}
 			this._fireEventAndReload();
-			this._evt = lang.mixin({faux: true}, evt);
 		}
 	},
 
@@ -102,23 +101,19 @@ var typematic = (dijit.typematic = {
 		//		See also the trigger method for other parameters.
 		// keyObject:
 		//		an object defining the key to listen for:
-		// 		charOrCode:
-		//			the printable character (string) or keyCode (number) to listen for.
-		// 		keyCode:
-		//			(deprecated - use charOrCode) the keyCode (number) to listen for (implies charCode = 0).
-		// 		charCode:
-		//			(deprecated - use charOrCode) the charCode (number) to listen for.
-		// 		ctrlKey:
-		//			desired ctrl key state to initiate the callback sequence:
+		//
+		//		- charOrCode: the printable character (string) or keyCode (number) to listen for.
+		//		- keyCode: (deprecated - use charOrCode) the keyCode (number) to listen for (implies charCode = 0).
+		//		- charCode: (deprecated - use charOrCode) the charCode (number) to listen for.
+		//		- ctrlKey: desired ctrl key state to initiate the callback sequence:
 		//			- pressed (true)
 		//			- released (false)
 		//			- either (unspecified)
-		// 		altKey:
-		//			same as ctrlKey but for the alt key
-		// 		shiftKey:
-		//			same as ctrlKey but for the shift key
+		//		- altKey: same as ctrlKey but for the alt key
+		//		- shiftKey: same as ctrlKey but for the shift key
 		// returns:
 		//		a connection handle
+
 		if(keyObject.keyCode){
 			keyObject.charOrCode = keyObject.keyCode;
 			kernel.deprecated("keyCode attribute parameter for dijit.typematic.addKeyListener is deprecated. Use charOrCode instead.", "", "2.0");
@@ -154,27 +149,26 @@ var typematic = (dijit.typematic = {
 		//		See the trigger method for other parameters.
 		// returns:
 		//		a connection handle
-		var handles =  [
+		var handles = [
 			on(node, "mousedown", lang.hitch(this, function(evt){
-				event.stop(evt);
+				evt.preventDefault();
 				typematic.trigger(evt, _this, node, callback, node, subsequentDelay, initialDelay, minDelay);
 			})),
 			on(node, "mouseup", lang.hitch(this, function(evt){
 				if(this._obj){
-					event.stop(evt);
+					evt.preventDefault();
 				}
 				typematic.stop();
 			})),
 			on(node, "mouseout", lang.hitch(this, function(evt){
-				event.stop(evt);
+				if(this._obj){
+					evt.preventDefault();
+				}
 				typematic.stop();
 			})),
-			on(node, "mousemove", lang.hitch(this, function(evt){
-				evt.preventDefault();
-			})),
 			on(node, "dblclick", lang.hitch(this, function(evt){
-				event.stop(evt);
-				if(has("ie")){
+				evt.preventDefault();
+				if(has("ie") < 9){
 					typematic.trigger(evt, _this, node, callback, node, subsequentDelay, initialDelay, minDelay);
 					setTimeout(lang.hitch(this, typematic.stop), 50);
 				}

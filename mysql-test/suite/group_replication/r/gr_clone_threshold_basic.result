@@ -1,0 +1,43 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET @group_replication_clone_threshold_save= @@GLOBAL.group_replication_clone_threshold;
+
+############################################################
+# 1. Test invalid values.
+SET @@GLOBAL.group_replication_clone_threshold= ON;
+ERROR 42000: Incorrect argument type to variable 'group_replication_clone_threshold'
+SET @@GLOBAL.group_replication_clone_threshold= OFF;
+ERROR 42000: Incorrect argument type to variable 'group_replication_clone_threshold'
+SET @@GLOBAL.group_replication_clone_threshold= " ";
+ERROR 42000: Incorrect argument type to variable 'group_replication_clone_threshold'
+SET @@GLOBAL.group_replication_clone_threshold= "bar";
+ERROR 42000: Incorrect argument type to variable 'group_replication_clone_threshold'
+SET @@GLOBAL.group_replication_clone_threshold= 1.0;
+ERROR 42000: Incorrect argument type to variable 'group_replication_clone_threshold'
+SET @@GLOBAL.group_replication_clone_threshold= -1;
+ERROR 42000: The value -1 is not within the range of accepted values for the option group_replication_clone_threshold. The value must be between 1 and 9223372036854775807 inclusive.
+SET @@GLOBAL.group_replication_clone_threshold= 0;
+ERROR 42000: The value 0 is not within the range of accepted values for the option group_replication_clone_threshold. The value must be between 1 and 9223372036854775807 inclusive.
+SET @@GLOBAL.group_replication_clone_threshold= 9223372036854775808;
+ERROR 42000: The value 9223372036854775808 is not within the range of accepted values for the option group_replication_clone_threshold. The value must be between 1 and 9223372036854775807 inclusive.
+
+############################################################
+# 2. Test valid values.
+SET @@GLOBAL.group_replication_clone_threshold= 1;
+include/assert.inc [group_replication_clone_threshold is correct]
+SET @@GLOBAL.group_replication_clone_threshold= 65535;
+include/assert.inc [group_replication_clone_threshold is correct]
+SET @@GLOBAL.group_replication_clone_threshold= 4294967295;
+include/assert.inc [group_replication_clone_threshold is correct]
+SET @@GLOBAL.group_replication_clone_threshold= 9223372036854775807;
+include/assert.inc [group_replication_clone_threshold is correct]
+SET @@GLOBAL.group_replication_clone_threshold= default;
+include/assert.inc [group_replication_clone_threshold is correct]
+
+############################################################
+# 3. Clean up.
+SET @@GLOBAL.group_replication_clone_threshold= @group_replication_clone_threshold_save;
+include/group_replication_end.inc

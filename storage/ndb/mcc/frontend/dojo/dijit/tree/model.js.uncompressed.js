@@ -1,7 +1,6 @@
-//>>built
+define("dijit/tree/model", ["dojo/_base/declare"], function(declare){
 
-/*=====
-declare(
+return declare(
 	"dijit.tree.model",
 	null,
 {
@@ -9,10 +8,10 @@ declare(
 	//		Contract for any data provider object for the tree.
 	// description:
 	//		Tree passes in values to the constructor to specify the callbacks.
-	//		"item" is typically a dojo.data.Item but it's just a black box so
+	//		"item" is typically a dojo/data/Item but it's just a black box so
 	//		it could be anything.
 	//
-	//		This (like `dojo.data.api.Read`) is just documentation, and not meant to be used.
+	//		This (like `dojo/data/api/Read`) is just documentation, and not meant to be used.
 
 	destroy: function(){
 		// summary:
@@ -38,16 +37,16 @@ declare(
 		//		avoids showing +/- expando icon for nodes that we know don't have children.
 		//		(For efficiency reasons we may not want to check if an element actually
 		//		has children until user clicks the expando node)
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// tags:
 		//		extension
 	},
 
 	getChildren: function(parentItem, onComplete){
 		// summary:
-		// 		Calls onComplete() with array of child items of given parent item, all loaded.
+		//		Calls onComplete() with array of child items of given parent item, all loaded.
 		//		Throws exception on error.
-		// parentItem: dojo.data.Item
+		// parentItem: dojo/data/Item
 		// onComplete: function(items)
 		// tags:
 		//		extension
@@ -93,17 +92,20 @@ declare(
 	// =======================================================================
 	// Write interface
 
-	newItem: function(args, parent, insertIndex){
+	newItem: function(args, parent, insertIndex, before){
 		// summary:
-		//		Creates a new item.   See `dojo.data.api.Write` for details on args.
-		// args: dojo.dnd.Item
+		//		Creates a new item.   See `dojo/data/api/Write` for details on args.
+		// args: dijit/tree/dndSource.__Item
 		// parent: Item
 		// insertIndex: int?
+		//		Allows to insert the new item as the n'th child of `parent`.
+		// before: Item?
+		//		Insert the new item as the previous sibling of this item.  `before` must be a child of `parent`.
 		// tags:
 		//		extension
 	},
 
-	pasteItem: function(childItem, oldParentItem, newParentItem, bCopy){
+	pasteItem: function(childItem, oldParentItem, newParentItem, bCopy, insertIndex, before){
 		// summary:
 		//		Move or copy an item from one parent item to another.
 		//		Used in drag & drop.
@@ -113,6 +115,10 @@ declare(
 		// oldParentItem: Item
 		// newParentItem: Item
 		// bCopy: Boolean
+		// insertIndex: int?
+		//		Allows to insert the new item as the n'th child of `parent`.
+		// before: Item?
+		//		Insert the new item as the previous sibling of this item.  `before` must be a child of `parent`.
 		// tags:
 		//		extension
 	},
@@ -126,7 +132,7 @@ declare(
 		//		can update the label, icon, etc.   Note that changes
 		//		to an item's children or parent(s) will trigger an
 		//		onChildrenChange() so you can ignore those changes here.
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// tags:
 		//		callback
 	},
@@ -134,10 +140,11 @@ declare(
 	onChildrenChange: function(parent, newChildrenList){
 		// summary:
 		//		Callback to do notifications about new, updated, or deleted items.
-		// parent: dojo.data.Item
-		// newChildrenList: dojo.data.Item[]
+		// parent: dojo/data/Item
+		// newChildrenList: dojo/data/Item[]
 		// tags:
 		//		callback
 	}
 });
-=====*/
+
+});

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -379,7 +379,7 @@ ib_err_t innodb_cb_open_table(
 /*****************************************************************/ /**
  Get a column name from the tuple.
  @return name of the column */
-char *innodb_cb_col_get_name(
+const char *innodb_cb_col_get_name(
     /*===================*/
     ib_crsr_t ib_crsr, /*!< in: InnoDB cursor instance */
     ib_ulint_t i);     /*!< in: column index in tuple */

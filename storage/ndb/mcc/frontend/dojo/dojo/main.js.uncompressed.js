@@ -1,11 +1,11 @@
-//>>built
 define("dojo/main", [
-	"./_base/kernel",
+	"./_base/kernel",	// kernel.isAsync
 	"./has",
 	"require",
-	"./_base/sniff",
+	"./sniff",
 	"./_base/lang",
 	"./_base/array",
+	"./_base/config",
 	"./ready",
 	"./_base/declare",
 	"./_base/connect",
@@ -14,7 +14,8 @@ define("dojo/main", [
 	"./_base/Color",
 	"./has!dojo-firebug?./_firebug/firebug",
 	"./_base/browser",
-	"./_base/loader"], function(dojo, has, require, sniff, lang, array, ready){
+	"./_base/loader"
+], function(kernel, has, require, sniff, lang, array, config, ready){
 	// module:
 	//		dojo/main
 	// summary:
@@ -23,20 +24,20 @@ define("dojo/main", [
 	// the preferred way to load the dojo firebug console is by setting has("dojo-firebug") true in dojoConfig
 	// the isDebug config switch is for backcompat and will work fine in sync loading mode; it works in
 	// async mode too, but there's no guarantee when the module is loaded; therefore, if you need a firebug
-	// console guarnanteed at a particular spot in an app, either set config.has["dojo-firebug"] true before
+	// console guaranteed at a particular spot in an app, either set config.has["dojo-firebug"] true before
 	// loading dojo.js or explicitly include dojo/_firebug/firebug in a dependency list.
-	if(dojo.config.isDebug){
+	if(config.isDebug){
 		require(["./_firebug/firebug"]);
 	}
 
 	// dojoConfig.require is deprecated; use the loader configuration property deps
-	true || has.add("dojo-config-require", 1);
-	if(1){
-		var deps= dojo.config.require;
+	 1 || has.add("dojo-config-require", 1);
+	if( 1 ){
+		var deps= config.require;
 		if(deps){
-			// dojo.config.require may be dot notation
+			// config.require may be dot notation
 			deps= array.map(lang.isArray(deps) ? deps : [deps], function(item){ return item.replace(/\./g, "/"); });
-			if(dojo.isAsync){
+			if(kernel.isAsync){
 				require(deps);
 			}else{
 				// this is a bit janky; in 1.6- dojo is defined before these requires are applied; but in 1.7+
@@ -47,5 +48,5 @@ define("dojo/main", [
 		}
 	}
 
-	return dojo;
+	return kernel;
 });

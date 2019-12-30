@@ -657,7 +657,7 @@ drop table t1;
 
 
 --echo #
---echo # Bug#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+--echo # Bug#15328 Segmentation fault occurred if my.cnf is invalid for escape sequence
 --echo #
 
 --exec $MYSQL_MY_PRINT_DEFAULTS --config-file=$MYSQL_TEST_DIR/std_data/bug15328.cnf mysqldump
@@ -2574,7 +2574,7 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 # restore and sys schema
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
+--exec $MYSQL --comments < $MYSQLTEST_VARDIR/tmp/sys.sql
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sys.sql

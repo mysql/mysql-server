@@ -1,6 +1,6 @@
 //>>built
-define("dijit/form/SimpleTextarea",["dojo/_base/declare","dojo/dom-class","dojo/_base/sniff","dojo/_base/window","./TextBox"],function(_1,_2,_3,_4,_5){
-return _1("dijit.form.SimpleTextarea",_5,{baseClass:"dijitTextBox dijitTextArea",rows:"3",cols:"20",templateString:"<textarea ${!nameAttrSetting} data-dojo-attach-point='focusNode,containerNode,textbox' autocomplete='off'></textarea>",postMixInProperties:function(){
+define("dijit/form/SimpleTextarea",["dojo/_base/declare","dojo/dom-class","dojo/sniff","./TextBox"],function(_1,_2,_3,_4){
+return _1("dijit.form.SimpleTextarea",_4,{baseClass:"dijitTextBox dijitTextArea",rows:"3",cols:"20",templateString:"<textarea ${!nameAttrSetting} data-dojo-attach-point='focusNode,containerNode,textbox' autocomplete='off'></textarea>",postMixInProperties:function(){
 if(!this.value&&this.srcNodeRef){
 this.value=this.srcNodeRef.value;
 }
@@ -10,33 +10,33 @@ this.inherited(arguments);
 if(_3("ie")&&this.cols){
 _2.add(this.textbox,"dijitTextAreaCols");
 }
-},filter:function(_6){
-if(_6){
-_6=_6.replace(/\r/g,"");
+},filter:function(_5){
+if(_5){
+_5=_5.replace(/\r/g,"");
 }
 return this.inherited(arguments);
 },_onInput:function(e){
 if(this.maxLength){
-var _7=parseInt(this.maxLength);
-var _8=this.textbox.value.replace(/\r/g,"");
-var _9=_8.length-_7;
-if(_9>0){
-var _a=this.textbox;
-if(_a.selectionStart){
-var _b=_a.selectionStart;
+var _6=parseInt(this.maxLength);
+var _7=this.textbox.value.replace(/\r/g,"");
+var _8=_7.length-_6;
+if(_8>0){
+var _9=this.textbox;
+if(_9.selectionStart){
+var _a=_9.selectionStart;
 var cr=0;
 if(_3("opera")){
-cr=(this.textbox.value.substring(0,_b).match(/\r/g)||[]).length;
+cr=(this.textbox.value.substring(0,_a).match(/\r/g)||[]).length;
 }
-this.textbox.value=_8.substring(0,_b-_9-cr)+_8.substring(_b-cr);
-_a.setSelectionRange(_b-_9,_b-_9);
+this.textbox.value=_7.substring(0,_a-_8-cr)+_7.substring(_a-cr);
+_9.setSelectionRange(_a-_8,_a-_8);
 }else{
-if(_4.doc.selection){
-_a.focus();
-var _c=_4.doc.selection.createRange();
-_c.moveStart("character",-_9);
-_c.text="";
-_c.select();
+if(this.ownerDocument.selection){
+_9.focus();
+var _b=this.ownerDocument.selection.createRange();
+_b.moveStart("character",-_8);
+_b.text="";
+_b.select();
 }
 }
 }

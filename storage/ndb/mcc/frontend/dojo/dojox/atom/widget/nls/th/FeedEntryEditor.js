@@ -1,11 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	doNew: "[สร้าง]",
-	edit: "[แก้ไข]",
-	save: "[บันทึก]",
-	cancel: "[ยกเลิก]"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/th/FeedEntryEditor",({doNew:"[สร้างใหม่]",edit:"[แก้ไข]",save:"[บันทึก]",cancel:"[ยกเลิก]"}));

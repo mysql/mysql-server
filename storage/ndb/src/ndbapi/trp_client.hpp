@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,8 +116,11 @@ private:
    * TransporterSendBufferHandle interface
    */
   virtual bool isSendEnabled(NodeId node) const;
-  virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                              Uint32 max_use);
+  virtual Uint32 *getWritePtr(NodeId node,
+                              Uint32 lenBytes,
+                              Uint32 prio,
+                              Uint32 max_use,
+                              SendStatus* error);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
   virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);

@@ -1,24 +1,22 @@
-//>>built
 define("dojox/editor/plugins/Preview", [
 	"dojo",
 	"dijit",
 	"dojox",
-	"dijit/form/Button",
 	"dijit/_editor/_Plugin",
+	"dijit/form/Button",
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojo/i18n",
 	"dojo/i18n!dojox/editor/plugins/nls/Preview"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Plugin) {
 
-dojo.declare("dojox.editor.plugins.Preview",dijit._editor._Plugin,{
-	//	summary:
-	//		This plugin provides Preview cabability to the editor.  When
+dojo.declare("dojox.editor.plugins.Preview", _Plugin, {
+	// summary:
+	//		This plugin provides Preview capability to the editor.  When
 	//		clicked, the document in the editor frame will displayed in a separate
 	//		window/tab
 
-	//	useDefaultCommand [protected]
-	//		Over-ride indicating that the command processing is done all by this plugin.
+	// Over-ride indicating that the command processing is done all by this plugin.
 	useDefaultCommand: false,
 
 	// styles: [public] String

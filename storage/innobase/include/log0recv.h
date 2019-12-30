@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -72,11 +72,15 @@ log scanned.
 @param[in,out]	scanned_lsn		lsn of buffer start, we return scanned
 lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
+@param[out]	block_no	highest block no in scanned buffer.
 checkpoint number so far
 @param[out]	n_bytes_scanned		how much we were able to scan, smaller
-than buf_len if log data ended here */
+than buf_len if log data ended here
+@param[out]	has_encrypted_log	set true, if buffer contains encrypted
+redo log, set false otherwise */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *n_bytes_scanned);
+                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      ulint *n_bytes_scanned, bool *has_encrypted_log);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
@@ -138,7 +142,26 @@ bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
                        lsn_t checkpoint_lsn, lsn_t start_lsn,
                        lsn_t *contiguous_lsn, lsn_t *group_scanned_lsn);
 
+/** Creates an IORequest object for decrypting redo log with
+Encryption::decrypt_log() method. If the encryption_info parameter is
+a null pointer, then encryption information is read from
+"ib_logfile0". If the encryption_info parameter is not null, then it
+should contain a copy of the encryption info stored in the header of
+"ib_logfile0".
+@param[in,out]	encryption_request      an IORequest object
+@param[in]	encryption_info         a copy of the encryption info in
+the header of "ib_logfile0", or a null pointer
+@retval	true	if the call succeeded
+@retval	false	otherwise */
+bool meb_read_log_encryption(IORequest &encryption_request,
+                             byte *encryption_info = nullptr);
+
 bool recv_check_log_header_checksum(const byte *buf);
+/** Check the 4-byte checksum to the trailer checksum field of a log
+block.
+@param[in]	block	pointer to a log block
+@return whether the checksum matches */
+bool log_block_checksum_is_ok(const byte *block);
 #else /* UNIV_HOTBACKUP */
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
@@ -517,6 +540,17 @@ struct recv_sys_t {
 
   /** The log records have been parsed up to this lsn */
   lsn_t recovered_lsn;
+
+  /** The previous value of recovered_lsn - before we parsed the last mtr.
+  It is equal to recovered_lsn before we parsed any mtr. This is used to
+  find moments in which recovered_lsn moves to the next block in which case
+  we should update the last_block_first_rec_group (described below). */
+  lsn_t previous_recovered_lsn;
+
+  /** Tracks what should be the proper value of first_rec_group field in the
+  header of the block to which recovered_lsn belongs. It might be also zero,
+  in which case it means we do not know. */
+  uint32_t last_block_first_rec_group;
 
   /** Set when finding a corrupt log block or record, or there
   is a log parsing buffer overflow */

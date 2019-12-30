@@ -1,23 +1,21 @@
-//>>built
 define("dojox/fx/split", ["dojo/_base/lang", "dojo/dom", "dojo/_base/window", "dojo/_base/html", "dojo/dom-geometry", 
 		"dojo/dom-construct", "dojo/dom-attr", "dojo/_base/fx", "dojo/fx", "./_base", "dojo/fx/easing", "dojo/_base/connect"],
 	function(lang, dom, winUtil, htmlUtil, domGeom, domConstruct, domAttr, baseFx, coreFx, fxExt, easingUtil, connectUtil){
 var dojoxFx = lang.getObject("dojox.fx");
 lang.mixin(dojoxFx,{
 	_split: function(/*Object*/ args){
-		// summary: Split a node into rectangular pieces and animate them.
-		//
+		// summary:
+		//		Split a node into rectangular pieces and animate them.
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that move independently.
-		//
-		//	args:
-		//		args.crop: Boolean - If true, pieces will only be visible inside node's boundries
-		//		args.rows: Integer - The number of horizontal pieces (default is 3)
-		//		args.columns: Integer - The number of vertical pieces (default is 3)
-		//		args.pieceAnimation: Function(piece, x, y, coords) - Returns either the dojo.Animation
-		//		or an array of dojo.Animation objects for the piece at location (x, y) in the node's grid;
-		//		coords is the result of dojo.coords(args.node, true);
+		// args:
+		//		- args.crop: Boolean - If true, pieces will only be visible inside node's boundries
+		//		- args.rows: Integer - The number of horizontal pieces (default is 3)
+		//		- args.columns: Integer - The number of vertical pieces (default is 3)
+		//		- args.pieceAnimation: Function(piece, x, y, coords) - Returns either the dojo.Animation
+		//		  or an array of dojo.Animation objects for the piece at location (x, y) in the node's grid;
+		//		  coords is the result of dojo.coords(args.node, true);
 
 		args.rows = args.rows || 3;
 		args.columns = args.columns || 3;
@@ -125,24 +123,23 @@ lang.mixin(dojoxFx,{
 	},
 
 	explode: function(/*Object*/ args){
-		// summary: Explode a node into rectangular pieces
-		//
+		// summary:
+		//		Explode a node into rectangular pieces
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that fly away from the center.
-		//
-		//	args:
-		//		args.rows: Integer - The number of horizontal pieces (default is 3)
-		//		args.columns: Integer - The number of vertical pieces (default is 3)
-		//		args.random: Float - If set, pieces fly to random distances, for random durations,
+		// args:
+		//		- args.rows: Integer - The number of horizontal pieces (default is 3)
+		//		- args.columns: Integer - The number of vertical pieces (default is 3)
+		//		- args.random: Float - If set, pieces fly to random distances, for random durations,
 		//							   and in slightly random directions.  The value defines how much
 		//							   randomness is introduced.
-		//		args.distance: Float - Multiplier for the distance the pieces fly (even when random)
-		//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-		//		args.fadeEasing: Function - If args.fade is true, the fade animations use this easing function
-		//		args.unhide: Boolean - If true, the animation is reversed
-		//		args.sync: Boolean - If args.unhide is true, all the pieces converge at the same time
-		//							 (default is true)
+		//		- args.distance: Float - Multiplier for the distance the pieces fly (even when random)
+		//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+		//		- args.fadeEasing: Function - If args.fade is true, the fade animations use this easing function
+		//		- args.unhide: Boolean - If true, the animation is reversed
+		//		- args.sync: Boolean - If args.unhide is true, all the pieces converge at the same time
+		//							   (default is true)
 
 		var node = args.node = dom.byId(args.node);
 		args.rows = args.rows || 3;
@@ -246,22 +243,21 @@ lang.mixin(dojoxFx,{
 	},
 
 	disintegrate: function(/*Object*/ args){
-		// summary: Split a node into rectangular pieces and let them fall
-		//
+		// summary:
+		//		Split a node into rectangular pieces and let them fall
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that drop.
-		//
-		//	args:
-		//		args.rows: Integer - The number of horizontal pieces (default is 5)
-		//		args.columns: Integer - The number of vertical pieces (default is 5)
-		//		args.interval: Float - The number of milliseconds between each piece's animation
-		//		args.distance: Float - The number of the node's heights to drop (default is 1.5)
-		//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-		//		args.random: Float - If set, pieces fall in random order. The value defines how much
+		// args:
+		//		- args.rows: Integer - The number of horizontal pieces (default is 5)
+		//		- args.columns: Integer - The number of vertical pieces (default is 5)
+		//		- args.interval: Float - The number of milliseconds between each piece's animation
+		//		- args.distance: Float - The number of the node's heights to drop (default is 1.5)
+		//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+		//		- args.random: Float - If set, pieces fall in random order. The value defines how much
 		//							   randomness is introduced.
-		//		args.reverseOrder: Boolean - If true, pieces animate in reversed order
-		//		args.unhide: Boolean - If true, the peices fall from above and land in place
+		//		- args.reverseOrder: Boolean - If true, pieces animate in reversed order
+		//		- args.unhide: Boolean - If true, the peices fall from above and land in place
 		var node = args.node = dom.byId(args.node);
 
 		args.rows = args.rows || 5;
@@ -341,22 +337,21 @@ lang.mixin(dojoxFx,{
 	},
 
 	shear: function(/*Object*/ args){
-		// summary: Split a node into rectangular pieces and slide them in alternating directions
-		//
+		// summary:
+		//		Split a node into rectangular pieces and slide them in alternating directions
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that slide in alternating directions.
-		//
-		//	args:
-		//		args.rows: Integer - The number of horizontal pieces (default is 6)
-		//		args.columns: Integer - The number of vertical pieces (default is 6)
-		//		args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
-		//		args.distance: Float - The multiple of the node's dimensions to slide (default is 1)
-		//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-		//		args.random: Float - If true, pieces have a random delay. The value defines how much
+		// args:
+		//		- args.rows: Integer - The number of horizontal pieces (default is 6)
+		//		- args.columns: Integer - The number of vertical pieces (default is 6)
+		//		- args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
+		//		- args.distance: Float - The multiple of the node's dimensions to slide (default is 1)
+		//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+		//		- args.random: Float - If true, pieces have a random delay. The value defines how much
 		//							   randomness is introduced
-		//		args.reverseOrder: Boolean - If true, pieces animate in reversed order
-		//		args.unhide: Boolean - If true, the animation is reversed
+		//		- args.reverseOrder: Boolean - If true, pieces animate in reversed order
+		//		- args.unhide: Boolean - If true, the animation is reversed
 
 		var node = args.node = dom.byId(args.node);
 
@@ -460,21 +455,20 @@ lang.mixin(dojoxFx,{
 	},
 
 	pinwheel: function(/*Object*/ args){
-		// summary: Split a node into rectangular pieces and wipe them in alternating directions
-		//
+		// summary:
+		//		Split a node into rectangular pieces and wipe them in alternating directions
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that wipe in alternating directions.
-		//
-		//	args:
-		//		args.rows: Integer - The number of horizontal pieces (default is 4)
-		//		args.columns: Integer - The number of vertical pieces (default is 4)
-		//		args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
-		//		args.distance: Float - The percentage of the piece's dimensions the piece should wipe
-		//		args.fade: Boolean - If true, pieces fade out while in motion (default is true)
-		//		args.random: Float - If true, pieces have a random delay. The value defines how much
+		// args:
+		//		- args.rows: Integer - The number of horizontal pieces (default is 4)
+		//		- args.columns: Integer - The number of vertical pieces (default is 4)
+		//		- args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
+		//		- args.distance: Float - The percentage of the piece's dimensions the piece should wipe
+		//		- args.fade: Boolean - If true, pieces fade out while in motion (default is true)
+		//		- args.random: Float - If true, pieces have a random delay. The value defines how much
 		//							   randomness is introduced.
-		//		args.unhide: Boolean - If true, the animation is reversed
+		//		- args.unhide: Boolean - If true, the animation is reversed
 
 		var node = args.node = dom.byId(args.node);
 
@@ -594,20 +588,19 @@ lang.mixin(dojoxFx,{
 	},
 
 	blockFadeOut: function(/*Object*/ args){
-		// summary: Split a node into rectangular pieces and fade them
-		//
+		// summary:
+		//		Split a node into rectangular pieces and fade them
 		// description:
 		//		Returns an animation that will split the node into a grid
 		//		of pieces that fade in or out.
-		//
-		//	args:
-		//		args.rows: Integer - The number of horizontal pieces (default is 5)
-		//		args.columns: Integer - The number of vertical pieces (default is 5)
-		//		args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
-		//		args.random: Float - If true, pieces have a random delay. The value defines how much
+		// args:
+		//		- args.rows: Integer - The number of horizontal pieces (default is 5)
+		//		- args.columns: Integer - The number of vertical pieces (default is 5)
+		//		- args.interval: Float - The number of milliseconds between each piece's animation (default is 0)
+		//		- args.random: Float - If true, pieces have a random delay. The value defines how much
 		//							   randomness is introduced
-		//		args.reverseOrder: Boolean - If true, pieces animate in reversed order
-		//		args.unhide: Boolean - If true, the animation is reversed
+		//		- args.reverseOrder: Boolean - If true, pieces animate in reversed order
+		//		- args.unhide: Boolean - If true, the animation is reversed
 
 		var node = args.node = dom.byId(args.node);
 

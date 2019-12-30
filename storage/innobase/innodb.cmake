@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +33,9 @@ ENDIF()
 
 # OS tests
 IF(UNIX AND NOT IGNORE_AIO_CHECK)
-  IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  IF(LINUX)
 
-    ADD_DEFINITIONS("-DUNIV_LINUX -D_GNU_SOURCE=1")
+    ADD_DEFINITIONS("-DUNIV_LINUX")
 
     CHECK_INCLUDE_FILES (libaio.h HAVE_LIBAIO_H)
     CHECK_LIBRARY_EXISTS(aio io_queue_init "" HAVE_LIBAIO)
@@ -45,7 +45,7 @@ IF(UNIX AND NOT IGNORE_AIO_CHECK)
       LINK_LIBRARIES(aio)
     ENDIF()
 
-  ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  ELSEIF(SOLARIS)
     ADD_DEFINITIONS("-DUNIV_SOLARIS")
   ENDIF()
 ENDIF()
@@ -59,20 +59,18 @@ ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
-# Turn off unused parameter warnings for InnoDB.
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+IF(MY_COMPILER_IS_GNU_OR_CLANG)
+  # Turn off unused parameter warnings.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
+  # Turn off warnings about implicit casting away const.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
 ENDIF()
 
-IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-# After: WL#5825 Using C++ Standard Library with MySQL code
-#       we no longer use -fno-exceptions
-#	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
-
-# Add -Wconversion if compiling with GCC
-## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
-## please fix them and enable the following code:
-#SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
+IF(MY_COMPILER_IS_GNU)
+  # Add -Wconversion if compiling with GCC
+  ## As of Mar 15 2011 this flag causes 3573+ warnings. If you are reading this
+  ## please fix them and enable the following code:
+  #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wconversion")
 
   IF (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR
       CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
@@ -140,7 +138,6 @@ IF(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE)
 ENDIF()
 
 IF(NOT MSVC)
-# either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
 IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "#include<stdint.h>
@@ -257,7 +254,7 @@ ENDIF()
 ENDIF(NOT MSVC)
 
 # Solaris atomics
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+IF(SOLARIS)
   IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_COMPILES(
   "#include <mbarrier.h>
@@ -289,4 +286,4 @@ ENDIF()
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/include
 		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
-		    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
+                    )

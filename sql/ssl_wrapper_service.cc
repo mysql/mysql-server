@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -32,21 +32,19 @@
 #endif  // WIN32
 #include <openssl/ssl.h>
 #include <string.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 #include "my_compiler.h"
 #include "my_io.h"  // IWYU pragma: keep (for Winsock definitions)
 #include "mysql/service_ssl_wrapper.h"
 
-namespace ssl_wrappe_service {
+namespace ssl_wrapper_service {
 
 int MY_ATTRIBUTE((visibility("default")))
     dummy_function_to_ensure_we_are_linked_into_the_server() {
   return 1;
 }
 
-}  // namespace ssl_wrappe_service
+}  // namespace ssl_wrapper_service
 
 static char *my_asn1_time_to_string(ASN1_TIME *time, char *buf, size_t len) {
   int n_read;
@@ -301,9 +299,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *vio_ssl) {
 */
 void ssl_wrapper_thread_cleanup() {
   ERR_clear_error();
-#ifndef HAVE_WOLFSSL
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-#endif
 }

@@ -1,18 +1,15 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/stencil/Line", ["dijit","dojo","dojox"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.stencil.Line");
-
-dojox.drawing.stencil.Line = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Creates a dojox.gfx Line based on data or points provided.
-	//
-	dojox.drawing.stencil._Base,
+define("dojox/drawing/stencil/Line", ["dojo/_base/lang", "../util/oo", "./_Base", "../manager/_registry"], 
+function(lang, oo, Base, registry){
+var Line = oo.declare(
+	Base,
 	function(options){
 		// summary:
 		//		constructor
 	},
 	{
+		// summary:
+		//		Creates a dojox.gfx Line based on data or points provided.
+
 		type:"dojox.drawing.stencil.Line",
 		anchorType: "single",
 		baseRender:true,
@@ -20,40 +17,39 @@ dojox.drawing.stencil.Line = dojox.drawing.util.oo.declare(
 /*=====
 StencilData: {
 	// summary:
-	//		The data used to create the dojox.gfx Shape
-	// 	x1: Number
+	//		The data used to create the dojox.gfx Shape, specify
+	//		x1,y1,x2,y2, or x,y,angle,radius
+
+	// x1: Number
 	//		First point x
-	// 	y1: Number
+	// y1: Number
 	//		First point y
-	// 	x2: Number
+	// x2: Number
 	//		Second point x
-	// 	y2: Number
+	// y2: Number
 	//		Second point y
 	
 	// ALTERNATIVE:
 	
-	// 	x: Number
+	// x: Number
 	//		First point x
-	// 	y: Number
+	// y: Number
 	//		First point y
-	// 	angle: Number
+	// angle: Number
 	//		angle of line
-	// 	radius: Number
+	// radius: Number
 	//		length of line
 },
 
 StencilPoints: [
 	// summary:
 	//		An Array of dojox.__StencilPoint objects that describe the Stencil
-	// 	0: Object
-	//		First point
-	// 	1: Object
-	//		Second point
+	//		[First point, Second point]
 ],
 =====*/
 		
 		dataToPoints: function(o){
-			//summary:
+			// summary:
 			//		Converts data to points.
 			o = o || this.data;
 			if(o.radius || o.angle){
@@ -94,7 +90,7 @@ StencilPoints: [
 			//		Creates a dojox.gfx.shape based on passed arguments.
 			//		Can be called many times by implementation to create
 			//		multiple shapes in one stencil.
-			//
+
 			this.remove(this[shp]);
 			this[shp] = this.container.createLine(d)
 				.setStroke(sty);
@@ -106,7 +102,7 @@ StencilPoints: [
 			//		Renders the 'hit' object (the shape used for an expanded
 			//		hit area and for highlighting) and the'shape' (the actual
 			//		display object).
-			//
+
 			this.onBeforeRender(this);
 			this.renderHit && this._create("hit", this.data, this.style.currentHit);
 			this._create("shape", this.data, this.style.current);
@@ -116,7 +112,10 @@ StencilPoints: [
 	}
 );
 
-dojox.drawing.register({
+lang.setObject("dojox.drawing.stencil.Line", Line);
+registry.register({
 	name:"dojox.drawing.stencil.Line"
 }, "stencil");
+
+return Line;
 });

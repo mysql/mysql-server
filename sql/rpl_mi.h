@@ -27,7 +27,8 @@
 #include <time.h>
 #include <atomic>
 
-#include "binlog_event.h"  // enum_binlog_checksum_alg
+#include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
+#include "libbinlogevents/include/binlog_event.h"  // enum_binlog_checksum_alg
 #include "m_string.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -327,6 +328,13 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   const char *network_namespace_str() const {
     return is_set_network_namespace() ? network_namespace : "";
   }
+  /*
+    describes what compression algorithm and level is used between
+    master/slave communication protocol
+  */
+  char compression_algorithm[COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE];
+  int zstd_compression_level;
+  NET_SERVER server_extn;  // maintain compress context info.
 
   int mi_init_info();
   void end_info();
@@ -461,6 +469,13 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
      fields of the table repository.
   */
   static const uint *get_table_pk_field_indexes();
+
+  /**
+     Sets bits for columns that are allowed to be `NULL`.
+
+     @param nullable_fields the bitmap to hold the nullable fields.
+  */
+  static void set_nullable_fields(MY_BITMAP *nullable_fields);
 
   bool is_auto_position() { return auto_position; }
 

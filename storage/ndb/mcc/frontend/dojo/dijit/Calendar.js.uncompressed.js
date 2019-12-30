@@ -1,4 +1,3 @@
-//>>built
 define("dijit/Calendar", [
 	"dojo/_base/array", // array.map
 	"dojo/date",
@@ -10,28 +9,17 @@ define("dijit/Calendar", [
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/keys", // keys
 	"dojo/_base/lang", // lang.hitch
-	"dojo/_base/sniff", // has("ie")
+	"dojo/sniff", // has("ie")
 	"./CalendarLite",
 	"./_Widget",
 	"./_CssStateMixin",
 	"./_TemplatedMixin",
-	"./form/DropDownButton",
-	"./hccss"	// not used directly, but sets CSS class on <body>
+	"./form/DropDownButton"
 ], function(array, date, local, declare, domAttr, domClass, event, kernel, keys, lang, has,
 			CalendarLite, _Widget, _CssStateMixin, _TemplatedMixin, DropDownButton){
 
-/*=====
-	var CalendarLite = dijit.CalendarLite;
-	var _CssStateMixin = dijit._CssStateMixin;
-	var _Widget = dijit._Widget;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var DropDownButton = dijit.form.DropDownButton;
-=====*/
-
 	// module:
 	//		dijit/Calendar
-	// summary:
-	//		A simple GUI for choosing a date in the context of a monthly calendar.
 
 	var Calendar = declare("dijit.Calendar",
 		[CalendarLite, _Widget, _CssStateMixin], // _Widget for deprecated methods like setAttribute()
@@ -41,10 +29,11 @@ define("dijit/Calendar", [
 		//
 		// description:
 		//		See CalendarLite for general description.   Calendar extends CalendarLite, adding:
-		//			- month drop down list
-		//			- keyboard navigation
-		//			- CSS classes for hover/mousepress on date, month, and year nodes
-		//			- support of deprecated methods (will be removed in 2.0)
+		//
+		//		- month drop down list
+		//		- keyboard navigation
+		//		- CSS classes for hover/mousepress on date, month, and year nodes
+		//		- support of deprecated methods (will be removed in 2.0)
 
 		// Set node classes for various mouse events, see dijit._CssStateMixin for more details
 		cssStateNodes: {
@@ -56,9 +45,9 @@ define("dijit/Calendar", [
 
 		setValue: function(/*Date*/ value){
 			// summary:
-			//      Deprecated.   Use set('value', ...) instead.
+			//		Deprecated.   Use set('value', ...) instead.
 			// tags:
-			//      deprecated
+			//		deprecated
 			kernel.deprecated("dijit.Calendar:setValue() is deprecated.  Use set('value', ...) instead.", "", "2.0");
 			this.set('value', value);
 		},
@@ -76,11 +65,11 @@ define("dijit/Calendar", [
 			}, this.monthNode);
 		},
 
-		buildRendering: function(){
+		postCreate: function(){
 			this.inherited(arguments);
 
 			// Events specific to Calendar, not used in CalendarLite
-			this.connect(this.domNode, "onkeypress", "_onKeyPress");
+			this.connect(this.domNode, "onkeydown", "_onKeyDown");
 			this.connect(this.dateRowsNode, "onmouseover", "_onDayMouseOver");
 			this.connect(this.dateRowsNode, "onmouseout", "_onDayMouseOut");
 			this.connect(this.dateRowsNode, "onmousedown", "_onDayMouseDown");
@@ -89,21 +78,26 @@ define("dijit/Calendar", [
 
 		_onMonthSelect: function(/*Number*/ newMonth){
 			// summary:
-			//      Handler for when user selects a month from the drop down list
+			//		Handler for when user selects a month from the drop down list
 			// tags:
-			//      protected
+			//		protected
 
 			// move to selected month, bounding by the number of days in the month
-			// (ex: dec 31 --> jan 28, not jan 31)
-			this._setCurrentFocusAttr(this.dateFuncObj.add(this.currentFocus, "month",
-				newMonth - this.currentFocus.getMonth()));
+			// (ex: jan 31 --> feb 28, not feb 31)
+			var date  = new this.dateClassObj(this.currentFocus);
+			date.setDate(1);
+			date.setMonth(newMonth);
+			var daysInMonth = this.dateModule.getDaysInMonth(date);
+			var currentDate = this.currentFocus.getDate();
+			date.setDate(Math.min(currentDate, daysInMonth));
+			this._setCurrentFocusAttr(date);
 		},
 
 		_onDayMouseOver: function(/*Event*/ evt){
 			// summary:
-			//      Handler for mouse over events on days, sets hovered style
+			//		Handler for mouse over events on days, sets hovered style
 			// tags:
-			//      protected
+			//		protected
 
 			// event can occur on <td> or the <span> inside the td,
 			// set node to the <td>.
@@ -123,9 +117,9 @@ define("dijit/Calendar", [
 
 		_onDayMouseOut: function(/*Event*/ evt){
 			// summary:
-			//      Handler for mouse out events on days, clears hovered style
+			//		Handler for mouse out events on days, clears hovered style
 			// tags:
-			//      protected
+			//		protected
 
 			if(!this._currentNode){ return; }
 
@@ -158,18 +152,18 @@ define("dijit/Calendar", [
 			// summary:
 			//		Provides keyboard navigation of calendar.
 			// description:
-			//		Called from _onKeyPress() to handle keypress on a stand alone Calendar,
-			//		and also from `dijit.form._DateTimeTextBox` to pass a keypress event
-			//		from the `dijit.form.DateTextBox` to be handled in this widget
+			//		Called from _onKeyDown() to handle keypress on a stand alone Calendar,
+			//		and also from `dijit/form/_DateTimeTextBox` to pass a keydown event
+			//		from the `dijit/form/DateTextBox` to be handled in this widget
 			// returns:
 			//		False if the key was recognized as a navigation key,
-			//		to indicate that the event was handled by Calendar and shouldn't be propogated
+			//		to indicate that the event was handled by Calendar and shouldn't be propagated
 			// tags:
 			//		protected
 			var increment = -1,
 				interval,
 				newValue = this.currentFocus;
-			switch(evt.charOrCode){
+			switch(evt.keyCode){
 				case keys.RIGHT_ARROW:
 					increment = 1;
 					//fallthrough...
@@ -191,7 +185,7 @@ define("dijit/Calendar", [
 					break;
 				case keys.END:
 					// go to the next month
-					newValue = this.dateFuncObj.add(newValue, "month", 1);
+					newValue = this.dateModule.add(newValue, "month", 1);
 					// subtract a day from the result when we're done
 					interval = "day";
 					//fallthrough...
@@ -200,7 +194,7 @@ define("dijit/Calendar", [
 					newValue.setDate(1);
 					break;
 				case keys.ENTER:
-				case " ":
+				case keys.SPACE:
 					this.set("value", this.currentFocus);
 					break;
 				default:
@@ -208,7 +202,7 @@ define("dijit/Calendar", [
 			}
 
 			if(interval){
-				newValue = this.dateFuncObj.add(newValue, interval, increment);
+				newValue = this.dateModule.add(newValue, interval, increment);
 			}
 
 			this._setCurrentFocusAttr(newValue);
@@ -216,7 +210,7 @@ define("dijit/Calendar", [
 			return false;
 		},
 
-		_onKeyPress: function(/*Event*/ evt){
+		_onKeyDown: function(/*Event*/ evt){
 			// summary:
 			//		For handling keypress events on a stand alone calendar
 			if(!this.handleKey(evt)){
@@ -228,10 +222,10 @@ define("dijit/Calendar", [
 			// summary:
 			//		Deprecated.   Notification that a date cell was selected.  It may be the same as the previous value.
 			// description:
-			//      Formerly used by `dijit.form._DateTimeTextBox` (and thus `dijit.form.DateTextBox`)
-			//      to get notification when the user has clicked a date.  Now onExecute() (above) is used.
+			//		Formerly used by `dijit/form/_DateTimeTextBox` (and thus `dijit/form/DateTextBox`)
+			//		to get notification when the user has clicked a date.  Now onExecute() (above) is used.
 			// tags:
-			//      protected
+			//		protected
 		},
 
 		onChange: function(value){
@@ -245,7 +239,7 @@ define("dijit/Calendar", [
 			// dateObject: Date
 			// locale: String?
 			// tags:
-			//      extension
+			//		extension
 
 /*=====
 			return ""; // String

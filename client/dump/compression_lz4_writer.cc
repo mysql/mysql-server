@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ void Compression_lz4_writer::process_buffer(size_t lz4_result) {
 }
 
 void Compression_lz4_writer::append(const std::string &data_to_append) {
-  my_boost::mutex::scoped_lock lock(m_lz4_mutex);
+  std::lock_guard<std::mutex> lock(m_lz4_mutex);
   if (m_buffer.capacity() == 0) {
     LZ4F_createCompressionContext(&m_compression_context, LZ4F_VERSION);
     this->prepare_buffer(0);
@@ -60,7 +60,7 @@ void Compression_lz4_writer::append(const std::string &data_to_append) {
 }
 
 Compression_lz4_writer::~Compression_lz4_writer() {
-  my_boost::mutex::scoped_lock lock(m_lz4_mutex);
+  std::lock_guard<std::mutex> lock(m_lz4_mutex);
   if (m_buffer.capacity() != 0) {
     this->process_buffer(LZ4F_compressEnd(m_compression_context,
                                           (void *)&m_buffer[0],
@@ -74,3 +74,5 @@ Compression_lz4_writer::Compression_lz4_writer(
         *message_handler,
     Simple_id_generator *object_id_generator)
     : Abstract_output_writer_wrapper(message_handler, object_id_generator) {}
+
+bool Compression_lz4_writer::init() { return false; }

@@ -39,7 +39,7 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "m_string.h" /* C_STRING_WITH_LEN */
+#include "m_string.h" /* STRING_WITH_LEN */
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -52,6 +52,7 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "sql/auth/acl_change_notification.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
@@ -91,381 +92,355 @@
 #include "violite.h"
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("Host")}, {C_STRING_WITH_LEN("char(60)")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("Db")}, {C_STRING_WITH_LEN("char(64)")}, {NULL, 0}},
-    {{C_STRING_WITH_LEN("User")},
-     {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("User")},
+     {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("Select_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Insert_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Update_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Delete_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Create_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Drop_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Grant_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("References_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Index_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Alter_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Create_tmp_table_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Lock_tables_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Create_view_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Show_view_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Create_routine_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Alter_routine_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Execute_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Event_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("Trigger_priv")},
-     {C_STRING_WITH_LEN("enum('N','Y')")},
-     {C_STRING_WITH_LEN("utf8")}}};
+    {{STRING_WITH_LEN("Select_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Insert_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Update_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Delete_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Create_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Drop_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Grant_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("References_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Index_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Alter_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Create_tmp_table_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Lock_tables_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Create_view_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Show_view_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Create_routine_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Alter_routine_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Execute_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Event_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("Trigger_priv")},
+     {STRING_WITH_LEN("enum('N','Y')")},
+     {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
-    {{{C_STRING_WITH_LEN("Host")}, {C_STRING_WITH_LEN("char(60)")}, {NULL, 0}},
-     {{C_STRING_WITH_LEN("User")},
-      {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+     {{STRING_WITH_LEN("User")},
+      {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("Select_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Insert_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Update_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Delete_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Drop_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Reload_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Shutdown_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Process_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("File_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Grant_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("References_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Index_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Alter_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Show_db_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Super_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_tmp_table_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Lock_tables_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Execute_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Repl_slave_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Repl_client_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_view_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Show_view_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_routine_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Alter_routine_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_user_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Event_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Trigger_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_tablespace_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("ssl_type")},
-      {C_STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("ssl_cipher")},
-      {C_STRING_WITH_LEN("blob")},
+     {{STRING_WITH_LEN("Select_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Insert_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Update_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Delete_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Drop_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Reload_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Shutdown_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Process_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("File_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Grant_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("References_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Index_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Alter_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Show_db_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Super_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_tmp_table_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Lock_tables_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Execute_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Repl_slave_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Repl_client_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_view_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Show_view_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_routine_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Alter_routine_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_user_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Event_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Trigger_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_tablespace_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("ssl_type")},
+      {STRING_WITH_LEN("enum('','ANY','X509','SPECIFIED')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("ssl_cipher")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {{STRING_WITH_LEN("x509_issuer")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {{STRING_WITH_LEN("x509_subject")}, {STRING_WITH_LEN("blob")}, {NULL, 0}},
+     {{STRING_WITH_LEN("max_questions")},
+      {STRING_WITH_LEN("int(11)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("x509_issuer")},
-      {C_STRING_WITH_LEN("blob")},
+     {{STRING_WITH_LEN("max_updates")},
+      {STRING_WITH_LEN("int(11)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("x509_subject")},
-      {C_STRING_WITH_LEN("blob")},
+     {{STRING_WITH_LEN("max_connections")},
+      {STRING_WITH_LEN("int(11)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("max_questions")},
-      {C_STRING_WITH_LEN("int(11)")},
+     {{STRING_WITH_LEN("max_user_connections")},
+      {STRING_WITH_LEN("int(11)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("max_updates")},
-      {C_STRING_WITH_LEN("int(11)")},
+     {{STRING_WITH_LEN("plugin")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+     {{STRING_WITH_LEN("authentication_string")},
+      {STRING_WITH_LEN("text")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("max_connections")},
-      {C_STRING_WITH_LEN("int(11)")},
+     {{STRING_WITH_LEN("password_expired")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("password_last_changed")},
+      {STRING_WITH_LEN("timestamp")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("max_user_connections")},
-      {C_STRING_WITH_LEN("int(11)")},
+     {{STRING_WITH_LEN("password_lifetime")},
+      {STRING_WITH_LEN("smallint(5)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("plugin")},
-      {C_STRING_WITH_LEN("char(64)")},
+     {{STRING_WITH_LEN("account_locked")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Create_role_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Drop_role_priv")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("Password_reuse_history")},
+      {STRING_WITH_LEN("smallint(5)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("authentication_string")},
-      {C_STRING_WITH_LEN("text")},
+     {{STRING_WITH_LEN("Password_reuse_time")},
+      {STRING_WITH_LEN("smallint(5)")},
       {NULL, 0}},
-     {{C_STRING_WITH_LEN("password_expired")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("password_last_changed")},
-      {C_STRING_WITH_LEN("timestamp")},
-      {NULL, 0}},
-     {{C_STRING_WITH_LEN("password_lifetime")},
-      {C_STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
-     {{C_STRING_WITH_LEN("account_locked")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Create_role_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Drop_role_priv")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("Password_reuse_history")},
-      {C_STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
-     {{C_STRING_WITH_LEN("Password_reuse_time")},
-      {C_STRING_WITH_LEN("smallint(5)")},
-      {NULL, 0}},
-     {{C_STRING_WITH_LEN("Password_require_current")},
-      {C_STRING_WITH_LEN("enum('N','Y')")},
-      {C_STRING_WITH_LEN("utf8")}},
-     {{C_STRING_WITH_LEN("User_attributes")},
-      {C_STRING_WITH_LEN("json")},
+     {{STRING_WITH_LEN("Password_require_current")},
+      {STRING_WITH_LEN("enum('N','Y')")},
+      {STRING_WITH_LEN("utf8")}},
+     {{STRING_WITH_LEN("User_attributes")},
+      {STRING_WITH_LEN("json")},
       {NULL, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("Host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("User")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("User")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("Proxied_host")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Proxied_host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Proxied_user")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Proxied_user")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("With_grant")},
+         {STRING_WITH_LEN("tinyint(1)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("With_grant")},
-         {C_STRING_WITH_LEN("tinyint(1)")},
+        {{STRING_WITH_LEN("Grantor")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Grantor")},
-         {C_STRING_WITH_LEN("char(93)")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("Timestamp")},
-         {C_STRING_WITH_LEN("timestamp")},
+        {{STRING_WITH_LEN("Timestamp")},
+         {STRING_WITH_LEN("timestamp")},
          {NULL, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_procs_priv_table_fields[MYSQL_PROCS_PRIV_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("Host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("User")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Db")}, {C_STRING_WITH_LEN("char(64)")}, {NULL, 0}},
-        {{C_STRING_WITH_LEN("User")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("Routine_name")},
+         {STRING_WITH_LEN("char(64)")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Routine_type")},
+         {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Routine_name")},
-         {C_STRING_WITH_LEN("char(64)")},
-         {C_STRING_WITH_LEN("utf8")}},
-        {{C_STRING_WITH_LEN("Routine_type")},
-         {C_STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
+        {{STRING_WITH_LEN("Grantor")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Grantor")},
-         {C_STRING_WITH_LEN("char(93)")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("Proc_priv")},
-         {C_STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
-         {C_STRING_WITH_LEN("utf8")}},
-        {{C_STRING_WITH_LEN("Timestamp")},
-         {C_STRING_WITH_LEN("timestamp")},
+        {{STRING_WITH_LEN("Proc_priv")},
+         {STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Timestamp")},
+         {STRING_WITH_LEN("timestamp")},
          {NULL, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_columns_priv_table_fields[MYSQL_COLUMNS_PRIV_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("Host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("User")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Db")}, {C_STRING_WITH_LEN("char(64)")}, {NULL, 0}},
-        {{C_STRING_WITH_LEN("User")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("Table_name")},
+         {STRING_WITH_LEN("char(64)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Table_name")},
-         {C_STRING_WITH_LEN("char(64)")},
+        {{STRING_WITH_LEN("Column_name")},
+         {STRING_WITH_LEN("char(64)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Column_name")},
-         {C_STRING_WITH_LEN("char(64)")},
+        {{STRING_WITH_LEN("Timestamp")},
+         {STRING_WITH_LEN("timestamp")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Timestamp")},
-         {C_STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("Column_priv")},
-         {C_STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {C_STRING_WITH_LEN("utf8")}}};
+        {{STRING_WITH_LEN("Column_priv")},
+         {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
+         {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("Host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("User")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Db")}, {C_STRING_WITH_LEN("char(64)")}, {NULL, 0}},
-        {{C_STRING_WITH_LEN("User")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("Table_name")},
+         {STRING_WITH_LEN("char(64)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Table_name")},
-         {C_STRING_WITH_LEN("char(64)")},
+        {{STRING_WITH_LEN("Grantor")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Grantor")},
-         {C_STRING_WITH_LEN("char(93)")},
+        {{STRING_WITH_LEN("Timestamp")},
+         {STRING_WITH_LEN("timestamp")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Timestamp")},
-         {C_STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("Table_priv")},
-         {C_STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
-                            "'Drop','Grant','References','Index','Alter',"
-                            "'Create View','Show view','Trigger')")},
-         {C_STRING_WITH_LEN("utf8")}},
-        {{C_STRING_WITH_LEN("Column_priv")},
-         {C_STRING_WITH_LEN("set('Select','Insert','Update','References')")},
-         {C_STRING_WITH_LEN("utf8")}}};
+        {{STRING_WITH_LEN("Table_priv")},
+         {STRING_WITH_LEN("set('Select','Insert','Update','Delete','Create',"
+                          "'Drop','Grant','References','Index','Alter',"
+                          "'Create View','Show view','Trigger')")},
+         {STRING_WITH_LEN("utf8")}},
+        {{STRING_WITH_LEN("Column_priv")},
+         {STRING_WITH_LEN("set('Select','Insert','Update','References')")},
+         {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_role_edges_table_fields[MYSQL_ROLE_EDGES_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("FROM_HOST")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("FROM_HOST")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("FROM_USER")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("FROM_USER")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("TO_HOST")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("TO_HOST")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("TO_USER")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("TO_USER")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("WITH_ADMIN_OPTION")},
-         {C_STRING_WITH_LEN("enum('N','Y')")},
-         {C_STRING_WITH_LEN("utf8")}}};
+        {{STRING_WITH_LEN("WITH_ADMIN_OPTION")},
+         {STRING_WITH_LEN("enum('N','Y')")},
+         {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE
     mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("HOST")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("USER")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("USER")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("DEFAULT_ROLE_HOST")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("DEFAULT_ROLE_HOST")},
-         {C_STRING_WITH_LEN("char(60)")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("DEFAULT_ROLE_USER")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("DEFAULT_ROLE_USER")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_password_history_table_fields[MYSQL_PASSWORD_HISTORY_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("Host")},
-         {C_STRING_WITH_LEN("char(60)")},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("User")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("User")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("Password_timestamp")},
+         {STRING_WITH_LEN("timestamp")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("Password_timestamp")},
-         {C_STRING_WITH_LEN("timestamp")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("Password")},
-         {C_STRING_WITH_LEN("text")},
-         {NULL, 0}}};
+        {{STRING_WITH_LEN("Password")}, {STRING_WITH_LEN("text")}, {NULL, 0}}};
 
 static const TABLE_FIELD_TYPE
     mysql_dynamic_priv_table_fields[MYSQL_DYNAMIC_PRIV_FIELD_COUNT] = {
-        {{C_STRING_WITH_LEN("USER")},
-         {C_STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
+        {{STRING_WITH_LEN("USER")},
+         {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{C_STRING_WITH_LEN("HOST")},
-         {C_STRING_WITH_LEN("char(60)")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("PRIV")},
-         {C_STRING_WITH_LEN("char(32)")},
-         {NULL, 0}},
-        {{C_STRING_WITH_LEN("WITH_GRANT_OPTION")},
-         {C_STRING_WITH_LEN("enum('N','Y')")},
+        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("PRIV")}, {STRING_WITH_LEN("char(32)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("WITH_GRANT_OPTION")},
+         {STRING_WITH_LEN("enum('N','Y')")},
          {NULL, 0}}};
 
 /** keep in sync with @ref ACL_TABLES */
@@ -561,15 +536,44 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
   the changing query to other destinations.
 
 */
+Acl_change_notification::Acl_change_notification(
+    THD *thd, enum_sql_command op, const List<LEX_USER> *users,
+    const List<LEX_CSTRING> *dynamic_privs)
+    : operation(op),
+      db(thd->db().str, thd->db().length),
+      query(thd->query().str, thd->query().length) {
+  if (users) {
+    /* Copy data out of List<LEX_USER> */
+    user_list.reserve(users->size());
+    for (const LEX_USER &lex_user : *users) {
+      user_list.emplace_back(lex_user);
+    }
+  }
+  if (dynamic_privs) {
+    /* Copy data from dynamic_privs to dynamic_privilege_list */
+    dynamic_privilege_list.reserve(dynamic_privs->elements);
+    for (const LEX_CSTRING &priv : *dynamic_privs) {
+      dynamic_privilege_list.emplace_back(priv.str, priv.length);
+    }
+  }
+}
 
-static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
-  DBUG_ENTER("acl_notify_htons");
-  DBUG_PRINT("enter", ("db: %s", thd->db().str));
-  DBUG_PRINT("enter", ("query: '%s', length: %zu", query, query_length));
-
-  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY, query, query_length,
-                      thd->db().str, "");
-  DBUG_VOID_RETURN;
+void acl_notify_htons(THD *thd MY_ATTRIBUTE((unused)),
+                      enum_sql_command operation MY_ATTRIBUTE((unused)),
+                      const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
+                      const List<LEX_CSTRING> *dynamic_privs
+                          MY_ATTRIBUTE((unused))) {
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+  /*
+    The Acl_change_notification is used only by the ndbcluster SE.
+    So, instantiate it and send a notification only if the Server is
+    built with ndbcluster SE.
+  */
+  Acl_change_notification notice(thd, operation, users, dynamic_privs);
+  ha_acl_notify(thd, &notice);
+#endif
 }
 
 /**
@@ -583,8 +587,8 @@ static void acl_notify_htons(THD *thd, const char *query, size_t query_length) {
   @retval True  - Error.
 */
 
-static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
-                                           bool notify_htons) {
+static bool acl_end_trans_and_close_tables(THD *thd,
+                                           bool rollback_transaction) {
   bool result;
 
   /*
@@ -623,7 +627,6 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
     result |= trans_commit_implicit(thd);
   }
   close_thread_tables(thd);
-  thd->mdl_context.release_transactional_locks();
 
   if (result || rollback_transaction) {
     /*
@@ -637,10 +640,9 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
       acquire MDL on privilege tables after the release_transactional_locks()
       and before acl_reload/grant_reload() below.
     */
-    reload_acl_caches(thd);
-  } else if (notify_htons) {
-    acl_notify_htons(thd, thd->query().str, thd->query().length);
+    reload_acl_caches(thd, true);
   }
+  thd->mdl_context.release_transactional_locks();
 
   return result;
 }
@@ -661,7 +663,6 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
   @param write_to_binlog        Skip writing to binlog.
                                 Used for routine grants while
                                 creating routine.
-  @param notify_htons           Should hton be notified or not
 
   @returns status of log and commit
     @retval 0 Successfully committed. Optionally : written to binlog.
@@ -672,10 +673,9 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users, /* = NULL */
                             Rewrite_params *rewrite_params,    /* = NULL */
                             bool extra_error,                  /* = true */
-                            bool write_to_binlog,              /* = true */
-                            bool notify_htons) {
+                            bool write_to_binlog) {            /* = true */
   bool result = false;
-  DBUG_ENTER("logn_ddl_to_binlog");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   result = thd->is_error() || extra_error || thd->transaction_rollback_request;
   /* Write to binlog and textlogs only if there is no error */
@@ -742,9 +742,9 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
     mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
   }
 
-  if (acl_end_trans_and_close_tables(thd, result, notify_htons)) result = 1;
+  if (acl_end_trans_and_close_tables(thd, result)) result = 1;
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static void get_grantor(THD *thd, char *grantor) {
@@ -800,14 +800,14 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   char what = (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_db_table");
+  DBUG_TRACE;
   DBUG_ASSERT(initialized);
-  if (table_intact.check(table, ACL_TABLES::TABLE_DB)) DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DB)) return -1;
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(combo.host.str, combo.user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   table->use_all_columns();
@@ -832,10 +832,10 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     if (what == 'N') {  // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       /*
-        Return 1 as an indication that expected error occured during
+        Return 1 as an indication that expected error occurred during
         handling of REVOKE statement for an unknown user.
       */
-      DBUG_RETURN(1);
+      return 1;
     }
     old_row_exists = 0;
     restore_record(table, s->default_values);
@@ -900,12 +900,12 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     acl_update_db(combo.user.str, combo.host.str, db, rights);
   else if (rights)
     acl_insert_db(combo.user.str, combo.host.str, db, rights);
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
 
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -937,15 +937,14 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   char grantor[USER_HOST_BUFF_SIZE];
   Acl_table_intact table_intact(thd);
 
-  DBUG_ENTER("replace_proxies_priv_table");
+  DBUG_TRACE;
   DBUG_ASSERT(initialized);
-  if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV))
-    DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV)) return -1;
 
   /* Check if there is such a user in user table in memory? */
   if (!find_acl_user(user->host.str, user->user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   table->use_all_columns();
@@ -963,7 +962,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   if (error) {
     acl_print_ha_error(error);
     DBUG_PRINT("info", ("ha_index_init error"));
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   error = table->file->ha_index_read_map(table->record[0], user_key,
@@ -981,7 +980,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), user->user.str, user->host.str);
       table->file->ha_index_end();
-      DBUG_RETURN(1);
+      return 1;
     }
     old_row_exists = 0;
     restore_record(table, s->default_values);
@@ -1045,7 +1044,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->file->ha_index_end();
-  DBUG_RETURN(0);
+  return 0;
 
   /* This could only happen if the grant tables got corrupted */
 table_error:
@@ -1054,7 +1053,7 @@ table_error:
 
   DBUG_PRINT("info", ("aborting replace_proxies_priv_table"));
   table->file->ha_index_end();
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1089,10 +1088,9 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_column_table");
+  DBUG_TRACE;
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV))
-    DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_COLUMNS_PRIV)) return -1;
 
   KEY_PART_INFO *key_part = table->key_info->key_part;
 
@@ -1120,7 +1118,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     acl_print_ha_error(error);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   while ((column = iter++)) {
@@ -1328,7 +1326,7 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
 end:
   table->file->ha_index_end();
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1365,9 +1363,9 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   ulong store_table_rights, store_col_rights;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_table_table");
+  DBUG_TRACE;
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_TABLES_PRIV)) DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_TABLES_PRIV)) return -1;
 
   get_grantor(thd, grantor);
   /*
@@ -1376,7 +1374,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   */
   if (!find_acl_user(combo.host.str, combo.user.str, false)) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0)); /* purecov: deadcode */
-    DBUG_RETURN(1);                         /* purecov: deadcode */
+    return 1;                               /* purecov: deadcode */
   }
 
   table->use_all_columns();
@@ -1409,7 +1407,7 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_TABLE_GRANT, MYF(0), combo.user.str,
                combo.host.str, table_name); /* purecov: deadcode */
-      DBUG_RETURN(1);                       /* purecov: deadcode */
+      return 1;                             /* purecov: deadcode */
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1486,11 +1484,11 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
       }
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1522,14 +1520,14 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   int error = 0;
   ulong store_proc_rights;
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("replace_routine_table");
+  DBUG_TRACE;
 
   if (!initialized) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
+    return -1;
   }
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_PROCS_PRIV)) DBUG_RETURN(-1);
+  if (table_intact.check(table, ACL_TABLES::TABLE_PROCS_PRIV)) return -1;
 
   get_grantor(thd, grantor);
   /*
@@ -1571,7 +1569,7 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
     if (revoke_grant) {  // no row, no revoke
       my_error(ER_NONEXISTING_PROC_GRANT, MYF(0), combo.user.str,
                combo.host.str, routine_name);
-      DBUG_RETURN(1);
+      return 1;
     }
     old_row_exists = 0;
     restore_record(table, record[1]);  // Get saved record
@@ -1635,11 +1633,11 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
         is_proc ? proc_priv_hash.get() : func_priv_hash.get(),
         grant_name->hash_key, grant_name);
   }
-  DBUG_RETURN(0);
+  return 0;
 
 table_error:
   acl_print_ha_error(error);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1665,48 +1663,34 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
     from SE level.
   */
 
-  tables->init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("user"),
-                         "user", lock_type, mdl_type);
+  tables[0] = TABLE_LIST("mysql", "user", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_DB)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("db"),
-                       "db", lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_DB] = TABLE_LIST("mysql", "db", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_TABLES_PRIV)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("tables_priv"), "tables_priv",
-                       lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_TABLES_PRIV] =
+      TABLE_LIST("mysql", "tables_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_COLUMNS_PRIV)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("columns_priv"), "columns_priv",
-                       lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_COLUMNS_PRIV] =
+      TABLE_LIST("mysql", "columns_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_PROCS_PRIV)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("procs_priv"), "procs_priv", lock_type,
-                       mdl_type);
+  tables[ACL_TABLES::TABLE_PROCS_PRIV] =
+      TABLE_LIST("mysql", "procs_priv", lock_type, mdl_type);
 
-  (tables + ACL_TABLES::TABLE_PROXIES_PRIV)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("proxies_priv"), "proxies_priv",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_ROLE_EDGES)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("role_edges"), "role_edges", lock_type,
-                       mdl_type);
-  (tables + ACL_TABLES::TABLE_DEFAULT_ROLES)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("default_roles"), "default_roles",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_DYNAMIC_PRIV)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("global_grants"), "global_grants",
-                       lock_type, mdl_type);
-  (tables + ACL_TABLES::TABLE_PASSWORD_HISTORY)
-      ->init_one_table(C_STRING_WITH_LEN("mysql"),
-                       C_STRING_WITH_LEN("password_history"),
-                       "password_history", lock_type, mdl_type);
+  tables[ACL_TABLES::TABLE_PROXIES_PRIV] =
+      TABLE_LIST("mysql", "proxies_priv", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_ROLE_EDGES] =
+      TABLE_LIST("mysql", "role_edges", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_DEFAULT_ROLES] =
+      TABLE_LIST("mysql", "default_roles", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_DYNAMIC_PRIV] =
+      TABLE_LIST("mysql", "global_grants", lock_type, mdl_type);
+
+  tables[ACL_TABLES::TABLE_PASSWORD_HISTORY] =
+      TABLE_LIST("mysql", "password_history", lock_type, mdl_type);
+
   if (lock_type <= TL_READ_NO_INSERT) {
     /*
       tables new to 8.0 are optional when
@@ -1748,11 +1732,11 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
 
 int open_grant_tables(THD *thd, TABLE_LIST *tables,
                       bool *transactional_tables) {
-  DBUG_ENTER("open_grant_tables");
+  DBUG_TRACE;
 
   if (!initialized) {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   *transactional_tables = false;
@@ -1772,7 +1756,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
 
     if (!(thd->sp_runtime_ctx ||
           thd->rli_slave->rpl_filter->tables_ok(0, tables)))
-      DBUG_RETURN(1);
+      return 1;
 
     for (auto i = 0; i < ACL_TABLES::LAST_ENTRY; i++)
       tables[i].updating = false;
@@ -1781,13 +1765,13 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
   if (open_and_lock_tables(
           thd, tables,
           MYSQL_LOCK_IGNORE_TIMEOUT)) {  // This should never happen
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   if (check_engine_type_for_acl_table(tables, true) ||
       check_acl_tables_intact(thd, tables)) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(-1);
+    return -1;
   }
 
   for (uint i = 0; i < ACL_TABLES::LAST_ENTRY; ++i)
@@ -1795,7 +1779,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
         (*transactional_tables ||
          (tables[i].table && tables[i].table->file->has_transactions()));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1818,7 +1802,7 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables,
 static int modify_grant_table(TABLE *table, Field *host_field,
                               Field *user_field, LEX_USER *user_to) {
   int error;
-  DBUG_ENTER("modify_grant_table");
+  DBUG_TRACE;
 
   if (user_to) {
     /* rename */
@@ -1851,7 +1835,7 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     if (error) acl_print_ha_error(error);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -1888,7 +1872,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
   const char *user;
   uchar user_key[MAX_KEY_LENGTH];
   uint key_prefix_length;
-  DBUG_ENTER("handle_grant_table");
+  DBUG_TRACE;
 
   table->use_all_columns();
   if (!table_no)  // mysql.user table
@@ -1999,7 +1983,7 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**

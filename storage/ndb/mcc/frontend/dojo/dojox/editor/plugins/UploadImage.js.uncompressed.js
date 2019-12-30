@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/UploadImage", [
 	"dojo",
 	"dijit",
@@ -8,17 +7,17 @@ define("dojox/editor/plugins/UploadImage", [
 	"dojo/_base/declare",
 	"dojox/form/FileUploader",
 	"dijit/_editor/_Plugin"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Plugin) {
 
 dojo.experimental("dojox.editor.plugins.UploadImage");
 
 dojo.declare("dojox.editor.plugins.UploadImage",
-	dijit._editor._Plugin,
+	_Plugin,
 	{
-		//summary:
-		// 	Adds an icon to the Editor toolbar that when clicked, opens a system dialog
-		//	Although the toolbar icon is a tiny "image" the uploader could be used for
-		//	any file type
+		// summary:
+		// 		Adds an icon to the Editor toolbar that when clicked, opens a system dialog
+		//		Although the toolbar icon is a tiny "image" the uploader could be used for
+		//		any file type
 		
 		tempImageUrl: "",
 		iconClassPrefix: "editorIcon",
@@ -52,7 +51,7 @@ dojo.declare("dojox.editor.plugins.UploadImage",
 				height:"20px",
 				paddingLeft:"8px",
 				paddingRight:"8px"
-			})
+			});
 			this.button = new dojox.form.FileUploader({
 				isDebug:true,
 				//force:"html",
@@ -71,7 +70,7 @@ dojo.declare("dojox.editor.plugins.UploadImage",
 		onComplete: function(data,ioArgs,widgetRef){
 			data = data[0];
 			// Image is ready to insert
-			var tmpImgNode = dojo.withGlobal(this.editor.window, "byId", dojo, [this.currentImageId]);
+			var tmpImgNode = dojo.byId(this.currentImageId, this.editor.document);
 			var file;
 			// download path is mainly used so we can access a PHP script
 			// not relative to this file. The server *should* return a qualified path.
@@ -91,8 +90,9 @@ dojo.declare("dojox.editor.plugins.UploadImage",
 		},
 		
 		insertTempImage: function(){
-			// inserting a "busy" image to show something is hapening
-			//	during upload and download of the image.
+			// summary:
+			//		inserting a "busy" image to show something is hapening
+			//		during upload and download of the image.
 			this.currentImageId = "img_"+(new Date().getTime());
 			var iTxt = '<img id="'+this.currentImageId+'" src="'+this.tempImageUrl+'" width="32" height="32"/>';
 			this.editor.execCommand('inserthtml', iTxt);

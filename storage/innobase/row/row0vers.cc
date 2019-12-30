@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -484,7 +484,7 @@ trx_t *row_vers_impl_x_locked_low(
   I'll explain our approach to these two problems in comments at the place they
   are handled.*/
 
-  DBUG_ENTER("row_vers_impl_x_locked_low");
+  DBUG_TRACE;
 
   ut_ad(rec_offs_validate(sec_rec, sec_index, sec_offsets));
 
@@ -506,7 +506,7 @@ trx_t *row_vers_impl_x_locked_low(
                                   trx_sys_get_max_trx_id());
     }
     mem_heap_free(heap);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   comp = page_rec_is_comp(sec_rec);
@@ -526,7 +526,7 @@ trx_t *row_vers_impl_x_locked_low(
   DBUG_PRINT("info", ("Implicit lock is held by trx:" TRX_ID_FMT, trx_id));
 
   mem_heap_free(heap);
-  DBUG_RETURN(trx);
+  return trx;
 }
 
 /** Finds out if an active transaction has inserted or modified a secondary
@@ -888,7 +888,10 @@ static bool row_vers_vc_matches_cluster(
 
         /* The index field mismatch */
         if (v_heap ||
-            cmp_dfield_dfield(field2, field1, ind_field->is_ascending) != 0) {
+            (dfield_is_multi_value(field2) &&
+             cmp_multi_value_dfield_dfield(field2, field1) != 0) ||
+            (!dfield_is_multi_value(field2) &&
+             cmp_dfield_dfield(field2, field1, ind_field->is_ascending) != 0)) {
           if (v_heap) {
             dtuple_dup_v_fld(*vrow, v_heap);
           }
@@ -1064,7 +1067,7 @@ ibool row_vers_old_has_index_entry(
         row_vers_build_clust_v_col(row, clust_index, index, heap);
 
         entry = row_build_index_entry(row, ext, index, heap);
-        if (entry && dtuple_coll_eq(ientry, entry)) {
+        if (entry && dtuple_coll_eq(entry, ientry)) {
           mem_heap_free(heap);
 
           if (v_heap) {
@@ -1128,7 +1131,7 @@ ibool row_vers_old_has_index_entry(
       the clustered index record has already been updated to
       a different binary value in a char field, but the
       collation identifies the old and new value anyway! */
-      if (entry && dtuple_coll_eq(ientry, entry)) {
+      if (entry && dtuple_coll_eq(entry, ientry)) {
         mem_heap_free(heap);
 
         if (v_heap) {
@@ -1220,7 +1223,7 @@ ibool row_vers_old_has_index_entry(
       a char field, but the collation identifies the old
       and new value anyway! */
 
-      if (entry && dtuple_coll_eq(ientry, entry)) {
+      if (entry && dtuple_coll_eq(entry, ientry)) {
         mem_heap_free(heap);
         if (v_heap) {
           mem_heap_free(v_heap);
@@ -1260,7 +1263,7 @@ dberr_t row_vers_build_for_consistent_read(
     const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
     ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
     rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_vers_build_for_consistent_read");
+  DBUG_TRACE;
   const rec_t *version;
   rec_t *prev_version;
   trx_id_t trx_id;
@@ -1348,7 +1351,7 @@ dberr_t row_vers_build_for_consistent_read(
 
   mem_heap_free(heap);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Constructs the last committed version of a clustered index record,

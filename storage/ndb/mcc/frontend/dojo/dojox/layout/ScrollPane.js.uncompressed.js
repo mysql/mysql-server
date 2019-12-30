@@ -1,4 +1,3 @@
-//>>built
 require({cache:{
 'url:dojox/layout/resources/ScrollPane.html':"<div class=\"dojoxScrollWindow\" dojoAttachEvent=\"onmouseenter: _enter, onmouseleave: _leave\">\n    <div class=\"dojoxScrollWrapper\" style=\"${style}\" dojoAttachPoint=\"wrapper\" dojoAttachEvent=\"onmousemove: _calc\">\n\t<div class=\"dojoxScrollPane\" dojoAttachPoint=\"containerNode\"></div>\n    </div>\n    <div dojoAttachPoint=\"helper\" class=\"dojoxScrollHelper\"><span class=\"helperInner\">|</span></div>\n</div>"}});
 define("dojox/layout/ScrollPane", ["dojo/_base/kernel","dojo/_base/declare","dojo/_base/html","dojo/_base/fx",
@@ -8,34 +7,29 @@ function(kernel,declare,html,baseFx,Templated,ContentPane,domClass,template){
 
 kernel.experimental("dojox.layout.ScrollPane");
 
-// FIXME: need to adust the _line somehow, it stops scrolling
-	
-/*===== 
-	var ContentPane = dijit.layout.ContentPane,
-		Templated = dijit._Templated;
-=====*/
+// FIXME: need to adjust the _line somehow, it stops scrolling
 
-declare("dojox.layout.ScrollPane",[ContentPane, Templated],{
-	// summary: A pane that "scrolls" its content based on the mouse poisition inside
-	//
+var Scrollpane = declare("dojox.layout.ScrollPane",[ContentPane, Templated],{
+	// summary:
+	//		A pane that "scrolls" its content based on the mouse poisition inside
 	// description:
 	//		A sizable container that takes it's content's natural size and creates
 	//		a scroll effect based on the relative mouse position. It is an interesting
 	//		way to display lists of data, or blocks of content, within a confined
 	//		space.
 	//
-	// 		Horizontal scrolling is supported. Combination scrolling is not.
-	//
+	//		Horizontal scrolling is supported. Combination scrolling is not.
 	// example:
 	// |	<div dojoType="dojox.layout.ScrollPane" style="width:150px height:300px;">
 	// |		<!-- any height content -->
 	// |	</div>
-	//
-	// _line: dojo._Line
-	// 		storage for our top and bottom most scrollpoints
+	
+	// _line: dojo/_base/fx._Line
+	//		storage for our top and bottom most scrollpoints
 	_line: null,
 	
-	// _lo: the height of the visible pane
+	// _lo: 
+	//		the height of the visible pane
 	_lo: null,
 	
 	_offset: 15,
@@ -44,13 +38,15 @@ declare("dojox.layout.ScrollPane",[ContentPane, Templated],{
 	//		either "horizontal" or "vertical" for scroll orientation.
 	orientation: "vertical",
 	
-	// alwaysShow: Boolean
+	// autoHide: Boolean
 	//		whether the scroll helper should hide when mouseleave
 	autoHide: true,
 	templateString: template,
 	
-	resize: function(size){
-		// summary: calculates required sizes. Call this if you add/remove content manually, or reload the content.
+	resize: function(/*Integer?*/ size){
+		// summary:
+		//		calculates required sizes. Call this if you add/remove
+		//		content manually, or reload the content.
 		
 		// if size is passed, it means we need to take care of sizing ourself (this is for IE<8)
 		if(size){
@@ -121,14 +117,16 @@ declare("dojox.layout.ScrollPane",[ContentPane, Templated],{
 	},
 	
 	_set: function(/* Float */n){
-		if(!this._size){ return; }
-		// summary: set the pane's scroll offset, and position the virtual scroll helper
+		// summary:
+		//		set the pane's scroll offset, and position the virtual scroll helper
+		if(!this._size || n === 'focused'){ return; }
 		this.wrapper[this._scroll] = Math.floor(this._line.getValue(n));
 		html.style(this.helper, this._edge, Math.floor(this._helpLine.getValue(n)) + "px");
 	},
 	
 	_calc: function(/* Event */e){
-		// summary: calculate the relative offset of the cursor over the node, and call _set
+		// summary:
+		//		calculate the relative offset of the cursor over the node, and call _set
 		if(!this._lo){ this.resize(); }
 		this._set(this._vertical ?
 			((e.pageY - this._lo.y) / this._lo.h) :
@@ -151,4 +149,5 @@ declare("dojox.layout.ScrollPane",[ContentPane, Templated],{
 		}
 	} 
 });
+return Scrollpane;
 });

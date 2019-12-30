@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,12 @@ static SERVICE_TYPE(group_member_status_listener) svc_gmst_def = {
     group_member_status_listener_example_impl::notify_member_role_change,
     group_member_status_listener_example_impl::notify_member_state_change};
 
-my_h_service h_gms_listener_example = (my_h_service)&svc_gms_def;
-my_h_service h_gmst_listener_example = (my_h_service)&svc_gmst_def;
+using svc_gms_t = SERVICE_TYPE_NO_CONST(group_membership_listener);
+using svc_gmst_t = SERVICE_TYPE_NO_CONST(group_member_status_listener);
+my_h_service h_gms_listener_example =
+    reinterpret_cast<my_h_service>(const_cast<svc_gms_t *>(&svc_gms_def));
+my_h_service h_gmst_listener_example =
+    reinterpret_cast<my_h_service>(const_cast<svc_gmst_t *>(&svc_gmst_def));
 
 bool log_notification_to_test_table(std::string msg) {
   int res = 0;

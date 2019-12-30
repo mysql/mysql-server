@@ -33,6 +33,7 @@
 
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
@@ -142,7 +143,7 @@ std::atomic<bool> Server::exiting{false};
 Server::Server(
     std::shared_ptr<ngs::Socket_acceptors_task> acceptors,
     std::shared_ptr<ngs::Scheduler_dynamic> wscheduler,
-    std::shared_ptr<ngs::Protocol_config> config,
+    std::shared_ptr<ngs::Protocol_global_config> config,
     std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback)
     : m_client_id(0),
       m_num_of_connections(0),
@@ -329,7 +330,7 @@ static bool parse_bind_address_value(const char *begin_address_value,
   return false;
 }
 
-int Server::main(MYSQL_PLUGIN p) {
+int Server::plugin_main(MYSQL_PLUGIN p) {
   plugin_handle = p;
 
   uint32 listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
@@ -347,7 +348,7 @@ int Server::main(MYSQL_PLUGIN p) {
         Plugin_system_variables::socket, "MYSQLX_UNIX_PORT", MYSQLX_UNIX_ADDR);
 
     Listener_factory listener_factory;
-    auto config(ngs::allocate_shared<ngs::Protocol_config>());
+    auto config(ngs::allocate_shared<ngs::Protocol_global_config>());
     auto events(ngs::allocate_shared<ngs::Socket_events>());
     auto timeout_callback(ngs::allocate_shared<ngs::Timeout_callback>(events));
 
@@ -431,7 +432,7 @@ int Server::main(MYSQL_PLUGIN p) {
   return 0;
 }
 
-int Server::exit(MYSQL_PLUGIN) {
+int Server::plugin_exit(MYSQL_PLUGIN) {
   // this flag will trigger the on_verify_server_state() timer to trigger an
   // acceptor thread exit
   exiting = true;
@@ -471,7 +472,7 @@ int Server::exit(MYSQL_PLUGIN) {
   return 0;
 }
 
-void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
+void Server::verify_mysqlx_user_grants(Sql_data_context *context) {
   Sql_data_result sql_result(context);
   int num_of_grants = 0;
   bool has_no_privileges = false;
@@ -493,7 +494,7 @@ void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
   sql_result.query("SHOW GRANTS FOR " MYSQLXSYS_ACCOUNT);
 
   do {
-    sql_result.get_next_field(grants);
+    sql_result.get(&grants);
     ++num_of_grants;
     if (grants == "GRANT USAGE ON *.* TO `" MYSQL_SESSION_USER
                   "`@`" MYSQLXSYS_HOST "`")
@@ -524,8 +525,8 @@ void Server::verify_mysqlx_user_grants(Sql_data_context &context) {
 
   if (has_select_on_mysql_user && has_super) {
     log_debug(
-        "Using %s account for authentication which has all required \
-permissions",
+        "Using %s account for authentication"
+        " which has all required permissions ",
         MYSQLXSYS_ACCOUNT);
     return;
   }
@@ -591,7 +592,7 @@ bool Server::on_net_startup() {
     // Ensure to call the start method only once
     if (server().is_running()) return true;
 
-    Sql_data_context sql_context(NULL, true);
+    Sql_data_context sql_context;
 
     if (!sql_context.wait_api_ready(&is_exiting))
       throw ngs::Error_code(ER_X_SERVICE_ERROR,
@@ -601,7 +602,7 @@ bool Server::on_net_startup() {
 
     if (error) throw error;
 
-    Sql_data_result sql_result(sql_context);
+    Sql_data_result sql_result(&sql_context);
     try {
       sql_context.switch_to_local_user(MYSQL_SESSION_USER);
       sql_result.query(
@@ -623,17 +624,11 @@ bool Server::on_net_startup() {
     bool skip_name_resolve = false;
     char *tls_version = NULL;
 
-    sql_result.get_next_field(skip_networking);
-    sql_result.get_next_field(skip_name_resolve);
-    sql_result.get_next_field(mysqld_have_ssl);
-    sql_result.get_next_field(ssl_config.ssl_key);
-    sql_result.get_next_field(ssl_config.ssl_ca);
-    sql_result.get_next_field(ssl_config.ssl_capath);
-    sql_result.get_next_field(ssl_config.ssl_cert);
-    sql_result.get_next_field(ssl_config.ssl_cipher);
-    sql_result.get_next_field(ssl_config.ssl_crl);
-    sql_result.get_next_field(ssl_config.ssl_crlpath);
-    sql_result.get_next_field(tls_version);
+    sql_result.get(&skip_networking, &skip_name_resolve, &mysqld_have_ssl,
+                   &ssl_config.ssl_key, &ssl_config.ssl_ca,
+                   &ssl_config.ssl_capath, &ssl_config.ssl_cert,
+                   &ssl_config.ssl_cipher, &ssl_config.ssl_crl,
+                   &ssl_config.ssl_crlpath, &tls_version);
 
     instance->start_verify_server_state_timer();
 
@@ -642,9 +637,8 @@ bool Server::on_net_startup() {
     ssl_config = choose_ssl_config(mysqld_have_ssl, ssl_config,
                                    Plugin_system_variables::ssl_config);
 
-    // wolfSSL doesn't support CRL according to vio
-    const char *crl = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crl);
-    const char *crlpath = IS_WOLFSSL_OR_OPENSSL(NULL, ssl_config.ssl_crlpath);
+    const char *crl = ssl_config.ssl_crl;
+    const char *crlpath = ssl_config.ssl_crlpath;
 
     const bool ssl_setup_result =
         ssl_ctx->setup(tls_version, ssl_config.ssl_key, ssl_config.ssl_ca,
@@ -652,9 +646,7 @@ bool Server::on_net_startup() {
                        ssl_config.ssl_cipher, crl, crlpath);
 
     if (ssl_setup_result) {
-      const char *is_wolfssl_or_openssl =
-          IS_WOLFSSL_OR_OPENSSL("WolfSSL", "OpenSSL");
-      log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, is_wolfssl_or_openssl);
+      log_info(ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION, "OpenSSL");
     } else {
       log_info(ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN);
     }
@@ -689,7 +681,7 @@ ngs::Error_code Server::kill_client(uint64_t client_id,
   // of Clients will be released in its thread (Scheduler, Client::run).
 
   if (found_client &&
-      ngs::Client_interface::Client_closed != found_client->get_state()) {
+      ngs::Client_interface::State::k_closed != found_client->get_state()) {
     Client_ptr xpl_client = std::static_pointer_cast<Client>(found_client);
 
     if (client_id == requester.client().client_id_num()) {

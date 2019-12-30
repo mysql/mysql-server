@@ -1,0 +1,23 @@
+select @@global.lock_order_extra_dependencies;
+@@global.lock_order_extra_dependencies
+/some/path/to/lock_order_extra_dependencies.txt
+select @@session.lock_order_extra_dependencies;
+ERROR HY000: Variable 'lock_order_extra_dependencies' is a GLOBAL variable
+show global variables like 'lock_order_extra_dependencies';
+Variable_name	Value
+lock_order_extra_dependencies	/some/path/to/lock_order_extra_dependencies.txt
+show session variables like 'lock_order_extra_dependencies';
+Variable_name	Value
+lock_order_extra_dependencies	/some/path/to/lock_order_extra_dependencies.txt
+select * from performance_schema.global_variables
+where variable_name='lock_order_extra_dependencies';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_extra_dependencies	/some/path/to/lock_order_extra_dependencies.txt
+select * from performance_schema.session_variables
+where variable_name='lock_order_extra_dependencies';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_extra_dependencies	/some/path/to/lock_order_extra_dependencies.txt
+set global lock_order_extra_dependencies="foo";
+ERROR HY000: Variable 'lock_order_extra_dependencies' is a read only variable
+set session lock_order_extra_dependencies="foo";
+ERROR HY000: Variable 'lock_order_extra_dependencies' is a read only variable

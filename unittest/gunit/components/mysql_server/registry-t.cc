@@ -37,6 +37,7 @@
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <keyring_iterator_service_imp.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/clone_protocol_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
@@ -53,6 +54,7 @@
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
@@ -61,6 +63,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
+                   (MYSQL_THD *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
                    (int, void *)) {
@@ -166,8 +173,26 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD *)) { return; }
 
+DEFINE_METHOD(int, mysql_clone_get_charsets, (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_charsets,
+              (THD *, Mysql_Clone_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_get_configs, (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
+DEFINE_METHOD(int, mysql_clone_validate_configs,
+              (THD *, Mysql_Clone_Key_Values &)) {
+  return (0);
+}
+
 DEFINE_METHOD(MYSQL *, mysql_clone_connect,
-              (THD *, const char *, uint, const char *, const char *,
+              (THD *, const char *, uint32_t, const char *, const char *,
                mysql_clone_ssl_context *, MYSQL_SOCKET *)) {
   return nullptr;
 }
@@ -178,7 +203,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
 }
 
 DEFINE_METHOD(int, mysql_clone_get_response,
-              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *)) {
+              (THD *, MYSQL *, bool, uint32_t, uchar **, size_t *, size_t *)) {
   return 0;
 }
 
@@ -188,12 +213,16 @@ DEFINE_METHOD(void, mysql_clone_disconnect, (THD *, MYSQL *, bool, bool)) {
   return;
 }
 
+DEFINE_METHOD(void, mysql_clone_get_error, (THD *, uint32_t *, const char **)) {
+  return;
+}
+
 DEFINE_METHOD(int, mysql_clone_get_command,
               (THD *, uchar *, uchar **, size_t *)) {
   return 0;
 }
 
-DEFINE_METHOD(int, mysql_clone_send_response, (THD *, uchar *, size_t)) {
+DEFINE_METHOD(int, mysql_clone_send_response, (THD *, bool, uchar *, size_t)) {
   return 0;
 }
 
@@ -291,6 +320,25 @@ DEFINE_METHOD(int, Page_track_implementation::get_status,
   return (0);
 }
 
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
+                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
+                    char *key_id MY_ATTRIBUTE((unused)),
+                    size_t key_id_size MY_ATTRIBUTE((unused)),
+                    char *user_id MY_ATTRIBUTE((unused)),
+                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
@@ -313,12 +361,15 @@ bool check_valid_path(const char *, size_t) {
 
 namespace registry_unittest {
 
+using service_type_t = SERVICE_TYPE_NO_CONST(registry);
+
 class registry : public ::testing::Test {
  protected:
   virtual void SetUp() { ASSERT_FALSE(mysql_services_bootstrap(&reg)); }
 
   virtual void TearDown() {
-    ASSERT_FALSE(reg->release((my_h_service)reg));
+    ASSERT_FALSE(reg->release(
+        reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg))));
     shutdown_dynamic_loader();
     ASSERT_FALSE(mysql_services_shutdown());
   }
@@ -334,7 +385,8 @@ TEST_F(registry, basic_operations) {
   ASSERT_TRUE(hreg != NULL);
   ASSERT_FALSE(reg->acquire("registry.mysql_server", &hreg2));
   ASSERT_TRUE(hreg == hreg2);
-  ASSERT_TRUE(hreg == (my_h_service)reg);
+  ASSERT_TRUE(hreg == reinterpret_cast<my_h_service>(
+                          const_cast<service_type_t *>(reg)));
   ASSERT_FALSE(reg->release(hreg));
   ASSERT_FALSE(reg->release(hreg2));
   ASSERT_TRUE(reg->release(my_h_service{}));
@@ -539,9 +591,12 @@ TEST_F(registry, acquire_related) {
 
   /* Bad service implementation pointer */
   ASSERT_TRUE(reg->acquire_related("bad_name", my_h_service{}, NULL));
-  ASSERT_TRUE(reg->acquire_related("bad_name", (my_h_service)reg, NULL));
-  ASSERT_TRUE(
-      reg->acquire_related("bad_name.with_component", (my_h_service)reg, NULL));
+  ASSERT_TRUE(reg->acquire_related(
+      "bad_name",
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
+  ASSERT_TRUE(reg->acquire_related(
+      "bad_name.with_component",
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
 
   {
     my_service<SERVICE_TYPE(registry)> scheme_file_service(

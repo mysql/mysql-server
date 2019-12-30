@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,6 @@
 */
 
 #include "router_test_helpers.h"
-#include "cmd_exec.h"
-#include "mysql/harness/filesystem.h"
-#include "mysqlrouter/utils.h"
 
 #include <cassert>
 #include <cerrno>
@@ -33,22 +30,29 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <regex>
 #include <stdexcept>
 #include <thread>
 
 #ifndef _WIN32
-#include <regex.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #else
 #include <direct.h>
 #include <windows.h>
 #include <winsock2.h>
-#include <regex>
+#include <ws2tcpip.h>
 #define getcwd _getcwd
 typedef long ssize_t;
 #endif
 
+#include "keyring/keyring_manager.h"
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/utils.h"
+
 using mysql_harness::Path;
+using namespace std::chrono_literals;
 
 Path get_cmake_source_dir() {
   Path result;
@@ -120,19 +124,6 @@ const std::string change_cwd(std::string &dir) {
     throw std::runtime_error("chdir failed: " + mysqlrouter::get_last_error());
   }
   return cwd;
-}
-
-bool ends_with(const std::string &str, const std::string &suffix) {
-  auto suffix_size = suffix.size();
-  auto str_size = str.size();
-  return (str_size >= suffix_size &&
-          str.compare(str_size - suffix_size, str_size, suffix) == 0);
-}
-
-bool starts_with(const std::string &str, const std::string &prefix) {
-  auto prefix_size = prefix.size();
-  auto str_size = str.size();
-  return (str_size >= prefix_size && str.compare(0, prefix_size, prefix) == 0);
 }
 
 size_t read_bytes_with_timeout(int sockfd, void *buffer, size_t n_bytes,
@@ -219,20 +210,210 @@ void init_windows_sockets() {
 }
 
 bool pattern_found(const std::string &s, const std::string &pattern) {
-#ifndef _WIN32
-  regex_t regex;
-  auto r = regcomp(&regex, pattern.c_str(), 0);
-  if (r) {
-    throw std::runtime_error("Error compiling regex pattern: " + pattern);
+  bool result = false;
+  try {
+    std::smatch m;
+    std::regex r(pattern);
+    result = std::regex_search(s, m, r);
+  } catch (const std::regex_error &e) {
+    std::cerr << ">" << e.what();
   }
-  r = regexec(&regex, s.c_str(), 0, NULL, 0);
-  regfree(&regex);
-  return (r == 0);
-#else
-  std::smatch m;
-  std::regex r(pattern);
-  bool result = std::regex_search(s, m, r);
 
   return result;
+}
+
+namespace {
+#ifndef _WIN32
+int close_socket(int sock) {
+  ::shutdown(sock, SHUT_RDWR);
+  return close(sock);
+}
+#else
+int close_socket(SOCKET sock) {
+  ::shutdown(sock, SD_BOTH);
+  return closesocket(sock);
+}
 #endif
+}  // namespace
+
+bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
+                         const std::string &hostname) {
+  struct addrinfo hints, *ainfo;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
+
+  // Valgrind needs way more time
+  if (getenv("WITH_VALGRIND")) {
+    timeout *= 10;
+  }
+
+  int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
+                           &hints, &ainfo);
+  if (status != 0) {
+    throw std::runtime_error(
+        std::string("wait_for_port_ready(): getaddrinfo() failed: ") +
+        gai_strerror(status));
+  }
+  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
+                                          [&](void *) { freeaddrinfo(ainfo); });
+
+  const auto MSEC_STEP = 10ms;
+  const auto started = std::chrono::steady_clock::now();
+  do {
+    auto sock_id =
+        socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
+    if (sock_id < 0) {
+      throw std::runtime_error("wait_for_port_ready(): socket() failed: " +
+                               std::to_string(mysqlrouter::get_socket_errno()));
+    }
+    std::shared_ptr<void> exit_close_socket(
+        nullptr, [&](void *) { close_socket(sock_id); });
+
+    status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
+    if (status < 0) {
+      const auto step = std::min(timeout, MSEC_STEP);
+      std::this_thread::sleep_for(std::chrono::milliseconds(step));
+      timeout -= step;
+    }
+  } while (status < 0 && timeout > std::chrono::steady_clock::now() - started);
+
+  return status >= 0;
+}
+
+void init_keyring(std::map<std::string, std::string> &default_section,
+                  const std::string &keyring_dir,
+                  const std::string &user /*= "mysql_router1_user"*/,
+                  const std::string &password /*= "root"*/) {
+  // init keyring
+  const std::string masterkey_file = Path(keyring_dir).join("master.key").str();
+  const std::string keyring_file = Path(keyring_dir).join("keyring").str();
+  mysql_harness::init_keyring(keyring_file, masterkey_file, true);
+  mysql_harness::Keyring *keyring = mysql_harness::get_keyring();
+  keyring->store(user, "password", password);
+  mysql_harness::flush_keyring();
+  mysql_harness::reset_keyring();
+
+  // add relevant config settings to [DEFAULT] section
+  default_section["keyring_path"] = keyring_file;
+  default_section["master_key_path"] = masterkey_file;
+}
+
+namespace {
+
+bool real_find_in_file(
+    const std::string &file_path,
+    const std::function<bool(const std::string &)> &predicate,
+    std::ifstream &in_file, std::ios::streampos &cur_pos) {
+  if (!in_file.is_open()) {
+    in_file.clear();
+    Path file(file_path);
+    in_file.open(file.c_str(), std::ifstream::in);
+    if (!in_file) {
+      throw std::runtime_error("Error opening file " + file.str());
+    }
+    cur_pos = in_file.tellg();  // initialize properly
+  } else {
+    // set current position to the end of what was already read
+    in_file.clear();
+    in_file.seekg(cur_pos);
+  }
+
+  std::string line;
+  while (std::getline(in_file, line)) {
+    cur_pos = in_file.tellg();
+    if (predicate(line)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+}  // namespace
+
+bool find_in_file(const std::string &file_path,
+                  const std::function<bool(const std::string &)> &predicate,
+                  std::chrono::milliseconds sleep_time) {
+  const auto STEP = std::chrono::milliseconds(100);
+  std::ifstream in_file;
+  std::ios::streampos cur_pos;
+  do {
+    try {
+      // This is proxy function to account for the fact that I/O can sometimes
+      // be slow.
+      if (real_find_in_file(file_path, predicate, in_file, cur_pos))
+        return true;
+    } catch (const std::runtime_error &) {
+      // report I/O error only on the last attempt
+      if (sleep_time == std::chrono::milliseconds(0)) {
+        std::cerr << "  find_in_file() failed, giving up." << std::endl;
+        throw;
+      }
+    }
+
+    const auto sleep_for = std::min(STEP, sleep_time);
+    std::this_thread::sleep_for(sleep_for);
+    sleep_time -= sleep_for;
+
+  } while (sleep_time > std::chrono::milliseconds(0));
+
+  return false;
+}
+
+std::string get_file_output(const std::string &file_name,
+                            const std::string &file_path) {
+  return get_file_output(file_path + "/" + file_name);
+}
+
+std::string get_file_output(const std::string &file_name) {
+  Path file(file_name);
+  std::ifstream in_file;
+  in_file.open(file.c_str(), std::ifstream::in);
+  if (!in_file) {
+    return "Could not open file " + file.str() + " for reading.";
+  }
+
+  std::string result((std::istreambuf_iterator<char>(in_file)),
+                     std::istreambuf_iterator<char>());
+
+  return result;
+}
+
+void connect_client_and_query_port(unsigned router_port, std::string &out_port,
+                                   bool should_fail) {
+  using mysqlrouter::MySQLSession;
+  MySQLSession client;
+
+  if (should_fail) {
+    try {
+      client.connect("127.0.0.1", router_port, "username", "password", "", "");
+    } catch (const std::exception &exc) {
+      if (std::string(exc.what()).find("Error connecting to MySQL server") !=
+          std::string::npos) {
+        out_port = "";
+        return;
+      } else
+        throw;
+    }
+    throw std::runtime_error(
+        "connect_client_and_query_port: did not fail as expected");
+
+  } else {
+    client.connect("127.0.0.1", router_port, "username", "password", "", "");
+  }
+
+  std::unique_ptr<MySQLSession::ResultRow> result{
+      client.query_one("select @@port")};
+  if (nullptr == result.get()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: error querying the port");
+  }
+  if (1u != result->size()) {
+    throw std::runtime_error(
+        "connect_client_and_query_port: wrong number of columns returned " +
+        std::to_string(result->size()));
+  }
+  out_port = std::string((*result)[0]);
 }

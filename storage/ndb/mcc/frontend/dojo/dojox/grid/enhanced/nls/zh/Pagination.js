@@ -1,25 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"descTemplate": "${1} 个${0}中的  ${2} - ${3}",
-	"firstTip": "第一页",
-	"lastTip": "最后一页",
-	"nextTip": "下一页",
-	"prevTip": "上一页",
-	"itemTitle": "项目",
-	"singularItemTitle": "项",
-	"pageStepLabelTemplate": "第 ${0} 页",
-	"pageSizeLabelTemplate": "每页的 ${0} 项目",
-	"allItemsLabelTemplate": "所有项目",
-	"gotoButtonTitle": "转到指定页面",
-	"dialogTitle": "转到页面",
-	"dialogIndication": "指定页数",
-	"pageCountIndication": "（${0} 页）",
-	"dialogConfirm": "确定",
-	"dialogCancel": "取消",
-	"all": "全部"
-})
-//end v1.x content
-);
-
+define("dojox/grid/enhanced/nls/zh/Pagination",({"descTemplate":"第 ${2} - ${3} 个（共 ${1} ${0}）","firstTip":"首页","lastTip":"末页","nextTip":"下一页","prevTip":"上一页","itemTitle":"项目数","singularItemTitle":"项","pageStepLabelTemplate":"第 ${0} 页","pageSizeLabelTemplate":"每页的 ${0} 项","allItemsLabelTemplate":"所有项","gotoButtonTitle":"转至特定页","dialogTitle":"转至页","dialogIndication":"指定页数","pageCountIndication":"（共 ${0} 页）","dialogConfirm":"运行","dialogCancel":"取消","all":"全部"}));

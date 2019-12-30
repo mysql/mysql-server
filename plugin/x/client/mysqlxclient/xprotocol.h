@@ -32,11 +32,14 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "mysqlxclient/xmessage.h"
 
 #include "mysqlxclient/xargument.h"
+#include "mysqlxclient/xcompression.h"
 #include "mysqlxclient/xconnection.h"
 #include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xmessage.h"
 #include "mysqlxclient/xquery_result.h"
 
 #ifdef USE_MYSQLX_FULL_PROTO

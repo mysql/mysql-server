@@ -25,8 +25,8 @@
 #include "filelog_plugin.h"
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 
 extern "C" {
 Plugin harness_plugin_filelog = {

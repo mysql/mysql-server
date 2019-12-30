@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/wire/ml/Transfer", ["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/_base,dojox/wire/ml/Action"], function(dijit,dojo,dojox){
+define("dojox/wire/ml/Transfer", ["dojo","dijit","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/_base,dojox/wire/ml/Action"], function(dojo,dijit,dojox){
 dojo.provide("dojox.wire.ml.Transfer");
 
 dojo.require("dijit._Widget");
@@ -9,51 +8,62 @@ dojo.require("dojox.wire._base");
 dojo.require("dojox.wire.ml.Action");
 
 dojo.declare("dojox.wire.ml.Transfer", dojox.wire.ml.Action, {
-	//	summary:
+	// summary:
 	//		A widget to transfer values through source and target Wires
-	//	description:
+	// description:
 	//		This widget represents a controller task to transfer a value from
 	//		a source to a target, through a source and a target Wires, when
 	//		an event (a function) or a topic is issued.
 	//		If this widget has child ChildWire widgets, their _addWire()
 	//		methods are called to add Wire arguments to a source or a target
 	//		Wire.
-	//	source:
+
+	// source:
 	//		A source object and/or property
-	//	sourceStore:
-	//		A data store for a source data item
-	//	sourceAttribute:
-	//		An attribute of a source data item
-	//	sourcePath:
-	//		A simplified XPath to a source property of an XML element
-	//	type:
-	//		A type of the value to be transferred
-	//	converter:
-	//		A class name of a converter for the value to be transferred
-	//	target:
-	//		A target object and/or property
-	//	targetStore:
-	//		A data store for a target data item
-	//	targetAttribute:
-	//		An attribute of a target data item
-	//	targetPath:
-	//		A simplified XPath to a target property of an XML element
 	source: "",
+
+	// sourceStore:
+	//		A data store for a source data item
 	sourceStore: "",
+
+	// sourceAttribute:
+	//		An attribute of a source data item
 	sourceAttribute: "",
+
+	// sourcePath:
+	//		A simplified XPath to a source property of an XML element
 	sourcePath: "",
+
+	// type:
+	//		A type of the value to be transferred
 	type: "",
+
+	// converter:
+	//		A class name of a converter for the value to be transferred
 	converter: "",
-	delimiter: "",
+
+	// target:
+	//		A target object and/or property
 	target: "",
+
+	// targetStore:
+	//		A data store for a target data item
 	targetStore: "",
+
+	// targetAttribute:
+	//		An attribute of a target data item
 	targetAttribute: "",
+
+	// targetPath:
+	//		A simplified XPath to a target property of an XML element
 	targetPath: "",
 
+	delimiter: "",
+
 	_run: function(){
-		//	summary:
+		// summary:
 		//		Transfer a value from a source to a target
-		//	description:
+		// description:
 		//		First, Wires for a source and a target are created from attributes.
 		//		Then, a value is obtained by getValue() of the source Wire is set
 		//		by setValue() of the target Wire.
@@ -66,15 +76,15 @@ dojo.declare("dojox.wire.ml.Transfer", dojox.wire.ml.Action, {
 	},
 
 	_getWire: function(/*String*/which){
-		//	summary:
+		// summary:
 		//		Build Wire arguments from attributes
-		//	description:
+		// description:
 		//		Arguments object for a source or a target Wire, specified by
 		//		'which' argument, are build from corresponding attributes,
 		//		including '*Store' (for 'dataStore'), '*Attribute'
 		//		(for 'attribute), '*Path' (for 'path'), 'type' and 'converter'.
 		//		'source' or 'target' attribute is parsed as:
-		//			"object_id.property_name[.sub_property_name...]"
+		// |		"object_id.property_name[.sub_property_name...]"
 		//		If 'source' or 'target' starts with "arguments", 'object'
 		//		argument for a Wire is set to null, so that the root object is
 		//		given as an event or topic arguments.
@@ -82,9 +92,9 @@ dojo.declare("dojox.wire.ml.Transfer", dojox.wire.ml.Action, {
 		//		'which' attribute, their _addWire() methods are called to add
 		//		additional Wire arguments and nested Wire is created,
 		//		specifying the Wire defined by this widget to 'object' argument.
-		//	which:
+		// which:
 		//		Which Wire arguments to build, "source" or "target"
-		//	returns:
+		// returns:
 		//		Wire arguments object
 		var args = undefined;
 		if(which == "source"){
@@ -142,27 +152,27 @@ dojo.declare("dojox.wire.ml.Transfer", dojox.wire.ml.Action, {
 });
 
 dojo.declare("dojox.wire.ml.ChildWire", dijit._Widget, {
-	//	summary:
+	// summary:
 	//		A widget to add a child wire
-	//	description:
+	// description:
 	//		Attributes of this widget are used to add a child Wire to
 	//		a composite Wire of the parent Transfer widget.
-	//	which:
+	// which:
 	//		Which Wire to add a child Wire, "source" or "target", default to
 	//		"source"
-	//	object:
+	// object:
 	//		A root object for the value
-	//	property:
+	// property:
 	//		A property for the value
-	//	type:
+	// type:
 	//		A type of the value
-	//	converter:
+	// converter:
 	//		A class name of a converter for the value
-	//	attribute:
+	// attribute:
 	//		A data item attribute for the value
-	//	path:
+	// path:
 	//		A simplified XPath for the value
-	//	name:
+	// name:
 	//		A composite property name
 	which: "source",
 	object: "",
@@ -174,15 +184,15 @@ dojo.declare("dojox.wire.ml.ChildWire", dijit._Widget, {
 	name: "",
 
 	_addWire: function(/*Transfer*/parent, /*Object*/args){
-		//	summary:
+		// summary:
 		//		Add a child Wire to Wire arguments
-		//	description:
+		// description:
 		//		If 'name' attribute is specified, a child Wire is added as
 		//		the named property of 'children' object of 'args'.
 		//		Otherwise, a child Wire is added to 'children' array of 'args'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	args:
+		// args:
 		//		Wire arguments
 		if(this.name){ // object
 			if(!args.children){
@@ -198,15 +208,15 @@ dojo.declare("dojox.wire.ml.ChildWire", dijit._Widget, {
 	},
 
 	_getWire: function(/*Transfer*/parent){
-		//	summary:
+		// summary:
 		//		Build child Wire arguments from attributes
-		//	description:
+		// description:
 		//		Arguments object for a child Wire are build from attributes,
 		//		including 'object', 'property', 'type', 'converter',
 		//		'attribute' and 'path'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	returns:
+		// returns:
 		//		Wire arguments object
 		return {
 			object: (this.object ? dojox.wire.ml._getValue(this.object) : undefined),
@@ -220,25 +230,25 @@ dojo.declare("dojox.wire.ml.ChildWire", dijit._Widget, {
 });
 
 dojo.declare("dojox.wire.ml.ColumnWire", dojox.wire.ml.ChildWire, {
-	//	summary:
+	// summary:
 	//		A widget to add a column wire
-	//	description:
+	// description:
 	//		Attributes of this widget are used to add a column Wire to
 	//		a TableAdapter of the parent Transfer widget.
-	//	column:
+	// column:
 	//		A column name
 	column: "",
 
 	_addWire: function(/*Transfer*/parent, /*Object*/args){
-		//	summary:
+		// summary:
 		//		Add a column Wire to Wire arguments
-		//	description:
+		// description:
 		//		If 'column' attribute is specified, a column Wire is added as
 		//		the named property of 'columns' object of 'args'.
 		//		Otherwise, a column Wire is added to 'columns' array of 'args'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	args:
+		// args:
 		//		Wire arguments
 		if(this.column){ // object
 			if(!args.columns){
@@ -255,29 +265,29 @@ dojo.declare("dojox.wire.ml.ColumnWire", dojox.wire.ml.ChildWire, {
 });
 
 dojo.declare("dojox.wire.ml.NodeWire", [dojox.wire.ml.ChildWire, dijit._Container], {
-	//	summary:
+	// summary:
 	//		A widget to add node wires
-	//	description:
+	// description:
 	//		Attributes of this widget are used to add node Wires to
 	//		a TreeAdapter of the parent Transfer widget.
-	//	titleProperty:
+	// titleProperty:
 	//		A property for the node title
-	//	titleAttribute:
+	// titleAttribute:
 	//		A data item attribute for the node title
-	//	titlePath:
+	// titlePath:
 	//		A simplified XPath for the node title
 	titleProperty: "",
 	titleAttribute: "",
 	titlePath: "",
 
 	_addWire: function(/*Transfer*/parent, /*Object*/args){
-		//	summary:
+		// summary:
 		//		Add node Wires to Wire arguments
-		//	description:
+		// description:
 		//		Node Wires are added to 'nodes' array of 'args'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	args:
+		// args:
 		//		Wire arguments
 		if(!args.nodes){
 			args.nodes = [];
@@ -286,9 +296,9 @@ dojo.declare("dojox.wire.ml.NodeWire", [dojox.wire.ml.ChildWire, dijit._Containe
 	},
 
 	_getWires: function(/*Transfer*/parent){
-		//	summary:
+		// summary:
 		//		Build node Wires arguments from attributes
-		//	description:
+		// description:
 		//		Arguments object for 'node' Wire are build from attributes,
 		//		including 'object', 'property', 'type', 'converter',
 		//		'attribute' and 'path'.
@@ -297,9 +307,9 @@ dojo.declare("dojox.wire.ml.NodeWire", [dojox.wire.ml.ChildWire, dijit._Containe
 		//		If this widget has child NodeWire widgets, their _getWires()
 		//		methods are called recursively to build 'children' array of
 		//		'args'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	returns:
+		// returns:
 		//		Wire arguments object
 		var args = {
 			node: this._getWire(parent),
@@ -326,22 +336,22 @@ dojo.declare("dojox.wire.ml.NodeWire", [dojox.wire.ml.ChildWire, dijit._Containe
 });
 
 dojo.declare("dojox.wire.ml.SegmentWire", dojox.wire.ml.ChildWire, {
-	//	summary:
+	// summary:
 	//		A widget to add a segment wire
-	//	description:
+	// description:
 	//		Attributes of this widget are used to add a segment Wire to
 	//		a TextAdapter of the parent Transfer widget.
 
 	_addWire: function(/*Transfer*/parent, /*Object*/args){
-		//	summary:
-		//		Add a segument Wire to Wire arguments
-		//	description:
+		// summary:
+		//		Add a segment Wire to Wire arguments
+		// description:
 		//		A segment Wire is added to 'segments' array of 'args'.
 		//		If 'parent' has 'delimiter' attribute, it is used for
 		//		'delimiter' property of 'args'.
-		//	parent:
+		// parent:
 		//		A parent Transfer widget
-		//	args:
+		// args:
 		//		Wire arguments
 		if(!args.segments){
 			args.segments = [];

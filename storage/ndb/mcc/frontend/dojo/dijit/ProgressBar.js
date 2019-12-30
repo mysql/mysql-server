@@ -3,7 +3,7 @@ require({cache:{"url:dijit/templates/ProgressBar.html":"<div class=\"dijitProgre
 define("dijit/ProgressBar",["require","dojo/_base/declare","dojo/dom-class","dojo/_base/lang","dojo/number","./_Widget","./_TemplatedMixin","dojo/text!./templates/ProgressBar.html"],function(_1,_2,_3,_4,_5,_6,_7,_8){
 return _2("dijit.ProgressBar",[_6,_7],{progress:"0",value:"",maximum:100,places:0,indeterminate:false,label:"",name:"",templateString:_8,_indeterminateHighContrastImagePath:_1.toUrl("./themes/a11y/indeterminate_progress.gif"),postMixInProperties:function(){
 this.inherited(arguments);
-if(!("value" in this.params)){
+if(!(this.params&&"value" in this.params)){
 this.value=this.indeterminate?Infinity:this.progress;
 }
 },buildRendering:function(){
@@ -16,8 +16,6 @@ var _a=this.internalProgress,ap=this.domNode;
 var _b=1;
 if(this.indeterminate){
 ap.removeAttribute("aria-valuenow");
-ap.removeAttribute("aria-valuemin");
-ap.removeAttribute("aria-valuemax");
 }else{
 if(String(this.progress).indexOf("%")!=-1){
 _b=Math.min(parseFloat(this.progress)/100,1);
@@ -26,11 +24,11 @@ this.progress=_b*this.maximum;
 this.progress=Math.min(this.progress,this.maximum);
 _b=this.maximum?this.progress/this.maximum:0;
 }
-ap.setAttribute("aria-describedby",this.labelNode.id);
 ap.setAttribute("aria-valuenow",this.progress);
+}
+ap.setAttribute("aria-labelledby",this.labelNode.id);
 ap.setAttribute("aria-valuemin",0);
 ap.setAttribute("aria-valuemax",this.maximum);
-}
 this.labelNode.innerHTML=this.report(_b);
 _3.toggle(this.domNode,"dijitProgressBarIndeterminate",this.indeterminate);
 _a.style.width=(_b*100)+"%";

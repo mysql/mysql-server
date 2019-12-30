@@ -1,9 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"blockquote": "Citat"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/da/Blockquote",({"blockquote":"Blokanførselstegn"}));

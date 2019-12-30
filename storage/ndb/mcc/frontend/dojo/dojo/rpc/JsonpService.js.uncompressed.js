@@ -1,24 +1,23 @@
-//>>built
-define("dojo/rpc/JsonpService", ["../main", "./RpcService", "../io/script"], function(dojo) {
-	// module:
-	//		dojo/rpc/JsonpService
-	// summary:
-	//		TODOC
+define("dojo/rpc/JsonpService", [
+	"../_base/array", "../_base/declare", "../_base/lang", "./RpcService", "../io/script"],
+	function(array, declare, lang, RpcService, script){
 
+// module:
+//		dojo/rpc/JsonpService
 
-dojo.declare("dojo.rpc.JsonpService", dojo.rpc.RpcService, {
+return declare("dojo.rpc.JsonpService", RpcService, {
 	// summary:
-	//	Generic JSONP service.  Minimally extends RpcService to allow
-	//	easy definition of nearly any JSONP style service. Example
-	//	SMD files exist in dojox.data
+	//		Generic JSONP service.  Minimally extends RpcService to allow
+	//		easy definition of nearly any JSONP style service. Example
+	//		SMD files exist in dojox.data
 
 	constructor: function(args, requiredArgs){
-		if(this.required) {
+		if(this.required){
 			if(requiredArgs){
-				dojo.mixin(this.required, requiredArgs);
+				lang.mixin(this.required, requiredArgs);
 			}
 
-			dojo.forEach(this.required, function(req){
+			array.forEach(this.required, function(req){
 				if(req=="" || req==undefined){
 					throw new Error("Required Service Argument not found: "+req);
 				}
@@ -29,18 +28,18 @@ dojo.declare("dojo.rpc.JsonpService", dojo.rpc.RpcService, {
 	strictArgChecks: false,
 
 	bind: function(method, parameters, deferredRequestHandler, url){
-		//summary:
-		//              JSONP bind method. Takes remote method, parameters,
-		//              deferred, and a url, calls createRequest to make a JSON-RPC
-		//              envelope and passes that off with bind.
-		//      method: string
-		//              The name of the method we are calling
-		//      parameters: array
-		//              The parameters we are passing off to the method
-		//      deferredRequestHandler: deferred
-		//              The Deferred object for this particular request
+		// summary:
+		//		JSONP bind method. Takes remote method, parameters,
+		//		deferred, and a url, calls createRequest to make a JSON-RPC
+		//		envelope and passes that off with bind.
+		// method: string
+		//		The name of the method we are calling
+		// parameters: array
+		//		The parameters we are passing off to the method
+		// deferredRequestHandler: deferred
+		//		The Deferred object for this particular request
 
-		var def = dojo.io.script.get({
+		var def = script.get({
 			url: url||this.serviceUrl,
 			callbackParamName: this.callbackParamName||"callback",
 			content: this.createRequest(parameters),
@@ -53,16 +52,15 @@ dojo.declare("dojo.rpc.JsonpService", dojo.rpc.RpcService, {
 
 	createRequest: function(parameters){
 		// summary:
-		//      create a JSONP req
-		//      params: array
-		//              The array of parameters for this request;
+		//		create a JSONP req
+		// params: array
+		//		The array of parameters for this request;
 
-		var params = (dojo.isArrayLike(parameters) && parameters.length==1) ?
+		var params = (lang.isArrayLike(parameters) && parameters.length==1) ?
 				parameters[0] : {};
-		dojo.mixin(params,this.required);
+		lang.mixin(params,this.required);
 		return params;
 	}
 });
 
-return dojo.rpc.JsonpService;
 });

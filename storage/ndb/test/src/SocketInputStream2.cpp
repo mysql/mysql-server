@@ -59,7 +59,7 @@ SocketInputStream2::has_data_to_read()
     return true; // Yes, there was data
 
   if (res == 0)
-    return false; // Timeout occured
+    return false; // Timeout occurred
 
   require(res == -1);
   return false;

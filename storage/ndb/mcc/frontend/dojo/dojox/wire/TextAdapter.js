@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/wire/CompositeWire"],function(_1,_2,_3){
-_2.provide("dojox.wire.TextAdapter");
-_2.require("dojox.wire.CompositeWire");
-_2.declare("dojox.wire.TextAdapter",_3.wire.CompositeWire,{_wireClass:"dojox.wire.TextAdapter",constructor:function(_4){
+define("dojox/wire/TextAdapter",["dojo","dijit","dojox","dojo/require!dojox/wire/CompositeWire"],function(_1,_2,_3){
+_1.provide("dojox.wire.TextAdapter");
+_1.require("dojox.wire.CompositeWire");
+_1.declare("dojox.wire.TextAdapter",_3.wire.CompositeWire,{_wireClass:"dojox.wire.TextAdapter",constructor:function(_4){
 this._initializeChildren(this.segments);
 if(!this.delimiter){
 this.delimiter="";

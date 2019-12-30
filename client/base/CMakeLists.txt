@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-ADD_CONVENIENCE_LIBRARY(client_base
-  i_option.cc
+ADD_LIBRARY(client_base STATIC
   bool_option.cc
   char_array_option.cc
   disabled_option.cc
+  i_option.cc
   password_option.cc
   simple_option.cc
   string_option.cc
@@ -43,14 +43,7 @@ ADD_CONVENIENCE_LIBRARY(client_base
   mysql_query_runner.cc
   show_variable_query_extractor.cc
 
-  mutex.cc
-
-  ../get_password.cc
-
-  ../../sql-common/sql_string.cc
+  ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
 )
 
 TARGET_LINK_LIBRARIES(client_base mysqlclient)
-
-# Do not build library unless it is needed by some other target.
-SET_PROPERTY(TARGET client_base PROPERTY EXCLUDE_FROM_ALL TRUE)

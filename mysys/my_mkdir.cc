@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 #endif
 
 int my_mkdir(const char *dir, int Flags, myf MyFlags) {
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("dir: %s", dir));
 
 #if defined(_WIN32)
@@ -59,7 +59,7 @@ int my_mkdir(const char *dir, int Flags, myf MyFlags) {
       my_error(EE_CANT_MKDIR, MYF(0), dir, my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
-    DBUG_RETURN(-1);
+    return -1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

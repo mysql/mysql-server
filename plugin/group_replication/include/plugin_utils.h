@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,15 +108,17 @@ class Blocked_transaction_handler {
   mysql_mutex_t unblocking_process_lock;
 };
 
-template <typename T>
-class Synchronized_queue {
- public:
-  Synchronized_queue() {
-    mysql_mutex_init(key_GR_LOCK_synchronized_queue, &lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
-  }
+/**
+ @class Synchronized_queue_interface
 
-  ~Synchronized_queue() { mysql_mutex_destroy(&lock); }
+ Interface that defines a queue protected against multi thread access.
+
+ */
+
+template <typename T>
+class Synchronized_queue_interface {
+ public:
+  virtual ~Synchronized_queue_interface() {}
 
   /**
     Checks if the queue is empty
@@ -124,6 +126,62 @@ class Synchronized_queue {
       @retval true  empty
       @retval false not empty
   */
+  virtual bool empty() = 0;
+
+  /**
+    Inserts an element in the queue.
+    Alerts any other thread lock on pop() or front()
+    @param value The value to insert
+
+    @return  false, operation always succeeded
+   */
+  virtual bool push(const T &value) = 0;
+
+  /**
+    Fetches the front of the queue and removes it.
+    @note The method will block if the queue is empty until a element is pushed
+
+    @param out  The fetched reference.
+
+    @return  false, operation always succeeded
+  */
+  virtual bool pop(T *out) = 0;
+
+  /**
+    Pops the front of the queue removing it.
+    @note The method will block if the queue is empty until a element is pushed
+
+    @return  true if method was aborted, false otherwise
+  */
+  virtual bool pop() = 0;
+
+  /**
+    Fetches the front of the queue but does not remove it.
+    @note The method will block if the queue is empty until a element is pushed
+
+    @param out  The fetched reference.
+
+    @return  false, operation always succeeded
+  */
+  virtual bool front(T *out) = 0;
+
+  /**
+    Checks the queue size
+    @return the size of the queue
+  */
+  virtual size_t size() = 0;
+};
+
+template <typename T>
+class Synchronized_queue : public Synchronized_queue_interface<T> {
+ public:
+  Synchronized_queue() {
+    mysql_mutex_init(key_GR_LOCK_synchronized_queue, &lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_GR_COND_synchronized_queue, &cond);
+  }
+
+  virtual ~Synchronized_queue() { mysql_mutex_destroy(&lock); }
+
   bool empty() {
     bool res = true;
     mysql_mutex_lock(&lock);
@@ -133,25 +191,16 @@ class Synchronized_queue {
     return res;
   }
 
-  /**
-    Inserts an element in the queue.
-    Alerts any other thread lock on pop() or front()
-    @param value The value to insert
-   */
-  void push(const T &value) {
+  virtual bool push(const T &value) {
     mysql_mutex_lock(&lock);
     queue.push(value);
-    mysql_mutex_unlock(&lock);
     mysql_cond_broadcast(&cond);
+    mysql_mutex_unlock(&lock);
+
+    return false;
   }
 
-  /**
-    Fetches the front of the queue and removes it.
-    @note The method will block if the queue is empty until a element is pushed
-
-    @param out  The fetched reference.
-  */
-  void pop(T *out) {
+  virtual bool pop(T *out) {
     *out = NULL;
     mysql_mutex_lock(&lock);
     while (queue.empty())
@@ -159,38 +208,30 @@ class Synchronized_queue {
     *out = queue.front();
     queue.pop();
     mysql_mutex_unlock(&lock);
+
+    return false;
   }
 
-  /**
-    Pops the front of the queue removing it.
-    @note The method will block if the queue is empty until a element is pushed
-  */
-  void pop() {
+  virtual bool pop() {
     mysql_mutex_lock(&lock);
     while (queue.empty())
       mysql_cond_wait(&cond, &lock); /* purecov: inspected */
     queue.pop();
     mysql_mutex_unlock(&lock);
+
+    return false;
   }
 
-  /**
-    Fetches the front of the queue but does not remove it.
-    @note The method will block if the queue is empty until a element is pushed
-
-    @param out  The fetched reference.
-  */
-  void front(T *out) {
+  virtual bool front(T *out) {
     *out = NULL;
     mysql_mutex_lock(&lock);
     while (queue.empty()) mysql_cond_wait(&cond, &lock);
     *out = queue.front();
     mysql_mutex_unlock(&lock);
+
+    return false;
   }
 
-  /**
-    Checks the queue size
-    @return the size of the queue
-  */
   size_t size() {
     size_t qsize = 0;
     mysql_mutex_lock(&lock);
@@ -200,10 +241,137 @@ class Synchronized_queue {
     return qsize;
   }
 
- private:
+ protected:
   mysql_mutex_t lock;
   mysql_cond_t cond;
   std::queue<T> queue;
+};
+
+/**
+ Abortable synchronized queue extends synchronized queue allowing to
+ abort methods waiting for elements on queue.
+*/
+
+template <typename T>
+class Abortable_synchronized_queue : public Synchronized_queue<T> {
+ public:
+  Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
+
+  ~Abortable_synchronized_queue() {}
+
+  /**
+    Inserts an element in the queue.
+    Alerts any other thread lock on pop() or front()
+    @note The method will not push if abort was executed.
+
+    @param value The value to insert
+
+    @return  false, operation always succeeded
+   */
+
+  bool push(const T &value) {
+    bool res = false;
+    mysql_mutex_lock(&this->lock);
+    if (m_abort) {
+      res = true;
+    } else {
+      this->queue.push(value);
+      mysql_cond_broadcast(&this->cond);
+    }
+
+    mysql_mutex_unlock(&this->lock);
+    return res;
+  }
+
+  /**
+    Fetches the front of the queue and removes it.
+    @note The method will block if the queue is empty until a element is pushed
+    or abort is executed
+
+    @param out  The fetched reference.
+
+    @return  true if method was aborted, false otherwise
+  */
+  bool pop(T *out) {
+    *out = nullptr;
+    mysql_mutex_lock(&this->lock);
+    while (this->queue.empty() && !m_abort)
+      mysql_cond_wait(&this->cond, &this->lock); /* purecov: inspected */
+
+    if (!m_abort) {
+      *out = this->queue.front();
+      this->queue.pop();
+    }
+
+    const bool result = m_abort;
+    mysql_mutex_unlock(&this->lock);
+    return result;
+  }
+
+  /**
+    Pops the front of the queue removing it.
+    @note The method will block if the queue is empty until a element is pushed
+    or abort is executed
+
+    @return  false, operation always succeeded
+  */
+  bool pop() {
+    mysql_mutex_lock(&this->lock);
+    while (this->queue.empty() && !m_abort)
+      mysql_cond_wait(&this->cond, &this->lock);
+
+    if (!m_abort) {
+      this->queue.pop();
+    }
+
+    const bool result = m_abort;
+    mysql_mutex_unlock(&this->lock);
+    return result;
+  }
+
+  /**
+    Fetches the front of the queue but does not remove it.
+    @note The method will block if the queue is empty until a element is pushed
+    or abort is executed
+
+    @param out  The fetched reference.
+
+    @return  true if method was aborted, false otherwise
+  */
+  bool front(T *out) {
+    *out = nullptr;
+    mysql_mutex_lock(&this->lock);
+    while (this->queue.empty() && !m_abort)
+      mysql_cond_wait(&this->cond, &this->lock);
+
+    if (!m_abort) {
+      *out = this->queue.front();
+    }
+
+    const bool result = m_abort;
+    mysql_mutex_unlock(&this->lock);
+    return result;
+  }
+
+  /**
+   Remove all elements, abort current and future waits on retrieving elements
+   from queue.
+  */
+  void abort() {
+    mysql_mutex_lock(&this->lock);
+    while (this->queue.size()) {
+      T elem;
+      elem = this->queue.front();
+      this->queue.pop();
+      delete elem;
+    }
+    m_abort = true;
+    mysql_cond_broadcast(&this->cond);
+    mysql_mutex_unlock(&this->lock);
+  }
+
+ private:
+  bool m_abort;
 };
 
 /**
@@ -532,7 +700,7 @@ class Shared_writelock {
  public:
   Shared_writelock(Checkable_rwlock *arg)
       : shared_write_lock(arg), write_lock_in_use(false) {
-    DBUG_ENTER("Shared_writelock::Shared_writelock");
+    DBUG_TRACE;
 
     DBUG_ASSERT(arg != NULL);
 
@@ -540,7 +708,7 @@ class Shared_writelock {
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_write_lock_protection, &write_lock_protection);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   virtual ~Shared_writelock() {
@@ -635,12 +803,12 @@ class Plugin_waitlock {
         key_lock(lock_key),
         key_cond(cond_key),
         wait_status(false) {
-    DBUG_ENTER("Plugin_waitlock::Plugin_waitlock");
+    DBUG_TRACE;
 
     mysql_mutex_init(key_lock, wait_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond, wait_cond);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -667,14 +835,14 @@ class Plugin_waitlock {
     Blocks the calling thread
   */
   void start_waitlock() {
-    DBUG_ENTER("Plugin_waitlock::start_waitlock");
+    DBUG_TRACE;
     mysql_mutex_lock(wait_lock);
     while (wait_status) {
       DBUG_PRINT("sleep", ("Waiting in Plugin_waitlock::start_waitlock()"));
       mysql_cond_wait(wait_cond, wait_lock);
     }
     mysql_mutex_unlock(wait_lock);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -713,5 +881,15 @@ class Plugin_waitlock {
   /** determine whether calling thread should be blocked or not */
   bool wait_status;
 };
+
+/**
+  Simple method to escape character on a string
+
+  @note based on escape_string_for_mysql
+  @note the result is stored in the parameter string
+
+  @param[in,out] string_to_escape the string to escape
+*/
+void plugin_escape_string(std::string &string_to_escape);
 
 #endif /* PLUGIN_UTILS_INCLUDED */

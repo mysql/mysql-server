@@ -262,6 +262,9 @@ TEST_F(XcomBase, GetSynodeAppDataTooManySynodes) {
   std::free(synodes.synode_no_array_val);
 }
 
+/* Disable on Windows. The test outcome varies wildly on our test environment,
+ * likely due to different configurations of the stack size. */
+#if !defined(_WIN32)
 TEST_F(XcomBase, ProposerBatchDeserialization) {
   pax_msg *p = nullptr;
   unchecked_replace_pax_msg(&p, pax_msg_new_0(null_synode));
@@ -290,6 +293,7 @@ TEST_F(XcomBase, ProposerBatchDeserialization) {
   std::free(p);
   std::free(buffer);
 }
+#endif  // !defined(_WIN32)
 
 // clang-format off
 /*
@@ -437,6 +441,8 @@ TEST_F(XcomBase, PaxosLearnSameValue) {
   pax_msg *tx = pax_msg_new(synod, nullptr);
   tx->a = new_app_data();
   tx->a->body.c_t = app_type;
+  tx->a->body.app_u_u.data.data_len = 1;
+  tx->a->body.app_u_u.data.data_val = static_cast<char *>(malloc(sizeof(char)));
   replace_pax_msg(&s0_paxos->proposer.msg, tx);
   prepare_push_2p(s0_config, s0_paxos);
   pax_msg *s0_accept_tx = s0_paxos->proposer.msg;

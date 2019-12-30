@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/DnD", [
 	"dojo/_base/kernel",
 	"dojo/_base/declare",
@@ -14,10 +13,10 @@ define("dojox/grid/enhanced/plugins/DnD", [
 	"dojo/dnd/Avatar",
 	"../_Plugin",
 	"../../EnhancedGrid",
+	"dojo/dnd/Manager",
 	"./Selector",
-	"./Rearrange",
-	"dojo/dnd/Manager"
-], function(dojo, declare, connect, array, lang, html, json, win, query, keys, Source, Avatar, _Plugin, EnhancedGrid){
+	"./Rearrange"
+], function(dojo, declare, connect, array, lang, html, json, win, query, keys, Source, Avatar, _Plugin, EnhancedGrid, Manager){
 
 var _devideToArrays = function(a){
 		a.sort(function(v1, v2){
@@ -243,13 +242,15 @@ var DnD = declare("dojox.grid.enhanced.plugins.DnD", _Plugin, {
 	// summary:
 	//		Provide drag and drop for grid columns/rows/cells within grid and out of grid.
 	//		The store of grid must implement dojo.data.api.Write.
-	//		DnD selected columns:
-	//			Support moving within grid, moving/copying out of grid to a non-grid DnD target.
-	//		DnD selected rows:
-	//			Support moving within grid, moving/copying out of grid to any DnD target.
-	//		DnD selected cells (in rectangle shape only):
-	//			Support moving/copying within grid, moving/copying out of grid to any DnD target.
 	//
+	//		DnD selected columns:
+	//		Support moving within grid, moving/copying out of grid to a non-grid DnD target.
+	//
+	//		DnD selected rows:
+	//		Support moving within grid, moving/copying out of grid to any DnD target.
+	//
+	//		DnD selected cells (in rectangle shape only):
+	//		Support moving/copying within grid, moving/copying out of grid to any DnD target.
 	
 	// name: String,
 	//		plugin name;
@@ -322,10 +323,11 @@ var DnD = declare("dojox.grid.enhanced.plugins.DnD", _Plugin, {
 		//		Combination of any item from type set ("row", "col", "cell")
 		//		and any item from mode set("within", "in", "out") is configurable.
 		//
-		//		"row", "col", "cell" are straitforward, while the other 3 are explained below:
-		//		"within": DnD within grid, that is, column/row reordering and cell moving/copying.
-		//		"in": Whether allowed to accept rows/cells (currently not support columns) from another grid.
-		//		"out": Whether allowed to drag out of grid, to another grid or even to any other DnD target.
+		//		"row", "col", "cell" are straightforward, while the other 3 are explained below:
+		//
+		//		- "within": DnD within grid, that is, column/row reordering and cell moving/copying.
+		//		- "in": Whether allowed to accept rows/cells (currently not support columns) from another grid.
+		//		- "out": Whether allowed to drag out of grid, to another grid or even to any other DnD target.
 		//
 		//		If not provided in the config, will use the default.
 		//		When declared together, Mode set has higher priority than type set.
@@ -648,7 +650,7 @@ var DnD = declare("dojox.grid.enhanced.plugins.DnD", _Plugin, {
 	},
 	_createSource: function(evt){
 		this._elem.createDnDNodes(this._dndRegion);
-		var m = dojo.dnd.manager();
+		var m = Manager.manager();
 		var oldMakeAvatar = m.makeAvatar;
 		m._dndPlugin = this;
 		m.makeAvatar = function(){

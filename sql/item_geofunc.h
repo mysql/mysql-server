@@ -911,6 +911,7 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
     val_int();
     return null_value;
   }
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_rel : public Item_bool_func2 {
@@ -964,6 +965,7 @@ class Item_func_spatial_rel : public Item_bool_func2 {
   int geocol_equals_check(
       const typename BG_geometry_collection::Geometry_list *gv1,
       const typename BG_geometry_collection::Geometry_list *gv2);
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_spatial_relation : public Item_bool_func2 {
@@ -1001,12 +1003,13 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     @param[out] result Result of the relational operation.
     @param[out] null True if the function should return NULL, false otherwise.
 
-    @retval true An error has occured and has been reported with my_error.
+    @retval true An error has occurred and has been reported with my_error.
     @retval false Success.
   */
   virtual bool eval(const dd::Spatial_reference_system *srs,
                     const gis::Geometry *g1, const gis::Geometry *g2,
                     bool *result, bool *null) = 0;
+  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_st_contains final : public Item_func_spatial_relation {
@@ -1381,7 +1384,7 @@ class Item_func_isempty : public Item_bool_func {
  public:
   Item_func_isempty(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isempty"; }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -1400,7 +1403,7 @@ class Item_func_isclosed : public Item_bool_func {
  public:
   Item_func_isclosed(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isclosed"; }
   bool resolve_type(THD *) override {
     maybe_null = true;
@@ -1412,7 +1415,7 @@ class Item_func_isvalid : public Item_bool_func {
  public:
   Item_func_isvalid(const POS &pos, Item *a) : Item_bool_func(pos, a) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "st_isvalid"; }
 };
 

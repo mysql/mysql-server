@@ -1,36 +1,24 @@
 
 .mblDomButtonGrayArrow, .mblDomButtonArrow {
-	background-image: url(../common/domButtons/compat/mblDomButtonGrayArrow.png);
+	background-image: url("../common/domButtons/compat/mblDomButtonGrayArrow.png");
 	background-repeat: no-repeat;
 }
 .mblDomButtonGrayArrow div, .mblDomButtonArrow div {
 	display: none;
 }
 .mblDomButtonDarkBlueCheck, .mblDomButtonCheck {
-	background-image: url(../common/domButtons/compat/mblDomButtonDarkBlueCheck.png);
+	background-image: url("../common/domButtons/compat/mblDomButtonDarkBlueCheck.png");
 	background-repeat: no-repeat;
 }
 .mblDomButtonDarkBlueCheck div, .mblDomButtonCheck div {
 	display: none;
 }
-*html li.mblListItem.mblVariableHeight { 
-	height: 0;
+.mblListItemSelected {
+  background-color: #3578b1;
 }
-.mblListItemIcon {
-	top: 18px;
+.dj_gecko .mblListItemSelected {
+  background-image: -moz-linear-gradient(top, #306ea1 0%, #4090d3 6%, #306ea1 50%, #266093 100%);
 }
-.mblListItem .mblArrow {
-	border-style: none;
-	width: 9px;
-	height: 13px;
-	background-image: url(compat/gray-arrow.png);
-}
-.mblItemSelected .mblArrow {
-	background-image: url(compat/white-arrow.png);
-}
-*html .mblListItemTextBox { 
-	height: 100%;
-}
-*html li.mblListItem.mblVariableHeight .mblListItemTextBox { 
-	height: auto;
+.dj_ie6 .mblListItem {
+  vertical-align: bottom;
 }

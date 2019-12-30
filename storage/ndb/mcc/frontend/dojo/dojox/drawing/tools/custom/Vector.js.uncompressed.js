@@ -1,25 +1,20 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/tools/custom/Vector", ["dijit","dojo","dojox","dojo/require!dojox/drawing/tools/Arrow,dojox/drawing/util/positioning"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.tools.custom.Vector");
-dojo.require("dojox.drawing.tools.Arrow");
-dojo.require("dojox.drawing.util.positioning");
+define("dojox/drawing/tools/custom/Vector", ["dojo", "../../util/oo", "../../manager/_registry", "../../util/positioning", "../Arrow"],
+function(dojo, oo, registry, positioning, Arrow){
 
-dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Creates a Vector Stencil.
-	// description:
-	//		Generally the same as an arrow, except that the arrow
-	//		head is only at the end. There is additionaly functionality
-	//		to allow for a 'zero vector' - one with no length.
-	//
-	//
-	dojox.drawing.tools.Arrow,
+var Vector = oo.declare(
+	Arrow,
 	function(options){
 		this.minimumSize = this.style.arrows.length;
 		this.addShadow({size:3, mult:2});
 	},
 	{
+		// summary:
+		//		Creates a Vector Stencil.
+		// description:
+		//		Generally the same as an arrow, except that the arrow
+		//		head is only at the end. There is additionaly functionality
+		//		to allow for a 'zero vector' - one with no length.
+
 		draws:true,
 		type:"dojox.drawing.tools.custom.Vector",
 		minimumSize:30,
@@ -28,7 +23,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		
 		
 		changeAxis: function(cosphi){
-			//	summary:
+			// summary:
 			//		Converts a vector to and from the z axis.
 			//		If passed a cosphi value that is used to set
 			//		the axis, otherwise it is the opp of what it is.
@@ -51,7 +46,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		_createZeroVector: function(shp, d, sty){
 			// summary:
 			//		Special creation function for the zero-vector shape
-			//
+
 			var s = shp=="hit" ? this.minimumSize : this.minimumSize/6;
 			var f = shp=="hit" ? sty.fill : null;
 			d = {
@@ -73,7 +68,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 			//		Creates a dojox.gfx.shape based on passed arguments.
 			//		Can be called many times by implementation to create
 			//		multiple shapes in one stencil.
-			//
+
 			this.remove(this[shp]);
 			this[shp] = this.container.createLine(d)
 				.setStroke(sty);
@@ -81,8 +76,9 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		},
 		
 		onDrag: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onDrag
-			//
+			// summary:
+			//		See stencil._Base.onDrag
+
 			if(this.created){ return; }
 			
 			var x1 = obj.start.x,
@@ -98,7 +94,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 			
 			if(this.keys.alt){
 				// FIXME:
-				//	should double the length of the line
+				// should double the length of the line
 				// FIXME:
 				//	if alt dragging past ZERO it seems to work
 				//	but select/deselect shows bugs
@@ -125,8 +121,8 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		
 		onTransform: function(/* ? manager.Anchor */anchor){
 			// summary:
-			// 		Called from anchor point mouse drag
-			// 		also called from plugins.Pan.checkBounds
+			//		Called from anchor point mouse drag
+			//		also called from plugins.Pan.checkBounds
 			if(!this._isBeingModified){
 				this.onTransformBegin();
 			}
@@ -138,7 +134,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		},
 		
 		anchorConstrain: function(x, y){
-			//	summary:
+			// summary:
 			//		Called from anchor point mouse drag
 			if(!this.style.zAxis){ return null; }
 			var radians = this.style.zAngle*Math.PI/180;
@@ -150,7 +146,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		},
 		
 		zPoint: function(obj){
-			//	summary:
+			// summary:
 			//		Takes any point and converts it to
 			//		be on the z-axis.
 			if(obj===undefined){
@@ -166,7 +162,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 				};
 			}
 			var radius = this.util.length(obj);
-			var angle = this.util.angle(obj);
+			var angle = positioning.angle(obj);
 			angle<0 ? angle = 360 + angle : angle;
 			
 			angle = angle > 135 && angle < 315 ? this.style.zAngle : this.util.oppAngle(this.style.zAngle);
@@ -182,7 +178,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 			var obj = {start:{x:p[0].x, y:p[0].y}, x:p[1].x, y:p[1].y};
 			if(this.style.zAxis && (this.util.length(obj)>this.minimumSize)){
 				
-				var angle = this.util.angle(obj);
+				var angle = positioning.angle(obj);
 				angle<0 ? angle = 360 + angle : angle;
 				cosphi = angle > 135 && angle < 315 ? 1 : -1;
 			}
@@ -197,7 +193,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 		},
 		
 		dataToPoints: function(o){
-			//summary:
+			// summary:
 			//		Converts data to points.
 			o = o || this.data;
 			if(o.radius || o.angle){
@@ -232,7 +228,7 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 			//		hit area and for highlighting) and the'shape' (the actual
 			//		display object). Additionally checks if Vector should be
 			//		drawn as an arrow or a circle (zero-length)
-			//
+
 			this.onBeforeRender(this);
 			if(this.getRadius() >= this.minimumSize){
 				this._create("hit", this.data, this.style.currentHit);
@@ -245,8 +241,9 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 			}
 		},
 		onUp: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onUp
-			//
+			// summary:
+			//		See stencil._Base.onUp
+
 			if(this.created || !this._downOnCanvas){ return; }
 			this._downOnCanvas = false;
 			//Default vector for single click
@@ -284,15 +281,18 @@ dojox.drawing.tools.custom.Vector = dojox.drawing.util.oo.declare(
 	
 );
 
-dojox.drawing.tools.custom.Vector.setup = {
-	// summary: See stencil._Base ToolsSetup
-	//
+dojo.setObject("dojox.drawing.tools.custom.Vector", Vector);
+Vector.setup = {
+	// summary:
+	//		See stencil._Base ToolsSetup
+
 	name:"dojox.drawing.tools.custom.Vector",
 	tooltip:"Vector Tool",
 	iconClass:"iconVector"
 };
 
-if(dojox.drawing.defaults.zAxisEnabled){
+//TODO
+if(0 && dojox.drawing.defaults.zAxisEnabled){
 	dojox.drawing.tools.custom.Vector.setup.secondary = {
 		// summary:
 		//		Creates a secondary tool for the Vector Stencil.
@@ -388,5 +388,6 @@ if(dojox.drawing.defaults.zAxisEnabled){
 		}
 	};
 }
-dojox.drawing.register(dojox.drawing.tools.custom.Vector.setup, "tool");
+registry.register(Vector.setup, "tool");
+return Vector;
 });

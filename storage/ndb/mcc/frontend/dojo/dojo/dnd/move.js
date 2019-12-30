@@ -1,66 +1,63 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/dnd/move",["../main","./Mover","./Moveable"],function(_1){
-_1.declare("dojo.dnd.move.constrainedMoveable",_1.dnd.Moveable,{constraints:function(){
-},within:false,constructor:function(_2,_3){
-if(!_3){
-_3={};
+define("dojo/dnd/move",["../_base/declare","../dom-geometry","../dom-style","./common","./Mover","./Moveable"],function(_1,_2,_3,_4,_5,_6){
+var _7=_1("dojo.dnd.move.constrainedMoveable",_6,{constraints:function(){
+},within:false,constructor:function(_8,_9){
+if(!_9){
+_9={};
 }
-this.constraints=_3.constraints;
-this.within=_3.within;
-},onFirstMove:function(_4){
-var c=this.constraintBox=this.constraints.call(this,_4);
+this.constraints=_9.constraints;
+this.within=_9.within;
+},onFirstMove:function(_a){
+var c=this.constraintBox=this.constraints.call(this,_a);
 c.r=c.l+c.w;
 c.b=c.t+c.h;
 if(this.within){
-var mb=_1._getMarginSize(_4.node);
+var mb=_2.getMarginSize(_a.node);
 c.r-=mb.w;
 c.b-=mb.h;
 }
-},onMove:function(_5,_6){
-var c=this.constraintBox,s=_5.node.style;
-this.onMoving(_5,_6);
-_6.l=_6.l<c.l?c.l:c.r<_6.l?c.r:_6.l;
-_6.t=_6.t<c.t?c.t:c.b<_6.t?c.b:_6.t;
-s.left=_6.l+"px";
-s.top=_6.t+"px";
-this.onMoved(_5,_6);
+},onMove:function(_b,_c){
+var c=this.constraintBox,s=_b.node.style;
+this.onMoving(_b,_c);
+_c.l=_c.l<c.l?c.l:c.r<_c.l?c.r:_c.l;
+_c.t=_c.t<c.t?c.t:c.b<_c.t?c.b:_c.t;
+s.left=_c.l+"px";
+s.top=_c.t+"px";
+this.onMoved(_b,_c);
 }});
-_1.declare("dojo.dnd.move.boxConstrainedMoveable",_1.dnd.move.constrainedMoveable,{box:{},constructor:function(_7,_8){
-var _9=_8&&_8.box;
+var _d=_1("dojo.dnd.move.boxConstrainedMoveable",_7,{box:{},constructor:function(_e,_f){
+var box=_f&&_f.box;
 this.constraints=function(){
-return _9;
+return box;
 };
 }});
-_1.declare("dojo.dnd.move.parentConstrainedMoveable",_1.dnd.move.constrainedMoveable,{area:"content",constructor:function(_a,_b){
-var _c=_b&&_b.area;
+var _10=_1("dojo.dnd.move.parentConstrainedMoveable",_7,{area:"content",constructor:function(_11,_12){
+var _13=_12&&_12.area;
 this.constraints=function(){
-var n=this.node.parentNode,s=_1.getComputedStyle(n),mb=_1._getMarginBox(n,s);
-if(_c=="margin"){
+var n=this.node.parentNode,s=_3.getComputedStyle(n),mb=_2.getMarginBox(n,s);
+if(_13=="margin"){
 return mb;
 }
-var t=_1._getMarginExtents(n,s);
+var t=_2.getMarginExtents(n,s);
 mb.l+=t.l,mb.t+=t.t,mb.w-=t.w,mb.h-=t.h;
-if(_c=="border"){
+if(_13=="border"){
 return mb;
 }
-t=_1._getBorderExtents(n,s);
+t=_2.getBorderExtents(n,s);
 mb.l+=t.l,mb.t+=t.t,mb.w-=t.w,mb.h-=t.h;
-if(_c=="padding"){
+if(_13=="padding"){
 return mb;
 }
-t=_1._getPadExtents(n,s);
+t=_2.getPadExtents(n,s);
 mb.l+=t.l,mb.t+=t.t,mb.w-=t.w,mb.h-=t.h;
 return mb;
 };
 }});
-_1.dnd.constrainedMover=_1.dnd.move.constrainedMover;
-_1.dnd.boxConstrainedMover=_1.dnd.move.boxConstrainedMover;
-_1.dnd.parentConstrainedMover=_1.dnd.move.parentConstrainedMover;
-return _1.dnd.move;
+return {constrainedMoveable:_7,boxConstrainedMoveable:_d,parentConstrainedMoveable:_10};
 });

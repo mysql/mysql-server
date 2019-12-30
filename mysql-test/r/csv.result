@@ -3,6 +3,10 @@ CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
 ) ENGINE = CSV;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9410,9412);
 select period from t1;
 period
@@ -22,6 +26,11 @@ fld4 char(35) DEFAULT '' NOT NULL,
 fld5 char(35) DEFAULT '' NOT NULL,
 fld6 char(4) DEFAULT '' NOT NULL
 ) ENGINE = CSV;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
@@ -4919,6 +4928,10 @@ CREATE TABLE t1 (
 Period smallint(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 Varor_period smallint(4) unsigned DEFAULT '0' NOT NULL
 ) ENGINE = CSV;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (9410,9412);
 select period from t1;
 period
@@ -5029,6 +5042,9 @@ magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 company_name char(30) DEFAULT '' NOT NULL,
 founded char(4) DEFAULT '' NOT NULL
 ) ENGINE = CSV;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT * FROM test_repair_table4;
 num	magic_no	company_name	founded
 Warnings:
@@ -5075,6 +5091,9 @@ magic_no int(4) unsigned zerofill DEFAULT '0000' NOT NULL,
 company_name char(30) DEFAULT '' NOT NULL,
 founded char(4) DEFAULT '' NOT NULL
 ) ENGINE = CSV;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CHECK TABLE test_repair_table5;
 Table	Op	Msg_type	Msg_text
 test.test_repair_table5	check	error	Corrupt
@@ -5193,7 +5212,11 @@ i	v
 3	abc
 drop table t1;
 create table bug15205 (val int(11) not null) engine=csv;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 create table bug15205_2 (val int(11) not null) engine=csv;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 select * from bug15205;
 ERROR HY000: Can't get stat of './test/bug15205.CSV' (OS errno 2 - No such file or directory)
 select * from bug15205_2;
@@ -5252,14 +5275,6 @@ id	string
 0.67	string
 9.67	string
 drop table float_test;
-CREATE TABLE `bug21328` (
-`col1` int(11) NOT NULL,
-`col2` int(11) NOT NULL,
-`col3` int(11) NOT NULL
-) ENGINE=CSV;
-insert into bug21328 values (1,0,0);
-alter table bug21328 engine=myisam;
-drop table bug21328;
 create table t1(a blob not null, b int not null) engine=csv;
 insert into t1 values('a', 1);
 flush tables;

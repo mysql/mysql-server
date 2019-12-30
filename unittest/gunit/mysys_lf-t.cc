@@ -379,4 +379,4 @@ TEST(Mysys, LFHashRandomMatch) {
   lf_hash_put_pins(pins);
   lf_hash_destroy(&hash);
 }
-}
+}  // namespace mysys_lf_unittest

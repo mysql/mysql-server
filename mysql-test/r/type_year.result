@@ -245,10 +245,10 @@ Warning	1364	Field 'y' doesn't have a default value
 INSERT INTO t1 (y, s) VALUES (0, 0), (2000, 2000), (2001, 2001);
 SELECT * FROM t1 ta, t1 tb WHERE ta.y = tb.y;
 y	s	y	s
-0000	bad	0000	bad
+0000	0	0000	0
 0000	0	0000	bad
 0000	bad	0000	0
-0000	0	0000	0
+0000	bad	0000	bad
 2000	2000	2000	2000
 2001	2001	2001	2001
 SELECT * FROM t1 WHERE t1.y = 0;
@@ -260,10 +260,10 @@ y	s
 2000	2000
 SELECT ta.y AS ta_y, ta.s, tb.y AS tb_y, tb.s FROM t1 ta, t1 tb HAVING ta_y = tb_y;
 ta_y	s	tb_y	s
-0000	bad	0000	bad
+0000	0	0000	0
 0000	0	0000	bad
 0000	bad	0000	0
-0000	0	0000	0
+0000	bad	0000	bad
 2000	2000	2000	2000
 2001	2001	2001	2001
 DROP TABLE t1;
@@ -370,3 +370,16 @@ COUNT(DISTINCT name)	aa	class
 2	2002.0000	class2
 2	2013.5000	class1
 DROP TABLE t1;
+#
+# Bug#29668676 DATA TRUNCATION ERROR OCCURRED ON A WRITE OF
+#              COLUMN 0DATA WAS 0 BYTES LONG AND
+#
+CREATE TABLE t(QC_DATE_KEY bigint, QC_DATE date, QC_TIMESTAMP datetime);
+INSERT INTO t VALUES
+(1, '1999-02-28', '1999-11-28 14:45:00'),
+(2, '1999-12-31', '2000-01-01 00:00:00');
+SELECT ((year(QC_DATE) - year(QC_TIMESTAMP))) FROM t
+WHERE QC_DATE_KEY = 2;
+((year(QC_DATE) - year(QC_TIMESTAMP)))
+-1
+DROP TABLE t;

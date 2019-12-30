@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,8 @@ class StartMeConf {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 25 );
+  STATIC_CONST( SignalLength_v1 = 25 );
+  STATIC_CONST( SignalLength_v2 = 2 );
 private:
   
   Uint32 startingNodeId;

@@ -83,7 +83,8 @@ CREATE TABLE t2(a INT) ENGINE = INNODB;
 SET GLOBAL innodb_file_per_table=OFF;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11292
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Insert into SDI tables via memcached
 let MEMCACHED_TABLE_MAPPING = desc_t1;
@@ -114,6 +115,11 @@ let MEMCACHED_TABLE_MAPPING = desc_t1;
 
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 --source include/start_mysqld.inc
+
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
+
 DROP TABLE t2;
 
 SET GLOBAL innodb_limit_optimistic_insert_debug = default;
@@ -183,7 +189,8 @@ CREATE TABLE t1(c1 VARCHAR(32),
 ENGINE = INNODB;
 
 # Tables must exist before plugin can be started!
-INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+--let $memcached_address=127.0.0.1:11292
+--source ../include/load_daemon_memcached_expecting_success.inc
 
 # Clear the current SDI in table
 --source ../include/sdi_drop_index.inc

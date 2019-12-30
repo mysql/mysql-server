@@ -102,7 +102,7 @@ int xcom_local_port = 0;
 /*
   Interface to access XCOM.
 */
-static Gcs_xcom_proxy *xcom_proxy;
+static Gcs_xcom_proxy *s_xcom_proxy;
 
 /*
   Engine to process XCOM's notifications.
@@ -510,9 +510,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   if (local_node_str != NULL) {
     /* purecov: begin tested */
     // Changing local_node
-    delete m_node_address;
-    m_node_address = new Gcs_xcom_node_address(local_node_str->c_str());
-    xcom_local_port = m_node_address->get_member_port();
+    set_node_address(*local_node_str);
     xcom_control->set_node_address(m_node_address);
 
     reconfigured |= true;
@@ -560,9 +558,9 @@ void cleanup_xcom() {
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
   intf->finalize_xcom();
-  xcom_proxy->xcom_destroy_ssl();
-  xcom_proxy->xcom_set_ssl_mode(0 /* SSL_DISABLED */);
-  xcom_proxy->xcom_set_ssl_fips_mode(0 /* SSL_FIPS_MODE_OFF */);
+  s_xcom_proxy->xcom_destroy_ssl();
+  s_xcom_proxy->xcom_set_ssl_mode(0 /* SSL_DISABLED */);
+  s_xcom_proxy->xcom_set_ssl_fips_mode(0 /* SSL_FIPS_MODE_OFF */);
 }
 
 void Gcs_xcom_interface::finalize_xcom() {
@@ -624,8 +622,8 @@ enum_gcs_error Gcs_xcom_interface::finalize() {
   clear_peer_nodes();
 
   // Delete the proxy
-  delete xcom_proxy;
-  xcom_proxy = NULL;
+  delete s_xcom_proxy;
+  s_xcom_proxy = NULL;
 
   delete m_socket_util;
   m_socket_util = NULL;
@@ -713,18 +711,18 @@ gcs_xcom_group_interfaces *Gcs_xcom_interface::get_group_interfaces(
         new Gcs_xcom_view_change_control();
 
     auto *xcom_communication = new Gcs_xcom_communication(
-        stats, xcom_proxy, vce, *m_node_address, gcs_engine, group_identifier);
+        stats, s_xcom_proxy, vce, gcs_engine, group_identifier);
     group_interface->communication_interface = xcom_communication;
 
     Gcs_xcom_state_exchange_interface *se =
         new Gcs_xcom_state_exchange(group_interface->communication_interface);
 
     Gcs_xcom_group_management *xcom_group_management =
-        new Gcs_xcom_group_management(xcom_proxy, group_identifier);
+        new Gcs_xcom_group_management(s_xcom_proxy, group_identifier);
     group_interface->management_interface = xcom_group_management;
 
     Gcs_xcom_control *xcom_control = new Gcs_xcom_control(
-        m_node_address, m_xcom_peers, group_identifier, xcom_proxy,
+        m_node_address, m_xcom_peers, group_identifier, s_xcom_proxy,
         xcom_group_management, gcs_engine, se, vce, m_boot, m_socket_util);
     group_interface->control_interface = xcom_control;
 
@@ -791,7 +789,7 @@ void start_ssl() {
 
 void Gcs_xcom_interface::initialize_ssl() {
   m_wait_for_ssl_init_mutex.lock();
-  m_ssl_init_state = (xcom_proxy->xcom_init_ssl() ? 1 : 0);
+  m_ssl_init_state = (s_xcom_proxy->xcom_init_ssl() ? 1 : 0);
   m_wait_for_ssl_init_cond.broadcast();
   m_wait_for_ssl_init_mutex.unlock();
 }
@@ -820,7 +818,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   /*
     Whether the proxy should be created or not.
   */
-  bool create_proxy = (xcom_proxy == NULL ? true : false);
+  bool create_proxy = (s_xcom_proxy == NULL ? true : false);
 
   /*
     Since initializing XCom is actually joining the group itself, one shall
@@ -856,8 +854,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   MYSQL_GCS_LOG_DEBUG("Configured total number of peers: %llu",
                       static_cast<long long unsigned>(m_xcom_peers.size()))
 
-  m_node_address = new Gcs_xcom_node_address(local_node_str->c_str());
-  xcom_local_port = m_node_address->get_member_port();
+  set_node_address(*local_node_str);
 
   MYSQL_GCS_LOG_DEBUG("Configured Local member: %s", local_node_str->c_str())
 
@@ -908,7 +905,8 @@ bool Gcs_xcom_interface::initialize_xcom(
 
   // Setup the proxy
   if (create_proxy)
-    xcom_proxy = new Gcs_xcom_proxy_impl(static_cast<unsigned int>(wait_time));
+    s_xcom_proxy =
+        new Gcs_xcom_proxy_impl(static_cast<unsigned int>(wait_time));
 
   // Setup the processing engine
   gcs_engine = new Gcs_xcom_engine();
@@ -918,7 +916,7 @@ bool Gcs_xcom_interface::initialize_xcom(
   const std::string *ssl_fips_mode_str =
       interface_params.get_parameter("ssl_fips_mode");
   if (ssl_mode_str) {
-    int ssl_mode_int = xcom_proxy->xcom_get_ssl_mode(ssl_mode_str->c_str());
+    int ssl_mode_int = s_xcom_proxy->xcom_get_ssl_mode(ssl_mode_str->c_str());
     if (ssl_mode_int == -1) /* INVALID_SSL_MODE */
     {
       MYSQL_GCS_LOG_ERROR(
@@ -926,12 +924,12 @@ bool Gcs_xcom_interface::initialize_xcom(
 
       goto error;
     }
-    xcom_proxy->xcom_set_ssl_mode(ssl_mode_int);
+    s_xcom_proxy->xcom_set_ssl_mode(ssl_mode_int);
   }
 
   if (ssl_fips_mode_str) {
     int ssl_fips_mode_int =
-        xcom_proxy->xcom_get_ssl_fips_mode(ssl_fips_mode_str->c_str());
+        s_xcom_proxy->xcom_get_ssl_fips_mode(ssl_fips_mode_str->c_str());
     if (ssl_fips_mode_int == -1) /* INVALID_SSL_FIPS_MODE */
     {
       MYSQL_GCS_LOG_ERROR(
@@ -939,10 +937,10 @@ bool Gcs_xcom_interface::initialize_xcom(
 
       goto error;
     }
-    xcom_proxy->xcom_set_ssl_fips_mode(ssl_fips_mode_int);
+    s_xcom_proxy->xcom_set_ssl_fips_mode(ssl_fips_mode_int);
   }
 
-  if (xcom_proxy->xcom_use_ssl()) {
+  if (s_xcom_proxy->xcom_use_ssl()) {
     const std::string *server_key_file =
         interface_params.get_parameter("server_key_file");
     const std::string *server_cert_file =
@@ -958,16 +956,24 @@ bool Gcs_xcom_interface::initialize_xcom(
     const std::string *cipher = interface_params.get_parameter("cipher");
     const std::string *tls_version =
         interface_params.get_parameter("tls_version");
+    const std::string *tls_ciphersuites =
+        interface_params.get_parameter("tls_ciphersuites");
 
-    xcom_proxy->xcom_set_ssl_parameters(
+    Gcs_xcom_proxy::ssl_parameters ssl_configuration = {
         server_key_file ? server_key_file->c_str() : NULL,
         server_cert_file ? server_cert_file->c_str() : NULL,
         client_key_file ? client_key_file->c_str() : NULL,
         client_cert_file ? client_cert_file->c_str() : NULL,
-        ca_file ? ca_file->c_str() : NULL, ca_path ? ca_path->c_str() : NULL,
+        ca_file ? ca_file->c_str() : NULL,
+        ca_path ? ca_path->c_str() : NULL,
         crl_file ? crl_file->c_str() : NULL,
-        crl_path ? crl_path->c_str() : NULL, cipher ? cipher->c_str() : NULL,
-        tls_version ? tls_version->c_str() : NULL);
+        crl_path ? crl_path->c_str() : NULL,
+        cipher ? cipher->c_str() : NULL,
+    };
+    Gcs_xcom_proxy::tls_parameters tls_configuration = {
+        tls_version ? tls_version->c_str() : NULL,
+        tls_ciphersuites ? tls_ciphersuites->c_str() : NULL};
+    s_xcom_proxy->xcom_set_ssl_parameters(ssl_configuration, tls_configuration);
 
     m_wait_for_ssl_init_mutex.lock();
     gcs_engine->push(new Initialize_notification(start_ssl));
@@ -992,10 +998,10 @@ bool Gcs_xcom_interface::initialize_xcom(
 
 error:
   /* purecov: begin deadcode */
-  assert(xcom_proxy != NULL);
+  assert(s_xcom_proxy != NULL);
   assert(gcs_engine != NULL);
-  xcom_proxy->xcom_set_ssl_mode(0);      /* SSL_DISABLED */
-  xcom_proxy->xcom_set_ssl_fips_mode(0); /* SSL_FIPS_MODE_OFF */
+  s_xcom_proxy->xcom_set_ssl_mode(0);      /* SSL_DISABLED */
+  s_xcom_proxy->xcom_set_ssl_fips_mode(0); /* SSL_FIPS_MODE_OFF */
 
   delete m_node_address;
   m_node_address = NULL;
@@ -1009,8 +1015,8 @@ error:
     delete it.
   */
   if (create_proxy) {
-    delete xcom_proxy;
-    xcom_proxy = NULL;
+    delete s_xcom_proxy;
+    s_xcom_proxy = NULL;
   }
 
   /*
@@ -1090,6 +1096,12 @@ Gcs_xcom_node_address *Gcs_xcom_interface::get_node_address() {
   return m_node_address;
 }
 /* purecov: end*/
+
+void Gcs_xcom_interface::set_node_address(std::string const &address) {
+  delete m_node_address;
+  m_node_address = new Gcs_xcom_node_address(address.c_str());
+  xcom_local_port = m_node_address->get_member_port();
+}
 
 enum_gcs_error Gcs_xcom_interface::configure_message_stages(
     const Gcs_group_identifier &gid) {
@@ -1586,23 +1598,23 @@ synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {
 }
 
 int cb_xcom_get_should_exit() {
-  if (xcom_proxy)
-    return (int)xcom_proxy->get_should_exit();
+  if (s_xcom_proxy)
+    return (int)s_xcom_proxy->get_should_exit();
   else
     return 0;
 }
 
 void cb_xcom_ready(int status MY_ATTRIBUTE((unused))) {
-  if (xcom_proxy) xcom_proxy->xcom_signal_ready();
+  if (s_xcom_proxy) s_xcom_proxy->xcom_signal_ready();
 }
 
 void cb_xcom_comms(int status) {
-  if (xcom_proxy) xcom_proxy->xcom_signal_comms_status_changed(status);
+  if (s_xcom_proxy) s_xcom_proxy->xcom_signal_comms_status_changed(status);
 }
 
 void cb_xcom_exit(int status MY_ATTRIBUTE((unused))) {
   last_accepted_xcom_config.reset();
-  if (xcom_proxy) xcom_proxy->xcom_signal_exit();
+  if (s_xcom_proxy) s_xcom_proxy->xcom_signal_exit();
 }
 
 /**
@@ -1687,8 +1699,8 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config) {
 }
 
 xcom_input_request_ptr cb_xcom_input_try_pop() {
-  if (xcom_proxy != nullptr) {
-    return xcom_proxy->xcom_input_try_pop();
+  if (s_xcom_proxy != nullptr) {
+    return s_xcom_proxy->xcom_input_try_pop();
   } else {
     return nullptr;
   }

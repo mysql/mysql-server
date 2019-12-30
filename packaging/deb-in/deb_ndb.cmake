@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,46 @@
 
 SET (DEB_NDB_CONTROL_TEST_DEPS "mysql-${DEB_PRODUCTNAME}-data-node (= \${binary:Version}), mysql-${DEB_PRODUCTNAME}-management-server (= \${binary:Version})")
 
+SET (DEB_NDB_CONTROL_DBGSYM
+"
+Package: mysql-${DEB_PRODUCTNAME}-data-node-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-data-node (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for data node
+
+Package: mysql-${DEB_PRODUCTNAME}-management-server-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-management-server (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for management server
+
+Package: mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-memcached (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for memcached
+
+Package: mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-nodejs (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for nodejs
+
+Package: ndbclient-dbgsym
+Architecture: any
+Section: debug
+Depends: ndbclient (=\${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for ndb client library
+")
+SET (DEB_NDB_RULES_STRIP
+"
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-data-node --dbg-package=mysql-${DEB_PRODUCTNAME}-data-node-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-management-server --dbg-package=mysql-${DEB_PRODUCTNAME}-management-server-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-memcached --dbg-package=mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-nodejs --dbg-package=mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
+	dh_strip -pndbclient --dbg-package=ndbclient-dbgsym
+")
 SET(DEB_NDB_CONTROL_EXTRAS
 "
 Package: mysql-${DEB_PRODUCTNAME}-management-server

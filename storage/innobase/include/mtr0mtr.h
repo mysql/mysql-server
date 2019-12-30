@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -421,6 +421,15 @@ struct mtr_t {
   mtr_buf_t *get_memo() MY_ATTRIBUTE((warn_unused_result)) {
     return (&m_impl.m_memo);
   }
+
+  /** Computes the number of bytes that would be written to the redo
+  log if mtr was committed right now (excluding headers of log blocks).
+  @return  number of bytes of the colllected log records increased
+           by 1 if MLOG_MULTI_REC_END would already be required */
+  size_t get_expected_log_size() const {
+    return (m_impl.m_log.size() + (m_impl.m_n_log_recs > 1 ? 1 : 0));
+  }
+
 #endif /* UNIV_DEBUG */
 
   /** @return true if a record was added to the mini-transaction */
@@ -471,6 +480,30 @@ struct mtr_t {
 
   friend class Command;
 };
+
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
+
+/** Reserves space in the log buffer and writes a single MLOG_TEST.
+@param[in,out]  log      redo log
+@param[in]      payload  number of extra bytes within the record,
+                         not greater than 1024
+@return end_lsn pointing to the first byte after the written record */
+lsn_t mtr_commit_mlog_test(log_t &log, size_t payload = 0);
+
+/** Reserves space in the log buffer and writes a single MLOG_TEST.
+Adjusts size of the payload in the record, in order to fill the current
+block up to its boundary. If nothing else is happening in parallel,
+we could expect to see afterwards:
+(cur_lsn + space_left) % OS_FILE_LOG_BLOCK_SIZE == LOG_BLOCK_HDR_SIZE,
+where cur_lsn = log_get_lsn(log).
+@param[in,out]  log         redo log
+@param[in]      space_left  extra bytes left to the boundary of block,
+                            must be not greater than 496 */
+void mtr_commit_mlog_test_filling_block(log_t &log, size_t space_left = 0);
+
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 #include "mtr0mtr.ic"
 

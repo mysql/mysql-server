@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -178,8 +178,8 @@ TEST_F(Crud_statement_builder_test, add_limit_expr_field_and_offset) {
 TEST_F(Crud_statement_builder_test,
        add_limit_expr_field_row_and_offset_placeholder_row) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
   ASSERT_NO_THROW(
       sut.add_limit_expr_field(Limit_expr(Placeholder(2), 5), false));
   EXPECT_EQ(" LIMIT 5, ?", query.get());
@@ -188,8 +188,8 @@ TEST_F(Crud_statement_builder_test,
 TEST_F(Crud_statement_builder_test,
        add_limit_expr_field_row_and_offset_placeholder_both) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
 
   ASSERT_NO_THROW(sut.add_limit_expr_field(
       Limit_expr(Placeholder(2), Placeholder(1)), false));
@@ -199,8 +199,8 @@ TEST_F(Crud_statement_builder_test,
 TEST_F(Crud_statement_builder_test,
        add_limit_expr_field_row_and_offset_placeholder_offset) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
 
   ASSERT_NO_THROW(
       sut.add_limit_expr_field(Limit_expr(2, Placeholder(1)), false));
@@ -209,8 +209,8 @@ TEST_F(Crud_statement_builder_test,
 
 TEST_F(Crud_statement_builder_test, add_limit_expr_field_row_placeholder_row) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
 
   ASSERT_NO_THROW(sut.add_limit_expr_field(Limit_expr(Placeholder(1)), false));
   EXPECT_EQ(" LIMIT ?", query.get());
@@ -218,8 +218,8 @@ TEST_F(Crud_statement_builder_test, add_limit_expr_field_row_placeholder_row) {
 
 TEST_F(Crud_statement_builder_test, add_limit_expr_field_forbbiden_offset) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
 
   EXPECT_THROW(sut.add_limit_expr_field(Limit_expr(2, 5), true),
                ngs::Error_code);
@@ -227,8 +227,8 @@ TEST_F(Crud_statement_builder_test, add_limit_expr_field_forbbiden_offset) {
 
 TEST_F(Crud_statement_builder_test, add_limit_and_limit_expr_fields_forbbiden) {
   auto &sut = builder();
-  Expression_generator::Placeholder_id_list placeholders;
-  expr_gen->set_placeholder_id_list(&placeholders);
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
+  expr_gen->set_prep_stmt_placeholder_list(&placeholders);
   Mysqlx::Crud::Find find;
 
   find.mutable_limit()->CopyFrom(Limit(2, 5));

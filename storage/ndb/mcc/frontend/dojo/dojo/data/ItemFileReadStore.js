@@ -1,24 +1,24 @@
 /*
-	Copyright (c) 2004-2011, The Dojo Foundation All Rights Reserved.
+	Copyright (c) 2004-2012, The Dojo Foundation All Rights Reserved.
 	Available via Academic Free License >= 2.1 OR the modified BSD license.
 	see: http://dojotoolkit.org/license for details
 */
 
 //>>built
-define("dojo/data/ItemFileReadStore",["../_base/kernel","../_base/lang","../_base/declare","../_base/array","../_base/xhr","../Evented","../_base/window","./util/filter","./util/simpleFetch","../date/stamp"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
-var _b=_3("dojo.data.ItemFileReadStore",[_6],{constructor:function(_c){
+define("dojo/data/ItemFileReadStore",["../_base/kernel","../_base/lang","../_base/declare","../_base/array","../_base/xhr","../Evented","./util/filter","./util/simpleFetch","../date/stamp"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9){
+var _a=_3("dojo.data.ItemFileReadStore",[_6],{constructor:function(_b){
 this._arrayOfAllItems=[];
 this._arrayOfTopLevelItems=[];
 this._loadFinished=false;
-this._jsonFileUrl=_c.url;
-this._ccUrl=_c.url;
-this.url=_c.url;
-this._jsonData=_c.data;
+this._jsonFileUrl=_b.url;
+this._ccUrl=_b.url;
+this.url=_b.url;
+this._jsonData=_b.data;
 this.data=null;
-this._datatypeMap=_c.typeMap||{};
+this._datatypeMap=_b.typeMap||{};
 if(!this._datatypeMap["Date"]){
-this._datatypeMap["Date"]={type:Date,deserialize:function(_d){
-return _a.fromISOString(_d);
+this._datatypeMap["Date"]={type:Date,deserialize:function(_c){
+return _9.fromISOString(_c);
 }};
 }
 this._features={"dojo.data.api.Read":true,"dojo.data.api.Identity":true};
@@ -29,136 +29,136 @@ this._rootItemPropName="_RI";
 this._reverseRefMap="_RRM";
 this._loadInProgress=false;
 this._queuedFetches=[];
-if(_c.urlPreventCache!==undefined){
-this.urlPreventCache=_c.urlPreventCache?true:false;
+if(_b.urlPreventCache!==undefined){
+this.urlPreventCache=_b.urlPreventCache?true:false;
 }
-if(_c.hierarchical!==undefined){
-this.hierarchical=_c.hierarchical?true:false;
+if(_b.hierarchical!==undefined){
+this.hierarchical=_b.hierarchical?true:false;
 }
-if(_c.clearOnClose){
+if(_b.clearOnClose){
 this.clearOnClose=true;
 }
-if("failOk" in _c){
-this.failOk=_c.failOk?true:false;
+if("failOk" in _b){
+this.failOk=_b.failOk?true:false;
 }
-},url:"",_ccUrl:"",data:null,typeMap:null,clearOnClose:false,urlPreventCache:false,failOk:false,hierarchical:true,_assertIsItem:function(_e){
-if(!this.isItem(_e)){
-throw new Error("dojo.data.ItemFileReadStore: Invalid item argument.");
+},url:"",_ccUrl:"",data:null,typeMap:null,clearOnClose:false,urlPreventCache:false,failOk:false,hierarchical:true,_assertIsItem:function(_d){
+if(!this.isItem(_d)){
+throw new Error(this.declaredClass+": Invalid item argument.");
 }
-},_assertIsAttribute:function(_f){
-if(typeof _f!=="string"){
-throw new Error("dojo.data.ItemFileReadStore: Invalid attribute argument.");
+},_assertIsAttribute:function(_e){
+if(typeof _e!=="string"){
+throw new Error(this.declaredClass+": Invalid attribute argument.");
 }
-},getValue:function(_10,_11,_12){
-var _13=this.getValues(_10,_11);
-return (_13.length>0)?_13[0]:_12;
-},getValues:function(_14,_15){
-this._assertIsItem(_14);
-this._assertIsAttribute(_15);
-return (_14[_15]||[]).slice(0);
-},getAttributes:function(_16){
-this._assertIsItem(_16);
-var _17=[];
-for(var key in _16){
+},getValue:function(_f,_10,_11){
+var _12=this.getValues(_f,_10);
+return (_12.length>0)?_12[0]:_11;
+},getValues:function(_13,_14){
+this._assertIsItem(_13);
+this._assertIsAttribute(_14);
+return (_13[_14]||[]).slice(0);
+},getAttributes:function(_15){
+this._assertIsItem(_15);
+var _16=[];
+for(var key in _15){
 if((key!==this._storeRefPropName)&&(key!==this._itemNumPropName)&&(key!==this._rootItemPropName)&&(key!==this._reverseRefMap)){
-_17.push(key);
+_16.push(key);
 }
 }
-return _17;
-},hasAttribute:function(_18,_19){
-this._assertIsItem(_18);
-this._assertIsAttribute(_19);
-return (_19 in _18);
-},containsValue:function(_1a,_1b,_1c){
-var _1d=undefined;
-if(typeof _1c==="string"){
-_1d=_8.patternToRegExp(_1c,false);
+return _16;
+},hasAttribute:function(_17,_18){
+this._assertIsItem(_17);
+this._assertIsAttribute(_18);
+return (_18 in _17);
+},containsValue:function(_19,_1a,_1b){
+var _1c=undefined;
+if(typeof _1b==="string"){
+_1c=_7.patternToRegExp(_1b,false);
 }
-return this._containsValue(_1a,_1b,_1c,_1d);
-},_containsValue:function(_1e,_1f,_20,_21){
-return _4.some(this.getValues(_1e,_1f),function(_22){
-if(_22!==null&&!_2.isObject(_22)&&_21){
-if(_22.toString().match(_21)){
+return this._containsValue(_19,_1a,_1b,_1c);
+},_containsValue:function(_1d,_1e,_1f,_20){
+return _4.some(this.getValues(_1d,_1e),function(_21){
+if(_21!==null&&!_2.isObject(_21)&&_20){
+if(_21.toString().match(_20)){
 return true;
 }
 }else{
-if(_20===_22){
+if(_1f===_21){
 return true;
 }
 }
 });
-},isItem:function(_23){
-if(_23&&_23[this._storeRefPropName]===this){
-if(this._arrayOfAllItems[_23[this._itemNumPropName]]===_23){
+},isItem:function(_22){
+if(_22&&_22[this._storeRefPropName]===this){
+if(this._arrayOfAllItems[_22[this._itemNumPropName]]===_22){
 return true;
 }
 }
 return false;
-},isItemLoaded:function(_24){
-return this.isItem(_24);
-},loadItem:function(_25){
-this._assertIsItem(_25.item);
+},isItemLoaded:function(_23){
+return this.isItem(_23);
+},loadItem:function(_24){
+this._assertIsItem(_24.item);
 },getFeatures:function(){
 return this._features;
-},getLabel:function(_26){
-if(this._labelAttr&&this.isItem(_26)){
-return this.getValue(_26,this._labelAttr);
+},getLabel:function(_25){
+if(this._labelAttr&&this.isItem(_25)){
+return this.getValue(_25,this._labelAttr);
 }
 return undefined;
-},getLabelAttributes:function(_27){
+},getLabelAttributes:function(_26){
 if(this._labelAttr){
 return [this._labelAttr];
 }
 return null;
-},_fetchItems:function(_28,_29,_2a){
-var _2b=this,_2c=function(_2d,_2e){
-var _2f=[],i,key;
-if(_2d.query){
-var _30,_31=_2d.queryOptions?_2d.queryOptions.ignoreCase:false;
-var _32={};
-for(key in _2d.query){
-_30=_2d.query[key];
-if(typeof _30==="string"){
-_32[key]=_8.patternToRegExp(_30,_31);
+},filter:function(_27,_28,_29){
+var _2a=[],i,key;
+if(_27.query){
+var _2b,_2c=_27.queryOptions?_27.queryOptions.ignoreCase:false;
+var _2d={};
+for(key in _27.query){
+_2b=_27.query[key];
+if(typeof _2b==="string"){
+_2d[key]=_7.patternToRegExp(_2b,_2c);
 }else{
-if(_30 instanceof RegExp){
-_32[key]=_30;
+if(_2b instanceof RegExp){
+_2d[key]=_2b;
 }
 }
 }
-for(i=0;i<_2e.length;++i){
-var _33=true;
-var _34=_2e[i];
-if(_34===null){
-_33=false;
+for(i=0;i<_28.length;++i){
+var _2e=true;
+var _2f=_28[i];
+if(_2f===null){
+_2e=false;
 }else{
-for(key in _2d.query){
-_30=_2d.query[key];
-if(!_2b._containsValue(_34,key,_30,_32[key])){
-_33=false;
+for(key in _27.query){
+_2b=_27.query[key];
+if(!this._containsValue(_2f,key,_2b,_2d[key])){
+_2e=false;
 }
 }
 }
-if(_33){
-_2f.push(_34);
+if(_2e){
+_2a.push(_2f);
 }
 }
-_29(_2f,_2d);
+_29(_2a,_27);
 }else{
-for(i=0;i<_2e.length;++i){
-var _35=_2e[i];
-if(_35!==null){
-_2f.push(_35);
+for(i=0;i<_28.length;++i){
+var _30=_28[i];
+if(_30!==null){
+_2a.push(_30);
 }
 }
-_29(_2f,_2d);
+_29(_2a,_27);
 }
-};
+},_fetchItems:function(_31,_32,_33){
+var _34=this;
 if(this._loadFinished){
-_2c(_28,this._getItemsArray(_28.queryOptions));
+this.filter(_31,this._getItemsArray(_31.queryOptions),_32);
 }else{
 if(this._jsonFileUrl!==this._ccUrl){
-_1.deprecated("dojo.data.ItemFileReadStore: ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
+_1.deprecated(this.declaredClass+": ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
 this._ccUrl=this._jsonFileUrl;
 this.url=this._jsonFileUrl;
 }else{
@@ -173,41 +173,41 @@ this.data=null;
 }
 if(this._jsonFileUrl){
 if(this._loadInProgress){
-this._queuedFetches.push({args:_28,filter:_2c});
+this._queuedFetches.push({args:_31,filter:_2.hitch(_34,"filter"),findCallback:_2.hitch(_34,_32)});
 }else{
 this._loadInProgress=true;
-var _36={url:_2b._jsonFileUrl,handleAs:"json-comment-optional",preventCache:this.urlPreventCache,failOk:this.failOk};
-var _37=_5.get(_36);
-_37.addCallback(function(_38){
+var _35={url:_34._jsonFileUrl,handleAs:"json-comment-optional",preventCache:this.urlPreventCache,failOk:this.failOk};
+var _36=_5.get(_35);
+_36.addCallback(function(_37){
 try{
-_2b._getItemsFromLoadedData(_38);
-_2b._loadFinished=true;
-_2b._loadInProgress=false;
-_2c(_28,_2b._getItemsArray(_28.queryOptions));
-_2b._handleQueuedFetches();
+_34._getItemsFromLoadedData(_37);
+_34._loadFinished=true;
+_34._loadInProgress=false;
+_34.filter(_31,_34._getItemsArray(_31.queryOptions),_32);
+_34._handleQueuedFetches();
 }
 catch(e){
-_2b._loadFinished=true;
-_2b._loadInProgress=false;
-_2a(e,_28);
+_34._loadFinished=true;
+_34._loadInProgress=false;
+_33(e,_31);
 }
 });
-_37.addErrback(function(_39){
-_2b._loadInProgress=false;
-_2a(_39,_28);
+_36.addErrback(function(_38){
+_34._loadInProgress=false;
+_33(_38,_31);
 });
-var _3a=null;
-if(_28.abort){
-_3a=_28.abort;
+var _39=null;
+if(_31.abort){
+_39=_31.abort;
 }
-_28.abort=function(){
-var df=_37;
+_31.abort=function(){
+var df=_36;
 if(df&&df.fired===-1){
 df.cancel();
 df=null;
 }
-if(_3a){
-_3a.call(_28);
+if(_39){
+_39.call(_31);
 }
 };
 }
@@ -217,24 +217,24 @@ try{
 this._loadFinished=true;
 this._getItemsFromLoadedData(this._jsonData);
 this._jsonData=null;
-_2c(_28,this._getItemsArray(_28.queryOptions));
+_34.filter(_31,this._getItemsArray(_31.queryOptions),_32);
 }
 catch(e){
-_2a(e,_28);
+_33(e,_31);
 }
 }else{
-_2a(new Error("dojo.data.ItemFileReadStore: No JSON source data was provided as either URL or a nested Javascript object."),_28);
+_33(new Error(this.declaredClass+": No JSON source data was provided as either URL or a nested Javascript object."),_31);
 }
 }
 }
 },_handleQueuedFetches:function(){
 if(this._queuedFetches.length>0){
 for(var i=0;i<this._queuedFetches.length;i++){
-var _3b=this._queuedFetches[i],_3c=_3b.args,_3d=_3b.filter;
-if(_3d){
-_3d(_3c,this._getItemsArray(_3c.queryOptions));
+var _3a=this._queuedFetches[i],_3b=_3a.args,_3c=_3a.filter,_3d=_3a.findCallback;
+if(_3c){
+_3c(_3b,this._getItemsArray(_3b.queryOptions),_3d);
 }else{
-this.fetchItemByIdentity(_3c);
+this.fetchItemByIdentity(_3b);
 }
 }
 this._queuedFetches=[];
@@ -332,10 +332,10 @@ if(!Object.hasOwnProperty.call(this._itemsByIdentity,_50)){
 this._itemsByIdentity[_50]=_4b;
 }else{
 if(this._jsonFileUrl){
-throw new Error("dojo.data.ItemFileReadStore:  The json data as specified by: ["+this._jsonFileUrl+"] is malformed.  Items within the list have identifier: ["+_4f+"].  Value collided: ["+_50+"]");
+throw new Error(this.declaredClass+":  The json data as specified by: ["+this._jsonFileUrl+"] is malformed.  Items within the list have identifier: ["+_4f+"].  Value collided: ["+_50+"]");
 }else{
 if(this._jsonData){
-throw new Error("dojo.data.ItemFileReadStore:  The json data provided by the creation arguments is malformed.  Items within the list have identifier: ["+_4f+"].  Value collided: ["+_50+"]");
+throw new Error(this.declaredClass+":  The json data provided by the creation arguments is malformed.  Items within the list have identifier: ["+_4f+"].  Value collided: ["+_50+"]");
 }
 }
 }
@@ -423,7 +423,7 @@ var _5f,_60;
 if(!this._loadFinished){
 var _61=this;
 if(this._jsonFileUrl!==this._ccUrl){
-_1.deprecated("dojo.data.ItemFileReadStore: ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
+_1.deprecated(this.declaredClass+": ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
 this._ccUrl=this._jsonFileUrl;
 this.url=this._jsonFileUrl;
 }else{
@@ -444,7 +444,7 @@ this._loadInProgress=true;
 var _62={url:_61._jsonFileUrl,handleAs:"json-comment-optional",preventCache:this.urlPreventCache,failOk:this.failOk};
 var _63=_5.get(_62);
 _63.addCallback(function(_64){
-var _65=_5e.scope?_5e.scope:_7.global;
+var _65=_5e.scope?_5e.scope:_1.global;
 try{
 _61._getItemsFromLoadedData(_64);
 _61._loadFinished=true;
@@ -465,7 +465,7 @@ _5e.onError.call(_65,error);
 _63.addErrback(function(_66){
 _61._loadInProgress=false;
 if(_5e.onError){
-var _67=_5e.scope?_5e.scope:_7.global;
+var _67=_5e.scope?_5e.scope:_1.global;
 _5e.onError.call(_67,_66);
 }
 });
@@ -477,7 +477,7 @@ _61._jsonData=null;
 _61._loadFinished=true;
 _5f=_61._getItemByIdentity(_5e.identity);
 if(_5e.onItem){
-_60=_5e.scope?_5e.scope:_7.global;
+_60=_5e.scope?_5e.scope:_1.global;
 _5e.onItem.call(_60,_5f);
 }
 }
@@ -485,7 +485,7 @@ _5e.onItem.call(_60,_5f);
 }else{
 _5f=this._getItemByIdentity(_5e.identity);
 if(_5e.onItem){
-_60=_5e.scope?_5e.scope:_7.global;
+_60=_5e.scope?_5e.scope:_1.global;
 _5e.onItem.call(_60,_5f);
 }
 }
@@ -514,7 +514,7 @@ return [_6b];
 },_forceLoad:function(){
 var _6c=this;
 if(this._jsonFileUrl!==this._ccUrl){
-_1.deprecated("dojo.data.ItemFileReadStore: ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
+_1.deprecated(this.declaredClass+": ","To change the url, set the url property of the store,"+" not _jsonFileUrl.  _jsonFileUrl support will be removed in 2.0");
 this._ccUrl=this._jsonFileUrl;
 this.url=this._jsonFileUrl;
 }else{
@@ -537,7 +537,7 @@ _6c._getItemsFromLoadedData(_6f);
 _6c._loadFinished=true;
 }else{
 if(_6c._loadInProgress){
-throw new Error("dojo.data.ItemFileReadStore:  Unable to perform a synchronous load, an async load is in progress.");
+throw new Error(this.declaredClass+":  Unable to perform a synchronous load, an async load is in progress.");
 }
 }
 }
@@ -556,6 +556,6 @@ _6c._loadFinished=true;
 }
 }
 }});
-_2.extend(_b,_9);
-return _b;
+_2.extend(_a,_8);
+return _a;
 });

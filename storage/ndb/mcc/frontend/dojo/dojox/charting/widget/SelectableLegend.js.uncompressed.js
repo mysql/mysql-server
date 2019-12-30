@@ -1,17 +1,16 @@
-//>>built
-define("dojox/charting/widget/SelectableLegend", ["dojo/_base/lang", "dojo/_base/array", "dojo/_base/declare", "dojo/query", "dojo/_base/html", 
+define("dojox/charting/widget/SelectableLegend", ["dojo/_base/array", "dojo/_base/declare", "dojo/query",
 		"dojo/_base/connect", "dojo/_base/Color", "./Legend", "dijit/form/CheckBox", "../action2d/Highlight",
-		"dojox/lang/functional", "dojox/gfx/fx", "dojo/keys", "dojo/_base/event", "dojo/dom-construct",
+		"dojox/lang/functional", "dojox/gfx/fx", "dojo/keys", "dojo/dom-construct",
 		"dojo/dom-prop"], 
-	function(lang, arrayUtil, declare, query, html, hub, Color, Legend, CheckBox, 
-			 Highlight, df, fx, keys, event, dom, domProp){
-/*=====
-var Legend = dojox.charting.widget.Legend;
-=====*/
+	function(arrayUtil, declare, query, hub, Color, Legend, CheckBox,
+			 Highlight, df, fx, keys, dom, domProp){
+
 	var FocusManager = declare(null, {
-		//	summary:
+		// summary:
 		//		It will take legend as a tab stop, and using
 		//		cursor keys to navigate labels within the legend.
+		// tags:
+		//		private
 		constructor: function(legend){
 			this.legend = legend;
 			this.index = 0;
@@ -81,8 +80,8 @@ var Legend = dojox.charting.widget.Legend;
 		}
 	});
 			
-	declare("dojox.charting.widget.SelectableLegend", Legend, {
-		//	summary:
+	var SelectableLegend = declare("dojox.charting.widget.SelectableLegend", Legend, {
+		// summary:
 		//		An enhanced chart legend supporting interactive events on data series
 		
 		//	theme component
@@ -93,13 +92,21 @@ var Legend = dojox.charting.widget.Legend;
 		postCreate: function(){
 			this.legends = [];
 			this.legendAnim = {};
+			this._cbs = [];
 			this.inherited(arguments);
 		},
 		refresh: function(){
 			this.legends = [];
+			this._clearLabels();
 			this.inherited(arguments);
 			this._applyEvents();
 			new FocusManager(this);
+		},
+		_clearLabels: function(){
+			var cbs = this._cbs;
+			while(cbs.length){
+				cbs.pop().destroyRecursive();
+			}
 		},
 		_addLabel: function(dyn, label){
 			this.inherited(arguments);
@@ -108,15 +115,17 @@ var Legend = dojox.charting.widget.Legend;
 			var currentLegendNode = legendNodes[legendNodes.length - 1];
 			this.legends.push(currentLegendNode);
 			var checkbox = new CheckBox({checked: true});
+			this._cbs.push(checkbox);
 			dom.place(checkbox.domNode, currentLegendNode, "first");
 			// connect checkbox and existed label
-			var label = query("label", currentLegendNode)[0];
-			domProp.set(label, "for", checkbox.id);
+			var clabel = query("label", currentLegendNode)[0];
+			domProp.set(clabel, "for", checkbox.id);
 		},
 		_applyEvents: function(){
 			// summary:
 			//		Apply click-event on checkbox and hover-event on legend icon,
 			//		highlight data series or toggle it.
+			
 			// if the chart has not yet been refreshed it will crash here (targetData.group == null)
 			if(this.chart.dirty){
 				return;
@@ -210,6 +219,9 @@ var Legend = dojox.charting.widget.Legend;
 		_getAnim: function(plotName){
 			if(!this.legendAnim[plotName]){
 				this.legendAnim[plotName] = new Highlight(this.chart, plotName);
+				// calling this is marking the plot dirty however here this is a "fake" highlight action
+				// we don't want to re-render the chart, _highlight is the in charge of running the animation
+				this.chart.getPlot(plotName).dirty = false;
 			}
 			return this.legendAnim[plotName];
 		},
@@ -222,16 +234,21 @@ var Legend = dojox.charting.widget.Legend;
 			return null;
 		},
 		_getFilledShape: function(shapes){
-			//	summary:
+			// summary:
 			//		Get filled shape in legend icon which would be highlighted when hovered
 			var i = 0;
 			while(shapes[i]){
 				if(shapes[i].getFill())return shapes[i];
 				i++;
 			}
+			return null;
 		},
 		_isPie: function(){
 			return this.chart.stack[0].declaredClass == "dojox.charting.plot2d.Pie";
+		},
+		destroy: function(){
+			this._clearLabels();
+			this.inherited(arguments);
 		}
 	});
 	
@@ -241,5 +258,5 @@ var Legend = dojox.charting.widget.Legend;
 		return "on" + type;
 	}
 
-	return dojox.charting.widget.SelectableLegend;
+	return SelectableLegend;
 });

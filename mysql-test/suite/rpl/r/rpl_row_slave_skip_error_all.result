@@ -33,6 +33,7 @@ UPDATE t SET name='Old';
 # that are generated during commit/rollback failure, which takes place during cleanup
 # cannot be ignored.
 include/wait_for_slave_sql_error.inc [errno=1180]
+include/assert_grep.inc [Found 2 warning in the error log]
 ==== Clean up ====
 SET @@GLOBAL.DEBUG= '$debug_saved';
 include/stop_slave_io.inc

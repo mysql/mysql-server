@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 int mi_rename(const char *old_name, const char *new_name) {
   char from[FN_REFLEN], to[FN_REFLEN];
-  DBUG_ENTER("mi_rename");
+  DBUG_TRACE;
 
 #ifdef EXTRA_DEBUG
   check_table_is_closed(old_name, "rename old_table");
@@ -43,12 +43,12 @@ int mi_rename(const char *old_name, const char *new_name) {
             MY_UNPACK_FILENAME | MY_APPEND_EXT);
   fn_format(to, new_name, "", MI_NAME_IEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
   if (mysql_file_rename_with_symlink(mi_key_file_kfile, from, to, MYF(MY_WME)))
-    DBUG_RETURN(my_errno());
+    return my_errno();
   fn_format(from, old_name, "", MI_NAME_DEXT,
             MY_UNPACK_FILENAME | MY_APPEND_EXT);
   fn_format(to, new_name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
-  DBUG_RETURN(
-      mysql_file_rename_with_symlink(mi_key_file_dfile, from, to, MYF(MY_WME))
-          ? my_errno()
-          : 0);
+  return mysql_file_rename_with_symlink(mi_key_file_dfile, from, to,
+                                        MYF(MY_WME))
+             ? my_errno()
+             : 0;
 }

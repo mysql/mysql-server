@@ -1,8 +1,6 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/drawing/stencil/Text"],function(_1,_2,_3){
-_2.provide("dojox.drawing.annotations.Label");
-_2.require("dojox.drawing.stencil.Text");
-_3.drawing.annotations.Label=_3.drawing.util.oo.declare(_3.drawing.stencil.Text,function(_4){
+define("dojox/drawing/annotations/Label",["exports","dojo/_base/lang","../util/oo","../stencil/Text"],function(_1,_2,oo,_3){
+_1.Label=oo.declare(_3,function(_4){
 this.master=_4.stencil;
 this.labelPosition=_4.labelPosition||"BR";
 if(_2.isFunction(this.labelPosition)){

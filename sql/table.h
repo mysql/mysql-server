@@ -29,6 +29,7 @@
 
 #include "field_types.h"
 #include "lex_string.h"
+#include "libbinlogevents/include/table_id.h"  // Table_id
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
@@ -54,8 +55,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plist.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_sort.h"  // Filesort_info
-#include "table_id.h"      // Table_id
+#include "sql/sql_sort.h"  // Sort_result
 #include "thr_lock.h"
 #include "typelib.h"
 
@@ -88,6 +88,7 @@ class Query_result_union;
 class SELECT_LEX;
 class SELECT_LEX_UNIT;
 class Security_context;
+class SortingIterator;
 class String;
 class THD;
 class Table_cache_element;
@@ -173,6 +174,12 @@ enum enum_table_ref_type {
  its validity
 */
 enum class Ident_name_check { OK, WRONG, TOO_LONG };
+
+enum rowid_statuses {
+  NO_ROWID_NEEDED,
+  ROWID_PROVIDED_BY_ITERATOR_READ_CALL,
+  NEED_TO_CALL_POSITION_FOR_ROWID
+};
 
 /*************************************************************************/
 
@@ -550,9 +557,9 @@ typedef enum enum_table_category TABLE_CATEGORY;
 extern ulong refresh_version;
 
 struct TABLE_FIELD_TYPE {
-  LEX_STRING name;
-  LEX_STRING type;
-  LEX_STRING cset;
+  LEX_CSTRING name;
+  LEX_CSTRING type;
+  LEX_CSTRING cset;
 };
 
 struct TABLE_FIELD_DEF {
@@ -704,7 +711,7 @@ struct TABLE_SHARE {
   LEX_STRING encrypt_type{nullptr, 0}; /* encryption algorithm */
 
   /** Secondary storage engine. */
-  LEX_STRING secondary_engine{nullptr, 0};
+  LEX_CSTRING secondary_engine{nullptr, 0};
 
   const CHARSET_INFO *table_charset{
       nullptr}; /* Default charset of string fields */
@@ -720,11 +727,11 @@ struct TABLE_SHARE {
     should correspond to each other.
     To ensure this one can use set_table_cache() methods.
   */
-  LEX_STRING table_cache_key{nullptr, 0};
-  LEX_STRING db{nullptr, 0};              /* Pointer to db */
-  LEX_STRING table_name{nullptr, 0};      /* Table name (for open) */
-  LEX_STRING path{nullptr, 0};            /* Path to .frm file (from datadir) */
-  LEX_STRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
+  LEX_CSTRING table_cache_key{nullptr, 0};
+  LEX_CSTRING db{nullptr, 0};         /* Pointer to db */
+  LEX_CSTRING table_name{nullptr, 0}; /* Table name (for open) */
+  LEX_STRING path{nullptr, 0};        /* Path to .frm file (from datadir) */
+  LEX_CSTRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
   LEX_STRING connect_string{nullptr, 0};
 
   /**
@@ -852,7 +859,7 @@ struct TABLE_SHARE {
   ha_storage_media default_storage_media{HA_SM_DEFAULT};
 
   /* Name of the tablespace used for this table */
-  char *tablespace{nullptr};
+  const char *tablespace{nullptr};
 
   /**
     Partition meta data. Allocated from TABLE_SHARE::mem_root,
@@ -1193,7 +1200,7 @@ class Blob_mem_storage {
      @param length         string length
 
      @retval Pointer to the copied string.
-     @retval 0 if an error occured.
+     @retval 0 if an error occurred.
   */
   char *store(const char *from, size_t length) {
     return (char *)memdup_root(&storage, from, length);
@@ -1337,7 +1344,10 @@ struct TABLE {
     needed by the query without reading the row.
   */
   Key_map covering_keys;
-  Key_map quick_keys, merge_keys;
+  Key_map quick_keys;
+
+  /* Merge keys are all keys that had a column reffered to in the query */
+  Key_map merge_keys;
 
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
@@ -1541,12 +1551,23 @@ struct TABLE {
   bool no_cache{false};
   /* To signal that the table is associated with a HANDLER statement */
   bool open_by_handler{false};
-  /*
-    To indicate that a non-null value of the auto_increment field
-    was provided by the user or retrieved from the current record.
-    Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
+  /**
+    To indicate that value of the auto_increment field was provided
+    explicitly by the user or from some other source (e.g. in case of
+    INSERT ... SELECT, ALTER TABLE or LOAD DATA) and not as default
+    or result of conversion from NULL value.
+
+    @note Since auto_increment fields are always non-NULL we can't find
+          out using methods of Field class if 0 value stored in such field
+          was provided explicitly or is result of applying default/conversion
+          from NULL value. In the former case no new auto_increment value
+          needs to be generated in MODE_NO_AUTO_VALUE_ON_ZERO mode, while
+          the latter cases require new value generation. Hence the need
+          for this flag.
+    @note Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode and only
+          by handler::write_row().
   */
-  bool auto_increment_field_not_null{false};
+  bool autoinc_field_has_explicit_non_null_value{false};
   bool alias_name_used{false};         /* true if table_name is alias */
   bool get_fields_in_item_tree{false}; /* Signal to fix_field */
   /**
@@ -1593,7 +1614,14 @@ struct TABLE {
      and BLOB field count > 0.
    */
   Blob_mem_storage *blob_storage{nullptr};
-  Filesort_info sort;
+
+  /**
+    Not owned by the TABLE; used only from filesort_free_buffers().
+    See comments on SortingIterator::CleanupAfterQuery().
+   */
+  SortingIterator *sorting_iterator{nullptr};
+  SortingIterator *duplicate_removal_iterator{nullptr};
+
   /**
     The result of applying a unique opertion (by row ID) to the table, if done.
     In particular, this is done in some forms of index merge.
@@ -1627,7 +1655,7 @@ struct TABLE {
 
   void mark_column_used(Field *field, enum enum_mark_columns mark);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
-                                           uint key_parts = 0);
+                                           uint key_parts = 0) const;
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns);
@@ -1635,8 +1663,8 @@ struct TABLE {
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
-  bool is_field_used_by_generated_columns(uint field_index, int *error_no);
   void mark_gcol_in_maps(Field *field);
+  void mark_check_constraint_columns(bool is_update);
   void column_bitmaps_set(MY_BITMAP *read_set_arg, MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
                                            MY_BITMAP *write_set_arg) {
@@ -1672,7 +1700,7 @@ struct TABLE {
     @returns true if if index is defined over at least one virtual generated
     column
   */
-  inline bool index_contains_some_virtual_gcol(uint index_no) {
+  inline bool index_contains_some_virtual_gcol(uint index_no) const {
     DBUG_ASSERT(index_no < s->keys);
     return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
   }
@@ -1680,8 +1708,8 @@ struct TABLE {
 
   bool check_read_removal(uint index);
 
-  my_ptrdiff_t default_values_offset() const {
-    return (my_ptrdiff_t)(s->default_values - record[0]);
+  ptrdiff_t default_values_offset() const {
+    return (ptrdiff_t)(s->default_values - record[0]);
   }
 
   /// Return true if table is instantiated, and false otherwise.
@@ -2206,7 +2234,7 @@ struct ST_SCHEMA_TABLE {
   /* Handle fileds for old SHOW */
   int (*old_format)(THD *thd, ST_SCHEMA_TABLE *schema_table);
   int (*process_table)(THD *thd, TABLE_LIST *tables, TABLE *table, bool res,
-                       LEX_STRING *db_name, LEX_STRING *table_name);
+                       LEX_CSTRING db_name, LEX_CSTRING table_name);
   int idx_field1, idx_field2;
   bool hidden;
   uint i_s_requested_object;  // Not used
@@ -2354,12 +2382,13 @@ struct LEX_USER {
   bool uses_replace_clause;
   bool retain_current_password;
   bool discard_old_password;
+  bool has_password_generator;
   LEX_ALTER alter_status;
   /*
     Allocates the memory in the THD mem pool and initialize the members of
-    this struct. It is prefererable to use this method to create a LEX_USER
-    rather allocating the memory in the THD and initilizing the members
-    explicitiyly.
+    this struct. It is preferable to use this method to create a LEX_USER
+    rather allocating the memory in the THD and initializing the members
+    explicitly.
   */
   static LEX_USER *alloc(THD *thd, LEX_STRING *user, LEX_STRING *host);
 };
@@ -2439,34 +2468,34 @@ class Table_function;
 struct TABLE_LIST {
   TABLE_LIST() = default;
 
+  /**
+    Only to be used by legacy code that temporarily needs a TABLE_LIST, more
+    specifically: Query_result_create::binlog_show_create_table().
+  */
   explicit TABLE_LIST(TABLE *table_arg) : table(table_arg) {}
 
-  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg) {}
+  /// Constructor that can be used when the strings are null terminated.
+  TABLE_LIST(const char *db_name, const char *table_name,
+             enum thr_lock_type lock_type)
+      : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
+                   table_name, lock_type) {}
 
-  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg,
-             enum enum_mdl_type mdl_request_type)
-      : TABLE_LIST(nullptr, db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg) {
-    mdl_request.set_type(mdl_request_type);
-  }
+  /// Constructor that can be used when the strings are null terminated.
+  TABLE_LIST(const char *db_name, const char *table_name, const char *alias,
+             enum thr_lock_type lock_type)
+      : TABLE_LIST(db_name, strlen(db_name), table_name, strlen(table_name),
+                   alias, lock_type) {}
 
-  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum thr_lock_type lock_type_arg)
-      : db(db_name_arg),
-        table_name(table_name_arg),
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg,
+             thr_lock_type lock_type_arg)
+      : db(table_arg->s->db.str),
+        table_name(table_arg->s->table_name.str),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
         m_lock_descriptor{lock_type_arg},
-        db_length(db_length_arg),
-        table_name_length(table_name_length_arg) {
+        db_length(table_arg->s->db.length),
+        table_name_length(table_arg->s->table_name.length) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
@@ -2475,58 +2504,106 @@ struct TABLE_LIST {
     Sets an explicit enum_mdl_type value, without initializing
     m_lock_descriptor.
   */
-  TABLE_LIST(TABLE *table_arg, const char *db_name_arg, size_t db_length_arg,
-             const char *table_name_arg, size_t table_name_length_arg,
-             const char *alias_arg, enum_mdl_type mdl_type)
-      : db(db_name_arg),
-        table_name(table_name_arg),
+  TABLE_LIST(TABLE *table_arg, const char *alias_arg, enum_mdl_type mdl_type)
+      : db(table_arg->s->db.str),
+        table_name(table_arg->s->table_name.str),
         alias(alias_arg),
         m_map(1),
         table(table_arg),
-        db_length(db_length_arg),
-        table_name_length(table_name_length_arg) {
+        db_length(table_arg->s->db.length),
+        table_name_length(table_arg->s->table_name.length) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name, mdl_type,
                      MDL_TRANSACTION);
   }
 
-  /**
-    Do not use this function in new code. It exists only for legacy code.
-    Prepare TABLE_LIST that consists of one table instance to use in
-    simple_open_and_lock_tables
-  */
-  inline void init_one_table(const char *db_name_arg, size_t db_length_arg,
-                             const char *table_name_arg,
-                             size_t table_name_length_arg,
-                             const char *alias_arg,
-                             enum thr_lock_type lock_type_arg) {
-    *this = TABLE_LIST();
-    m_map = 1;
-    db = db_name_arg;
-    db_length = db_length_arg;
-    table_name = table_name_arg;
-    table_name_length = table_name_length_arg;
-    alias = alias_arg;
-    m_lock_descriptor.type = lock_type_arg;
+  TABLE_LIST(const char *db_name, const char *table_name_arg,
+             enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(strlen(db_name)),
+        table_name_length(strlen(table_name_arg)) {
     MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
                      mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
   }
 
-  /**
-    Do not use this function in new code. It exists only for legacy code.
-    Auxiliary method which prepares TABLE_LIST consisting of one table instance
-    to be used in simple open_and_lock_tables and takes type of MDL lock on the
-    table as explicit parameter.
-  */
-
-  inline void init_one_table(const char *db_name_arg, size_t db_length_arg,
-                             const char *table_name_arg,
-                             size_t table_name_length_arg,
-                             const char *alias_arg,
-                             enum thr_lock_type lock_type_arg,
-                             enum enum_mdl_type mdl_request_type) {
-    init_one_table(db_name_arg, db_length_arg, table_name_arg,
-                   table_name_length_arg, alias_arg, lock_type_arg);
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
     mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             enum thr_lock_type lock_type_arg)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(table_name_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {}
+
+  /**
+    Sets an explicit enum_mdl_type value, without initializing
+    m_lock_descriptor.
+  */
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg,
+             enum enum_mdl_type mdl_request_type)
+      : db(db_name),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
+    mdl_request.set_type(mdl_request_type);
+  }
+
+  TABLE_LIST(const char *db_name_arg, size_t db_length_arg,
+             const char *table_name_arg, size_t table_name_length_arg,
+             const char *alias_arg, enum thr_lock_type lock_type_arg)
+      : db(db_name_arg),
+        table_name(table_name_arg),
+        alias(alias_arg),
+        m_map(1),
+        m_lock_descriptor{lock_type_arg},
+        db_length(db_length_arg),
+        table_name_length(table_name_length_arg) {
+    MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, db, table_name,
+                     mdl_type_for_dml(m_lock_descriptor.type), MDL_TRANSACTION);
   }
 
   /// Create a TABLE_LIST object representing a nested join
@@ -2553,13 +2630,16 @@ struct TABLE_LIST {
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
-  /// Get the semi-join condition for a semi-join nest, NULL otherwise
-  Item *sj_cond() const { return m_sj_cond; }
-
-  /// Set the semi-join condition for a semi-join nest
-  void set_sj_cond(Item *cond) {
-    DBUG_ASSERT(m_sj_cond == NULL);
-    m_sj_cond = cond;
+  /// @returns true if semi-join nest
+  bool is_sj_nest() const { return m_is_sj_or_aj_nest && !m_join_cond; }
+  /// @returns true if anti-join nest
+  bool is_aj_nest() const { return m_is_sj_or_aj_nest && m_join_cond; }
+  /// @returns true if anti/semi-join nest
+  bool is_sj_or_aj_nest() const { return m_is_sj_or_aj_nest; }
+  /// Makes the next a semi/antijoin nest
+  void set_sj_or_aj_nest() {
+    DBUG_ASSERT(!m_is_sj_or_aj_nest);
+    m_is_sj_or_aj_nest = true;
   }
 
   /// Merge tables from a query block into a nested join structure
@@ -2658,7 +2738,11 @@ struct TABLE_LIST {
   bool is_mergeable() const;
 
   /**
-    @returns true if materializable table contains one or zero rows.
+    Checks if this is a table that contains zero rows or one row, and that can
+    be materialized during optimization.
+
+    @returns true if materializable table contains one or zero rows, and
+    materialization during optimization is permitted
 
     Returning true implies that the table is materialized during optimization,
     so it need not be optimized during execution.
@@ -2785,7 +2869,7 @@ struct TABLE_LIST {
     DBUG_ASSERT((is_view_or_derived()) && uses_materialization());
     table_name = table->s->table_name.str;
     table_name_length = table->s->table_name.length;
-    db = (char *)"";
+    db = "";
     db_length = 0;
   }
 
@@ -2897,7 +2981,7 @@ struct TABLE_LIST {
     return view != NULL ? view_name.str : table_name;
   }
   int fetch_number_of_rows();
-  bool update_derived_keys(Field *, Item **, uint);
+  bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
   bool generate_keys();
 
   /// Setup a derived table to use materialization
@@ -2929,7 +3013,7 @@ struct TABLE_LIST {
 
   TABLE_LIST *outer_join_nest() const {
     if (!embedding) return NULL;
-    if (embedding->sj_cond()) return embedding->embedding;
+    if (embedding->is_sj_nest()) return embedding->embedding;
     return embedding;
   }
   /**
@@ -2955,14 +3039,19 @@ struct TABLE_LIST {
     In DELETE and UPDATE, a view used as a target table must be mergeable,
     updatable and defined over a single table.
   */
-  TABLE_LIST *updatable_base_table() {
-    TABLE_LIST *tbl = this;
+  const TABLE_LIST *updatable_base_table() const {
+    const TABLE_LIST *tbl = this;
     DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
     while (tbl->is_view_or_derived()) {
       tbl = tbl->merge_underlying_list;
       DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
     }
     return tbl;
+  }
+
+  TABLE_LIST *updatable_base_table() {
+    return const_cast<TABLE_LIST *>(
+        static_cast<const TABLE_LIST *>(this)->updatable_base_table());
   }
 
   /**
@@ -3021,7 +3110,7 @@ struct TABLE_LIST {
     member points to the tablespace_name in the HA_CREATE_INFO struct.
   */
   LEX_CSTRING target_tablespace_name{nullptr, 0};
-  char *schema_table_name{nullptr};
+  const char *schema_table_name{nullptr};
   char *option{nullptr}; /* Used by cache index  */
 
   /** Table level optimizer hints for this table.  */
@@ -3050,7 +3139,8 @@ struct TABLE_LIST {
      once for all executions of a prepared statement).
   */
   Item *m_join_cond{nullptr};
-  Item *m_sj_cond{nullptr};  ///< Synthesized semijoin condition
+  bool m_is_sj_or_aj_nest{false};
+
  public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -3248,14 +3338,31 @@ struct TABLE_LIST {
     especially important for multi-table UPDATE and DELETE.
   */
   bool updating{false};
-  bool force_index{false};              /* prefer index over table scan */
-  bool ignore_leaves{false};            /* preload only non-leaf nodes */
-  table_map dep_tables{0};              /* tables the table depends on      */
-  table_map on_expr_dep_tables{0};      /* tables on expression depends on  */
-  NESTED_JOIN *nested_join{nullptr};    /* if the element is a nested join  */
-  TABLE_LIST *embedding{nullptr};       /* nested join containing the table */
-  List<TABLE_LIST> *join_list{nullptr}; /* join list the table belongs to   */
-  bool cacheable_table{false};          /* stop PS caching */
+  /// True if using an index is preferred over a table scan.
+  bool force_index{false};
+  /// preload only non-leaf nodes (IS THIS USED???)
+  bool ignore_leaves{false};
+  /**
+    The set of tables in the query block that this table depends on.
+    Can be set due to outer join, join order hints or NOT EXISTS relationship.
+  */
+  table_map dep_tables{0};
+  /// The outer tables that an outer join's join condition depends on
+  table_map join_cond_dep_tables{0};
+  /**
+    Is non-NULL if this table reference is a nested join, ie it represents
+    the inner tables of an outer join, the tables contained in the
+    parentheses of an inner join (eliminated during resolving), the tables
+    referenced in a derived table or view, in a semi-join nest, the tables
+    from the subquery.
+  */
+  NESTED_JOIN *nested_join{nullptr};
+  /// The nested join containing this table reference.
+  TABLE_LIST *embedding{nullptr};
+  /// The join list immediately containing this table reference
+  List<TABLE_LIST> *join_list{nullptr};
+  /// stop PS caching
+  bool cacheable_table{false};
   /**
      Specifies which kind of table should be open for this element
      of table list.
@@ -3537,71 +3644,6 @@ class Field_iterator_table_ref : public Field_iterator {
   Natural_join_column *get_natural_column_ref();
 };
 
-/**
-  An iterator over an intrusive list in TABLE_LIST objects. Can be used for
-  iterating an intrusive list in e.g. range-based for loops.
-
-  @tparam Next_pointer The intrusive list's "next" member.
-*/
-template <TABLE_LIST *TABLE_LIST::*Next_pointer>
-class Table_list_iterator {
- public:
-  /**
-    Constructs an iterator.
-
-    @param start The TABLE_LIST where that the iterator will start iterating
-    from.
-  */
-  Table_list_iterator(TABLE_LIST *start) : m_current(start) {}
-
-  TABLE_LIST *operator++() { return m_current = m_current->*Next_pointer; }
-
-  TABLE_LIST *operator*() { return m_current; }
-
-  bool operator!=(const Table_list_iterator &other) const {
-    return m_current != other.m_current;
-  }
-
- private:
-  TABLE_LIST *m_current;
-};
-
-typedef Table_list_iterator<&TABLE_LIST::next_local> Local_tables_iterator;
-typedef Table_list_iterator<&TABLE_LIST::next_global> Global_tables_iterator;
-
-/**
-  Provides a list interface on TABLE_LIST objects. The interface is similar to
-  std::vector, but has only the bare minimum to allow for iteration.
-
-  @tparam Iterator_type Must have an implicit constructor from a TABLE_LIST
-  pointer, and support pre-increment, non-equality and dereference operators.
-*/
-template <typename Iterator_type>
-class Table_list_adapter {
- public:
-  /**
-    Constructs the list adapter.
-
-    @param first The TABLE_LIST that is considered first in the list.
-  */
-  Table_list_adapter(TABLE_LIST *first) : m_first(first) {}
-
-  /// An iterator pointing to the first TABLE_LIST.
-  Iterator_type begin() { return m_first; }
-
-  /// A past-the-end iterator.
-  Iterator_type end() { return nullptr; }
-
- private:
-  TABLE_LIST *m_first;
-};
-
-/// A list interface over the TABLE_LIST::next_local pointer.
-typedef Table_list_adapter<Local_tables_iterator> Local_tables_list;
-
-/// A list interface over the TABLE_LIST::next_global pointer.
-typedef Table_list_adapter<Global_tables_iterator> Global_tables_list;
-
 struct OPEN_TABLE_LIST {
   OPEN_TABLE_LIST *next;
   char *db, *table;
@@ -3744,29 +3786,30 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr, int min_zone, int max_zone);
 void append_unescaped(String *res, const char *pos, size_t length);
 char *fn_rext(char *name);
-TABLE_CATEGORY get_table_category(const LEX_STRING &db, const LEX_STRING &name);
+TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
+                                  const LEX_CSTRING &name);
 
 /* performance schema */
-extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
+extern LEX_CSTRING PERFORMANCE_SCHEMA_DB_NAME;
 
-extern LEX_STRING GENERAL_LOG_NAME;
-extern LEX_STRING SLOW_LOG_NAME;
+extern LEX_CSTRING GENERAL_LOG_NAME;
+extern LEX_CSTRING SLOW_LOG_NAME;
 
 /* information schema */
-extern LEX_STRING INFORMATION_SCHEMA_NAME;
+extern LEX_CSTRING INFORMATION_SCHEMA_NAME;
 
 /* mysql schema name and DD ID */
-extern LEX_STRING MYSQL_SCHEMA_NAME;
+extern LEX_CSTRING MYSQL_SCHEMA_NAME;
 static const uint MYSQL_SCHEMA_DD_ID = 1;
 
 /* mysql tablespace name and DD ID */
-extern LEX_STRING MYSQL_TABLESPACE_NAME;
+extern LEX_CSTRING MYSQL_TABLESPACE_NAME;
 static const uint MYSQL_TABLESPACE_DD_ID = 1;
 
 /* replication's tables */
-extern LEX_STRING RLI_INFO_NAME;
-extern LEX_STRING MI_INFO_NAME;
-extern LEX_STRING WORKER_INFO_NAME;
+extern LEX_CSTRING RLI_INFO_NAME;
+extern LEX_CSTRING MI_INFO_NAME;
+extern LEX_CSTRING WORKER_INFO_NAME;
 
 inline bool is_infoschema_db(const char *name, size_t len) {
   return (
@@ -3818,7 +3861,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table,
   Check if a TABLE_LIST instance represents a pre-opened temporary table.
 */
 
-inline bool is_temporary_table(TABLE_LIST *tl) {
+inline bool is_temporary_table(const TABLE_LIST *tl) {
   if (tl->is_view() || tl->schema_table) return false;
 
   if (!tl->table) return false;
@@ -3894,6 +3937,40 @@ class Derived_refs_iterator {
   /// @returns true if the last get_next() returned the first element.
   bool is_first() const { return ref_idx == 0; }
 };
+
+/**
+  RAII class to reset TABLE::autoinc_field_has_explicit_non_null_value after
+  processing individual row in INSERT or LOAD DATA statements.
+*/
+class Autoinc_field_has_explicit_non_null_value_reset_guard {
+ public:
+  Autoinc_field_has_explicit_non_null_value_reset_guard(TABLE *table)
+      : m_table(table) {}
+  ~Autoinc_field_has_explicit_non_null_value_reset_guard() {
+    m_table->autoinc_field_has_explicit_non_null_value = false;
+  }
+
+ private:
+  TABLE *m_table;
+};
+
+// Whether we can ask the storage engine for the row ID of the last row read.
+//
+// Some operations needs a row ID to operate correctly (i.e. weedout). Normally,
+// the row ID is provided by the storage engine by calling handler::position().
+// But there are cases when position() should not be called:
+//
+//   1. If we have a const table (rows are fetched during optimization), we
+//      should not call position().
+//   2. If we have a NULL-complemented row, calling position() would give a
+//      random row ID back, as there has not been any row read.
+//
+// Operations that needs the row ID must also check the value of
+// QEP_TAB::rowid_status to see whether they actually need a row ID.
+// See QEP_TAB::rowid_status for more details.
+inline bool can_call_position(const TABLE *table) {
+  return !table->const_table && !(table->is_nullable() && table->null_row);
+}
 
 //////////////////////////////////////////////////////////////////////////
 

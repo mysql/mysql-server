@@ -208,12 +208,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs, const char *s, const char *t) {
   return (*t != *s);
 }
 
-  /*
-  ** Compare string against string with wildcard
-  **	0 if matched
-  **	-1 if not matched with wildcard
-  **	 1 if matched with wildcard
-  */
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
 
 #define INC_PTR(cs, A, B) \
   A += (my_ismbchar(cs, A, B) ? my_ismbchar(cs, A, B) : 1)
@@ -221,10 +221,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs, const char *s, const char *t) {
 #define likeconv(s, A) (uchar)(s)->sort_order[(uchar)(A)]
 
 static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
-                              const char *str_end, const char *wildstr,
-                              const char *wildend, int escape, int w_one,
+                              const char *str_end, const char *wildstr_arg,
+                              const char *wildend_arg, int escape, int w_one,
                               int w_many, int recurse_level) {
   int result = -1; /* Not found, using wildcards */
+  const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
+  const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
@@ -252,7 +254,7 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
     }
     if (*wildstr == w_many) { /* Found w_many */
       uchar cmp;
-      const char *mb = wildstr;
+      const uchar *mb = wildstr;
       int mb_len = 0;
 
       wildstr++;
@@ -292,9 +294,9 @@ static int my_wildcmp_mb_impl(const CHARSET_INFO *cs, const char *str,
           INC_PTR(cs, str, str_end);
         }
         {
-          int tmp =
-              my_wildcmp_mb_impl(cs, str, str_end, wildstr, wildend, escape,
-                                 w_one, w_many, recurse_level + 1);
+          int tmp = my_wildcmp_mb_impl(
+              cs, str, str_end, pointer_cast<const char *>(wildstr),
+              wildend_arg, escape, w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
       } while (str != str_end);
@@ -949,10 +951,12 @@ pad_min_max:
 }
 
 static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
-                                  const char *str_end, const char *wildstr,
-                                  const char *wildend, int escape, int w_one,
-                                  int w_many, int recurse_level) {
+                                  const char *str_end, const char *wildstr_arg,
+                                  const char *wildend_arg, int escape,
+                                  int w_one, int w_many, int recurse_level) {
   int result = -1; /* Not found, using wildcards */
+  const uchar *wildstr = pointer_cast<const uchar *>(wildstr_arg);
+  const uchar *wildend = pointer_cast<const uchar *>(wildend_arg);
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level)) return 1;
   while (wildstr != wildend) {
@@ -963,7 +967,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
         if (str + l > str_end || memcmp(str, wildstr, l) != 0) return 1;
         str += l;
         wildstr += l;
-      } else if (str == str_end || *wildstr++ != *str++)
+      } else if (str == str_end || *wildstr++ != static_cast<uchar>(*str++))
         return (1); /* No match */
       if (wildstr == wildend)
         return (str != str_end); /* Match if both are at end */
@@ -979,7 +983,7 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
     }
     if (*wildstr == w_many) { /* Found w_many */
       int cmp;
-      const char *mb = wildstr;
+      const uchar *mb = wildstr;
       int mb_len = 0;
 
       wildstr++;
@@ -1010,16 +1014,17 @@ static int my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs, const char *str,
               str += mb_len;
               break;
             }
-          } else if (!my_ismbchar(cs, str, str_end) && *str == cmp) {
+          } else if (!my_ismbchar(cs, str, str_end) &&
+                     static_cast<uchar>(*str) == cmp) {
             str++;
             break;
           }
           INC_PTR(cs, str, str_end);
         }
         {
-          int tmp =
-              my_wildcmp_mb_bin_impl(cs, str, str_end, wildstr, wildend, escape,
-                                     w_one, w_many, recurse_level + 1);
+          int tmp = my_wildcmp_mb_bin_impl(
+              cs, str, str_end, pointer_cast<const char *>(wildstr),
+              wildend_arg, escape, w_one, w_many, recurse_level + 1);
           if (tmp <= 0) return (tmp);
         }
       } while (str != str_end);

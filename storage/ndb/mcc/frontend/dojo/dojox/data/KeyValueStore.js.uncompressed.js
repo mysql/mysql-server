@@ -1,25 +1,26 @@
-//>>built
-define("dojox/data/KeyValueStore", ["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/xhr", "dojo/_base/window", 
+define("dojox/data/KeyValueStore", ["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/xhr", "dojo/_base/kernel",
 		"dojo/data/util/simpleFetch", "dojo/data/util/filter"], 
-  function(declare, lang, xhr, winUtil, simpleFetch, filterUtil) {
+  function(declare, lang, xhr, kernel, simpleFetch, filterUtil) {
 
 var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
-	//	summary:
+	// summary:
 	//		This is a dojo.data store implementation.  It can take in either a Javascript
 	//		array, JSON string, or URL as the data source.  Data is expected to be in the
 	//		following format:
-	//			[
-	//				{ "key1": "value1" },
-	//				{ "key2": "value2" }
-	//			]
+	// |	[
+	// |		{ "key1": "value1" },
+	// |		{ "key2": "value2" }
+	// |	]
 	//		This is to mimic the Java Properties file format.  Each 'item' from this store
 	//		is a JS object representing a key-value pair.  If an item in the above array has
 	//		more than one key/value pair, only the first will be used/accessed.
 	constructor: function(/* Object */ keywordParameters){
-		//	summary: constructor
-		//	keywordParameters: {url: String}
-		//	keywordParameters: {data: string}
-		//	keywordParameters: {dataVar: jsonObject}
+		// summary:
+		//		constructor
+		// keywordParameters:
+		//		- {url: String}
+		//		- {data: string}
+		//		- {dataVar: jsonObject}
 		if(keywordParameters.url){
 			this.url = keywordParameters.url;
 		}
@@ -42,14 +43,14 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	url: "",
 	data: "",
 
-	//urlPreventCache: boolean
-	//Controls if urlPreventCache should be used with underlying xhrGet.
+	// urlPreventCache: boolean
+	//		Controls if urlPreventCache should be used with underlying xhrGet.
 	urlPreventCache: false,
 	
 	_assertIsItem: function(/* item */ item){
-		//	summary:
-		//      This function tests whether the item passed in is indeed an item in the store.
-		//	item:
+		// summary:
+		//		This function tests whether the item passed in is indeed an item in the store.
+		// item:
 		//		The item to test for being contained by the store.
 		if(!this.isItem(item)){
 			throw new Error("dojox.data.KeyValueStore: a function was passed an item argument that was not an item");
@@ -57,9 +58,9 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 	
 	_assertIsAttribute: function(/* item */ item, /* String */ attribute){
-		//	summary:
-		//      This function tests whether the item passed in is indeed a valid 'attribute' like type for the store.
-		//	attribute:
+		// summary:
+		//		This function tests whether the item passed in is indeed a valid 'attribute' like type for the store.
+		// attribute:
 		//		The attribute to test for being contained by the store.
 		if(!lang.isString(attribute)){
 			throw new Error("dojox.data.KeyValueStore: a function was passed an attribute argument that was not an attribute object nor an attribute name string");
@@ -67,13 +68,13 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 /***************************************
-     dojo.data.api.Read API
+     dojo/data/api/Read API
 ***************************************/
 	getValue: function(	/* item */ item,
 						/* attribute-name-string */ attribute,
 						/* value? */ defaultValue){
-		//	summary:
-		//		See dojo.data.api.Read.getValue()
+		// summary:
+		//		See dojo/data/api/Read.getValue()
 		this._assertIsItem(item);
 		this._assertIsAttribute(item, attribute);
 		var value;
@@ -90,24 +91,24 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 
 	getValues: function(/* item */ item,
 						/* attribute-name-string */ attribute){
-		//	summary:
-		//		See dojo.data.api.Read.getValues()
-		// 		Key/Value syntax does not support multi-valued attributes, so this is just a
-		// 		wrapper function for getValue().
+		// summary:
+		//		See dojo/data/api/Read.getValues()
+		//		Key/Value syntax does not support multi-valued attributes, so this is just a
+		//		wrapper function for getValue().
 		var value = this.getValue(item, attribute);
 		return (value ? [value] : []); //Array
 	},
 
 	getAttributes: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getAttributes()
+		// summary:
+		//		See dojo/data/api/Read.getAttributes()
 		return [this._keyAttribute, this._valueAttribute, item[this._keyAttribute]];
 	},
 
 	hasAttribute: function(	/* item */ item,
 							/* attribute-name-string */ attribute){
-		//	summary:
-		//		See dojo.data.api.Read.hasAttribute()
+		// summary:
+		//		See dojo/data/api/Read.hasAttribute()
 		this._assertIsItem(item);
 		this._assertIsAttribute(item, attribute);
 		return (attribute == this._keyAttribute || attribute == this._valueAttribute || attribute == item[this._keyAttribute]);
@@ -116,8 +117,8 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	containsValue: function(/* item */ item,
 							/* attribute-name-string */ attribute,
 							/* anything */ value){
-		//	summary:
-		//		See dojo.data.api.Read.containsValue()
+		// summary:
+		//		See dojo/data/api/Read.containsValue()
 		var regexp = undefined;
 		if(typeof value === "string"){
 			regexp = filterUtil.patternToRegExp(value, false);
@@ -126,23 +127,22 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 	_containsValue: function(	/* item */ item,
-								/* attribute || attribute-name-string */ attribute,
+								/* attribute|attribute-name-string */ attribute,
 								/* anything */ value,
 								/* RegExp?*/ regexp){
-		//	summary:
+		// summary:
 		//		Internal function for looking at the values contained by the item.
-		//	description:
+		// description:
 		//		Internal function for looking at the values contained by the item.  This
 		//		function allows for denoting if the comparison should be case sensitive for
 		//		strings or not (for handling filtering cases where string case should not matter)
-		//
-		//	item:
+		// item:
 		//		The data item to examine for attribute values.
-		//	attribute:
+		// attribute:
 		//		The attribute to inspect.
-		//	value:
+		// value:
 		//		The value to match.
-		//	regexp:
+		// regexp:
 		//		Optional regular expression generated off value if value was of string type to handle wildcarding.
 		//		If present and attribute values are string, then it can be used for comparison instead of 'value'
 		var values = this.getValues(item, attribute);
@@ -161,8 +161,8 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 	isItem: function(/* anything */ something){
-		//	summary:
-		//		See dojo.data.api.Read.isItem()
+		// summary:
+		//		See dojo/data/api/Read.isItem()
 		if(something && something[this._storeProp] === this){
 			return true; //Boolean
 		}
@@ -170,53 +170,55 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 	isItemLoaded: function(/* anything */ something){
-		//	summary:
-		//		See dojo.data.api.Read.isItemLoaded()
+		// summary:
+		//		See dojo/data/api/Read.isItemLoaded()
 		//		The KeyValueStore always loads all items, so if it's an item, then it's loaded.
 		return this.isItem(something); //Boolean
 	},
 
 	loadItem: function(/* object */ keywordArgs){
-		//	summary:
-		//		See dojo.data.api.Read.loadItem()
-		//	description:
+		// summary:
+		//		See dojo/data/api/Read.loadItem()
+		// description:
 		//		The KeyValueStore always loads all items, so if it's an item, then it's loaded.
-		//		From the dojo.data.api.Read.loadItem docs:
+		//
+		//		From the dojo/data/api/Read.loadItem docs:
+		//
 		//			If a call to isItemLoaded() returns true before loadItem() is even called,
 		//			then loadItem() need not do any work at all and will not even invoke
 		//			the callback handlers.
 	},
 
 	getFeatures: function(){
-		//	summary:
-		//		See dojo.data.api.Read.getFeatures()
+		// summary:
+		//		See dojo/data/api/Read.getFeatures()
 		return this._features; //Object
 	},
 
-	close: function(/*dojo.data.api.Request || keywordArgs || null */ request){
-		//	summary:
-		//		See dojo.data.api.Read.close()
+	close: function(/*dojo/data/api/Request|Object?*/ request){
+		// summary:
+		//		See dojo/data/api/Read.close()
 	},
 
 	getLabel: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getLabel()
+		// summary:
+		//		See dojo/data/api/Read.getLabel()
 		return item[this._keyAttribute];
 	},
 
 	getLabelAttributes: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Read.getLabelAttributes()
+		// summary:
+		//		See dojo/data/api/Read.getLabelAttributes()
 		return [this._keyAttribute];
 	},
 	
-	// The dojo.data.api.Read.fetch() function is implemented as
+	// The dojo/data/api/Read.fetch() function is implemented as
 	// a mixin from dojo.data.util.simpleFetch.
 	// That mixin requires us to define _fetchItems().
 	_fetchItems: function(	/* Object */ keywordArgs,
 							/* Function */ findCallback,
 							/* Function */ errorCallback){
-		//	summary:
+		// summary:
 		//		See dojo.data.util.simpleFetch.fetch()
 		
 		var self = this;
@@ -313,8 +315,9 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 	_handleQueuedFetches: function(){
-		//	summary:
+		// summary:
 		//		Internal function to execute delayed request in the store.
+		
 		//Execute any deferred fetches now.
 		if(this._queuedFetches.length > 0){
 			for(var i = 0; i < this._queuedFetches.length; i++){
@@ -352,11 +355,11 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 /***************************************
-     dojo.data.api.Identity API
+     dojo/data/api/Identity API
 ***************************************/
 	getIdentity: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Identity.getIdentity()
+		// summary:
+		//		See dojo/data/api/Identity.getIdentity()
 		if(this.isItem(item)){
 			return item[this._keyAttribute]; //String
 		}
@@ -364,14 +367,14 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 
 	getIdentityAttributes: function(/* item */ item){
-		//	summary:
-		//		See dojo.data.api.Identity.getIdentifierAttributes()
+		// summary:
+		//		See dojo/data/api/Identity.getIdentifierAttributes()
 		return [this._keyAttribute];
 	},
 
 	fetchItemByIdentity: function(/* object */ keywordArgs){
-		//	summary:
-		//		See dojo.data.api.Identity.fetchItemByIdentity()
+		// summary:
+		//		See dojo/data/api/Identity.fetchItemByIdentity()
 		keywordArgs.oldOnItem = keywordArgs.onItem;
 		keywordArgs.onItem = null;
 		keywordArgs.onComplete = this._finishFetchItemByIdentity ;
@@ -379,7 +382,7 @@ var KeyValueStore = declare("dojox.data.KeyValueStore", null, {
 	},
 	
 	_finishFetchItemByIdentity: function(/* Array */ items, /* object */ request){
-		var scope = request.scope || winUtil.global;
+		var scope = request.scope || kernel.global;
 		if(items.length){
 			request.oldOnItem.call(scope, items[0]);
 		}else{

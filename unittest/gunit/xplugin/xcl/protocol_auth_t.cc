@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ TEST_F(Xcl_protocol_impl_tests_auth, execute_authenticate_invalid_method) {
 }
 
 TEST_F(Xcl_protocol_impl_tests_auth, execute_authenticate_plain_method) {
-  expect_write_message(Auth_test_messages().msg_auth_start_plain);
+  expect_write_message(Auth_test_messages().msg_auth_start_plain.get());
   expect_read_message_without_payload(Auth_details::Authenticate_ok());
 
   assert_authenticate("PLAIN");
@@ -103,7 +103,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
 
   msg_error.set_code(expected_error_code);
 
-  expect_write_message(Auth_test_messages().msg_auth_start_plain);
+  expect_write_message(Auth_test_messages().msg_auth_start_plain.get());
   expect_read_message(msg_error);
 
   assert_authenticate("PLAIN", expected_error_code);
@@ -114,7 +114,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
   auto msg_stmt_ok =
       Server_message<::Mysqlx::Sql::StmtExecuteOk>::make_required();
 
-  expect_write_message(Auth_test_messages().msg_auth_start_plain);
+  expect_write_message(Auth_test_messages().msg_auth_start_plain.get());
   expect_read_message_without_payload(msg_stmt_ok);
 
   assert_authenticate("PLAIN", CR_MALFORMED_PACKET);
@@ -124,7 +124,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_io_error_at_write) {
   const int32 expected_error_code = 30002;
 
-  expect_write_message(Auth_test_messages().msg_auth_start_plain,
+  expect_write_message(Auth_test_messages().msg_auth_start_plain.get(),
                        expected_error_code);
 
   assert_authenticate("PLAIN", expected_error_code);
@@ -134,7 +134,7 @@ TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_io_error_at_read) {
   const int32 expected_error_code = 30003;
 
-  expect_write_message(Auth_test_messages().msg_auth_start_plain);
+  expect_write_message(Auth_test_messages().msg_auth_start_plain.get());
   expect_read_message_without_payload(Auth_details::Authenticate_ok(),
                                       expected_error_code);
 
@@ -149,9 +149,9 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message(msg_auth_cont_s);
-    expect_write_message(GetParam().m_continue_message);
+    expect_write_message(GetParam().m_continue_message.get());
     expect_read_message_without_payload(Auth_details::Authenticate_ok());
   }
 
@@ -165,7 +165,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
 
   msg_error.set_code(expected_error_code);
 
-  expect_write_message(GetParam().m_start_message);
+  expect_write_message(GetParam().m_start_message.get());
   expect_read_message(msg_error);
 
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
@@ -184,9 +184,9 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message(msg_auth_cont_s);
-    expect_write_message(GetParam().m_continue_message);
+    expect_write_message(GetParam().m_continue_message.get());
     expect_read_message(msg_error);
   }
 
@@ -200,7 +200,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message_without_payload(msg_unexpected);
   }
 
@@ -217,9 +217,9 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message(msg_auth_cont_s);
-    expect_write_message(GetParam().m_continue_message);
+    expect_write_message(GetParam().m_continue_message.get());
     expect_read_message_without_payload(msg_unexpected);
   }
 
@@ -232,7 +232,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   auto msg_auth_cont_s =
       Server_message<Auth_details::Authenticate_continue>::make_required();
 
-  expect_write_message(GetParam().m_start_message);
+  expect_write_message(GetParam().m_start_message.get());
   expect_read_message_without_payload(msg_auth_cont_s, expected_error_code);
 
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
@@ -247,9 +247,9 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message(msg_auth_cont_s);
-    expect_write_message(GetParam().m_continue_message);
+    expect_write_message(GetParam().m_continue_message.get());
     expect_read_message_without_payload(Auth_details::Authenticate_ok(),
                                         expected_error_code);
   }
@@ -261,7 +261,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_write_io_error1) {
   const int32 expected_error_code = 30008;
 
-  expect_write_message(GetParam().m_start_message, expected_error_code);
+  expect_write_message(GetParam().m_start_message.get(), expected_error_code);
 
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
 }
@@ -275,9 +275,10 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   {
     InSequence s;
 
-    expect_write_message(GetParam().m_start_message);
+    expect_write_message(GetParam().m_start_message.get());
     expect_read_message(msg_auth_cont_s);
-    expect_write_message(GetParam().m_continue_message, expected_error_code);
+    expect_write_message(GetParam().m_continue_message.get(),
+                         expected_error_code);
   }
 
   assert_authenticate(GetParam().m_auth_name, expected_error_code);

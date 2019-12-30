@@ -3,7 +3,7 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1 (a INT, KEY a(a)) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
-CREATE TABLE t3 (a INT) ENGINE=MyISAM;
+CREATE TABLE t3 (a INT) ENGINE=InnoDB;
 INSERT INTO t3 SELECT * FROM t1;
 CREATE TABLE trans (a INT) ENGINE=INNODB;
 CREATE PROCEDURE test_if_commit()
@@ -131,6 +131,11 @@ NO
 #
 select * from t2;
 a
+1
+2
+3
+4
+5
 INSERT INTO db1.trans (a) VALUES (1);
 update t2, t3 set t3.a=t2.a, t2.a=null where (1) in (select * from t1);
 CALL db1.test_if_commit();

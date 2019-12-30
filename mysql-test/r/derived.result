@@ -40,19 +40,19 @@ ERROR 42S22: Unknown column 'a' in 'having clause'
 select * from t1 as x1, (select * from t1) as x2;
 a	b	a	b
 1	a	1	a
-2	b	1	a
-3	c	1	a
-3	c	1	a
 1	a	2	b
+1	a	3	c
+1	a	3	c
+2	b	1	a
 2	b	2	b
+2	b	3	c
+2	b	3	c
+3	c	1	a
+3	c	1	a
 3	c	2	b
 3	c	2	b
-1	a	3	c
-2	b	3	c
 3	c	3	c
 3	c	3	c
-1	a	3	c
-2	b	3	c
 3	c	3	c
 3	c	3	c
 explain select * from t1 as x1, (select * from t1) as x2;
@@ -262,8 +262,8 @@ insert into t1 values (1),(2);
 select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 a	a
 1	1
-2	1
 1	2
+2	1
 2	2
 explain select * from ( select * from t1 union select * from t1) a,(select * from t1 union select * from t1) b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -282,6 +282,9 @@ CREATE TABLE `t1` (
 `N` int(11) unsigned NOT NULL default '0',
 `M` tinyint(1) default '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO `t1` (N, M) VALUES (1, 0),(1, 0),(1, 0),(2, 0),(2, 0),(3, 0);
 UPDATE `t1` AS P1 INNER JOIN (SELECT N FROM `t1` GROUP BY N HAVING Count(M) > 1) AS P2 ON P1.N = P2.N SET P1.M = 2;
 select * from t1;
@@ -311,23 +314,33 @@ SORTORDER int(11) NOT NULL auto_increment,
 KEY t1_SortIndex (SORTORDER),
 KEY t1_IdIndex (OBJECTID)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 ID int(11) default NULL,
 PARID int(11) default NULL,
 UNIQUE KEY t2_ID_IDX (ID),
 KEY t2_PARID_IDX (PARID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1000,0),(1001,0),(1002,0),(1003,0),(1008,1),(1009,1),(1010,1),(1011,1),(1016,2);
 CREATE TABLE t3 (
 ID int(11) default NULL,
 DATA decimal(10,2) default NULL,
 UNIQUE KEY t3_ID_IDX (ID)
 ) engine=MyISAM DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (1000,0.00),(1001,0.25),(1002,0.50),(1003,0.75),(1008,1.00),(1009,1.25),(1010,1.50),(1011,1.75);
 select 497, TMP.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from t1 join t2 on (t1.ObjectID = t2.ID) join t3 on (t1.ObjectID = t3.ID) group by t2.ParID order by DATA DESC) as TMP;
 497	ID	NULL
 drop table t1, t2, t3;
 CREATE TABLE t1 (name char(1) default NULL, val int(5) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('a',1),  ('a',2),  ('a',2),  ('a',2),  ('a',3),  ('a',6), ('a',7), ('a',11), ('a',11), ('a',12), ('a',13), ('a',13), ('a',20), ('b',2), ('b',3), ('b',4), ('b',5);
 SELECT s.name, AVG(s.val) AS median FROM (SELECT x.name, x.val FROM t1 x, t1 y WHERE x.name=y.name GROUP BY x.name, x.val HAVING SUM(y.val <= x.val) >= COUNT(*)/2 AND SUM(y.val >= x.val) >= COUNT(*)/2) AS s GROUP BY s.name;
 name	median
@@ -356,6 +369,9 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where (`
 drop table t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` ( `itemid` int(11) NOT NULL default '0', `grpid` varchar(15) NOT NULL default '', `vendor` int(11) NOT NULL default '0', `date_` date NOT NULL default '0000-00-00', `price` decimal(12,2) NOT NULL default '0.00', PRIMARY KEY  (`itemid`,`grpid`,`vendor`,`date_`), KEY `itemid` (`itemid`,`vendor`), KEY `itemid_2` (`itemid`,`date_`));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 insert into t1 values (128, 'rozn', 2, curdate(), 10),
 (128, 'rozn', 1, curdate(), 10);
 SELECT MIN(price) min, MAX(price) max, AVG(price) avg FROM (SELECT SUBSTRING( MAX(concat(date_,";",price)), 12) price FROM t1 WHERE itemid=128 AND  grpid='rozn' GROUP BY itemid, grpid, vendor) lastprices;
@@ -452,6 +468,8 @@ CREATE TABLE C (
 `col_varchar_nokey` varchar(1) DEFAULT NULL,
 KEY `col_varchar_key` (`col_varchar_key`,`col_int_key`)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO C VALUES (2,'w','w');
 INSERT INTO C VALUES (2,'d','d');
 SELECT SUM(DISTINCT table2.col_int_key) field1, 
@@ -568,7 +586,7 @@ ON table3 .`i1`  = table2 .o1
 EXPLAIN
 -> Index lookup on table3 using <auto_key0> (i1='m', i2='m')
     -> Materialize
-        -> Table scan on cc
+        -> Table scan on cc  (cost=0.70 rows=2)
 
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE cc;
@@ -583,6 +601,9 @@ CREATE TABLE `t1` (
 `col_int_key` int(11) DEFAULT NULL,
 `col_datetime_key` datetime DEFAULT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (2, 9, NULL), (3, 3, '1900-01-01 00:00:00'),
 (8, 8, '1900-01-01 00:00:00'), (15, 0, '2007-12-15 12:39:34');
 SELECT * FROM ( 
@@ -601,7 +622,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	tablea	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	tableb	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tableb`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where 1) `from_subquery`
+Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tableb`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where true) `from_subquery`
 EXPLAIN SELECT * FROM ( 
 SELECT DISTINCT tablea.col_datetime_key 
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
@@ -611,7 +632,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	tablea	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	tableb	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tablea`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where 1) `from_subquery`
+Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tablea`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where true) `from_subquery`
 DROP TABLE t1;
 #
 # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
@@ -661,8 +682,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f
 SELECT * FROM (SELECT * FROM t1 JOIN t2 ON f1=f2) tt;
 f1	f11	f2	f22
 1	1	1	1
-3	3	3	3
 2	2	2	2
+3	3	3	3
 explain for derived with where
 FLUSH STATUS;
 EXPLAIN 
@@ -735,8 +756,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f
 SELECT * FROM v2;
 f1	f11	f2	f22
 1	1	1	1
-3	3	3	3
 2	2	2	2
+3	3	3	3
 explain for views with where
 EXPLAIN SELECT * FROM v3 WHERE f11 IN (1,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -756,8 +777,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f2` = `test`.`t1`.`f1`) and (`test`.`t1`.`f1` in (2,3)) and (`test`.`t1`.`f1` in (2,3)))
 SELECT * FROM v3 JOIN v4 ON f1=f2;
 f1	f11	f2	f22
-3	3	3	3
 2	2	2	2
+3	3	3	3
 FLUSH STATUS;
 EXPLAIN SELECT * FROM v4 WHERE f2 IN (1,3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1390,6 +1411,8 @@ DROP TABLE t1;
 CREATE TABLE t1 (
 f1 int(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SELECT 1
 FROM (
 SELECT 1, 2 FROM DUAL
@@ -1433,6 +1456,9 @@ col_varchar_key varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key,col_int_key)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,8,'v'), (29,4,'c');
 CREATE TABLE t2 (  
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1440,11 +1466,16 @@ col_int_nokey int(11) DEFAULT NULL,
 col_varchar_key varchar(1) DEFAULT NULL,
 PRIMARY KEY (pk)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (16,1,'c'), (20,4,'d');
 CREATE TABLE t3 (
 `field1` varchar(1) DEFAULT NULL,
 `field2` int(11) DEFAULT NULL
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES ('m',6),('c',4);
 SELECT *
 FROM t3
@@ -1518,6 +1549,9 @@ col_varchar_key varchar(1) NOT NULL,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (10,1,'v'), (24,18,'h');
 CREATE TABLE t2 (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -1530,6 +1564,8 @@ PRIMARY KEY (pk),
 KEY col_date_key (col_date_key),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'1900-01-01','1900-01-01','00:00:00','k','k');
 SELECT OUTR.col_date_key
 FROM t2 AS OUTR2
@@ -1712,6 +1748,8 @@ CREATE TABLE t1 (
 `col_int_key` int(11) NOT NULL,
 `col_varchar_nokey` varchar(1) NOT NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (8,'m'), (4,'b'), (4,'x'), (7,'g'), (4,'p');
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT col_int_key
@@ -1734,8 +1772,12 @@ SET @@optimizer_switch= @save_switch;
 # Bug#13105833: Crash when using LooseScan sj-strategy for a view.
 #
 CREATE TABLE t1 (pk int(11)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1);
 CREATE TABLE t2 (pk int(11)) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1), (2), (3);
 CREATE VIEW v1 AS SELECT DISTINCT pk FROM t1;
 SELECT pk 
@@ -2021,7 +2063,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'grandparent.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'grandparent.col_int_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`)) join (/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent`) where ((`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and (`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and isnull(`grandparent`.`col_int_key`)) order by `grandparent`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent` join (/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`))) where ((`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and (`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and (`grandparent`.`col_int_key` is null)) order by `grandparent`.`col_varchar_nokey`
 SELECT grandparent.col_varchar_nokey AS g1
 FROM (SELECT * FROM t3) AS grandparent
 WHERE grandparent.col_varchar_nokey IN
@@ -2246,7 +2288,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
 SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -2256,7 +2298,7 @@ explain SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key1>	<auto_key1>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
@@ -2687,7 +2729,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 4	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((1 xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or isnull('10')), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((true xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
 SELECT outr.col_date_key AS x
 FROM (SELECT * FROM t1) AS outr2 LEFT JOIN (SELECT * FROM t2) AS outr
 ON outr2.col_varchar_key = outr.col_varchar_nokey
@@ -2756,7 +2798,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 5	SUBQUERY	t1	NULL	ref	col_varchar_key	col_varchar_key	6	test.t3.col_varchar_nokey	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where ((not(<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where 1 ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`))))))) or (`test`.`t1`.`pk` = 96))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where (<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_distinct_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`)))) is false) or (`test`.`t1`.`pk` = 96))
 SELECT table1.pk
 FROM (SELECT * FROM t1) AS table1
 LEFT JOIN
@@ -2843,7 +2885,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	t4	NULL	system	PRIMARY,col_int_key	NULL	NULL	NULL	1	100.00	NULL
 4	DEPENDENT SUBQUERY	t3	NULL	index	NULL	col_varchar_key	10	NULL	20	90.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or 0) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or isnull('7')), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or isnull('8')), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or false) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or ('7' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or ('8' is null)), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
 SELECT outr.pk AS x
 FROM (SELECT * FROM t1) AS outr2
 LEFT JOIN (SELECT * FROM t2) AS outr
@@ -2956,7 +2998,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where 1 ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where true ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_distinct_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
 SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
 SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)
 0
@@ -3012,7 +3054,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	sq2_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `field2` from `test`.`t1` `sq1_t1` semi join (`test`.`t1` `child_sq1_t2`) join `test`.`t2` `sq1_t3` join `test`.`t1` `sq1_t2` left join (`test`.`t1` `table2` join `test`.`t1` `sq2_t1`) on(((`test`.`sq2_t1`.`col_varchar_key` = `test`.`table2`.`col_varchar_key`))) where ((`test`.`child_sq1_t2`.`col_varchar_key` = `test`.`sq1_t1`.`col_varchar_key`) and (`test`.`sq1_t3`.`col_int_key` = `test`.`sq1_t2`.`pk`) and (`test`.`sq1_t3`.`pk` = `test`.`sq1_t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `field2` from `test`.`t1` `sq1_t1` join `test`.`t2` `sq1_t3` join `test`.`t1` `sq1_t2` semi join (`test`.`t1` `child_sq1_t2`) left join (`test`.`t1` `table2` join `test`.`t1` `sq2_t1`) on(((`test`.`sq2_t1`.`col_varchar_key` = `test`.`table2`.`col_varchar_key`))) where ((`test`.`child_sq1_t2`.`col_varchar_key` = `test`.`sq1_t1`.`col_varchar_key`) and (`test`.`sq1_t3`.`col_int_key` = `test`.`sq1_t2`.`pk`) and (`test`.`sq1_t3`.`pk` = `test`.`sq1_t2`.`pk`))
 SELECT table2.pk AS field2
 FROM (SELECT sq1_t2.pk
 FROM t1 AS sq1_t1
@@ -3069,7 +3111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select `test`.`child_sq1_t1`.`col_int_key` AS `child_sq2_field1` from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = `test`.`child_sq1_t1`.`col_int_key`) or isnull(`test`.`child_sq1_t1`.`col_int_key`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`child_sq1_t1`.`col_int_key`), true))))) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on((<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select `test`.`child_sq1_t1`.`col_int_key` AS `child_sq2_field1` from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = `test`.`child_sq1_t1`.`col_int_key`) or (`test`.`child_sq1_t1`.`col_int_key` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`child_sq1_t1`.`col_int_key`), true)) is false) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
 SELECT table1.pk AS field1,
 table2.pk field2
 FROM (SELECT sq1_t1.*
@@ -3241,7 +3283,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	MATERIALIZED	c_sq1_alias1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	90.00	Using where
 3	MATERIALIZED	c_sq1_alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `field1` from `test`.`t1` `sq1_alias1` semi join (`test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2`) join `test`.`t1` `sq1_alias2` join `test`.`t3` `sq2_alias2` left join `test`.`t2` `sq2_alias1` on((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where ((`test`.`c_sq1_alias2`.`col_varchar_nokey` = `test`.`c_sq1_alias1`.`col_varchar_key`) and (`test`.`sq1_alias1`.`col_varchar_nokey` = `<subquery3>`.`c_sq1_field1`) and (`test`.`sq1_alias2`.`pk` = `test`.`sq1_alias1`.`pk`) and (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`col_int_nokey`))
+Note	1003	/* select#1 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `field1` from `test`.`t1` `sq1_alias1` join `test`.`t1` `sq1_alias2` semi join (`test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2`) join `test`.`t3` `sq2_alias2` left join `test`.`t2` `sq2_alias1` on((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where ((`test`.`c_sq1_alias2`.`col_varchar_nokey` = `test`.`c_sq1_alias1`.`col_varchar_key`) and (`test`.`sq1_alias1`.`col_varchar_nokey` = `<subquery3>`.`c_sq1_field1`) and (`test`.`sq1_alias2`.`pk` = `test`.`sq1_alias1`.`pk`) and (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`col_int_nokey`))
 SELECT MIN(alias1.col_varchar_nokey) AS field1
 FROM (SELECT sq1_alias1.*
 FROM t1 AS sq1_alias1, t1 AS sq1_alias2
@@ -3477,7 +3519,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	t	NULL	ref	c2	c2	5	const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where 1 group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
+Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where true group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
 EXPLAIN SELECT * FROM (SELECT v1.a
 FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
 WHERE v1.a = 3
@@ -3515,7 +3557,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	index	k	k	5	NULL	2	100.00	Using where; Using index; LooseScan
 1	SIMPLE	t3	NULL	index	k	k	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` `t2` semi join (`test`.`t1` `t4`) join `test`.`t1` `t3` left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t3`.`k` = `test`.`t4`.`k`) and (`test`.`t4`.`k` > 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` `t2` join `test`.`t1` `t3` semi join (`test`.`t1` `t4`) left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t3`.`k` = `test`.`t4`.`k`) and (`test`.`t4`.`k` > 1))
 SELECT t1.k
 FROM t1 RIGHT JOIN
 (SELECT t2.*
@@ -3526,8 +3568,8 @@ WHERE t3.k IN (SELECT k FROM t1 AS t4 WHERE k>1)
 ON t1.pk = dt.pk;
 k
 10
-20
 10
+20
 20
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE t1;
@@ -3796,7 +3838,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where true
 SELECT t1_inv_date
 FROM t1 LEFT JOIN
 (SELECT curr.t2_end_date As end_date,
@@ -3831,7 +3873,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select /*+ MERGE(`periods`@`select#1`) */ `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (`test`.`t2` `curr`) on((((/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) < `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= 's:1'))) where 1
+Note	1003	/* select#1 */ select /*+ MERGE(`periods`@`select#1`) */ `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (`test`.`t2` `curr`) on((((/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) < `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= 's:1'))) where true
 SELECT /*+ MERGE(periods) */ t1_inv_date
 FROM t1 LEFT JOIN
 (SELECT curr.t2_end_date As end_date,
@@ -3864,7 +3906,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t1`.`a` <= `test`.`t3`.`c`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t1`.`a` <= `test`.`t3`.`c`))) where true
 SELECT * FROM t1 LEFT JOIN (
 SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
 ) AS sq ON a <= sq.c;
@@ -3974,6 +4016,8 @@ DROP TABLE t1, t2;
 # Bug#24364448: Assert m_opr_handle != null in
 #               ha_innobase_inmem::keys_to_use_for_scanning
 CREATE TABLE K (col_int int(11), col_varchar varchar(255)) charset latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO K VALUES (NULL,'m'), (NULL,'z');
 CREATE TABLE H (col_varchar varchar(255)) charset latin1;
 INSERT INTO H VALUES ('m'), ('z');
@@ -4067,6 +4111,8 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (
 col_int int(11) ,
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -4074,6 +4120,9 @@ col_varchar varchar(1) ,
 col_varchar_key varchar(1) ,
 PRIMARY KEY (pk)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (4,1,'s','r'), (9,19,'p','a');
 CREATE TABLE t3 (
 pk int(11) NOT NULL AUTO_INCREMENT,
@@ -4083,6 +4132,9 @@ col_varchar varchar(1) ,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t3 VALUES (100,2,'g',NULL);
 EXPLAIN SELECT table1.col_int
 FROM t3 AS table1
@@ -4102,7 +4154,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'table3.pk' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` semi join (`test`.`t3` `subquery2_t3`) join `test`.`t1` `subquery1_t1` where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
+Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` join `test`.`t1` `subquery1_t1` semi join (`test`.`t3` `subquery2_t3`) where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
 SELECT table1.col_int
 FROM t3 AS table1
 LEFT JOIN (
@@ -4132,6 +4184,10 @@ col_int_key int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (0,1,'i','n',125);
 INSERT INTO t1 VALUES (3,20,'b','o',0);
 CREATE TABLE t2 (
@@ -4143,6 +4199,10 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,'y','p',4,1);
 CREATE TABLE t3 (
 col_int int(11) DEFAULT NULL,
@@ -4153,6 +4213,10 @@ col_int_key int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 KEY col_int_key (col_int_key)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t4 (  col_int int(11) DEFAULT NULL,
 col_varchar varchar(1) DEFAULT NULL,
 col_int_key int(11) DEFAULT NULL,
@@ -4162,6 +4226,10 @@ PRIMARY KEY (pk),
 KEY col_varchar_key (col_varchar_key)
 ) ENGINE=MyISAM
 ;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t4 VALUES (7,'k',9,'z',20);
 SET optimizer_switch = 'firstmatch=off';
 EXPLAIN SELECT
@@ -4184,7 +4252,7 @@ FROM t3 AS subquery4_t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	subquery2_t2	NULL	system	PRIMARY,col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	subquery3_t1	NULL	system	col_varchar_key	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	7	const	1	100.00	Using where
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	7	const	1	100.00	Using where
 1	SIMPLE	subquery2_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 4	MATERIALIZED	subquery4_t1	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
 Warnings:

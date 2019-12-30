@@ -1,0 +1,23 @@
+select @@global.lock_order_debug_loop;
+@@global.lock_order_debug_loop
+0
+select @@session.lock_order_debug_loop;
+ERROR HY000: Variable 'lock_order_debug_loop' is a GLOBAL variable
+show global variables like 'lock_order_debug_loop';
+Variable_name	Value
+lock_order_debug_loop	OFF
+show session variables like 'lock_order_debug_loop';
+Variable_name	Value
+lock_order_debug_loop	OFF
+select * from performance_schema.global_variables
+where variable_name='lock_order_debug_loop';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_debug_loop	OFF
+select * from performance_schema.session_variables
+where variable_name='lock_order_debug_loop';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_debug_loop	OFF
+set global lock_order_debug_loop=1;
+ERROR HY000: Variable 'lock_order_debug_loop' is a read only variable
+set session lock_order_debug_loop=1;
+ERROR HY000: Variable 'lock_order_debug_loop' is a read only variable

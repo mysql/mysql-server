@@ -1,11 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	doNew: "[жаңа]",
-	edit: "[өңдеу]",
-	save: "[сақтау]",
-	cancel: "[болдырмау]"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/kk/FeedEntryEditor",({doNew:"[жаңа]",edit:"[өңдеу]",save:"[сақтау]",cancel:"[болдырмау]"}));

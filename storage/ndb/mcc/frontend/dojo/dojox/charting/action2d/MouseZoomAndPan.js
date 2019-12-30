@@ -1,6 +1,6 @@
 //>>built
-define("dojox/charting/action2d/MouseZoomAndPan",["dojo/_base/html","dojo/_base/declare","dojo/_base/window","dojo/_base/array","dojo/_base/event","dojo/_base/connect","./ChartAction","dojo/_base/sniff","dojo/dom-prop","dojo/keys"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
-var _b=_8("mozilla")?-3:120;
+define("dojox/charting/action2d/MouseZoomAndPan",["dojo/_base/declare","dojo/_base/window","dojo/_base/array","dojo/_base/event","dojo/_base/connect","dojo/mouse","./ChartAction","dojo/_base/sniff","dojo/dom-prop","dojo/keys"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
+var _b=_8("mozilla")?3:120;
 var _c={none:function(_d){
 return !_d.ctrlKey&&!_d.altKey&&!_d.shiftKey;
 },ctrl:function(_e){
@@ -10,8 +10,8 @@ return !_f.ctrlKey&&_f.altKey&&!_f.shiftKey;
 },shift:function(_10){
 return !_10.ctrlKey&&!_10.altKey&&_10.shiftKey;
 }};
-return _2("dojox.charting.action2d.MouseZoomAndPan",_7,{defaultParams:{axis:"x",scaleFactor:1.2,maxScale:100,enableScroll:true,enableDoubleClickZoom:true,enableKeyZoom:true,keyZoomModifier:"ctrl"},optionalParams:{},constructor:function(_11,_12,_13){
-this._listeners=[{eventName:!_8("mozilla")?"onmousewheel":"DOMMouseScroll",methodName:"onMouseWheel"}];
+return _1("dojox.charting.action2d.MouseZoomAndPan",_7,{defaultParams:{axis:"x",scaleFactor:1.2,maxScale:100,enableScroll:true,enableDoubleClickZoom:true,enableKeyZoom:true,keyZoomModifier:"ctrl"},optionalParams:{},constructor:function(_11,_12,_13){
+this._listeners=[{eventName:_6.wheel,methodName:"onMouseWheel"}];
 if(!_13){
 _13={};
 }
@@ -37,7 +37,7 @@ this.connect();
 if(_8("ie")){
 this.chart.node.releaseCapture();
 }
-_4.forEach(this._handles,_6.disconnect);
+_3.forEach(this._handles,_5.disconnect);
 this._handles=[];
 },connect:function(){
 this.inherited(arguments);
@@ -60,15 +60,15 @@ this._startCoord=_14.pageY;
 this._startOffset=_16.getWindowOffset();
 this._isPanning=true;
 if(_8("ie")){
-this._handles.push(_6.connect(this.chart.node,"onmousemove",this,"onMouseMove"));
-this._handles.push(_6.connect(this.chart.node,"onmouseup",this,"onMouseUp"));
+this._handles.push(_5.connect(this.chart.node,"onmousemove",this,"onMouseMove"));
+this._handles.push(_5.connect(this.chart.node,"onmouseup",this,"onMouseUp"));
 this.chart.node.setCapture();
 }else{
-this._handles.push(_6.connect(_3.doc,"onmousemove",this,"onMouseMove"));
-this._handles.push(_6.connect(_3.doc,"onmouseup",this,"onMouseUp"));
+this._handles.push(_5.connect(_2.doc,"onmousemove",this,"onMouseMove"));
+this._handles.push(_5.connect(_2.doc,"onmouseup",this,"onMouseUp"));
 }
 _15.node.focus();
-_5.stop(_14);
+_4.stop(_14);
 },onMouseMove:function(_17){
 if(this._isPanning){
 var _18=this.chart,_19=_18.getAxis(this.axis);
@@ -82,7 +82,7 @@ _18.render();
 this._isPanning=false;
 this._disconnectHandles();
 },onMouseWheel:function(_1e){
-var _1f=_1e[(_8("mozilla")?"detail":"wheelDelta")]/_b;
+var _1f=_1e.wheelDelta/_b;
 if(_1f>-1&&_1f<0){
 _1f=-1;
 }else{
@@ -111,7 +111,7 @@ _22.zoomIn(this.axis,[_29,_2a]);
 _22.setAxisWindow(this.axis,1,0);
 _22.render();
 }
-_5.stop(_21);
+_4.stop(_21);
 },_onZoom:function(_2b,_2c){
 var _2d=(_2b<0?Math.abs(_2b)*this.scaleFactor:1/(Math.abs(_2b)*this.scaleFactor));
 var _2e=this.chart,_2f=_2e.getAxis(this.axis);
@@ -123,6 +123,6 @@ var _31=_2f.getScaler(),_32=_31.bounds.from,end=_31.bounds.to;
 var _33=(_2c.type=="keypress")?(_32+end)/2:this.plot.toData({x:_2c.pageX,y:_2c.pageY})[this.axis];
 var _34=_2d*(_32-_33)+_33,_35=_2d*(end-_33)+_33;
 _2e.zoomIn(this.axis,[_34,_35]);
-_5.stop(_2c);
+_4.stop(_2c);
 }});
 });

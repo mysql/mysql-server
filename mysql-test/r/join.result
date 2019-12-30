@@ -65,7 +65,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`id` >= 74) and (`test`.`t1`.`id` <= 0))) where ((`test`.`t2`.`id` = 75) and isnull(`test`.`t1`.`id`))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t2`.`id` AS `id` from `test`.`t2` left join `test`.`t1` on(((`test`.`t1`.`id` >= 74) and (`test`.`t1`.`id` <= 0))) where ((`test`.`t2`.`id` = 75) and (`test`.`t1`.`id` is null))
 explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -85,6 +85,10 @@ KEY token (token(15)),
 KEY timestamp (timestamp),
 UNIQUE token_2 (token(75),count,phone)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET sql_mode = default;
 INSERT INTO t1 VALUES (21,'e45703b64de71482360de8fec94c3ade',3,7800,'n','1999-12-23 17:22:21');
 INSERT INTO t1 VALUES (22,'e45703b64de71482360de8fec94c3ade',4,5000,'y','1999-12-23 17:22:21');
@@ -107,6 +111,13 @@ nophones int(11) DEFAULT '0' NOT NULL,
 PRIMARY KEY (id),
 KEY category (category,county,state)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
 INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
@@ -145,10 +156,15 @@ a int(11) NOT NULL,
 b int(11) NOT NULL,
 PRIMARY KEY  (a,b)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(2,3);
 CREATE TABLE t2 (
 a int(11) default NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2),(3);
 SELECT t1.a,t2.a,b FROM t1,t2 WHERE t1.a=t2.a AND (t1.a=1 OR t1.a=2) AND b>=1 AND b<=3;
 a	a	b
@@ -175,8 +191,6 @@ d
 0000-00-00
 Warnings:
 Warning	1365	Division by 0
-Warning	1365	Division by 0
-Warning	1365	Division by 0
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 Document_ID varchar(50) NOT NULL default '',
@@ -197,6 +211,8 @@ CanRead char(1) default NULL,
 Customer_ID int(11) NOT NULL default '0',
 PRIMARY KEY  (Contractor_ID,Language_ID,Document_ID,Customer_ID)
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('5','ger','xep80','1',999999),('1','ger','xep80','1',999999);
 CREATE TABLE t3 (
 Language_ID char(3) NOT NULL default '',
@@ -258,12 +274,19 @@ max_value double default NULL,
 t3_id int(11) default NULL,
 item_id int(11) default NULL
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (12,5,'Percent','Cost',-1,0,-1,-1),(14,4,'Percent','Cost',-1,0,-1,-1),(18,5,'Percent','Cost',-1,0,-1,-1),(19,4,'Percent','Cost',-1,0,-1,-1),(20,5,'Percent','Cost',100,-1,22,291),(21,5,'Percent','Cost',100,-1,18,291),(22,1,'Percent','Cost',100,-1,6,291),(23,1,'Percent','Cost',100,-1,21,291),(24,1,'Percent','Cost',100,-1,9,291),(25,1,'Percent','Cost',100,-1,4,291),(26,1,'Percent','Cost',100,-1,20,291),(27,4,'Percent','Cost',100,-1,7,202),(28,1,'Percent','Cost',50,-1,-1,137),(29,2,'Percent','Cost',100,-1,4,354),(30,2,'Percent','Cost',100,-1,9,137),(93,2,'Cost','Cost',-1,10000000,-1,-1);
 CREATE TABLE t2 (
 id int(10) unsigned NOT NULL auto_increment,
 name varchar(255) default NULL,
 PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
 select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
 t1_id	t2_id	type	cost_unit	min_value	max_value	t3_id	item_id	id	name
@@ -769,7 +792,7 @@ statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statist
 columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT
 from information_schema.statistics join information_schema.columns using(table_name,column_name) where table_name='user';
 TABLE_NAME	COLUMN_NAME	TABLE_CATALOG	TABLE_SCHEMA	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLLATION	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	TABLE_CATALOG	TABLE_SCHEMA	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
-user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	60	180	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references	
+user	Host	def	mysql	0	mysql	PRIMARY	1	A	NULL	NULL		BTREE		def	mysql		NO	char	255	255	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	
 user	User	def	mysql	0	mysql	PRIMARY	2	A	NULL	NULL		BTREE		def	mysql		NO	char	32	96	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references	
 drop table t1;
 drop table t2;
@@ -1171,7 +1194,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on(1) left join (`test`.`t1` left join `test`.`t1` `t2` on(1)) on(rand()) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on(true) left join (`test`.`t1` left join `test`.`t1` `t2` on(true)) on((0 <> rand())) where true
 DROP VIEW v1;
 DROP TABLE t1;
 #
@@ -1186,7 +1209,7 @@ ROW(t1.b, 1111.11) <=> ROW('','');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `a` on(1) where 0
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `a` on(true) where false
 DROP TABLE t1;
 #
 # Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
@@ -1217,14 +1240,14 @@ CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
 ENGINE=MERGE  UNION=(t1,t2);
 SELECT t1.a FROM mm1,t1;
 a
-NULL
+1
+1
+1
 1
 NULL
-1
 NULL
-1
 NULL
-1
+NULL
 DROP TABLE t1, t2, mm1;
 #
 # Bug #54468: crash after item's print() function when ordering/grouping 
@@ -1411,7 +1434,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` on(1) left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where `test`.`t1`.`a`
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` on(true) left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (0 <> `test`.`t1`.`a`)
 SELECT 1
 FROM (SELECT 1 FROM t1 WHERE a) AS q
 NATURAL LEFT JOIN t1
@@ -1426,7 +1449,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join (`test`.`t1` `t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on(1) where `test`.`t1`.`a`
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join (`test`.`t1` `t2` left join `test`.`t1` on((`test`.`t1`.`a` = `test`.`t2`.`a`))) on(true) where (0 <> `test`.`t1`.`a`)
 SELECT 1
 FROM t1
 NATURAL RIGHT JOIN t1 AS t2
@@ -1718,3 +1741,38 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`parent` join `test`.`eq_child` `c1` join `test`.`eq_child` `c2` join `test`.`eq_child` `c3` join `test`.`eq_child` `c4` where ((`test`.`c1`.`a` = `test`.`parent`.`b`) and (`test`.`c1`.`b` = `test`.`parent`.`b`) and (`test`.`c2`.`a` = `test`.`parent`.`b`) and (`test`.`c2`.`b` = `test`.`parent`.`b`) and (`test`.`c3`.`a` = `test`.`parent`.`b`) and (`test`.`c3`.`b` = `test`.`parent`.`b`) and (`test`.`c4`.`a` = `test`.`parent`.`b`) and (`test`.`c4`.`b` = `test`.`parent`.`b`))
 drop table parent, eq_child;
+#
+# Bug #29954680: BACKWARDS REF SCAN DOES NOT PERFORM LATE NULLS FILTERING
+#
+CREATE TABLE t (i INTEGER PRIMARY KEY AUTO_INCREMENT, j INTEGER, KEY(j)) ENGINE=InnoDB;
+INSERT INTO t VALUES (NULL, NULL);
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+EXPLAIN
+-> Index scan on t1 using j  (cost=411.60 rows=4096)
+-> Select #2 (subquery in projection; dependent)
+    -> Limit: 1 row(s)
+        -> Index lookup on t2 using j (j=t1.j; iterate backwards)  (cost=410.97 rows=4096)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.j' of SELECT #2 was resolved in SELECT #1
+FLUSH STATUS;
+SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+SHOW STATUS LIKE 'Handler_read_key';
+Variable_name	Value
+Handler_read_key	1
+DROP TABLE t;

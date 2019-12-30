@@ -73,10 +73,21 @@ include/diff_tables.inc [server1:t1, server2:t1]
 # check that t2 exists and has same values in both servers
 include/diff_tables.inc [server1:t2, server2:t2]
 # check that t3 exists and has same values in both servers
+[connection server1]
+SET GLOBAL binlog_encryption=ON;
+CREATE TABLE t4 (c1 TEXT,c2 INT AUTO_INCREMENT PRIMARY KEY);
+# Adding debug point 'ensure_binlog_cache_temporary_file_is_encrypted' to @@GLOBAL.debug
+INSERT INTO t4(c1) VALUES (REPEAT('123', 16384.0));
+# Removing debug point 'ensure_binlog_cache_temporary_file_is_encrypted' from @@GLOBAL.debug
+SET GLOBAL binlog_encryption = OFF;
+include/rpl_sync.inc
+# check that t4 exists and has same values in both servers
+[connection server2]
 UNINSTALL PLUGIN keyring_file;
 [connection server1]
 UNINSTALL PLUGIN keyring_file;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t1;
+DROP TABLE t4;
 include/group_replication_end.inc

@@ -42,7 +42,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`v` AS `v` from `test`.`t1` where (@vv1:=(((@`vv1`) + 1) and (`test`.`t1`.`i` = (@`vv1`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`v` AS `v` from `test`.`t1` where (0 <> (@vv1:=((0 <> ((@`vv1`) + 1)) and (`test`.`t1`.`i` = (@`vv1`)))))
 explain select @vv1:=i from t1 where i=@vv1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i	4	NULL	3	33.33	Using where; Using index
@@ -527,8 +527,18 @@ a	b
 2	3
 DROP TABLE t1;
 CREATE TABLE t1 (f1 int(11) default NULL, f2 int(11) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2 (f1 int(11) default NULL, f2 int(11) default NULL, foo int(11));
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t3 (f1 int(11) default NULL, f2 int(11) default NULL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(10, 10);
 INSERT INTO t1 VALUES(10, 10);
 INSERT INTO t2 VALUES(10, 10, 10);
@@ -748,7 +758,7 @@ EXPLAIN
 }
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@`var1`) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) left join `test`.`t3` on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@`var1`) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) left join `test`.`t3` on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) where true
 SELECT t1.a, t2.a, t3.a, (@var1:= @var1+0) AS var
 FROM t1
 LEFT JOIN t2 ON t1.a=t2.a AND t2.a < @var1
@@ -813,7 +823,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (@x:=(@`x`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (0 <> (@x:=(@`x`))))
 explain SELECT a FROM t1 WHERE a = @x INTO @x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
@@ -835,3 +845,32 @@ ERROR 42000: Result consisted of more than one row
 SET @x= 2;
 SELECT a FROM t1 WHERE a = @x INTO @x;
 DROP TABLE t1;
+#
+# Bug#28960901: ASSERTION FAILED: (TLEN % 2) == 0
+#
+CREATE TABLE t1(a VARCHAR(10) CHARSET latin1, b VARCHAR(20) CHARSET utf16);
+INSERT INTO t1 VALUES ('a', 'abcd');
+SELECT (@x:=b) FROM t1;
+(@x:=b)
+abcd
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT * FROM t1 WHERE b = (SELECT (@x:=1) FROM t1) OR a = @x;
+a	b
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1292	Truncated incorrect DOUBLE value: ''
+SELECT (@x:=a) FROM t1;
+(@x:=a)
+a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT * FROM t1 WHERE a = (SELECT (@x:=_utf16 0x1023) FROM t1) OR b = @x;
+ERROR HY000: Invalid latin1 character string: '\x10\x23'
+DROP TABLE t1;
+#
+# Bug#29665165: REGRESSION: SOUNDS LIKE CRASHING TO ME
+#
+SET @c := FROM_UNIXTIME(1537002029);
+DO ((@c := (_utf32' -'))) SOUNDS LIKE(@c);
+ERROR HY000: Invalid latin1 character string: '\x00\x00\x20\x2D'

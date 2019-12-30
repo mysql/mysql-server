@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,11 +58,11 @@ extern ulong ib_trx_level_setting;
 extern ulong ib_bk_commit_interval;
 
 struct ib_sdi_key {
-  const dd::sdi_key_t *sdi_key;
+  const sdi_key_t *sdi_key;
 };
 
 struct ib_sdi_vector {
-  dd::sdi_vector_t *sdi_vector;
+  sdi_vector_t *sdi_vector;
 };
 
 /* Handles user errors and lock waits detected by the database engine.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_NOTICE_OUTPUT_QUEUE_INTERFACE_H_
 
 #include <memory>
+#include <string>
 
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/ngs/include/ngs/protocol_decoder.h"
+#include "plugin/x/src/interface/waiting_for_io.h"
 
 namespace ngs {
 
@@ -36,15 +38,16 @@ namespace ngs {
 class Notice_output_queue_interface {
  public:
   using Buffer_shared = std::shared_ptr<std::string>;
-  using Waiting_for_io_interface = Protocol_decoder::Waiting_for_io_interface;
 
  public:
   virtual ~Notice_output_queue_interface() = default;
 
+  virtual void set_encoder(Protocol_encoder_interface *encoder) = 0;
+
   virtual void emplace(const Notice_type type,
                        const Buffer_shared &binary_notice) = 0;
 
-  virtual Waiting_for_io_interface &get_callbacks_waiting_for_io() = 0;
+  virtual xpl::iface::Waiting_for_io *get_callbacks_waiting_for_io() = 0;
   virtual void encode_queued_items(const bool last_notice_does_force_fulsh) = 0;
 };
 

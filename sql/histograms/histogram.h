@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_HISTOGRAM_INCLUDED
 #define HISTOGRAMS_HISTOGRAM_INCLUDED
 
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -458,8 +458,8 @@ class Histogram {
     @param[out] selectivity the calculated selectivity if a usable histogram was
                             found
 
-    @retval true if an error occured (the Item provided was not a constant value
-            or similar).
+    @retval true if an error occurred (the Item provided was not a constant
+    value or similar).
     @return false if success
   */
   bool get_selectivity(Item **items, size_t item_count, enum_operator op,

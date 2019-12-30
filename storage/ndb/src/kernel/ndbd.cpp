@@ -48,6 +48,7 @@
 #include <EventLogger.hpp>
 #include <OutputStream.hpp>
 #include <LogBuffer.hpp>
+#include <NdbGetRUsage.h>
 
 #define JAM_FILE_ID 484
 
@@ -886,6 +887,24 @@ void* async_log_func(void* args)
   return NULL;
 }
 
+static void log_memusage(const char* where=NULL)
+{
+#ifdef DEBUG_RSS
+  const char* location = (where != NULL)?where : "Unknown";
+  ndb_rusage ru;
+  if (Ndb_GetRUsage(&ru, true) != 0)
+  {
+    g_eventLogger->error("Failed to get rusage");
+  }
+  else
+  {
+    g_eventLogger->info("ndbd.cpp %s : RSS : %llu kB", location, ru.ru_rss);
+  }
+#else
+  (void)where;
+#endif
+}
+
 void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
@@ -893,6 +912,7 @@ ndbd_run(bool foreground, int report_fd,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
          size_t logbuffer_size)
 {
+  log_memusage("ndbd_run");
   LogBuffer* logBuf = new LogBuffer(logbuffer_size);
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
@@ -980,7 +1000,11 @@ ndbd_run(bool foreground, int report_fd,
       "Normal start of data node using checkpoint and log info if existing");
   }
 
+  log_memusage("init1");
+
   globalEmulatorData.create();
+
+  log_memusage("Emulator init");
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
   if(!theConfig->init(no_start, initial, initialstart))
@@ -988,6 +1012,8 @@ ndbd_run(bool foreground, int report_fd,
     g_eventLogger->error("Failed to init Configuration");
     ndbd_exit(-1);
   }
+
+  log_memusage("Config init");
 
   /**
     Read the configuration from the assigned management server (could be
@@ -1013,6 +1039,8 @@ ndbd_run(bool foreground, int report_fd,
     // Ignore error
   }
 
+  log_memusage("Config fetch");
+
   theConfig->setupConfiguration();
 
 
@@ -1032,6 +1060,8 @@ ndbd_run(bool foreground, int report_fd,
   */
   NdbThread* pWatchdog = globalEmulatorData.theWatchDog->doStart();
 
+  log_memusage("Watchdog started");
+
   g_eventLogger->info("Memory Allocation for global memory pools Starting");
   {
     /*
@@ -1048,6 +1078,8 @@ ndbd_run(bool foreground, int report_fd,
   }
   g_eventLogger->info("Memory Allocation for global memory pools Completed");
 
+  log_memusage("Global memory pools allocated");
+
   /**
     Initialise the data of the run-time environment, this prepares the
     data setup for the various threads that need to communicate using
@@ -1057,6 +1089,8 @@ ndbd_run(bool foreground, int report_fd,
   globalEmulatorData.theThreadConfig->init();
 
   globalEmulatorData.theConfiguration->addThread(log_threadvar, NdbfsThread);
+
+  log_memusage("Thread config initialised");
 
 #ifdef VM_TRACE
   // Initialize signal logger before block constructors
@@ -1095,6 +1129,8 @@ ndbd_run(bool foreground, int report_fd,
   g_eventLogger->info("Loading blocks for data node run-time environment");
   // Load blocks (both main and workers)
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
+
+  log_memusage("Load blocks completed");
 
   catchsigs(foreground);
 

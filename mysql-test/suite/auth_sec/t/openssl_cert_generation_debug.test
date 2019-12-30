@@ -1,5 +1,4 @@
 --source include/have_debug.inc
---source include/have_openssl.inc
 
 --echo # 1. Setup
 --echo # We let our server restart attempts write to the file $error_log.

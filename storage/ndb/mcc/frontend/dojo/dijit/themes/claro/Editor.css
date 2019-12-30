@@ -10,18 +10,19 @@
 }
 .claro .dijitEditor .dijitEditorIFrameContainer {
   background-color: #ffffff;
-  background-image: url("form/images/textBox_back.png");
   background-repeat: repeat-x;
-}
-.dj_ie6 .claro .dijitEditor .dijitEditorIFrameContainer {
-  background-image: none;
 }
 .claro .dijitEditorHover .dijitEditorIFrameContainer, .claro .dijitEditorHover .dijitEditorIFrameContainer .dijitEditorIFrame {
   background-color: #e5f2fe;
 }
 .claro .dijitEditorFocused .dijitEditorIFrameContainer, .claro .dijitEditorFocused .dijitEditorIFrameContainer .dijitEditorIFrame {
-  
   background-color: #ffffff;
+}
+.claro .dijitEditorHover .dijitEditorIFrameContainer, .claro .dijitEditorFocused .dijitEditorIFrameContainer {
+  background-image: -moz-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+  background-image: -webkit-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+  background-image: -o-linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
+  background-image: linear-gradient(rgba(127, 127, 127, 0.2) 0%, rgba(127, 127, 127, 0) 2px);
 }
 .claro .dijitEditorDisabled {
   border: 1px solid #d3d3d3;

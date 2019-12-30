@@ -41,7 +41,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @name Archive file name prefix and constant length parameters. */
 /* @{ */
 /** Archive directory prefix */
-const char ARCH_DIR[] = "#ib_archive";
+const char ARCH_DIR[] = OS_FILE_PREFIX "ib_archive";
 
 /** Archive Log group directory prefix */
 const char ARCH_LOG_DIR[] = "log_group_";
@@ -85,9 +85,6 @@ void log_archiver_thread();
 
 /** Archiver thread event to signal that data is available */
 extern os_event_t log_archiver_thread_event;
-
-/** Global to indicate if log archiver thread is active. */
-extern bool log_archiver_is_active;
 
 /** Memory block size */
 constexpr uint ARCH_PAGE_BLK_SIZE = UNIV_PAGE_SIZE_DEF;
@@ -256,11 +253,12 @@ int start_page_archiver_background();
 /** Archiver thread event to signal that data is available */
 extern os_event_t page_archiver_thread_event;
 
-/** Global to indicate if page archiver thread is active. */
-extern bool page_archiver_is_active;
-
 /** Page archiver background thread */
 void page_archiver_thread();
+
+/** Wakes up archiver threads.
+@return true iff any thread was still alive */
+bool arch_wake_threads();
 
 /** Forward declarations */
 class Arch_Group;
@@ -779,7 +777,7 @@ class Arch_File_Ctx {
 #endif
 
   /** Fetch reset lsn of a particular reset point pertaining to a file.
-  @param[in]   block_num       block number where the reset occured.
+  @param[in]   block_num       block number where the reset occurred.
   @return reset lsn */
   lsn_t fetch_reset_lsn(uint64_t block_num);
 
@@ -1433,6 +1431,13 @@ class Arch_Log_Sys {
   Arch_Log_Sys &operator=(Arch_Log_Sys const &) = delete;
 
  private:
+  /** Wait for archive system to come out of #ARCH_STATE_PREPARE_IDLE.
+  If the system is preparing to idle, #start needs to wait
+  for it to come to idle state.
+  @return true, if successful
+          false, if needs to abort */
+  bool wait_idle();
+
   /** Wait for redo log archive up to the target LSN.
   We need to wait till current log sys LSN during archive stop.
   @param[in]	target_lsn	target archive LSN to wait for

@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source suite/ndb/include/have_little_endian.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 # runs before and after wl#946 / wl#6231
@@ -87,5 +86,6 @@ set time_zone = default;
 select @@session.time_zone;
 
 --exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

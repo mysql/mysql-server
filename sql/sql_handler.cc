@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,19 +162,19 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
   TABLE_LIST *hash_tables = NULL;
   char *db, *name, *alias;
   TABLE_LIST *tables = thd->lex->select_lex->get_table_list();
-  DBUG_ENTER("Sql_cmd_handler_open::execute");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'.'%s' as '%s'", tables->db, tables->table_name,
                        tables->alias));
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   if (tables->schema_table) {
     my_error(ER_WRONG_USAGE, MYF(0), "HANDLER OPEN",
              INFORMATION_SCHEMA_NAME.str);
     DBUG_PRINT("exit", ("ERROR"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -188,7 +188,7 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
     DBUG_PRINT("info", ("duplicate '%s'", tables->alias));
     DBUG_PRINT("exit", ("ERROR"));
     my_error(ER_NONUNIQ_TABLE, MYF(0), tables->alias);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* copy the TABLE_LIST struct */
@@ -201,7 +201,7 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
                         &name, name_alloc_len, &alias, alias_alloc_len,
                         NullS))) {
     DBUG_PRINT("exit", ("ERROR"));
-    DBUG_RETURN(true);
+    return true;
   }
   memcpy(db, tables->db, db_alloc_len);
   memcpy(name, tables->table_name, name_alloc_len);
@@ -211,7 +211,8 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  new (hash_tables) TABLE_LIST(tables->table, db, tables->db_length, name,
+  DBUG_ASSERT(tables->table == nullptr);
+  new (hash_tables) TABLE_LIST(db, tables->db_length, name,
                                tables->table_name_length, alias, MDL_SHARED);
 
   /* for now HANDLER can be used only for real TABLES */
@@ -228,13 +229,13 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
   {
     thd->handler_tables_hash.erase(alias);
     DBUG_PRINT("exit", ("ERROR"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   my_ok(thd);
 
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -253,7 +254,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
   uint counter;
   bool error;
 
-  DBUG_ENTER("mysql_ha_open_table");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
@@ -303,7 +304,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
     /* Safety, cleanup the pointer to satisfy MDL assertions. */
     hash_tables->mdl_request.ticket = NULL;
     DBUG_PRINT("exit", ("ERROR"));
-    DBUG_RETURN(true);
+    return true;
   }
   thd->set_open_tables(backup_open_tables);
   if (hash_tables->mdl_request.ticket) {
@@ -327,8 +328,17 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
   */
   hash_tables->table->open_by_handler = 1;
 
+  /*
+    Generated column expressions have been resolved using the MEM_ROOT of the
+    current HANDLER statement, which is cleared when the statement has finished.
+    Clean up the expressions so that subsequent HANDLER ... READ calls don't
+    access data allocated on a cleared MEM_ROOT. The generated column
+    expressions have to be re-resolved on each HANDLER ... READ call.
+  */
+  hash_tables->table->cleanup_value_generator_items();
+
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -345,13 +355,13 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
 
 bool Sql_cmd_handler_close::execute(THD *thd) {
   TABLE_LIST *tables = thd->lex->select_lex->get_table_list();
-  DBUG_ENTER("Sql_cmd_handler_close::execute");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'.'%s' as '%s'", tables->db, tables->table_name,
                        tables->alias));
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   auto it = thd->handler_tables_hash.find(tables->alias);
   if (it != thd->handler_tables_hash.end()) {
@@ -360,7 +370,7 @@ bool Sql_cmd_handler_close::execute(THD *thd) {
   } else {
     my_error(ER_UNKNOWN_TABLE, MYF(0), tables->alias, "HANDLER");
     DBUG_PRINT("exit", ("ERROR"));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -372,7 +382,7 @@ bool Sql_cmd_handler_close::execute(THD *thd) {
 
   my_ok(thd);
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -409,18 +419,18 @@ bool Sql_cmd_handler_read::execute(THD *thd) {
   ha_rows select_limit_cnt, offset_limit_cnt;
   MDL_savepoint mdl_savepoint;
   bool res;
-  DBUG_ENTER("Sql_cmd_handler_read::execute");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("'%s'.'%s' as '%s'", tables->db, tables->table_name,
                        tables->alias));
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
   if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     There is no need to check for table permissions here, because
@@ -574,9 +584,7 @@ retry:
   }
 
   if (m_key_name) {
-    keyno = find_type((char *)m_key_name, &table->s->keynames,
-                      FIND_TYPE_NO_PREFIX) -
-            1;
+    keyno = find_type(m_key_name, &table->s->keynames, FIND_TYPE_NO_PREFIX) - 1;
     if (keyno < 0) {
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), m_key_name, tables->alias);
       goto err;
@@ -611,6 +619,14 @@ retry:
   */
 
   table->file->init_table_handle_for_HANDLER();
+
+  /*
+    Resolve the generated column expressions. They have to be cleaned up before
+    returning, since the resolved expressions may point to memory allocated on
+    the MEM_ROOT of the current HANDLER ... READ statement, which will be
+    cleared when the statement has completed.
+  */
+  if (table->refix_value_generator_items(thd)) goto err;
 
   for (num_rows = 0; num_rows < select_limit_cnt;) {
     switch (mode) {
@@ -762,18 +778,20 @@ ok:
   trans_commit_stmt(thd);
   mysql_unlock_tables(thd, lock);
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
+  table->cleanup_value_generator_items();
   my_eof(thd);
   DBUG_PRINT("exit", ("OK"));
-  DBUG_RETURN(false);
+  return false;
 
 err:
   trans_rollback_stmt(thd);
   mysql_unlock_tables(thd, lock);
+  table->cleanup_value_generator_items();
 err1:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 err0:
   DBUG_PRINT("exit", ("ERROR"));
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -789,7 +807,7 @@ err0:
 
 static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables) {
   TABLE_LIST *head = NULL, *first = tables;
-  DBUG_ENTER("mysql_ha_find");
+  DBUG_TRACE;
 
   /* search for all handlers with matching table names */
   for (const auto &key_and_value : thd->handler_tables_hash) {
@@ -809,7 +827,7 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables) {
     }
   }
 
-  DBUG_RETURN(head);
+  return head;
 }
 
 /**
@@ -823,7 +841,7 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables) {
 
 void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables) {
   TABLE_LIST *hash_tables, *next;
-  DBUG_ENTER("mysql_ha_rm_tables");
+  DBUG_TRACE;
 
   DBUG_ASSERT(tables);
 
@@ -842,8 +860,6 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables) {
   */
   if (thd->handler_tables_hash.empty())
     thd->mdl_context.set_needs_thr_lock_abort(false);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -854,7 +870,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables) {
 */
 
 void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables) {
-  DBUG_ENTER("mysql_ha_flush_tables");
+  DBUG_TRACE;
 
   for (TABLE_LIST *table_list = all_tables; table_list;
        table_list = table_list->next_global) {
@@ -866,8 +882,6 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables) {
       hash_tables = next_local;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -879,7 +893,7 @@ void mysql_ha_flush_tables(THD *thd, TABLE_LIST *all_tables) {
 */
 void mysql_ha_flush_table(THD *thd, const char *db_name,
                           const char *table_name) {
-  DBUG_ENTER("mysql_ha_flush_table");
+  DBUG_TRACE;
 
   for (const auto &key_and_value : thd->handler_tables_hash) {
     TABLE_LIST *hash_tables = key_and_value.second.get();
@@ -890,8 +904,6 @@ void mysql_ha_flush_table(THD *thd, const char *db_name,
       if (hash_tables->table) mysql_ha_close_table(thd, hash_tables);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -904,7 +916,7 @@ void mysql_ha_flush_table(THD *thd, const char *db_name,
 */
 
 void mysql_ha_flush(THD *thd) {
-  DBUG_ENTER("mysql_ha_flush");
+  DBUG_TRACE;
 
   mysql_mutex_assert_not_owner(&LOCK_open);
 
@@ -913,7 +925,7 @@ void mysql_ha_flush(THD *thd) {
     system tables. The main MDL context is backed up and we can't
     properly release HANDLER locks stored there.
   */
-  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) DBUG_VOID_RETURN;
+  if (thd->state_flags & Open_tables_state::BACKUPS_AVAIL) return;
 
   for (const auto &key_and_value : thd->handler_tables_hash) {
     TABLE_LIST *hash_tables = key_and_value.second.get();
@@ -927,8 +939,6 @@ void mysql_ha_flush(THD *thd) {
           hash_tables->table->s->has_old_version())))
       mysql_ha_close_table(thd, hash_tables);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -942,7 +952,7 @@ void mysql_ha_flush(THD *thd) {
   @param thd Thread identifier.
 */
 void mysql_ha_rm_temporary_tables(THD *thd) {
-  DBUG_ENTER("mysql_ha_rm_temporary_tables");
+  DBUG_TRACE;
 
   TABLE_LIST *tmp_handler_tables = NULL;
   for (const auto &key_and_value : thd->handler_tables_hash) {
@@ -968,7 +978,6 @@ void mysql_ha_rm_temporary_tables(THD *thd) {
   if (thd->handler_tables_hash.empty()) {
     thd->mdl_context.set_needs_thr_lock_abort(false);
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -980,7 +989,7 @@ void mysql_ha_rm_temporary_tables(THD *thd) {
 */
 
 void mysql_ha_cleanup(THD *thd) {
-  DBUG_ENTER("mysql_ha_cleanup");
+  DBUG_TRACE;
 
   for (const auto &key_and_value : thd->handler_tables_hash) {
     TABLE_LIST *hash_tables = key_and_value.second.get();
@@ -988,8 +997,6 @@ void mysql_ha_cleanup(THD *thd) {
   }
 
   thd->handler_tables_hash.clear();
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1000,7 +1007,7 @@ void mysql_ha_cleanup(THD *thd) {
 */
 
 void mysql_ha_set_explicit_lock_duration(THD *thd) {
-  DBUG_ENTER("mysql_ha_set_explicit_lock_duration");
+  DBUG_TRACE;
 
   for (const auto &key_and_value : thd->handler_tables_hash) {
     TABLE_LIST *hash_tables = key_and_value.second.get();
@@ -1008,5 +1015,4 @@ void mysql_ha_set_explicit_lock_duration(THD *thd) {
       thd->mdl_context.set_lock_duration(hash_tables->table->mdl_ticket,
                                          MDL_EXPLICIT);
   }
-  DBUG_VOID_RETURN;
 }

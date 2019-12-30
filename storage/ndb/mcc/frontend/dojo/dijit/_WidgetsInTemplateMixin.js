@@ -1,10 +1,12 @@
 //>>built
-define("dijit/_WidgetsInTemplateMixin",["dojo/_base/array","dojo/_base/declare","dojo/parser","dijit/registry"],function(_1,_2,_3,_4){
+define("dijit/_WidgetsInTemplateMixin",["dojo/_base/array","dojo/_base/declare","dojo/parser"],function(_1,_2,_3){
 return _2("dijit._WidgetsInTemplateMixin",null,{_earlyTemplatedStartup:false,widgetsInTemplate:true,_beforeFillContent:function(){
 if(this.widgetsInTemplate){
-var _5=this.domNode;
-var cw=(this._startupWidgets=_3.parse(_5,{noStart:!this._earlyTemplatedStartup,template:true,inherited:{dir:this.dir,lang:this.lang,textDir:this.textDir},propsThis:this,scope:"dojo"}));
-this._supportingWidgets=_4.findWidgets(_5);
+var _4=this.domNode;
+var cw=(this._startupWidgets=_3.parse(_4,{noStart:!this._earlyTemplatedStartup,template:true,inherited:{dir:this.dir,lang:this.lang,textDir:this.textDir},propsThis:this,scope:"dojo"}));
+if(!cw.isFulfilled()){
+throw new Error(this.declaredClass+": parser returned unfilled promise (probably waiting for module auto-load), "+"unsupported by _WidgetsInTemplateMixin.   Must pre-load all supporting widgets before instantiation.");
+}
 this._attachTemplateNodes(cw,function(n,p){
 return n[p];
 });

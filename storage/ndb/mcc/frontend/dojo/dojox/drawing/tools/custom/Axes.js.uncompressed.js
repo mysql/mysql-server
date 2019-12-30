@@ -1,25 +1,14 @@
-//>>built
-// wrapped by build app
-define("dojox/drawing/tools/custom/Axes", ["dijit","dojo","dojox","dojo/require!dojox/drawing/stencil/Path"], function(dijit,dojo,dojox){
-dojo.provide("dojox.drawing.tools.custom.Axes");
-dojo.require("dojox.drawing.stencil.Path");
+define("dojox/drawing/tools/custom/Axes", ["dojo/_base/lang", "../../util/oo", "../../manager/_registry", "../../stencil/Path",
+	"../../annotations/Arrow", "../../annotations/Label", "../../tools/custom/Vector"],
+function(lang, oo, registry, StencilPath, Arrow, Label, Vector){
 
-
-dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
-	// summary:
-	//		Draws a right-angle Axes (shaped like an L, not a +)
-	// description:
-	//		This Stencil is created with a Path so that the L shape
-	//		is one continuous piece. Arrow heads are placed at the end
-	// 		of each axis. The Axes can be rotated. There are custom
-	// 		label methods.
-	//
-	dojox.drawing.stencil.Path,
+var Axes = oo.declare(
+	StencilPath,
 	function(options){
 		this.closePath = false;
 
-		this.xArrow = new dojox.drawing.annotations.Arrow({stencil:this, idx1:0, idx2:1});
-		this.yArrow = new dojox.drawing.annotations.Arrow({stencil:this, idx1:2, idx2:1});
+		this.xArrow = new Arrow({stencil:this, idx1:0, idx2:1});
+		this.yArrow = new Arrow({stencil:this, idx1:2, idx2:1});
 		if(options.data){
 			//Allows import of z-axis in non-enabled canvas and xy-axis in
 			//enabled canvas
@@ -31,8 +20,8 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			// there is no switching back and forth for the axis, only for vectors.
 			this.data.cosphi = 1;
 			var ops = {};
-			dojo.mixin(ops,options);
-			dojo.mixin(ops,{
+			lang.mixin(ops,options);
+			lang.mixin(ops,{
 				container:this.container.createGroup(),
 				style: this.style,
 				showAngle: false,
@@ -43,7 +32,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 				ops.data.y2 = ops.data.y4;
 			}
 			ops.style.zAxis = true;
-			this.zAxis = new dojox.drawing.tools.custom.Vector(ops);
+			this.zAxis = new Vector(ops);
 			this.zAxis.minimumSize = 5;
 			//console.log("-----constructing axes: ",this.zAxis);
 			this.connectMult([
@@ -56,7 +45,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 				[this.zAxis, "onBeforeRender", this, "zSet"],
 				[this, "_onPostRender", this.zAxis, "render"]
 			]);
-			
+
 		}
 
 		if(this.points && this.points.length){
@@ -69,6 +58,14 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		}
 	},
 	{
+		// summary:
+		//		Draws a right-angle Axes (shaped like an L, not a +)
+		// description:
+		//		This Stencil is created with a Path so that the L shape
+		//		is one continuous piece. Arrow heads are placed at the end
+		//		of each axis. The Axes can be rotated. There are custom
+		//		label methods.
+
 		draws:true,
 		type:"dojox.drawing.tools.custom.Axes",
 		minimumSize:30,
@@ -76,7 +73,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		closePath:false,
 		baseRender:false,
 		zScale:.5,
-		
+
 		zPoint: function(obj){
 			// summary:
 			//		Finds the point for the z axis.
@@ -84,7 +81,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			var pt = this.util.pointOnCircle(obj.start.x, obj.start.y, obj.radius*this.zScale, this.style.zAngle);
 			return {x:pt.x, y:pt.y, skip:true, noAnchor:true};
 		},
-		
+
 		zSet: function(){
 			if(!this.zAxis){ return; };
 			var c = this.points[1];
@@ -97,21 +94,21 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			len > this.zAxis.minimumSize ? this.zAxis.setPoints(p) : false;
 			this.zAxis.cosphi = 1;
 		},
-		
+
 		createLabels: function(){
 			// summary:
 			//		Creates the label for each axis.
-			//
+
 			// NOTE: Not passing style into text because it's changing it
 			var props = {align:"middle", valign:"middle", util:this.util, annotation:true, container:this.container, mouse:this.mouse, stencil:this};
-			this.labelX = new dojox.drawing.annotations.Label(dojo.mixin(props,{
+			this.labelX = new Label(lang.mixin(props,{
 				labelPosition:this.setLabelX
 			}));
-			this.labelY = new dojox.drawing.annotations.Label(dojo.mixin(props,{
+			this.labelY = new Label(lang.mixin(props,{
 				labelPosition:this.setLabelY
 			}));
 			if(this.style.zAxisEnabled){
-				this.labelZ = new dojox.drawing.annotations.Label(dojo.mixin(props,{
+				this.labelZ = new Label(lang.mixin(props,{
 					labelPosition:this.setLabelZ
 				}));
 			}
@@ -121,7 +118,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		setLabelX: function(){
 			// summary:
 			//		Custom placement for x-axis label
-			//
+
 			var ax = this.points[0];
 			var c =  this.points[1];
 
@@ -143,7 +140,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		setLabelY: function(){
 			// summary:
 			//		Custom placement for y-axis label
-			//
+
 			var c =  this.points[1];
 			var ay = this.points[2];
 
@@ -163,10 +160,10 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		setLabelZ: function(){
 			// summary:
 			//		Custom placement for z-axis label
-			//
+
 			var c = this.points[1];
 			var z = this.points[3];
-			
+
 			var dist = 40;
 			var offdist = 20;
 			var pt, px, py, pt2;
@@ -174,7 +171,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			px = pt.x + (pt.y - z.y);
 			py = pt.y + (z.x - pt.x);
 			pt2 = this.util.lineSub(pt.x, pt.y, px, py, (dist-offdist));
-			
+
 			return {
 				x:pt2.x,
 				y:pt2.y,
@@ -185,13 +182,12 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Set the text of the labels. The text would be
 			//		broken up into the two labels.
-			// arguments:
-			//		value: [optional] String
-			//			If no argument is passed, defaults to two labels
-			//			'x' and 'y'. If an argument is passed, that
-			//			text will be split on the word 'and' to determine
-			//			the two labels.
-			//
+			// value: [optional] String
+			//		If no argument is passed, defaults to two labels
+			//		'x' and 'y'. If an argument is passed, that
+			//		text will be split on the word 'and' to determine
+			//		the two labels.
+
 			if(this._labelsCreated){ return; }
 			!this.labelX && this.createLabels();
 			var x = "x";
@@ -227,7 +223,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		getLabel: function(){
 			// summary:
 			//		Getter for the labels. returns an object.
-			//
+
 			if(!this.labelX){ return null; }
 			return {
 				x:this.labelX.getText(),
@@ -240,8 +236,8 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			// summary:
 			//		Gets called from anchor to check if its current
 			//		position is ok. If not, its x or y transform will
-			// 		be changed until this passes.
-			//
+			//		be changed until this passes.
+
 			var pm = this.container.getParent().getTransform();
 			var am = anchor.shape.getTransform();
 
@@ -262,7 +258,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		onTransformBegin: function(/*manager.Anchor*/anchor){
 			// summary:
 			//		Overwrites _Base.onTransformBegin
-			//
+
 			// called from anchor point up mouse down
 			this._isBeingModified = true;
 		},
@@ -270,12 +266,12 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		onTransformEnd: function(/*manager.Anchor*/anchor){
 			// summary:
 			//		Overwrites _Base.onTransformEnd
-			//
+
 			// Gets called on anchor mouseup
-			//	also gets called by checkBounds - we don't want that.
+			// also gets called by checkBounds - we don't want that.
 			if(!anchor){ return; }
 
-			//	tell anchor to go to prev point if wrong
+			// tell anchor to go to prev point if wrong
 			// called from anchor point up mouse up
 
 			this._isBeingModified = false;
@@ -313,7 +309,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 			}
 
 			// we're outside of the constraint. Set to the low or high.
-			this.points[0].x = pt.x
+			this.points[0].x = pt.x;
 			this.points[0].y = pt.y;
 			o = this.points[0];
 
@@ -341,7 +337,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		getBounds: function(/*Boolean*/absolute){
 			// summary:
 			//		Custom getBounds overwrites _Base.getBounds
-			//
+
 			var px = this.points[0],
 			    pc = this.points[1],
 			    py = this.points[2];
@@ -384,9 +380,9 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 
 		_postSetPoints: function(/*Array*/pts){
 			// summary:
-			// 		Because Axes only has one anchor,
-			// 		we substitute a special setPoints method
-			//
+			//		Because Axes only has one anchor,
+			//		we substitute a special setPoints method
+
 			this.points[0] = pts[0];
 			if(this.pointsToData){
 				this.data = this.pointsToData();
@@ -396,7 +392,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		onTransform: function(/*Number*/anchor){
 			// summary:
 			//		Overwrites _Base.onTransform
-			//
+
 			// the xaxis point has changed - the center will not.
 			// need to find the yaxis point.
 			var o = this.points[0];
@@ -418,7 +414,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		},
 
 		pointsToData: function(){
-			//summary:
+			// summary:
 			//		Converts points to data.
 			var p = this.points;
 			var d = {
@@ -435,11 +431,11 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 				d.cosphi = 1;
 			}
 			return d;
-			
+
 		},
-		
+
 		getRadius: function(){
-			//summary:
+			// summary:
 			//		Possibility of z-axis makes bounds unreliable.
 			//		Use these points instead.
 			var p = this.points;
@@ -448,7 +444,7 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		},
 
 		dataToPoints: function(/* ? Object*/o){
-			//summary:
+			// summary:
 			//		Converts data to points.
 			o = o || this.data;
 			if(o.radius || o.angle){
@@ -486,8 +482,9 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		},
 
 		onDrag: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onDrag
-			//
+			// summary:
+			//		See stencil._Base.onDrag
+
 			var pt = this.util.constrainAngle(obj, 0, 89);
 			obj.x = pt.x;
 			obj.y = pt.y;
@@ -508,8 +505,9 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 		},
 
 		onUp: function(/*EventObject*/obj){
-			// summary: See stencil._Base.onUp
-			//
+			// summary:
+			//		See stencil._Base.onUp
+
 			if(!this._downOnCanvas){ return; }
 			this._downOnCanvas = false;
 			var p = this.points;
@@ -566,12 +564,16 @@ dojox.drawing.tools.custom.Axes = dojox.drawing.util.oo.declare(
 	}
 );
 
-dojox.drawing.tools.custom.Axes.setup = {
-	// summary: See stencil._Base ToolsSetup
-	//
+lang.setObject("dojox.drawing.tools.custom.Axes", Axes);
+Axes.setup = {
+	// summary:
+	//		See stencil._Base ToolsSetup
+
 	name:"dojox.drawing.tools.custom.Axes",
 	tooltip:"Axes Tool",
 	iconClass:"iconAxes"
 };
-dojox.drawing.register(dojox.drawing.tools.custom.Axes.setup, "tool");
+registry.register(Axes.setup, "tool");
+
+return Axes;
 });

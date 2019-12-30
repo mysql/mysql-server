@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,12 +67,12 @@ static void timer_callback(my_timer_t *);
 
 static THD_timer_info *thd_timer_create(void) {
   THD_timer_info *thd_timer;
-  DBUG_ENTER("thd_timer_create");
+  DBUG_TRACE;
 
   thd_timer = (THD_timer_info *)my_malloc(key_memory_thd_timer,
                                           sizeof(THD_timer_info), MYF(MY_WME));
 
-  if (thd_timer == NULL) DBUG_RETURN(NULL);
+  if (thd_timer == NULL) return NULL;
 
   thd_timer->thread_id = 0;
   mysql_mutex_init(key_thd_timer_mutex, &thd_timer->mutex, MY_MUTEX_INIT_FAST);
@@ -81,12 +81,12 @@ static THD_timer_info *thd_timer_create(void) {
 
   if (DBUG_EVALUATE_IF("thd_timer_create_failure", 0, 1) &&
       !my_timer_create(&thd_timer->timer))
-    DBUG_RETURN(thd_timer);
+    return thd_timer;
 
   mysql_mutex_destroy(&thd_timer->mutex);
   my_free(thd_timer);
 
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -155,11 +155,11 @@ static void timer_callback(my_timer_t *timer) {
 
 THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
                               unsigned long time) {
-  DBUG_ENTER("thd_timer_set");
+  DBUG_TRACE;
 
   /* Create a new thread timer object if one was not provided. */
   if (thd_timer == NULL && (thd_timer = thd_timer_create()) == NULL)
-    DBUG_RETURN(NULL);
+    return NULL;
 
   DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
 
@@ -169,12 +169,12 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   /* Arm the timer. */
   if (DBUG_EVALUATE_IF("thd_timer_set_failure", 0, 1) &&
       !my_timer_set(&thd_timer->timer, time))
-    DBUG_RETURN(thd_timer);
+    return thd_timer;
 
   /* Dispose of the (cached) timer object. */
   thd_timer_destroy(thd_timer);
 
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -217,7 +217,7 @@ static bool reap_timer(THD_timer_info *thd_timer, bool pending) {
 THD_timer_info *thd_timer_reset(THD_timer_info *thd_timer) {
   bool unreachable;
   int status, state;
-  DBUG_ENTER("thd_timer_cancel");
+  DBUG_TRACE;
 
   status = my_timer_cancel(&thd_timer->timer, &state);
 
@@ -230,7 +230,7 @@ THD_timer_info *thd_timer_reset(THD_timer_info *thd_timer) {
   thd_timer->destroy = !unreachable;
   mysql_mutex_unlock(&thd_timer->mutex);
 
-  DBUG_RETURN(unreachable ? thd_timer : NULL);
+  return unreachable ? thd_timer : NULL;
 }
 
 /**
@@ -240,11 +240,9 @@ THD_timer_info *thd_timer_reset(THD_timer_info *thd_timer) {
 */
 
 void thd_timer_destroy(THD_timer_info *thd_timer) {
-  DBUG_ENTER("thd_timer_destroy");
+  DBUG_TRACE;
 
   my_timer_delete(&thd_timer->timer);
   mysql_mutex_destroy(&thd_timer->mutex);
   my_free(thd_timer);
-
-  DBUG_VOID_RETURN;
 }

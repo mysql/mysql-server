@@ -78,6 +78,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       gcol_info(old_field->gcol_info),
       stored_in_db(old_field->stored_in_db),
       m_default_val_expr(old_field->m_default_val_expr),
+      is_array(old_field->is_array()),
       m_max_display_width_in_codepoints(old_field->char_length()) {
   switch (sql_type) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -139,7 +140,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
 
       /* Get the value from default_values */
-      my_ptrdiff_t diff = orig_field->table->default_values_offset();
+      ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values
       if (!orig_field->is_real_null()) {
         StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
@@ -178,6 +179,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
   @param srid                  The SRID specification. This might be null
                                (has_value() may return false).
   @param hidden                Whether this column should be hidden or not.
+  @param is_array_arg          Whether the field is a typed array
 
   @retval
     false on success.
@@ -189,15 +191,16 @@ bool Create_field::init(
     THD *thd, const char *fld_name, enum_field_types fld_type,
     const char *display_width_in_codepoints, const char *fld_decimals,
     uint fld_type_modifier, Item *fld_default_value, Item *fld_on_update_value,
-    LEX_STRING *fld_comment, const char *fld_change,
+    LEX_CSTRING *fld_comment, const char *fld_change,
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
     Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
-    Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden) {
+    Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
+    bool is_array_arg) {
   uint sign_len, allowed_type_modifier = 0;
   ulong max_field_charlength = MAX_FIELD_CHARLENGTH;
 
-  DBUG_ENTER("Create_field::init()");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
 
@@ -214,6 +217,7 @@ bool Create_field::init(
   auto_flags = Field::NONE;
   maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
   this->hidden = hidden;
+  is_array = is_array_arg;
 
   if (fld_default_value != NULL &&
       fld_default_value->type() == Item::FUNC_ITEM) {
@@ -240,12 +244,12 @@ bool Create_field::init(
     if (decimals > DATETIME_MAX_DECIMALS) {
       my_error(ER_TOO_BIG_PRECISION, MYF(0), decimals, fld_name,
                DATETIME_MAX_DECIMALS);
-      DBUG_RETURN(true);
+      return true;
     }
-  } else if (decimals >= NOT_FIXED_DEC) {
+  } else if (decimals >= DECIMAL_NOT_SPECIFIED) {
     my_error(ER_TOO_BIG_SCALE, MYF(0), decimals, fld_name,
-             static_cast<ulong>(NOT_FIXED_DEC - 1));
-    DBUG_RETURN(true);
+             static_cast<ulong>(DECIMAL_NOT_SPECIFIED - 1));
+    return true;
   }
 
   sql_type = fld_type;
@@ -280,11 +284,11 @@ bool Create_field::init(
       sql_type = fld_type = gcol_info->get_real_type();
       if (pre_validate_value_generator_expr(gcol_info->expr_item, field_name,
                                             VGS_GENERATED_COLUMN))
-        DBUG_RETURN(true);
+        return true;
     } else {
       if (pre_validate_value_generator_expr(m_default_val_expr->expr_item,
                                             field_name, VGS_DEFAULT_EXPRESSION))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
@@ -312,7 +316,7 @@ bool Create_field::init(
         my_strtoull(display_width_in_codepoints, nullptr, 10);
     if ((errno != 0) || (ull_length > MAX_FIELD_BLOBLENGTH)) {
       my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name, MAX_FIELD_BLOBLENGTH);
-      DBUG_RETURN(true);
+      return true;
     }
     m_max_display_width_in_codepoints = static_cast<size_t>(ull_length);
     m_explicit_display_width = true;
@@ -360,11 +364,11 @@ bool Create_field::init(
         my_error(ER_TOO_BIG_PRECISION, MYF(0),
                  static_cast<int>(m_max_display_width_in_codepoints), fld_name,
                  static_cast<ulong>(DECIMAL_MAX_PRECISION));
-        DBUG_RETURN(true);
+        return true;
       }
       if (m_max_display_width_in_codepoints < decimals) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
+        return true;
       }
       m_max_display_width_in_codepoints = my_decimal_precision_to_length(
           m_max_display_width_in_codepoints, decimals,
@@ -393,7 +397,7 @@ bool Create_field::init(
         if (res->length() || thd->is_strict_mode()) {
           my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0),
                    fld_name); /* purecov: inspected */
-          DBUG_RETURN(true);
+          return true;
         } else {
           /*
             Otherwise a default of '' is just a warning.
@@ -410,7 +414,7 @@ bool Create_field::init(
     case MYSQL_TYPE_GEOMETRY:
       if (fld_default_value) {
         my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
-        DBUG_RETURN(true);
+        return true;
       }
       flags |= BLOB_FLAG;
       break;
@@ -427,35 +431,35 @@ bool Create_field::init(
         size_t tmp_length = m_max_display_width_in_codepoints;
         if (tmp_length > PRECISION_FOR_DOUBLE) {
           my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
-          DBUG_RETURN(true);
+          return true;
         } else if (tmp_length > PRECISION_FOR_FLOAT) {
           sql_type = MYSQL_TYPE_DOUBLE;
           m_max_display_width_in_codepoints = MAX_DOUBLE_STR_LENGTH;
         } else
           m_max_display_width_in_codepoints = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
         break;
       }
       if (!display_width_in_codepoints && !fld_decimals) {
         m_max_display_width_in_codepoints = MAX_FLOAT_STR_LENGTH;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
       }
       if (m_max_display_width_in_codepoints < decimals &&
-          decimals != NOT_FIXED_DEC) {
+          decimals != DECIMAL_NOT_SPECIFIED) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
+        return true;
       }
       break;
     case MYSQL_TYPE_DOUBLE:
       allowed_type_modifier = AUTO_INCREMENT_FLAG;
       if (!display_width_in_codepoints && !fld_decimals) {
         m_max_display_width_in_codepoints = DBL_DIG + 7;
-        decimals = NOT_FIXED_DEC;
+        decimals = DECIMAL_NOT_SPECIFIED;
       }
       if (m_max_display_width_in_codepoints < decimals &&
-          decimals != NOT_FIXED_DEC) {
+          decimals != DECIMAL_NOT_SPECIFIED) {
         my_error(ER_M_BIGGER_THAN_D, MYF(0), fld_name);
-        DBUG_RETURN(true);
+        return true;
       }
       break;
     case MYSQL_TYPE_TIMESTAMP:
@@ -518,16 +522,17 @@ bool Create_field::init(
     case MYSQL_TYPE_BIT: {
       if (!display_width_in_codepoints) {
         my_error(ER_INVALID_FIELD_SIZE, MYF(0), fld_name);
-        DBUG_RETURN(true);
+        return true;
       }
       if (m_max_display_width_in_codepoints > MAX_BIT_FIELD_LENGTH) {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), fld_name,
                  static_cast<ulong>(MAX_BIT_FIELD_LENGTH));
-        DBUG_RETURN(true);
+        return true;
       }
       break;
     }
     case MYSQL_TYPE_DECIMAL:
+    default:
       DBUG_ASSERT(0); /* Was obsolete */
   }
 
@@ -543,12 +548,12 @@ bool Create_field::init(
                  ? ER_TOO_BIG_FIELDLENGTH
                  : ER_TOO_BIG_DISPLAYWIDTH,
              MYF(0), fld_name, max_field_charlength); /* purecov: inspected */
-    DBUG_RETURN(true);
+    return true;
   }
   fld_type_modifier &= AUTO_INCREMENT_FLAG;
   if ((~allowed_type_modifier) & fld_type_modifier) {
     my_error(ER_WRONG_FIELD_SPEC, MYF(0), fld_name);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -560,7 +565,7 @@ bool Create_field::init(
                                Field::GENERATED_FROM_EXPRESSION)) != 0 &&
                 (auto_flags & Field::NEXT_NUMBER) != 0));
 
-  DBUG_RETURN(false); /* success */
+  return false; /* success */
 }
 
 /**
@@ -571,7 +576,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       bool maybe_null_arg, bool is_unsigned_arg,
                                       uint pack_length_override_arg,
                                       const char *fld_name) {
-  DBUG_ENTER("Create_field::init_for_tmp_table");
+  DBUG_TRACE;
 
   field_name = fld_name;
   sql_type = sql_type_arg;
@@ -620,8 +625,6 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   gcol_info = nullptr;
   stored_in_db = true;
   m_default_val_expr = nullptr;
-
-  DBUG_VOID_RETURN;
 }
 
 size_t Create_field::max_display_width_in_codepoints() const {
@@ -711,7 +714,9 @@ size_t Create_field::max_display_width_in_bytes() const {
   }
 }
 
-size_t Create_field::pack_length() const {
+size_t Create_field::pack_length(bool dont_override) const {
+  if (!dont_override && pack_length_override != 0) return pack_length_override;
+
   switch (sql_type) {
     case MYSQL_TYPE_SET: {
       return get_set_pack_length(interval == nullptr ? interval_list.elements
@@ -768,6 +773,12 @@ size_t Create_field::key_length() const {
       precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
       return my_decimal_get_binary_size(precision, decimals);
     }
-    default: { return pack_length(); }
+    default: {
+      return pack_length(is_array);
+    }
   }
+}
+
+bool is_field_for_functional_index(const Create_field *create_field) {
+  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
 }

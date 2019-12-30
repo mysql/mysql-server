@@ -85,7 +85,9 @@ var _18=0;
 jr.revert();
 _3=_17;
 }else{
-_3=dirtyObject.concat(_f);
+_1.forEach(_f,function(obj){
+jr.changing(obj.object,!obj.object);
+});
 }
 });
 jr.sendToServer(_d,_c);

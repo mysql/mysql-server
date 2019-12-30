@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,7 @@ public:
                 const char* table,
                 uint& tabid,
                 Error& error);
+  int remove_table(uint table_id);
 
   // files
 
@@ -271,6 +272,7 @@ public:
     // add and set table
     int add_table(const char* database, const char* table, uint& tabid);
     void set_table(uint tabid);
+    int remove_table(uint table_id);
     // start teams and run the job until done
     void do_start();
     void start_diag_team();

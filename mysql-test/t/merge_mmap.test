@@ -3,10 +3,8 @@
 #
 
 # MERGE tables require MyISAM tables
+--source include/force_myisam_default.inc
 --source include/have_myisam.inc
---let $default=`SELECT @@global.default_storage_engine`
-SET GLOBAL default_storage_engine = MyISAM;
-SET SESSION default_storage_engine = MyISAM;
 
 # Clean up resources used in this test case.
 --disable_warnings
@@ -144,9 +142,3 @@ UNLOCK TABLES;
 DROP TABLE m2, m1, t2, t1;
 
 --echo End of 6.0 tests
-
---disable_result_log
---disable_query_log
-eval SET GLOBAL default_storage_engine = $default;
---enable_result_log
---enable_query_log

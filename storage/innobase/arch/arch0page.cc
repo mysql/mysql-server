@@ -44,9 +44,6 @@ uint ARCH_PAGE_FILE_DATA_CAPACITY =
     ARCH_PAGE_FILE_CAPACITY - ARCH_PAGE_FILE_NUM_RESET_PAGE;
 #endif
 
-/** Global to indicate if the page archiver task is active */
-bool page_archiver_is_active = false;
-
 /** Event to signal the page archiver thread. */
 os_event_t page_archiver_thread_event;
 
@@ -76,8 +73,6 @@ void page_archiver_thread() {
       os_event_reset(page_archiver_thread_event);
     }
   }
-
-  page_archiver_is_active = false;
 }
 
 void Arch_Reset_File::init() {
@@ -152,7 +147,7 @@ dberr_t Arch_Group::write_to_doublewrite_file(Arch_File_Ctx *from_file,
 dberr_t Arch_Group::init_dblwr_file_ctx(const char *path, const char *base_file,
                                         uint num_files, uint64_t file_size) {
   auto err =
-      s_dblwr_file_ctx.init(path, nullptr, base_file, num_files, file_size);
+      s_dblwr_file_ctx.init(ARCH_DIR, path, base_file, num_files, file_size);
 
   if (err != DB_SUCCESS) {
     ut_ad(s_dblwr_file_ctx.get_phy_size() == file_size);
@@ -619,7 +614,8 @@ bool Arch_File_Ctx::validate_stop_point_in_file(Arch_Group *group,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err = os_file_read(request, file, buf, offset, ARCH_PAGE_BLK_SIZE);
+  dberr_t err =
+      os_file_read(request, m_path_name, file, buf, offset, ARCH_PAGE_BLK_SIZE);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -648,7 +644,8 @@ bool Arch_File_Ctx::validate_reset_block_in_file(pfs_os_file_t file,
   byte buf[ARCH_PAGE_BLK_SIZE];
 
   /* Read the entire reset block. */
-  dberr_t err = os_file_read(request, file, buf, 0, ARCH_PAGE_BLK_SIZE);
+  dberr_t err =
+      os_file_read(request, m_path_name, file, buf, 0, ARCH_PAGE_BLK_SIZE);
 
   if (err != DB_SUCCESS) {
     return (false);
@@ -928,6 +925,7 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
     case ARCH_CLIENT_STATE_STOPPED:
       if (!m_is_durable) {
         ib::error() << "Client needs to release its resources";
+        arch_client_mutex_exit();
         return (ER_PAGE_TRACKING_NOT_STARTED);
       }
       DBUG_PRINT("page_archiver", ("Archiver in progress"));
@@ -973,6 +971,12 @@ int Page_Arch_Client_Ctx::start(bool recovery, uint64_t *start_id) {
   arch_client_mutex_exit();
 
   if (!m_is_durable) {
+    /* Update DD table buffer to get rid of recovery dependency for auto INC */
+    dict_persist_to_dd_table_buffer();
+
+    /* Make sure all written pages are synced to disk. */
+    fil_flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
+
     ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
                            << m_start_lsn << ", checkpoint LSN : "
                            << log_get_checkpoint_lsn(*log_sys);
@@ -1013,13 +1017,9 @@ int Page_Arch_Client_Ctx::stop(lsn_t *stop_id) {
   auto err =
       arch_page_sys->stop(m_group, &m_stop_lsn, &m_stop_pos, m_is_durable);
 
-  if (err != 0) {
-    arch_client_mutex_exit();
-    return (err);
-  }
-
   ut_d(print());
 
+  /* We stop the client even in cases of an error. */
   m_state = ARCH_CLIENT_STATE_STOPPED;
 
   if (stop_id != nullptr) {
@@ -1155,13 +1155,12 @@ bool wait_flush_archiver(Page_Wait_Flush_Archiver_Cbk cbk_func) {
 
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(arch_page_sys->get_oper_mutex()));
           result = cbk_func();
 
           int err2 = 0;
-          if (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
-              srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+          if (srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE ||
+              srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS ||
               arch_page_sys->is_abort()) {
             err2 = ER_QUERY_INTERRUPTED;
 
@@ -1735,7 +1734,7 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
     /* Can possibly loop only two times. */
     if (count >= 2) {
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
         arch_oper_mutex_exit();
         return;
       }
@@ -2124,11 +2123,10 @@ bool Arch_Page_Sys::wait_idle() {
 
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_mutex));
           result = (m_state == ARCH_STATE_PREPARE_IDLE);
 
-          if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+          if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
             return (ER_QUERY_INTERRUPTED);
           }
 
@@ -2372,7 +2370,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   if (!wait_idle()) {
     int err = 0;
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       err = ER_QUERY_INTERRUPTED;
       my_error(err, MYF(0));
     } else {
@@ -2380,6 +2378,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       my_error(err, MYF(0), "Page Archiver wait too long");
     }
 
+    arch_mutex_exit();
     return (err);
   }
 
@@ -2582,8 +2581,8 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   arch_mutex_exit();
 
   if (!recovery) {
-    /* Make sure all written pages are synced to disk. */
-    log_request_checkpoint(*log_sys, false);
+    /* Request checkpoint */
+    log_request_checkpoint(*log_sys, true);
   }
 
   return (0);
@@ -2834,8 +2833,8 @@ dberr_t Arch_Page_Sys::flush_blocks(bool *wait) {
 bool Arch_Page_Sys::archive(bool *wait) {
   dberr_t db_err;
 
-  auto is_abort = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
-                   srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
+  auto is_abort = (srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE ||
+                   srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS ||
                    m_state == ARCH_STATE_ABORT);
 
   arch_oper_mutex_enter();
@@ -2944,7 +2943,8 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   request.disable_compression();
   request.clear_encrypted();
 
-  auto db_err = os_file_read(request, file, read_buff, offset, read_len);
+  auto db_err =
+      os_file_read(request, file_name, file, read_buff, offset, read_len);
 
   os_file_close(file);
 

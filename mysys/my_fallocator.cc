@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,13 +69,13 @@ implementation.
 int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
   my_off_t oldsize;
   uchar buff[IO_SIZE];
-  DBUG_ENTER("my_fallocator");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  length: %lu  MyFlags: %d", fd, (ulong)newlength,
                     MyFlags));
 
   if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE))) ==
       newlength)
-    DBUG_RETURN(0);
+    return 0;
 
   DBUG_PRINT("info", ("old_size: %ld", (ulong)oldsize));
 
@@ -85,13 +85,13 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
       set_my_errno(errno);
       goto err;
     }
-    DBUG_RETURN(0);
+    return 0;
 #elif defined(HAVE_POSIX_FALLOCATE)
     if (posix_fallocate(fd, 0, (off_t)newlength) != 0) {
       set_my_errno(errno);
       goto err;
     }
-    DBUG_RETURN(0);
+    return 0;
 #else
     /*
     Fill space between requested length and true length with 'filler'
@@ -112,7 +112,7 @@ int my_fallocator(File fd, my_off_t newlength, int filler, myf MyFlags) {
     oldsize += IO_SIZE;
   }
   if (my_write(fd, buff, (size_t)(newlength - oldsize), MYF(MY_NABP))) goto err;
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   DBUG_PRINT("error", ("errno: %d", errno));
@@ -121,5 +121,5 @@ err:
     my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  DBUG_RETURN(1);
+  return 1;
 } /* my_fallocator */

@@ -1,0 +1,79 @@
+--echo # See that NULL-handling is correct
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, NULL);
+SELECT JSON_SCHEMA_VALIDATION_REPORT(JSON_OBJECT(), NULL);
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, JSON_OBJECT());
+
+--echo # A few "happy" cases
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '{}');
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "array"}', '[]');
+
+--echo # Cases where the JSON document is invalid
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '[]');
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{
+  "type": "object",
+  "properties": {
+    "geometry": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "minimum": -90
+        }
+      }
+    }
+ }
+}',
+'{
+  "geometry": {
+    "longitude": -90,
+    "latitude": -180
+  }
+}');
+
+--echo # A case where the JSON Schema is invalid
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object-object"}', '{}');
+
+--echo # Non-json JSON Schema input
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALIDATION_REPORT(POINT(1, 1), '{}');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{ bar', '{}');
+
+--echo # Non-object JSON Schema input
+--error ER_INVALID_JSON_TYPE
+SELECT JSON_SCHEMA_VALIDATION_REPORT('[]', '{}');
+
+--echo # Non-json JSON document input
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{}', POINT(1, 1));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{}', '{ bar');
+
+--echo # Wrong argument count
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALIDATION_REPORT();
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL);
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, NULL, NULL);
+
+
+--echo # Ensure that our item tree transformation doesn't get stuck forever when
+--echo # using prepared statements.
+PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALIDATION_REPORT(?, ''{}'') FROM DUAL';
+SET @json_schema = '{"type":"object"}';
+SET @null = NULL;
+EXECUTE stmt USING @json_schema;
+EXECUTE stmt USING @null;
+EXECUTE stmt USING @json_schema;
+
+--echo #
+--echo # Bug#29529220: WL#13005: ASSERTION FAILURE: `!ARGS[0]->CONST_ITEM()'
+--echo # Bug#29528888: WL#11999: SIG6 IN ITEM_FUNC_JSON_SCHEMA_VALID::VAL_BOOL()
+--echo #               AT ITEM_JSON_FUNC.CC
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY, j JSON);
+INSERT INTO t1 VALUES (1, '{"key": "foobar"}' );
+SELECT JSON_SCHEMA_VALIDATION_REPORT(j, j) FROM t1 WHERE pk = 1;
+SELECT JSON_SCHEMA_VALIDATION_REPORT(t2.j, t2.j)
+FROM t1, (SELECT * FROM t1 WHERE pk = 1) t2;
+DROP TABLE t1;

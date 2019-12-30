@@ -1,10 +1,10 @@
-//>>built
+require({cache:{
+'url:dojox/grid/enhanced/templates/FilterStatusPane.html':"<div class=\"dojoxGridFStatusTip\"\n\t><div class=\"dojoxGridFStatusTipHead\"\n\t\t><span class=\"dojoxGridFStatusTipTitle\" dojoAttachPoint=\"statusTitle\"></span\n\t\t><span class=\"dojoxGridFStatusTipRel\" dojoAttachPoint=\"statusRel\"></span\n\t></div\n\t><div class=\"dojoxGridFStatusTipDetail\" dojoAttachPoint=\"statusDetailNode\"\n\t></div\n></div>\n"}});
 define("dojox/grid/enhanced/plugins/filter/FilterStatusTip", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
 	"dojo/_base/lang",
 	"dojo/query",
-	"dojo/cache",
 	"dojo/string",
 	"dojo/date/locale",
 	"dijit/_Widget", 
@@ -13,9 +13,10 @@ define("dojox/grid/enhanced/plugins/filter/FilterStatusTip", [
 	"dijit/TooltipDialog",
 	"dijit/form/Button",
 	"dijit/_base/popup",
+	"dojo/text!../../templates/FilterStatusPane.html",
 	"dojo/i18n!../../nls/Filter"
-], function(declare, array, lang, query, cache, string, dateLocale, _Widget, 
-	_TemplatedMixin, _WidgetsInTemplateMixin, TooltipDialog, Button, popup){
+], function(declare, array, lang, query, string, dateLocale, _Widget, 
+	_TemplatedMixin, _WidgetsInTemplateMixin, TooltipDialog, Button, popup, template){
 
 	var gridCssCls = "", headerCssCls = "", cellCssCls = "", rowCssCls = "",
 		oddRowCssCls = "dojoxGridFStatusTipOddRow",
@@ -25,7 +26,7 @@ define("dojox/grid/enhanced/plugins/filter/FilterStatusTip", [
 		_statusFooter = "</tbody></table>";
 
 	var FilterStatusPane = declare("dojox.grid.enhanced.plugins.filter.FilterStatusPane", [_Widget, _TemplatedMixin], {
-		templateString: cache("dojox.grid", "enhanced/templates/FilterStatusPane.html")
+		templateString: template
 	});
 
 	return declare("dojox.grid.enhanced.plugins.filter.FilterStatusTip", null, {
@@ -43,7 +44,7 @@ define("dojox/grid/enhanced/plugins/filter/FilterStatusTip", [
 			this._rules = [];
 			this.statusPane = new FilterStatusPane();
 			this._dlg = new TooltipDialog({
-				"class": "dojoxGridFStatusTipDialog",
+				"class": "dijitTooltipBelow dojoxGridFStatusTipDialog",
 				content: this.statusPane,
 				autofocus: false
 			});
@@ -142,7 +143,4 @@ define("dojox/grid/enhanced/plugins/filter/FilterStatusTip", [
 			p.filterDefDialog.showDialog(p.filterBar.getColumnIdx(this._pos.x));
 		}
 	});
-	
-
-	return FilterStatusTip;
 });

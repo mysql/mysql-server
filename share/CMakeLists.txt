@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,57 +20,53 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (dirs 
-danish
-german 
-slovak
-dutch
-greek
-norwegian
-spanish
-english
-hungarian
-norwegian-ny
-swedish
-italian
-polish
-ukrainian
-japanese
-portuguese
-romanian
-estonian 
-korean
-russian
-czech
-french
-serbian
-bulgarian
-)
-
-SET(files 
- errmsg-utf8.txt
- dictionary.txt
-)
+SET(dirs
+  bulgarian
+  czech
+  danish
+  dutch
+  english
+  estonian 
+  french
+  german 
+  greek
+  hungarian
+  italian
+  japanese
+  korean
+  norwegian
+  norwegian-ny
+  polish
+  portuguese
+  romanian
+  russian
+  serbian
+  slovak
+  spanish
+  swedish
+  ukrainian
+  )
 
 FOREACH (dir ${dirs})
   INSTALL(DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/${dir}
-          DESTINATION ${INSTALL_MYSQLSHAREDIR}
-          COMPONENT Server
-  )
+    DESTINATION ${INSTALL_MYSQLSHAREDIR}
+    COMPONENT Server
+    )
 ENDFOREACH()
 
 INSTALL(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/charsets
-        DESTINATION ${INSTALL_MYSQLSHAREDIR}
-        COMPONENT Server
-        PATTERN "languages.html" EXCLUDE
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}
+  COMPONENT Server
+  PATTERN "languages.html" EXCLUDE
 )
 
 # Don't copy if we're building in-source.
 IF (NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-  CONFIGURE_FILE(dictionary.txt ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/dictionary.txt)
+  CONFIGURE_FILE(dictionary.txt
+    ${CMAKE_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/dictionary.txt)
 ENDIF()
 
-INSTALL(FILES ${files}
-        DESTINATION ${INSTALL_MYSQLSHAREDIR}
-        COMPONENT Server
+INSTALL(FILES errmsg-utf8.txt dictionary.txt
+  DESTINATION ${INSTALL_MYSQLSHAREDIR}
+  COMPONENT Server
 )

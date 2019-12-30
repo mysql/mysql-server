@@ -18,6 +18,8 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
 SET GLOBAL default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=true;
@@ -41,6 +43,8 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
 SET GLOBAL default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=true;
@@ -65,6 +69,8 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 #
 SET SESSION default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
+SET SESSION default_table_encryption=false;
+SET SESSION default_table_encryption=DEFAULT;
 SET GLOBAL default_table_encryption=true;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN and TABLE_ENCRYPTION_ADMIN privilege(s) for this operation
 SET PERSIST default_table_encryption=true;
@@ -90,6 +96,14 @@ GRANT ALL PRIVILEGES ON `db1`.* TO `u1`@`localhost`
 SET SESSION default_table_encryption=true;
 SELECT @@session.default_table_encryption = true;
 @@session.default_table_encryption = true
+1
+SET SESSION default_table_encryption=false;
+SELECT @@session.default_table_encryption = false;
+@@session.default_table_encryption = false
+1
+SET SESSION default_table_encryption=DEFAULT;
+SELECT @@session.default_table_encryption = false;
+@@session.default_table_encryption = false
 1
 SET GLOBAL default_table_encryption=false;
 SELECT @@global.default_table_encryption = false;

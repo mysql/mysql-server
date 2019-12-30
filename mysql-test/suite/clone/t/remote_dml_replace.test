@@ -1,0 +1,21 @@
+# Test remote clone with concurrent DML
+
+let $have_windows = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32", "Win64", "Windows")`;
+
+if (!$have_windows) {
+  --source include/have_mysqld_safe.inc
+  --let inst_monitor = 1
+}
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+
+--let clone_remote_replace = 1
+--let clone_inst_number = 2
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Clone removing all user data for provisioning: .*");
+--enable_query_log
+
+--source local_dml.test

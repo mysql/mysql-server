@@ -1,11 +1,11 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/Wire,dojox/wire/ml/util"],function(_1,_2,_3){
-_2.provide("dojox.wire.ml.Action");
-_2.require("dijit._Widget");
-_2.require("dijit._Container");
-_2.require("dojox.wire.Wire");
-_2.require("dojox.wire.ml.util");
-_2.declare("dojox.wire.ml.Action",[_1._Widget,_1._Container],{trigger:"",triggerEvent:"",triggerTopic:"",postCreate:function(){
+define("dojox/wire/ml/Action",["dojo","dijit","dojox","dojo/require!dijit/_Widget,dijit/_Container,dojox/wire/Wire,dojox/wire/ml/util"],function(_1,_2,_3){
+_1.provide("dojox.wire.ml.Action");
+_1.require("dijit._Widget");
+_1.require("dijit._Container");
+_1.require("dojox.wire.Wire");
+_1.require("dojox.wire.ml.util");
+_1.declare("dojox.wire.ml.Action",[_2._Widget,_2._Container],{trigger:"",triggerEvent:"",triggerTopic:"",postCreate:function(){
 this._connect();
 },_connect:function(){
 if(this.triggerEvent){
@@ -16,28 +16,28 @@ if(!_4[this.triggerEvent]){
 _4[this.triggerEvent]=function(){
 };
 }
-this._triggerHandle=_2.connect(_4,this.triggerEvent,this,"run");
+this._triggerHandle=_1.connect(_4,this.triggerEvent,this,"run");
 }
 }else{
 var _5=this.triggerEvent.toLowerCase();
 if(_5=="onload"){
 var _6=this;
-_2.addOnLoad(function(){
+_1.addOnLoad(function(){
 _6._run.apply(_6,arguments);
 });
 }
 }
 }else{
 if(this.triggerTopic){
-this._triggerHandle=_2.subscribe(this.triggerTopic,this,"run");
+this._triggerHandle=_1.subscribe(this.triggerTopic,this,"run");
 }
 }
 },_disconnect:function(){
 if(this._triggerHandle){
 if(this.triggerTopic){
-_2.unsubscribe(this.triggerTopic,this._triggerHandle);
+_1.unsubscribe(this.triggerTopic,this._triggerHandle);
 }else{
-_2.disconnect(this._triggerHandle);
+_1.disconnect(this._triggerHandle);
 }
 }
 },run:function(){
@@ -63,7 +63,7 @@ _a.run.apply(_a,arguments);
 this._disconnect();
 return true;
 }});
-_2.declare("dojox.wire.ml.ActionFilter",_1._Widget,{required:"",requiredValue:"",type:"",message:"",error:"",filter:function(){
+_1.declare("dojox.wire.ml.ActionFilter",_2._Widget,{required:"",requiredValue:"",type:"",message:"",error:"",filter:function(){
 if(this.required===""){
 return true;
 }else{

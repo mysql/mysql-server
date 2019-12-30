@@ -1,41 +1,24 @@
-.mblSlidev.mblOut {
+.mblSlidev {
 	-webkit-transition-property: none;
 	-webkit-transition-duration: 0s;
-	-webkit-transform: translate3d(0px,0%,0px) !important;
 }
-.mblSlidev.mblOut.mblTransition {
+.mblSlidev.mblTransition {
 	-webkit-transition-property: -webkit-transform;
 	-webkit-transition-duration: .3s;
-	-webkit-transform: translate3d(0px,-100%,0px) !important;
 }
+.mblSlidev.mblOut.mblReverse.mblTransition,
 .mblSlidev.mblIn {
-	position: absolute !important;
-	-webkit-transition-property: none;
-	-webkit-transition-duration: 0s;
 	-webkit-transform: translate3d(0px,100%,0px) !important;
 }
-.mblSlidev.mblIn.mblTransition {
-	-webkit-transition-property: -webkit-transform;
-	-webkit-transition-duration: .3s;
-	-webkit-transform: translate3d(0px,0%,0px) !important;
-}
-.mblSlidev.mblOut.mblReverse {
-	-webkit-transition-property: none;
-	-webkit-transform: translate3d(0px,0%,0px) !important;
-}
-.mblSlidev.mblOut.mblReverse.mblTransition {
-	-webkit-transition-property: -webkit-transform;
-	-webkit-transform: translate3d(0px,100%,0px) !important;
-}
+.mblSlidev.mblOut.mblTransition,
 .mblSlidev.mblIn.mblReverse {
 	-webkit-transform: translate3d(0px,-100%,0px) !important;
 }
-.mblSlidev.mblIn.mblReverse.mblTransition {
-	-webkit-transition-property: -webkit-transform;
+.mblSlidev.mblOut,
+.mblSlidev.mblIn.mblTransition {
 	-webkit-transform: translate3d(0px,0%,0px) !important;
 }
-.dj_android.dj_tablet .mblSlidev.mblOut.mblTransition,
-.dj_android.dj_tablet .mblSlidev.mblIn.mblTransition {
+.dj_android.dj_tablet .mblSlidev.mblTransition {
 	-webkit-transition-duration: .6s;
 	-webkit-transition-timing-function: linear;
 }

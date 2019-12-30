@@ -40,9 +40,9 @@
 #include <stdexcept>
 #include <vector>
 
-using ::testing::ContainerEq;
 using mysql_harness::split_string;
 using std::string;
+using ::testing::ContainerEq;
 
 TEST(StringUtilsTests, SplitStringWithEmpty) {
   std::vector<string> exp;

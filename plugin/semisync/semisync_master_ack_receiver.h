@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ struct Slave {
   uint32_t thread_id;
   Vio *vio;
   uint server_id;
-  bool net_compress;
+  mysql_compress_context compress_ctx;
   bool is_leaving;
 
   my_socket sock_fd() const { return vio->mysql_socket.fd; }

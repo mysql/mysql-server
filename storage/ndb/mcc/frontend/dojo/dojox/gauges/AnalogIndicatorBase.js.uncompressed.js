@@ -1,18 +1,13 @@
-//>>built
 define("dojox/gauges/AnalogIndicatorBase", ["dojo/_base/lang","dojo/_base/declare","dojo/_base/connect","dojo/_base/fx","dojox/gfx","./_Indicator"],
   function(lang, declare, connect, fx, gfx, Indicator) {
  
-/*=====
-	Indicator = dojox.gauges._indicator;
-=====*/
-
 return declare("dojox.gauges.AnalogIndicatorBase",[Indicator],{
-		//	summary:
+		// summary:
 		//		An abstract base class for indicators that can be used in an AnalogGauge.
 		//
 
 	draw: function(/*dojox.gfx.Group*/ group, /*Boolean?*/ dontAnimate){
-		// summary: 
+		// summary:
 		//		Override of dojox.gauges._Indicator.draw
 		// group: dojox.gfx.Group
 		//		The GFX group when the indicator must be drawn
@@ -74,7 +69,7 @@ return declare("dojox.gauges.AnalogIndicatorBase",[Indicator],{
 	},
 	
 	_layoutLabel:function(group, txt, ox, oy, lrad, angle, labelPlacement){
-		// summary: 
+		// summary:
 		//		Places the label on the side of the tick.
 	
 		var font = this.font ? this.font : gfx.defaultFont;
@@ -175,7 +170,7 @@ return declare("dojox.gauges.AnalogIndicatorBase",[Indicator],{
 	},
 	
 	_move: function(/*Boolean?*/ dontAnimate){
-		// summary: 
+		// summary:
 		// dontAnimate: Boolean
 		//		Indicates if the drawing should not be animated (vs. the default of doing an animation)
 		var v = Math.min(Math.max(this.value, this._gauge.min), this._gauge.max),

@@ -1,6 +1,5 @@
 ## Test cases for authorization plugins
 
---source include/have_ssl.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 --source include/restart_mysqld.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define CLONE_DESC_INCLUDE
 
 #include "mem0mem.h"
+#include "os0file.h"
 #include "univ.i"
 
 /** Invalid locator ID. */
@@ -46,7 +47,7 @@ const uint32_t CLONE_DESC_MAX_BASE_LEN = 64;
 const uint32_t CLONE_ALIGN_DIRECT_IO = 4 * 1024;
 
 /** Maximum number of concurrent tasks for each clone */
-const int CLONE_MAX_TASKS = 64;
+const int CLONE_MAX_TASKS = 128;
 
 /** Snapshot state transfer during clone.
 
@@ -450,6 +451,9 @@ struct Clone_Desc_State {
   /** Number of estimated bytes to transfer */
   uint64_t m_estimate;
 
+  /** Number of estimated bytes on disk */
+  uint64_t m_estimate_disk;
+
   /** If start processing state */
   bool m_is_start;
 
@@ -477,7 +481,26 @@ struct Clone_Desc_State {
 /** Clone file information */
 struct Clone_File_Meta {
   /** File size in bytes */
-  ib_uint64_t m_file_size;
+  uint64_t m_file_size;
+
+  /** File allocation size on disk for sparse files. */
+  uint64_t m_alloc_size;
+
+  /** Tablespace FSP flags */
+  uint32_t m_fsp_flags;
+
+  /** File compression type */
+  Compression::Type m_compress_type;
+
+  /* File encryption type */
+  Encryption::Type m_encrypt_type;
+
+  /** If transparent compression is needed. It is derived information
+  and is not transferred. */
+  bool m_punch_hole;
+
+  /** File system block size. */
+  uint32_t m_fsblk_size;
 
   /** Tablespace ID for the file */
   ulint m_space_id;

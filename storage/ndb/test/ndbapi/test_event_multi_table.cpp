@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ static int copy_events(Ndb *ndb)
       Uint32 gci= pOp->getGCI();
 
       if (!pOp->isConsistent()) {
-	g_err << "A node failure has occured and events might be missing\n";
+	g_err << "A node failure has occurred and events might be missing\n";
 	DBUG_RETURN(-1);
       }
 	

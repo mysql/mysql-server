@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	add: "Hozzáadás",
-	addAuthor: "Szerző hozzáadása",
-	addContributor: "Közreműködő hozzáadása"
-})
-//end v1.x content
-);
+define("dojox/atom/widget/nls/hu/PeopleEditor",({add:"Hozzáadás",addAuthor:"Szerző hozzáadása",addContributor:"Közreműködő hozzáadása"}));

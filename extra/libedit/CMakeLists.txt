@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -54,15 +54,10 @@ CMAKE_POP_CHECK_STATE()
 
 
 
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+IF(SOLARIS)
   #On Solaris, default awk is next to unusable while the xpg4 one is ok.
   IF(EXISTS /usr/xpg4/bin/awk)
     SET(AWK_EXECUTABLE /usr/xpg4/bin/awk)
-  ENDIF()
-ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "OS400")
-  #Workaround for cases, where /usr/bin/gawk is not executable
-  IF(EXISTS /QOpenSys/usr/bin/awk)
-    SET(AWK_EXECUTABLE /QOpenSys/usr/bin/awk)
   ENDIF()
 ENDIF()
 
@@ -194,7 +189,7 @@ SET(LIBEDIT_SOURCES
   ${AHDR} 
   ${LIBEDIT_EXTRA_SOURCES}
 )
-ADD_CONVENIENCE_LIBRARY(edit ${LIBEDIT_SOURCES})
+ADD_LIBRARY(edit STATIC ${LIBEDIT_SOURCES})
 TARGET_LINK_LIBRARIES(edit ${CURSES_LIBRARY})
 
 MY_CHECK_C_COMPILER_FLAG("-Wstringop-overflow" HAVE_STRINGOP_OVERFLOW)

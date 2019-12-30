@@ -1,19 +1,20 @@
-//>>built
 // wrapped by build app
-define("dojox/storage/FlashStorageProvider", ["dijit","dojo","dojox","dojo/require!dojox/flash,dojox/storage/manager,dojox/storage/Provider"], function(dijit,dojo,dojox){
+define("dojox/storage/FlashStorageProvider", ["dojo","dijit","dojox","dojo/require!dojox/flash,dojox/storage/manager,dojox/storage/Provider"], function(dojo,dijit,dojox){
 dojo.provide("dojox.storage.FlashStorageProvider");
 
 dojo.require("dojox.flash");
 dojo.require("dojox.storage.manager");
 dojo.require("dojox.storage.Provider");
 
-// summary:
-//		Storage provider that uses features in Flash to achieve permanent
-//		storage
-// description:
-//		Authors of this storage provider-
-//			Brad Neuberg, bkn3@columbia.edu
+
 dojo.declare("dojox.storage.FlashStorageProvider", dojox.storage.Provider, {
+		// summary:
+		//		Storage provider that uses features in Flash to achieve permanent
+		//		storage
+		// description:
+		//		Authors of this storage provider-
+		//		Brad Neuberg, bkn3@columbia.edu
+
 		initialized: false,
 		
 		_available: null,

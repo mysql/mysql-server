@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,13 +210,14 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
                  Gcs_xcom_communication_proxy
     @param[in] view_control a reference to a
     gcs_xcom_view_change_control_interface implementation
+    @param[in] gcs_engine Pointer to gcs engine
+    @param[in] group_id reference to the group identifier
   */
 
   explicit Gcs_xcom_communication(
       Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
       Gcs_xcom_view_change_control_interface *view_control,
-      Gcs_xcom_node_address &xcom_node_address, Gcs_xcom_engine *gcs_engine,
-      Gcs_group_identifier const &group_id);
+      Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id);
 
   virtual ~Gcs_xcom_communication();
 
@@ -311,8 +312,6 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   std::vector<std::pair<Gcs_packet, std::unique_ptr<Gcs_xcom_nodes>>>
       m_buffered_packets;
 
-  Gcs_member_identifier m_myself;
-
   /** Most recent XCom membership known. */
   Gcs_xcom_nodes m_xcom_nodes;
 
@@ -323,7 +322,7 @@ class Gcs_xcom_communication : public Gcs_xcom_communication_interface {
   Gcs_xcom_communication_protocol_changer m_protocol_changer;
 
   /** Notify upper layers that a message has been received. */
-  void notify_received_message(Gcs_message *message);
+  void notify_received_message(std::unique_ptr<Gcs_message> &&message);
 
   /** Delivers the packet to the upper layer. */
   void deliver_user_data_packet(Gcs_packet &&packet,

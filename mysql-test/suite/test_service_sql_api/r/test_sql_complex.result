@@ -131,7 +131,7 @@ EXECUTING:[343][CREATE TABLE test_inserts( a INT UNSIGNED, b VARCHAR(100), c DOU
 
 		[end] server status: 2
 		[end] server status: AUTOCOMMIT 
-		[end] warning count:  0
+		[end] warning count:  1
 		[end] affected rows:  0
 		[end] last insert id: 0
 		[end] message: 
@@ -3340,7 +3340,7 @@ EXECUTING:[343][CREATE TABLE test_inserts( a INT UNSIGNED, b VARCHAR(100), c DOU
 
 		[end] server status: 2
 		[end] server status: AUTOCOMMIT 
-		[end] warning count:  0
+		[end] warning count:  1
 		[end] affected rows:  0
 		[end] last insert id: 0
 		[end] message: 

@@ -1,5 +1,7 @@
 DROP TABLE IF EXISTS t6,t7;
 CREATE TABLE t6(c1 REAL(1,0) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -14,6 +16,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 REAL(5,4) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test
@@ -28,6 +32,8 @@ DROP TABLE t7;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t6(c1 DOUBLE(1,0) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -42,6 +48,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 DOUBLE(5,4) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test
@@ -56,6 +64,8 @@ DROP TABLE t7;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t6(c1 FLOAT(1,0) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -70,6 +80,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 FLOAT(5,4) NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test
@@ -140,6 +152,8 @@ DROP TABLE t7;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t6(c1 REAL(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -154,6 +168,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 REAL(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test
@@ -168,6 +184,8 @@ DROP TABLE t7;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t6(c1 DOUBLE(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -182,6 +200,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 DOUBLE(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test
@@ -196,6 +216,8 @@ DROP TABLE t7;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t6(c1 FLOAT(1,0) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t6(c1);
 SHOW TABLES;
 Tables_in_test
@@ -210,6 +232,8 @@ DROP TABLE t6;
 SHOW TABLES;
 Tables_in_test
 CREATE TABLE t7(c1 FLOAT(5,4) NOT NULL);
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 CREATE UNIQUE INDEX i1 ON t7(c1);
 SHOW TABLES;
 Tables_in_test

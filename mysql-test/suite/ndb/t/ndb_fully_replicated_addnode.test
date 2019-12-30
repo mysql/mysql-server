@@ -1,67 +1,78 @@
 -- source include/have_ndb.inc
 
 CREATE TABLE t1 (
-  a char(10) CHARSET latin1 NOT NULL primary key,
+  a char(10) CHARSET latin1 NOT NULL,
+  e varbinary(3000) not null,
   b int,
   c blob,
+  d varbinary(26000),
+  primary key(e,a),
   unique key (b)
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 select read_backup, fully_replicated from table_info as ti join dict_obj_info as doi where ti.table_id = doi.id and doi.fq_name = 'test/def/t1';
 use test;
 
 let $count = 24;
 while ($count)
 {
-  eval insert into t1 values ('$count', $count, REPEAT('$count', 3000));
+  eval insert into t1 values ('$count', REPEAT('1', 3000),  $count, REPEAT('$count', 3000), REPEAT('A', 26000));
   dec $count;
 }
 
-# Verify no partition is empty
-if (`select sum(fixed_elem_count = 0)
-     from `ndbinfo`.`memory_per_fragment`
-     where fq_name = 'test/def/t1'`)
-{
-  select node_id, fragment_num, fixed_elem_count > 0
-  from `ndbinfo`.`memory_per_fragment`
-  where fq_name = 'test/def/t1'
-  order by node_id, fragment_num;
+# Save element count for each partition by using first nodes fragments.
+create temporary table t1_frag_size (
+  fragment_num int primary key,
+  fixed_elem_count int
+);
 
-  die 'Some partition is empty.';
-}
+insert into t1_frag_size select fragment_num, fixed_elem_count from `ndbinfo`.`memory_per_fragment`
+  where fq_name = 'test/def/t1' and node_id = 1;
+
+set @numpart = (select count(*) from t1_frag_size);
+
+# Verify that all fragments for a partition have same element count.
+# Any mismatch will be printed.
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
 
-select a,b,LENGTH(c) from t1 where a = '1';
-select a,b,LENGTH(c) from t1 where a = '2';
-select a,b,LENGTH(c) from t1 where a = '3';
-select a,b,LENGTH(c) from t1 where a = '4';
-select a,b,LENGTH(c) from t1 where a = '5';
-select a,b,LENGTH(c) from t1 where a = '6';
-select a,b,LENGTH(c) from t1 where a = '7';
-select a,b,LENGTH(c) from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '1' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '2' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '3' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '4' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '5' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '6' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '7' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '8' and e = REPEAT('1', 3000);
 
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8') and e = REPEAT('1', 3000);
 
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
@@ -97,8 +108,8 @@ alter table t1 algorithm=inplace, reorganize partition;
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, log_part_id, partition_order, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 use test;
 
 set global ndb_data_node_neighbour = 1;
@@ -149,39 +160,44 @@ drop table c;
 
 set global ndb_data_node_neighbour = 0;
 
-select node_id, fragment_num, fixed_elem_count > 0
-from `ndbinfo`.`memory_per_fragment`
-where fq_name = 'test/def/t1'
-order by node_id, fragment_num;
+# Verify that all fragments for a partition have same element count.
+# Any mismatch will be printed.
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 
 create temporary table counters_at_startup
 select counter_name, sum(val) as val
 from ndbinfo.counters
 group by counter_name;
 
-select a,b,LENGTH(c) from t1 where a = '1';
-select a,b,LENGTH(c) from t1 where a = '2';
-select a,b,LENGTH(c) from t1 where a = '3';
-select a,b,LENGTH(c) from t1 where a = '4';
-select a,b,LENGTH(c) from t1 where a = '5';
-select a,b,LENGTH(c) from t1 where a = '6';
-select a,b,LENGTH(c) from t1 where a = '7';
-select a,b,LENGTH(c) from t1 where a = '8';
+select a,b,LENGTH(c) from t1 where a = '1' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '2' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '3' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '4' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '5' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '6' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '7' and e = REPEAT('1', 3000);
+select a,b,LENGTH(c) from t1 where a = '8' and e = REPEAT('1', 3000);
 
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('1', '2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('2', '3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('3', '4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('4', '5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('5', '6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('6', '7', '8');
+select a,b,LENGTH(c) from t1 where a in ('6', '7', '8') and e = REPEAT('1', 3000);
 --sorted_result
-select a,b,LENGTH(c) from t1 where a in ('7', '8');
+select a,b,LENGTH(c) from t1 where a in ('7', '8') and e = REPEAT('1', 3000);
 
 select s1.counter_name, s2.val - s1.val as diff
 from counters_at_startup s1,
@@ -192,6 +208,16 @@ where s1.counter_name = s2.counter_name
   and ( s1.counter_name = 'LOCAL_READS' or s1.counter_name = 'READS' )
 order by 1;
 drop table counters_at_startup;
+
+# Verify that all fragments for a partition have same element count.
+# Any mismatch will be printed.
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 
 # Due to Bug#13714258 UNIQUE INDEXES NOT REORGANISED BY ONLINE TABLE REORG
 # FragmentCount and HashMap are wrong for t1/b$unique.
@@ -222,13 +248,18 @@ alter table t1 algorithm=inplace, reorganize partition;
 
 use ndbinfo;
 select tab_partitions, tab_fragments from table_distribution_status as tds join dict_obj_info as doi where tds.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1';
-select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1';
+select partition_id, fragment_id, partition_order, log_part_id, preferred_primary from table_fragments as tf join dict_obj_info as doi where tf.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id;
+select fragment_id, replica_node_id from table_replicas as tr join dict_obj_info as doi where tr.table_id = doi.id and doi.fq_name = 'test/def/t1' order by fragment_id, replica_node_id;
 use test;
 
-select node_id, fragment_num, fixed_elem_count > 0
-from `ndbinfo`.`memory_per_fragment`
-where fq_name = 'test/def/t1'
-order by node_id, fragment_num;
+# Verify that all fragments for a partition have same element count.
+# Any mismatch will be printed.
+select mpf.node_id, mpf.fragment_num, mpf.fixed_elem_count, tfs.fragment_num, tfs.fixed_elem_count
+from `ndbinfo`.`memory_per_fragment` mpf
+join t1_frag_size tfs
+on tfs.fragment_num = mpf.fragment_num mod @numpart
+where mpf.fq_name = 'test/def/t1'
+and mpf.fixed_elem_count <> tfs.fixed_elem_count
+order by tfs.fragment_num, mpf.node_id, mpf.fragment_num;
 
 drop table t1;

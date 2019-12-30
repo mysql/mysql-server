@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,14 +190,14 @@ SocketServer::doAccept()
   const int ret = m_services_poller.poll(accept_timeout_ms);
   if (ret < 0)
   {
-    // Error occured, indicate error to caller by returning false
+    // Error occurred, indicate error to caller by returning false
     m_services.unlock();
     return false;
   }
 
   if (ret == 0)
   {
-    // Timeout occured
+    // Timeout occurred
     m_services.unlock();
     return true;
   }

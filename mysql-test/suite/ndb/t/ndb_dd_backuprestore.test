@@ -51,13 +51,58 @@ DROP DATAFILE './table_space1/datafile.dat';
 DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
-ENGINE =NDB;
+ENGINE NDB;
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server2
+--let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server1
+# Set low interval so changes are detected quickly
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 0;
 
 -- source include/ndb_restore_master.inc
 
-# Trigger schema synchronization to add table_space1 and log_group1 to DD
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
+# Wait until the following 3 object changes are detected:
+# Logfile group 'log_group1'
+# Tablespace 'table_space1'
+# Table 'test.t1'
+--let $initial_detected_count = $initial_detected_count_server1
+--let $expected_changes = 3
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server1
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+--connection server2
+# Sync on server 2 as well
+# Set low interval so changes are detected quickly
+SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
+SET GLOBAL ndb_metadata_check_interval = 0;
+
+--let $initial_detected_count = $initial_detected_count_server2
+--let $expected_changes = 3
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server2
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+--connection server1
 
 SELECT COUNT(*) FROM test.t1; 
 
@@ -127,13 +172,59 @@ DROP DATAFILE './table_space1/datafile.dat';
 DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
-ENGINE =NDB;
+ENGINE NDB;
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server2
+--let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server1
+# Set low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
 
 -- source include/ndb_restore_master.inc
 
-# Trigger schema synchronization to add table_space1 and log_group1 to DD
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
+# Wait until the following 6 object changes are detected:
+# Logfile group 'log_group1'
+# Tablespace 'table_space1'
+# Table 'test.t1'
+# Table 'test.t2'
+# Table 'test.t3'
+# Table 'test.t4'
+--let $initial_detected_count = $initial_detected_count_server1
+--let $expected_changes = 6
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server1
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+--connection server2
+# Sync on server 2 as well
+# Set low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
+
+--let $initial_detected_count = $initial_detected_count_server2
+--let $expected_changes = 6
+--let $max_wait = 30
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server2
+--let $max_wait = 30
+--source wait_metadata_synced.inc
+
+--connection server1
 
 SELECT COUNT(*) FROM test.t1;
 
@@ -180,7 +271,6 @@ CREATE TABLE test.t3 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(202) NOT
 
 CREATE TABLE test.t6 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(220) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))ENGINE=NDB PARTITION BY RANGE (pk1) PARTITIONS 2 (PARTITION x1 VALUES LESS THAN (333), PARTITION x2 VALUES LESS THAN (720));
 
---disable_warnings
 SHOW CREATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t2;
@@ -192,7 +282,6 @@ SHOW CREATE TABLE test.t4;
 SHOW CREATE TABLE test.t5;
 
 SHOW CREATE TABLE test.t6;
---enable_warnings
 
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't1'; 
 
@@ -264,15 +353,63 @@ DROP TABLESPACE table_space1;
 DROP TABLESPACE table_space2;
 
 DROP LOGFILE GROUP log_group1
-ENGINE =NDB;
+ENGINE NDB;
+
+# Store initial counts of both detected and synchronized objects
+--let $initial_detected_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server1 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server2
+--let $initial_detected_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)
+--let $initial_synced_count_server2 = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_synced_count', Value, 1)
+--connection server1
+# Set low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
 
 -- source include/ndb_restore_master.inc
 
-# Trigger schema synchronization
-let $mysqld_name=mysqld.1.1;
---source include/restart_mysqld.inc
+# Wait until the following 9 object changes are detected:
+# Logfile group 'log_group1'
+# Tablespace 'table_space1'
+# Tablespace 'table_space2'
+# Table 'test.t1'
+# Table 'test.t2'
+# Table 'test.t3'
+# Table 'test.t4'
+# Table 'test.t5'
+# Table 'test.t6'
+--let $initial_detected_count = $initial_detected_count_server1
+--let $expected_changes = 9
+--let $max_wait = 45
+--source wait_metadata_changes_detected.inc
 
---disable_warnings
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server1
+--let $max_wait = 45
+--source wait_metadata_synced.inc
+
+--connection server2
+# Sync on server 2 as well
+# Set low interval so changes are detected quickly
+SET GLOBAL ndb_metadata_check_interval = 0;
+
+--let $initial_detected_count = $initial_detected_count_server2
+--let $expected_changes = 9
+--let $max_wait = 45
+--source wait_metadata_changes_detected.inc
+
+# Changes have been detected, reset value
+SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
+
+# Wait until the changes detected have been synced
+--let $initial_synced_count = $initial_synced_count_server2
+--let $max_wait = 45
+--source wait_metadata_synced.inc
+
+--connection server1
+
 SHOW CREATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t2;
@@ -284,7 +421,6 @@ SHOW CREATE TABLE test.t4;
 SHOW CREATE TABLE test.t5;
 
 SHOW CREATE TABLE test.t6;
---enable_warnings
 
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't1';
 

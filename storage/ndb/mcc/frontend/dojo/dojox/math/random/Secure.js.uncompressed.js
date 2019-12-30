@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/random/Secure"
 define("dojox/math/random/Secure", ["dojo"], function(dojo) {
 
@@ -10,19 +9,19 @@ define("dojox/math/random/Secure", ["dojo"], function(dojo) {
 
 dojo.declare("dojox.math.random.Secure", null, {
 	// summary:
-	//	Super simple implementation of a random number generator,
-	//	which relies on Math.random().
+	//		Super simple implementation of a random number generator,
+	//		which relies on Math.random().
 
 	constructor: function(prng, noEvents){
 		// summary:
-		//	Intializes an instance of a secure random generator.
-		// prng: Function:
-		//	function that returns an instance of PRNG (pseudorandom number generator)
-		//  with two methods: init(array) and next(). It should have a property "size"
-		//	to indicate the required pool size.
-		// noEvents: Boolean?:
-		//	if false or absent, onclick and onkeypress event will be used to add
-		//	"randomness", otherwise events will not be used.
+		//		Initializes an instance of a secure random generator.
+		// prng: Function
+		//		function that returns an instance of PRNG (pseudo random number generator)
+		//		with two methods: init(array) and next(). It should have a property "size"
+		//		to indicate the required pool size.
+		// noEvents: Boolean?
+		//		if false or absent, onclick and onkeypress event will be used to add
+		//		"randomness", otherwise events will not be used.
 		this.prng = prng;
 
 		// Initialize the pool with junk if needed.
@@ -45,7 +44,7 @@ dojo.declare("dojox.math.random.Secure", null, {
 
 	destroy: function(){
 		// summary:
-		//	Disconnects events, if any, preparing the object for GC.
+		//		Disconnects events, if any, preparing the object for GC.
 		if(this.h){
 			dojo.forEach(this.h, dojo.disconnect);
 		}
@@ -53,10 +52,10 @@ dojo.declare("dojox.math.random.Secure", null, {
 
 	nextBytes: function(/* Array */ byteArray){
 		// summary:
-		//	Fills in an array of bytes with random numbers
-		// byteArray: Array:
-		//	array to be filled in with random numbers, only existing
-		//	elements will be filled.
+		//		Fills in an array of bytes with random numbers
+		// byteArray: Array
+		//		array to be filled in with random numbers, only existing
+		//		elements will be filled.
 
 		var state = this.state;
 
@@ -76,13 +75,13 @@ dojo.declare("dojox.math.random.Secure", null, {
 
 	seedTime: function() {
 		// summary:
-		//	Mix in the current time (w/milliseconds) into the pool
+		//		Mix in the current time (w/milliseconds) into the pool
 		this._seed_int(new Date().getTime());
 	},
 
 	_seed_int: function(x) {
 		// summary:
-		//	Mix in a 32-bit integer into the pool
+		//		Mix in a 32-bit integer into the pool
 		var p = this.pool, i = this.pptr;
 		p[i++] ^= x & 255;
 		p[i++] ^= (x >> 8) & 255;

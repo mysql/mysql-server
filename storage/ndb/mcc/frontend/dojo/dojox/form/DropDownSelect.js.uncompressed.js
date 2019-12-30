@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/DropDownSelect", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",

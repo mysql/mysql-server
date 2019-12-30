@@ -1,4 +1,3 @@
-//>>built
 define("dojox/form/uploader/plugins/Flash", [
 	"dojo/dom-form",
 	"dojo/dom-style",
@@ -15,9 +14,6 @@ define("dojox/form/uploader/plugins/Flash", [
 
 
 var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
-	//
-	// Version: 1.6
-	//
 	// summary:
 	//		A plugin for dojox.form.Uploader that utilizes a Flash SWF for handling to upload in IE.
 	//		All other browsers will use the HTML5 plugin, unless force="flash" is used, then Flash
@@ -25,38 +21,41 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	//		that HTML5 does not yet have. But it is still not recommended because of the many problems
 	//		that Firefox and Webkit have with the Flash plugin.
 	//
-	//	description:
+	// description:
 	//		Inherits all properties from dojox.form.Uploader and formUploaderPluginsHTML5.
 	//		All properties and methods listed here are specific to the Flash plugin only.
 	//
-	//	swfPath:String
+	//		Version: 1.6
+
+	
+	// swfPath:String
 	//		Path to SWF. Can be overwritten or provided in djConfig.
 	swfPath:config.uploaderPath || require.toUrl("dojox/form/resources/uploader.swf"),
-	//
+
 	// skipServerCheck: Boolean
-	// 		If true, will not verify that the server was sent the correct format.
+	//		If true, will not verify that the server was sent the correct format.
 	//		This can be safely set to true. The purpose of the server side check
 	//		is mainly to show the dev if they've implemented the different returns
 	//		correctly.
 	skipServerCheck:true,
-	//
+
 	// serverTimeout:Number (milliseconds)
 	//		The amount of time given to the uploaded file
 	//		to wait for a server response. After this amount
 	//		of time, the onComplete is fired but with a 'server timeout'
 	//		error in the returned item.
 	serverTimeout: 2000,
-	//
-	//	isDebug: Boolean
+
+	// isDebug: Boolean
 	//		If true, outputs traces from the SWF to console. What exactly gets passed
 	//		is very relative, and depends upon what traces have been left in the DEFT SWF.
 	isDebug:false,
-	//
-	//	devMode: Boolean.
+
+	// devMode: Boolean.
 	//		Re-implemented. devMode increases the logging, adding style tracing from the SWF.
 	devMode:false,
-	//
-	//	deferredUploading: Number (1 - X)
+
+	// deferredUploading: Number (1 - X)
 	//		(Flash only) throttles the upload to a certain amount of files at a time.
 	//		By default, Flash uploads file one at a time to the server, but in parallel.
 	//		Firefox will try to queue all files at once, leading to problems. Set this
@@ -65,8 +64,8 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	//		one at a time.
 	//		This is of course ignored if selectMultipleFiles equals false.
 	deferredUploading:0,
-	//
-	//	force: String
+
+	// force: String
 	//		Use "flash" to always use Flash (and hopefully force the user to download the plugin
 	//		if they don't have it).
 	force:"",
@@ -90,29 +89,29 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	 *	   Public Events	 *
 	 *************************/
 
-	onReady: function(/* dojox.form.FileUploader */ uploader){
+	onReady: function(/*dojox/form/FileUploader*/ uploader){
 		// summary:
 		//		Stub - Fired when embedFlash has created the
 		//		Flash object, but it has not necessarilly finished
 		//		downloading, and is ready to be communicated with.
 	},
 
-	onLoad: function(/* dojox.form.FileUploader */ uploader){
+	onLoad: function(/*dojox/form/FileUploader*/ uploader){
 		// summary:
 		//		Stub - SWF has been downloaded 100%.
 	},
 
 	onFileChange: function(fileArray){
 		// summary:
-		// 		Stub - Flash-specific event. Fires on each selection of files
-		// 		and only provides the files selected on that event - not all files
-		// 		selected, as with HTML5
+		//		Stub - Flash-specific event. Fires on each selection of files
+		//		and only provides the files selected on that event - not all files
+		//		selected, as with HTML5
 	},
 
 	onFileProgress: function(fileArray){
 		// summary:
-		// 		Stub - Flash-specific event. Fires on progress of upload
-		// 		and only provides a file-specific event
+		//		Stub - Flash-specific event. Fires on progress of upload
+		//		and only provides a file-specific event
 	},
 
 
@@ -135,12 +134,13 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	 *	   Private Methods	 *
 	 *************************/
 
-	uploadFlash: function(/*Object ? */formData){
+	uploadFlash: function(/*Object ? */ formData){
 		// summary:
-		// 		Uploads selected files. Alias "upload()" should be used instead.
+		//		Uploads selected files. Alias "upload()" should be used instead.
 		// tags:
 		//		private
 		this.onBegin(this.getFileList());
+		formData.returnType = "F";
 		this.flashMovie.doUpload(formData);
 	},
 
@@ -191,14 +191,13 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	},
 
 	_connectFlash: function(){
-		// 	summary:
+		// summary:
 		//		Subscribing to published topics coming from the
 		//		Flash uploader.
-		// 	description:
-		//		Sacrificing some readbilty for compactness. this.id
-		//		will be on the beginning of the topic, so more than
-		//		one uploader can be on a page and can have unique calls.
-		//
+
+		// Sacrificing some readability for compactness. this.id
+		// will be on the beginning of the topic, so more than
+		// one uploader can be on a page and can have unique calls.
 
 		this._subs = [];
 		this._cons = [];
@@ -215,8 +214,7 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 		doSub("/stageBlur", "_onFlashBlur");
 
 		this.connect(this.domNode, "focus", function(){
-			// TODO: some kind of indicator that the Flash button
-			//	is in focus
+			// TODO: some kind of indicator that the Flash button is in focus
 			this.flashMovie.focus();
 			this.flashMovie.doFocus();
 		});
@@ -227,14 +225,23 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 	_createFlashUploader: function(){
 		// summary:
 		//		Internal. Creates Flash Uploader
-		//
+
+		var w = this.btnSize.w;
+		var h = this.btnSize.h;
+		if(!w){
+			// FIXME: Commit this
+			setTimeout(dojo.hitch(this, function(){
+				this._getButtonStyle(this.domNode);
+				this._createFlashUploader();
+			}), 200);
+			return;
+		}
 		var url = this.getUrl();
 		if(url){
 			if(url.toLowerCase().indexOf("http")<0 && url.indexOf("/")!=0){
 				// Appears to be a relative path. Attempt to
-				//	convert it to absolute, so it will better
-				//target the SWF.
-				//
+				// convert it to absolute, so it will better
+				// target the SWF.
 				var loc = window.location.href.split("/");
 				loc.pop();
 				loc = loc.join("/")+"/";
@@ -248,13 +255,12 @@ var pluginsFlash = declare("dojox.form.uploader.plugins.Flash", [], {
 		domStyle.set(this.inputNode, {
 			position:"absolute",
 			top:"-2px",
-			width:this.btnSize.w+"px",
-			height:this.btnSize.h+"px",
+			width:w+"px",
+			height:h+"px",
 			opacity:0
 		});
 
-		var w = this.btnSize.w;
-		var h = this.btnSize.h;
+
 
 		var args = {
 			expressInstall:true,

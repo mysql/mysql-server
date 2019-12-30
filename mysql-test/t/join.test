@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Initialization
@@ -430,6 +431,7 @@ create algorithm=merge view v4 as
 select * from v2a natural join v3a;
 
 # Nested natural/using joins.
+--sorted_result
 select * from (t1 natural join t2) natural join (t3 natural join t4);
 --sorted_result
 select * from (t1 natural join t2) natural left join (t3 natural join t4);
@@ -439,8 +441,11 @@ select * from (t3 natural join t4) natural right join (t1 natural join t2);
 select * from (t1 natural left join t2) natural left join (t3 natural left join t4);
 --sorted_result
 select * from (t4 natural right join t3) natural right join (t2 natural right join t1);
+--sorted_result
 select * from t1 natural join t2 natural join t3 natural join t4;
+--sorted_result
 select * from ((t1 natural join t2) natural join t3) natural join t4;
+--sorted_result
 select * from t1 natural join (t2 natural join (t3 natural join t4));
 # BUG#15355: this query fails in 'prepared statements' mode
 # select * from ((t3 natural join (t1 natural join t2)) natural join t4) natural join t5;
@@ -448,12 +453,17 @@ select * from t1 natural join (t2 natural join (t3 natural join t4));
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
 select * from (t1 natural join t2), (t3 natural join t4);
 # MySQL extension - nested comma ',' operator instead of cross join.
+--sorted_result
 select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2),  (t3 natural join t4)) natural join t5;
+--sorted_result
 select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join t4));
+--sorted_result
 select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
 
 select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
+--sorted_result
 select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
 
 
@@ -468,29 +478,39 @@ where b + 1 = y or b + 10 = y group by b,c,a,y having min(b) < max(y) order by a
 # Qualified column references to NJ columns.
 select * from t1 natural join t2 where t1.c > t2.a;
 select * from t1 natural join t2 where t1.b > t2.b;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
 
 # Nested 'join ... on' - name resolution of ON conditions
+--sorted_result
 select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
+--sorted_result
 select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
 select * from t1 natural join (t2 join t4 on b + 1 = y);
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 
 # MySQL extension - 'join ... on' over nested comma operator
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
 select * from t1 natural join t2 where t1.b > 0;
+--sorted_result
 select * from t1 natural join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural join t1 where t4.y > 7;
+--sorted_result
 select * from t1 natural left join (t4 natural join t5) where t4.y > 7;
+--sorted_result
 select * from (t4 natural join t5) natural right join t1 where t4.y > 7;
+--sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on t1.b = t3.b;
 
 # MySQL extension - select qualified columns of NJ columns
 select t1.*, t2.* from t1 natural join t2;
+--sorted_result
 select t1.*, t2.*, t3.*, t4.* from (t1 natural join t2) natural join (t3 natural join t4);
 
 # Queries over subselects in the FROM clause
@@ -512,9 +532,13 @@ select * from v1a;
 select * from v1b;
 select * from v1c;
 select * from v1d;
+--sorted_result
 select * from v2a;
+--sorted_result
 select * from v2b;
+--sorted_result
 select * from v3a;
+--sorted_result
 select * from v3b;
 select * from v4;
 select * from v1a natural join v2a;
@@ -522,6 +546,7 @@ select v2a.* from v1a natural join v2a;
 select * from v1b join v2a on v1b.b = v2a.c;
 select * from v1c join v2a on v1c.b = v2a.c;
 select * from v1d join v2a on v1d.a = v2a.c;
+--sorted_result
 select * from v1a join (t3 natural join t4) on a = y;
 
 # TODO: add tests with correlated subqueries for natural join/join on.
@@ -867,6 +892,7 @@ INSERT INTO t1 VALUES ('1',null),(null,null);
 INSERT INTO t2 VALUES ('1',null),(null,null);
 CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
 ENGINE=MERGE  UNION=(t1,t2);
+--sorted_result
 SELECT t1.a FROM mm1,t1;
 DROP TABLE t1, t2, mm1;
 
@@ -1194,3 +1220,36 @@ explain format=json select straight_join count(*) from parent
 ;
 
 drop table parent, eq_child;
+
+--echo #
+--echo # Bug #29954680: BACKWARDS REF SCAN DOES NOT PERFORM LATE NULLS FILTERING
+--echo #
+
+CREATE TABLE t (i INTEGER PRIMARY KEY AUTO_INCREMENT, j INTEGER, KEY(j)) ENGINE=InnoDB;
+INSERT INTO t VALUES (NULL, NULL);
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+INSERT INTO t SELECT NULL, NULL FROM t;
+ANALYZE TABLE t;
+
+# Verify that we indeed get a backwards index scan.
+EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+
+FLUSH STATUS;
+--disable_result_log
+SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
+--enable_result_log
+
+# Check that we skipped nearly all of the key lookups.
+SHOW STATUS LIKE 'Handler_read_key';
+
+DROP TABLE t;

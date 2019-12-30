@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ class Standard_writer : public I_output_writer, public Abstract_chain_element {
   Standard_writer(std::function<bool(const Mysql::Tools::Base::Message_data &)>
                       *message_handler,
                   Simple_id_generator *object_id_generator);
-
+  bool init();
   void append(const std::string &data_to_append);
 
   // Fix "inherits ... via dominance" warnings

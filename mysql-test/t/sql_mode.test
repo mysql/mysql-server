@@ -653,3 +653,17 @@ EXECUTE stmt USING @a;
 SELECT * FROM test;
 SET SQL_MODE=DEFAULT;
 DROP TABLE test;
+
+--echo #
+--echo # Bug#29287785: PASSWORD IS NOT UPDATED WITHOUT ERRORS WHEN
+--echo #               SQL MODE IS PAD_CHAR_TO_FULL_LENGTH
+--echo #
+
+CREATE USER 'user1'@'localhost';
+SET sql_mode= 'PAD_CHAR_TO_FULL_LENGTH';
+SET PASSWORD FOR 'user1'@'localhost'= 'abc';
+SELECT LENGTH(authentication_string) FROM mysql.user WHERE user= 'user1';
+
+#Cleanup
+DROP USER 'user1'@'localhost';
+SET sql_mode= DEFAULT;

@@ -1,0 +1,192 @@
+SELECT cost_name,cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	NULL
+disk_temptable_row_cost	NULL
+key_compare_cost	NULL
+memory_temptable_create_cost	NULL
+memory_temptable_row_cost	NULL
+row_evaluate_cost	NULL
+SELECT engine_name,cost_name,cost_value FROM mysql.engine_cost;
+engine_name	cost_name	cost_value
+default	io_block_read_cost	NULL
+default	memory_block_read_cost	NULL
+CREATE TABLE t0 (
+i1 INTEGER
+);
+INSERT INTO t0 VALUE (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+CREATE TABLE t1_myisam (
+pk INTEGER PRIMARY KEY,
+i1 INTEGER NOT NULL,
+c1 CHAR(250),
+c2 CHAR(250),
+c3 CHAR(250),
+c4 CHAR(250),
+INDEX i1_key (i1)
+) ENGINE=MyISAM;
+# Since ANALYZE TABLE only reads a subset of the data, the statistics for
+# table t1 depends on the row order. And since the INSERT INTO ... SELECT
+# may be executed using different execution plans, we've added ORDER BY
+# to ensure that we rows has the same order every time. If not, the
+# estimated number of rows in EXPLAIN may change on different platforms.
+INSERT INTO t1_myisam
+SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
+FROM t0 AS a0, t0 AS a1 ORDER BY a0.i1, a1.i1;
+ANALYZE TABLE t1_myisam;
+Table	Op	Msg_type	Msg_text
+test.t1_myisam	analyze	status	Table is already up to date
+"Explain with cost estimate against MyISAM"
+EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "34.97"
+    },
+    "table": {
+      "table_name": "t1_myisam",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 100,
+      "rows_produced_per_join": 100,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "24.97",
+        "eval_cost": "10.00",
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
+      },
+      "used_columns": [
+        "pk",
+        "i1",
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
+UPDATE mysql.server_cost
+SET cost_value=0.4
+WHERE cost_name="row_evaluate_cost";
+UPDATE mysql.engine_cost
+SET cost_value=2.0
+WHERE cost_name="memory_block_read_cost";
+UPDATE mysql.engine_cost
+SET cost_value=2.0
+WHERE cost_name="io_block_read_cost";
+"Restarting MySQL server"
+# restart
+"MySQL restarted"
+SELECT cost_name, cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	NULL
+disk_temptable_row_cost	NULL
+key_compare_cost	NULL
+memory_temptable_create_cost	NULL
+memory_temptable_row_cost	NULL
+row_evaluate_cost	0.4
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
+engine_name	cost_name	cost_value
+default	io_block_read_cost	2
+default	memory_block_read_cost	2
+"Explain with cost estimate against MyISAM"
+EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "239.75"
+    },
+    "table": {
+      "table_name": "t1_myisam",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 100,
+      "rows_produced_per_join": 100,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "199.75",
+        "eval_cost": "40.00",
+        "prefix_cost": "239.75",
+        "data_read_per_join": "392K"
+      },
+      "used_columns": [
+        "pk",
+        "i1",
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
+UPDATE mysql.server_cost
+SET cost_value=DEFAULT;
+UPDATE mysql.engine_cost
+SET cost_value=DEFAULT;
+INSERT INTO mysql.engine_cost VALUES
+("InnoDB", 0, "memory_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
+INSERT INTO mysql.engine_cost VALUES
+("InnoDB", 0, "io_block_read_cost", 4.0, CURRENT_TIMESTAMP, DEFAULT, DEFAULT);
+"Restarting MySQL server"
+# restart
+"MySQL restarted"
+SELECT cost_name, cost_value FROM mysql.server_cost;
+cost_name	cost_value
+disk_temptable_create_cost	NULL
+disk_temptable_row_cost	NULL
+key_compare_cost	NULL
+memory_temptable_create_cost	NULL
+memory_temptable_row_cost	NULL
+row_evaluate_cost	NULL
+SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
+engine_name	cost_name	cost_value
+default	io_block_read_cost	NULL
+InnoDB	io_block_read_cost	4
+default	memory_block_read_cost	NULL
+InnoDB	memory_block_read_cost	4
+"Explain with cost estimate against MyISAM"
+EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "34.97"
+    },
+    "table": {
+      "table_name": "t1_myisam",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 100,
+      "rows_produced_per_join": 100,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "24.97",
+        "eval_cost": "10.00",
+        "prefix_cost": "34.97",
+        "data_read_per_join": "392K"
+      },
+      "used_columns": [
+        "pk",
+        "i1",
+        "c1",
+        "c2",
+        "c3",
+        "c4"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
+DELETE FROM mysql.engine_cost
+WHERE engine_name NOT LIKE "default";
+"Restarting MySQL server"
+# restart
+DROP TABLE t0, t1_myisam;

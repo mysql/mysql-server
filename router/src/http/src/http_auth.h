@@ -159,21 +159,4 @@ class HTTP_SERVER_EXPORT HttpAuthCredentials {
   std::vector<std::pair<std::string, std::string>> params_;
 };
 
-/**
- * high-level Authentication frontend.
- *
- * bridges HttpRequest with the HttpAuthRealm's
- */
-class HttpAuth {
- public:
-  /**
-   * require Authorization.
-   *
-   * @returns if request has been handled
-   * @retval true request handled
-   */
-  static bool require_auth(HttpRequest &req,
-                           std::shared_ptr<HttpAuthRealm> realm);
-};
-
 #endif

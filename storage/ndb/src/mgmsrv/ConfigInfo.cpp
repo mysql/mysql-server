@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,9 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-
+#include <ConfigObject.hpp>
+#include <unordered_map>
+#include <string>
 
 #include <portlib/ndb_localtime.h>
 
@@ -65,14 +67,15 @@ ConfigInfo::m_sectionNameAliases[]={
   {0, 0}
 };
 
+// Also defines the order used in print_impl()/print()/print_xml().
 const char* 
 ConfigInfo::m_sectionNames[]={
   "SYSTEM",
   "COMPUTER",
 
-  DB_TOKEN,
-  MGM_TOKEN,
   API_TOKEN,
+  MGM_TOKEN,
+  DB_TOKEN,
 
   "TCP",
   "SHM"
@@ -797,7 +800,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
     "MaxDMLOperationsPerTransaction",
     DB_TOKEN,
-    "Max DML-operations in one transaction (0 == no limit)",
+    "Max DML-operations in one transaction",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -4685,12 +4688,18 @@ void ConfigInfo::print_impl(const char* section_filter,
                             ConfigPrinter& printer) const {
   printer.start();
   /* Iterate through all sections */
-  Properties::Iterator it(&m_info);
-  for (const char* s = it.first(); s != NULL; s = it.next()) {
+  for (int i = 0; i < m_noOfSectionNames; i++)
+  {
+    const char* s = m_sectionNames[i];
     if (section_filter && strcmp(section_filter, s))
       continue; // Skip this section
 
     const Properties * sec = getInfo(s);
+    if (sec == nullptr)
+    {
+      // There was no such section
+      continue;
+    }
 
     if (is_internal_section(sec))
       continue; // Skip whole section
@@ -5357,6 +5366,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
 {
   bool ok = true;
 
+  Uint32 MaxDMLOperationsPerTransaction = ~Uint32(0);
   Uint32 MaxNoOfConcurrentIndexOperations = 0;
   Uint32 MaxNoOfConcurrentOperations = 0;
   Uint32 MaxNoOfConcurrentScans = 0;
@@ -5370,6 +5380,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
   Uint32 ReservedFiredTriggers = 0;
   Uint32 ReservedLocalScans = 0;
 
+  ctx.m_currentSection->get("MaxDMLOperationsPerTransaction", &MaxDMLOperationsPerTransaction);
   ctx.m_currentSection->get("MaxNoOfConcurrentIndexOperations", &MaxNoOfConcurrentIndexOperations);
   ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &MaxNoOfConcurrentOperations);
   ctx.m_currentSection->get("MaxNoOfConcurrentScans", &MaxNoOfConcurrentScans);
@@ -5383,6 +5394,15 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
   ctx.m_currentSection->get("ReservedFiredTriggers", &ReservedFiredTriggers);
   ctx.m_currentSection->get("ReservedLocalScans", &ReservedLocalScans);
   
+  if (MaxDMLOperationsPerTransaction != ~Uint32(0) &&
+      MaxNoOfConcurrentOperations < MaxDMLOperationsPerTransaction)
+  {
+    ctx.reportError("MaxDMLOperationsPerTransaction must not be greater than "
+		    "MaxNoOfConcurrentOperations - [%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    ok = false;
+  }
+
   if (MaxNoOfConcurrentOperations < MaxNoOfConcurrentTransactions)
   {
     ctx.reportError("MaxNoOfConcurrentOperations must be greater than "
@@ -5684,14 +5704,38 @@ checkTCPConstraints(InitConfigFileParser::Context & ctx, const char * data){
   
   const char * host;
   struct in_addr addr;
-  if(ctx.m_currentSection->get(data, &host) && strlen(host) && 
-     Ndb_getInAddr(&addr, host)){
-    ctx.reportError("Unable to lookup/illegal hostname %s"
-		    " - [%s] starting at line: %d",
-		    host, ctx.fname, ctx.m_sectionLineno);
-    return false;
+  static std::unordered_map<std::string, bool> host_map;
+  bool ret = true;
+
+  if (ctx.m_currentSection->get(data, &host) && (strlen(host) > 0))
+  {
+    /**
+     * First an attempt is made to look into the hash table for a hostname and
+     * only if it's not found, we call Ndb_getInAddr().
+     */
+    auto ent = host_map.find(host);
+    if (ent != host_map.end())
+    {
+      const bool valid_host = ent->second;
+      ret = valid_host;
+    }
+    else if (Ndb_getInAddr(&addr, host) == 0)
+    {
+      host_map[host] = true;
+    }
+    else
+    {
+      host_map[host] = false;
+      ret = false;
+    }
   }
-  return true;
+  if (!ret)
+  {
+    ctx.reportError("Unable to lookup/illegal hostname %s"
+              " - [%s] starting at line: %d",
+              host, ctx.fname, ctx.m_sectionLineno);
+  }
+  return ret;
 }
 
 static
@@ -5804,7 +5848,9 @@ fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
 }
 
 static bool
-saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
+saveInConfigValues(InitConfigFileParser::Context & ctx,
+                   const char * data)
+{
   const Properties * sec;
   if(!ctx.m_currentInfo->get(ctx.fname, &sec)){
     require(false);
@@ -5827,10 +5873,8 @@ saveInConfigValues(InitConfigFileParser::Context & ctx, const char * data){
     Uint32 no = 0;
     ctx.m_userProperties.get("$Section", id, &no);
     ctx.m_userProperties.put("$Section", id, no+1, true);
-    
-    ctx.m_configValues.openSection(id, no);
-    ctx.m_configValues.put(CFG_TYPE_OF_SECTION, typeVal);
-    
+
+    ctx.m_configValues.createSection(id, typeVal);
     Properties::Iterator it(ctx.m_currentSection);
     for (const char* n = it.first(); n != NULL; n = it.next()) {
       const Properties * info;
@@ -6582,9 +6626,9 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
     }
 
     assert(data_sz >> 32 == 0);
-    ctx.m_configValues.expand(keys, Uint32(data_sz));
   }
 
+  require(ctx.m_configValues.begin());
   for (const char * name = it.first(); name != 0; name = it.next())
   {
     PropertiesType pt;
@@ -6602,7 +6646,7 @@ saveSectionsInConfigValues(Vector<ConfigInfo::ConfigRuleSection>& notused,
       saveInConfigValues(ctx, 0);
     }
   }
-
+  require(ctx.m_configValues.commit(false));
   return true;
 }
 

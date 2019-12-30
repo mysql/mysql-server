@@ -191,6 +191,31 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   --source include/stop_dump_threads.inc
+
+  # Drop applier user, if created
+  --let $_rpl_change_topology_user_created_index= `SELECT LOCATE('$_rpl_server:', "$rpl_change_topology_user_created")`
+  if ($_rpl_change_topology_user_created_index)
+  {
+    --disable_query_log
+    --let $_rpl_change_topology_user_created= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_change_topology_user_created", $_rpl_change_topology_user_created_index), ' ', 1), ':', -1)`
+    --eval DROP USER $_rpl_change_topology_user_created
+    if ($rpl_privilege_checks_use_roles != '')
+    {
+        --eval DROP ROLE 'sql_applier_thread'
+    }
+    --enable_query_log
+  }
+
+  # Drop created privileged database
+  if ($rpl_privilege_checks_user)
+  {
+    --disable_query_log
+    SET @@sql_log_bin = 0;
+    DROP DATABASE rpl_priv;
+    SET @@sql_log_bin = 1;
+    --enable_query_log
+  }
+
   --connection default
 
   # Unconfigure connections

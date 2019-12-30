@@ -10,6 +10,8 @@ number varchar(35) NOT NULL default 'default',
 PRIMARY KEY  (id),
 UNIQUE KEY unique_rec (name,number)
 ) ENGINE=InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 LOAD DATA
 INFILE '../../std_data/loaddata_pair.dat'  
 REPLACE INTO TABLE t4 

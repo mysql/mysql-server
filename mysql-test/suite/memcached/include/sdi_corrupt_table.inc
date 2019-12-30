@@ -56,6 +56,10 @@ EOF
 let $restart_parameters = restart: --innodb_buffer_pool_load_at_startup=OFF;
 --source include/start_mysqld.inc
 
+--let $memcached_check_attempts=20
+--let $memcached_expect=success
+--source ../include/check_daemon_memcached.inc
+
 # SDI Page Corrupted. Re-create indexes
 
 --source ../include/sdi_drop_index.inc

@@ -168,13 +168,20 @@
 	height: 0;
 	overflow: hidden;
 }
-.dojoxGridCell {
+.dojoxGrid .dojoxGridCell {
 	border: 1px solid;
 	border-color: #EBEADB;
 	border-right-color: #D5CDB5;
 	padding: 3px 3px 3px 3px;
 	text-align: left;
 	overflow: hidden;
+	word-wrap: break-word;
+}
+.dojoxGrid .dojoxGridFixedRowHeight .dojoxGridCell {
+	white-space: nowrap;
+	word-break: keep-all;
+	word-wrap: normal;
+	text-overflow: ellipsis;
 }
 .dojoxGridCellFocus {
 	border: 1px dashed blue;
@@ -223,6 +230,11 @@
 }
 .dijit_a11y .dojoxGridRowSelected {
 	border: 1px solid black !important;
+}
+.dojoxGridRowTable .dojoDndHorizontal th.dojoDndItem {
+	display: table-cell;
+	
+	margin: 0;
 }
 .dojoxGridDndAvatar {
 	font-size: 100%;

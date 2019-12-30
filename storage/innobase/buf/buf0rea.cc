@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,29 +57,11 @@ a random read-ahead */
 /** If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
 i/o-fixed buffer blocks */
-#define BUF_READ_AHEAD_PEND_LIMIT 2
+static constexpr size_t BUF_READ_AHEAD_PEND_LIMIT = 2;
 
-/** Low-level function which reads a page asynchronously from a file to the
-buffer buf_pool if it is not already there, in which case does nothing.
-Sets the io_fix flag and sets an exclusive lock on the buffer frame. The
-flag is cleared and the x-lock released by an i/o-handler thread.
-@param[out]	err		DB_SUCCESS or DB_TABLESPACE_DELETED
-                                if we are trying to read from a non-existent
-                                tablespace or a tablespace which is just now
-                                being dropped
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	type		Request type
-@param[in]	mode		BUF_READ_IBUF_PAGES_ONLY, ...
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	unzip		true=request uncompressed page
-@return 1 if a read request was queued, 0 if the page already resided in
-buf_pool, or if the page is in the doublewrite buffer blocks in which case it
-is never read into the pool, or if the tablespace does not exist or is being
-dropped */
-static ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
-                               const page_id_t &page_id,
-                               const page_size_t &page_size, bool unzip) {
+ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
+                        const page_id_t &page_id, const page_size_t &page_size,
+                        bool unzip) {
   buf_page_t *bpage;
 
   *err = DB_SUCCESS;
@@ -162,24 +144,8 @@ static ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
   return (1);
 }
 
-/** Applies a random read-ahead in buf_pool if there are at least a threshold
-value of accessed pages from the random read-ahead area. Does not read any
-page, not even the one at the position (space, offset), if the read-ahead
-mechanism is not activated. NOTE 1: the calling thread may own latches on
-pages: to avoid deadlocks this function must be written such that it cannot
-end up waiting for these latches! NOTE 2: the calling thread must want
-access to the page given: this rule is set to prevent unintended read-aheads
-performed by ibuf routines, a situation which could result in a deadlock if
-the OS does not support asynchronous i/o.
-@param[in]	page_id		page id of a page which the current thread
-wants to access
-@param[in]	page_size	page size
-@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
-@return number of page read requests issued; NOTE that if we read ibuf
-pages, it may happen that the page at the given page number does not
-get read even if we return a positive value! */
 ulint buf_read_ahead_random(const page_id_t &page_id,
-                            const page_size_t &page_size, ibool inside_ibuf) {
+                            const page_size_t &page_size, bool inside_ibuf) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
   ulint recent_blocks = 0;
   ulint ibuf_mode;
@@ -292,8 +258,7 @@ read_ahead:
   }
 
   /* In simulated aio we wake the aio handler threads only after
-  queuing all aio requests, in native aio the following call does
-  nothing: */
+  queuing all aio requests.  */
 
   os_aio_simulated_wake_handler_threads();
 
@@ -312,14 +277,7 @@ read_ahead:
   return (count);
 }
 
-/** High-level function which reads a page asynchronously from a file to the
-buffer buf_pool if it is not already there. Sets the io_fix flag and sets
-an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-released by the i/o-handler thread.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@return true if page has been read in, false in case of failure */
-ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size) {
+bool buf_read_page(const page_id_t &page_id, const page_size_t &page_size) {
   ulint count;
   dberr_t err;
 
@@ -339,16 +297,8 @@ ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size) {
   return (count > 0);
 }
 
-/** High-level function which reads a page asynchronously from a file to the
-buffer buf_pool if it is not already there. Sets the io_fix flag and sets
-an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-released by the i/o-handler thread.
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	sync		true if synchronous aio is desired
-@return true if page has been read in, false in case of failure */
-ibool buf_read_page_background(const page_id_t &page_id,
-                               const page_size_t &page_size, bool sync) {
+bool buf_read_page_background(const page_id_t &page_id,
+                              const page_size_t &page_size, bool sync) {
   ulint count;
   dberr_t err;
 
@@ -368,34 +318,70 @@ ibool buf_read_page_background(const page_id_t &page_id,
   return (count > 0);
 }
 
-/** Applies linear read-ahead if in the buf_pool the page is a border page of
-a linear read-ahead area and all the pages in the area have been accessed.
-Does not read any page if the read-ahead mechanism is not activated. Note
-that the algorithm looks at the 'natural' adjacent successor and
-predecessor of the page, which on the leaf level of a B-tree are the next
-and previous page in the chain of leaves. To know these, the page specified
-in (space, offset) must already be present in the buf_pool. Thus, the
-natural way to use this function is to call it when a page in the buf_pool
-is accessed the first time, calling this function just after it has been
-bufferfixed.
-NOTE 1: as this function looks at the natural predecessor and successor
-fields on the page, what happens, if these are not initialized to any
-sensible value? No problem, before applying read-ahead we check that the
-area to read is within the span of the space, if not, read-ahead is not
-applied. An uninitialized value may result in a useless read operation, but
-only very improbably.
-NOTE 2: the calling thread may own latches on pages: to avoid deadlocks this
-function must be written such that it cannot end up waiting for these
-latches!
-NOTE 3: the calling thread must want access to the page given: this rule is
-set to prevent unintended read-aheads performed by ibuf routines, a situation
-which could result in a deadlock if the OS does not support asynchronous io.
-@param[in]	page_id		page id; see NOTE 3 above
-@param[in]	page_size	page size
-@param[in]	inside_ibuf	TRUE if we are inside ibuf routine
-@return number of page read requests issued */
+size_t buf_phy_read_ahead(const page_id_t &page_id,
+                          const page_size_t &page_size, size_t n_pages) {
+  buf_pool_t *buf_pool = buf_pool_get(page_id);
+
+  if (srv_startup_is_before_trx_rollback_phase) {
+    /* No read-ahead to avoid thread deadlocks */
+    return (0);
+  }
+
+  auto low = page_id.page_no();
+  auto high = low + n_pages;
+
+  /* Remember the tablespace version before we ask the tablespace size
+  below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
+  do not try to read outside the bounds of the tablespace! */
+  page_no_t space_size{};
+
+  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+    space_size = space->size;
+
+    fil_space_release(space);
+
+    if (high > space_size) {
+      /* The area is not whole */
+      return (0);
+    }
+  } else {
+    return (0);
+  }
+
+  size_t count{};
+
+  /* Since Windows XP seems to schedule the i/o handler thread
+  very eagerly, and consequently it does not wait for the
+  full read batch to be posted, we use special heuristics here */
+
+  os_aio_simulated_put_read_threads_to_sleep();
+
+  for (page_no_t i = low; i < high; ++i) {
+    dberr_t err;
+    const page_id_t cur_page_id(page_id.space(), i);
+
+    count +=
+        buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE,
+                          BUF_READ_ANY_PAGE, cur_page_id, page_size, false);
+
+    ut_a(err != DB_TABLESPACE_DELETED);
+  }
+
+  /* In simulated AIO we wake the AIO handler threads only after
+  queuing all AIO requests. */
+
+  os_aio_simulated_wake_handler_threads();
+
+  /* Read ahead is considered one I/O operation for the purpose of
+  LRU policy decision. */
+  buf_LRU_stat_inc_io();
+
+  buf_pool->stat.n_ra_pages_read += count;
+  return (count);
+}
+
 ulint buf_read_ahead_linear(const page_id_t &page_id,
-                            const page_size_t &page_size, ibool inside_ibuf) {
+                            const page_size_t &page_size, bool inside_ibuf) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
   buf_page_t *bpage;
   buf_frame_t *frame;
@@ -627,8 +613,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   }
 
   /* In simulated aio we wake the aio handler threads only after
-  queuing all aio requests, in native aio the following call does
-  nothing: */
+  queuing all aio requests. */
 
   os_aio_simulated_wake_handler_threads();
 
@@ -645,26 +630,11 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   return (count);
 }
 
-/** Issues read requests for pages which the ibuf module wants to read in, in
- order to contract the insert buffer tree. Technically, this function is like
- a read-ahead function. */
-void buf_read_ibuf_merge_pages(
-    bool sync,                   /*!< in: true if the caller
-                                 wants this function to wait
-                                 for the highest address page
-                                 to get read in, before this
-                                 function returns */
-    const space_id_t *space_ids, /*!< in: array of space ids */
-    const page_no_t *page_nos,   /*!< in: array of page numbers
-                         to read, with the highest page
-                         number the last in the
-                         array */
-    ulint n_stored)              /*!< in: number of elements
-                                 in the arrays */
-{
+void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
+                               const page_no_t *page_nos, ulint n_stored) {
 #ifdef UNIV_IBUF_DEBUG
   ut_a(n_stored < UNIV_PAGE_SIZE);
-#endif
+#endif /* UNIV_IBUF_DBUG */
 
   for (ulint i = 0; i < n_stored; i++) {
     const page_id_t page_id(space_ids[i], page_nos[i]);
@@ -708,14 +678,6 @@ void buf_read_ibuf_merge_pages(
   }
 }
 
-/** Issues read requests for pages which recovery wants to read in.
-@param[in]	sync		true if the caller wants this function to wait
-                                for the highest address page to get read in,
-                                before this function returns
-@param[in]	space_id	tablespace id
-@param[in]	page_nos	array of page numbers to read, with the
-                                highest page number the last in the array
-@param[in]	n_stored	number of page numbers in the array */
 void buf_read_recv_pages(bool sync, space_id_t space_id,
                          const page_no_t *page_nos, ulint n_stored) {
   ulint count;

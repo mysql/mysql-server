@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +46,12 @@ char *fn_same(char *to, const char *name, int flag) {
   char dev[FN_REFLEN];
   const char *ext;
   size_t dev_length;
-  DBUG_ENTER("fn_same");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("to: %s  name: %s  flag: %d", to, name, flag));
 
   if ((ext = strrchr(name + dirname_part(dev, name, &dev_length),
                      FN_EXTCHAR)) == 0)
     ext = "";
 
-  DBUG_RETURN(fn_format(to, to, dev, ext, flag));
+  return fn_format(to, to, dev, ext, flag);
 } /* fn_same */

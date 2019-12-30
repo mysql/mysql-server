@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,25 +43,25 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec) {
   ulonglong changed;
   MYISAM_SHARE *share = info->s;
   ha_checksum old_checksum = 0;
-  DBUG_ENTER("mi_update");
+  DBUG_TRACE;
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
                   mi_print_error(info->s, HA_ERR_CRASHED);
-                  set_my_errno(HA_ERR_CRASHED); DBUG_RETURN(HA_ERR_CRASHED););
+                  set_my_errno(HA_ERR_CRASHED); return HA_ERR_CRASHED;);
   if (!(info->update & HA_STATE_AKTIV)) {
     set_my_errno(HA_ERR_KEY_NOT_FOUND);
-    DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+    return HA_ERR_KEY_NOT_FOUND;
   }
   if (share->options & HA_OPTION_READ_ONLY_DATA) {
     set_my_errno(EACCES);
-    DBUG_RETURN(EACCES);
+    return EACCES;
   }
   if (info->state->key_file_length >= share->base.margin_key_file_length) {
     set_my_errno(HA_ERR_INDEX_FILE_FULL);
-    DBUG_RETURN(HA_ERR_INDEX_FILE_FULL);
+    return HA_ERR_INDEX_FILE_FULL;
   }
   pos = info->lastpos;
-  if (_mi_readinfo(info, F_WRLCK, 1)) DBUG_RETURN(my_errno());
+  if (_mi_readinfo(info, F_WRLCK, 1)) return my_errno();
 
   if (share->calc_checksum)
     old_checksum = info->checksum = (*share->calc_checksum)(info, oldrec);
@@ -174,7 +174,7 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec) {
     there is no index change there could be data change.
   */
   (void)_mi_writeinfo(info, WRITEINFO_UPDATE_KEYFILE);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   DBUG_PRINT("error", ("key: %d  errno: %d", i, my_errno()));
@@ -216,5 +216,5 @@ err_end:
     save_errno = HA_ERR_CRASHED;
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(save_errno);
+  return save_errno;
 } /* mi_update */

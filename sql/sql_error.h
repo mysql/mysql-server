@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -763,7 +763,7 @@ size_t convert_error_message(char *to, size_t to_length,
                              size_t from_length, const CHARSET_INFO *from_cs,
                              uint *errors);
 
-extern const LEX_STRING warning_level_names[];
+extern const LEX_CSTRING warning_level_names[];
 
 bool is_sqlstate_valid(const LEX_STRING *sqlstate);
 

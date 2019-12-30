@@ -52,8 +52,8 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[]{"http_auth_backend"};
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 namespace {

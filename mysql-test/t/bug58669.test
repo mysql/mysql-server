@@ -3,11 +3,6 @@
 --echo # Bug#58669: read_only not enforced on 5.5.x
 --echo #
 
---disable_query_log
-CALL mtr.add_suppression("Skip re-populating collations and character sets tables in read-only mode.");
-CALL mtr.add_suppression("Skip updating information_schema metadata in read-only mode.");
---enable_query_log
-
 CREATE USER user1@localhost;
 CREATE DATABASE db1;
 GRANT ALL PRIVILEGES ON db1.* TO user1@localhost;

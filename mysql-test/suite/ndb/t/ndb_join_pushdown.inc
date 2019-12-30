@@ -4898,6 +4898,43 @@ set optimizer_switch=@save_optimizer_switch;
 --error 0,1193
 set global debug=@save_debug;
 
+####################################
+--echo #
+--echo # Bug#29860378
+--echo #   RESULTS NOT SORTED AS SPECIFIED WHEN QUERY IS A 'PUSHED JOIN'
+--echo #
+
+# Force a small batch size in order to reproduce bug without needing
+# a large test table.
+--error 0,1193
+set global debug='+d,max_4rows_in_spj_batches';
+
+explain
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+select straight_join t1.* from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  order by t1.a,t1.b;
+
+explain
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
+
+--sorted_result
+select straight_join t1.a,t1.b,count(*) from
+  t1 join t1 as t2 on t2.d = t1.a
+  where t1.a > 0
+  group by t1.a,t1.b;
+
+--error 0,1193
+set global debug=@save_debug;
+
 
 ##################################################
 # Bug##26926666
@@ -5254,6 +5291,41 @@ SELECT *
 
 connection ddl;
 DROP TABLE ndb_order_test, ndb_user_test;
+
+
+--echo ##################
+--echo #
+--echo # Bug #29501263 CRASH IN SPJ BLOCK, ILLEGAL ACCESS
+--echo #               TO ARRAYPOOL<T>::GETPTR
+--echo #
+--echo ##################
+
+create table t1 (
+  pk int primary key,
+  i1 int
+) engine = ndb;
+
+insert into t1 values (1,1),(2,2),(3,3);
+
+alter table t1 add column (i2 int, i3 int, i4 int, i5 int);
+update t1 set i2=i1, i3=i1, i4=i1, i5=i1;
+
+alter table t1 add index ix1(i1);
+alter table t1 add index ix2(i2);
+alter table t1 add index ix3(i3);
+alter table t1 add index ix4(i4);
+alter table t1 add index ix5(i5);
+alter table t1 add unique index uix(i4,i5);
+
+--sorted_result
+select straight_join * from
+  t1
+    join t1 as t2 on t2.i1 = t1.i1
+      join t1 as t3 on t3.pk = t2.i2
+        left join t1 as t4 on t4.pk = t3.i3
+        left join t1 as t5 on t5.i4 = t2.i4 and t5.i5 = t1.i5;
+
+drop table t1;
 
 ########################################
 # Verify counters for entire test:

@@ -1,4 +1,5 @@
 -- source include/no_valgrind_without_big.inc
+--source include/mysql_upgrade_preparation.inc
 
 --echo #
 --echo # Bug#24447771 ACL_INIT() RETURNS TRUE ON 5.7 DATA DIRECTORY

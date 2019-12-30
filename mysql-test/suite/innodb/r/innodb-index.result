@@ -913,12 +913,18 @@ CREATE TABLE t1(
 c1	BIGINT(12) NOT NULL,
 PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 c1	BIGINT(16) NOT NULL,
 c2	BIGINT(12) NOT NULL,
 c3	BIGINT(12) NOT NULL,
 PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3) REFERENCES t1(c1);
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
@@ -957,6 +963,10 @@ c2	BIGINT(12) NOT NULL,
 c3	BIGINT(12) NOT NULL,
 PRIMARY KEY (c1,c2,c3)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3) REFERENCES t1(c1);
@@ -995,12 +1005,19 @@ c1	BIGINT(12) NOT NULL,
 c2	INT(4) NOT NULL,
 PRIMARY KEY (c2,c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 CREATE TABLE t2(
 c1	BIGINT(16) NOT NULL,
 c2	BIGINT(12) NOT NULL,
 c3	BIGINT(12) NOT NULL,
 PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
@@ -1022,7 +1039,9 @@ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
 ERROR HY000: Referencing column 'c3' and referenced column 'c2' in foreign key constraint 'fk_t2_ca' are incompatible.
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'

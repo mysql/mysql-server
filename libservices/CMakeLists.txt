@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ SET(MYSQLSERVICES_SOURCES
   mysql_keyring_service.c
   plugin_registry_service.c)
 
-ADD_CONVENIENCE_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
+ADD_LIBRARY(mysqlservices STATIC ${MYSQLSERVICES_SOURCES})
 IF(INSTALL_STATIC_LIBRARIES)
   INSTALL(TARGETS mysqlservices
     DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)

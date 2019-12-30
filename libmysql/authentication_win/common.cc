@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -375,7 +375,7 @@ char *wchar_to_utf8(const wchar_t *string, size_t *len) {
     return buf;
   }
 
-    // res is 0 which indicates error
+  // res is 0 which indicates error
 
 #ifndef DBUG_OFF
   Error_message_buf error_buf;
@@ -437,7 +437,7 @@ wchar_t *utf8_to_wchar(const char *string, size_t *len) {
     return buf;
   }
 
-    // error in MultiByteToWideChar()
+  // error in MultiByteToWideChar()
 
 #ifndef DBUG_OFF
   Error_message_buf error_buf;
@@ -468,7 +468,7 @@ const char *get_last_error_message(Error_message_buf buf) {
   buf[0] = '\0';
   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, error,
                 MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)buf,
-                sizeof(buf), NULL);
+                sizeof(Error_message_buf), NULL);
 
   return buf;
 }

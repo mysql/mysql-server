@@ -6,6 +6,9 @@ pad char(60) NOT NULL default '',
 PRIMARY KEY (id),
 KEY k (k)
 ) charset latin1 engine=innodb;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK

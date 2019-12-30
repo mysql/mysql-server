@@ -1,11 +1,8 @@
-//>>built
 define("dojox/dtl/filter/htmlstrings", [
 	"dojo/_base/lang",
 	"../_base"
 ], function(lang,dd){
-	/*=====
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.filter.htmlstrings", true);
 
 	lang.mixin(dd.filter.htmlstrings, {
@@ -16,7 +13,8 @@ define("dojox/dtl/filter/htmlstrings", [
 		_removetagsfind: /[a-z0-9]+/g,
 		_striptags: /<[^>]*?>/g,
 		linebreaks: function(value){
-			// summary: Converts newlines into <p> and <br />s
+			// summary:
+			//		Converts newlines into `<p>` and `<br />`s
 			var output = [];
 			var dh = dd.filter.htmlstrings;
 			value = value.replace(dh._linebreaksrn, "\n");
@@ -29,12 +27,14 @@ define("dojox/dtl/filter/htmlstrings", [
 			return output.join("\n\n");
 		},
 		linebreaksbr: function(value){
-			// summary: Converts newlines into <br />s
+			// summary:
+			//		Converts newlines into `<br />`s
 			var dh = dd.filter.htmlstrings;
 			return value.replace(dh._linebreaksrn, "\n").replace(dh._linebreaksbr, "<br />");
 		},
 		removetags: function(value, arg){
-			// summary: Removes a space separated list of [X]HTML tags from the output"
+			// summary:
+			//		Removes a space separated list of [X]HTML tags from the output"
 			var dh = dd.filter.htmlstrings;
 			var tags = [];
 			var group;
@@ -45,7 +45,8 @@ define("dojox/dtl/filter/htmlstrings", [
 			return value.replace(new RegExp("</?\s*" + tags + "\s*[^>]*>", "gi"), "");
 		},
 		striptags: function(value){
-			// summary: Strips all [X]HTML tags
+			// summary:
+			//		Strips all [X]HTML tags
 			return value.replace(dojox.dtl.filter.htmlstrings._striptags, "");
 		}
 	});

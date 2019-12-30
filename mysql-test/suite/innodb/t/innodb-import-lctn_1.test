@@ -1,0 +1,246 @@
+--source include/have_debug.inc
+--source include/no_valgrind_without_big.inc
+--source include/not_windows.inc
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+
+--echo #
+--echo # Bug #29627690	NOT ABLE TO IMPORT PARTITIONED TABLESPACE OLDER THAN 8.0.14
+--echo #
+
+select @lower_case_table_names;
+
+--echo # Test 1: With Hash partitions
+SET SESSION debug="+d,induce_lowercase_part_names";
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY HASH (c1) PARTITIONS 3;
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
+SELECT c1 FROM t1 ORDER BY c1;
+FLUSH TABLES t1 FOR EXPORT;
+SET debug="-d,induce_lowercase_part_names";
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1#p#p0", "t1#p#p1", "t1#p#p2");
+EOF
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY HASH (c1) PARTITIONS 3;
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test", "t1#p#p0", "t1#p#p1" , "t1#p#p2");
+EOF
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+DROP TABLE t1;
+
+
+--echo # Test 2 With range partitions/subpartitions with mixed cases partiton names
+
+SET SESSION debug="+d,induce_lowercase_part_names";
+create table t1 (f1 int ,f2 int) partition by range (f1)
+subpartition by key (f2)
+(
+partition ABCdef values less than (10) (
+subpartition SUB_ABCdef0,
+subpartition SUB_abcdef1
+),
+partition ABC values less than (50) (
+subpartition SUB_ABC0,
+subpartition SUB_abc1
+) ,
+partition def values less than (100) (
+subpartition sub_def0,
+subpartition SUB_DEF1
+));
+insert into t1 values (90,10) ,(40,78) ,(5,76);
+SELECT * from t1 order by f1;
+FLUSH TABLES t1 FOR EXPORT;
+SET debug="-d,induce_lowercase_part_names";
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1#p#abcdef#sp#sub_abcdef0", "t1#p#abcdef#sp#sub_abcdef1"
+		     , "t1#p#abc#sp#sub_abc0", "t1#p#abc#sp#sub_abc1",
+                     ,  "t1#p#def#sp#sub_def0", "t1#p#def#sp#sub_def1");
+EOF
+unlock tables;
+drop table t1;
+
+create table t1 (f1 int ,f2 int) partition by range (f1)
+subpartition by key (f2)
+(
+partition ABCdef values less than (10) (
+subpartition SUB_ABCdef0,
+subpartition SUB_abcdef1
+),
+partition ABC values less than (50) (
+subpartition SUB_ABC0,
+subpartition SUB_abc1
+) ,
+partition def values less than (100) (
+subpartition sub_def0,
+subpartition SUB_DEF1
+));
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test", "t1#p#abcdef#sp#sub_abcdef0", "t1#p#abcdef#sp#sub_abcdef1"
+		     , "t1#p#abc#sp#sub_abc0", "t1#p#abc#sp#sub_abc1",
+                     ,  "t1#p#def#sp#sub_def0", "t1#p#def#sp#sub_def1");
+EOF
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY f1;
+DROP TABLE t1;
+
+
+--echo # Test 3 : With encryption
+
+# restart with keying
+let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+--replace_regex /\.dll/.so/
+--source include/restart_mysqld.inc
+
+SET SESSION debug="+d,induce_lowercase_part_names";
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
+PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6);
+SELECT c1 FROM t1 ORDER BY c1;
+FLUSH TABLES t1 FOR EXPORT;
+SET debug="-d,induce_lowercase_part_names";
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("test", "t1#p#abc");
+ib_backup_cfp_file("test", "t1#p#abc");
+EOF
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB ENCRYPTION='Y'
+PARTITION BY RANGE (c1) ( PARTITION ABC VALUES LESS THAN (10));
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("test", "t1#p#abc");
+ib_restore_cfp_file("test", "t1#p#abc");
+EOF
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+DROP TABLE t1;
+
+--echo # Restarting server without keyring to restore server state
+let $restart_parameters = restart: ;
+--source include/restart_mysqld.inc
+
+--echo Test 4 : Missing cfg file
+
+SET SESSION debug="+d,induce_lowercase_part_names";
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(8);
+SELECT c1 FROM t1 ORDER BY c1;
+FLUSH TABLES t1 FOR EXPORT;
+SET debug="-d,induce_lowercase_part_names";
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_ibd_file("test", "t1#p#abcd");
+EOF
+
+UNLOCK TABLES;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
+PARTITION BY RANGE (c1) ( PARTITION ABCD VALUES LESS THAN (10));
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+perl;
+require 'include/innodb-util.inc';
+ib_restore_ibd_files("test", "t1#p#abcd");
+EOF
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * FROM t1 ORDER BY c1;
+DROP TABLE t1;
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfp
+
+--echo Test 5:-
+--echo # 1. Create table in 8.0.13 version
+--echo # 2. Upgrade the table to 8.0.15 version
+--echo # 3. Add another partition (PART_two)
+--echo # 4. Do flush table and generate cfg files
+--echo # 5. These ibd and cfg files are present in 8.0.15_cfg.zip
+--echo # 6. Do import from the cfg file and ibd from 8.0.15_cfg.zip.
+
+CREATE DATABASE db1;
+use db1;
+CREATE TABLE t1 (
+  f1 int
+) ENGINE=InnoDB
+PARTITION BY RANGE (f1)
+(PARTITION PART_one VALUES LESS THAN (10),
+ PARTITION PART_two VALUES LESS THAN (20));
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--copy_file $MYSQLTEST_VARDIR/std_data/8.0.15_cfg.zip $MYSQL_TMP_DIR/8.0.15_cfg.zip
+--exec unzip -qo $MYSQL_TMP_DIR/8.0.15_cfg.zip -d $MYSQLD_DATADIR/db1
+--remove_file $MYSQL_TMP_DIR/8.0.15_cfg.zip
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * from t1 ORDER BY f1;
+ALTER TABLE t1 FORCE;
+SELECT * from t1 ORDER BY f1;
+DROP TABLE t1;
+--remove_files_wildcard $MYSQLD_DATADIR/db1 t1*.cfg
+
+
+--echo Test 6:-
+--echo # 1. Create table in 8.0.13 version
+--echo # 2. Upgrade the table to 8.0.15 version
+--echo # 3. Add another partition (PART_two)
+--echo # 4. Upgrade to 8.0.17 versiosn
+--echo # 5. Add another partition (PART_three)
+--echo # 6. Do flush table and generate cfg files
+--echo # 7. These ibd and cfg files are present in 8.0.17_cfg.zip
+--echo # 6. Do import from the cfg file and ibd from 8.0.17_cfg.zip
+
+use db1;
+CREATE TABLE t1 (
+  f1 int
+) ENGINE=InnoDB
+PARTITION BY RANGE (f1)
+(PARTITION PART_one VALUES LESS THAN (10),
+ PARTITION PART_two VALUES LESS THAN (20),
+ PARTITION PART_three VALUES LESS THAN (30));
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--let $MYSQLD_DATADIR=`SELECT @@datadir`
+--copy_file $MYSQLTEST_VARDIR/std_data/8.0.17_cfg.zip $MYSQL_TMP_DIR/8.0.17_cfg.zip
+--exec unzip -qo $MYSQL_TMP_DIR/8.0.17_cfg.zip -d $MYSQLD_DATADIR/db1
+--remove_file $MYSQL_TMP_DIR/8.0.17_cfg.zip
+
+ALTER TABLE t1 IMPORT TABLESPACE;
+SELECT * from t1 ORDER BY f1;
+ALTER TABLE t1 FORCE;
+SELECT * from t1 ORDER BY f1;
+
+DROP TABLE t1;
+--remove_files_wildcard $MYSQLD_DATADIR/db1 t1*.cfg
+--remove_files_wildcard $MYSQLD_DATADIR/db1 *.zip
+
+DROP DATABASE db1;
+

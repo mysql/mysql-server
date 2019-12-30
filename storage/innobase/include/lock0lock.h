@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -196,6 +196,7 @@ void lock_rec_restore_from_page_infimum(
                                 whose infimum stored the lock
                                 state; lock bits are reset on
                                 the infimum */
+
 /** Determines if there are explicit record locks on a page.
  @return an explicit record lock on the page, or NULL if there are none */
 lock_t *lock_rec_expl_exist_on_page(space_id_t space,  /*!< in: space id */
@@ -256,9 +257,29 @@ dberr_t lock_sec_rec_modify_check_and_lock(
     mtr_t *mtr)          /*!< in/out: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Called to inform lock-sys that a statement processing for a trx has just
+finished.
+@param[in]  trx   transaction which has finished processing a statement */
+void lock_on_statement_end(trx_t *trx);
+
+/** Used to specify the intended duration of a record lock. */
+enum class lock_duration_t {
+  /** Keep the lock according to the rules of particular isolation level, in
+  particular in case of READ COMMITTED or less restricive modes, do not inherit
+  the lock if the record is purged. */
+  REGULAR = 0,
+  /** Keep the lock around for at least the duration of the current statement,
+  in particular make sure it is inherited as gap lock if the record is purged.*/
+  AT_LEAST_STATEMENT = 1,
+};
+
 /** Like lock_clust_rec_read_check_and_lock(), but reads a
 secondary index record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+                                that the lock will be kept around and inherited
+                                for at least the duration of current statement.
+                                If equal to REGULAR the life-cycle of the lock
+                                will depend on isolation level rules.
 @param[in]	block		buffer block of rec
 @param[in]	rec		user record or page supremum record which should
                                 be read or passed over by a read cursor
@@ -273,7 +294,8 @@ secondary index record.
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
-dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
+dberr_t lock_sec_rec_read_check_and_lock(lock_duration_t duration,
+                                         const buf_block_t *block,
                                          const rec_t *rec, dict_index_t *index,
                                          const ulint *offsets,
                                          select_mode sel_mode, lock_mode mode,
@@ -285,7 +307,11 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record.
-@param[in]	flags		if BTR_NO_LOCKING_FLAG bit is set, does nothing
+@param[in]	duration	If equal to AT_LEAST_STATEMENT, then makes sure
+                                that the lock will be kept around and inherited
+                                for at least the duration of current statement.
+                                If equal to REGULAR the life-cycle of the lock
+                                will depend on isolation level rules.
 @param[in]	block		buffer block of rec
 @param[in]	rec		user record or page supremum record which should
                                 be read or passed over by a read cursor
@@ -301,7 +327,7 @@ lock on the record.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
 DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_clust_rec_read_check_and_lock(
-    ulint flags, const buf_block_t *block, const rec_t *rec,
+    lock_duration_t duration, const buf_block_t *block, const rec_t *rec,
     dict_index_t *index, const ulint *offsets, select_mode sel_mode,
     lock_mode mode, ulint gap_mode, que_thr_t *thr);
 
@@ -315,8 +341,6 @@ dberr_t lock_clust_rec_read_check_and_lock(
  "offsets".
  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_clust_rec_read_check_and_lock_alt(
-    ulint flags,              /*!< in: if BTR_NO_LOCKING_FLAG
-                              bit is set, does nothing */
     const buf_block_t *block, /*!< in: buffer block of rec */
     const rec_t *rec,         /*!< in: user record or page
                               supremum record which should
@@ -399,6 +423,20 @@ prepare to release locks early.
 @param[in]	only_gap	release only GAP locks */
 void lock_trx_release_read_locks(trx_t *trx, bool only_gap);
 
+/** Iterate over the granted locks which conflict with trx->lock.wait_lock and
+prepare the hit list for ASYNC Rollback.
+
+If the transaction is waiting for some other lock then wake up
+with deadlock error.  Currently we don't mark following transactions
+for ASYNC Rollback.
+
+1. Read only transactions
+2. Background transactions
+3. Other High priority transactions
+@param[in]      trx       High Priority transaction
+@param[in,out]  hit_list  List of transactions which need to be rolled back */
+void lock_make_trx_hit_list(trx_t *trx, hit_list_t &hit_list);
+
 /** Removes locks on a table to be dropped.
  If remove_also_table_sx_locks is TRUE then table-level S and X locks are
  also removed in addition to other table-level and record-level locks.
@@ -433,9 +471,8 @@ hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */
  if none found.
  @return bit index == heap number of the record, or ULINT_UNDEFINED if
  none found */
-ulint lock_rec_find_set_bit(
-    const lock_t *lock); /*!< in: record lock with at least one
-                         bit set */
+ulint lock_rec_find_set_bit(const lock_t *lock); /*!< in: record lock with at
+                                                 least one bit set */
 
 /** Looks for the next set bit in the record lock bitmap.
 @param[in] lock		record lock with at least one bit set
@@ -446,12 +483,11 @@ ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no);
 
 /** Checks if a lock request lock1 has to wait for request lock2.
  @return TRUE if lock1 has to wait for lock2 to be removed */
-bool lock_has_to_wait(
-    const lock_t *lock1,  /*!< in: waiting lock */
-    const lock_t *lock2); /*!< in: another lock; NOTE that it is
-                          assumed that this has a lock bit set
-                          on the same record as in lock1 if the
-                          locks are record locks */
+bool lock_has_to_wait(const lock_t *lock1,  /*!< in: waiting lock */
+                      const lock_t *lock2); /*!< in: another lock; NOTE that it
+                                            is assumed that this has a lock bit
+                                            set on the same record as in lock1
+                                            if the locks are record locks */
 /** Reports that a transaction id is insensible, i.e., in the future. */
 void lock_report_trx_id_insanity(
     trx_id_t trx_id,           /*!< in: trx id */
@@ -487,9 +523,9 @@ ulint lock_number_of_rows_locked(
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Return the number of table locks for a transaction.
- The caller must be holding lock_sys->mutex. */
-ulint lock_number_of_tables_locked(
-    const trx_lock_t *trx_lock) /*!< in: transaction locks */
+ The caller must be holding trx->mutex.
+@param[in]  trx   the transaction for which we want the number of table locks */
+ulint lock_number_of_tables_locked(const trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets the type of a lock. Non-inline version for using outside of the
@@ -578,14 +614,18 @@ bool lock_table_has_locks(
 /** A thread which wakes up threads whose lock wait may have lasted too long. */
 void lock_wait_timeout_thread();
 
+/** Notifies the thread which analyzes wait-for-graph that there was
+ at least one new edge added or modified ( trx->blocking_trx has changed ),
+ so that the thread will know it has to analyze it. */
+void lock_wait_request_check_for_cycles();
+
 /** Puts a user OS thread to wait for a lock to be released. If an error
  occurs during the wait trx->error_state associated with thr is
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
  are possible errors. DB_DEADLOCK is returned if selective deadlock
  resolution chose this transaction as a victim. */
-void lock_wait_suspend_thread(
-    que_thr_t *thr); /*!< in: query thread associated with the
-                     user OS thread */
+void lock_wait_suspend_thread(que_thr_t *thr); /*!< in: query thread associated
+                                               with the user OS thread */
 /** Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
  function should be called at the the end of an SQL statement, by the
  connection thread that owns the transaction (trx->mysql_thd). */
@@ -611,12 +651,13 @@ bool lock_check_trx_id_sanity(
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
     MY_ATTRIBUTE((warn_unused_result));
 /** Check if the transaction holds an exclusive lock on a record.
- @return whether the locks are held */
-bool lock_trx_has_rec_x_lock(
-    const trx_t *trx,          /*!< in: transaction to check */
-    const dict_table_t *table, /*!< in: table to check */
-    const buf_block_t *block,  /*!< in: buffer block of the record */
-    ulint heap_no)             /*!< in: record heap number */
+@param[in]  thr     query thread of the transaction
+@param[in]  table   table to check
+@param[in]  block   buffer block of the record
+@param[in]  heap_no record heap number
+@return whether the locks are held */
+bool lock_trx_has_rec_x_lock(que_thr_t *thr, const dict_table_t *table,
+                             const buf_block_t *block, ulint heap_no)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 
@@ -727,8 +768,18 @@ struct lock_sys_t {
                                        in the waiting_threads array,
                                        protected by
                                        lock_sys->wait_mutex */
-  int n_waiting;                       /*!< Number of slots in use.
-                                       Protected by lock_sys->mutex */
+
+  /** Number of slots in use. Writes are protected by lock_sys->wait_mutex, but
+  we read this without any latch in the lock_use_fcfs() heuristic. Also, we use
+  relaxed memory ordering for both writes and reads, because this is just a
+  counter field which does not "acquire" or "release" anything, and
+  lock_use_fcfs is just a heuristic anyway, so even if it reads a value not
+  synchronized with other fields/variables it is not a big deal. OTOH this field
+  is accessed pretty often during trx->age updating, so we try to minimize the
+  chance of performance issues. One can say that the only reason it is atomic
+  is to avoid torn reads in lock_use_fcfs(). */
+  std::atomic<int> n_waiting{0};
+
   ibool rollback_complete;
   /*!< TRUE if rollback of all
   recovered transactions is
@@ -798,7 +849,7 @@ extern lock_sys_t *lock_sys;
 /** Test if lock_sys->mutex can be acquired without waiting. */
 #define lock_mutex_enter_nowait() (lock_sys->mutex.trylock(__FILE__, __LINE__))
 
-/** Test if lock_sys->mutex is owned. */
+/** Test if lock_sys->mutex is owned by the current thread. */
 #define lock_mutex_own() (lock_sys->mutex.is_owned())
 
 /** Acquire the lock_sys->mutex. */

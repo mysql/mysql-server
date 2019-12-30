@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
     thd = current_thd;
 
   if (lock_kind == BACKUP_LOCK_SERVICE_DEFAULT)
-    return acquire_exclusive_backup_lock(thd, lock_timeout);
+    return acquire_exclusive_backup_lock(thd, lock_timeout, false);
 
   /*
     Return error in case lock_kind has an unexpected value.

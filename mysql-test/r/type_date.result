@@ -40,6 +40,8 @@ user_id char(10),
 summa int(11),
 rdate date
 );
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ('aaa',100,'1998-01-01');
 INSERT INTO t1 VALUES ('aaa',200,'1998-01-03');
 INSERT INTO t1 VALUES ('bbb',50,'1998-01-02');
@@ -501,8 +503,6 @@ SELECT * FROM t1 WHERE LAST_DAY('0000-00-00 00:00:00') IS NULL;
 a
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
 SELECT * FROM t1 WHERE
 LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;

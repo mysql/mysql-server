@@ -158,11 +158,14 @@ static int log_builtins_filter_rule_free(log_filter_rule *ri) {
 /**
   Release filter rule (key/value pair) with the index "elem" in "ruleset".
   This frees whichever of key and value were dynamically allocated.
-  This moves any trailing items to fill the "gap" and decreases the counter
-  of elements in the rule-set.  If the intention is to leave a "gap" in the
-  bag that may immediately be overwritten with an updated element, use
-  log_builtins_filter_rule_free() instead!
-  Must hold rule-set lock.
+  It then moves any trailing items to fill the "gap" and decreases the
+  counter of elements in the rule-set.
+
+  If the intention is to leave a "gap" in the bag that may immediately be
+  overwritten with an updated element, use log_builtins_filter_rule_free()
+  instead.
+
+  Caller must hold rule-set lock.
 
   @param         ruleset   filter rule-set
   @param         elem      index of the filter rule to release
@@ -329,7 +332,7 @@ static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset) {
   Deinitialize filtering engine.
 
   @retval  0   Success!
-  @retval -1   De-initialize?  Filter wasn't even initialized!
+  @retval -1   De-initialize? Filter wasn't even initialized!
 */
 int log_builtins_filter_exit() {
   if (!filter_inited) return -1;
@@ -665,7 +668,7 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll) {
     */
 
     /*
-      Currently applies to 0 or 1 match, there is no multi-match
+      Currently applies to 0 or 1 match, there is no multi-match.
     */
 
     if (r->cond == LOG_FILTER_COND_NONE)  // in ELSE etc. there is no condition
@@ -695,7 +698,12 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll) {
     cond_result = log_filter_try_match((ln >= 0) ? &ll->item[ln] : nullptr, r);
 
     if (cond_result == LOG_FILTER_MATCH_SUCCESS) {
+      /*
+        Protect match_count in case of non-atomic updates.
+      */
+      mysql_rwlock_wrlock(&(r->rule_lock));
       ++r->match_count;
+      mysql_rwlock_unlock(&(r->rule_lock));
 
       if (r->verb == LOG_FILTER_CHAIN_AND)  // AND -- test next condition
         continue;                           // proceed with next cond
@@ -772,7 +780,8 @@ int log_builtins_filter_update_verbosity(int verbosity) {
 
   /*
     If a log_error_verbosity item already exists, update it.
-    This should always be the case now since we create an item on start-up!
+    This should always be the case now since we create an item on start-up
+    and different filter components can keep their rule-sets separate.
   */
   for (rn = 0; (rn < log_filter_builtin_rules->count); rn++) {
     r = &log_filter_builtin_rules->rule[rn];

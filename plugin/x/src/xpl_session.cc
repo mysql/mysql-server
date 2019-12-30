@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@
 #include "plugin/x/src/xpl_session.h"
 
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
-#include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_dispatcher.h"
+#include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_server.h"
 
@@ -41,19 +41,18 @@ Session::Session(ngs::Client_interface *client,
                  ngs::Protocol_encoder_interface *proto,
                  const Session_id session_id)
     : ngs::Session(client, proto, session_id),
-      m_sql(proto),
       m_notice_output_queue(proto, &m_notice_configuration),
       m_was_authenticated(false),
       m_document_id_aggregator(&client->server().get_document_id_generator()) {}
 
 Session::~Session() {
+  m_sql.deinit();
+
   if (m_was_authenticated)
     --Global_status_variables::instance().m_sessions_count;
 
   if (m_failed_auth_count > 0 && !m_was_authenticated)
     ++Global_status_variables::instance().m_rejected_sessions_count;
-
-  m_sql.deinit();
 }
 
 // handle a message while in Ready state
@@ -63,8 +62,8 @@ bool Session::handle_ready_message(ngs::Message_request &command) {
     m_encoder->send_result(ngs::Error_code(ER_QUERY_INTERRUPTED,
                                            "Query execution was interrupted",
                                            "70100", ngs::Error_code::FATAL));
-    // close as fatal_error instead of killed. killed is for when the client is
-    // idle
+    // close as fatal_error instead of killed. killed is for when the client
+    // is idle
     on_close();
     return true;
   }
@@ -106,7 +105,7 @@ void Session::on_kill() {
 
 void Session::on_auth_success(
     const ngs::Authentication_interface::Response &response) {
-  notices::send_client_id(proto(), m_client->client_id_num());
+  proto().send_notice_client_id(m_client->client_id_num());
   ngs::Session::on_auth_success(response);
 
   ++Global_status_variables::instance().m_accepted_sessions_count;
@@ -156,6 +155,12 @@ bool Session::can_see_user(const std::string &user) const {
       return true;
   }
   return false;
+}
+
+void Session::set_proto(ngs::Protocol_encoder_interface *encoder) {
+  ngs::Session::set_proto(encoder);
+
+  m_notice_output_queue.set_encoder(encoder);
 }
 
 void Session::update_status(ngs::Common_status_variables::Variable

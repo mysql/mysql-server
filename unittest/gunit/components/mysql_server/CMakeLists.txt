@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(DISABLE_SHARED)
-  RETURN()
-ENDIF()
-
 INCLUDE_DIRECTORIES(
-# ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/components/example
   ${CMAKE_SOURCE_DIR}/components/mysql_server
 )
@@ -45,19 +40,26 @@ FOREACH(test ${TESTS})
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
     ADD_TEST ${test}
   )
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t
     ${CMAKE_THREAD_LIBS_INIT} gunit_small component_mysql_server)
 ENDFOREACH()
 
 MYSQL_ADD_COMPONENT(self_required_test_component
   self_required_test_component.cc
-  NO_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_1
   cyclic_dependency_test_component_1.cc
-  NO_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_2
   cyclic_dependency_test_component_2.cc
-  NO_INSTALL MODULE)
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
 
 SET(EXAMPLE_COMPONENTS
   component_example_component1

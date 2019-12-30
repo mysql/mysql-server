@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ int SocketOperations::setsockopt(int fd, int level, int optname,
 
 int SocketOperations::listen(int fd, int n) { return ::listen(fd, n); }
 
-const char *SocketOperations::inetntop(int af, void *cp, char *buf,
+const char *SocketOperations::inetntop(int af, const void *cp, char *buf,
                                        socklen_t len) {
   return ::inet_ntop(af, cp, buf, len);
 }
@@ -222,6 +222,8 @@ std::string SocketOperations::get_local_hostname() {
     ret =
         getnameinfo(ifap->ifa_addr, addrlen, buf,
                     static_cast<socklen_t>(sizeof(buf)), NULL, 0, NI_NAMEREQD);
+
+    if (0 == ret) break;
   }
   if (ret != EAI_NONAME && ret != 0) {
     throw LocalHostnameResolutionError(
@@ -231,6 +233,25 @@ std::string SocketOperations::get_local_hostname() {
   }
 #endif
   return buf;
+}
+
+void SocketOperations::set_socket_blocking(int sock, bool blocking) {
+#ifndef _WIN32
+  auto flags = fcntl(sock, F_GETFL, nullptr);
+  if (blocking) {
+    // leave early, if the flag is already unset
+    if ((flags & O_NONBLOCK) == 0) return;
+    flags &= ~O_NONBLOCK;
+  } else {
+    // leave early, if the flag is already set
+    if ((flags & O_NONBLOCK) == O_NONBLOCK) return;
+    flags |= O_NONBLOCK;
+  }
+  fcntl(sock, F_SETFL, flags);
+#else
+  u_long mode = blocking ? 0 : 1;
+  ioctlsocket(sock, FIONBIO, &mode);
+#endif
 }
 
 }  // namespace mysql_harness

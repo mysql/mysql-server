@@ -1,10 +1,10 @@
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
--- source include/have_ssl.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+--source include/allowed_ciphers.inc
 
 --echo #
 --echo # WL#8196 TLSv1.2 support
@@ -55,15 +55,7 @@ let $MYSQL_PORT= `SELECT @@port`;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-# This test only need to run for openssl build as Camella256 cipher is not supported by yassl
-if ($openssl == 'Rsa_public_key'){ 
-  --exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --tls-version=TLSv1.2 --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
-}
-
-if ($openssl != 'Rsa_public_key'){
---echo Variable_name	Value
---echo Ssl_cipher	CAMELLIA256-SHA
-}
+--exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --tls-version=TLSv1.2 --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
 
 --echo #T10: Permanently restricted cipher, setting in the server as well
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect

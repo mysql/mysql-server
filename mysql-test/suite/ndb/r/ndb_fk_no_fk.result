@@ -90,7 +90,7 @@ count(*)
 # Verify that fk is working now when parent has been resolved
 set foreign_key_checks=1;
 insert into t1 values(1, 2);
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t1`, CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 set foreign_key_checks=0;
 drop table t1, t2;
 #
@@ -195,8 +195,7 @@ create table t2 (
 pk2 int not null primary key,
 c int
 ) engine=ndb;
-Warnings:
-Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since it didn't have all the referenced columns
+ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk1' for constraint 't1_fk_1' in the referenced table 't2'
 
 ndb_show_tables completed.....
 
@@ -204,7 +203,7 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
-drop table t1, t2;
+drop table t1;
 #
 # Create child table and then the parent
 # which does not match any index
@@ -218,8 +217,7 @@ create table t2 (
 pk1 int not null primary key,
 c int
 ) engine=ndb;
-Warnings:
-Warning	1215	Could not resolve 't2' as fk parent for 'test/def/t1' since no matching index could be found
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't1_fk_1' in the referenced table 't2'
 
 ndb_show_tables completed.....
 
@@ -227,7 +225,7 @@ ndb_show_tables completed.....
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 count(*)
 1
-drop table t1, t2;
+drop table t1;
 set @@ndb_show_foreign_key_mock_tables= 1;
 #
 # Test where FK goes from t1->t2->t3->t4 and tables are created in that order
@@ -282,7 +280,7 @@ foreign key (b) references t2(c),
 d int, e int,
 foreign key (d, e) references t3(f, g),
 h varchar(55), i int, j datetime,
-foreign key (h, i, j) references t4(k, l, m)
+foreign key (h, i, j) references t4(m, l, k)
 ) engine=ndb;
 Warnings:
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
@@ -332,7 +330,7 @@ foreign key (b) references t2(c),
 d int, e int,
 foreign key (d, e) references t2(f, g),
 h varchar(55), i int, j datetime,
-foreign key (h, i, j) references t2(k, l, m)
+foreign key (h, i, j) references t2(m, l, k)
 ) engine=ndb;
 Warnings:
 Warning	1003	Created mock table 'NDB$FKM_<child_id>_<id>_t2' referenced by 't1'
@@ -740,7 +738,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `b` (`b`),
-  CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t3` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t3;
 create table t2 (
@@ -788,7 +786,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
@@ -805,7 +803,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `test`.`t2` (`pk2`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -830,7 +828,7 @@ foreign key (b) references t2(pk2)
 ) engine=ndb;
 set foreign_key_checks=1;
 truncate table t2;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `FK_<child_id>_<id>` FOREIGN KEY (`b`) REFERENCES `test`.`t2` (`pk2`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t1`, CONSTRAINT `t1_fk_1`)
 set foreign_key_checks=0;
 truncate table t2;
 ERROR 42000: Cannot truncate a table referenced in a foreign key constraint ()
@@ -860,7 +858,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk1`),
   KEY `fk1` (`b`),
-  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
@@ -900,10 +898,10 @@ t1	CREATE TABLE `t1` (
   KEY `fk2` (`c`),
   KEY `fk3` (`d`),
   KEY `fk4` (`e`),
-  CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
-  CONSTRAINT `fk4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  CONSTRAINT `t1_fk_1` FOREIGN KEY (`b`) REFERENCES `t2` (`pk2`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`pk3`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_3` FOREIGN KEY (`d`) REFERENCES `t3` (`pk4`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `t1_fk_4` FOREIGN KEY (`e`) REFERENCES `t4` (`pk5`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 #
@@ -911,11 +909,11 @@ drop table t1, t2;
 # then create the real parent (like mysqldump does it)
 #
 CREATE TABLE `address` (
-`no` int(11) NOT NULL AUTO_INCREMENT,
-`type` int(11) NOT NULL DEFAULT '37',
-`customer_id` int(11) NOT NULL,
+`no` int NOT NULL AUTO_INCREMENT,
+`type` int NOT NULL DEFAULT '37',
+`customer_id` int NOT NULL,
 `street` varchar(255) DEFAULT NULL,
-`country` int(11) DEFAULT NULL,
+`country` int DEFAULT NULL,
 PRIMARY KEY (`no`),
 KEY `ca_fk1` (`customer_id`),
 CONSTRAINT `ca_fk1` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`)
@@ -923,7 +921,7 @@ ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
 INSERT INTO `address` VALUES (1,37,1,'Main st. 1215',48);
 CREATE TABLE `customer` (
-`id` int(11) NOT NULL,
+`id` int NOT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 # Check DML
@@ -948,16 +946,16 @@ drop table address, customer;
 # and then create fk(like mysqldump does not do it)
 #
 CREATE TABLE `customer` (
-`id` int(11) NOT NULL,
+`id` int NOT NULL,
 PRIMARY KEY (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 INSERT INTO `customer` VALUES (1);
 CREATE TABLE `address` (
-`no` int(11) NOT NULL AUTO_INCREMENT,
-`type` int(11) NOT NULL DEFAULT '37',
-`customer_id` int(11) NOT NULL,
+`no` int NOT NULL AUTO_INCREMENT,
+`type` int NOT NULL DEFAULT '37',
+`customer_id` int NOT NULL,
 `street` varchar(255) DEFAULT NULL,
-`country` int(11) DEFAULT NULL,
+`country` int DEFAULT NULL,
 PRIMARY KEY (`no`),
 KEY `ca_fk1` (`customer_id`)
 ) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1;
@@ -990,7 +988,7 @@ ADD COLUMN b int not null;
 # Check DML with foreign_key_checks on
 set foreign_key_checks=1;
 update address set customer_id = 3 where no = 1;
-ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `ca_fk1` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`address`, CONSTRAINT `<constraint_name>` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT)
 update address set customer_id = 1 where no = 2;
 delete from customer where id = 1;
 select count(*) from address;

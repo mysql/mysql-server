@@ -1,4 +1,3 @@
-//>>built
 define("dojox/io/xhrMultiPart", [
 	"dojo/_base/kernel",
 	"dojo/_base/array",
@@ -9,30 +8,24 @@ define("dojox/io/xhrMultiPart", [
 	dojo.getObject("io.xhrMultiPart", true, dojox);
 
 	/*=====
-	dojox.io.__xhrContentArgs = function(){
-		//	name: String
+	var __xhrContentArgs = {
+		// name: String
 		//		Name of the form value.
-		//	content: String
+		// content: String
 		//		The contents of the value.
-		//	filename: String?
+		// filename: String?
 		//		An optional filename to pass to the server, as defined by the boundary.
-		//	contentType: String?
+		// contentType: String?
 		//		An optional content-type (MIME) to pass to the server, if value is being
 		//		treated as a file.
-		//	charset: String?
+		// charset: String?
 		//		Optional charset to pass, for the server to interpret the file correctly.
-		//	contentTransferEncoding: String?
+		// contentTransferEncoding: String?
 		//		Optional transfer encoding header value.
-		this.name = name;
-		this.content = content;
-		this.filename = filename;
-		this.contentType = contentType;
-		this.charset = charset;
-		this.contentTransferEncoding = contentTransferEncoding;
-	}
+	};
 	=====*/
-	function _createPart(/* dojox.io.__xhrContentArgs */args, /* String */boundary){
-		//	summary
+	function _createPart(/*__xhrContentArgs */args, /* String */boundary){
+		// summary:
 		//		Assemble an array of boundary parts based on the passed values in args.
 		if(!args["name"] && !args["content"]){
 			throw new Error("Each part of a multi-part request requires 'name' and 'content'.");
@@ -60,7 +53,7 @@ define("dojox/io/xhrMultiPart", [
 	}
 
 	function _partsFromNode(/* DOMNode */node, /* String */boundary){
-		//	summary
+		// summary:
 		//		Assemble an array of boundary parts based on the passed FORM node.
 		var o=dojo.formToObject(node), parts=[];
 		for(var p in o){
@@ -76,55 +69,45 @@ define("dojox/io/xhrMultiPart", [
 	}
 
 	/*=====
-	dojox.io.__xhrMultiArgs = function(){
-		//	url: String
+	var __xhrMultiArgs = {
+		// url: String
 		//		URL to server endpoint.
-		//	content: Object?
+		// content: Object?
 		//		Contains properties with string values. These
 		//		properties will be serialized using multi-part
 		//		boundaries.
-		//	file: Object?
+		// file: Object?
 		//		Alias for "content".  Provided for backwards compatibility.
-		//	timeout: Integer?
+		// timeout: Integer?
 		//		Milliseconds to wait for the response. If this time
 		//		passes, the then error callbacks are called.
-		//	form: DOMNode?
+		// form: DOMNode?
 		//		DOM node for a form. Used to extract the form values
 		//		and send to the server; each form value will be serialized
 		//		using multi-part boundaries.
-		//	preventCache: Boolean?
+		// preventCache: Boolean?
 		//		Default is false. If true, then a
 		//		"dojo.preventCache" parameter is sent in the request
 		//		with a value that changes with each request
 		//		(timestamp). Useful only with GET-type requests.
-		//	handleAs: String?
+		// handleAs: String?
 		//		Acceptable values depend on the type of IO
 		//		transport (see specific IO calls for more information).
-		//	load: Function?
+		// load: Function?
 		//		function(response, ioArgs){}. response is an Object, ioArgs
 		//		is of type dojo.__IoCallbackArgs. The load function will be
 		//		called on a successful response.
-		//	error: Function?
+		// error: Function?
 		//		function(response, ioArgs){}. response is an Object, ioArgs
 		//		is of type dojo.__IoCallbackArgs. The error function will
 		//		be called in an error case.
-		//	handle: Function?
+		// handle: Function?
 		//		function(response, ioArgs){}. response is an Object, ioArgs
 		//		is of type dojo.__IoCallbackArgs. The handle function will
 		//		be called in either the successful or error case.
-		this.url = url;
-		this.content = content;
-		this.file = file;
-		this.timeout = timeout;
-		this.form = form;
-		this.preventCache = preventCache;
-		this.handleAs = handleAs;
-		this.load = load;
-		this.error = error;
-		this.handle = handle;
-	}
+	};
 	=====*/
-	dojox.io.xhrMultiPart = function(/* dojox.io.__xhrMultiArgs */args){
+	dojox.io.xhrMultiPart = function(/* __xhrMultiArgs */args){
 		if(!args["file"] && !args["content"] && !args["form"]){
 			throw new Error("content, file or form must be provided to dojox.io.xhrMultiPart's arguments");
 		}

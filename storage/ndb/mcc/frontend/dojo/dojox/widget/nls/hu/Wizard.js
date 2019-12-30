@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-next: "Következő",
-previous: "Előző",
-done: "Kész"
-})
-//end v1.x content
-);
+define("dojox/widget/nls/hu/Wizard",({next:"Tovább",previous:"Előző",done:"Kész"}));

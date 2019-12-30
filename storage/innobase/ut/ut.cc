@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,6 +36,8 @@ external tools. */
 
 #include <sys/types.h>
 #include <time.h>
+
+#include <iomanip>
 
 #include "univ.i"
 #include "ut/ut.h"
@@ -73,21 +75,14 @@ void ut_print_buf_hex(std::ostream &o, /*!< in/out: output stream */
                       const void *buf, /*!< in: memory buffer */
                       ulint len)       /*!< in: length of the buffer */
 {
-  const byte *data;
-  ulint i;
-
-  static const char hexdigit[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                                    '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-
-  UNIV_MEM_ASSERT_RW(buf, len);
+  auto ptr = reinterpret_cast<const byte *>(buf);
+  const auto end = ptr + len;
 
   o << "(0x";
-
-  for (data = static_cast<const byte *>(buf), i = 0; i < len; i++) {
-    byte b = *data++;
-    o << hexdigit[(int)b >> 16] << hexdigit[b & 15];
+  while (ptr < end) {
+    o << std::setfill('0') << std::setw(2) << std::hex << (int)*ptr;
+    ++ptr;
   }
-
   o << ")";
 }
 

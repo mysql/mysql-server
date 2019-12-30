@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2158,10 +2158,10 @@ Dbtup::drop_fragment_unmap_pages(Signal *signal,
       sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);  
       return;
     }
-    while(alloc_info.m_dirty_pages[pos].isEmpty() && pos < MAX_FREE_LIST)
+    while(alloc_info.m_dirty_pages[pos].isEmpty() && pos < EXTENT_SEARCH_MATRIX_COLS)
       pos++;
     
-    if (pos == MAX_FREE_LIST)
+    if (pos == EXTENT_SEARCH_MATRIX_COLS)
     {
       jam();
       if(alloc_info.m_curr_extent_info_ptr_i != RNIL)
@@ -2276,7 +2276,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
       }
     }
     
-    for(pos= 0; pos<MAX_FREE_LIST; pos++)
+    for(pos= 0; pos < EXTENT_SEARCH_MATRIX_COLS; pos++)
     {
       jam();
       ndbrequire(alloc_info.m_page_requests[pos].isEmpty());

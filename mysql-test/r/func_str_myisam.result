@@ -1,0 +1,113 @@
+drop table if exists t1,t2;
+set names latin1;
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL,
+title varchar(255) default NULL,
+prio int(10) unsigned default NULL,
+category int(10) unsigned default NULL,
+program int(10) unsigned default NULL,
+bugdesc text,
+created datetime default NULL,
+modified timestamp NOT NULL,
+bugstatus int(10) unsigned default NULL,
+submitter int(10) unsigned default NULL
+) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"') FROM t1;
+CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"')
+"Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4"
+SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
+CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"')
+"Link";"1";"1";"1";"0";"4"
+SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter) FROM t1;
+CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter)
+Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4
+SELECT bugdesc, REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb') from t1 group by bugdesc;
+bugdesc	REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb')
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+drop table t1;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
+SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
+1
+DROP TABLE t1;
+CREATE TABLE t1 (
+wid int(10) unsigned NOT NULL auto_increment,
+data_podp date default NULL,
+status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
+PRIMARY KEY(wid)
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (8,NULL,'real');
+INSERT INTO t1 VALUES (9,NULL,'nowy');
+SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
+elt(status_wnio,data_podp)
+NULL
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (title text) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
+INSERT INTO t1 VALUES ('House passes the CAREERS bill');
+SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
+CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
+NULL
+</a>..........................
+DROP TABLE t1;
+CREATE TABLE t1 (
+id int(11) NOT NULL auto_increment,
+a bigint(20) unsigned default NULL,
+PRIMARY KEY  (id)
+) ENGINE=MyISAM;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES
+('0','16307858876001849059');
+SELECT CONV('e251273eb74a8ee3', 16, 10);
+CONV('e251273eb74a8ee3', 16, 10)
+16307858876001849059
+EXPLAIN
+SELECT id
+FROM t1
+WHERE a = 16307858876001849059;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id` from dual where true
+EXPLAIN
+SELECT id
+FROM t1
+WHERE a = CONV('e251273eb74a8ee3', 16, 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `id` from dual where true
+DROP TABLE t1;
+create table t1 (a bigint not null)engine=myisam;
+insert into t1 set a = 1024*1024*1024*4;
+SET @orig_sql_mode = @@SQL_MODE;
+SET SQL_MODE='';
+delete from t1 order by (inet_ntoa(a)) desc limit 10;
+Warnings:
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
+SET SQL_MODE=@orig_sql_mode;
+drop table t1;
+create table t1 (a char(36) not null)engine=myisam;
+insert ignore into t1 set a = ' ';
+insert ignore into t1 set a = ' ';
+select * from t1 order by (oct(a));
+a
+
+
+drop table t1;
+End of 4.1 tests

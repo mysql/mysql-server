@@ -1,27 +1,27 @@
 //>>built
-define("dojox/mvc/_base",["dojo/_base/kernel","dojo/_base/lang","./StatefulModel","./Bind","./_DataBindingMixin","./_patches"],function(_1,_2,_3){
+define("dojox/mvc/_base",["dojo/_base/kernel","dojo/_base/lang","./getStateful","./StatefulModel","./Bind","./_DataBindingMixin","./_patches"],function(_1,_2,_3,_4){
 _1.experimental("dojox.mvc");
-var _4=_2.getObject("dojox.mvc",true);
-_4.newStatefulModel=function(_5){
-if(_5.data){
-return new _3({data:_5.data});
+var _5=_2.getObject("dojox.mvc",true);
+_5.newStatefulModel=function(_6){
+if(_6.data){
+return _3(_6.data,_4.getStatefulOptions);
 }else{
-if(_5.store&&_2.isFunction(_5.store.query)){
-var _6;
-var _7=_5.store.query(_5.query);
-if(_7.then){
-return (_7.then(function(_8){
-_6=new _3({data:_8});
-_6.store=_5.store;
-return _6;
+if(_6.store&&_2.isFunction(_6.store.query)){
+var _7;
+var _8=_6.store.query(_6.query);
+if(_8.then){
+return (_8.then(function(_9){
+_7=_3(_9,_4.getStatefulOptions);
+_7.store=_6.store;
+return _7;
 }));
 }else{
-_6=new _3({data:_7});
-_6.store=_5.store;
-return _6;
+_7=_3(_8,_4.getStatefulOptions);
+_7.store=_6.store;
+return _7;
 }
 }
 }
 };
-return _4;
+return _5;
 });

@@ -33,12 +33,6 @@
 
 #include <openssl/ssl.h>  // SSL_METHOD
 
-#if defined(LIBWOLFSSL_VERSION_HEX) && defined(close)
-// wolfssl 3.14.0 has a 'define close(fd) closesocket(fd)' which interfers
-// with all other uses of close() like fstream::close()
-#undef close
-#endif
-
 /**
  * TLS Versions.
  *
@@ -181,6 +175,11 @@ class HTTP_COMMON_EXPORT TlsContext {
    * get info callback
    */
   InfoCallback info_callback() const;
+
+  /**
+   * get security_level.
+   */
+  int security_level() const;
 
  protected:
   std::unique_ptr<SSL_CTX, decltype(&SSL_CTX_free)> ssl_ctx_{nullptr,

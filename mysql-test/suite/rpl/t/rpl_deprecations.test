@@ -3,9 +3,12 @@
 # no need to run multiple times
 --source include/have_binlog_format_row.inc
 
-#############################################################
-# WL#6959: Deprecate master.info and relay-log.info files   #
-#############################################################
+#####################################################################
+# WL#6959: Deprecate master.info and relay-log.info files           #
+# WL#12926: Deprecate --log_bin_use_v1_row_events                   #
+# WL#11031: Deprecate --relay-log-info-file and --master-info-file  #
+# WL#12892: Deprecate --slave_rows_search_algorithms                #
+#####################################################################
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
@@ -13,6 +16,10 @@
 --let $rpl_server_number= 2
 --let $rpl_omit_print_server_parameters=1
 --let $ofile= $MYSQLTEST_VARDIR/tmp/info-file-start-warn.err
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $rli_file=$MYSQLD_DATADIR/relay-log.info
+--let $mi_file=$MYSQLD_DATADIR/master.info
 
 # assert no deprecation warning (TABLE), deprecation warning (FILE) and revert
 SET @@global.master_info_repository="TABLE";
@@ -24,36 +31,104 @@ SET @@global.relay_log_info_repository="TABLE";
 SET @@global.relay_log_info_repository="FILE";
 SET @@global.relay_log_info_repository="TABLE";
 
+# check reading deprecated system variables
+
+SELECT @@global.log_bin_use_v1_row_events;
+SET @@global.log_bin_use_v1_row_events = TRUE;
+SELECT @@global.relay_log_info_file;
+--replace_regex /INDEX_SCAN,HASH_SCAN/SCAN_METHOD,SCAN_METHOD/ /TABLE_SCAN,INDEX_SCAN/SCAN_METHOD,SCAN_METHOD/
+SELECT @@global.slave_rows_search_algorithms;
+
 # Check bootstrap warnings ######
 
-# assert deprecation warning for relay-log-info-repository=FILE
---let $rpl_server_parameters= --relay-log-info-repository=FILE --skip-slave-start --log_error=$ofile --no-console
---source include/rpl_restart_server.inc
+--let $i = 2
+while($i > 0) {
 
---let $assert_text= Assert that there is a warning at bootstrap when relay-log-info-repository=FILE
---let $assert_file= $ofile
---let $assert_select= The syntax '--relay-log-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--relay-log-info-repository=TABLE' instead.
---let $assert_count= 1
---source include/assert_grep.inc
+  if ($i == 2)
+  {
+    --let $rpl_server_parameters= --master-info-repository=FILE --master-info-file=$mi_file --log-bin-use-v1-row-events --skip-slave-start --relay-log-info-repository=FILE --relay-log-info-file=$rli_file --slave-rows-search-algorithms=INDEX_SCAN,HASH_SCAN --log_error=$ofile --no-console
+  }
 
-# clean up the error log
---remove_file $ofile
+  if ($i == 1)
+  {
+    # the following two variables do not emit warnings when setting them persistently
+    # to FILE
+    SET PERSIST_ONLY relay_log_info_repository=FILE;
+    SET PERSIST_ONLY master_info_repository=FILE;
+    # check that warnings are emited when setting persist as well
+    SET PERSIST slave_rows_search_algorithms=TABLE_SCAN;
+    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+    SET PERSIST_ONLY log_bin_use_v1_row_events = TRUE;
+    --replace_result $rli_file RLI_FILE
+    --error ER_INCORRECT_GLOBAL_LOCAL_VAR
+    --eval SET PERSIST_ONLY relay_log_info_file = "$rli_file"
 
-# assert deprecation warning for master-info-repository=FILE
---let $rpl_server_parameters= --master-info-repository=FILE --skip-slave-start --log_error=$ofile --no-console
---source include/rpl_restart_server.inc
+    --let $rpl_server_parameters= --skip-slave-start --log_error=$ofile --no-console
+  }
+  --source include/rpl_restart_server.inc
 
---let $assert_text= Assert that there is a warning at bootstrap when master-info-repository=FILE
---let $assert_file= $ofile
---let $assert_select= The syntax '--master-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--master-info-repository=TABLE' instead.
---let $assert_count= 1
---source include/assert_grep.inc
+  if ($i == 2)
+  {
+    # Even after setting them persistently, these variables do not show
+    # deprecation warnings in the error log after a server restart.
+    #
+    # TODO: Remove this guard ($i==2) once the following bug is fixed:
+    # - BUG#30030648: NO DEPRECATION WARNING ON SERVER RESTART FOR SET PERSISTED OPTIONS
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --relay-log-info-repository=FILE
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--relay-log-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--relay-log-info-repository=TABLE' instead.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --master-info-repository=FILE
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--master-info-repository=FILE' is deprecated and will be removed in a future release. Please use '--master-info-repository=TABLE' instead.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --slave-rows-search-algorithms
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--slave-rows-search-algorithms' is deprecated and will be removed in a future release.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+  }
+
+
+  if ($i == 2) {
+
+    # These variables are not settable with SET PERSIST[_ONLY], thence makes
+    # no sense to check if they have entries in the error log after setting
+    # them persistently and after a serevr restart
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --log-bin-use-v1-row-events
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--log-bin-use-v1-row-events' is deprecated and will be removed in a future release.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --relay-log-info-file
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--relay-log-info-file' is deprecated and will be removed in a future release.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+    --let $assert_text= Assert that there is a warning at bootstrap when setting --master-info-file
+    --let $assert_file= $ofile
+    --let $assert_select= The syntax '--master-info-file' is deprecated and will be removed in a future release.
+    --let $assert_count= 1
+    --source include/assert_grep.inc
+
+  }
+
+  --dec $i
+  --remove_file $ofile
+}
+
+#############################################################
 
 # revert to vanilla options
---remove_file $ofile
+RESET PERSIST;
 --let $rpl_server_parameters=
 --let $rpl_omit_print_server_parameters=0
---let $ofile=
 --source include/rpl_restart_server.inc
 
 --source include/start_slave.inc
@@ -61,6 +136,12 @@ SET @@global.relay_log_info_repository="TABLE";
 --source include/rpl_connection_master.inc
 --source include/rpl_reset.inc
 
-# End of WL#6959
+# these files are removed automatically on server restart, after
+# migrating them into the repository TABLES
+#--remove_file $rli_file
+#--remove_file $mi_file
+--let $ofile=
+--let $rli_file=
+--let $mi_file=
 
 --source include/rpl_end.inc

@@ -1,20 +1,17 @@
-//>>built
-define("dojo/data/api/Write", ["../..", "./Read"], function(dojo) {
-	// module:
-	//		dojo/data/api/Write
-	// summary:
-	//		TODOC
+define("dojo/data/api/Write", ["../../_base/declare", "./Read"], function(declare, Read){
 
+// module:
+//		dojo/data/api/Write
 
-dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
+return declare("dojo.data.api.Write", Read, {
 	// summary:
 	//		This is an abstract API that data provider implementations conform to.
 	//		This file defines function signatures and intentionally leaves all the
-	//		functionss unimplemented.
+	//		functions unimplemented.
 
 	getFeatures: function(){
 		// summary:
-		//		See dojo.data.api.Read.getFeatures()
+		//		See dojo/data/api/Read.getFeatures()
 		return {
 			'dojo.data.api.Read': true,
 			'dojo.data.api.Write': true
@@ -30,9 +27,8 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		in the new item.  In addition, for stores that support hierarchical item
 		//		creation, an optional second parameter is accepted that defines what item is the parent
 		//		of the new item and what attribute of that item should the new item be assigned to.
-		//		In general, this will assume that the attribute targetted is multi-valued and a new item
+		//		In general, this will assume that the attribute targeted is multi-valued and a new item
 		//		is appended onto the list of values for that attribute.
-		//
 		// keywordArgs:
 		//		A javascript object defining the initial content of the item as a set of JavaScript 'property name: value' pairs.
 		// parentInfo:
@@ -40,11 +36,10 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		and what attribute of that parent to assign the new item to.  If this is present, and the attribute specified
 		//		is a multi-valued attribute, it will append this item into the array of values for that attribute.  The structure
 		//		of the object is as follows:
-		//		{
-		//			parent: someItem,
-		//			attribute: "attribute-name-string"
-		//		}
-		//
+		//	|	{
+		//	|		parent: someItem,
+		//	|		attribute: "attribute-name-string"
+		//	|	}
 		// exceptions:
 		//		Throws an exception if *keywordArgs* is a string or a number or
 		//		anything other than a simple anonymous object.
@@ -56,13 +51,11 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		throw new Error('Unimplemented API: dojo.data.api.Write.newItem');
 	},
 
-	deleteItem: function(/* item */ item){
+	deleteItem: function(/* dojo/data/api/Item */ item){
 		// summary:
 		//		Deletes an item from the store.
-		//
 		// item:
 		//		The item to delete.
-		//
 		// exceptions:
 		//		Throws an exception if the argument *item* is not an item
 		//		(if store.isItem(item) returns false).
@@ -71,20 +64,18 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		throw new Error('Unimplemented API: dojo.data.api.Write.deleteItem');
 	},
 
-	setValue: function(	/* item */ item,
+	setValue: function(	/* dojo/data/api/Item */ item,
 						/* string */ attribute,
 						/* almost anything */ value){
 		// summary:
 		//		Sets the value of an attribute on an item.
 		//		Replaces any previous value or values.
-		//
 		// item:
 		//		The item to modify.
 		// attribute:
 		//		The attribute of the item to change represented as a string name.
 		// value:
 		//		The value to assign to the item.
-		//
 		// exceptions:
 		//		Throws an exception if *item* is not an item, or if *attribute*
 		//		is neither an attribute object or a string.
@@ -94,7 +85,7 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		throw new Error('Unimplemented API: dojo.data.api.Write.setValue');
 	},
 
-	setValues: function(/* item */ item,
+	setValues: function(/* dojo/data/api/Item */ item,
 						/* string */ attribute,
 						/* array */ values){
 		// summary:
@@ -103,40 +94,36 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		Replaces any previous value or values.
 		//		Calling store.setValues(x, y, []) (with *values* as an empty array) has
 		//		the same effect as calling store.unsetAttribute(x, y).
-		//
 		// item:
 		//		The item to modify.
 		// attribute:
 		//		The attribute of the item to change represented as a string name.
 		// values:
 		//		An array of values to assign to the attribute..
-		//
 		// exceptions:
 		//		Throws an exception if *values* is not an array, if *item* is not an
 		//		item, or if *attribute* is neither an attribute object or a string.
 		// example:
 		//	|	var success = store.setValues(kermit, "color", ["green", "aqua"]);
 		//	|	success = store.setValues(kermit, "color", []);
-		//	|	if (success) {assert(!store.hasAttribute(kermit, "color"));}
+		//	|	if (success){assert(!store.hasAttribute(kermit, "color"));}
 		throw new Error('Unimplemented API: dojo.data.api.Write.setValues');
 	},
 
-	unsetAttribute: function(	/* item */ item,
+	unsetAttribute: function(	/* dojo/data/api/Item */ item,
 								/* string */ attribute){
 		// summary:
 		//		Deletes all the values of an attribute on an item.
-		//
 		// item:
 		//		The item to modify.
 		// attribute:
 		//		The attribute of the item to unset represented as a string.
-		//
 		// exceptions:
 		//		Throws an exception if *item* is not an item, or if *attribute*
 		//		is neither an attribute object or a string.
 		// example:
 		//	|	var success = store.unsetAttribute(kermit, "color");
-		//	|	if (success) {assert(!store.hasAttribute(kermit, "color"));}
+		//	|	if (success){assert(!store.hasAttribute(kermit, "color"));}
 		throw new Error('Unimplemented API: dojo.data.api.Write.clear');
 	},
 
@@ -146,22 +133,23 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		The save operation may take some time and is generally performed
 		//		in an asynchronous fashion.  The outcome of the save action is
 		//		is passed into the set of supported callbacks for the save.
-		//
 		// keywordArgs:
-		//		{
-		//			onComplete: function
-		//			onError: function
-		//			scope: object
-		//		}
+		// |	{
+		// |		onComplete: function
+		// |		onError: function
+		// |		scope: object
+		// |	}
 		//
-		//	The *onComplete* parameter.
+		//		####The *onComplete* parameter.
+		//
 		//		function();
 		//
 		//		If an onComplete callback function is provided, the callback function
 		//		will be called just once, after the save has completed.  No parameters
 		//		are generally passed to the onComplete.
 		//
-		//	The *onError* parameter.
+		//		####The *onError* parameter.
+		//
 		//		function(errorData);
 		//
 		//		If an onError callback function is provided, the callback function
@@ -169,7 +157,8 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		execute the save.  The onError function will be based one parameter, the
 		//		error.
 		//
-		//	The *scope* parameter.
+		//		####The *scope* parameter.
+		//
 		//		If a scope object is provided, all of the callback function (
 		//		onComplete, onError, etc) will be invoked in the context of the scope
 		//		object.  In the body of the callback function, the value of the "this"
@@ -177,7 +166,6 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		the callback functions will be called in the context of dojo.global.
 		//		For example, onComplete.call(scope) vs.
 		//		onComplete.call(dojo.global)
-		//
 		// returns:
 		//		Nothing.  Since the saves are generally asynchronous, there is
 		//		no need to return anything.  All results are passed via callbacks.
@@ -192,7 +180,6 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		Discards any unsaved changes.
 		// description:
 		//		Discards any unsaved changes.
-		//
 		// example:
 		//	|	var success = store.revert();
 		throw new Error('Unimplemented API: dojo.data.api.Write.revert');
@@ -204,10 +191,8 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 		//		since the last save().  If isDirty() is called with no *item* argument,
 		//		then this function returns true if any item has been modified since
 		//		the last save().
-		//
 		// item:
 		//		The item to check.
-		//
 		// exceptions:
 		//		Throws an exception if isDirty() is passed an argument and the
 		//		argument is not an item.
@@ -218,5 +203,4 @@ dojo.declare("dojo.data.api.Write", dojo.data.api.Read, {
 	}
 });
 
-return dojo.data.api.Write;
 });

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <map>
+#include "static_files.h"
+
 #include <memory>
 #include <string>
 
@@ -35,11 +36,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "http_auth.h"
-#include "http_server_plugin.h"
-#include "mysql/harness/utility/string.h"
+#include <event2/http.h>  // evhttp_uridecode
+
 #include "mysqlrouter/http_auth_realm_component.h"
 #include "mysqlrouter/http_server_component.h"
+
+#include "content_type.h"
 
 void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
   HttpUri parsed_uri{req.get_uri()};
@@ -157,20 +159,8 @@ void HttpStaticFolderHandler::handle_request(HttpRequest &req) {
     // file exists
     auto n = file_path.rfind('.');
     if (n != std::string::npos) {
-      const std::map<std::string, std::string> mimetypes{
-          {"css", "text/css"},          {"js", "text/javascript"},
-          {"json", "application/json"}, {"html", "text/html"},
-          {"png", "image/png"},         {"svg", "image/svg+xml"},
-      };
-      std::string extension = file_path.substr(n + 1);
-      auto it = mimetypes.find(extension);
-
-      if (it != mimetypes.end()) {
-        // found
-        out_hdrs.add("Content-Type", it->second.c_str());
-      } else {
-        out_hdrs.add("Content-Type", "application/octet-stream");
-      }
+      out_hdrs.add("Content-Type",
+                   ContentType::from_extension(file_path.substr(n + 1)));
     }
 
     req.send_reply(HttpStatusCode::Ok,

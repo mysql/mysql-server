@@ -1,0 +1,50 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 1;
+#### Test 1: invalid credentials ####
+[connection slave]
+CHANGE MASTER TO MASTER_USER = 'foo';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=1045]
+---- Check performance_schema ----
+include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
+---- Check SHOW SLAVE STATUS ----
+include/assert.inc [Error should contain the reason (Access denied for user foo) for connection failure]
+---- Check that messages are the same in both places ----
+include/assert.inc [Error should be the same in both SSS and P_S]
+#### Test 2: invalid port ####
+[connection slave]
+CHANGE MASTER TO MASTER_PORT = 1;
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=2003 # CR_CONN_HOST_ERROR]
+---- Check performance_schema ----
+include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
+---- Check SHOW SLAVE STATUS ----
+include/assert.inc [Error should contain the reason (Cant connect to MySQL server on) for connection failure]
+---- Check that messages are the same in both places ----
+include/assert.inc [Error should be the same in both SSS and P_S]
+#### Test 3: invalid host ####
+[connection slave]
+CHANGE MASTER TO MASTER_HOST = '999.999.999.999';
+START SLAVE IO_THREAD;
+include/wait_for_slave_io_error.inc [errno=2005 # CR_UNKNOWN_HOST]
+---- Check performance_schema ----
+include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
+---- Check SHOW SLAVE STATUS ----
+include/assert.inc [Error should contain the reason (Unknown MySQL server host) for connection failure]
+---- Check that messages are the same in both places ----
+include/assert.inc [Error should be the same in both SSS and P_S]
+#### Clean up ####
+RESET SLAVE;
+CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+include/rpl_end.inc

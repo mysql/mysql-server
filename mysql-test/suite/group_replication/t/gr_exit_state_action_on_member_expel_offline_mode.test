@@ -1,0 +1,76 @@
+###############################################################################
+#
+# group_replication_exit_state_action sysvar specifies which action is taken by
+# a server once it has involuntarily left the group.
+# In order to verify the expected behaviour, this test shall test that the
+# specified exit action is executed correctly after an expel by the other
+# members of the group.
+#
+# Test:
+# 0) Setup group of 3 members (M1, M2 and M3).
+# 1) Force expel of member 1.
+# 2) Verify that member 1 went to offline mode.
+# 3) Cleanup.
+#
+################################################################################
+# Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
+--source include/linux.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo
+--echo #########################################################################
+--echo # 0) Setup group of 3 members (M1, M2 and M3).
+--echo #########################################################################
+--echo
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
+SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
+
+# Supress log errors since they are expected.
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("The server was automatically set into offline mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Unable to confirm whether the server has left the group or not.*");
+call mtr.add_suppression(".* read failed");
+call mtr.add_suppression("\\[GCS\\] Unable to resolve peer address.");
+SET SESSION sql_log_bin = 1;
+
+
+--echo
+--echo #########################################################################
+--echo # 1) Force expel of member 1.
+--echo #########################################################################
+--echo
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--source include/gr_expel_member_from_group.inc
+
+
+--echo
+--echo #########################################################################
+--echo # 2) Verify that member 1 went to offline mode.
+--echo #########################################################################
+--echo
+# Verify that the member entered an error state
+--let $group_replication_member_state= ERROR
+--let $group_replication_member_id= $member1_uuid
+--source include/gr_wait_for_member_state.inc
+
+--source include/assert_and_disable_read_only.inc
+--source include/assert_and_disable_offline_mode.inc
+
+
+--echo
+--echo #########################################################################
+--echo # 3) Cleanup.
+--echo #########################################################################
+--echo
+SET @@GLOBAL.group_replication_exit_state_action = @saved_exit_state_action;
+
+--source include/group_replication_end.inc

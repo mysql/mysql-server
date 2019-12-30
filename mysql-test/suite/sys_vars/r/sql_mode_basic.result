@@ -407,102 +407,102 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,8) as unsigned integer);
-ERROR HY000: sql_mode=0x00000100 is not supported
+ERROR HY000: sql_mode=0x00000100 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,8) as unsigned integer);
-ERROR HY000: sql_mode=0x00000100 is not supported
+ERROR HY000: sql_mode=0x00000100 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,9) as unsigned integer);
-ERROR HY000: sql_mode=0x00000200 is not supported
+ERROR HY000: sql_mode=0x00000200 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,9) as unsigned integer);
-ERROR HY000: sql_mode=0x00000200 is not supported
+ERROR HY000: sql_mode=0x00000200 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,10) as unsigned integer);
-ERROR HY000: sql_mode=0x00000400 is not supported
+ERROR HY000: sql_mode=0x00000400 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,10) as unsigned integer);
-ERROR HY000: sql_mode=0x00000400 is not supported
+ERROR HY000: sql_mode=0x00000400 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,11) as unsigned integer);
-ERROR HY000: sql_mode=0x00000800 is not supported
+ERROR HY000: sql_mode=0x00000800 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,11) as unsigned integer);
-ERROR HY000: sql_mode=0x00000800 is not supported
+ERROR HY000: sql_mode=0x00000800 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,12) as unsigned integer);
-ERROR HY000: sql_mode=0x00001000 is not supported
+ERROR HY000: sql_mode=0x00001000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,12) as unsigned integer);
-ERROR HY000: sql_mode=0x00001000 is not supported
+ERROR HY000: sql_mode=0x00001000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,13) as unsigned integer);
-ERROR HY000: sql_mode=0x00002000 is not supported
+ERROR HY000: sql_mode=0x00002000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,13) as unsigned integer);
-ERROR HY000: sql_mode=0x00002000 is not supported
+ERROR HY000: sql_mode=0x00002000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,14) as unsigned integer);
-ERROR HY000: sql_mode=0x00004000 is not supported
+ERROR HY000: sql_mode=0x00004000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,14) as unsigned integer);
-ERROR HY000: sql_mode=0x00004000 is not supported
+ERROR HY000: sql_mode=0x00004000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,15) as unsigned integer);
-ERROR HY000: sql_mode=0x00008000 is not supported
+ERROR HY000: sql_mode=0x00008000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,15) as unsigned integer);
-ERROR HY000: sql_mode=0x00008000 is not supported
+ERROR HY000: sql_mode=0x00008000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,16) as unsigned integer);
-ERROR HY000: sql_mode=0x00010000 is not supported
+ERROR HY000: sql_mode=0x00010000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,16) as unsigned integer);
-ERROR HY000: sql_mode=0x00010000 is not supported
+ERROR HY000: sql_mode=0x00010000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
 SET @@session.sql_mode= cast(pow(2,17) as unsigned integer);
-ERROR HY000: sql_mode=0x00020000 is not supported
+ERROR HY000: sql_mode=0x00020000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 NO_DIR_IN_CREATE
 SET @@global.sql_mode= cast(pow(2,17) as unsigned integer);
-ERROR HY000: sql_mode=0x00020000 is not supported
+ERROR HY000: sql_mode=0x00020000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 NO_DIR_IN_CREATE
@@ -607,12 +607,12 @@ SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode= cast(pow(2,28) as unsigned integer);
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@global.sql_mode= cast(pow(2,28) as unsigned integer);
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@global.sql_mode;
 @@global.sql_mode
 STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
@@ -662,17 +662,17 @@ CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @@session.sql_mode=1436
 CREATE PROCEDURE p1() SET @@session.sql_mode=1436549152;
 # pseudo_slave_mode is "off", assignment should fail as before:
 SET @@session.sql_mode=1436549152;
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
 INSERT INTO t1 VALUES (1);
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
 CALL p1;
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
@@ -689,13 +689,13 @@ ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DI
 # ... but the assignment in SBR-invoked triggers should continue to fail:
 SET @@session.sql_mode = 0;
 INSERT INTO t1 VALUES (1);
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 
 # ... and in procedure calls:
 CALL p1;
-ERROR HY000: sql_mode=0x10000000 is not supported
+ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
 @@session.sql_mode
 

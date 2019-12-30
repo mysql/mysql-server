@@ -22,15 +22,12 @@ c1	c2
 2	20
 3	Berlin
 4	40
-SELECT SLEEP(2);
-SLEEP(2)
-0
-Here the memcached results:
+Here are the memcached results:
 10
 20
 Berlin
 40
-Here the memcached results after incr 4|40:
+Here are the memcached results after incr 4|40:
 41
 85
 85

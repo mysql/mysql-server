@@ -1,6 +1,5 @@
-//>>built
 // wrapped by build app
-define("dojox/layout/ext-dijit/layout/StackContainer-touch", ["dijit","dojo","dojox","dojo/require!dijit/layout/StackContainer"], function(dijit,dojo,dojox){
+define("dojox/layout/ext-dijit/layout/StackContainer-touch", ["dojo","dijit","dojox","dojo/require!dijit/layout/StackContainer"], function(dojo,dijit,dojox){
 dojo.provide("dojox.layout.ext-dijit.layout.StackContainer-touch");
 dojo.experimental("dojox.layout.ext-dijit.layout.StackContainer-touch");
 dojo.require("dijit.layout.StackContainer");

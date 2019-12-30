@@ -1,5 +1,5 @@
 //>>built
-define("dijit/WidgetSet",["dojo/_base/array","dojo/_base/declare","dojo/_base/window","./registry"],function(_1,_2,_3,_4){
+define("dijit/WidgetSet",["dojo/_base/array","dojo/_base/declare","dojo/_base/kernel","./registry"],function(_1,_2,_3,_4){
 var _5=_2("dijit.WidgetSet",null,{constructor:function(){
 this._hash={};
 this.length=0;

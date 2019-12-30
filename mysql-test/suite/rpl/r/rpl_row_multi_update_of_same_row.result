@@ -1,0 +1,158 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT NOT NULL PRIMARY KEY);
+CREATE FUNCTION f1 () RETURNS INT BEGIN
+UPDATE t1 SET i = 2 WHERE i = 1;
+UPDATE t1 SET i = 3 WHERE i = 2;
+UPDATE t1 SET i = 4 WHERE i = 3;
+UPDATE t1 SET i = 5 WHERE i = 4;
+UPDATE t2 SET j = 2 WHERE j = 1;
+UPDATE t2 SET j = 3 WHERE j = 2;
+UPDATE t2 SET j = 4 WHERE j = 3;
+UPDATE t2 SET j = 5 WHERE j = 4;
+RETURN 0;
+END|
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+SET GLOBAL slave_rows_search_algorithms= 'HASH_SCAN,TABLE_SCAN,INDEX_SCAN';
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+SELECT f1();
+f1()
+0
+include/sync_slave_sql_with_master.inc
+include/assert.inc ['There is only one row in table t1']
+include/assert.inc ['There is only one row in table t2']
+[connection master]
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/diff_tables.inc [master:test.t2, slave:test.t2]
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP FUNCTION f1;
+DROP TABLE t1,t2;
+[connection slave]
+SET GLOBAL slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+Warnings:
+Warning	1287	'@@slave_rows_search_algorithms' is deprecated and will be removed in a future release.
+include/rpl_end.inc

@@ -1,9 +1,9 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"],function(_1,_2,_3){
-_2.provide("dojox.storage.BehaviorStorageProvider");
-_2.require("dojox.storage.Provider");
-_2.require("dojox.storage.manager");
-_2.declare("dojox.storage.BehaviorStorageProvider",[_3.storage.Provider],{store:null,storeName:"__dojox_BehaviorStorage",keys:[],initialize:function(){
+define("dojox/storage/BehaviorStorageProvider",["dojo","dijit","dojox","dojo/require!dojox/storage/Provider,dojox/storage/manager"],function(_1,_2,_3){
+_1.provide("dojox.storage.BehaviorStorageProvider");
+_1.require("dojox.storage.Provider");
+_1.require("dojox.storage.manager");
+_1.declare("dojox.storage.BehaviorStorageProvider",[_3.storage.Provider],{store:null,storeName:"__dojox_BehaviorStorage",keys:[],initialize:function(){
 try{
 this.store=this._createStore();
 this.store.load(this.storeName);
@@ -16,9 +16,9 @@ this.keys=_4||[];
 this.initialized=true;
 _3.storage.manager.loaded();
 },isAvailable:function(){
-return _2.isIE&&_2.isIE>=5;
+return _1.isIE&&_1.isIE>=5;
 },_createStore:function(){
-var _5=_2.create("link",{id:this.storeName+"Node",style:{"display":"none"}},_2.query("head")[0]);
+var _5=_1.create("link",{id:this.storeName+"Node",style:{"display":"none"}},_1.query("head")[0]);
 _5.addBehavior("#default#userdata");
 return _5;
 },put:function(_6,_7,_8,_9){
@@ -26,13 +26,13 @@ this._assertIsValidKey(_6);
 _9=_9||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_9);
 var _a=this.getFullKey(_6,_9);
-_7=_2.toJson(_7);
+_7=_1.toJson(_7);
 this.store.setAttribute(_a,_7);
 this.store.save(this.storeName);
 var _b=this.store.getAttribute(_a)===_7;
 if(_b){
 this._addKey(_a);
-this.store.setAttribute("__dojoxSystemNS_keys",_2.toJson(this.keys));
+this.store.setAttribute("__dojoxSystemNS_keys",_1.toJson(this.keys));
 this.store.save(this.storeName);
 }
 if(_8){
@@ -43,7 +43,7 @@ this._assertIsValidKey(_c);
 _d=_d||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_d);
 _c=this.getFullKey(_c,_d);
-return _2.fromJson(this.store.getAttribute(_c));
+return _1.fromJson(this.store.getAttribute(_c));
 },getKeys:function(_e){
 _e=_e||this.DEFAULT_NAMESPACE;
 this._assertIsValidNamespace(_e);
@@ -68,7 +68,7 @@ if(this._beginsWith(_13,_11)){
 _12.push(_13);
 }
 }
-_2.forEach(_12,function(key){
+_1.forEach(_12,function(key){
 this.store.removeAttribute(key);
 this._removeKey(key);
 },this);
@@ -134,7 +134,7 @@ throw new Error("Invalid key given: "+key);
 this._removeKey(key);
 this.keys.push(key);
 },_removeKey:function(key){
-this.keys=_2.filter(this.keys,function(_20){
+this.keys=_1.filter(this.keys,function(_20){
 return _20!==key;
 },this);
 }});

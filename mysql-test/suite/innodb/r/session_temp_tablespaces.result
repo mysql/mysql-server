@@ -101,7 +101,7 @@ WHERE a.ID=b.ID ORDER BY SPACE;
 USER	STATE	INFO	SIZE	STATE	PURPOSE
 root	ACTIVE	SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
 INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
-WHERE a.ID=b.ID ORDER BY SPACE	114688	executing	INTRINSIC
+WHERE a.ID=b.ID ORDER BY SPACE	131072	executing	INTRINSIC
 root	ACTIVE	SELECT USER, b.STATE, INFO, SIZE, a.STATE, PURPOSE FROM
 INFORMATION_SCHEMA.PROCESSLIST a, INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES b
 WHERE a.ID=b.ID ORDER BY SPACE	950272	executing	USER
@@ -231,13 +231,13 @@ SELECT @@innodb_temp_tablespaces_dir;
 # Create a new connection.
 SET SESSION DEBUG='+d,ibt_pool_exhausted';
 CREATE TEMPORARY TABLE t1 (a INT);
-ERROR HY000: Unable to allocate temporary tablespace for this session
+ERROR HY000: Storage engine could not allocate temporary tablespace for this session.
 SET SESSION DEBUG='-d,ibt_pool_exhausted';
 CREATE TABLE t3(a INT, b BLOB);
 INSERT INTO t3 VALUES (1, 'hi'), (2, 'hello');
 SET SESSION DEBUG='+d,ibt_pool_exhausted';
 INSERT INTO t3 SELECT * FROM t3;
-ERROR HY000: Unable to allocate temporary tablespace for this session
+ERROR HY000: Storage engine could not allocate temporary tablespace for this session.
 SET SESSION DEBUG='-d,ibt_pool_exhausted';
 # Create Workload and execute queries involving intrinsic tables.
 explain format = json select a from t1 group by b order by sum(a);
@@ -248,8 +248,8 @@ explain format = json select sql_big_result distinct * from t1, t2;
 select sql_big_result distinct * from t1, t2;
 explain format = json select sql_big_result t1.b from t1, t2 group by t1.b;
 select sql_big_result t1.b from t1, t2 group by t1.b;
-explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.b;
-select sql_big_result distinct t1.a from t1, t2 group by t1.b;
+explain format = json select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
+select sql_big_result distinct t1.a from t1, t2 group by t1.a, t1.b;
 explain format = json select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
 select t1.* from t1 inner join t2 on t1.a = t2.a order by t2.a;
 explain format = json select t1.* from t1, t2 where t1.a = t2.a order by t1.a;

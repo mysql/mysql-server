@@ -1,9 +1,9 @@
-//>>built
-define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/sniff", "../_base/array", "../_base/lang", "../_base/window"], function(dojo, has, dom){
-  //  module:
-  //    dojo/selector/acme
-  //  summary:
-  //    This module defines the Acme selector engine
+define("dojo/selector/acme", [
+	"../dom", "../sniff", "../_base/array", "../_base/lang", "../_base/window"
+], function(dom, has, array, lang, win){
+
+	// module:
+	//		dojo/selector/acme
 
 /*
 	acme architectural overview:
@@ -45,18 +45,13 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	// if you are extracting acme for use in your own system, you will
 	// need to provide these methods and properties. No other porting should be
 	// necessary, save for configuring the system to use a class other than
-	// dojo.NodeList as the return instance instantiator
-	var trim = 			dojo.trim;
-	var each = 			dojo.forEach;
-	// 					d.isIE; // float
-	// 					d.isSafari; // float
-	// 					d.isOpera; // float
-	// 					d.isWebKit; // float
-	// 					d.doc ; // document element
+	// dojo/NodeList as the return instance instantiator
+	var trim = 			lang.trim;
+	var each = 			array.forEach;
 
-	var getDoc = function(){ return dojo.doc; };
+	var getDoc = function(){ return win.doc; };
 	// NOTE(alex): the spec is idiotic. CSS queries should ALWAYS be case-sensitive, but nooooooo
-	var cssCaseBug = ((dojo.isWebKit||dojo.isMozilla) && ((getDoc().compatMode) == "BackCompat"));
+	var cssCaseBug = (getDoc().compatMode) == "BackCompat";
 
 	////////////////////////////////////////////////////////////////////////
 	// Global utilities
@@ -78,9 +73,9 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	////////////////////////////////////////////////////////////////////////
 
 	var getQueryParts = function(query){
-		//	summary:
+		// summary:
 		//		state machine for query tokenization
-		//	description:
+		// description:
 		//		instead of using a brittle and slow regex-based CSS parser,
 		//		acme implements an AST-style query representation. This
 		//		representation is only generated once per query. For example,
@@ -104,7 +99,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		if(specials.indexOf(query.slice(-1)) >= 0){
 			// if we end with a ">", "+", or "~", that means we're implicitly
 			// searching all children, so make it explicit
-			query += " * "
+			query += " * ";
 		}else{
 			// if you have not provided a terminator, one will be provided for
 			// you...
@@ -125,7 +120,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 
 		// state keeping vars
 		var inBrackets = -1, inParens = -1, inMatchFor = -1,
-			inPseudo = -1, inClass = -1, inId = -1, inTag = -1,
+			inPseudo = -1, inClass = -1, inId = -1, inTag = -1, currentQuoteChar,
 			lc = "", cc = "", pStart;
 
 		// iteration vars
@@ -252,8 +247,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				//	but not:
 				//		thinger > div.howdy[type=thinger]
 				//	the indidual components of the previous query would be
-				//	split into 3 parts that would be represented a structure
-				//	like:
+				//	split into 3 parts that would be represented a structure like:
 				//		[
 				//			{
 				//				query: "thinger",
@@ -277,7 +271,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 					oper: null, // ...or operator per component. Note that these wind up being exclusive.
 					id: null,	// the id component of a rule
 					getTag: function(){
-						return (caseSensitive) ? this.otag : this.tag;
+						return caseSensitive ? this.otag : this.tag;
 					}
 				};
 
@@ -286,6 +280,19 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				// might fault a little later on, but we detect that and this
 				// iteration will still be fine.
 				inTag = x;
+			}
+
+			// Skip processing all quoted characters.
+			// If we are inside quoted text then currentQuoteChar stores the character that began the quote,
+			// thus that character that will end it.
+			if(currentQuoteChar){
+				if(cc == currentQuoteChar){
+					currentQuoteChar = null;
+				}
+				continue;
+			}else if (cc == "'" || cc == '"'){
+				currentQuoteChar = cc;
+				continue;
 			}
 
 			if(inBrackets >= 0){
@@ -310,6 +317,12 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 							_cp.matchFor = cmf.slice(1, -1);
 						}
 					}
+					// remove backslash escapes from an attribute match, since DOM
+					// querying will get attribute values without backslashes
+					if(_cp.matchFor){
+						_cp.matchFor = _cp.matchFor.replace(/\\/g, "");
+					}
+
 					// end the attribute by adding it to the list of attributes.
 					currentPart.attrs.push(_cp);
 					_cp = null; // necessary?
@@ -394,7 +407,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 
 		return function(){
 			return first.apply(window, arguments) && second.apply(window, arguments);
-		}
+		};
 	};
 
 	var getArr = function(i, arr){
@@ -429,7 +442,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				//		an E element whose "foo" attribute value contains
 				//		the substring "bar"
 				return (_getAttr(elem, attr).indexOf(value)>=0);
-			}
+			};
 		},
 		"^=": function(attr, value){
 			// E[foo^="bar"]
@@ -437,7 +450,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			//		with the string "bar"
 			return function(elem){
 				return (_getAttr(elem, attr).indexOf(value)==0);
-			}
+			};
 		},
 		"$=": function(attr, value){
 			// E[foo$="bar"]
@@ -445,8 +458,9 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			//		with the string "bar"
 			return function(elem){
 				var ea = " "+_getAttr(elem, attr);
-				return (ea.lastIndexOf(value)==(ea.length-value.length));
-			}
+				var lastIndex = ea.lastIndexOf(value);
+				return lastIndex > -1 && (lastIndex==(ea.length-value.length));
+			};
 		},
 		"~=": function(attr, value){
 			// E[foo~="bar"]
@@ -459,7 +473,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			return function(elem){
 				var ea = " "+_getAttr(elem, attr)+" ";
 				return (ea.indexOf(tval)>=0);
-			}
+			};
 		},
 		"|=": function(attr, value){
 			// E[hreflang|="en"]
@@ -473,18 +487,24 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 					(ea == value) ||
 					(ea.indexOf(valueDash)==0)
 				);
-			}
+			};
 		},
 		"=": function(attr, value){
 			return function(elem){
 				return (_getAttr(elem, attr) == value);
-			}
+			};
 		}
 	};
 
 	// avoid testing for node type if we can. Defining this in the negative
 	// here to avoid negation in the fast path.
-	var _noNES = (typeof getDoc().firstChild.nextElementSibling == "undefined");
+	// NOTE: Firefox versions 25-27 implemented an incompatible change
+	// to the spec, https://bugzilla.mozilla.org/show_bug.cgi?id=932501
+	// and https://www.w3.org/Bugs/Public/show_bug.cgi?id=23691 ,
+	// where nextElementSibling was implemented on the DocumentType
+	var htmlElement = getDoc().documentElement;
+	var _noNES = !(htmlElement.nextElementSibling ||
+		"nextElementSibling" in htmlElement);
 	var _ns = !_noNES ? "nextElementSibling" : "nextSibling";
 	var _ps = !_noNES ? "previousElementSibling" : "previousSibling";
 	var _simpleNodeTest = (_noNES ? _isElement : yesman);
@@ -507,10 +527,11 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 
 	var getNodeIndex = function(node){
 		var root = node.parentNode;
+		root = root.nodeType != 7 ? root : root.nextSibling; // PROCESSING_INSTRUCTION_NODE
 		var i = 0,
 			tret = root.children || root.childNodes,
-			ci = (node["_i"]||-1),
-			cl = (root["_l"]||-1);
+			ci = (node["_i"]||node.getAttribute("_i")||-1),
+			cl = (root["_l"]|| (typeof root.getAttribute !== "undefined" ? root.getAttribute("_l") : -1));
 
 		if(!tret){ return -1; }
 		var l = tret.length;
@@ -524,11 +545,19 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		}
 
 		// else re-key things
-		root["_l"] = l;
+		if(has("ie") && typeof root.setAttribute !== "undefined"){
+			root.setAttribute("_l", l);
+		}else{
+			root["_l"] = l;
+		}
 		ci = -1;
 		for(var te = root["firstElementChild"]||root["firstChild"]; te; te = te[_ns]){
 			if(_simpleNodeTest(te)){
-				te["_i"] = ++i;
+				if(has("ie")){
+					te.setAttribute("_i", ++i);
+				}else{
+					te["_i"] = ++i;
+				}
 				if(node === te){
 					// NOTE:
 					//	shortcutting the return at this step in indexing works
@@ -557,7 +586,17 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		"checked": function(name, condition){
 			return function(elem){
 				return !!("checked" in elem ? elem.checked : elem.selected);
-			}
+			};
+		},
+		"disabled": function(name, condition){
+			return function(elem){
+				return elem.disabled;
+			};
+		},
+		"enabled": function(name, condition){
+			return function(elem){
+				return !elem.disabled;
+			};
 		},
 		"first-child": function(){ return _lookLeft; },
 		"last-child": function(){ return _lookRight; },
@@ -578,7 +617,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 					if((nt === 1)||(nt == 3)){ return false; }
 				}
 				return true;
-			}
+			};
 		},
 		"contains": function(name, condition){
 			var cz = condition.charAt(0);
@@ -587,7 +626,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			}
 			return function(elem){
 				return (elem.innerHTML.indexOf(condition) >= 0);
-			}
+			};
 		},
 		"not": function(name, condition){
 			var p = getQueryParts(condition)[0];
@@ -601,7 +640,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			var ntf = getSimpleFilterFunc(p, ignores);
 			return function(elem){
 				return (!ntf(elem));
-			}
+			};
 		},
 		"nth-child": function(name, condition){
 			var pi = parseInt;
@@ -639,7 +678,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 					return function(elem){
 						var i = getNodeIndex(elem);
 						return (i>=lb) && (ub<0 || i<=ub) && ((i % pred) == idx);
-					}
+					};
 				}else{
 					condition = idx;
 				}
@@ -647,20 +686,20 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			var ncount = pi(condition);
 			return function(elem){
 				return (getNodeIndex(elem) == ncount);
-			}
+			};
 		}
 	};
 
-	var defaultGetter = (dojo.isIE && (dojo.isIE < 9 || dojo.isQuirks)) ? function(cond){
+	var defaultGetter = (has("ie") < 9 || has("ie") == 9 && has("quirks")) ? function(cond){
 		var clc = cond.toLowerCase();
 		if(clc == "class"){ cond = "className"; }
 		return function(elem){
 			return (caseSensitive ? elem.getAttribute(cond) : elem[cond]||elem[clc]);
-		}
+		};
 	} : function(cond){
 		return function(elem){
 			return (elem && elem.getAttribute && elem.hasAttribute(cond));
-		}
+		};
 	};
 
 	var getSimpleFilterFunc = function(query, ignores){
@@ -683,7 +722,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		if(!("tag" in ignores)){
 			if(query.tag != "*"){
 				ff = agree(ff, function(elem){
-					return (elem && (elem.tagName == query.getTag()));
+					return (elem && ((caseSensitive ? elem.tagName : elem.tagName.toUpperCase()) == query.getTag()));
 				});
 			}
 		}
@@ -761,7 +800,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				break;
 			}
 			return ret;
-		}
+		};
 	};
 
 	var _nextSiblings = function(filterFunc){
@@ -779,7 +818,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				te = te[_ns];
 			}
 			return ret;
-		}
+		};
 	};
 
 	// get an array of child *elements*, skipping text and comment nodes
@@ -800,15 +839,6 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			return ret;
 		};
 	};
-
-	/*
-	// thanks, Dean!
-	var itemIsAfterRoot = d.isIE ? function(item, root){
-		return (item.sourceIndex > root.sourceIndex);
-	} : function(item, root){
-		return (item.compareDocumentPosition(root) == 2);
-	};
-	*/
 
 	// test to see if node is below root
 	var _isDescendant = function(node, root){
@@ -912,7 +942,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 							return getArr(te, arr);
 						}
 					}
-				}
+				};
 			}else if(
 				ecs &&
 				// isAlien check. Workaround for Prototype.js being totally evil/dumb.
@@ -940,7 +970,8 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				// it's tag only. Fast-path it.
 				retFunc = function(root, arr, bag){
 					var ret = getArr(0, arr), te, x=0;
-					var tret = root.getElementsByTagName(query.getTag());
+					var tag = query.getTag(),
+						tret = tag ? root.getElementsByTagName(tag) : [];
 					while((te = tret[x++])){
 						if(_isUnique(te, bag)){
 							ret.push(te);
@@ -957,7 +988,8 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				retFunc = function(root, arr, bag){
 					var ret = getArr(0, arr), te, x=0;
 					// we use getTag() to avoid case sensitivity issues
-					var tret = root.getElementsByTagName(query.getTag());
+					var tag = query.getTag(),
+						tret = tag ? root.getElementsByTagName(tag) : [];
 					while((te = tret[x++])){
 						if(filterFunc(te, root) && _isUnique(te, bag)){
 							ret.push(te);
@@ -1001,7 +1033,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				// if we have more than one root at this level, provide a new
 				// hash to use for checking group membership but tell the
 				// system not to post-filter us since we will already have been
-				// gauranteed to be unique
+				// guaranteed to be unique
 				bag = {};
 				ret.nozip = true;
 			}
@@ -1030,7 +1062,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	var _queryFuncCacheDOM = {},
 		_queryFuncCacheQSA = {};
 
-	// this is the second level of spliting, from full-length queries (e.g.,
+	// this is the second level of splitting, from full-length queries (e.g.,
 	// "div.foo .bar") into simple query expressions (e.g., ["div.foo",
 	// ".bar"])
 	var getStepQueryFunc = function(query){
@@ -1047,13 +1079,13 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 				var r = tef(root, []);
 				if(r){ r.nozip = true; }
 				return r;
-			}
+			};
 		}
 
 		// otherwise, break it up and return a runner that iterates over the parts recursively
 		return function(root){
 			return filterDown(root, qparts);
-		}
+		};
 	};
 
 	// NOTES:
@@ -1075,42 +1107,34 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	// we need to determine if we think we can run a given query via
 	// querySelectorAll or if we'll need to fall back on DOM queries to get
 	// there. We need a lot of information about the environment and the query
-	// to make the determiniation (e.g. does it support QSA, does the query in
+	// to make the determination (e.g. does it support QSA, does the query in
 	// question work in the native QSA impl, etc.).
-	var nua = navigator.userAgent;
-	// some versions of Safari provided QSA, but it was buggy and crash-prone.
-	// We need te detect the right "internal" webkit version to make this work.
-	var wk = "WebKit/";
-	var is525 = (
-		dojo.isWebKit &&
-		(nua.indexOf(wk) > 0) &&
-		(parseFloat(nua.split(wk)[1]) > 528)
-	);
 
 	// IE QSA queries may incorrectly include comment nodes, so we throw the
 	// zipping function into "remove" comments mode instead of the normal "skip
 	// it" which every other QSA-clued browser enjoys
-	var noZip = dojo.isIE ? "commentStrip" : "nozip";
+	var noZip = has("ie") ? "commentStrip" : "nozip";
 
 	var qsa = "querySelectorAll";
-	var qsaAvail = (
-		!!getDoc()[qsa] &&
-		// see #5832
-		(!dojo.isSafari || (dojo.isSafari > 3.1) || is525 )
-	);
+	var qsaAvail = !!getDoc()[qsa];
 
 	//Don't bother with n+3 type of matches, IE complains if we modify those.
-	var infixSpaceRe = /n\+\d|([^ ])?([>~+])([^ =])?/g;
+	var infixSpaceRe = /\\[>~+]|n\+\d|([^ \\])?([>~+])([^ =])?/g;
 	var infixSpaceFunc = function(match, pre, ch, post){
 		return ch ? (pre ? pre + " " : "") + ch + (post ? " " + post : "") : /*n+3*/ match;
 	};
 
+	//Don't apply the infixSpaceRe to attribute value selectors
+	var attRe = /([^[]*)([^\]]*])?/g;
+	var attFunc = function(match, nonAtt, att){
+		return nonAtt.replace(infixSpaceRe, infixSpaceFunc) + (att||"");
+	};
 	var getQueryFunc = function(query, forceDOM){
 		//Normalize query. The CSS3 selectors spec allows for omitting spaces around
 		//infix operators, >, ~ and +
 		//Do the work here since detection for spaces is used as a simple "not use QSA"
 		//test below.
-		query = query.replace(infixSpaceRe, infixSpaceFunc);
+		query = query.replace(attRe, attFunc);
 
 		if(qsaAvail){
 			// if we've got a cached variant and we think we can do it, run it!
@@ -1143,7 +1167,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			//		http://www.w3.org/TR/css3-selectors/#w3cselgrammar
 			(specials.indexOf(qcz) == -1) &&
 			// IE's QSA impl sucks on pseudos
-			(!dojo.isIE || (query.indexOf(":") == -1)) &&
+			(!has("ie") || (query.indexOf(":") == -1)) &&
 
 			(!(cssCaseBug && (query.indexOf(".") >= 0))) &&
 
@@ -1190,10 +1214,10 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 					// default that way in the future
 					return getQueryFunc(query, true)(root);
 				}
-			}
+			};
 		}else{
 			// DOM branch
-			var parts = query.split(/\s*,\s*/);
+			var parts = query.match(/([^\s,](?:"(?:\\.|[^"])+"|'(?:\\.|[^'])+'|[^,])*)/g);
 			return _queryFuncCacheDOM[query] = ((parts.length < 2) ?
 				// if not a compound query (e.g., ".foo, .bar"), cache and return a dispatcher
 				getStepQueryFunc(query) :
@@ -1218,7 +1242,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	// NOTE:
 	//		this function is Moo inspired, but our own impl to deal correctly
 	//		with XML in IE
-	var _nodeUID = dojo.isIE ? function(node){
+	var _nodeUID = has("ie") ? function(node){
 		if(caseSensitive){
 			// XML docs don't have uniqueID on their nodes
 			return (node.getAttribute("_uid") || node.setAttribute("_uid", ++_zipIdx) || _zipIdx);
@@ -1244,7 +1268,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 	};
 
 	// attempt to efficiently determine if an item in a list is a dupe,
-	// returning a list of "uniques", hopefully in doucment order
+	// returning a list of "uniques", hopefully in document order
 	var _zipIdxName = "_zipIdx";
 	var _zip = function(arr){
 		if(arr && arr.nozip){
@@ -1261,18 +1285,19 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 
 		// we have to fork here for IE and XML docs because we can't set
 		// expandos on their nodes (apparently). *sigh*
-		if(dojo.isIE && caseSensitive){
+		var x, te;
+		if(has("ie") && caseSensitive){
 			var szidx = _zipIdx+"";
 			arr[0].setAttribute(_zipIdxName, szidx);
-			for(var x = 1, te; te = arr[x]; x++){
+			for(x = 1; te = arr[x]; x++){
 				if(arr[x].getAttribute(_zipIdxName) != szidx){
 					ret.push(te);
 				}
 				te.setAttribute(_zipIdxName, szidx);
 			}
-		}else if(dojo.isIE && arr.commentStrip){
+		}else if(has("ie") && arr.commentStrip){
 			try{
-				for(var x = 1, te; te = arr[x]; x++){
+				for(x = 1; te = arr[x]; x++){
 					if(_isElement(te)){
 						ret.push(te);
 					}
@@ -1280,7 +1305,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 			}catch(e){ /* squelch */ }
 		}else{
 			if(arr[0]){ arr[0][_zipIdxName] = _zipIdx; }
-			for(var x = 1, te; te = arr[x]; x++){
+			for(x = 1; te = arr[x]; x++){
 				if(arr[x][_zipIdxName] != _zipIdx){
 					ret.push(te);
 				}
@@ -1292,11 +1317,11 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 
 	// the main executor
 	var query = function(/*String*/ query, /*String|DOMNode?*/ root){
-		//	summary:
+		// summary:
 		//		Returns nodes which match the given CSS3 selector, searching the
 		//		entire document by default but optionally taking a node to scope
 		//		the search by. Returns an array.
-		//	description:
+		// description:
 		//		dojo.query() is the swiss army knife of DOM node manipulation in
 		//		Dojo. Much like Prototype's "$$" (bling-bling) function or JQuery's
 		//		"$" function, dojo.query provides robust, high-performance
@@ -1308,33 +1333,33 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//
 		//		acme supports a rich set of CSS3 selectors, including:
 		//
-		//			* class selectors (e.g., `.foo`)
-		//			* node type selectors like `span`
-		//			* ` ` descendant selectors
-		//			* `>` child element selectors
-		//			* `#foo` style ID selectors
-		//			* `*` universal selector
-		//			* `~`, the preceded-by sibling selector
-		//			* `+`, the immediately preceded-by sibling selector
-		//			* attribute queries:
-		//			|	* `[foo]` attribute presence selector
-		//			|	* `[foo='bar']` attribute value exact match
-		//			|	* `[foo~='bar']` attribute value list item match
-		//			|	* `[foo^='bar']` attribute start match
-		//			|	* `[foo$='bar']` attribute end match
-		//			|	* `[foo*='bar']` attribute substring match
-		//			* `:first-child`, `:last-child`, and `:only-child` positional selectors
-		//			* `:empty` content emtpy selector
-		//			* `:checked` pseudo selector
-		//			* `:nth-child(n)`, `:nth-child(2n+1)` style positional calculations
-		//			* `:nth-child(even)`, `:nth-child(odd)` positional selectors
-		//			* `:not(...)` negation pseudo selectors
+		//		- class selectors (e.g., `.foo`)
+		//		- node type selectors like `span`
+		//		- ` ` descendant selectors
+		//		- `>` child element selectors
+		//		- `#foo` style ID selectors
+		//		- `*` universal selector
+		//		- `~`, the preceded-by sibling selector
+		//		- `+`, the immediately preceded-by sibling selector
+		//		- attribute queries:
+		//			- `[foo]` attribute presence selector
+		//			- `[foo='bar']` attribute value exact match
+		//			- `[foo~='bar']` attribute value list item match
+		//			- `[foo^='bar']` attribute start match
+		//			- `[foo$='bar']` attribute end match
+		//			- `[foo*='bar']` attribute substring match
+		//		- `:first-child`, `:last-child`, and `:only-child` positional selectors
+		//		- `:empty` content emtpy selector
+		//		- `:checked` pseudo selector
+		//		- `:nth-child(n)`, `:nth-child(2n+1)` style positional calculations
+		//		- `:nth-child(even)`, `:nth-child(odd)` positional selectors
+		//		- `:not(...)` negation pseudo selectors
 		//
 		//		Any legal combination of these selectors will work with
 		//		`dojo.query()`, including compound selectors ("," delimited).
 		//		Very complex and useful searches can be constructed with this
 		//		palette of selectors and when combined with functions for
-		//		manipulation presented by dojo.NodeList, many types of DOM
+		//		manipulation presented by dojo/NodeList, many types of DOM
 		//		manipulation operations become very straightforward.
 		//
 		//		Unsupported Selectors:
@@ -1344,14 +1369,14 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//		what's reasonable for a programmatic node querying engine to
 		//		handle. Currently unsupported selectors include:
 		//
-		//			* namespace-differentiated selectors of any form
-		//			* all `::` pseduo-element selectors
-		//			* certain pseduo-selectors which don't get a lot of day-to-day use:
-		//			|	* `:root`, `:lang()`, `:target`, `:focus`
-		//			* all visual and state selectors:
-		//			|	* `:root`, `:active`, `:hover`, `:visisted`, `:link`,
+		//		- namespace-differentiated selectors of any form
+		//		- all `::` pseduo-element selectors
+		//		- certain pseudo-selectors which don't get a lot of day-to-day use:
+		//			- `:root`, `:lang()`, `:target`, `:focus`
+		//		- all visual and state selectors:
+		//			- `:root`, `:active`, `:hover`, `:visited`, `:link`,
 		//				  `:enabled`, `:disabled`
-		//			* `:*-of-type` pseudo selectors
+		//			- `:*-of-type` pseudo selectors
 		//
 		//		dojo.query and XML Documents:
 		//		-----------------------------
@@ -1370,27 +1395,27 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//		---------------------
 		//
 		//		If something other than a String is passed for the query,
-		//		`dojo.query` will return a new `dojo.NodeList` instance
+		//		`dojo.query` will return a new `dojo/NodeList` instance
 		//		constructed from that parameter alone and all further
 		//		processing will stop. This means that if you have a reference
 		//		to a node or NodeList, you can quickly construct a new NodeList
 		//		from the original by calling `dojo.query(node)` or
 		//		`dojo.query(list)`.
 		//
-		//	query:
+		// query:
 		//		The CSS3 expression to match against. For details on the syntax of
 		//		CSS3 selectors, see <http://www.w3.org/TR/css3-selectors/#selectors>
-		//	root:
+		// root:
 		//		A DOMNode (or node id) to scope the search from. Optional.
-		//	returns: Array
-		//	example:
+		// returns: Array
+		// example:
 		//		search the entire document for elements with the class "foo":
 		//	|	dojo.query(".foo");
 		//		these elements will match:
 		//	|	<span class="foo"></span>
 		//	|	<span class="foo bar"></span>
 		//	|	<p class="thud foo"></p>
-		//	example:
+		// example:
 		//		search the entire document for elements with the classes "foo" *and* "bar":
 		//	|	dojo.query(".foo.bar");
 		//		these elements will match:
@@ -1398,7 +1423,7 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//		while these will not:
 		//	|	<span class="foo"></span>
 		//	|	<p class="thud foo"></p>
-		//	example:
+		// example:
 		//		find `<span>` elements which are descendants of paragraphs and
 		//		which have a "highlighted" class:
 		//	|	dojo.query("p span.highlighted");
@@ -1408,16 +1433,16 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//	|			<span class="highlighted foo bar">...</span>
 		//	|		</span>
 		//	|	</p>
-		//	example:
+		// example:
 		//		set an "odd" class on all odd table rows inside of the table
 		//		`#tabular_data`, using the `>` (direct child) selector to avoid
 		//		affecting any nested tables:
 		//	|	dojo.query("#tabular_data > tbody > tr:nth-child(odd)").addClass("odd");
-		//	example:
+		// example:
 		//		remove all elements with the class "error" from the document
 		//		and store them in a list:
 		//	|	var errors = dojo.query(".error").orphan();
-		//	example:
+		// example:
 		//		add an onclick handler to every submit button in the document
 		//		which causes the form to be sent via Ajax instead:
 		//	|	dojo.query("input[type='submit']").onclick(function(e){
@@ -1435,18 +1460,11 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		//	|		});
 		//	|	});
 
-		root = root||getDoc();
-		var od = root.ownerDocument||root.documentElement;
+		root = root || getDoc();
 
 		// throw the big case sensitivity switch
-
-		// NOTE:
-		//		Opera in XHTML mode doesn't detect case-sensitivity correctly
-		//		and it's not clear that there's any way to test for it
-		caseSensitive = (root.contentType && root.contentType=="application/xml") ||
-						(dojo.isOpera && (root.doctype || od.toString() == "[object XMLDocument]")) ||
-						(!!od) &&
-				(dojo.isIE ? od.xml : (root.xmlVersion || od.xmlVersion));
+		var od = root.ownerDocument || root;	// root is either Document or a node inside the document
+		caseSensitive = (od.createElement("div").tagName === "div");
 
 		// NOTE:
 		//		adding "true" as the 2nd argument to getQueryFunc is useful for
@@ -1459,18 +1477,18 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		if(r && r.nozip){
 			return r;
 		}
-		return _zip(r); // dojo.NodeList
+		return _zip(r); // dojo/NodeList
 	};
 	query.filter = function(/*Node[]*/ nodeList, /*String*/ filter, /*String|DOMNode?*/ root){
 		// summary:
-		// 		function for filtering a NodeList based on a selector, optimized for simple selectors
+		//		function for filtering a NodeList based on a selector, optimized for simple selectors
 		var tmpNodeList = [],
 			parts = getQueryParts(filter),
 			filterFunc =
 				(parts.length == 1 && !/[^\w#\.]/.test(filter)) ?
 				getSimpleFilterFunc(parts[0]) :
 				function(node){
-					return dojo.query(filter, root).indexOf(node) != -1;
+					return array.indexOf(query(filter, dom.byId(root)), node) != -1;
 				};
 		for(var x = 0, te; te = nodeList[x]; x++){
 			if(filterFunc(te)){ tmpNodeList.push(te); }
@@ -1478,4 +1496,4 @@ define("dojo/selector/acme", ["../_base/kernel", "../has", "../dom", "../_base/s
 		return tmpNodeList;
 	};
 	return query;
-});//end defineQuery
+});

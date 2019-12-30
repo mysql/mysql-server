@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -121,15 +121,18 @@ void Log_test::purge(lsn_t max_dirty_page_age) {
 }
 
 byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value) {
+  const size_t payload = ut_rnd_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
+  return (create_mlog_rec(rec, key, value, payload));
+}
+
+byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value,
+                                size_t payload) {
   const space_id_t space_id = MLOG_TEST_PAGE_SPACE_ID;
   const page_no_t page_no = key;
 
   uchar *ptr;
-  size_t payload;
 
   ptr = rec;
-
-  payload = ut_rnd_interval(0, MLOG_TEST_PAYLOAD_MAX_LEN);
 
   mach_write_to_1(ptr, MLOG_TEST);
   ptr++;
@@ -144,8 +147,8 @@ byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value) {
   mach_write_to_8(ptr, value);
   ptr += 8;
 
-  mach_write_to_1(ptr, payload);
-  ptr++;
+  mach_write_to_2(ptr, payload);
+  ptr += 2;
 
   std::memset(ptr, 0x00, payload);
   ptr += payload;
@@ -161,19 +164,20 @@ byte *Log_test::create_mlog_rec(byte *rec, Key key, Value value) {
   return (ptr);
 }
 
-byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
-  if (begin + 2 * 8 + 1 > end) {
+byte *Log_test::parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
+                               lsn_t &start_lsn, lsn_t &end_lsn) {
+  if (begin + 2 * 8 + 2 > end) {
     return (nullptr);
   }
 
-  const Key key = static_cast<Key>(mach_read_from_8(begin));
+  key = static_cast<Key>(mach_read_from_8(begin));
   begin += 8;
 
-  const Value value = static_cast<Value>(mach_read_from_8(begin));
+  value = static_cast<Value>(mach_read_from_8(begin));
   begin += 8;
 
-  const size_t payload = mach_read_from_1(begin);
-  begin++;
+  const size_t payload = mach_read_from_2(begin);
+  begin += 2;
 
   if (begin + payload + 2 * 8 > end) {
     return (nullptr);
@@ -181,11 +185,25 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
 
   begin += payload;
 
-  const lsn_t start_lsn = mach_read_from_8(begin);
+  start_lsn = mach_read_from_8(begin);
   begin += 8;
 
-  const lsn_t end_lsn = mach_read_from_8(begin);
+  end_lsn = mach_read_from_8(begin);
   begin += 8;
+
+  return (begin);
+}
+
+byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
+  Key key;
+  Value value;
+  lsn_t start_lsn, end_lsn;
+
+  byte *ptr = parse_mlog_rec(begin, end, key, value, start_lsn, end_lsn);
+
+  if (ptr == nullptr) {
+    return (nullptr);
+  }
 
   if (value == MLOG_TEST_VALUE) {
     recovered_reset(key, start_lsn, end_lsn);
@@ -199,7 +217,7 @@ byte *Log_test::parse_mlog_rec(byte *begin, byte *end) {
     recovered_add(key, value, start_lsn, end_lsn);
   }
 
-  return (begin);
+  return (ptr);
 }
 
 void Log_test::recovered_reset(Key key, lsn_t oldest_modification,

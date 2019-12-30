@@ -1,9 +1,9 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"],function(_1,_2,_3){
-_2.provide("dojox.wire.XmlWire");
-_2.require("dojox.xml.parser");
-_2.require("dojox.wire.Wire");
-_2.declare("dojox.wire.XmlWire",_3.wire.Wire,{_wireClass:"dojox.wire.XmlWire",constructor:function(_4){
+define("dojox/wire/XmlWire",["dojo","dijit","dojox","dojo/require!dojox/xml/parser,dojox/wire/Wire"],function(_1,_2,_3){
+_1.provide("dojox.wire.XmlWire");
+_1.require("dojox.xml.parser");
+_1.require("dojox.wire.Wire");
+_1.declare("dojox.wire.XmlWire",_3.wire.Wire,{_wireClass:"dojox.wire.XmlWire",constructor:function(_4){
 },_getValue:function(_5){
 if(!_5||!this.path){
 return _5;

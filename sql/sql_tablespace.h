@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ struct Tablespace_options {
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   LEX_STRING ts_comment = {nullptr, 0};  // FIXME: Rename to comment?
-  LEX_STRING engine_name = {nullptr, 0};
+  LEX_CSTRING engine_name = {nullptr, 0};
   LEX_STRING encryption = {nullptr, 0};
 };
 
@@ -88,8 +88,8 @@ bool validate_tablespace_name(ts_command_type ts_cmd,
                               const handlerton *engine);
 
 /**
-  Base class for tablespace execution classes including LOGFILE GROUP
-  commands.
+  Base class for tablespace execution classes including
+  CREATE/ALTER/DROP TABLESPACE and LOGFILE GROUP commands.
  */
 class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
 {
@@ -111,6 +111,10 @@ class Sql_cmd_tablespace : public Sql_cmd /* purecov: inspected */
     @return command code enum value
    */
   enum_sql_command sql_command_code() const override final;
+  /**
+    Return the Tablespace_options for this object.
+   */
+  const Tablespace_options get_options() const { return *m_options; }
 };
 
 /**

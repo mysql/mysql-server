@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_PaletteMixin", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-attr", // domAttr.set
@@ -12,14 +11,8 @@ define("dijit/_PaletteMixin", [
 	"./typematic"
 ], function(declare, domAttr, domClass, domConstruct, event, keys, lang, _CssStateMixin, focus, typematic){
 
-/*=====
-	var _CssStateMixin = dijit._CssStateMixin;
-=====*/
-
 // module:
 //		dijit/_PaletteMixin
-// summary:
-//		A keyboard accessible palette, for picking a color/emoticon/etc.
 
 return declare("dijit._PaletteMixin", [_CssStateMixin], {
 	// summary:
@@ -34,7 +27,7 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 	// timeoutChangeRate: Number
 	//		Fraction of time used to change the typematic timer between events
 	//		1.0 means that each typematic event fires at defaultTimeout intervals
-	//		< 1.0 means that each typematic event fires at an increasing faster rate
+	//		Less than 1.0 means that each typematic event fires at an increasing faster rate
 	timeoutChangeRate: 0.90,
 
 	// value: String
@@ -73,22 +66,19 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 	//		CSS class applied to each cell in the palette
 	cellClass: "dijitPaletteCell",
 
-	// dyeClass: [protected] String
-	//	 Name of javascript class for Object created for each cell of the palette.
-	//	 dyeClass should implements dijit.Dye interface
-	dyeClass: '',
+	// dyeClass: [protected] Constructor
+	//		Constructor for Object created for each cell of the palette.
+	//		dyeClass should implements dijit.Dye interface
+	dyeClass: null,
 	
-	// summary: String
-	//		Localized summary for the palette table
-	summary: '',
-	_setSummaryAttr: "paletteTableNode",
-
-	_dyeFactory: function(value /*===== , row, col =====*/){
+	_dyeFactory: function(value /*===== , row, col, title =====*/){
 		// summary:
 		//		Return instance of dijit.Dye for specified cell of palette
 		// tags:
 		//		extension
-		var dyeClassObj = lang.getObject(this.dyeClass);
+
+		// Remove string support for 2.0
+		var dyeClassObj = typeof this.dyeClass == "string" ? lang.getObject(this.dyeClass) : this.dyeClass;
 		return new dyeClassObj(value);
 	},
 
@@ -107,25 +97,23 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 		this.connect(this.gridNode, "ondijitclick", "_onCellClick");
 
 		for(var row=0; row < choices.length; row++){
-			var rowNode = domConstruct.create("tr", {tabIndex: "-1"}, this.gridNode);
+			var rowNode = domConstruct.create("tr", {tabIndex: "-1", role: "row"}, this.gridNode);
 			for(var col=0; col < choices[row].length; col++){
 				var value = choices[row][col];
 				if(value){
-					var cellObject = this._dyeFactory(value, row, col);
+					var cellObject = this._dyeFactory(value, row, col, titles[value]);
 
 					var cellNode = domConstruct.create("td", {
 						"class": this.cellClass,
 						tabIndex: "-1",
 						title: titles[value],
 						role: "gridcell"
-					});
+					}, rowNode);
 
 					// prepare cell inner structure
 					cellObject.fillCell(cellNode, url);
 
-					domConstruct.place(cellNode, rowNode);
-
-					cellNode.index = this._cells.length;
+					cellNode.idx = this._cells.length;
 
 					// save cell info into _cells
 					this._cells.push({node:cellNode, dye:cellObject});
@@ -150,7 +138,7 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 			LEFT_ARROW: this.isLeftToRight() ? -1 : 1
 		};
 		for(var key in keyIncrementMap){
-			this._connects.push(
+			this.own(
 				typematic.addKeyListener(
 					this.domNode,
 					{charOrCode:keys[key], ctrlKey:false, altKey:false, shiftKey:false},
@@ -216,9 +204,9 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 		// summary:
 		//		Sets which node is the focused cell.
 		// description:
-   		//		At any point in time there's exactly one
+		//		At any point in time there's exactly one
 		//		cell with tabIndex != -1.   If focus is inside the palette then
-		// 		focus is on that cell.
+		//		focus is on that cell.
 		//
 		//		After calling this method, arrow key handlers and mouse click handlers
 		//		should focus the cell in a setTimeout().
@@ -238,11 +226,12 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 
 	_setValueAttr: function(value, priorityChange){
 		// summary:
-		// 		This selects a cell. It triggers the onChange event.
-		// value: String value of the cell to select
+		//		This selects a cell. It triggers the onChange event.
+		// value: String
+		//		Value of the cell to select
 		// tags:
 		//		protected
-		// priorityChange:
+		// priorityChange: Boolean?
 		//		Optional parameter used to tell the select whether or not to fire
 		//		onChange event.
 
@@ -280,10 +269,10 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 
 	_navigateByKey: function(increment, typeCount){
 		// summary:
-		// 	  	This is the callback for typematic.
-		// 		It changes the focus and the highlighed cell.
+		//		This is the callback for typematic.
+		//		It changes the focus and the highlighed cell.
 		// increment:
-		// 		How much the key is navigated.
+		//		How much the key is navigated.
 		// typeCount:
 		//		How many times typematic has fired.
 		// tags:
@@ -292,14 +281,14 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 		// typecount == -1 means the key is released.
 		if(typeCount == -1){ return; }
 
-		var newFocusIndex = this._currentFocus.index + increment;
+		var newFocusIndex = this._currentFocus.idx + increment;
 		if(newFocusIndex < this._cells.length && newFocusIndex > -1){
 			var focusNode = this._cells[newFocusIndex].node;
 			this._setCurrent(focusNode);
 
 			// Actually focus the node, for the benefit of screen readers.
-			// Use setTimeout because IE doesn't like changing focus inside of an event handler
-			setTimeout(lang.hitch(dijit, "focus", focusNode), 0);
+			// Use defer because IE doesn't like changing focus inside of an event handler
+			this.defer(lang.hitch(focus, "focus", focusNode));
 		}
 	},
 
@@ -307,7 +296,7 @@ return declare("dijit._PaletteMixin", [_CssStateMixin], {
 		// summary:
 		//		Get JS object for given cell DOMNode
 
-		return this._cells[cell.index].dye;
+		return this._cells[cell.idx].dye;
 	}
 });
 
@@ -334,9 +323,9 @@ declare("dijit.Dye",
 		fillCell: function(cell, blankGif){
 			// summary:
 			//		Add cell DOMNode inner structure
-			//	cell: DomNode
+			// cell: DomNode
 			//		The surrounding cell
-			//	blankGif: String
+			// blankGif: String
 			//		URL for blank cell image
 		}
 	}

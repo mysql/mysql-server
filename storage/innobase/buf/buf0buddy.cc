@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -580,7 +580,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
   if (buf_page_can_relocate(bpage)) {
     /* Relocate the compressed page. */
-    uintmax_t usec = ut_time_us(NULL);
+    const auto usec = ut_time_monotonic_us();
 
     ut_a(bpage->zip.data == src);
 
@@ -595,7 +595,7 @@ static bool buf_buddy_relocate(buf_pool_t *buf_pool, void *src, void *dst,
 
     buf_buddy_stat_t *buddy_stat = &buf_pool->buddy_stat[i];
     buddy_stat->relocated++;
-    buddy_stat->relocated_usec += ut_time_us(NULL) - usec;
+    buddy_stat->relocated_usec += ut_time_monotonic_us() - usec;
     return (true);
   }
 

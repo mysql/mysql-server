@@ -27,6 +27,8 @@
 #include <atomic>
 #include <thread>
 
+#include "scope_guard.h"
+
 namespace my_rcu_lock_unittest {
 
 class payload_s {
@@ -103,17 +105,35 @@ std::atomic<long> my_rcu_lock_test::reads;
 std::atomic<long> my_rcu_lock_test::writes;
 
 TEST_F(my_rcu_lock_test, multi_threaded_run) {
-  std::thread readerts[1000];
-  std::thread writerts[10];
+  // Capping this at 300 since a std::system_error will be thrown on
+  // i686 when creating more than ~400 threads.
+  constexpr size_t NUM_READERS = 300;
+  std::thread readerts[NUM_READERS];
 
-  for (auto &thd : readerts) thd = std::thread(rcu_reader, 100000);
-  for (auto &thd : writerts) thd = std::thread(rcu_writer, 5, 100);
+  constexpr size_t NUM_WRITERS = 10;
+  std::thread writerts[NUM_WRITERS];
 
-  for (auto &thd : readerts) thd.join();
-  for (auto &thd : writerts) thd.join();
+  {
+    auto join_guard = create_scope_guard([&]() {
+      // Need to join with those threads already started so that
+      // std::terminate is not called in their destructor
+      for (auto &rt : readerts) {
+        if (rt.joinable()) rt.join();
+      }
+      for (auto &wt : writerts) {
+        if (wt.joinable()) wt.join();
+      }
+    });
 
-  ASSERT_EQ(reads.load(), 100000 * 1000);
-  ASSERT_EQ(writes.load(), 10 * 5);
+    for (auto &rt : readerts) rt = std::thread(rcu_reader, 100000);
+    for (auto &wt : writerts) wt = std::thread(rcu_writer, 5, 100);
+
+    // When leaving this scope the scope guard ensures that we will
+    // attempt join every joinable thread
+  }
+
+  ASSERT_EQ(reads.load(), 100000 * NUM_READERS);
+  ASSERT_EQ(writes.load(), NUM_WRITERS * 5);
 }
 
 }  // namespace my_rcu_lock_unittest

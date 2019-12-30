@@ -33,31 +33,48 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 
-#include "plugin/x/ngs/include/ngs/protocol/page_buffer.h"
-#include "plugin/x/ngs/include/ngs/protocol/page_output_stream.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 
 #include "plugin/x/src/xpl_server.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
-using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-
 namespace ngs {
 
-const Pool_config Protocol_encoder::m_default_pool_config = {0, 5,
-                                                             BUFFER_PAGE_SIZE};
+// Lets make the usage of protobuf easier
+using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
+
+// Alias for return types
+using Flush_result = xpl::iface::Protocol_flusher::Result;
 
 Protocol_encoder::Protocol_encoder(const std::shared_ptr<Vio_interface> &socket,
                                    Error_handler ehandler,
-                                   Protocol_monitor_interface *pmon)
-    : m_pool(m_default_pool_config),
-      m_error_handler(ehandler),
+                                   Protocol_monitor_interface *pmon,
+                                   Memory_block_pool *memory_block_pool)
+    : m_error_handler(ehandler),
       m_protocol_monitor(pmon),
-      m_page_output_stream(m_pool),
-      m_flusher(&m_page_output_stream, pmon, socket, ehandler) {}
+      m_pool{10, memory_block_pool},  // TODO(lkotula): benchmark first argument
+                                      // (shouldn't be in review)
+      m_flusher(new Protocol_flusher(&m_xproto_buffer, &m_xproto_encoder, pmon,
+                                     socket, ehandler)) {}
 
-void Protocol_encoder::start_row() { m_row_builder.start_row(get_buffer()); }
+Metadata_builder *Protocol_encoder::get_metadata_builder() {
+  return &m_metadata_builder;
+}
+
+protocol::XMessage_encoder *Protocol_encoder::raw_encoder() {
+  return &m_xproto_encoder;
+}
+
+std::unique_ptr<xpl::iface::Protocol_flusher> Protocol_encoder::set_flusher(
+    std::unique_ptr<xpl::iface::Protocol_flusher> flusher) {
+  std::unique_ptr<xpl::iface::Protocol_flusher> result = std::move(m_flusher);
+  m_flusher = std::move(flusher);
+
+  return result;
+}
+
+void Protocol_encoder::start_row() { m_row_builder.begin_row(); }
 
 void Protocol_encoder::abort_row() { m_row_builder.abort_row(); }
 
@@ -69,67 +86,64 @@ bool Protocol_encoder::send_row() {
 }
 
 bool Protocol_encoder::send_result(const Error_code &result) {
-  if (result.error == 0) {
-    Mysqlx::Ok ok;
-    if (!result.message.empty()) ok.set_msg(result.message);
-    return send_message(Mysqlx::ServerMessages::OK, ok);
-  } else {
-    if (result.severity == Error_code::FATAL)
-      get_protocol_monitor().on_fatal_error_send();
-    else
-      get_protocol_monitor().on_error_send();
+  if (result.error == 0) return send_ok(result.message);
 
-    Mysqlx::Error error;
-    error.set_code(result.error);
-    error.set_msg(result.message);
-    error.set_sql_state(result.sql_state);
-    error.set_severity(result.severity == Error_code::FATAL
-                           ? Mysqlx::Error::FATAL
-                           : Mysqlx::Error::ERROR);
-    return send_message(Mysqlx::ServerMessages::ERROR, error);
-  }
+  if (result.severity == Error_code::FATAL)
+    get_protocol_monitor().on_fatal_error_send();
+  else
+    get_protocol_monitor().on_error_send();
+
+  return send_error(result);
 }
 
 bool Protocol_encoder::send_ok() {
-  return send_message(Mysqlx::ServerMessages::OK, Mysqlx::Ok());
+  m_xproto_encoder.encode_ok();
+  return send_raw_buffer(Mysqlx::ServerMessages::OK);
 }
 
 bool Protocol_encoder::send_ok(const std::string &message) {
-  Mysqlx::Ok ok;
+  if (message.empty()) {
+    m_xproto_encoder.encode_ok();
+    return send_raw_buffer(Mysqlx::ServerMessages::OK);
+  }
 
-  if (!message.empty()) ok.set_msg(message);
+  m_xproto_encoder.encode_ok(message);
 
-  return send_message(Mysqlx::ServerMessages::OK, ok);
+  return send_raw_buffer(Mysqlx::ServerMessages::OK);
 }
 
-bool Protocol_encoder::send_init_error(const Error_code &error_code) {
-  if (error_code.severity == Error_code::FATAL)
+bool Protocol_encoder::send_error(const Error_code &error_code,
+                                  const bool init_error) {
+  if (init_error && error_code.severity == Error_code::FATAL)
     m_protocol_monitor->on_init_error_send();
 
-  Mysqlx::Error error;
+  m_xproto_encoder.encode_error(
+      error_code.severity == Error_code::FATAL ? Mysqlx::Error::FATAL
+                                               : Mysqlx::Error::ERROR,
+      error_code.error, error_code.message, error_code.sql_state);
 
-  error.set_code(error_code.error);
-  error.set_msg(error_code.message);
-  error.set_sql_state(error_code.sql_state);
-  error.set_severity(error_code.severity == Error_code::FATAL
-                         ? Mysqlx::Error::FATAL
-                         : Mysqlx::Error::ERROR);
-
-  return send_message(Mysqlx::ServerMessages::ERROR, error);
+  return send_raw_buffer(Mysqlx::ServerMessages::ERROR);
 }
 
 void Protocol_encoder::send_auth_ok(const std::string &data) {
+  std::string out_serialized_msg;
   Mysqlx::Session::AuthenticateOk msg;
 
   msg.set_auth_data(data);
+  msg.SerializeToString(&out_serialized_msg);
 
-  send_message(Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, msg);
+  m_xproto_encoder
+      .encode_xmessage<Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK>(
+          out_serialized_msg);
+  send_raw_buffer(Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK);
 }
 
 void Protocol_encoder::send_auth_continue(const std::string &data) {
+  std::string out_serialized_msg;
   Mysqlx::Session::AuthenticateContinue msg;
 
   msg.set_auth_data(data);
+  msg.SerializeToString(&out_serialized_msg);
 
   DBUG_EXECUTE_IF("authentication_timeout", {
     int i = 0;
@@ -141,38 +155,36 @@ void Protocol_encoder::send_auth_continue(const std::string &data) {
     }
   });
 
-  send_message(Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, msg);
-}
-
-bool Protocol_encoder::send_empty_message(uint8_t message_id) {
-  log_raw_message_send(message_id);
-
-  if (!m_empty_msg_builder.encode_empty_message(&m_page_output_stream,
-                                                message_id))
-    return false;
-
-  return on_message(message_id);
+  m_xproto_encoder
+      .encode_xmessage<Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE>(
+          out_serialized_msg);
+  send_raw_buffer(Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE);
 }
 
 bool Protocol_encoder::send_exec_ok() {
-  return send_empty_message(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK);
+  m_xproto_encoder.encode_stmt_execute_ok();
+  return send_raw_buffer(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK);
 }
 
 bool Protocol_encoder::send_result_fetch_done() {
-  return send_empty_message(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE);
+  m_xproto_encoder.encode_fetch_done();
+  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE);
 }
 
 bool Protocol_encoder::send_result_fetch_suspended() {
-  return send_empty_message(Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED);
+  m_xproto_encoder.encode_fetch_suspended();
+  return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_FETCH_SUSPENDED);
 }
 
 bool Protocol_encoder::send_result_fetch_done_more_results() {
-  return send_empty_message(
+  m_xproto_encoder.encode_fetch_more_resultsets();
+  return send_raw_buffer(
       Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS);
 }
 
 bool Protocol_encoder::send_result_fetch_done_more_out_params() {
-  return send_empty_message(
+  m_xproto_encoder.encode_fetch_out_params();
+  return send_raw_buffer(
       Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS);
 }
 
@@ -180,8 +192,9 @@ Protocol_monitor_interface &Protocol_encoder::get_protocol_monitor() {
   return *m_protocol_monitor;
 }
 
-bool Protocol_encoder::send_message(uint8_t type, const Message &message,
-                                    bool force_buffer_flush) {
+bool Protocol_encoder::send_protobuf_message(const uint8_t type,
+                                             const Message &message,
+                                             bool force_buffer_flush) {
   log_message_send(&message);
 
   if (!message.IsInitialized()) {
@@ -189,22 +202,16 @@ bool Protocol_encoder::send_message(uint8_t type, const Message &message,
                 message.InitializationErrorString().c_str());
   }
 
-  // header
-  const int header_size = 5;
-  uint8 *header_ptr =
-      static_cast<uint8 *>(m_page_output_stream.reserve_space(header_size));
-  const auto payload_start_position = m_page_output_stream.ByteCount();
+  std::string out_serialized;
+  message.SerializeToString(&out_serialized);
 
-  if (nullptr == header_ptr) return false;
+  auto xmsg_start = m_xproto_encoder.begin_xmessage<100>(type);
+  m_xproto_encoder.encode_raw(
+      reinterpret_cast<const uint8_t *>(out_serialized.c_str()),
+      out_serialized.length());
+  m_xproto_encoder.end_xmessage(xmsg_start);
 
-  message.SerializeToZeroCopyStream(&m_page_output_stream);
-
-  CodedOutputStream::WriteLittleEndian32ToArray(
-      m_page_output_stream.ByteCount() - payload_start_position + 1,
-      header_ptr);
-  header_ptr[4] = type;
-
-  if (force_buffer_flush) m_flusher.mark_flush();
+  if (force_buffer_flush) m_flusher->trigger_flush_required();
 
   return on_message(type);
 }
@@ -289,6 +296,7 @@ bool Protocol_encoder::send_notice(const Frame_type type,
                                    const std::string &data,
                                    const bool force_flush) {
   const bool is_global = Frame_scope::k_global == scope;
+  DBUG_LOG("debug", "send_notice, global: " << (is_global ? "yes" : "no"));
 
   if (Frame_type::k_warning == type)
     get_protocol_monitor().on_notice_warning_send();
@@ -297,32 +305,75 @@ bool Protocol_encoder::send_notice(const Frame_type type,
   else
     get_protocol_monitor().on_notice_other_send();
 
-  log_raw_message_send(Mysqlx::ServerMessages::NOTICE);
+  if (is_global)
+    m_xproto_encoder.encode_global_notice(static_cast<uint32_t>(type), data);
+  else
+    m_xproto_encoder.encode_notice(static_cast<uint32_t>(type),
+                                   static_cast<uint32_t>(scope), data);
 
-  m_notice_builder.encode_frame(&m_page_output_stream, static_cast<int>(type),
-                                !is_global, data);
+  if (force_flush) m_flusher->trigger_flush_required();
 
-  if (force_flush) m_flusher.mark_flush();
-
-  return on_message(Mysqlx::ServerMessages::NOTICE);
+  return send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
 }
 
-void Protocol_encoder::send_rows_affected(uint64_t value) {
+void Protocol_encoder::send_notice_rows_affected(uint64_t value) {
   get_protocol_monitor().on_notice_other_send();
-  log_raw_message_send(Mysqlx::ServerMessages::NOTICE);
 
-  m_notice_builder.encode_rows_affected(&m_page_output_stream, value);
-  on_message(Mysqlx::ServerMessages::NOTICE);
+  m_xproto_encoder.encode_notice_rows_affected(value);
+  send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
+}
+
+void Protocol_encoder::send_notice_client_id(const uint64_t id) {
+  get_protocol_monitor().on_notice_other_send();
+
+  m_xproto_encoder.encode_notice_client_id(id);
+  send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
+}
+
+void Protocol_encoder::send_notice_account_expired() {
+  get_protocol_monitor().on_notice_other_send();
+
+  m_xproto_encoder.encode_notice_expired();
+  send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
+}
+
+void Protocol_encoder::send_notice_txt_message(const std::string &message) {
+  get_protocol_monitor().on_notice_other_send();
+
+  m_xproto_encoder.encode_notice_text_message(message);
+  send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
+}
+
+void Protocol_encoder::send_notice_generated_document_ids(
+    const std::vector<std::string> &ids) {
+  if (ids.empty()) return;
+
+  std::string serialized_change;
+  Mysqlx::Notice::SessionStateChanged change;
+  change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_DOCUMENT_IDS);
+  for (const auto &id : ids) {
+    Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
+    v->set_type(Mysqlx::Datatypes::Scalar::V_OCTETS);
+    v->mutable_v_octets()->set_value(id);
+  }
+
+  // Optimize me
+  change.SerializeToString(&serialized_change);
+
+  send_notice(Frame_type::k_session_state_changed, Frame_scope::k_local,
+              serialized_change, false);
+}
+
+void Protocol_encoder::send_notice_last_insert_id(const uint64_t id) {
+  get_protocol_monitor().on_notice_other_send();
+
+  m_xproto_encoder.encode_notice_generated_insert_id(id);
+  send_raw_buffer(Mysqlx::ServerMessages::NOTICE);
 }
 
 bool Protocol_encoder::send_column_metadata(
     const Encode_column_info *column_info) {
-  m_metadata_builder.start_metadata_encoding();
-  m_metadata_builder.encode_metadata(column_info);
-
-  const auto &meta = m_metadata_builder.stop_metadata_encoding();
-
-  CodedOutputStream(get_buffer()).WriteString(meta);
+  m_xproto_encoder.encode_metadata(column_info);
 
   return send_raw_buffer(Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
 }
@@ -334,9 +385,17 @@ bool Protocol_encoder::send_raw_buffer(const uint8_t type) {
 }
 
 bool Protocol_encoder::on_message(const uint8_t type) {
-  m_flusher.on_message(type);
+  ++m_messages_sent;
+  m_flusher->trigger_on_message(type);
 
-  return m_flusher.try_flush();
+  const auto result = m_flusher->try_flush();
+
+  if (Flush_result::k_flushed == result) {
+    m_protocol_monitor->on_messages_sent(m_messages_sent);
+    m_messages_sent = 0;
+  }
+
+  return Flush_result::k_error != result;
 }
 
 }  // namespace ngs

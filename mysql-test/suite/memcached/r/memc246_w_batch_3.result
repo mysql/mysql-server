@@ -26,10 +26,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-SELECT sleep(2);
-sleep(2)
-0
-Here the memcached results with D,B,H,C:
+Here are the memcached results with D,B,H,C:
 Darmstadt|City
 Berlin|Mitte
 Hamburg|Norderstedt
@@ -40,7 +37,7 @@ B	Berlin	Mitte
 C	Cottbus	West
 D	Darmstadt	City
 H	Hamburg	Norderstedt
-Here the memcached results after set:
+Here are the memcached results after set:
 Essen|Ost
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -49,7 +46,7 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
-Here the memcached results after add:
+Here are the memcached results after add:
 Frankfurt|Sachsenhause
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -59,7 +56,7 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	Sachsenhause
 H	Hamburg	Norderstedt
-Here the memcached results after replace:
+Here are the memcached results after replace:
 Frankfurt a. M.|Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -69,7 +66,7 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt a. M.	Sachsenhausen
 H	Hamburg	Norderstedt
-Here the memcached results after delete:
+Here are the memcached results after delete:
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
 B	Berlin	Mitte
@@ -77,9 +74,9 @@ C	Cottbus	West
 D	Darmstadt	City
 E	Essen	Ost
 H	Hamburg	Norderstedt
-Here the memcached results after add Frankfurt|:
+Here are the memcached results after add Frankfurt|:
 Frankfurt|
-Here the memcached results after add |Airport:
+Here are the memcached results after add |Airport:
 Frankfurt|
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21
@@ -89,9 +86,9 @@ D	Darmstadt	City
 E	Essen	Ost
 F	Frankfurt	NULL
 H	Hamburg	Norderstedt
-Here the memcached results after replace Frankfurt a.M.:
+Here are the memcached results after replace Frankfurt a.M.:
 Frankfurt a. M.|
-Here the memcached results after replace Sachsenhausen:
+Here are the memcached results after replace Sachsenhausen:
 |Sachsenhausen
 SELECT c1,c2,c21 FROM t1;
 c1	c2	c21

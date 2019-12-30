@@ -178,6 +178,8 @@ a
 100000000000
 100000000006
 CREATE TABLE t11(a FLOAT AUTO_INCREMENT KEY) ENGINE = InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
 INSERT INTO t11 VALUES(0), (0), (0), (0), (-1), (-10), (0),
 (20), (30), (31);
 SELECT * FROM t11;
@@ -194,6 +196,8 @@ a
 31
 set global innodb_flush_log_at_trx_commit=1;
 CREATE TABLE t12(a DOUBLE AUTO_INCREMENT KEY) ENGINE = InnoDB;
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'a'.
 INSERT INTO t12 VALUES(0), (0), (0), (0), (-1), (-10), (0),
 (20), (30), (31);
 SELECT * FROM t12;

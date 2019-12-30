@@ -1,0 +1,153 @@
+#############################################################
+# Author: Martin
+# Date: 2018-06-27
+# Purpose: basic online alter column test
+##############################################################
+--source include/have_multi_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Create utiltity table used to hold the output from ndb_show_table
+CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
+  id INT,
+  type VARCHAR(20),
+  state VARCHAR(20),
+  logging VARCHAR(20),
+  _database VARCHAR(255),
+  _schema VARCHAR(20),
+  name VARCHAR(255)
+);
+
+######################################
+# online alter column
+######################################
+--echo *******************************
+--echo * online alter column tests
+--echo *******************************
+
+CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED, e INT UNIQUE, f TEXT) ROW_FORMAT=DYNAMIC ENGINE NDB;
+INSERT INTO t1 values (1,1,1,"One");
+
+--source ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+
+--echo ***************************************
+--echo * Alter Table online change column name
+--echo ***************************************
+
+ALTER TABLE t1 CHANGE b c INT UNSIGNED ;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+
+--let $ndb_desc_opts= -b -i -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+INSERT INTO t1 values (2,2,2,"Two");
+SELECT * FROM t1 ORDER BY a;
+
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE c D INT UNSIGNED;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
+
+--let $ndb_desc_opts= -b -i -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+INSERT INTO t1 values (3,3,3,"Three");
+SELECT * FROM t1 ORDER BY a;
+
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE D d INT UNSIGNED;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
+
+--let $ndb_desc_opts= -b -i -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+INSERT INTO t1 values (4,4,4,"Four");
+SELECT * FROM t1 ORDER BY a;
+
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE f t TEXT;
+
+--source ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
+
+--let $ndb_desc_opts= -b -i -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+INSERT INTO t1 values (5,5,5,"Five");
+SELECT * FROM t1 ORDER BY a;
+
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD extra1 VARCHAR(10);
+ALTER TABLE t1 ALGORITHM=INPLACE, ADD extra2 VARCHAR(10);
+UPDATE t1 set extra1="XXXX", extra2="YYYY";
+SELECT * FROM t1 ORDER BY a;
+# Swap column names
+ALTER TABLE t1 ALGORITHM=INPLACE, RENAME COLUMN extra1 TO extra2, RENAME COLUMN extra2 TO extra1;
+SELECT * FROM t1 ORDER BY a;
+
+# Restart cluster nodes
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to start
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+connection default;
+--disable_result_log
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_result_log
+--enable_query_log
+
+SELECT * FROM t1 ORDER BY a;
+
+##############################
+# Backup and restore section #
+##############################
+--echo *********************************
+--echo * Backup and restore tables w/ changed column
+--echo *********************************
+
+--source include/ndb_backup.inc
+
+DROP TABLE t1;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print_meta --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+SELECT * FROM t1 ORDER BY a;
+
+--let $ndb_desc_opts= -b -i -d test t1
+--source suite/ndb/include/ndb_desc_print.inc
+
+--echo *********************************
+--echo * Error tests
+--echo *********************************
+
+# Duplicate name
+--error ER_DUP_FIELDNAME
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE d a INT UNSIGNED;
+
+# Cannot rename primary key column
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE a pk INT UNSIGNED;
+
+# Cannot rename indexed column
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE e ue INT;
+
+# Cannot rename column and add column
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALGORITHM=INPLACE, RENAME COLUMN D TO D2, ADD t2 CHAR(10);
+DROP TABLE t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

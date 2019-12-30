@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -52,6 +52,7 @@
 
 #include <limits>
 
+#include "decimal.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
@@ -64,7 +65,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "m_string.h" /* for memcpy and NOT_FIXED_DEC */
+#include "m_string.h"
 #include "my_dbug.h"
 
 #ifndef EOVERFLOW
@@ -128,7 +129,8 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
   int decpt, sign, len, i;
   char *res, *src, *end, *dst = to;
   char buf[DTOA_BUFF_SIZE];
-  DBUG_ASSERT(precision >= 0 && precision < NOT_FIXED_DEC && to != NULL);
+  DBUG_ASSERT(precision >= 0 && precision < DECIMAL_NOT_SPECIFIED &&
+              to != NULL);
 
   res = dtoa(x, 5, precision, &decpt, &sign, &end, buf, sizeof(buf));
 
@@ -1455,10 +1457,10 @@ dig_done:
       }
       i = DBL_DIG - nd;
       if (e <= Ten_pmax + i) {
-      /*
-        A fancier test would sometimes let us do
-        this for larger i values.
-      */
+        /*
+          A fancier test would sometimes let us do
+          this for larger i values.
+        */
 #ifdef Honor_FLT_ROUNDS
         /* round correctly FLT_ROUNDS = 2 or 3 */
         if (sign) {
@@ -2432,7 +2434,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       b = multadd(b, 10, 0, &alloc);
     }
 
-      /* Round off last digit */
+    /* Round off last digit */
 
 #ifdef Honor_FLT_ROUNDS
   switch (rounding) {

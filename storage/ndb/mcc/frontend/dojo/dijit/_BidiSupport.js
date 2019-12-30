@@ -10,6 +10,20 @@ var _7=this.textDir=="auto"?this._checkContextual(_6):this.textDir;
 if(_5.dir!=_7){
 _5.dir=_7;
 }
+},enforceTextDirWithUcc:function(_8,_9){
+if(this.textDir){
+_8.originalText=_9;
+var _a=this.textDir=="auto"?this._checkContextual(_9):this.textDir;
+return (_a=="ltr"?_b.LRE:_b.RLE)+_9+_b.PDF;
+}
+return _9;
+},restoreOriginalText:function(_c){
+if(_c.originalText){
+_c.text=_c.originalText;
+delete _c.originalText;
+}
+return _c;
 }});
+var _b={LRM:"‎",LRE:"‪",PDF:"‬",RLM:"‏",RLE:"‫"};
 return _1;
 });

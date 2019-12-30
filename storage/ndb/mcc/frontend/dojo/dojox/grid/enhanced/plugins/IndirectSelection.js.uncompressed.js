@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/IndirectSelection", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
@@ -22,40 +21,40 @@ var RowSelector = declare("dojox.grid.cells.RowSelector", gridCells._Widget, {
 	// summary:
 	//		 Common attributes & functions for row selectors(Radio|CheckBox)
 
-	//inputType: String
+	// inputType: String
 	//		Input type - Radio|CheckBox
 	inputType: "",
 	
-	//map: Object
+	// map: Object
 	//		Cache div refs of radio|checkbox to avoid querying each time
 	map: null,
 	
-	//disabledMap: Object
+	// disabledMap: Object
 	//		Cache index of disabled rows
 	disabledMap: null,
 	
-	//isRowSelector: Boolean
+	// isRowSelector: Boolean
 	//		Marker of indirectSelection cell(column)
 	isRowSelector: true,
 
-	//_connects: Array
+	// _connects: Array
 	//		List of all connections.
 	_connects: null,
 	
-	//_subscribes: Array
+	// _subscribes: Array
 	//		List of all subscribes.
 	_subscribes: null,
 
-	//checkedText: String
+	// checkedText: String
 	//		Checked character for high contrast mode
 	checkedText: '&#10003;',
 
-	//unCheckedText: String
+	// unCheckedText: String
 	//		Unchecked character for high contrast mode
 	unCheckedText: 'O',
 
 	constructor: function(){
-		this.map = {}; this.disabledMap = {}, this.disabledCount= 0;
+		this.map = {}; this.disabledMap = {}; this.disabledCount= 0;
 		this._connects = []; this._subscribes = [];
 		this.inA11YMode = html.hasClass(win.body(), "dijit_a11y");
 		
@@ -77,7 +76,7 @@ var RowSelector = declare("dojox.grid.cells.RowSelector", gridCells._Widget, {
 		//		Overwritten, see dojox.grid.cells._Widget
 		var _this = scope;
 		var clazz = _this.baseClass;
-		var checked = _this.getValue(rowIndex);
+		var checked = !!_this.getValue(rowIndex);
 		var disabled = !!_this.disabledMap[rowIndex];//normalize 'undefined'
 		
 		if(checked){
@@ -89,7 +88,7 @@ var RowSelector = declare("dojox.grid.cells.RowSelector", gridCells._Widget, {
 		return ["<div tabindex = -1 ",
 				"id = '" + _this.grid.id + "_rowSelector_" + rowIndex + "' ",
 				"name = '" + _this.grid.id + "_rowSelector' class = '" + clazz + "' ",
-				"role = 'presentation' aria-pressed = '" + checked + "' aria-disabled = '" + disabled +
+				"role = " + _this.inputType.toLowerCase() + " aria-checked = '" + checked + "' aria-disabled = '" + disabled +
 				"' aria-label = '" + string.substitute(_this.grid._nls["indirectSelection" + _this.inputType], [rowIndex + 1]) + "'>",
 				"<span class = '" + _this.statusTextClass + "'>" + (checked ? _this.checkedText : _this.unCheckedText) + "</span>",
 				"</div>"].join("");
@@ -192,7 +191,7 @@ var RowSelector = declare("dojox.grid.cells.RowSelector", gridCells._Widget, {
 			if(this.disabledMap[index]){
 				html.toggleClass(selector, this.checkedDisabledClass, value);
 			}
-			selector.setAttribute("aria-pressed", value);
+			selector.setAttribute("aria-checked", value);
 			if(this.inA11YMode){
 				selector.firstChild.innerHTML = (value ? this.checkedText : this.unCheckedText);
 			}
@@ -268,7 +267,7 @@ var SingleRowSelector = declare("dojox.grid.cells.SingleRowSelector", RowSelecto
 		//		Event fired on the target row
 		var index = e.rowIndex;
 		if(this.disabledMap[index]){ return; }
-		this._focusEndingCell(index, 0);
+		this._focusEndingCell(index, e.cellIndex);
 		this._nativeSelect(index, !this.grid.selection.selected[index]);
 	}
 });
@@ -276,32 +275,30 @@ var SingleRowSelector = declare("dojox.grid.cells.SingleRowSelector", RowSelecto
 var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSelector, {
 	// summary:
 	//		Indirect selection cell for multiple or extended mode, using dijit.form.CheckBox
+
+	// inputType: String
 	inputType: "CheckBox",
 	
-	//swipeStartRowIndex: Integer
+	// swipeStartRowIndex: Integer
 	//		Start row index for swipe selection
 	swipeStartRowIndex: -1,
 
-	//swipeMinRowIndex: Integer
+	// swipeMinRowIndex: Integer
 	//		Min row index for swipe selection
 	swipeMinRowIndex: -1,
 	
-	//swipeMinRowIndex: Integer
+	// swipeMinRowIndex: Integer
 	//		Max row index for swipe selection
 	swipeMaxRowIndex: -1,
 	
-	//toSelect: Boolean
+	// toSelect: Boolean
 	//		new state for selection
 	toSelect: false,
 	
-	//lastClickRowIdx: Integer
+	// lastClickRowIdx: Integer
 	//		Row index for last click, used for range selection via Shift + click
 	lastClickRowIdx: -1,
-	
-	//toggleAllTrigerred: Boolean
-	//		Whether toggle all has been triggered or not
-	toggleAllTrigerred: false,
-	
+		
 	unCheckedText: '&#9633;',
 
 	constructor: function(){
@@ -331,7 +328,6 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 		}else{
 			selection.deselectAll();
 		}
-		this.toggleAllTrigerred = true;
 	},
 	_onMouseDown: function(e){
 		if(e.cell == this){
@@ -342,7 +338,7 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 	_onRowMouseOver: function(e){
 		// summary:
 		//		Event fired when mouse moves over a data row(outside of this column).
-		//      - from dojox.grid.enhanced._Events.onRowMouseOver()
+		//		- from dojox.grid.enhanced._Events.onRowMouseOver()
 		// e: Event
 		//		Decorated event object which contains reference to grid, cell, and rowIndex
 		this._updateSelection(e, 0);
@@ -352,7 +348,7 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 		//		Event handler for mouse up event - from dojo.doc.domouseup()
 		// e: Event
 		//		Mouse up event
-		if(has("ie")){
+		if(has('ie')){
 			this.view.content.decorateEvent(e);//TODO - why only e in IE hasn't been decorated?
 		}
 		var inSwipeSelection = e.cellIndex >= 0 && this.inSwipeSelection() && !this.grid.edit.isEditRow(e.rowIndex);
@@ -449,7 +445,7 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 	inSwipeSelection: function(){
 		// summary:
 		//		Check if during a swipe selection
-		// return: Boolean
+		// returns: Boolean
 		//		Whether in swipe selection
 		return this.swipeStartRowIndex >= 0;
 	},
@@ -466,7 +462,7 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 		var rowIndex = e.rowIndex;
 		if(this.disabledMap[rowIndex]){ return; }
 		evt.stop(e);
-		this._focusEndingCell(rowIndex, 0);
+		this._focusEndingCell(rowIndex, e.cellIndex);
 		
 		var delta = rowIndex - this.lastClickRowIdx;
 		var newValue = !this.grid.selection.selected[rowIndex];
@@ -499,7 +495,7 @@ var MultipleRowSelector = declare("dojox.grid.cells.MultipleRowSelector", RowSel
 		var g = this.grid;
 		var selector = headerCellNode.appendChild(html.create("div", {
 			'aria-label': g._nls["selectAll"],
-			"tabindex": -1, "id": g.id + "_rowSelector_-1", "class": this.baseClass, "role": "presentation",
+			"tabindex": -1, "id": g.id + "_rowSelector_-1", "class": this.baseClass, "role": "Checkbox",
 			"innerHTML": "<span class = '" + this.statusTextClass +
 				"'></span><span style='height: 0; width: 0; overflow: hidden; display: block;'>" +
 				g._nls["selectAll"] + "</span>"
@@ -554,15 +550,16 @@ var IndirectSelection = declare("dojox.grid.enhanced.plugins.IndirectSelection",
 	//		For better rendering performance, div(images) are used to simulate radio button|check boxes
 	//
 	// example:
-	//		<div dojoType="dojox.grid.EnhancedGrid" plugins="{indirectSelection: true}" ...></div>
-	//		or <div dojoType="dojox.grid.EnhancedGrid" plugins="{indirectSelection: {name: 'xxx', width:'30px', styles:'text-align: center;'}}" ...></div>
+	// |	<div dojoType="dojox.grid.EnhancedGrid" plugins="{indirectSelection: true}" ...></div>
+	//		or
+	// |	<div dojoType="dojox.grid.EnhancedGrid" plugins="{indirectSelection: {name: 'xxx', width:'30px', styles:'text-align: center;'}}" ...></div>
 
-	//name: String
+	// name: String
 	//		Plugin name
 	name: "indirectSelection",
 	
 	constructor: function(){
-		//Hook layout.setStructure(), so that indirectSelection is always included
+		// Hook layout.setStructure(), so that indirectSelection is always included
 		var layout = this.grid.layout;
 		this.connect(layout, 'setStructure', lang.hitch(layout, this.addRowSelectCell, this.option));
 	},

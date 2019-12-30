@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,19 +116,6 @@ static void printfile(FILE* out, Properties& props, const char* section, ...) {
     fprintf(out, "\n");
   }
   fflush(out);
-}
-
-static char* dirname(const char* path) {
-  char* s = strdup(path);
-  size_t len = strlen(s);
-  for (size_t i = 1; i < len; i++) {
-    if (s[len - i] == '/') {
-      s[len - i] = 0;
-      return s;
-    }
-  }
-  free(s);
-  return 0;
 }
 
 #ifdef _WIN32
@@ -278,11 +265,14 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
   }
 
   if (setup == 2 || config.m_generated) {
-    bool use_mysqld = (g_mysql_install_db_bin_path == NULL);
+    bool use_mysqld =
+        (g_resources.getExecutableFullPath(g_resources.MYSQL_INSTALL_DB) == "");
     if (!use_mysqld) {
       // Even if mysql_install_db exists, prefer use of mysqld if possible
+      BaseString mysqld_bin_path =
+          g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
       BaseString tmp;
-      tmp.assfmt("%s --help --verbose", g_mysqld_bin_path);
+      tmp.assfmt("%s --help --verbose", mysqld_bin_path.c_str());
       FILE* f = popen(tmp.c_str(), "re");
       char buf[1000];
       while (NULL != fgets(buf, sizeof(buf), f)) {
@@ -315,18 +305,23 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
               return false;
             }
 
+            BaseString mysqld_bin_path =
+                g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
             tmp.assfmt(
                 "%s --defaults-file=%s/my.cnf --basedir=%s "
                 "--datadir=%s --initialize-insecure --init-file=%s"
                 "> %s/mysqld-initialize.log 2>&1",
-                g_mysqld_bin_path, g_basedir, g_prefix, val, initFile.c_str(),
-                proc.m_proc.m_cwd.c_str());
+                mysqld_bin_path.c_str(), g_basedir, g_prefix, val,
+                initFile.c_str(), proc.m_proc.m_cwd.c_str());
           } else {
-            assert(g_mysql_install_db_bin_path != NULL);
+            BaseString mysql_install_db_bin_path =
+                g_resources.getExecutableFullPath(g_resources.MYSQL_INSTALL_DB)
+                    .c_str();
+            assert(mysql_install_db_bin_path != "");
             tmp.assfmt(
                 "%s --defaults-file=%s/my.cnf --basedir=%s "
                 "--datadir=%s > %s/mysql_install_db.log 2>&1",
-                g_mysql_install_db_bin_path, g_basedir, g_prefix0, val,
+                mysql_install_db_bin_path.c_str(), g_basedir, g_prefix0, val,
                 proc.m_proc.m_cwd.c_str());
           }
           to_fwd_slashes(tmp);
@@ -416,21 +411,27 @@ bool setup_files(atrt_config& config, int setup, int sshx) {
         keys.push_back("PATH");
 
         {
-          /**
-           * In 5.5...binaries aren't compiled with rpath
-           * So we need an explicit LD_LIBRARY_PATH
-           *
-           * Use path from libmysqlclient.so
-           */
-          char* dir = dirname(g_libmysqlclient_so_path);
+        /**
+         * In 5.5...binaries aren't compiled with rpath
+         * So we need an explicit LD_LIBRARY_PATH
+         *
+         * Use path from libmysqlclient.so
+         */
 #if defined(__MACH__)
-          fprintf(fenv, "DYLD_LIBRARY_PATH=%s:$DYLD_LIBRARY_PATH\n", dir);
+          BaseString libdir =
+              g_resources.getLibraryDirectory(g_resources.LIBMYSQLCLIENT_DYLIB)
+                  .c_str();
+          fprintf(fenv, "DYLD_LIBRARY_PATH=%s:$DYLD_LIBRARY_PATH\n",
+                  libdir.c_str());
           keys.push_back("DYLD_LIBRARY_PATH");
 #else
-          fprintf(fenv, "LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH\n", dir);
+          BaseString libdir =
+              g_resources.getLibraryDirectory(g_resources.LIBMYSQLCLIENT_SO)
+                  .c_str();
+          fprintf(fenv, "LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH\n",
+                  libdir.c_str());
           keys.push_back("LD_LIBRARY_PATH");
 #endif
-          free(dir);
         }
 
         for (unsigned k = 0; k < keys.size(); k++)

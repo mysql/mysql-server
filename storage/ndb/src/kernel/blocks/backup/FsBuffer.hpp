@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,6 +144,8 @@ private:
   Uint32 m_bufSize;
   Uint32 m_blockSize;
   Uint32 m_freeLwm;
+  Uint32 m_preparedWriteSize;
+  Uint32 m_preparedReadSize;
 
   void clear();
 };
@@ -156,10 +158,13 @@ FsBuffer::FsBuffer()
 
 inline
 void
-FsBuffer::clear(){
+FsBuffer::clear()
+{
   m_minRead = m_maxRead = m_maxWrite = m_size = m_bufSize = m_free = 0;
   m_buffer = m_start = 0;
   m_freeLwm = 0;
+  m_preparedWriteSize = 0;
+  m_preparedReadSize = 0;
 }
 
 static 
@@ -234,6 +239,8 @@ FsBuffer::reset()
   m_free = m_size;
   m_freeLwm = m_free;
   m_eof = 0;
+  m_preparedWriteSize = 0;
+  m_preparedReadSize = 0;
 }
 
 inline
@@ -276,8 +283,8 @@ FsBuffer::getSizeUsed() const
 
 inline
 bool 
-FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
-
+FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof)
+{
   Uint32 * Tp = m_start;
   const Uint32 Tr = m_readIndex;
   const Uint32 Tm = m_minRead;
@@ -300,6 +307,7 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
     DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d",
 		   Tr, Tmw, Ts, Tm, sz1, * sz));
 
+    m_preparedReadSize = *sz;
     return true;
   }
   
@@ -319,23 +327,32 @@ FsBuffer::getReadPtr(Uint32 ** ptr, Uint32 * sz, bool * _eof){
   DEBUG(ndbout_c("getReadPtr() Tr: %d Tmw: %d Ts: %d Tm: %d sz1: %d -> %d eof",
 		 Tr, Tmw, Ts, Tm, sz1, * sz));
   
+  m_preparedReadSize = *sz;
   return false;
 }
 
 inline
 void
-FsBuffer::updateReadPtr(Uint32 sz){
+FsBuffer::updateReadPtr(Uint32 sz)
+{
+  require(sz <= m_preparedReadSize);
+
   const Uint32 Tr = m_readIndex;
   const Uint32 Ts = m_size;
   
   m_free += sz;
   m_readIndex = (Tr + sz) % Ts;
+
+  m_preparedReadSize = 0;
 }
 
 inline
 bool
-FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz){
-  assert(sz <= m_maxWrite);
+FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz)
+{
+  require(sz > 0);
+  require(sz <= m_maxWrite);
+
   Uint32 * Tp = m_start;
   const Uint32 Tw = m_writeIndex;
   const Uint32 sz1 = m_free;
@@ -345,6 +362,7 @@ FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz){
 
     DEBUG(ndbout_c("getWritePtr(%d) Tw: %d sz1: %d -> true",
 		   sz, Tw, sz1));
+    m_preparedWriteSize = sz;
     return true;
   }
 
@@ -356,15 +374,20 @@ FsBuffer::getWritePtr(Uint32 ** ptr, Uint32 sz){
 
 inline
 void 
-FsBuffer::updateWritePtr(Uint32 sz){
+FsBuffer::updateWritePtr(Uint32 sz)
+{
+  require(sz <= m_preparedWriteSize);
   assert(sz <= m_maxWrite);
   Uint32 * Tp = m_start;
   const Uint32 Tw = m_writeIndex;
   const Uint32 Ts = m_size;
   
   const Uint32 Tnew = (Tw + sz);
+
+  require(m_free >= sz);
   m_free -= sz;
   m_freeLwm = MIN(m_free, m_freeLwm);
+  m_preparedWriteSize = 0;
 
   if(Tnew < Ts){
     m_writeIndex = Tnew;
@@ -381,7 +404,8 @@ FsBuffer::updateWritePtr(Uint32 sz){
 
 inline
 void
-FsBuffer::eof(){
+FsBuffer::eof()
+{
   m_eof = 1;
 }
 

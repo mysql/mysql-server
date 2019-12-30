@@ -1,4 +1,3 @@
-//>>built
 define("dijit/layout/TabContainer", [
 	"dojo/_base/lang", // lang.getObject
 	"dojo/_base/declare", // declare
@@ -7,16 +6,8 @@ define("dijit/layout/TabContainer", [
 	"./ScrollingTabController"
 ], function(lang, declare, _TabContainerBase, TabController, ScrollingTabController){
 
-/*=====
-	var _TabContainerBase = dijit.layout._TabContainerBase;
-	var TabController = dijit.layout.TabController;
-	var ScrollingTabController = dijit.layout.ScrollingTabController;
-=====*/
-
 	// module:
 	//		dijit/layout/TabContainer
-	// summary:
-	//		A Container with tabs to select each child (only one of which is displayed at a time).
 
 
 	return declare("dijit.layout.TabContainer", _TabContainerBase, {
@@ -26,6 +17,9 @@ define("dijit/layout/TabContainer", [
 		//		A TabContainer is a container that has multiple panes, but shows only
 		//		one pane at a time.  There are a set of tabs corresponding to each pane,
 		//		where each tab has the name (aka title) of the pane, and optionally a close button.
+		//
+		//		See `StackContainer.ChildWidgetProperties` for details on the properties that can be set on
+		//		children of a `TabContainer`.
 
 		// useMenu: [const] Boolean
 		//		True if a menu should be used to select tabs when they are too
@@ -37,7 +31,7 @@ define("dijit/layout/TabContainer", [
 		//		wide to fit the TabContainer, false otherwise.
 		useSlider: true,
 
-		// controllerWidget: String
+		// controllerWidget: Class
 		//		An optional parameter to override the widget used to display the tab labels
 		controllerWidget: "",
 
@@ -48,11 +42,14 @@ define("dijit/layout/TabContainer", [
 			// tags:
 			//		protected extension
 
+			// "string" branch for back-compat, remove for 2.0
 			var cls = this.baseClass + "-tabs" + (this.doLayout ? "" : " dijitTabNoLayout"),
-				TabController = lang.getObject(this.controllerWidget);
+				TabController = typeof this.controllerWidget == "string" ? lang.getObject(this.controllerWidget) :
+						this.controllerWidget;
 
 			return new TabController({
 				id: this.id + "_tablist",
+				ownerDocument: this.ownerDocument,
 				dir: this.dir,
 				lang: this.lang,
 				textDir: this.textDir,
@@ -73,7 +70,7 @@ define("dijit/layout/TabContainer", [
 			// Scrolling controller only works for horizontal non-nested tabs
 			if(!this.controllerWidget){
 				this.controllerWidget = (this.tabPosition == "top" || this.tabPosition == "bottom") && !this.nested ?
-							"dijit.layout.ScrollingTabController" : "dijit.layout.TabController";
+							ScrollingTabController : TabController;
 			}
 		}
 	});

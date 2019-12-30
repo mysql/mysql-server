@@ -102,6 +102,8 @@ a
 -99.99
 drop table t1;
 create table t1 (a decimal(4,2) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
@@ -872,6 +874,10 @@ abs(NULL)
 NULL
 set @@sql_mode='traditional';
 create table t1( d1 decimal(18) unsigned, d2 decimal(20) unsigned, d3 decimal (22) unsigned);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 insert into t1 values(1,-1,-1);
 ERROR 22003: Out of range value for column 'd2' at row 1
 drop table t1;
@@ -955,6 +961,14 @@ f6 decimal unsigned not null default 199.91,
 f7 decimal unsigned not null default 999.9, 
 f8 decimal unsigned not null default 9999.99);
 Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 Note	1265	Data truncated for column 'f1' at row 1
 Note	1265	Data truncated for column 'f2' at row 1
 Note	1265	Data truncated for column 'f3' at row 1
@@ -971,6 +985,9 @@ drop table t1;
 create table t1 (
 f0 decimal (30,30) zerofill not null DEFAULT 0,
 f1 decimal (0,0) zerofill not null default 0);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1851,7 +1868,7 @@ Note	1265	Data truncated for column 'c1' at row 2
 Note	1265	Data truncated for column 'c1' at row 3
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-c1	decimal(34,1)	YES		NULL	
+c1	decimal(63,30)	YES		NULL	
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a DECIMAL(30,30));
 INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
@@ -1955,6 +1972,8 @@ DROP TABLE currencies, payments, sub_tasks;
 # BUG#52171: distinct aggregates on unsigned decimal fields trigger assertions
 #
 CREATE TABLE t1 (a DECIMAL(4,4) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (0);
 SELECT AVG(DISTINCT a) FROM t1;
 AVG(DISTINCT a)
@@ -1963,19 +1982,6 @@ SELECT SUM(DISTINCT a) FROM t1;
 SUM(DISTINCT a)
 0.0000
 DROP TABLE t1;
-#
-# Bug#55436: buffer overflow in debug binary of dbug_buff in
-#            Field_new_decimal::store_value
-#
-SET SQL_MODE='';
-CREATE TABLE t1(f1 DECIMAL(44,24)) ENGINE=MYISAM;
-INSERT INTO t1 SET f1 = -64878E-85;
-Warnings:
-Note	1265	Data truncated for column 'f1' at row 1
-SELECT f1 FROM t1;
-f1
-0.000000000000000000000000
-DROP TABLE IF EXISTS t1;
 End of 5.1 tests
 #
 # BUG#12911710 - VALGRIND FAILURE IN 
@@ -2036,6 +2042,8 @@ DROP TABLE t1;
 CREATE TABLE t1(
 a DECIMAL(25,20) UNSIGNED, KEY(a)
 );
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (1), (NULL);
 SELECT a FROM t1 GROUP BY 1 IN(1) INTO @b;
 DROP TABLE t1;
@@ -2145,6 +2153,9 @@ i int unsigned DEFAULT NULL
 SELECT
 1000 AS d,
 3 AS i;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 SELECT * FROM t1;
 d	i
 1000.00	3
@@ -2174,6 +2185,7 @@ CREATE TABLE t1
 f1 INT(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1), (2);
 CREATE TABLE t2
@@ -2181,6 +2193,7 @@ CREATE TABLE t2
 f1 SMALLINT(6) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES (84), (126), (36), (36);
 SELECT DISTINCT q1.f1 / 3 FROM (SELECT SUM(f1) AS f1 FROM t2  ) q1, (SELECT 0 FROM t1) q2;
@@ -2195,10 +2208,15 @@ DROP TABLE t1, t2;
 #              ( NEGATIVE NUM W/ "UNSIGNED")
 #
 CREATE TABLE t1(a INT UNSIGNED, b DECIMAL(10,2) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t1 VALUES (2015, 123456.78);
 CREATE TABLE t2(a INT UNSIGNED, b INT UNSIGNED);
 INSERT INTO t2 VALUES (2015, 123456);
 CREATE TABLE t3(a DECIMAL(10,2) UNSIGNED, b DECIMAL(10,2) UNSIGNED);
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t3 VALUES (2015, 123456);
 SELECT a - b FROM t1;
 ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t1`.`a` - `test`.`t1`.`b`)'
@@ -2226,6 +2244,9 @@ CREATE TABLE t(
 a YEAR(4) NOT NULL,
 b DECIMAL(29,5) UNSIGNED ZEROFILL NOT NULL
 ) ENGINE=INNODB;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 INSERT INTO t VALUES (2000,1),(2000,1),(2000,9999);
 SELECT * FROM t ORDER BY (a-b);
 ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t`.`a` - `test`.`t`.`b`)'
@@ -2305,3 +2326,13 @@ over()
 -99999999999999999999999999999999999999.999999999999999999999999999
 DROP TABLE t;
 SET sql_mode = default;
+#
+# Bug#30031103 ASSERTION `SCALE >= 0 && PRECISION > 0 &&
+#                         SCALE <= PRECISION' FAILED
+#
+CREATE TABLE t1(a DECIMAL(10,0));
+INSERT INTO t1 VALUES(0);
+SELECT * FROM t1 AS alias1 NATURAL JOIN t1 AS alias2;
+a
+0
+DROP TABLE t1;

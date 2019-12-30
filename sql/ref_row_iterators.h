@@ -1,7 +1,7 @@
 #ifndef SQL_REF_ROW_ITERATORS_H
 #define SQL_REF_ROW_ITERATORS_H
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,6 +99,14 @@ class EQRefIterator final : public TableRowIterator {
   void UnlockRow() override;
   std::vector<std::string> DebugString() const override;
 
+  // Performance schema batch mode on EQRefIterator does not make any sense,
+  // since it (by definition) can never scan more than one row. Normally,
+  // we should not get this (for nested loop joins, PFS batch mode is not
+  // enabled if the innermost iterator is an EQRefIterator); however,
+  // we cannot DBUG_ASSERT(false), since it could happen if we only have
+  // a single table. Thus, just ignore the call should it happen.
+  void StartPSIBatchMode() override {}
+
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;
@@ -178,16 +186,7 @@ class DynamicRangeIterator final : public TableRowIterator {
  private:
   QEP_TAB *m_qep_tab;
 
-  // See IteratorHolder in records.h; this is the same pattern,
-  // just with fewer candidates.
   unique_ptr_destroy_only<RowIterator> m_iterator;
-  union MiniIteratorHolder {
-    MiniIteratorHolder() {}
-    ~MiniIteratorHolder() {}
-
-    TableScanIterator table_scan;
-    IndexRangeScanIterator index_range_scan;
-  } m_iterator_holder;
 
   /**
     Used by optimizer tracing to decide whether or not dynamic range
@@ -257,15 +256,16 @@ class AlternativeIterator final : public RowIterator {
   int Read() override { return m_iterator->Read(); }
 
   void SetNullRowFlag(bool is_null_row) override {
-    m_iterator->SetNullRowFlag(is_null_row);
+    // Init() may not have been called yet, so just forward to both iterators.
+    m_source_iterator->SetNullRowFlag(is_null_row);
+    m_table_scan_iterator->SetNullRowFlag(is_null_row);
   }
 
   void UnlockRow() override { m_iterator->UnlockRow(); }
 
   std::vector<Child> children() const override {
-    return std::vector<Child>{
-        {m_source_iterator.get(), ""},
-        {const_cast<TableScanIterator *>(&m_table_scan_iterator), ""}};
+    return std::vector<Child>{{m_source_iterator.get(), ""},
+                              {m_table_scan_iterator.get(), ""}};
   }
 
   std::vector<std::string> DebugString() const override;
@@ -286,8 +286,8 @@ class AlternativeIterator final : public RowIterator {
   // similar).
   unique_ptr_destroy_only<RowIterator> m_source_iterator;
 
-  // Our fallback iterator.
-  TableScanIterator m_table_scan_iterator;
+  // Our fallback iterator (possibly wrapped in a TimingIterator).
+  unique_ptr_destroy_only<RowIterator> m_table_scan_iterator;
 };
 
 #endif  // SQL_REF_ROW_ITERATORS_H

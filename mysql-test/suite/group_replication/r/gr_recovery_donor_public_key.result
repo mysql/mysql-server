@@ -29,11 +29,12 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table*");
-call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
-call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Can't locate server public key '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
 call mtr.add_suppression("Public key is not in Privacy Enhanced Mail format: '.*mysql-test/std_data/invalid_rsa_public_key.pem'");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 SET SESSION sql_log_bin= 1;
 
 ############################################################

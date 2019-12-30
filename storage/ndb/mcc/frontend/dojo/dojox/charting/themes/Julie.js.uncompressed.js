@@ -1,9 +1,8 @@
-//>>built
-define("dojox/charting/themes/Julie", ["../Theme", "dojox/gfx/gradutils", "./common"], function(Theme, gradutils){
+define("dojox/charting/themes/Julie", ["../Theme", "dojox/gfx/gradutils", "./common"], function(Theme, gradutils, themes){
 
 	// created by Julie Santilli (Claro-based theme)
 	
-	var themes = dojox.charting.themes, g = Theme.generateGradient,
+	var g = Theme.generateGradient,
 		defaultFill = {type: "linear", space: "shape", x1: 0, y1: 0, x2: 0, y2: 100};
 	
 	themes.Julie = new Theme({

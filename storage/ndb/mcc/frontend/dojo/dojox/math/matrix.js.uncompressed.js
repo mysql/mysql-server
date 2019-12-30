@@ -1,4 +1,3 @@
-//>>built
 // AMD-ID "dojox/math/matrix"
 define("dojox/math/matrix", ["dojo", "dojox"], function(dojo, dojox) {
 dojo.getObject("math.matrix", true, dojox);
@@ -7,8 +6,8 @@ dojo.mixin(dojox.math.matrix, {
 	iDF:0,
 	ALMOST_ZERO: 1e-10,
 	multiply: function(/* Array */a, /* Array */b){
-		//	summary
-		//	Multiply matrix a by matrix b.
+		// summary:
+		//		Multiply matrix a by matrix b.
 		var ay=a.length, ax=a[0].length, by=b.length, bx=b[0].length;
 		if(ax!=by){
 			console.warn("Can't multiply matricies of sizes " + ax + "," + ay + " and " + bx + "," + by);
@@ -24,11 +23,11 @@ dojo.mixin(dojox.math.matrix, {
 				}
 			}
 		}
-		return c;	//	Array
+		return c;	// Array
 	},
 	product: function(/* Array... */){
-		//	summary
-		//	Return the product of N matrices
+		// summary:
+		//		Return the product of N matrices
 		if (arguments.length==0){
 			console.warn("can't multiply 0 matrices!");
 			return 1;
@@ -37,14 +36,14 @@ dojo.mixin(dojox.math.matrix, {
 		for(var i=1; i<arguments.length; i++){
 			m=this.multiply(m, arguments[i]);
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	sum: function(/* Array... */){
-		//	summary
-		//	Return the sum of N matrices
+		// summary:
+		//		Return the sum of N matrices
 		if(arguments.length==0){
 			console.warn("can't sum 0 matrices!");
-			return 0;	//	Number
+			return 0;	// Number
 		}
 		var m=this.copy(arguments[0]);
 		var rows=m.length;
@@ -69,13 +68,13 @@ dojo.mixin(dojox.math.matrix, {
 				}
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	inverse: function(/* Array */a){
-		//	summary
-		//	Return the inversion of the passed matrix
+		// summary:
+		//		Return the inversion of the passed matrix
 		if(a.length==1 && a[0].length==1){
-			return [[1/a[0][0]]];	//	Array
+			return [[1/a[0][0]]];	// Array
 		}
 		var tms=a.length, m=this.create(tms, tms), mm=this.adjoint(a), det=this.determinant(a), dd=0;
 		if(det==0){
@@ -89,11 +88,11 @@ dojo.mixin(dojox.math.matrix, {
 				m[i][j]=dd*mm[i][j];
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	determinant: function(/* Array */a){
-		//	summary
-		//	Calculate the determinant of the passed square matrix.
+		// summary:
+		//		Calculate the determinant of the passed square matrix.
 		if(a.length!=a[0].length){
 			console.warn("Can't calculate the determinant of a non-squre matrix!");
 			return 0;
@@ -102,16 +101,16 @@ dojo.mixin(dojox.math.matrix, {
 		for (var i=0; i<tms; i++){
 			var bii=b[i][i];
 			if (Math.abs(bii)<this.ALMOST_ZERO) {
-				return 0;	//	Number
+				return 0;	// Number
 			}
 			det*=bii;
 		}
 		det*=this.iDF;
-		return det;	//	Number
+		return det;	// Number
 	},
 	upperTriangle: function(/* Array */m){
-		//	Summary
-		//	Find the upper triangle of the passed matrix and return it.
+		// summary:
+		//		Find the upper triangle of the passed matrix and return it.
 		m=this.copy(m);
 		var f1=0, temp=0, tms=m.length, v=1;
 		this.iDF=1;
@@ -150,11 +149,11 @@ dojo.mixin(dojox.math.matrix, {
 				}
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	create: function(/* Number */a, /* Number */b, /* Number? */value){
-		//	summary
-		//	Create a new matrix with rows a and cols b, and pre-populate with value.
+		// summary:
+		//		Create a new matrix with rows a and cols b, and pre-populate with value.
 		value=value||0;
 		var m=[];
 		for (var i=0; i<b; i++){
@@ -163,21 +162,21 @@ dojo.mixin(dojox.math.matrix, {
 				m[i][j]=value;
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	ones: function(/* Number */a, /* Number */b){
-		//	summary
-		//	Create a matrix pre-populated with ones
-		return this.create(a, b, 1);	//	Array
+		// summary:
+		//		Create a matrix pre-populated with ones
+		return this.create(a, b, 1);	// Array
 	},
 	zeros: function(/* Number */a, /* Number */b){
-		//	summary
-		//	Create a matrix pre-populated with zeros
+		// summary:
+		//		Create a matrix pre-populated with zeros
 		return this.create(a, b);	// Array
 	},
 	identity: function(/* Number */size, /* Number? */scale){
-		//	summary
-		//	Create an identity matrix based on the size and scale.
+		// summary:
+		//		Create an identity matrix based on the size and scale.
 		scale=scale||1;
 		var m=[];
 		for(var i=0; i<size; i++){
@@ -186,11 +185,11 @@ dojo.mixin(dojox.math.matrix, {
 				m[i][j]=(i==j?scale:0);
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	adjoint: function(/* Array */a){
-		//	summary
-		//	Find the adjoint of the passed matrix
+		// summary:
+		//		Find the adjoint of the passed matrix
 		var tms=a.length;
 		if(tms<=1){
 			console.warn("Can't find the adjoint of a matrix with a dimension less than 2");
@@ -223,22 +222,22 @@ dojo.mixin(dojox.math.matrix, {
 				m[i][j]=Math.pow(-1, (i+j))*det;
 			}
 		}
-		return this.transpose(m);	//	Array
+		return this.transpose(m);	// Array
 	},
 	transpose: function(/* Array */a){
-		//	summary
-		//	Transpose the passed matrix (i.e. rows to columns)
+		// summary:
+		//		Transpose the passed matrix (i.e. rows to columns)
 		var m=this.create(a.length, a[0].length);
 		for(var i=0; i<a.length; i++){
 			for(var j=0; j<a[i].length; j++){
 				m[j][i]=a[i][j];
 			}
 		}
-		return m;	//	Array
+		return m;	// Array
 	},
 	format: function(/* Array */a, /* Number? */points){
-		//	summary
-		//	Return a string representation of the matrix, rounded to points (if needed)
+		// summary:
+		//		Return a string representation of the matrix, rounded to points (if needed)
 		points=points||5;
 		function format_int(x, dp){
 			var fac=Math.pow(10, dp);
@@ -265,11 +264,11 @@ dojo.mixin(dojox.math.matrix, {
 			}
 			buffer+="|\n";
 		}
-		return buffer;	//	string
+		return buffer;	// string
 	},
 	copy: function(/* Array */a){
-		//	summary
-		//	Create a copy of the passed matrix
+		// summary:
+		//		Create a copy of the passed matrix
 		var ya=a.length, xa=a[0].length, m=this.create(xa, ya);
 		for(var y=0; y<ya; y++){
 			for(var x=0; x<xa; x++){
@@ -279,8 +278,8 @@ dojo.mixin(dojox.math.matrix, {
 		return m;	// Array
 	},
 	scale: function(/* Array */a, /* Number */factor){
-		//	summary
-		//	Create a copy of passed matrix and scale each member by factor.
+		// summary:
+		//		Create a copy of passed matrix and scale each member by factor.
 		a=this.copy(a);
 		var ya=a.length, xa=a[0].length;
 		for(var y=0; y<ya; y++){

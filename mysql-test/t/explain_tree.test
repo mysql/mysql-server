@@ -12,6 +12,7 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1;
 DROP TABLE t1;
 
@@ -38,6 +39,7 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT f1, (SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1) < 3 FROM t1;
 DROP TABLE t1;
 
@@ -46,6 +48,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 DROP TABLE t1;
 
@@ -54,9 +57,11 @@ CREATE TABLE t1 ( f1 INT, INDEX ( f1 ) );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT SUM(f1) FROM t1;
 EXPLAIN FORMAT=tree SELECT f1 FROM t1 GROUP BY f1;
 EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1;
+EXPLAIN FORMAT=tree SELECT f1,COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
 DROP TABLE t1;
 
 # Only const tables.
@@ -64,6 +69,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1=2;
 DROP TABLE t1;
 
@@ -74,6 +80,7 @@ INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 ( f1 INT PRIMARY KEY );
 INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.f1 = t2.f1 + 2 AND t2.f1 = 3;
 DROP TABLE t1, t2;
 
@@ -83,6 +90,7 @@ INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t1.f1=2;
 DROP TABLE t1, t2;
 
@@ -94,6 +102,7 @@ CREATE TABLE t3 ( a INT, b INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t2 VALUES ( 3 );
 INSERT INTO t3 VALUES ( 2, 0 );
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON t3.b IS NULL;
 DROP TABLE t1, t2, t3;
 
@@ -103,6 +112,7 @@ INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 AS SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 DROP TABLE t1, t2;
 
@@ -114,6 +124,7 @@ INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
 (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
 (3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
 (4, 1), (4, 2), (4, 3), (4, 4), (4, 5);
+ANALYZE TABLE t1, t2;
 FLUSH STATUS;
 EXPLAIN FORMAT=tree SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
 DROP TABLE t1, t2;
@@ -123,12 +134,15 @@ CREATE TABLE t1 ( f1 INT );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY f1 DESC;
 DROP TABLE t1;
 
 # Pointless materialization.
+# Also demonstrates printout of sorting without addon fields.
 CREATE TABLE t1 ( a BLOB, b INT );
 INSERT INTO t1 VALUES ('a', 0);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT 0 AS foo FROM t1 WHERE 0 = (SELECT group_concat(b) FROM t1 t GROUP BY t1.a) ;
 DROP TABLE t1;
 
@@ -147,12 +161,14 @@ INSERT INTO t1 VALUES ('abc');
 INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('def');
 INSERT INTO t1 VALUES ('ghi');
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT DISTINCT f1 FROM t1 LIMIT 2;
 DROP TABLE t1;
 
 # Pointless extra limit (pushed down into the temporary table, but not removed on the outside).
 CREATE TABLE t1 (a int PRIMARY KEY);
 INSERT INTO t1 values (1), (2);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree INSERT INTO t1 SELECT a + 2 FROM t1 LIMIT 1;
 DROP TABLE t1;
 
@@ -162,6 +178,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 DROP TABLE t1;
 
@@ -170,6 +187,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT MIN(f1) FROM t1 AS i WHERE i.f1 > t1.f1 );
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 > ( SELECT f1 FROM t1 LIMIT 1 );
 DROP TABLE t1;
@@ -179,6 +197,7 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE f1 = ( SELECT ( SELECT MIN(f1) FROM t1 AS ii WHERE ii.f1 > t1.f1 ) > i.f1 FROM t1 AS i ) ;
 DROP TABLE t1;
 
@@ -188,15 +207,17 @@ CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT ( SELECT ( SELECT ( SELECT MIN(f1) FROM t1 i WHERE i.f1 > t1.f1 ) + 1 ) + 1 ) FROM t1;
 DROP TABLE t1;
 
-# A subquery that contains a query we can't execute as iterators.
+# A subquery which is pushed to a temporary table due to ordering.
 CREATE TABLE t1 ( f1 INT PRIMARY KEY );
 INSERT INTO t1 VALUES ( 1 );
 INSERT INTO t1 VALUES ( 2 );
 INSERT INTO t1 VALUES ( 3 );
-EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 LIMIT 1 ) FROM t1;
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 DROP TABLE t1;
 
 # Condition pushed before filesort.
@@ -204,6 +225,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE a > 3 ORDER BY b;
 DROP TABLE t1;
 
@@ -218,6 +240,7 @@ CREATE TABLE t1 (a INTEGER, b INTEGER);
 INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (1,3), (2,1), (1,5), (1,7), (3,1),
 (3,2), (3,1), (2,4);
+ANALYZE TABLE t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 ORDER BY b LIMIT 3;
 DROP TABLE t1;
 
@@ -258,3 +281,208 @@ CREATE TABLE t2 ( f1 INT );
 EXPLAIN format=tree WITH my_cte AS ( SELECT * FROM t1 LIMIT 3 ) SELECT * FROM my_cte, t2;
 DROP TABLE t1;
 DROP TABLE t2;
+
+# A simple semijoin.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1, t2;
+
+# A semijoin of two const tables against a multi-table join.
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY, i INTEGER);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY, i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+CREATE TABLE t4 (i INTEGER);
+INSERT INTO t1 VALUES (2, 3);
+INSERT INTO t2 VALUES (4, 5);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE (t1.i) IN (SELECT t3.i FROM t3,t4) AND t1.pk = 2 AND t2.pk = 4;
+DROP TABLE t1, t2, t3, t4;
+
+# Conditions should be pushed up above outer joins, but not above semijoins.
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER, j INTEGER);
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE t1.i IN ( SELECT i FROM t2 LEFT JOIN t3 USING (i) WHERE t3.j = 1234 OR t3.j IS NULL );
+DROP TABLE t1, t2, t3;
+
+# Semijoin by materialization; there's a materialization with deduplication,
+# which allows us to run the rest as a normal join.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT a FROM t1 WHERE b = 2 );
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;
+
+# Same, for a NOT IN query (which then becomes an anti-join).
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER NOT NULL, b INTEGER NOT NULL );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;
+
+# Demonstrate that if there's aggregation within the IN, it just becomes
+# an EXISTS clause instead of the strategy above. (If this changes, one would
+# need to modify the setup of MaterializeIterator for semijoin materialization.)
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;
+
+# Semijoin by duplicate weedout.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;
+
+# Confluent weedout becomes LIMIT 1.
+#
+# The only difference between this and the previous query is that t2 has
+# somewhat more data, which flips the join order. This means that the
+# weedout can go over t2 only instead of both tables, which makes it a
+# confluent weedout, which we rewrite to LIMIT 1.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,loosescan=off';
+CREATE TABLE t1 ( i INTEGER );
+CREATE TABLE t2 ( i INTEGER );
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE (t1.i) IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;
+
+# A simple single-table loose scan.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off,materialization=off,duplicateweedout=off,loosescan=on';
+CREATE TABLE t1 ( i INTEGER, PRIMARY KEY (i) );
+CREATE TABLE t2 ( i INTEGER, INDEX i1 (i) );
+INSERT INTO t1 VALUES (2), (3), (4), (5);
+INSERT INTO t2 VALUES (1), (2), (3), (4);
+ANALYZE TABLE t1, t2;
+EXPLAIN format=tree SELECT * FROM t1 WHERE t1.i IN (SELECT t2.i FROM t2);
+DROP TABLE t1;
+DROP TABLE t2;
+set @@optimizer_switch=@old_opt_switch;
+
+--echo #
+--echo # Bug#29904996 EXPLAIN FORMAT=TREE PRINTS OUT HIDDEN COLUMN NAME INSTEAD
+--echo #              OF INDEXED EXPRESSION
+--echo #
+CREATE TABLE t1 (
+  col_int_key INTEGER,
+  col_json JSON,
+  KEY mv_idx ((CAST(col_json->'$[*]' AS CHAR(40) ARRAY)))
+);
+
+CREATE TABLE t2 (col_int INTEGER);
+
+--echo # See that we print the indexed expression, and not the hidden column
+--echo # name.
+EXPLAIN FORMAT=tree SELECT /*+ NO_BNL(t1, t2) */ * FROM t2
+  JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+
+DROP TABLE t1, t2;
+
+# EXPLAIN ANALYZE of a simple query.
+CREATE TABLE t1 (a INTEGER, b INTEGER, PRIMARY KEY ( a ));
+INSERT INTO t1 VALUES (1,3), (2,4), (3,5);
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 AS a JOIN t1 AS b ON a.a=b.b ORDER BY a.b+b.a LIMIT 3;
+
+# Same, but with some parts that are never executed.
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 AS a, t1 AS b WHERE a.b=500;
+DROP TABLE t1;
+
+# EXPLAIN ANALYZE FOR CONNECTION makes no sense.
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE FOR CONNECTION 1;
+
+# An information_schema table.
+EXPLAIN FORMAT=tree SELECT * FROM INFORMATION_SCHEMA.ENGINES;
+
+# Union materialization directly into a temporary table (no double materialization).
+CREATE TABLE t1 ( f1 INT PRIMARY KEY );
+INSERT INTO t1 VALUES (1), (2), (3);
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION SELECT f1 + 10 FROM t1 ) d1;
+EXPLAIN FORMAT=tree SELECT * FROM t1, ( SELECT f1 FROM t1 UNION ALL SELECT f1 + 10 FROM t1 ) d1;
+
+DROP TABLE t1;
+
+# EXPLAIN ANALYZE on a query the iterator executor doesn't support should give an error.
+CREATE TABLE t1 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+CREATE TABLE t2 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+CREATE TABLE t3 (
+  c1 INTEGER,
+  c2 INTEGER
+);
+set optimizer_switch='block_nested_loop=on';
+--error ER_NOT_SUPPORTED_YET
+EXPLAIN ANALYZE SELECT * FROM t1 JOIN t2 ON t1.c1 = t2.c2 JOIN t3 ON t2.c2 > t3.c2;
+set optimizer_switch='block_nested_loop=off';
+DROP TABLE t1, t2, t3;
+
+#
+# Bug #30220791: INCORRECT RESULT WHEN THE ITERATOR EXECUTOR IS USED
+#
+
+# This query happens to set up a “split jump” first match (firstmatch_return
+# is set on two different tables for what's logically a single jump back,
+# since the tables are non-contiguous).
+#
+# Non-tree EXPLAIN doesn't show this very clearly (it shows FirstMatch on both
+# the first and third tables), but for correctness of execution, we need to
+# to rewrite it into a single semijoin block, ie., we do a weedout at the end
+# (and no LIMIT 1 in the middle). Otherwise, the results would depend on the
+# order of rows coming from t2.
+
+CREATE TABLE t1 (
+  b INTEGER,
+  UNIQUE KEY ix1 (b)
+);
+
+INSERT INTO t1 VALUES (5),(7);
+
+CREATE TABLE t2 (
+  a INTEGER NOT NULL,
+  b INTEGER DEFAULT NULL,
+  KEY ix1 (b)
+);
+
+INSERT INTO t2 VALUES (40, 1), (45, 12), (11, 23), (10, 7);
+
+ANALYZE TABLE t1, t2;
+
+let $query =
+  SELECT * FROM t1 AS table1
+    WHERE EXISTS ( SELECT * FROM t1 LEFT JOIN t2 USING (b) WHERE t2.a = t2.a AND t2.b <= 7 );
+
+eval EXPLAIN $query;
+eval EXPLAIN FORMAT=tree $query;
+
+DROP TABLE t1, t2;

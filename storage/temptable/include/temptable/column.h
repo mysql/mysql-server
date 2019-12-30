@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -257,6 +257,11 @@ inline bool Column::is_fixed_size() const { return m_length_bytes_size == 0; }
 
 inline uint32_t Column::read_user_data_length(
     const unsigned char *mysql_row) const {
+  // data_length may contain junk value while particular cell is NULL
+  if (read_is_null(mysql_row)) {
+    return 0;
+  }
+
   const unsigned char *p = mysql_row + m_offset;
   switch (m_length_bytes_size) {
     case 0:

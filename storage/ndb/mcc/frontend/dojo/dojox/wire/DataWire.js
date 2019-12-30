@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox","dojo/require!dojox/wire/Wire"],function(_1,_2,_3){
-_2.provide("dojox.wire.DataWire");
-_2.require("dojox.wire.Wire");
-_2.declare("dojox.wire.DataWire",_3.wire.Wire,{_wireClass:"dojox.wire.DataWire",constructor:function(_4){
+define("dojox/wire/DataWire",["dojo","dijit","dojox","dojo/require!dojox/wire/Wire"],function(_1,_2,_3){
+_1.provide("dojox.wire.DataWire");
+_1.require("dojox.wire.Wire");
+_1.declare("dojox.wire.DataWire",_3.wire.Wire,{_wireClass:"dojox.wire.DataWire",constructor:function(_4){
 if(!this.dataStore&&this.parent){
 this.dataStore=this.parent.dataStore;
 }

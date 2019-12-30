@@ -1,9 +1,9 @@
-//>>built
-define("dojox/highlight/languages/python", ["dojox/main", "../_base"], function(dojox){
+define("dojox/highlight/languages/python", ["../_base"], function(dh){
 
-	var dh = dojox.highlight, dhc = dh.constants;
+	var dhc = dh.constants;
 	dh.languages.python = {
-		// summary: Python highlight definitions
+		// summary:
+		//		Python highlight definitions
 		defaultMode: {
 			lexems: [dhc.UNDERSCORE_IDENT_RE],
 			illegal: '(</|->)',
@@ -52,7 +52,37 @@ define("dojox/highlight/languages/python", ["dojox/main", "../_base"], function(
 			},
 			{
 				className: 'string',
+				begin: 'r\'\'\'', end: '\'\'\'',
+				relevance: 10
+			},
+			{
+				className: 'string',
+				begin: 'u\'\'\'', end: '(^|[^\\\\])\'\'\'',
+				relevance: 10
+			},
+			{
+				className: 'string',
+				begin: 'ur\'\'\'', end: '\'\'\'',
+				relevance: 10
+			},
+			{
+				className: 'string',
 				begin: '"""', end: '"""',
+				relevance: 10
+			},
+			{
+				className: 'string',
+				begin: 'r"""', end: '"""',
+				relevance: 10
+			},
+			{
+				className: 'string',
+				begin: 'u"""', end: '(^|[^\\\\])"""',
+				relevance: 10
+			},
+			{
+				className: 'string',
+				begin: 'ur"""', end: '"""',
 				relevance: 10
 			},
 			dhc.APOS_STRING_MODE,

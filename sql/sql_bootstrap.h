@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,9 @@
 #define SQL_BOOTSTRAP_H
 
 #include <stddef.h>
+#include <functional>
+
+#include "map_helpers.h"
 
 struct MYSQL_FILE;
 
@@ -33,26 +36,85 @@ struct MYSQL_FILE;
   The longest query in use depends on the documentation content,
   see the file fill_help_tables.sql
 */
-#define MAX_BOOTSTRAP_QUERY_SIZE 44000
+#define MAX_BOOTSTRAP_QUERY_SIZE 74000
 /**
   The maximum size of a bootstrap query, expressed in a single line.
   Do not increase this size, use the multiline syntax instead.
 */
-#define MAX_BOOTSTRAP_LINE_SIZE 44000
-#define MAX_BOOTSTRAP_ERROR_LEN 256
+#define MAX_BOOTSTRAP_LINE_SIZE 74000
 
-#define READ_BOOTSTRAP_SUCCESS 0
-#define READ_BOOTSTRAP_EOF 1
-#define READ_BOOTSTRAP_ERROR 2
-#define READ_BOOTSTRAP_QUERY_SIZE 3
+enum bootstrap_error {
+  READ_BOOTSTRAP_SUCCESS = 0,
+  READ_BOOTSTRAP_EOF,
+  READ_BOOTSTRAP_IO,
+  READ_BOOTSTRAP_DELIMITER,
+  READ_BOOTSTRAP_SQ_NOT_TERMINATED,
+  READ_BOOTSTRAP_DQ_NOT_TERMINATED,
+  READ_BOOTSTRAP_COMMENT_NOT_TERMINATED,
+  READ_BOOTSTRAP_QUERY_SIZE,
+  READ_BOOTSTRAP_ERROR
+};
 
-#define QUERY_SOURCE_FILE 0
-#define QUERY_SOURCE_COMPILED 1
+typedef char *(*fgets_fn_t)(char *, size_t, MYSQL_FILE *, int *error);
 
-typedef MYSQL_FILE *fgets_input_t;
-typedef char *(*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
+enum delimiter_state {
+  /** Delimiter is ';' */
+  DELIMITER_SEMICOLON,
+  /** Delimiter is "$$" */
+  DELIMITER_DOLLAR_DOLLAR
+};
 
-int read_bootstrap_query(char *query, size_t *query_length, fgets_input_t input,
-                         fgets_fn_t fgets_fn, int *error);
+enum code_parsing_state {
+  /** Parsing sql code. */
+  NORMAL,
+  /** Parsing a 'literal' string. */
+  IN_SINGLE_QUOTE,
+  /** Parsing a "literal" string. */
+  IN_DOUBLE_QUOTE,
+  /** Parsing a "--" comment. */
+  IN_DASH_DASH_COMMENT,
+  /** Parsing a '/''*' comment. */
+  IN_SLASH_STAR_COMMENT,
+  /** Parsing a '#' comment. */
+  IN_POUND_COMMENT
+};
+
+struct bootstrap_parser_position {
+  void init();
+
+  size_t m_line;
+  size_t m_column;
+};
+
+struct bootstrap_parser_state {
+  // This buffer may be rather large,
+  // so we allocate it on the heap to save stack space.
+  // This struct is also used by the standalone 'comp_sql' tool,
+  // so we use plain malloc/free rather than my_() to avoid dependency on mysys.
+  unique_ptr_free<char> m_unget_buffer;
+  size_t m_unget_buffer_length;
+
+  typedef void (*log_function_t)(const char *message);
+
+  void init(const char *filename);
+  void report_error_details(log_function_t log);
+
+  delimiter_state m_delimiter;
+  code_parsing_state m_code_state;
+
+  const char *m_filename;
+  size_t m_current_line;
+  enum bootstrap_error m_last_error;
+  int m_io_sub_error;
+
+  bootstrap_parser_position m_last_delimiter;
+  bootstrap_parser_position m_last_open_single_quote;
+  bootstrap_parser_position m_last_open_double_quote;
+  bootstrap_parser_position m_last_open_comment;
+  bootstrap_parser_position m_last_query_start;
+};
+
+int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
+                         fgets_fn_t fgets_fn, bootstrap_parser_state *state);
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 #include <Parser.hpp>
 #include <OutputStream.hpp>
 #include <InputStream.hpp>
-
+#include <ConfigObject.hpp>
 #include <ndb_base64.h>
 
 //#define MGMAPI_LOG
@@ -196,6 +196,7 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
 }
 
 #define SET_ERROR(h, e, s) setError((h), (e), __LINE__, "%s", (s))
+#define SET_ERROR_CMD(h, e, s, cmd, t) setError((h), (e), __LINE__, "cmd: %s, error: %s, timeout: %d", (cmd), (s), (t))
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) {   \
@@ -220,10 +221,10 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
     SET_ERROR(handle, ETIMEDOUT, \
               "Time out talking to management server");
 
-#define CHECK_TIMEDOUT_RET(h, in, out, ret) \
+#define CHECK_TIMEDOUT_RET(h, in, out, ret, cmd) \
   if(in.timedout() || out.timedout()) { \
-    SET_ERROR(h, ETIMEDOUT, \
-              "Time out talking to management server"); \
+    SET_ERROR_CMD(h, ETIMEDOUT, \
+              "Time out talking to management server", cmd, h->timeout); \
     ndb_mgm_disconnect_quiet(h); \
     DBUG_RETURN(ret);            \
   }
@@ -525,7 +526,7 @@ ndb_mgm_call(NdbMgmHandle handle,
     out.write("\n", 1);
   }
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
@@ -534,17 +535,17 @@ ndb_mgm_call(NdbMgmHandle handle,
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
     if(!ndb_mgm_is_connected(handle)) {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       DBUG_RETURN(NULL);
     }
     else
     {
-      CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+      CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
       if(ctx.m_status==Parser_t::Eof
 	 || ctx.m_status==Parser_t::NoLine)
       {
 	ndb_mgm_disconnect(handle);
-        CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+        CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
 	DBUG_RETURN(NULL);
       }
       /**
@@ -569,7 +570,7 @@ ndb_mgm_call(NdbMgmHandle handle,
 
   if(p && (in.timedout() || out.timedout()))
     delete p;
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, cmd);
   DBUG_RETURN(p);
 }
 
@@ -716,7 +717,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
   LocalConfig &cfg= handle->cfg;
   NDB_SOCKET_TYPE sockfd;
   ndb_socket_invalidate(&sockfd);
-  Uint32 i;
+  Uint32 i = Uint32(~0);
   while (!ndb_socket_valid(sockfd))
   {
     // do all the mgmt servers
@@ -1025,6 +1026,8 @@ status_ackumulate(struct ndb_mgm_node_state * state,
   } else if(strcmp("address", field) == 0){
     strncpy(state->connect_address, value, sizeof(state->connect_address));
     state->connect_address[sizeof(state->connect_address)-1]= 0;
+  } else if(strcmp("is_single_user", field) == 0){
+    state->is_single_user = atoi(value);
   } else {
     ndbout_c("Unknown field: %s", field);
   }
@@ -1108,31 +1111,32 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
-  out.println("get status");
+  const char *get_status_str = "get status";
+  out.println("%s", get_status_str);
   if (types)
   {
     out.println("types: %s", typestring);
   }
   out.println("%s", "");
 
-  CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+  CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
 
   char buf[1024];
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
   if(strcmp("node status\n", buf) != 0) {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     ndbout << in.timedout() << " " << out.timedout() << buf << endl;
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
   if(!in.gets(buf, sizeof(buf)))
   {
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_SERVER_REPLY, "Probably disconnected");
     DBUG_RETURN(NULL);
   }
@@ -1141,7 +1145,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
   Vector<BaseString> split;
   tmp.split(split, ":");
   if(split.size() != 2){
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, buf);
     DBUG_RETURN(NULL);
   }
@@ -1212,7 +1216,7 @@ ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
 
   if(i+1 != noOfNodes){
     free(state);
-    CHECK_TIMEDOUT_RET(handle, in, out, NULL);
+    CHECK_TIMEDOUT_RET(handle, in, out, NULL, get_status_str);
     SET_ERROR(handle, NDB_MGM_ILLEGAL_NODE_STATUS, "Node count mismatch");
     DBUG_RETURN(NULL);
   }
@@ -2547,6 +2551,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     args.put("nodetype", nodetype);
   }
 
+  bool v2 = ndb_config_version_v2(handle->mgmd_version());
   if (from_node != 0)
   {
     if (check_version_new(handle->mgmd_version(),
@@ -2563,6 +2568,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
       DBUG_RETURN(0);
     }
   }
+  else if (v2)
+  {
+    Uint32 node_id = ndb_mgm_get_configuration_nodeid(handle);
+    args.put("node", node_id);
+  }
 
   const ParserRow<ParserDummy> reply[] = {
     MGM_CMD("get config reply", NULL, ""),
@@ -2572,9 +2582,11 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     MGM_ARG("Content-Transfer-Encoding", String, Optional, "Encoding(base64)"),
     MGM_END()
   };
-  
+
   const Properties *prop;
-  prop = ndb_mgm_call(handle, reply, "get config", &args);
+  prop = v2 ?
+    ndb_mgm_call(handle, reply, "get config_v2", &args) :
+    ndb_mgm_call(handle, reply, "get config", &args);
   CHECK_REPLY(handle, prop, 0);
   
   do {
@@ -2641,7 +2653,9 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     }
 
     ConfigValuesFactory cvf;
-    const int res2 = cvf.unpack(tmp);
+    const int res2 = v2 ?
+      cvf.unpack_v2_buf(tmp) :
+      cvf.unpack_v1_buf(tmp);
     if(!res2){
       fprintf(handle->errstream, "Failed to unpack buffer\n");
       break;
@@ -2667,10 +2681,7 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-  if (cfg) {
-    ((ConfigValues *)cfg)->~ConfigValues();
-    free((void *)cfg);
-  }
+    delete cfg;
 }
 
 extern "C"
@@ -3196,13 +3207,14 @@ int ndb_mgm_end_session(NdbMgmHandle handle)
   CHECK_CONNECTED(handle, -1);
 
   SocketOutputStream s_output(handle->socket, handle->timeout);
-  s_output.println("end session");
+  const char *end_session_str = "end session";
+  s_output.println("%s", end_session_str);
   s_output.println("%s", "");
 
   SocketInputStream in(handle->socket, handle->timeout);
   char buf[32];
   in.gets(buf, sizeof(buf));
-  CHECK_TIMEDOUT_RET(handle, in, s_output, -1);
+  CHECK_TIMEDOUT_RET(handle, in, s_output, -1, end_session_str);
 
   DBUG_RETURN(0);
 }
@@ -3379,7 +3391,10 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   const ConfigValues * cfg = (ConfigValues*)c;
 
   UtilBuffer buf;
-  if (!cfg->pack(buf))
+  bool v2 = ndb_config_version_v2(h->mgmd_version());
+  bool ret = v2 ? cfg->pack_v2(buf) :
+                  cfg->pack_v1(buf);
+  if (!ret)
   {
     SET_ERROR(h, NDB_MGM_OUT_OF_MEMORY, "Packing config");
     DBUG_RETURN(-1);
@@ -3405,7 +3420,8 @@ ndb_mgm_set_configuration(NdbMgmHandle h, ndb_mgm_configuration *c)
   };
 
   const Properties *reply;
-  reply= ndb_mgm_call(h, set_config_reply, "set config", &args,
+  const char *cmd_str = v2 ? "set config_v2" : "set config";
+  reply= ndb_mgm_call(h, set_config_reply, cmd_str, &args,
                       encoded.c_str());
   CHECK_REPLY(h, reply, -1);
 

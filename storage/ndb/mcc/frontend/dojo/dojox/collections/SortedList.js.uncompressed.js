@@ -1,12 +1,9 @@
-//>>built
 define("dojox/collections/SortedList", ["dojo/_base/kernel", "dojo/_base/array", "./_base"], function(dojo, darray, dxc){
-/*=====
-var dxc = dojox.collections;
-=====*/
-	dxc.SortedList=function(/* object? */ dictionary){
-		//	summary
-		//	creates a collection that acts like a dictionary but is also internally sorted.
-		//	Note that the act of adding any elements forces an internal resort, making this object potentially slow.
+
+	dxc.SortedList=function(/*object?*/ dictionary){
+		// summary:
+		//		creates a collection that acts like a dictionary but is also internally sorted.
+		//		Note that the act of adding any elements forces an internal resort, making this object potentially slow.
 		var _this=this;
 		var items={};
 		var q=[];
@@ -26,9 +23,9 @@ var dxc = dojox.collections;
 		var testObject={};
 
 		this.count=q.length;
-		this.add=function(/* string */ k,/* object */v){
-			//	summary
-			//	add the passed value to the dictionary at location k
+		this.add=function(/*string*/ k,/*object*/ v){
+			// summary:
+			//		add the passed value to the dictionary at location k
 			if (!items[k]) {
 				items[k]=new dxc.DictionaryEntry(k,v);
 				this.count=q.push(items[k]);
@@ -36,28 +33,28 @@ var dxc = dojox.collections;
 			}
 		};
 		this.clear=function(){
-			//	summary
-			//	clear the internal collections
+			// summary:
+			//		clear the internal collections
 			items={};
 			q=[];
 			this.count=q.length;
 		};
 		this.clone=function(){
-			//	summary
-			//	create a clone of this sorted list
+			// summary:
+			//		create a clone of this sorted list
 			return new dxc.SortedList(this);	//	dojox.collections.SortedList
 		};
-		this.contains=this.containsKey=function(/* string */ k){
-			//	summary
-			//	Check to see if the list has a location k
+		this.contains=this.containsKey=function(/*string*/ k){
+			// summary:
+			//		Check to see if the list has a location k
 			if(testObject[k]){
 				return false;			//	bool
 			}
 			return (items[k]!=null);	//	bool
 		};
-		this.containsValue=function(/* object */ o){
-			//	summary
-			//	Check to see if this list contains the passed object
+		this.containsValue=function(/*object*/ o){
+			// summary:
+			//		Check to see if this list contains the passed object
 			var e=this.getIterator();
 			while (!e.atEnd()){
 				var item=e.get();
@@ -67,9 +64,9 @@ var dxc = dojox.collections;
 			}
 			return false;	//	bool
 		};
-		this.copyTo=function(/* array */ arr, /* int */ i){
-			//	summary
-			//	copy the contents of the list into array arr at index i
+		this.copyTo=function(/*array*/ arr, /*int*/ i){
+			// summary:
+			//		copy the contents of the list into array arr at index i
 			var e=this.getIterator();
 			var idx=i;
 			while(!e.atEnd()){
@@ -77,34 +74,34 @@ var dxc = dojox.collections;
 				idx++;
 			}
 		};
-		this.entry=function(/* string */ k){
-			//	summary
-			//	return the object at location k
+		this.entry=function(/*string*/ k){
+			// summary:
+			//		return the object at location k
 			return items[k];	//	dojox.collections.DictionaryEntry
 		};
-		this.forEach=function(/* function */ fn, /* object? */ scope){
-			//	summary
-			//	functional iterator, following the mozilla spec.
+		this.forEach=function(/*function*/ fn, /*object?*/ scope){
+			// summary:
+			//		functional iterator, following the mozilla spec.
 			dojo.forEach(q, fn, scope);
 		};
-		this.getByIndex=function(/* int */ i){
-			//	summary
-			//	return the item at index i
+		this.getByIndex=function(/*int*/ i){
+			// summary:
+			//		return the item at index i
 			return q[i].valueOf();	//	object
 		};
 		this.getIterator=function(){
-			//	summary
-			//	get an iterator for this object
+			// summary:
+			//		get an iterator for this object
 			return new dxc.DictionaryIterator(items);	//	dojox.collections.DictionaryIterator
 		};
-		this.getKey=function(/* int */ i){
-			//	summary
-			//	return the key of the item at index i
+		this.getKey=function(/*int*/ i){
+			// summary:
+			//		return the key of the item at index i
 			return q[i].key;
 		};
 		this.getKeyList=function(){
-			//	summary
-			//	return an array of the keys set in this list
+			// summary:
+			//		return an array of the keys set in this list
 			var arr=[];
 			var e=this.getIterator();
 			while (!e.atEnd()){
@@ -113,8 +110,8 @@ var dxc = dojox.collections;
 			return arr;	//	array
 		};
 		this.getValueList=function(){
-			//	summary
-			//	return an array of values in this list
+			// summary:
+			//		return an array of values in this list
 			var arr=[];
 			var e=this.getIterator();
 			while (!e.atEnd()){
@@ -122,9 +119,9 @@ var dxc = dojox.collections;
 			}
 			return arr;	//	array
 		};
-		this.indexOfKey=function(/* string */ k){
-			//	summary
-			//	return the index of the passed key.
+		this.indexOfKey=function(/*string*/ k){
+			// summary:
+			//		return the index of the passed key.
 			for (var i=0; i<q.length; i++){
 				if (q[i].key==k){
 					return i;	//	int
@@ -132,9 +129,9 @@ var dxc = dojox.collections;
 			}
 			return -1;	//	int
 		};
-		this.indexOfValue=function(/* object */ o){
-			//	summary
-			//	return the first index of object o
+		this.indexOfValue=function(/*object*/ o){
+			// summary:
+			//		return the first index of object o
 			for (var i=0; i<q.length; i++){
 				if (q[i].value==o){
 					return i;	//	int
@@ -142,33 +139,33 @@ var dxc = dojox.collections;
 			}
 			return -1;	//	int
 		};
-		this.item=function(/* string */ k){
-			// 	summary
-			//	return the value of the object at location k.
+		this.item=function(/*string*/ k){
+			// summary:
+			//		return the value of the object at location k.
 			if(k in items && !testObject[k]){
 				return items[k].valueOf();	//	object
 			}
 			return undefined;	//	object
 		};
-		this.remove=function(/* string */k){
-			// 	summary
-			//	remove the item at location k and rebuild the internal collections.
+		this.remove=function(/*string*/ k){
+			// summary:
+			//		remove the item at location k and rebuild the internal collections.
 			delete items[k];
 			build();
 			this.count=q.length;
 		};
-		this.removeAt=function(/* int */ i){
-			//	summary
-			//	remove the item at index i, and rebuild the internal collections.
+		this.removeAt=function(/*int*/ i){
+			// summary:
+			//		remove the item at index i, and rebuild the internal collections.
 			delete items[q[i].key];
 			build();
 			this.count=q.length;
 		};
-		this.replace=function(/* string */ k, /* object */ v){
-			//	summary
-			//	Replace an existing item if it's there, and add a new one if not.
+		this.replace=function(/*string*/ k, /*object*/ v){
+			// summary:
+			//		Replace an existing item if it's there, and add a new one if not.
 			if (!items[k]){
-				//	we're adding a new object, return false
+				//		we're adding a new object, return false
 				this.add(k,v);
 				return false; // bool
 			}else{
@@ -178,9 +175,9 @@ var dxc = dojox.collections;
 				return true; // bool
 			}
 		};
-		this.setByIndex=function(/* int */ i, /* object */ o){
-			//	summary
-			//	set an item by index
+		this.setByIndex=function(/*int*/ i, /*object*/ o){
+			// summary:
+			//		set an item by index
 			items[q[i].key].value=o;
 			build();
 			this.count=q.length;

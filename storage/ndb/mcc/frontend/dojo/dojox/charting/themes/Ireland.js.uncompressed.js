@@ -1,7 +1,5 @@
-//>>built
-define("dojox/charting/themes/Ireland", ["../Theme", "./common"], function(Theme, themes){
-	
-	themes.Ireland=new Theme({
+define("dojox/charting/themes/Ireland", ["../SimpleTheme", "./common"], function(SimpleTheme, themes){
+	themes.Ireland = new SimpleTheme({
 		colors: [
 			"#abdbcb",
 			"#435a51",
@@ -10,6 +8,5 @@ define("dojox/charting/themes/Ireland", ["../Theme", "./common"], function(Theme
 			"#5f8074"
 		]
 	});
-	
 	return themes.Ireland;
 });

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 /* Add a element to start of list */
 
 LIST *list_add(LIST *root, LIST *element) {
-  DBUG_ENTER("list_add");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p  element: %p", root, element));
   if (root) {
     if (root->prev) /* If add in mid of list */
@@ -52,7 +52,7 @@ LIST *list_add(LIST *root, LIST *element) {
   } else
     element->prev = 0;
   element->next = root;
-  DBUG_RETURN(element); /* New root */
+  return element; /* New root */
 }
 
 LIST *list_delete(LIST *root, LIST *element) {

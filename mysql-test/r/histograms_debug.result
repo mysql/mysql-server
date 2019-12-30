@@ -182,6 +182,10 @@ WHERE OBJECT_TYPE = "COLUMN STATISTICS"
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	INDEX_NAME
 COLUMN STATISTICS	test	t1	col1
 SET DEBUG_SYNC='now SIGNAL continue_store_histogram';
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
 DROP TABLE t1;
 #
 # Bug#27672693  HISTOGRAMS: ASSERTION FAILED: !THD->TX_READ_ONLY

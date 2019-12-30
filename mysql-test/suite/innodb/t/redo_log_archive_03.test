@@ -1,0 +1,54 @@
+#
+# Test the Redo-Log Archiving feature. Error injection.
+#
+--source include/have_debug.inc
+
+--disable_query_log
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
+--let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
+--let $SERVER_UUID      = `SELECT @@global.server_uuid`
+--let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log
+--let $IRLA_DIRECTORY_1 = $MYSQLTEST_VARDIR/log/redo_log_archive_1
+--let $IRLA_PATHNAME_1  = $IRLA_DIRECTORY_1/$IRLA_FILENAME
+
+--echo #
+--echo # Prepare the server for redo log archiving.
+--echo #
+--replace_result $IRLA_DIRECTORY_1 IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = 'label1:$IRLA_DIRECTORY_1';
+--mkdir $IRLA_DIRECTORY_1
+--echo
+
+--echo #
+--echo # Create consume event shall fail
+--echo #
+SET @@session.debug = '+d,redo_log_archive_bad_alloc';
+--error ER_STD_BAD_ALLOC_ERROR
+DO innodb_redo_log_archive_start('label1');
+SET @@session.debug = '-d,redo_log_archive_bad_alloc';
+--error 1
+--file_exists $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Start timeout
+--echo #
+# global.debug is for the consumer thread
+SET @@global.debug = '+d,innodb_redo_log_archive_start_timeout';
+SET @@session.debug = '+d,innodb_redo_log_archive_start_timeout';
+--error ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT
+DO innodb_redo_log_archive_start('label1');
+SET @@session.debug = '-d,innodb_redo_log_archive_start_timeout';
+SET @@global.debug = '-d,innodb_redo_log_archive_start_timeout';
+--error 1
+--file_exists $IRLA_PATHNAME_1
+--echo
+
+--echo #
+--echo # Cleanup
+--echo #
+--rmdir $IRLA_DIRECTORY_1
+eval SET @@global.innodb_redo_log_archive_dirs = '$saved_dirs';

@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+IF(NOT LINUX)
   RETURN()
 ENDIF()
 IF (NOT DEFINED DEB_CODENAME)
@@ -63,20 +63,6 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here
-  SET (DEB_INCLUDE_BINARIES_EXTRA
-"
-debian/extra/audit_log-plugin
-debian/extra/authentication_pam-plugin
-debian/extra/authentication_ldap_sasl-plugin
-debian/extra/authentication_ldap_simple-plugin
-debian/extra/firewall-plugin
-debian/extra/keyring_okv-plugin
-debian/extra/keyring_encrypted_file-plugin
-debian/extra/mysql_clone-plugin
-debian/extra/openssl_udf-plugin
-debian/extra/thread_pool-plugin
-debian/extra/component_test_page_track_component-plugin
-")
   SET (DEB_INSTALL_SERVER_PLUGINS
 "
 usr/lib/mysql/plugin/audit_log.so
@@ -86,43 +72,18 @@ usr/lib/mysql/plugin/authentication_ldap_simple.so
 usr/lib/mysql/plugin/data_masking.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/keyring_encrypted_file.so
-usr/lib/mysql/plugin/mysql_clone.so
+usr/lib/mysql/plugin/keyring_hashicorp.so
 usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
 ")
-  # Add debug versions of commercial plugins, if enabled
-  IF (DEFINED DEB_WITH_DEBUG)
-    SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
-usr/lib/mysql/plugin/debug/audit_log.so
-usr/lib/mysql/plugin/debug/authentication_pam.so
-usr/lib/mysql/plugin/debug/authentication_ldap_sasl.so
-usr/lib/mysql/plugin/debug/authentication_ldap_simple.so
-usr/lib/mysql/plugin/debug/data_masking.so
-usr/lib/mysql/plugin/debug/keyring_okv.so
-usr/lib/mysql/plugin/debug/keyring_encrypted_file.so
-usr/lib/mysql/plugin/debug/mysql_clone.so
-usr/lib/mysql/plugin/debug/openssl_udf.so
-usr/lib/mysql/plugin/debug/thread_pool.so
-usr/lib/mysql/plugin/debug/firewall.so
-usr/lib/mysql/plugin/debug/component_test_page_track_component.so
-")
-  ENDIF()
 
   IF (DEB_AWS_SDK)
-    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
-    SET (DEB_INCLUDE_BINARIES_EXTRA "${DEB_INCLUDE_BINARIES_EXTRA}
-debian/extra/keyring_aws-plugin
-")
+    SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_KEYRING_AWS=ON -DWITH_AWS_SDK=${DEB_AWS_SDK} -DDEB_AWS_SDK=${DEB_AWS_SDK}")
     SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
 usr/lib/mysql/plugin/keyring_aws.so
 ")
-    IF (DEFINED DEB_WITH_DEBUG)
-      SET (DEB_INSTALL_SERVER_PLUGINS "${DEB_INSTALL_SERVER_PLUGINS}
-usr/lib/mysql/plugin/debug/keyring_aws.so
-")
-    ENDIF()
   ENDIF()
 
   IF (WITH_CURL)
@@ -150,8 +111,10 @@ override_dh_strip:
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-server-core --dbg-package=mysql-${DEB_PRODUCTNAME}-server-core-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-client-core --dbg-package=mysql-${DEB_PRODUCTNAME}-client-core-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-server --dbg-package=mysql-${DEB_PRODUCTNAME}-server-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-server-debug --dbg-package=mysql-${DEB_PRODUCTNAME}-server-debug-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-client --dbg-package=mysql-${DEB_PRODUCTNAME}-client-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-test --dbg-package=mysql-${DEB_PRODUCTNAME}-test-dbgsym
+	dh_strip -pmysql-${DEB_PRODUCTNAME}-test-debug --dbg-package=mysql-${DEB_PRODUCTNAME}-test-debug-dbgsym
 	dh_strip -pmysql-server
 	dh_strip -pmysql-client
 	dh_strip -pmysql-testsuite
@@ -172,6 +135,12 @@ Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-test (= \${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for test suite
 
+Package: mysql-${DEB_PRODUCTNAME}-test-debug-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-test-debug (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for test suite debug binaries
+
 Package: mysql-${DEB_PRODUCTNAME}-client-core-dbgsym
 Architecture: any
 Section: debug
@@ -189,6 +158,12 @@ Architecture: any
 Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-server (= \${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for server
+
+Package: mysql-${DEB_PRODUCTNAME}-server-debug-dbgsym
+Architecture: any
+Section: debug
+Depends: mysql-${DEB_PRODUCTNAME}-server-debug (= \${binary:Version}), \${misc:Depends}
+Description: Debugging symbols for server debug binaries
 
 Package: mysql-${DEB_PRODUCTNAME}-client-dbgsym
 Architecture: any
@@ -293,6 +268,25 @@ ELSEIF(DEB_CODENAME STREQUAL "cosmic")
   SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "disco")
   SET (DEB_PLATFORMRELEASE "ubuntu19.04")
+  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+  "
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
+  ")
+  SET (DEB_RULES_APPARMOR_LOAD
+  "
+	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
+	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
+  ")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
+ELSEIF(DEB_CODENAME STREQUAL "eoan")
+  SET (DEB_PLATFORMRELEASE "ubuntu19.10")
   SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
   SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
   SET (DEB_RULES_INSTALL_APPARMOR

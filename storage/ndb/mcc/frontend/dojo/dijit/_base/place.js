@@ -1,50 +1,52 @@
 //>>built
-define("dijit/_base/place",["dojo/_base/array","dojo/_base/lang","dojo/window","../place",".."],function(_1,_2,_3,_4,_5){
-_5.getViewport=function(){
+define("dijit/_base/place",["dojo/_base/array","dojo/_base/lang","dojo/window","../place","../main"],function(_1,_2,_3,_4,_5){
+var _6={};
+_6.getViewport=function(){
 return _3.getBox();
 };
-_5.placeOnScreen=_4.at;
-_5.placeOnScreenAroundElement=function(_6,_7,_8,_9){
-var _a;
-if(_2.isArray(_8)){
-_a=_8;
+_6.placeOnScreen=_4.at;
+_6.placeOnScreenAroundElement=function(_7,_8,_9,_a){
+var _b;
+if(_2.isArray(_9)){
+_b=_9;
 }else{
-_a=[];
-for(var _b in _8){
-_a.push({aroundCorner:_b,corner:_8[_b]});
+_b=[];
+for(var _c in _9){
+_b.push({aroundCorner:_c,corner:_9[_c]});
 }
 }
-return _4.around(_6,_7,_a,true,_9);
+return _4.around(_7,_8,_b,true,_a);
 };
-_5.placeOnScreenAroundNode=_5.placeOnScreenAroundElement;
-_5.placeOnScreenAroundRectangle=_5.placeOnScreenAroundElement;
-_5.getPopupAroundAlignment=function(_c,_d){
-var _e={};
-_1.forEach(_c,function(_f){
-var ltr=_d;
-switch(_f){
+_6.placeOnScreenAroundNode=_6.placeOnScreenAroundElement;
+_6.placeOnScreenAroundRectangle=_6.placeOnScreenAroundElement;
+_6.getPopupAroundAlignment=function(_d,_e){
+var _f={};
+_1.forEach(_d,function(pos){
+var ltr=_e;
+switch(pos){
 case "after":
-_e[_d?"BR":"BL"]=_d?"BL":"BR";
+_f[_e?"BR":"BL"]=_e?"BL":"BR";
 break;
 case "before":
-_e[_d?"BL":"BR"]=_d?"BR":"BL";
+_f[_e?"BL":"BR"]=_e?"BR":"BL";
 break;
 case "below-alt":
 ltr=!ltr;
 case "below":
-_e[ltr?"BL":"BR"]=ltr?"TL":"TR";
-_e[ltr?"BR":"BL"]=ltr?"TR":"TL";
+_f[ltr?"BL":"BR"]=ltr?"TL":"TR";
+_f[ltr?"BR":"BL"]=ltr?"TR":"TL";
 break;
 case "above-alt":
 ltr=!ltr;
 case "above":
 default:
-_e[ltr?"TL":"TR"]=ltr?"BL":"BR";
-_e[ltr?"TR":"TL"]=ltr?"BR":"BL";
+_f[ltr?"TL":"TR"]=ltr?"BL":"BR";
+_f[ltr?"TR":"TL"]=ltr?"BR":"BL";
 break;
 }
 });
-return _e;
+return _f;
 };
+_2.mixin(_5,_6);
 return _5;
 });

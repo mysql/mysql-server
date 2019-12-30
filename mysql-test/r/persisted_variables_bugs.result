@@ -159,9 +159,6 @@ RESET PERSIST;
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 32768
-SELECT @@global.disabled_storage_engines;
-@@global.disabled_storage_engines
-
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8mb4_0900_ai_ci
@@ -170,7 +167,7 @@ SELECT @@global.optimizer_trace_offset;
 -1
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 SELECT @@global.enforce_gtid_consistency;
 @@global.enforce_gtid_consistency
 OFF
@@ -180,7 +177,6 @@ ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DI
 SET @@global.binlog_cache_size= 4096;
 SET @@persist_only.binlog_cache_size= default,
 @@persist_only.collation_database= default,
-@@persist_only.disabled_storage_engines= default,
 @@persist_only.optimizer_trace_offset= default,
 @@persist_only.optimizer_switch= default,
 @@persist_only.enforce_gtid_consistency= default,
@@ -189,9 +185,8 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 binlog_cache_size	32768
 collation_database	utf8mb4_0900_ai_ci
-disabled_storage_engines	
 enforce_gtid_consistency	0
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 optimizer_trace_offset	-1
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 # Restart server
@@ -199,9 +194,6 @@ sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERR
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 32768
-SELECT @@global.disabled_storage_engines;
-@@global.disabled_storage_engines
-
 SELECT @@global.collation_database;
 @@global.collation_database
 utf8mb4_0900_ai_ci
@@ -210,7 +202,7 @@ SELECT @@global.optimizer_trace_offset;
 -1
 SELECT @@global.optimizer_switch;
 @@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 SELECT @@global.enforce_gtid_consistency;
 @@global.enforce_gtid_consistency
 OFF
@@ -221,9 +213,8 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 binlog_cache_size	32768
 collation_database	utf8mb4_0900_ai_ci
-disabled_storage_engines	
 enforce_gtid_consistency	0
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off,skip_scan=on,hash_join=on
 optimizer_trace_offset	-1
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 # Cleanup
@@ -397,6 +388,24 @@ SET GLOBAL innodb_strict_mode=default, innodb_lock_wait_timeout=default,
 myisam_repair_threads=default, myisam_stats_method=default;
 RESET PERSIST;
 #
+# Bug #30030648: NO DEPRECATION WARNING ON SERVER RESTART FOR SET PERSISTED OPTIONS
+#
+# should report warning
+SET GLOBAL avoid_temporal_upgrade=TRUE;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+# should report warning
+SET PERSIST_ONLY avoid_temporal_upgrade=TRUE;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+# should report warning
+SET PERSIST avoid_temporal_upgrade=TRUE;
+Warnings:
+Warning	1287	'@@avoid_temporal_upgrade' is deprecated and will be removed in a future release.
+# Restart server
+include/assert_grep.inc [Assert that there is a warning at bootstrap when setting --avoid_temporal_upgrade]
+RESET PERSIST;
+#
 # Bug #28749668: SKIP_NAME_RESOLVE CAN BE PERSIT_ONLY-ED TO ON, BUT NOT OFF
 #
 SELECT @@global.skip_name_resolve;
@@ -406,7 +415,7 @@ CREATE USER 'bug28749668'@'%';
 GRANT ALL ON *.* TO 'bug28749668'@'%';
 SET PERSIST_ONLY skip_name_resolve=0;
 # Restart server and check if server starts
-# restart
+# restart:
 SELECT @@global.skip_name_resolve;
 @@global.skip_name_resolve
 0

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,7 @@ do
                 --site=*) site_arg="$1";;
                 --default-max-retries=*) default_max_retries_arg="$1";;
                 --default-force-cluster-restart) default_force_cluster_restart_arg="$1";;
+                --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
         esac
         shift
 done
@@ -434,6 +435,7 @@ else
     args="$args ${verbose_arg}"
     args="$args ${default_max_retries_arg}"
     args="$args ${default_force_cluster_restart_arg}"
+    args="$args ${default_behaviour_on_failure_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}

@@ -1,7 +1,7 @@
 #ifndef PROCEDURE_INCLUDED
 #define PROCEDURE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,8 @@ class Item_proc_string : public Item_proc {
     int err_not_used;
     const char *end_not_used;
     const CHARSET_INFO *cs = str_value.charset();
-    return my_strntod(cs, (char *)str_value.ptr(), str_value.length(),
-                      &end_not_used, &err_not_used);
+    return my_strntod(cs, str_value.ptr(), str_value.length(), &end_not_used,
+                      &err_not_used);
   }
   longlong val_int() override {
     int err;

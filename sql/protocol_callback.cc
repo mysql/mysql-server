@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql_string.h"
 
 class String;
 union COM_DATA;
@@ -88,22 +89,23 @@ bool Protocol_callback::store_null() {
   return false;
 }
 
-bool Protocol_callback::store_tiny(longlong from) {
+bool Protocol_callback::store_tiny(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_short(longlong from) {
+bool Protocol_callback::store_short(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_long(longlong from) {
+bool Protocol_callback::store_long(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;
 }
 
-bool Protocol_callback::store_longlong(longlong from, bool is_unsigned) {
+bool Protocol_callback::store_longlong(longlong from, bool is_unsigned,
+                                       uint32) {
   if (callbacks.get_integer)
     return callbacks.get_longlong(callbacks_ctx, from, is_unsigned);
   return false;
@@ -123,48 +125,51 @@ bool Protocol_callback::store_decimal(const my_decimal *d, uint, uint) {
   return false;
 }
 
-bool Protocol_callback::store(const char *from, size_t length,
-                              const CHARSET_INFO *fromcs) {
+bool Protocol_callback::store_string(const char *from, size_t length,
+                                     const CHARSET_INFO *fromcs) {
   if (callbacks.get_string)
     return callbacks.get_string(callbacks_ctx, from, length, fromcs);
   return false;
 }
 
-bool Protocol_callback::store(float from, uint32 decimals, String *) {
+bool Protocol_callback::store_float(float from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(double from, uint32 decimals, String *) {
+bool Protocol_callback::store_double(double from, uint32 decimals, uint32) {
   if (callbacks.get_double)
     return callbacks.get_double(callbacks_ctx, from, decimals);
   return false;
 }
 
-bool Protocol_callback::store(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_datetime(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_datetime)
-    return callbacks.get_datetime(callbacks_ctx, time, precision);
+    return callbacks.get_datetime(callbacks_ctx, &time, precision);
   return false;
 }
 
-bool Protocol_callback::store_date(MYSQL_TIME *time) {
-  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, time);
+bool Protocol_callback::store_date(const MYSQL_TIME &time) {
+  if (callbacks.get_datetime) return callbacks.get_date(callbacks_ctx, &time);
   return false;
 }
 
-bool Protocol_callback::store_time(MYSQL_TIME *time, uint precision) {
+bool Protocol_callback::store_time(const MYSQL_TIME &time, uint precision) {
   if (callbacks.get_time)
-    return callbacks.get_time(callbacks_ctx, time, precision);
+    return callbacks.get_time(callbacks_ctx, &time, precision);
   return false;
 }
 
-bool Protocol_callback::store(Proto_field *field) {
+bool Protocol_callback::store_field(const Field *field) {
   switch (text_or_binary) {
-    case CS_TEXT_REPRESENTATION:
-      return field->send_text(this);
+    case CS_TEXT_REPRESENTATION: {
+      if (field->is_null()) return store_null();
+      StringBuffer<MAX_FIELD_WIDTH> buffer;
+      return store(field->val_str(&buffer));
+    }
     case CS_BINARY_REPRESENTATION:
-      return field->send_binary(this);
+      return field->send_to_protocol(this);
   }
   return true;
 }
@@ -285,6 +290,22 @@ uint Protocol_callback::get_rw_status() { return 0; }
     false disabled
 */
 bool Protocol_callback::get_compression() { return false; }
+
+/**
+  Always returns null.
+
+  @return
+     null compression not supported
+*/
+char *Protocol_callback::get_compression_algorithm() { return nullptr; }
+
+/**
+  Always returns 0.
+
+  @return
+   compression not supported
+*/
+uint Protocol_callback::get_compression_level() { return 0; }
 
 /**
   Called BEFORE sending metadata

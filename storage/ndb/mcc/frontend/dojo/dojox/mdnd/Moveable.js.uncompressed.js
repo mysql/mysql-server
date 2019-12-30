@@ -1,15 +1,16 @@
-//>>built
 define("dojox/mdnd/Moveable", [
 	"dojo/_base/kernel",
+	"dojo/_base/declare",
 	"dojo/_base/array",
 	"dojo/_base/connect",
-	"dojo/_base/declare",
 	"dojo/_base/event",
-	"dojo/_base/html",
 	"dojo/_base/sniff",
+	"dojo/dom",
+	"dojo/dom-geometry",
+	"dojo/dom-style",
 	"dojo/_base/window"
-],function(dojo){
-	return dojo.declare(
+],function(dojo, declare, array, connect, event, sniff, dom, geom, domStyle){
+	return declare(
 		"dojox.mdnd.Moveable",
 		null,
 	{
@@ -21,7 +22,7 @@ define("dojox/mdnd/Moveable", [
 		handle: null,
 		
 		// skip: Boolean
-		// 		A flag to control a drag action if a form element has been focused.
+		//		A flag to control a drag action if a form element has been focused.
 		//		If true, the drag action is not executed.
 		skip: true,
 	
@@ -32,7 +33,7 @@ define("dojox/mdnd/Moveable", [
 		
 		constructor: function(/*Object*/params, /*DOMNode*/node){
 			// summary:
-			// 		Configure parameters and listen to mousedown events from handle
+			//		Configure parameters and listen to mousedown events from handle
 			//		node.
 			// params:
 			//		Hash of parameters
@@ -40,16 +41,16 @@ define("dojox/mdnd/Moveable", [
 			//		The draggable node
 	
 			//console.log("dojox.mdnd.Moveable ::: constructor");
-			this.node = dojo.byId(node);
+			this.node = dom.byId(node);
 			
 			this.d = this.node.ownerDocument;
 			
 			if(!params){ params = {}; }
-			this.handle = params.handle ? dojo.byId(params.handle) : null;
+			this.handle = params.handle ? dom.byId(params.handle) : null;
 			if(!this.handle){ this.handle = this.node; }
 			this.skip = params.skip;
 			this.events = [
-				dojo.connect(this.handle, "onmousedown", this, "onMouseDown")
+				connect.connect(this.handle, "onmousedown", this, "onMouseDown")
 			];
 			if(dojox.mdnd.autoScroll){
 				this.autoScroll = dojox.mdnd.autoScroll;
@@ -94,12 +95,12 @@ define("dojox/mdnd/Moveable", [
 				this.autoScroll.setAutoScrollNode(this.node);
 				this.autoScroll.setAutoScrollMaxPage();
 			}
-			this.events.push(dojo.connect(this.d, "onmouseup", this, "onMouseUp"));
-			this.events.push(dojo.connect(this.d, "onmousemove", this, "onFirstMove"));
-			this._selectStart = dojo.connect(dojo.body(), "onselectstart", dojo.stopEvent);
+			this.events.push(connect.connect(this.d, "onmouseup", this, "onMouseUp"));
+			this.events.push(connect.connect(this.d, "onmousemove", this, "onFirstMove"));
+			this._selectStart = connect.connect(dojo.body(), "onselectstart", event.stop);
 			this._firstX = e.clientX;
 			this._firstY = e.clientY;
-			dojo.stopEvent(e);
+			event.stop(e);
 		},
 		
 		onFirstMove: function(/*DOMEvent*/e){
@@ -114,15 +115,15 @@ define("dojox/mdnd/Moveable", [
 			//		callback
 	
 			//console.log("dojox.mdnd.Moveable ::: onFirstMove");
-			dojo.stopEvent(e);
+			event.stop(e);
 			var d = (this._firstX - e.clientX) * (this._firstX - e.clientX)
 					+ (this._firstY - e.clientY) * (this._firstY - e.clientY);
 			if(d > this.dragDistance * this.dragDistance){
 				this._isDragging = true;
-				dojo.disconnect(this.events.pop());
-				dojo.style(this.node, "width", dojo.contentBox(this.node).w + "px");
+				connect.disconnect(this.events.pop());
+				domStyle.set(this.node, "width", geom.getContentBox(this.node).w + "px");
 				this.initOffsetDrag(e);
-				this.events.push(dojo.connect(this.d, "onmousemove", this, "onMove"));
+				this.events.push(connect.connect(this.d, "onmousemove", this, "onMove"));
 			}
 		},
 		
@@ -136,7 +137,7 @@ define("dojox/mdnd/Moveable", [
 			//console.log("dojox.mdnd.Moveable ::: initOffsetDrag");
 			this.offsetDrag = { 'l': e.pageX, 't': e.pageY };
 			var s = this.node.style;
-			var position = dojo.position(this.node, true);
+			var position = geom.position(this.node, true);
 			/*if(s.position == "relative" || s.position == ""){
 				s.position = "absolute"; // enforcing the absolute mode
 			}*/
@@ -164,9 +165,9 @@ define("dojox/mdnd/Moveable", [
 			//		callback
 	
 			//console.log("dojox.mdnd.Moveable ::: onMove");
-			dojo.stopEvent(e);
+			event.stop(e);
 			// hack to avoid too many calls to onMove in IE8 causing sometimes slowness
-			if(dojo.isIE == 8 && new Date() - this.date < 20){
+			if(sniff("ie") == 8 && new Date() - this.date < 20){
 				return;
 			}
 			if(this.autoScroll){
@@ -182,7 +183,7 @@ define("dojox/mdnd/Moveable", [
 			
 			// method to catch
 			this.onDrag(this.node, coords, this.size, {'x':e.pageX, 'y':e.pageY});
-			if(dojo.isIE == 8){
+			if(sniff("ie") == 8){
 				this.date = new Date();
 			}
 		},
@@ -195,7 +196,7 @@ define("dojox/mdnd/Moveable", [
 			//		a DOM event
 	
 			if (this._isDragging){
-				dojo.stopEvent(e);
+				event.stop(e);
 				this._isDragging = false;
 				if(this.autoScroll){
 					this.autoScroll.stopAutoScroll();
@@ -204,8 +205,8 @@ define("dojox/mdnd/Moveable", [
 				this.onDragEnd(this.node);
 				this.node.focus();
 			}
-			dojo.disconnect(this.events.pop());
-			dojo.disconnect(this.events.pop());
+			connect.disconnect(this.events.pop());
+			connect.disconnect(this.events.pop());
 		},
 		
 		onDragStart: function(/*DOMNode*/node, /*Object*/coords, /*Object*/size){
@@ -214,7 +215,7 @@ define("dojox/mdnd/Moveable", [
 			//		Notes : border box model
 			// node:
 			//		a DOM node
-			//	coords:
+			// coords:
 			//		absolute position of the main node
 			// size:
 			//		an object encapsulating width an height values
@@ -256,7 +257,7 @@ define("dojox/mdnd/Moveable", [
 			//		Delecte associated events
 	
 			// console.log("dojox.mdnd.Moveable ::: destroy");
-			dojo.forEach(this.events, dojo.disconnect);
+			array.forEach(this.events, connect.disconnect);
 			this.events = this.node = null;
 		}
 	});

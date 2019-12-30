@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,19 +34,60 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <chrono>
 #include "db0err.h"
-#include "handler.h"
 #include "mysql/plugin.h"  // thd_killed()
+#include "sql/handler.h"
 #include "univ.i"
 #include "ut0mutex.h"
 
 #include "clone0desc.h"
+#include "clone0repl.h"
 #include "clone0snapshot.h"
 
+/** Directory under data directory for all clone status files. */
+#define CLONE_FILES_DIR OS_FILE_PREFIX "clone" OS_PATH_SEPARATOR_STR
+
 /** Clone in progress file name length. */
-const size_t CLONE_FILE_LEN = 32;
+const size_t CLONE_INNODB_FILE_LEN = 64;
+
+#ifdef UNIV_DEBUG
+/** Clone simulate recovery error file name. */
+const char CLONE_INNODB_RECOVERY_CRASH_POINT[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "status_crash_point";
+#endif
 
 /** Clone in progress file name. */
-const char CLONE_IN_PROGRESS_FILE[] = "#clone_in_progress";
+const char CLONE_INNODB_IN_PROGRESS_FILE[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "status_in_progress";
+
+/** Clone error file name. */
+const char CLONE_INNODB_ERROR_FILE[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "status_error";
+
+/** Clone fix up file name. Present when clone needs table fix up. */
+const char CLONE_INNODB_FIXUP_FILE[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "status_fix";
+
+/** Clone recovery status. */
+const char CLONE_INNODB_RECOVERY_FILE[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "status_recovery";
+
+/** Clone file name for list of files cloned in place. */
+const char CLONE_INNODB_NEW_FILES[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "new_files";
+
+/** Clone file name for list of files to be replaced. */
+const char CLONE_INNODB_REPLACED_FILES[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "replace_files";
+
+/** Clone file name for list of old files to be removed. */
+const char CLONE_INNODB_OLD_FILES[] =
+    CLONE_FILES_DIR OS_FILE_PREFIX "old_files";
+
+/** Clone file extension for files to be replaced. */
+const char CLONE_INNODB_REPLACED_FILE_EXTN[] = "." OS_FILE_PREFIX "clone";
+
+/** Clone file extension for saved old files. */
+const char CLONE_INNODB_SAVED_FILE_EXTN[] = "." OS_FILE_PREFIX "clone_save";
 
 using Clone_Msec = std::chrono::milliseconds;
 using Clone_Sec = std::chrono::seconds;
@@ -165,8 +206,8 @@ class Clone_Task_Manager {
   void set_error(int err, const char *file_name) {
     mutex_enter(&m_state_mutex);
 
-    ib::info(ER_IB_MSG_151) << "Clone Set Error code: " << err
-                            << " Saved Error code: " << m_saved_error;
+    ib::info(ER_IB_CLONE_OPERATION) << "Clone Set Error code: " << err
+                                    << " Saved Error code: " << m_saved_error;
 
     /* Override any network error as we should not be waiting for restart
     if other errors have occurred. */
@@ -298,10 +339,12 @@ class Clone_Task_Manager {
   @param[in]	task		clone task
   @param[in]	state_desc	descriptor for next state
   @param[in]	new_state	next state to move to
+  @param[in]	cbk		alert callback for long wait
   @param[out]	num_wait	unfinished tasks in current state
   @return error code */
   int change_state(Clone_Task *task, Clone_Desc_State *state_desc,
-                   Snapshot_State new_state, uint &num_wait);
+                   Snapshot_State new_state, Clone_Alert_Func cbk,
+                   uint &num_wait);
 
   /** Check if state transition is over and all tasks moved to next state
   @param[in]	task		requesting task
@@ -405,7 +448,8 @@ class Clone_Task_Manager {
   @return true if network error */
   bool is_network_error(int err) {
     if (err == ER_NET_ERROR_ON_WRITE || err == ER_NET_READ_ERROR ||
-        err == ER_NET_WRITE_INTERRUPTED || err == ER_NET_READ_INTERRUPTED) {
+        err == ER_NET_WRITE_INTERRUPTED || err == ER_NET_READ_INTERRUPTED ||
+        err == ER_NET_WAIT_ERROR) {
       return (true);
     }
     return (false);
@@ -542,6 +586,11 @@ class Clone_Handle {
   /** @return clone data directory */
   const char *get_datadir() const { return (m_clone_dir); }
 
+  /** @return true, if clone is replacing current data directory. */
+  bool replace_datadir() const {
+    return (!is_copy_clone() && m_clone_dir == nullptr);
+  }
+
   /** Build locator descriptor for the clone handle
   @param[out]	loc_desc	locator descriptor */
   void build_descriptor(Clone_Desc_Locator *loc_desc);
@@ -599,7 +648,7 @@ class Clone_Handle {
 
   /** Check if it is copy clone
   @return true if copy clone handle */
-  bool is_copy_clone() { return (m_clone_handle_type == CLONE_HDL_COPY); }
+  bool is_copy_clone() const { return (m_clone_handle_type == CLONE_HDL_COPY); }
 
   /** Check if clone type matches
   @param[in]	other_handle_type	type to match with
@@ -663,8 +712,9 @@ class Clone_Handle {
   int send_keep_alive(Clone_Task *task, Ha_clone_cbk *callback);
 
  private:
-  /** Delete clone in progress file. */
-  void delete_clone_file();
+  /** Check if enough space is there to clone.
+  @return error if not enough space */
+  int check_space();
 
   /** Create clone data directory.
   @return error code */
@@ -676,7 +726,8 @@ class Clone_Handle {
   @param[in,out]	percent_done	percentage completed
   @param[in,out]	disp_time	last displayed time */
   void display_progress(uint32_t cur_chunk, uint32_t max_chunk,
-                        uint32_t &percent_done, ulint &disp_time);
+                        uint32_t &percent_done,
+                        ib_time_monotonic_ms_t &disp_time);
 
   /** Open file for the task
   @param[in]	task		clone task
@@ -697,10 +748,13 @@ class Clone_Handle {
   @param[in]	cbk	callback interface
   @param[in]	task	clone task
   @param[in]	len	data length
+  @param[in]	buf_cbk	invoke buffer callback
+  @param[in]	offset	file offset
   @param[in]	name	file name where func invoked
   @param[in]	line	line where the func invoked
   @return error code */
-  int file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len
+  int file_callback(Ha_clone_cbk *cbk, Clone_Task *task, uint len, bool buf_cbk,
+                    uint64_t offset
 #ifdef UNIV_PFS_IO
                     ,
                     const char *name, uint line
@@ -772,12 +826,19 @@ class Clone_Handle {
 
   /** Move to next state based on state metadata and set
   state information
-  @param[in]	task		current task
+  @param[in]		task		current task
   @param[in,out]	callback	callback interface
   @param[in,out]	state_desc	clone state descriptor
   @return error code */
   int ack_state_metadata(Clone_Task *task, Ha_clone_cbk *callback,
                          Clone_Desc_State *state_desc);
+
+  /** Notify state change via callback.
+  @param[in]		task		current task
+  @param[in,out]	callback	callback interface
+  @param[in,out]	state_desc	clone state descriptor */
+  void notify_state_change(Clone_Task *task, Ha_clone_cbk *callback,
+                           Clone_Desc_State *state_desc);
 
   /** Move to next state based on state metadata and set
   state information
@@ -807,6 +868,27 @@ class Clone_Handle {
   @return error code */
   int receive_data(Clone_Task *task, uint64_t offset, uint64_t file_size,
                    uint32_t size, Ha_clone_cbk *callback);
+
+  /** Punch holes for multiple pages during apply.
+  @param[in]	file		file descriptor
+  @param[in]	buffer		data buffer
+  @param[in]	len		buffer length
+  @param[in]	start_off	starting offset in file
+  @param[in]	page_len	page length
+  @param[in]	block_size	file system block size
+  @return innodb error code */
+  dberr_t punch_holes(os_file_t file, const byte *buffer, uint32_t len,
+                      uint64_t start_off, uint32_t page_len,
+                      uint32_t block_size);
+
+  /** Modify page encryption attribute and/or punch hole.
+  @param[in]		task	task that is applying data
+  @param[in]		offset	file offset for applying data
+  @param[in,out]	buffer	data to apply
+  @param[in]		buf_len	data buffer length
+  @return error code */
+  int modify_and_write(const Clone_Task *task, uint64_t offset,
+                       unsigned char *buffer, uint32_t buf_len);
 
  private:
   /** Clone handle type: Copy, Apply */
@@ -912,6 +994,18 @@ class Clone_Sys {
   /** Mark clone state to active if no other abort request */
   void mark_active();
 
+  /** Mark to indicate that new clone operations should wait.
+  @return true, if no active clone and mark is set successfully */
+  bool mark_wait();
+
+  /** Free the wait marker. */
+  void mark_free();
+
+  /** Wait for marker to get freed.
+  @param[in,out]	thd	user session
+  @return, error if timeout */
+  int wait_for_free(THD *thd);
+
   /** Get next unique ID
   @return unique ID */
   ib_uint64_t get_next_id();
@@ -925,6 +1019,9 @@ class Clone_Sys {
 
   /** Number of active abort requests */
   static uint s_clone_abort_count;
+
+  /** Number of active wait requests */
+  static uint s_clone_wait_count;
 
   /** Function to check wait condition
   @param[in]	is_alert	print alert message
@@ -950,6 +1047,9 @@ class Clone_Sys {
     int loop_count = 0;
     auto alert_count = static_cast<int>(alert_interval / sleep_time);
     auto total_count = static_cast<int>(timeout / sleep_time);
+
+    /* Call function once before waiting. */
+    err = func(false, wait);
 
     while (!is_timeout && wait && err == 0) {
       ++loop_count;
@@ -988,12 +1088,15 @@ class Clone_Sys {
                  std::forward<Wait_Cond_Cbk_Func>(func), mutex, is_timeout));
   }
 
- private:
   /** Check if any active clone is running.
   @param[in]	print_alert	print alert message
   @return true, if concurrent clone in progress */
   bool check_active_clone(bool print_alert);
 
+  /** @return GTID persistor */
+  Clone_persist_gtid &get_gtid_persistor() { return (m_gtid_persister); }
+
+ private:
   /** Find free index to allocate new clone handle.
   @param[in]	hdl_type	clone handle type
   @param[out]	free_index	free index in array
@@ -1024,6 +1127,9 @@ class Clone_Sys {
 
   /** Clone unique ID generator */
   ib_uint64_t m_clone_id_generator;
+
+  /** GTID persister */
+  Clone_persist_gtid m_gtid_persister;
 };
 
 /** Clone system global */

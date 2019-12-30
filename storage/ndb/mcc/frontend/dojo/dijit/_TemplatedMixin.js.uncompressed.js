@@ -1,4 +1,3 @@
-//>>built
 define("dijit/_TemplatedMixin", [
 	"dojo/_base/lang", // lang.getObject
 	"dojo/touch",
@@ -8,19 +7,12 @@ define("dijit/_TemplatedMixin", [
 	"dojo/_base/array", // array.forEach
 	"dojo/_base/declare", // declare
 	"dojo/dom-construct", // domConstruct.destroy, domConstruct.toDom
-	"dojo/_base/sniff", // has("ie")
-	"dojo/_base/unload", // unload.addOnWindowUnload
-	"dojo/_base/window" // win.doc
-], function(lang, touch, _WidgetBase, string, cache, array, declare, domConstruct, has, unload, win) {
-
-/*=====
-	var _WidgetBase = dijit._WidgetBase;
-=====*/
+	"dojo/sniff", // has("ie")
+	"dojo/_base/unload" // unload.addOnWindowUnload
+], function(lang, touch, _WidgetBase, string, cache, array, declare, domConstruct, has, unload) {
 
 	// module:
 	//		dijit/_TemplatedMixin
-	// summary:
-	//		Mixin for widgets that are instantiated from a template
 
 	var _TemplatedMixin = declare("dijit._TemplatedMixin", null, {
 		// summary:
@@ -55,17 +47,24 @@ define("dijit/_TemplatedMixin", [
 		// _attachPoints: [private] String[]
 		//		List of widget attribute names associated with data-dojo-attach-point=... in the
 		//		template, ex: ["containerNode", "labelNode"]
- 		_attachPoints: [],
- =====*/
+		_attachPoints: [],
 
-/*=====
 		// _attachEvents: [private] Handle[]
 		//		List of connections associated with data-dojo-attach-event=... in the
 		//		template
- 		_attachEvents: [],
+		_attachEvents: [],
  =====*/
 
-		constructor: function(){
+		constructor: function(/*===== params, srcNodeRef =====*/){
+			// summary:
+			//		Create the widget.
+			// params: Object|null
+			//		Hash of initialization parameters for widget, including scalar values (like title, duration etc.)
+			//		and functions, typically callbacks like onClick.
+			//		The hash can contain any of the widget's properties, excluding read-only properties.
+			// srcNodeRef: DOMNode|String?
+			//		If a srcNodeRef (DOM node) is specified, replace srcNodeRef with my generated DOM tree.
+
 			this._attachPoints = [];
 			this._attachEvents = [];
 		},
@@ -105,11 +104,11 @@ define("dijit/_TemplatedMixin", [
 			// Lookup cached version of template, and download to cache if it
 			// isn't there already.  Returns either a DomNode or a string, depending on
 			// whether or not the template contains ${foo} replacement parameters.
-			var cached = _TemplatedMixin.getCachedTemplate(this.templateString, this._skipNodeCache);
+			var cached = _TemplatedMixin.getCachedTemplate(this.templateString, this._skipNodeCache, this.ownerDocument);
 
 			var node;
 			if(lang.isString(cached)){
-				node = domConstruct.toDom(this._stringRepl(cached));
+				node = domConstruct.toDom(this._stringRepl(cached), this.ownerDocument);
 				if(node.nodeType != 1){
 					// Flag common problems such as templates with multiple top level nodes (nodeType == 11)
 					throw new Error("Invalid template: " + cached);
@@ -160,8 +159,9 @@ define("dijit/_TemplatedMixin", [
 			//		Map widget properties and functions to the handlers specified in
 			//		the dom node and it's descendants. This function iterates over all
 			//		nodes and looks for these properties:
-			//			* dojoAttachPoint/data-dojo-attach-point
-			//			* dojoAttachEvent/data-dojo-attach-event
+			//
+			//		- dojoAttachPoint/data-dojo-attach-point
+			//		- dojoAttachEvent/data-dojo-attach-event
 			// rootNode: DomNode|Widget[]
 			//		the node to search for properties. All children will be searched.
 			// getAttrFunc: Function
@@ -172,7 +172,7 @@ define("dijit/_TemplatedMixin", [
 
 			var nodes = lang.isArray(rootNode) ? rootNode : (rootNode.all || rootNode.getElementsByTagName("*"));
 			var x = lang.isArray(rootNode) ? 0 : -1;
-			for(; x<nodes.length; x++){
+			for(; x < 0 || nodes[x]; x++){	// don't access nodes.length on IE, see #14346
 				var baseNode = (x == -1) ? rootNode : nodes[x];
 				if(this.widgetsInTemplate && (getAttrFunc(baseNode, "dojoType") || getAttrFunc(baseNode, "data-dojo-type"))){
 					continue;
@@ -238,7 +238,7 @@ define("dijit/_TemplatedMixin", [
 	// key is templateString; object is either string or DOM tree
 	_TemplatedMixin._templateCache = {};
 
-	_TemplatedMixin.getCachedTemplate = function(templateString, alwaysUseString){
+	_TemplatedMixin.getCachedTemplate = function(templateString, alwaysUseString, doc){
 		// summary:
 		//		Static method to get a template based on the templatePath or
 		//		templateString key
@@ -246,6 +246,8 @@ define("dijit/_TemplatedMixin", [
 		//		The template
 		// alwaysUseString: Boolean
 		//		Don't cache the DOM tree for this template, even if it doesn't have any variables
+		// doc: Document?
+		//		The target document.   Defaults to document global if unspecified.
 		// returns: Mixed
 		//		Either string (if there are ${} variables that need to be replaced) or just
 		//		a DOM tree (if the node can be cloned directly)
@@ -256,8 +258,9 @@ define("dijit/_TemplatedMixin", [
 		var cached = tmplts[key];
 		if(cached){
 			try{
-				// if the cached value is an innerHTML string (no ownerDocument) or a DOM tree created within the current document, then use the current cached value
-				if(!cached.ownerDocument || cached.ownerDocument == win.doc){
+				// if the cached value is an innerHTML string (no ownerDocument) or a DOM tree created within the
+				// current document, then use the current cached value
+				if(!cached.ownerDocument || cached.ownerDocument == (doc || document)){
 					// string or node of the same document
 					return cached;
 				}
@@ -272,7 +275,7 @@ define("dijit/_TemplatedMixin", [
 			return (tmplts[key] = templateString); //String
 		}else{
 			// there are no variables in the template so we can cache the DOM tree
-			var node = domConstruct.toDom(templateString);
+			var node = domConstruct.toDom(templateString, doc);
 			if(node.nodeType != 1){
 				throw new Error("Invalid template: " + templateString);
 			}
@@ -295,8 +298,9 @@ define("dijit/_TemplatedMixin", [
 
 	// These arguments can be specified for widgets which are used in templates.
 	// Since any widget can be specified as sub widgets in template, mix it
-	// into the base widget class.  (This is a hack, but it's effective.)
-	lang.extend(_WidgetBase,{
+	// into the base widget class.  (This is a hack, but it's effective.).
+	// Remove for 2.0.   Also, hide from API doc parser.
+	lang.extend(_WidgetBase, /*===== {} || =====*/ {
 		dojoAttachEvent: "",
 		dojoAttachPoint: ""
 	});

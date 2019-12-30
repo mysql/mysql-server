@@ -17,7 +17,12 @@ _f.fixedFooterHeight=_7.getPadBorderExtents(_d).b;
 _f.resize();
 }
 });
-var _10=_9.around(_d,_b,_c||["below-centered","above-centered","after","before"],this.isLeftToRight());
+if(_c){
+_c=_1.map(_c,function(pos){
+return {after:"after-centered",before:"before-centered"}[pos]||pos;
+});
+}
+var _10=_9.around(_d,_b,_c||["below-centered","above-centered","after-centered","before-centered"],this.isLeftToRight());
 var _11=_e[_10.corner+_10.aroundCorner.charAt(0)]||"";
 _5.add(_d,_11);
 var pos=_7.position(_b,true);

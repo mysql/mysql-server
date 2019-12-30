@@ -14,6 +14,9 @@ include/rpl_gr_wait_for_number_of_members.inc
 # join the group but in read only mode.
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 # Verify that the server 3 joining the group is in super_read_only mode

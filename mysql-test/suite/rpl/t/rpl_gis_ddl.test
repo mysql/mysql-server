@@ -13,9 +13,6 @@
 #      fine and replicates properly.
 #   3. Test the SRID property on a generated column must work fine and
 #      replicate properly.
-#   4. Test that the column with SRID property on a MyISAM table should
-#      only be supported if the SRID represents a cartesian coordinate
-#      system.
 #
 # Creation date: 2017-08-03
 # Author: Pavan Naik
@@ -175,71 +172,6 @@ SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
 
 SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_4326 FROM t1;
-
---echo [Connection Master]
---connection master
-
---echo # Cleanup
-DROP TABLE t1;
-
---source include/sync_slave_sql_with_master.inc
-
---echo # Column with SRID property on a MyISAM table should only be
---echo # supported if the SRID represents a cartesian coordinate system.
-
---echo [Connection Master]
---connection master
-
---error ER_CHECK_NOT_IMPLEMENTED
-CREATE TABLE t1 (col1 POINT, col2 POINT SRID 4326) ENGINE = MyISAM;
-
-CREATE TABLE t1 (col1 POINT, col2 POINT SRID 2000) ENGINE = MyISAM;
-
-INSERT INTO t1(col1, col2)
-  VALUES (ST_GeomFromText('POINT(0 0)'),
-          ST_GeomFromText('POINT(0 0)', 2000));
-
-INSERT INTO t1(col1, col2)
-  VALUES (ST_GeomFromText('POINT(1 1)', 2000),
-          ST_GeomFromText('POINT(1 1)', 2000));
-
---source include/sync_slave_sql_with_master.inc
---echo [Connection Slave]
-
---let $diff_tables = master:t1, slave:t1
---source include/diff_tables.inc
-
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
-
-SELECT ST_SRID(col1) AS no_srid, ST_SRID(col2) AS srid_2000 FROM t1;
-
---echo [Connection Master]
---connection master
-
-DELETE FROM t1;
-
-ALTER TABLE t1 CHANGE COLUMN col1 col1 POINT SRID 2000;
-ALTER TABLE t1 CHANGE COLUMN col2 col2 POINT SRID 0;
-
-INSERT INTO t1(col1, col2)
-  VALUES (ST_GeomFromText('POINT(0 0)', 2000),
-          ST_GeomFromText('POINT(0 0)', 0));
-
-INSERT INTO t1(col1, col2)
-  VALUES (ST_GeomFromText('POINT(1 1)', 2000),
-          ST_GeomFromText('POINT(1 1)', 0));
-
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
-
---source include/sync_slave_sql_with_master.inc
---echo [Connection Slave]
-
---let $diff_tables = master:t1, slave:t1
---source include/diff_tables.inc
-
-SELECT * FROM INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS;
-
-SELECT ST_SRID(col1) AS srid_2000, ST_SRID(col2) AS srid_0 FROM t1;
 
 --echo [Connection Master]
 --connection master

@@ -1,0 +1,1919 @@
+CREATE TABLE t1(
+col1_idx INT DEFAULT NULL,
+col2_idx INT DEFAULT NULL,
+col3 INT DEFAULT NULL,
+col4 INT NOT NULL,
+vc VARCHAR(20),
+vc_ft VARCHAR(20),
+KEY(col1_idx),
+KEY(col2_idx),
+FULLTEXT(vc_ft)
+);
+CREATE TABLE t2(
+col1_idx INT DEFAULT NULL,
+col2_idx INT DEFAULT NULL,
+col3 INT DEFAULT NULL,
+KEY(col1_idx),
+KEY(col2_idx)
+);
+insert into t1 values (1,1,1,1,'america', 'america'),(2,2,2,2,'england','england');
+insert into t1 select col1_idx+2, col2_idx+2, col3+2, col4+2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2, col2_idx+2*2, col3+2*2, col4+2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2, col2_idx+2*2*2, col3+2*2*2, col4+2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2, col2_idx+2*2*2*2, col3+2*2*2*2, col4+2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2*2, col2_idx+2*2*2*2*2, col3+2*2*2*2*2, col4+2*2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx+2*2*2*2*2*2, col2_idx+2*2*2*2*2*2, col3+2*2*2*2*2*2, col4+2*2*2*2*2*2, vc, vc_ft from t1;
+insert into t1 select col1_idx, col2_idx, col3, col4, 'america', 'america' from t1;
+insert into t1 select col1_idx, col2_idx, col3, col4, 'england america', 'england america' from t1;
+insert ignore into t1 select col1_idx, col2_idx, col3, col4, 'germany england america', 'germany england america' from t1;
+Warnings:
+Warning	1265	Data truncated for column 'vc' at row 1
+Warning	1265	Data truncated for column 'vc_ft' at row 1
+Warning	1265	Data truncated for column 'vc' at row 2
+Warning	1265	Data truncated for column 'vc_ft' at row 2
+Warning	1265	Data truncated for column 'vc' at row 3
+Warning	1265	Data truncated for column 'vc_ft' at row 3
+Warning	1265	Data truncated for column 'vc' at row 4
+Warning	1265	Data truncated for column 'vc_ft' at row 4
+Warning	1265	Data truncated for column 'vc' at row 5
+Warning	1265	Data truncated for column 'vc_ft' at row 5
+Warning	1265	Data truncated for column 'vc' at row 6
+Warning	1265	Data truncated for column 'vc_ft' at row 6
+Warning	1265	Data truncated for column 'vc' at row 7
+Warning	1265	Data truncated for column 'vc_ft' at row 7
+Warning	1265	Data truncated for column 'vc' at row 8
+Warning	1265	Data truncated for column 'vc_ft' at row 8
+Warning	1265	Data truncated for column 'vc' at row 9
+Warning	1265	Data truncated for column 'vc_ft' at row 9
+Warning	1265	Data truncated for column 'vc' at row 10
+Warning	1265	Data truncated for column 'vc_ft' at row 10
+Warning	1265	Data truncated for column 'vc' at row 11
+Warning	1265	Data truncated for column 'vc_ft' at row 11
+Warning	1265	Data truncated for column 'vc' at row 12
+Warning	1265	Data truncated for column 'vc_ft' at row 12
+Warning	1265	Data truncated for column 'vc' at row 13
+Warning	1265	Data truncated for column 'vc_ft' at row 13
+Warning	1265	Data truncated for column 'vc' at row 14
+Warning	1265	Data truncated for column 'vc_ft' at row 14
+Warning	1265	Data truncated for column 'vc' at row 15
+Warning	1265	Data truncated for column 'vc_ft' at row 15
+Warning	1265	Data truncated for column 'vc' at row 16
+Warning	1265	Data truncated for column 'vc_ft' at row 16
+Warning	1265	Data truncated for column 'vc' at row 17
+Warning	1265	Data truncated for column 'vc_ft' at row 17
+Warning	1265	Data truncated for column 'vc' at row 18
+Warning	1265	Data truncated for column 'vc_ft' at row 18
+Warning	1265	Data truncated for column 'vc' at row 19
+Warning	1265	Data truncated for column 'vc_ft' at row 19
+Warning	1265	Data truncated for column 'vc' at row 20
+Warning	1265	Data truncated for column 'vc_ft' at row 20
+Warning	1265	Data truncated for column 'vc' at row 21
+Warning	1265	Data truncated for column 'vc_ft' at row 21
+Warning	1265	Data truncated for column 'vc' at row 22
+Warning	1265	Data truncated for column 'vc_ft' at row 22
+Warning	1265	Data truncated for column 'vc' at row 23
+Warning	1265	Data truncated for column 'vc_ft' at row 23
+Warning	1265	Data truncated for column 'vc' at row 24
+Warning	1265	Data truncated for column 'vc_ft' at row 24
+Warning	1265	Data truncated for column 'vc' at row 25
+Warning	1265	Data truncated for column 'vc_ft' at row 25
+Warning	1265	Data truncated for column 'vc' at row 26
+Warning	1265	Data truncated for column 'vc_ft' at row 26
+Warning	1265	Data truncated for column 'vc' at row 27
+Warning	1265	Data truncated for column 'vc_ft' at row 27
+Warning	1265	Data truncated for column 'vc' at row 28
+Warning	1265	Data truncated for column 'vc_ft' at row 28
+Warning	1265	Data truncated for column 'vc' at row 29
+Warning	1265	Data truncated for column 'vc_ft' at row 29
+Warning	1265	Data truncated for column 'vc' at row 30
+Warning	1265	Data truncated for column 'vc_ft' at row 30
+Warning	1265	Data truncated for column 'vc' at row 31
+Warning	1265	Data truncated for column 'vc_ft' at row 31
+Warning	1265	Data truncated for column 'vc' at row 32
+Warning	1265	Data truncated for column 'vc_ft' at row 32
+Warning	1265	Data truncated for column 'vc' at row 33
+Warning	1265	Data truncated for column 'vc_ft' at row 33
+Warning	1265	Data truncated for column 'vc' at row 34
+Warning	1265	Data truncated for column 'vc_ft' at row 34
+Warning	1265	Data truncated for column 'vc' at row 35
+Warning	1265	Data truncated for column 'vc_ft' at row 35
+Warning	1265	Data truncated for column 'vc' at row 36
+Warning	1265	Data truncated for column 'vc_ft' at row 36
+Warning	1265	Data truncated for column 'vc' at row 37
+Warning	1265	Data truncated for column 'vc_ft' at row 37
+Warning	1265	Data truncated for column 'vc' at row 38
+Warning	1265	Data truncated for column 'vc_ft' at row 38
+Warning	1265	Data truncated for column 'vc' at row 39
+Warning	1265	Data truncated for column 'vc_ft' at row 39
+Warning	1265	Data truncated for column 'vc' at row 40
+Warning	1265	Data truncated for column 'vc_ft' at row 40
+Warning	1265	Data truncated for column 'vc' at row 41
+Warning	1265	Data truncated for column 'vc_ft' at row 41
+Warning	1265	Data truncated for column 'vc' at row 42
+Warning	1265	Data truncated for column 'vc_ft' at row 42
+Warning	1265	Data truncated for column 'vc' at row 43
+Warning	1265	Data truncated for column 'vc_ft' at row 43
+Warning	1265	Data truncated for column 'vc' at row 44
+Warning	1265	Data truncated for column 'vc_ft' at row 44
+Warning	1265	Data truncated for column 'vc' at row 45
+Warning	1265	Data truncated for column 'vc_ft' at row 45
+Warning	1265	Data truncated for column 'vc' at row 46
+Warning	1265	Data truncated for column 'vc_ft' at row 46
+Warning	1265	Data truncated for column 'vc' at row 47
+Warning	1265	Data truncated for column 'vc_ft' at row 47
+Warning	1265	Data truncated for column 'vc' at row 48
+Warning	1265	Data truncated for column 'vc_ft' at row 48
+Warning	1265	Data truncated for column 'vc' at row 49
+Warning	1265	Data truncated for column 'vc_ft' at row 49
+Warning	1265	Data truncated for column 'vc' at row 50
+Warning	1265	Data truncated for column 'vc_ft' at row 50
+Warning	1265	Data truncated for column 'vc' at row 51
+Warning	1265	Data truncated for column 'vc_ft' at row 51
+Warning	1265	Data truncated for column 'vc' at row 52
+Warning	1265	Data truncated for column 'vc_ft' at row 52
+Warning	1265	Data truncated for column 'vc' at row 53
+Warning	1265	Data truncated for column 'vc_ft' at row 53
+Warning	1265	Data truncated for column 'vc' at row 54
+Warning	1265	Data truncated for column 'vc_ft' at row 54
+Warning	1265	Data truncated for column 'vc' at row 55
+Warning	1265	Data truncated for column 'vc_ft' at row 55
+Warning	1265	Data truncated for column 'vc' at row 56
+Warning	1265	Data truncated for column 'vc_ft' at row 56
+Warning	1265	Data truncated for column 'vc' at row 57
+Warning	1265	Data truncated for column 'vc_ft' at row 57
+Warning	1265	Data truncated for column 'vc' at row 58
+Warning	1265	Data truncated for column 'vc_ft' at row 58
+Warning	1265	Data truncated for column 'vc' at row 59
+Warning	1265	Data truncated for column 'vc_ft' at row 59
+Warning	1265	Data truncated for column 'vc' at row 60
+Warning	1265	Data truncated for column 'vc_ft' at row 60
+Warning	1265	Data truncated for column 'vc' at row 61
+Warning	1265	Data truncated for column 'vc_ft' at row 61
+Warning	1265	Data truncated for column 'vc' at row 62
+Warning	1265	Data truncated for column 'vc_ft' at row 62
+Warning	1265	Data truncated for column 'vc' at row 63
+Warning	1265	Data truncated for column 'vc_ft' at row 63
+Warning	1265	Data truncated for column 'vc' at row 64
+Warning	1265	Data truncated for column 'vc_ft' at row 64
+Warning	1265	Data truncated for column 'vc' at row 65
+Warning	1265	Data truncated for column 'vc_ft' at row 65
+Warning	1265	Data truncated for column 'vc' at row 66
+Warning	1265	Data truncated for column 'vc_ft' at row 66
+Warning	1265	Data truncated for column 'vc' at row 67
+Warning	1265	Data truncated for column 'vc_ft' at row 67
+Warning	1265	Data truncated for column 'vc' at row 68
+Warning	1265	Data truncated for column 'vc_ft' at row 68
+Warning	1265	Data truncated for column 'vc' at row 69
+Warning	1265	Data truncated for column 'vc_ft' at row 69
+Warning	1265	Data truncated for column 'vc' at row 70
+Warning	1265	Data truncated for column 'vc_ft' at row 70
+Warning	1265	Data truncated for column 'vc' at row 71
+Warning	1265	Data truncated for column 'vc_ft' at row 71
+Warning	1265	Data truncated for column 'vc' at row 72
+Warning	1265	Data truncated for column 'vc_ft' at row 72
+Warning	1265	Data truncated for column 'vc' at row 73
+Warning	1265	Data truncated for column 'vc_ft' at row 73
+Warning	1265	Data truncated for column 'vc' at row 74
+Warning	1265	Data truncated for column 'vc_ft' at row 74
+Warning	1265	Data truncated for column 'vc' at row 75
+Warning	1265	Data truncated for column 'vc_ft' at row 75
+Warning	1265	Data truncated for column 'vc' at row 76
+Warning	1265	Data truncated for column 'vc_ft' at row 76
+Warning	1265	Data truncated for column 'vc' at row 77
+Warning	1265	Data truncated for column 'vc_ft' at row 77
+Warning	1265	Data truncated for column 'vc' at row 78
+Warning	1265	Data truncated for column 'vc_ft' at row 78
+Warning	1265	Data truncated for column 'vc' at row 79
+Warning	1265	Data truncated for column 'vc_ft' at row 79
+Warning	1265	Data truncated for column 'vc' at row 80
+Warning	1265	Data truncated for column 'vc_ft' at row 80
+Warning	1265	Data truncated for column 'vc' at row 81
+Warning	1265	Data truncated for column 'vc_ft' at row 81
+Warning	1265	Data truncated for column 'vc' at row 82
+Warning	1265	Data truncated for column 'vc_ft' at row 82
+Warning	1265	Data truncated for column 'vc' at row 83
+Warning	1265	Data truncated for column 'vc_ft' at row 83
+Warning	1265	Data truncated for column 'vc' at row 84
+Warning	1265	Data truncated for column 'vc_ft' at row 84
+Warning	1265	Data truncated for column 'vc' at row 85
+Warning	1265	Data truncated for column 'vc_ft' at row 85
+Warning	1265	Data truncated for column 'vc' at row 86
+Warning	1265	Data truncated for column 'vc_ft' at row 86
+Warning	1265	Data truncated for column 'vc' at row 87
+Warning	1265	Data truncated for column 'vc_ft' at row 87
+Warning	1265	Data truncated for column 'vc' at row 88
+Warning	1265	Data truncated for column 'vc_ft' at row 88
+Warning	1265	Data truncated for column 'vc' at row 89
+Warning	1265	Data truncated for column 'vc_ft' at row 89
+Warning	1265	Data truncated for column 'vc' at row 90
+Warning	1265	Data truncated for column 'vc_ft' at row 90
+Warning	1265	Data truncated for column 'vc' at row 91
+Warning	1265	Data truncated for column 'vc_ft' at row 91
+Warning	1265	Data truncated for column 'vc' at row 92
+Warning	1265	Data truncated for column 'vc_ft' at row 92
+Warning	1265	Data truncated for column 'vc' at row 93
+Warning	1265	Data truncated for column 'vc_ft' at row 93
+Warning	1265	Data truncated for column 'vc' at row 94
+Warning	1265	Data truncated for column 'vc_ft' at row 94
+Warning	1265	Data truncated for column 'vc' at row 95
+Warning	1265	Data truncated for column 'vc_ft' at row 95
+Warning	1265	Data truncated for column 'vc' at row 96
+Warning	1265	Data truncated for column 'vc_ft' at row 96
+Warning	1265	Data truncated for column 'vc' at row 97
+Warning	1265	Data truncated for column 'vc_ft' at row 97
+Warning	1265	Data truncated for column 'vc' at row 98
+Warning	1265	Data truncated for column 'vc_ft' at row 98
+Warning	1265	Data truncated for column 'vc' at row 99
+Warning	1265	Data truncated for column 'vc_ft' at row 99
+Warning	1265	Data truncated for column 'vc' at row 100
+Warning	1265	Data truncated for column 'vc_ft' at row 100
+Warning	1265	Data truncated for column 'vc' at row 101
+Warning	1265	Data truncated for column 'vc_ft' at row 101
+Warning	1265	Data truncated for column 'vc' at row 102
+Warning	1265	Data truncated for column 'vc_ft' at row 102
+Warning	1265	Data truncated for column 'vc' at row 103
+Warning	1265	Data truncated for column 'vc_ft' at row 103
+Warning	1265	Data truncated for column 'vc' at row 104
+Warning	1265	Data truncated for column 'vc_ft' at row 104
+Warning	1265	Data truncated for column 'vc' at row 105
+Warning	1265	Data truncated for column 'vc_ft' at row 105
+Warning	1265	Data truncated for column 'vc' at row 106
+Warning	1265	Data truncated for column 'vc_ft' at row 106
+Warning	1265	Data truncated for column 'vc' at row 107
+Warning	1265	Data truncated for column 'vc_ft' at row 107
+Warning	1265	Data truncated for column 'vc' at row 108
+Warning	1265	Data truncated for column 'vc_ft' at row 108
+Warning	1265	Data truncated for column 'vc' at row 109
+Warning	1265	Data truncated for column 'vc_ft' at row 109
+Warning	1265	Data truncated for column 'vc' at row 110
+Warning	1265	Data truncated for column 'vc_ft' at row 110
+Warning	1265	Data truncated for column 'vc' at row 111
+Warning	1265	Data truncated for column 'vc_ft' at row 111
+Warning	1265	Data truncated for column 'vc' at row 112
+Warning	1265	Data truncated for column 'vc_ft' at row 112
+Warning	1265	Data truncated for column 'vc' at row 113
+Warning	1265	Data truncated for column 'vc_ft' at row 113
+Warning	1265	Data truncated for column 'vc' at row 114
+Warning	1265	Data truncated for column 'vc_ft' at row 114
+Warning	1265	Data truncated for column 'vc' at row 115
+Warning	1265	Data truncated for column 'vc_ft' at row 115
+Warning	1265	Data truncated for column 'vc' at row 116
+Warning	1265	Data truncated for column 'vc_ft' at row 116
+Warning	1265	Data truncated for column 'vc' at row 117
+Warning	1265	Data truncated for column 'vc_ft' at row 117
+Warning	1265	Data truncated for column 'vc' at row 118
+Warning	1265	Data truncated for column 'vc_ft' at row 118
+Warning	1265	Data truncated for column 'vc' at row 119
+Warning	1265	Data truncated for column 'vc_ft' at row 119
+Warning	1265	Data truncated for column 'vc' at row 120
+Warning	1265	Data truncated for column 'vc_ft' at row 120
+Warning	1265	Data truncated for column 'vc' at row 121
+Warning	1265	Data truncated for column 'vc_ft' at row 121
+Warning	1265	Data truncated for column 'vc' at row 122
+Warning	1265	Data truncated for column 'vc_ft' at row 122
+Warning	1265	Data truncated for column 'vc' at row 123
+Warning	1265	Data truncated for column 'vc_ft' at row 123
+Warning	1265	Data truncated for column 'vc' at row 124
+Warning	1265	Data truncated for column 'vc_ft' at row 124
+Warning	1265	Data truncated for column 'vc' at row 125
+Warning	1265	Data truncated for column 'vc_ft' at row 125
+Warning	1265	Data truncated for column 'vc' at row 126
+Warning	1265	Data truncated for column 'vc_ft' at row 126
+Warning	1265	Data truncated for column 'vc' at row 127
+Warning	1265	Data truncated for column 'vc_ft' at row 127
+Warning	1265	Data truncated for column 'vc' at row 128
+Warning	1265	Data truncated for column 'vc_ft' at row 128
+Warning	1265	Data truncated for column 'vc' at row 129
+Warning	1265	Data truncated for column 'vc_ft' at row 129
+Warning	1265	Data truncated for column 'vc' at row 130
+Warning	1265	Data truncated for column 'vc_ft' at row 130
+Warning	1265	Data truncated for column 'vc' at row 131
+Warning	1265	Data truncated for column 'vc_ft' at row 131
+Warning	1265	Data truncated for column 'vc' at row 132
+Warning	1265	Data truncated for column 'vc_ft' at row 132
+Warning	1265	Data truncated for column 'vc' at row 133
+Warning	1265	Data truncated for column 'vc_ft' at row 133
+Warning	1265	Data truncated for column 'vc' at row 134
+Warning	1265	Data truncated for column 'vc_ft' at row 134
+Warning	1265	Data truncated for column 'vc' at row 135
+Warning	1265	Data truncated for column 'vc_ft' at row 135
+Warning	1265	Data truncated for column 'vc' at row 136
+Warning	1265	Data truncated for column 'vc_ft' at row 136
+Warning	1265	Data truncated for column 'vc' at row 137
+Warning	1265	Data truncated for column 'vc_ft' at row 137
+Warning	1265	Data truncated for column 'vc' at row 138
+Warning	1265	Data truncated for column 'vc_ft' at row 138
+Warning	1265	Data truncated for column 'vc' at row 139
+Warning	1265	Data truncated for column 'vc_ft' at row 139
+Warning	1265	Data truncated for column 'vc' at row 140
+Warning	1265	Data truncated for column 'vc_ft' at row 140
+Warning	1265	Data truncated for column 'vc' at row 141
+Warning	1265	Data truncated for column 'vc_ft' at row 141
+Warning	1265	Data truncated for column 'vc' at row 142
+Warning	1265	Data truncated for column 'vc_ft' at row 142
+Warning	1265	Data truncated for column 'vc' at row 143
+Warning	1265	Data truncated for column 'vc_ft' at row 143
+Warning	1265	Data truncated for column 'vc' at row 144
+Warning	1265	Data truncated for column 'vc_ft' at row 144
+Warning	1265	Data truncated for column 'vc' at row 145
+Warning	1265	Data truncated for column 'vc_ft' at row 145
+Warning	1265	Data truncated for column 'vc' at row 146
+Warning	1265	Data truncated for column 'vc_ft' at row 146
+Warning	1265	Data truncated for column 'vc' at row 147
+Warning	1265	Data truncated for column 'vc_ft' at row 147
+Warning	1265	Data truncated for column 'vc' at row 148
+Warning	1265	Data truncated for column 'vc_ft' at row 148
+Warning	1265	Data truncated for column 'vc' at row 149
+Warning	1265	Data truncated for column 'vc_ft' at row 149
+Warning	1265	Data truncated for column 'vc' at row 150
+Warning	1265	Data truncated for column 'vc_ft' at row 150
+Warning	1265	Data truncated for column 'vc' at row 151
+Warning	1265	Data truncated for column 'vc_ft' at row 151
+Warning	1265	Data truncated for column 'vc' at row 152
+Warning	1265	Data truncated for column 'vc_ft' at row 152
+Warning	1265	Data truncated for column 'vc' at row 153
+Warning	1265	Data truncated for column 'vc_ft' at row 153
+Warning	1265	Data truncated for column 'vc' at row 154
+Warning	1265	Data truncated for column 'vc_ft' at row 154
+Warning	1265	Data truncated for column 'vc' at row 155
+Warning	1265	Data truncated for column 'vc_ft' at row 155
+Warning	1265	Data truncated for column 'vc' at row 156
+Warning	1265	Data truncated for column 'vc_ft' at row 156
+Warning	1265	Data truncated for column 'vc' at row 157
+Warning	1265	Data truncated for column 'vc_ft' at row 157
+Warning	1265	Data truncated for column 'vc' at row 158
+Warning	1265	Data truncated for column 'vc_ft' at row 158
+Warning	1265	Data truncated for column 'vc' at row 159
+Warning	1265	Data truncated for column 'vc_ft' at row 159
+Warning	1265	Data truncated for column 'vc' at row 160
+Warning	1265	Data truncated for column 'vc_ft' at row 160
+Warning	1265	Data truncated for column 'vc' at row 161
+Warning	1265	Data truncated for column 'vc_ft' at row 161
+Warning	1265	Data truncated for column 'vc' at row 162
+Warning	1265	Data truncated for column 'vc_ft' at row 162
+Warning	1265	Data truncated for column 'vc' at row 163
+Warning	1265	Data truncated for column 'vc_ft' at row 163
+Warning	1265	Data truncated for column 'vc' at row 164
+Warning	1265	Data truncated for column 'vc_ft' at row 164
+Warning	1265	Data truncated for column 'vc' at row 165
+Warning	1265	Data truncated for column 'vc_ft' at row 165
+Warning	1265	Data truncated for column 'vc' at row 166
+Warning	1265	Data truncated for column 'vc_ft' at row 166
+Warning	1265	Data truncated for column 'vc' at row 167
+Warning	1265	Data truncated for column 'vc_ft' at row 167
+Warning	1265	Data truncated for column 'vc' at row 168
+Warning	1265	Data truncated for column 'vc_ft' at row 168
+Warning	1265	Data truncated for column 'vc' at row 169
+Warning	1265	Data truncated for column 'vc_ft' at row 169
+Warning	1265	Data truncated for column 'vc' at row 170
+Warning	1265	Data truncated for column 'vc_ft' at row 170
+Warning	1265	Data truncated for column 'vc' at row 171
+Warning	1265	Data truncated for column 'vc_ft' at row 171
+Warning	1265	Data truncated for column 'vc' at row 172
+Warning	1265	Data truncated for column 'vc_ft' at row 172
+Warning	1265	Data truncated for column 'vc' at row 173
+Warning	1265	Data truncated for column 'vc_ft' at row 173
+Warning	1265	Data truncated for column 'vc' at row 174
+Warning	1265	Data truncated for column 'vc_ft' at row 174
+Warning	1265	Data truncated for column 'vc' at row 175
+Warning	1265	Data truncated for column 'vc_ft' at row 175
+Warning	1265	Data truncated for column 'vc' at row 176
+Warning	1265	Data truncated for column 'vc_ft' at row 176
+Warning	1265	Data truncated for column 'vc' at row 177
+Warning	1265	Data truncated for column 'vc_ft' at row 177
+Warning	1265	Data truncated for column 'vc' at row 178
+Warning	1265	Data truncated for column 'vc_ft' at row 178
+Warning	1265	Data truncated for column 'vc' at row 179
+Warning	1265	Data truncated for column 'vc_ft' at row 179
+Warning	1265	Data truncated for column 'vc' at row 180
+Warning	1265	Data truncated for column 'vc_ft' at row 180
+Warning	1265	Data truncated for column 'vc' at row 181
+Warning	1265	Data truncated for column 'vc_ft' at row 181
+Warning	1265	Data truncated for column 'vc' at row 182
+Warning	1265	Data truncated for column 'vc_ft' at row 182
+Warning	1265	Data truncated for column 'vc' at row 183
+Warning	1265	Data truncated for column 'vc_ft' at row 183
+Warning	1265	Data truncated for column 'vc' at row 184
+Warning	1265	Data truncated for column 'vc_ft' at row 184
+Warning	1265	Data truncated for column 'vc' at row 185
+Warning	1265	Data truncated for column 'vc_ft' at row 185
+Warning	1265	Data truncated for column 'vc' at row 186
+Warning	1265	Data truncated for column 'vc_ft' at row 186
+Warning	1265	Data truncated for column 'vc' at row 187
+Warning	1265	Data truncated for column 'vc_ft' at row 187
+Warning	1265	Data truncated for column 'vc' at row 188
+Warning	1265	Data truncated for column 'vc_ft' at row 188
+Warning	1265	Data truncated for column 'vc' at row 189
+Warning	1265	Data truncated for column 'vc_ft' at row 189
+Warning	1265	Data truncated for column 'vc' at row 190
+Warning	1265	Data truncated for column 'vc_ft' at row 190
+Warning	1265	Data truncated for column 'vc' at row 191
+Warning	1265	Data truncated for column 'vc_ft' at row 191
+Warning	1265	Data truncated for column 'vc' at row 192
+Warning	1265	Data truncated for column 'vc_ft' at row 192
+Warning	1265	Data truncated for column 'vc' at row 193
+Warning	1265	Data truncated for column 'vc_ft' at row 193
+Warning	1265	Data truncated for column 'vc' at row 194
+Warning	1265	Data truncated for column 'vc_ft' at row 194
+Warning	1265	Data truncated for column 'vc' at row 195
+Warning	1265	Data truncated for column 'vc_ft' at row 195
+Warning	1265	Data truncated for column 'vc' at row 196
+Warning	1265	Data truncated for column 'vc_ft' at row 196
+Warning	1265	Data truncated for column 'vc' at row 197
+Warning	1265	Data truncated for column 'vc_ft' at row 197
+Warning	1265	Data truncated for column 'vc' at row 198
+Warning	1265	Data truncated for column 'vc_ft' at row 198
+Warning	1265	Data truncated for column 'vc' at row 199
+Warning	1265	Data truncated for column 'vc_ft' at row 199
+Warning	1265	Data truncated for column 'vc' at row 200
+Warning	1265	Data truncated for column 'vc_ft' at row 200
+Warning	1265	Data truncated for column 'vc' at row 201
+Warning	1265	Data truncated for column 'vc_ft' at row 201
+Warning	1265	Data truncated for column 'vc' at row 202
+Warning	1265	Data truncated for column 'vc_ft' at row 202
+Warning	1265	Data truncated for column 'vc' at row 203
+Warning	1265	Data truncated for column 'vc_ft' at row 203
+Warning	1265	Data truncated for column 'vc' at row 204
+Warning	1265	Data truncated for column 'vc_ft' at row 204
+Warning	1265	Data truncated for column 'vc' at row 205
+Warning	1265	Data truncated for column 'vc_ft' at row 205
+Warning	1265	Data truncated for column 'vc' at row 206
+Warning	1265	Data truncated for column 'vc_ft' at row 206
+Warning	1265	Data truncated for column 'vc' at row 207
+Warning	1265	Data truncated for column 'vc_ft' at row 207
+Warning	1265	Data truncated for column 'vc' at row 208
+Warning	1265	Data truncated for column 'vc_ft' at row 208
+Warning	1265	Data truncated for column 'vc' at row 209
+Warning	1265	Data truncated for column 'vc_ft' at row 209
+Warning	1265	Data truncated for column 'vc' at row 210
+Warning	1265	Data truncated for column 'vc_ft' at row 210
+Warning	1265	Data truncated for column 'vc' at row 211
+Warning	1265	Data truncated for column 'vc_ft' at row 211
+Warning	1265	Data truncated for column 'vc' at row 212
+Warning	1265	Data truncated for column 'vc_ft' at row 212
+Warning	1265	Data truncated for column 'vc' at row 213
+Warning	1265	Data truncated for column 'vc_ft' at row 213
+Warning	1265	Data truncated for column 'vc' at row 214
+Warning	1265	Data truncated for column 'vc_ft' at row 214
+Warning	1265	Data truncated for column 'vc' at row 215
+Warning	1265	Data truncated for column 'vc_ft' at row 215
+Warning	1265	Data truncated for column 'vc' at row 216
+Warning	1265	Data truncated for column 'vc_ft' at row 216
+Warning	1265	Data truncated for column 'vc' at row 217
+Warning	1265	Data truncated for column 'vc_ft' at row 217
+Warning	1265	Data truncated for column 'vc' at row 218
+Warning	1265	Data truncated for column 'vc_ft' at row 218
+Warning	1265	Data truncated for column 'vc' at row 219
+Warning	1265	Data truncated for column 'vc_ft' at row 219
+Warning	1265	Data truncated for column 'vc' at row 220
+Warning	1265	Data truncated for column 'vc_ft' at row 220
+Warning	1265	Data truncated for column 'vc' at row 221
+Warning	1265	Data truncated for column 'vc_ft' at row 221
+Warning	1265	Data truncated for column 'vc' at row 222
+Warning	1265	Data truncated for column 'vc_ft' at row 222
+Warning	1265	Data truncated for column 'vc' at row 223
+Warning	1265	Data truncated for column 'vc_ft' at row 223
+Warning	1265	Data truncated for column 'vc' at row 224
+Warning	1265	Data truncated for column 'vc_ft' at row 224
+Warning	1265	Data truncated for column 'vc' at row 225
+Warning	1265	Data truncated for column 'vc_ft' at row 225
+Warning	1265	Data truncated for column 'vc' at row 226
+Warning	1265	Data truncated for column 'vc_ft' at row 226
+Warning	1265	Data truncated for column 'vc' at row 227
+Warning	1265	Data truncated for column 'vc_ft' at row 227
+Warning	1265	Data truncated for column 'vc' at row 228
+Warning	1265	Data truncated for column 'vc_ft' at row 228
+Warning	1265	Data truncated for column 'vc' at row 229
+Warning	1265	Data truncated for column 'vc_ft' at row 229
+Warning	1265	Data truncated for column 'vc' at row 230
+Warning	1265	Data truncated for column 'vc_ft' at row 230
+Warning	1265	Data truncated for column 'vc' at row 231
+Warning	1265	Data truncated for column 'vc_ft' at row 231
+Warning	1265	Data truncated for column 'vc' at row 232
+Warning	1265	Data truncated for column 'vc_ft' at row 232
+Warning	1265	Data truncated for column 'vc' at row 233
+Warning	1265	Data truncated for column 'vc_ft' at row 233
+Warning	1265	Data truncated for column 'vc' at row 234
+Warning	1265	Data truncated for column 'vc_ft' at row 234
+Warning	1265	Data truncated for column 'vc' at row 235
+Warning	1265	Data truncated for column 'vc_ft' at row 235
+Warning	1265	Data truncated for column 'vc' at row 236
+Warning	1265	Data truncated for column 'vc_ft' at row 236
+Warning	1265	Data truncated for column 'vc' at row 237
+Warning	1265	Data truncated for column 'vc_ft' at row 237
+Warning	1265	Data truncated for column 'vc' at row 238
+Warning	1265	Data truncated for column 'vc_ft' at row 238
+Warning	1265	Data truncated for column 'vc' at row 239
+Warning	1265	Data truncated for column 'vc_ft' at row 239
+Warning	1265	Data truncated for column 'vc' at row 240
+Warning	1265	Data truncated for column 'vc_ft' at row 240
+Warning	1265	Data truncated for column 'vc' at row 241
+Warning	1265	Data truncated for column 'vc_ft' at row 241
+Warning	1265	Data truncated for column 'vc' at row 242
+Warning	1265	Data truncated for column 'vc_ft' at row 242
+Warning	1265	Data truncated for column 'vc' at row 243
+Warning	1265	Data truncated for column 'vc_ft' at row 243
+Warning	1265	Data truncated for column 'vc' at row 244
+Warning	1265	Data truncated for column 'vc_ft' at row 244
+Warning	1265	Data truncated for column 'vc' at row 245
+Warning	1265	Data truncated for column 'vc_ft' at row 245
+Warning	1265	Data truncated for column 'vc' at row 246
+Warning	1265	Data truncated for column 'vc_ft' at row 246
+Warning	1265	Data truncated for column 'vc' at row 247
+Warning	1265	Data truncated for column 'vc_ft' at row 247
+Warning	1265	Data truncated for column 'vc' at row 248
+Warning	1265	Data truncated for column 'vc_ft' at row 248
+Warning	1265	Data truncated for column 'vc' at row 249
+Warning	1265	Data truncated for column 'vc_ft' at row 249
+Warning	1265	Data truncated for column 'vc' at row 250
+Warning	1265	Data truncated for column 'vc_ft' at row 250
+Warning	1265	Data truncated for column 'vc' at row 251
+Warning	1265	Data truncated for column 'vc_ft' at row 251
+Warning	1265	Data truncated for column 'vc' at row 252
+Warning	1265	Data truncated for column 'vc_ft' at row 252
+Warning	1265	Data truncated for column 'vc' at row 253
+Warning	1265	Data truncated for column 'vc_ft' at row 253
+Warning	1265	Data truncated for column 'vc' at row 254
+Warning	1265	Data truncated for column 'vc_ft' at row 254
+Warning	1265	Data truncated for column 'vc' at row 255
+Warning	1265	Data truncated for column 'vc_ft' at row 255
+Warning	1265	Data truncated for column 'vc' at row 256
+Warning	1265	Data truncated for column 'vc_ft' at row 256
+Warning	1265	Data truncated for column 'vc' at row 257
+Warning	1265	Data truncated for column 'vc_ft' at row 257
+Warning	1265	Data truncated for column 'vc' at row 258
+Warning	1265	Data truncated for column 'vc_ft' at row 258
+Warning	1265	Data truncated for column 'vc' at row 259
+Warning	1265	Data truncated for column 'vc_ft' at row 259
+Warning	1265	Data truncated for column 'vc' at row 260
+Warning	1265	Data truncated for column 'vc_ft' at row 260
+Warning	1265	Data truncated for column 'vc' at row 261
+Warning	1265	Data truncated for column 'vc_ft' at row 261
+Warning	1265	Data truncated for column 'vc' at row 262
+Warning	1265	Data truncated for column 'vc_ft' at row 262
+Warning	1265	Data truncated for column 'vc' at row 263
+Warning	1265	Data truncated for column 'vc_ft' at row 263
+Warning	1265	Data truncated for column 'vc' at row 264
+Warning	1265	Data truncated for column 'vc_ft' at row 264
+Warning	1265	Data truncated for column 'vc' at row 265
+Warning	1265	Data truncated for column 'vc_ft' at row 265
+Warning	1265	Data truncated for column 'vc' at row 266
+Warning	1265	Data truncated for column 'vc_ft' at row 266
+Warning	1265	Data truncated for column 'vc' at row 267
+Warning	1265	Data truncated for column 'vc_ft' at row 267
+Warning	1265	Data truncated for column 'vc' at row 268
+Warning	1265	Data truncated for column 'vc_ft' at row 268
+Warning	1265	Data truncated for column 'vc' at row 269
+Warning	1265	Data truncated for column 'vc_ft' at row 269
+Warning	1265	Data truncated for column 'vc' at row 270
+Warning	1265	Data truncated for column 'vc_ft' at row 270
+Warning	1265	Data truncated for column 'vc' at row 271
+Warning	1265	Data truncated for column 'vc_ft' at row 271
+Warning	1265	Data truncated for column 'vc' at row 272
+Warning	1265	Data truncated for column 'vc_ft' at row 272
+Warning	1265	Data truncated for column 'vc' at row 273
+Warning	1265	Data truncated for column 'vc_ft' at row 273
+Warning	1265	Data truncated for column 'vc' at row 274
+Warning	1265	Data truncated for column 'vc_ft' at row 274
+Warning	1265	Data truncated for column 'vc' at row 275
+Warning	1265	Data truncated for column 'vc_ft' at row 275
+Warning	1265	Data truncated for column 'vc' at row 276
+Warning	1265	Data truncated for column 'vc_ft' at row 276
+Warning	1265	Data truncated for column 'vc' at row 277
+Warning	1265	Data truncated for column 'vc_ft' at row 277
+Warning	1265	Data truncated for column 'vc' at row 278
+Warning	1265	Data truncated for column 'vc_ft' at row 278
+Warning	1265	Data truncated for column 'vc' at row 279
+Warning	1265	Data truncated for column 'vc_ft' at row 279
+Warning	1265	Data truncated for column 'vc' at row 280
+Warning	1265	Data truncated for column 'vc_ft' at row 280
+Warning	1265	Data truncated for column 'vc' at row 281
+Warning	1265	Data truncated for column 'vc_ft' at row 281
+Warning	1265	Data truncated for column 'vc' at row 282
+Warning	1265	Data truncated for column 'vc_ft' at row 282
+Warning	1265	Data truncated for column 'vc' at row 283
+Warning	1265	Data truncated for column 'vc_ft' at row 283
+Warning	1265	Data truncated for column 'vc' at row 284
+Warning	1265	Data truncated for column 'vc_ft' at row 284
+Warning	1265	Data truncated for column 'vc' at row 285
+Warning	1265	Data truncated for column 'vc_ft' at row 285
+Warning	1265	Data truncated for column 'vc' at row 286
+Warning	1265	Data truncated for column 'vc_ft' at row 286
+Warning	1265	Data truncated for column 'vc' at row 287
+Warning	1265	Data truncated for column 'vc_ft' at row 287
+Warning	1265	Data truncated for column 'vc' at row 288
+Warning	1265	Data truncated for column 'vc_ft' at row 288
+Warning	1265	Data truncated for column 'vc' at row 289
+Warning	1265	Data truncated for column 'vc_ft' at row 289
+Warning	1265	Data truncated for column 'vc' at row 290
+Warning	1265	Data truncated for column 'vc_ft' at row 290
+Warning	1265	Data truncated for column 'vc' at row 291
+Warning	1265	Data truncated for column 'vc_ft' at row 291
+Warning	1265	Data truncated for column 'vc' at row 292
+Warning	1265	Data truncated for column 'vc_ft' at row 292
+Warning	1265	Data truncated for column 'vc' at row 293
+Warning	1265	Data truncated for column 'vc_ft' at row 293
+Warning	1265	Data truncated for column 'vc' at row 294
+Warning	1265	Data truncated for column 'vc_ft' at row 294
+Warning	1265	Data truncated for column 'vc' at row 295
+Warning	1265	Data truncated for column 'vc_ft' at row 295
+Warning	1265	Data truncated for column 'vc' at row 296
+Warning	1265	Data truncated for column 'vc_ft' at row 296
+Warning	1265	Data truncated for column 'vc' at row 297
+Warning	1265	Data truncated for column 'vc_ft' at row 297
+Warning	1265	Data truncated for column 'vc' at row 298
+Warning	1265	Data truncated for column 'vc_ft' at row 298
+Warning	1265	Data truncated for column 'vc' at row 299
+Warning	1265	Data truncated for column 'vc_ft' at row 299
+Warning	1265	Data truncated for column 'vc' at row 300
+Warning	1265	Data truncated for column 'vc_ft' at row 300
+Warning	1265	Data truncated for column 'vc' at row 301
+Warning	1265	Data truncated for column 'vc_ft' at row 301
+Warning	1265	Data truncated for column 'vc' at row 302
+Warning	1265	Data truncated for column 'vc_ft' at row 302
+Warning	1265	Data truncated for column 'vc' at row 303
+Warning	1265	Data truncated for column 'vc_ft' at row 303
+Warning	1265	Data truncated for column 'vc' at row 304
+Warning	1265	Data truncated for column 'vc_ft' at row 304
+Warning	1265	Data truncated for column 'vc' at row 305
+Warning	1265	Data truncated for column 'vc_ft' at row 305
+Warning	1265	Data truncated for column 'vc' at row 306
+Warning	1265	Data truncated for column 'vc_ft' at row 306
+Warning	1265	Data truncated for column 'vc' at row 307
+Warning	1265	Data truncated for column 'vc_ft' at row 307
+Warning	1265	Data truncated for column 'vc' at row 308
+Warning	1265	Data truncated for column 'vc_ft' at row 308
+Warning	1265	Data truncated for column 'vc' at row 309
+Warning	1265	Data truncated for column 'vc_ft' at row 309
+Warning	1265	Data truncated for column 'vc' at row 310
+Warning	1265	Data truncated for column 'vc_ft' at row 310
+Warning	1265	Data truncated for column 'vc' at row 311
+Warning	1265	Data truncated for column 'vc_ft' at row 311
+Warning	1265	Data truncated for column 'vc' at row 312
+Warning	1265	Data truncated for column 'vc_ft' at row 312
+Warning	1265	Data truncated for column 'vc' at row 313
+Warning	1265	Data truncated for column 'vc_ft' at row 313
+Warning	1265	Data truncated for column 'vc' at row 314
+Warning	1265	Data truncated for column 'vc_ft' at row 314
+Warning	1265	Data truncated for column 'vc' at row 315
+Warning	1265	Data truncated for column 'vc_ft' at row 315
+Warning	1265	Data truncated for column 'vc' at row 316
+Warning	1265	Data truncated for column 'vc_ft' at row 316
+Warning	1265	Data truncated for column 'vc' at row 317
+Warning	1265	Data truncated for column 'vc_ft' at row 317
+Warning	1265	Data truncated for column 'vc' at row 318
+Warning	1265	Data truncated for column 'vc_ft' at row 318
+Warning	1265	Data truncated for column 'vc' at row 319
+Warning	1265	Data truncated for column 'vc_ft' at row 319
+Warning	1265	Data truncated for column 'vc' at row 320
+Warning	1265	Data truncated for column 'vc_ft' at row 320
+Warning	1265	Data truncated for column 'vc' at row 321
+Warning	1265	Data truncated for column 'vc_ft' at row 321
+Warning	1265	Data truncated for column 'vc' at row 322
+Warning	1265	Data truncated for column 'vc_ft' at row 322
+Warning	1265	Data truncated for column 'vc' at row 323
+Warning	1265	Data truncated for column 'vc_ft' at row 323
+Warning	1265	Data truncated for column 'vc' at row 324
+Warning	1265	Data truncated for column 'vc_ft' at row 324
+Warning	1265	Data truncated for column 'vc' at row 325
+Warning	1265	Data truncated for column 'vc_ft' at row 325
+Warning	1265	Data truncated for column 'vc' at row 326
+Warning	1265	Data truncated for column 'vc_ft' at row 326
+Warning	1265	Data truncated for column 'vc' at row 327
+Warning	1265	Data truncated for column 'vc_ft' at row 327
+Warning	1265	Data truncated for column 'vc' at row 328
+Warning	1265	Data truncated for column 'vc_ft' at row 328
+Warning	1265	Data truncated for column 'vc' at row 329
+Warning	1265	Data truncated for column 'vc_ft' at row 329
+Warning	1265	Data truncated for column 'vc' at row 330
+Warning	1265	Data truncated for column 'vc_ft' at row 330
+Warning	1265	Data truncated for column 'vc' at row 331
+Warning	1265	Data truncated for column 'vc_ft' at row 331
+Warning	1265	Data truncated for column 'vc' at row 332
+Warning	1265	Data truncated for column 'vc_ft' at row 332
+Warning	1265	Data truncated for column 'vc' at row 333
+Warning	1265	Data truncated for column 'vc_ft' at row 333
+Warning	1265	Data truncated for column 'vc' at row 334
+Warning	1265	Data truncated for column 'vc_ft' at row 334
+Warning	1265	Data truncated for column 'vc' at row 335
+Warning	1265	Data truncated for column 'vc_ft' at row 335
+Warning	1265	Data truncated for column 'vc' at row 336
+Warning	1265	Data truncated for column 'vc_ft' at row 336
+Warning	1265	Data truncated for column 'vc' at row 337
+Warning	1265	Data truncated for column 'vc_ft' at row 337
+Warning	1265	Data truncated for column 'vc' at row 338
+Warning	1265	Data truncated for column 'vc_ft' at row 338
+Warning	1265	Data truncated for column 'vc' at row 339
+Warning	1265	Data truncated for column 'vc_ft' at row 339
+Warning	1265	Data truncated for column 'vc' at row 340
+Warning	1265	Data truncated for column 'vc_ft' at row 340
+Warning	1265	Data truncated for column 'vc' at row 341
+Warning	1265	Data truncated for column 'vc_ft' at row 341
+Warning	1265	Data truncated for column 'vc' at row 342
+Warning	1265	Data truncated for column 'vc_ft' at row 342
+Warning	1265	Data truncated for column 'vc' at row 343
+Warning	1265	Data truncated for column 'vc_ft' at row 343
+Warning	1265	Data truncated for column 'vc' at row 344
+Warning	1265	Data truncated for column 'vc_ft' at row 344
+Warning	1265	Data truncated for column 'vc' at row 345
+Warning	1265	Data truncated for column 'vc_ft' at row 345
+Warning	1265	Data truncated for column 'vc' at row 346
+Warning	1265	Data truncated for column 'vc_ft' at row 346
+Warning	1265	Data truncated for column 'vc' at row 347
+Warning	1265	Data truncated for column 'vc_ft' at row 347
+Warning	1265	Data truncated for column 'vc' at row 348
+Warning	1265	Data truncated for column 'vc_ft' at row 348
+Warning	1265	Data truncated for column 'vc' at row 349
+Warning	1265	Data truncated for column 'vc_ft' at row 349
+Warning	1265	Data truncated for column 'vc' at row 350
+Warning	1265	Data truncated for column 'vc_ft' at row 350
+Warning	1265	Data truncated for column 'vc' at row 351
+Warning	1265	Data truncated for column 'vc_ft' at row 351
+Warning	1265	Data truncated for column 'vc' at row 352
+Warning	1265	Data truncated for column 'vc_ft' at row 352
+Warning	1265	Data truncated for column 'vc' at row 353
+Warning	1265	Data truncated for column 'vc_ft' at row 353
+Warning	1265	Data truncated for column 'vc' at row 354
+Warning	1265	Data truncated for column 'vc_ft' at row 354
+Warning	1265	Data truncated for column 'vc' at row 355
+Warning	1265	Data truncated for column 'vc_ft' at row 355
+Warning	1265	Data truncated for column 'vc' at row 356
+Warning	1265	Data truncated for column 'vc_ft' at row 356
+Warning	1265	Data truncated for column 'vc' at row 357
+Warning	1265	Data truncated for column 'vc_ft' at row 357
+Warning	1265	Data truncated for column 'vc' at row 358
+Warning	1265	Data truncated for column 'vc_ft' at row 358
+Warning	1265	Data truncated for column 'vc' at row 359
+Warning	1265	Data truncated for column 'vc_ft' at row 359
+Warning	1265	Data truncated for column 'vc' at row 360
+Warning	1265	Data truncated for column 'vc_ft' at row 360
+Warning	1265	Data truncated for column 'vc' at row 361
+Warning	1265	Data truncated for column 'vc_ft' at row 361
+Warning	1265	Data truncated for column 'vc' at row 362
+Warning	1265	Data truncated for column 'vc_ft' at row 362
+Warning	1265	Data truncated for column 'vc' at row 363
+Warning	1265	Data truncated for column 'vc_ft' at row 363
+Warning	1265	Data truncated for column 'vc' at row 364
+Warning	1265	Data truncated for column 'vc_ft' at row 364
+Warning	1265	Data truncated for column 'vc' at row 365
+Warning	1265	Data truncated for column 'vc_ft' at row 365
+Warning	1265	Data truncated for column 'vc' at row 366
+Warning	1265	Data truncated for column 'vc_ft' at row 366
+Warning	1265	Data truncated for column 'vc' at row 367
+Warning	1265	Data truncated for column 'vc_ft' at row 367
+Warning	1265	Data truncated for column 'vc' at row 368
+Warning	1265	Data truncated for column 'vc_ft' at row 368
+Warning	1265	Data truncated for column 'vc' at row 369
+Warning	1265	Data truncated for column 'vc_ft' at row 369
+Warning	1265	Data truncated for column 'vc' at row 370
+Warning	1265	Data truncated for column 'vc_ft' at row 370
+Warning	1265	Data truncated for column 'vc' at row 371
+Warning	1265	Data truncated for column 'vc_ft' at row 371
+Warning	1265	Data truncated for column 'vc' at row 372
+Warning	1265	Data truncated for column 'vc_ft' at row 372
+Warning	1265	Data truncated for column 'vc' at row 373
+Warning	1265	Data truncated for column 'vc_ft' at row 373
+Warning	1265	Data truncated for column 'vc' at row 374
+Warning	1265	Data truncated for column 'vc_ft' at row 374
+Warning	1265	Data truncated for column 'vc' at row 375
+Warning	1265	Data truncated for column 'vc_ft' at row 375
+Warning	1265	Data truncated for column 'vc' at row 376
+Warning	1265	Data truncated for column 'vc_ft' at row 376
+Warning	1265	Data truncated for column 'vc' at row 377
+Warning	1265	Data truncated for column 'vc_ft' at row 377
+Warning	1265	Data truncated for column 'vc' at row 378
+Warning	1265	Data truncated for column 'vc_ft' at row 378
+Warning	1265	Data truncated for column 'vc' at row 379
+Warning	1265	Data truncated for column 'vc_ft' at row 379
+Warning	1265	Data truncated for column 'vc' at row 380
+Warning	1265	Data truncated for column 'vc_ft' at row 380
+Warning	1265	Data truncated for column 'vc' at row 381
+Warning	1265	Data truncated for column 'vc_ft' at row 381
+Warning	1265	Data truncated for column 'vc' at row 382
+Warning	1265	Data truncated for column 'vc_ft' at row 382
+Warning	1265	Data truncated for column 'vc' at row 383
+Warning	1265	Data truncated for column 'vc_ft' at row 383
+Warning	1265	Data truncated for column 'vc' at row 384
+Warning	1265	Data truncated for column 'vc_ft' at row 384
+Warning	1265	Data truncated for column 'vc' at row 385
+Warning	1265	Data truncated for column 'vc_ft' at row 385
+Warning	1265	Data truncated for column 'vc' at row 386
+Warning	1265	Data truncated for column 'vc_ft' at row 386
+Warning	1265	Data truncated for column 'vc' at row 387
+Warning	1265	Data truncated for column 'vc_ft' at row 387
+Warning	1265	Data truncated for column 'vc' at row 388
+Warning	1265	Data truncated for column 'vc_ft' at row 388
+Warning	1265	Data truncated for column 'vc' at row 389
+Warning	1265	Data truncated for column 'vc_ft' at row 389
+Warning	1265	Data truncated for column 'vc' at row 390
+Warning	1265	Data truncated for column 'vc_ft' at row 390
+Warning	1265	Data truncated for column 'vc' at row 391
+Warning	1265	Data truncated for column 'vc_ft' at row 391
+Warning	1265	Data truncated for column 'vc' at row 392
+Warning	1265	Data truncated for column 'vc_ft' at row 392
+Warning	1265	Data truncated for column 'vc' at row 393
+Warning	1265	Data truncated for column 'vc_ft' at row 393
+Warning	1265	Data truncated for column 'vc' at row 394
+Warning	1265	Data truncated for column 'vc_ft' at row 394
+Warning	1265	Data truncated for column 'vc' at row 395
+Warning	1265	Data truncated for column 'vc_ft' at row 395
+Warning	1265	Data truncated for column 'vc' at row 396
+Warning	1265	Data truncated for column 'vc_ft' at row 396
+Warning	1265	Data truncated for column 'vc' at row 397
+Warning	1265	Data truncated for column 'vc_ft' at row 397
+Warning	1265	Data truncated for column 'vc' at row 398
+Warning	1265	Data truncated for column 'vc_ft' at row 398
+Warning	1265	Data truncated for column 'vc' at row 399
+Warning	1265	Data truncated for column 'vc_ft' at row 399
+Warning	1265	Data truncated for column 'vc' at row 400
+Warning	1265	Data truncated for column 'vc_ft' at row 400
+Warning	1265	Data truncated for column 'vc' at row 401
+Warning	1265	Data truncated for column 'vc_ft' at row 401
+Warning	1265	Data truncated for column 'vc' at row 402
+Warning	1265	Data truncated for column 'vc_ft' at row 402
+Warning	1265	Data truncated for column 'vc' at row 403
+Warning	1265	Data truncated for column 'vc_ft' at row 403
+Warning	1265	Data truncated for column 'vc' at row 404
+Warning	1265	Data truncated for column 'vc_ft' at row 404
+Warning	1265	Data truncated for column 'vc' at row 405
+Warning	1265	Data truncated for column 'vc_ft' at row 405
+Warning	1265	Data truncated for column 'vc' at row 406
+Warning	1265	Data truncated for column 'vc_ft' at row 406
+Warning	1265	Data truncated for column 'vc' at row 407
+Warning	1265	Data truncated for column 'vc_ft' at row 407
+Warning	1265	Data truncated for column 'vc' at row 408
+Warning	1265	Data truncated for column 'vc_ft' at row 408
+Warning	1265	Data truncated for column 'vc' at row 409
+Warning	1265	Data truncated for column 'vc_ft' at row 409
+Warning	1265	Data truncated for column 'vc' at row 410
+Warning	1265	Data truncated for column 'vc_ft' at row 410
+Warning	1265	Data truncated for column 'vc' at row 411
+Warning	1265	Data truncated for column 'vc_ft' at row 411
+Warning	1265	Data truncated for column 'vc' at row 412
+Warning	1265	Data truncated for column 'vc_ft' at row 412
+Warning	1265	Data truncated for column 'vc' at row 413
+Warning	1265	Data truncated for column 'vc_ft' at row 413
+Warning	1265	Data truncated for column 'vc' at row 414
+Warning	1265	Data truncated for column 'vc_ft' at row 414
+Warning	1265	Data truncated for column 'vc' at row 415
+Warning	1265	Data truncated for column 'vc_ft' at row 415
+Warning	1265	Data truncated for column 'vc' at row 416
+Warning	1265	Data truncated for column 'vc_ft' at row 416
+Warning	1265	Data truncated for column 'vc' at row 417
+Warning	1265	Data truncated for column 'vc_ft' at row 417
+Warning	1265	Data truncated for column 'vc' at row 418
+Warning	1265	Data truncated for column 'vc_ft' at row 418
+Warning	1265	Data truncated for column 'vc' at row 419
+Warning	1265	Data truncated for column 'vc_ft' at row 419
+Warning	1265	Data truncated for column 'vc' at row 420
+Warning	1265	Data truncated for column 'vc_ft' at row 420
+Warning	1265	Data truncated for column 'vc' at row 421
+Warning	1265	Data truncated for column 'vc_ft' at row 421
+Warning	1265	Data truncated for column 'vc' at row 422
+Warning	1265	Data truncated for column 'vc_ft' at row 422
+Warning	1265	Data truncated for column 'vc' at row 423
+Warning	1265	Data truncated for column 'vc_ft' at row 423
+Warning	1265	Data truncated for column 'vc' at row 424
+Warning	1265	Data truncated for column 'vc_ft' at row 424
+Warning	1265	Data truncated for column 'vc' at row 425
+Warning	1265	Data truncated for column 'vc_ft' at row 425
+Warning	1265	Data truncated for column 'vc' at row 426
+Warning	1265	Data truncated for column 'vc_ft' at row 426
+Warning	1265	Data truncated for column 'vc' at row 427
+Warning	1265	Data truncated for column 'vc_ft' at row 427
+Warning	1265	Data truncated for column 'vc' at row 428
+Warning	1265	Data truncated for column 'vc_ft' at row 428
+Warning	1265	Data truncated for column 'vc' at row 429
+Warning	1265	Data truncated for column 'vc_ft' at row 429
+Warning	1265	Data truncated for column 'vc' at row 430
+Warning	1265	Data truncated for column 'vc_ft' at row 430
+Warning	1265	Data truncated for column 'vc' at row 431
+Warning	1265	Data truncated for column 'vc_ft' at row 431
+Warning	1265	Data truncated for column 'vc' at row 432
+Warning	1265	Data truncated for column 'vc_ft' at row 432
+Warning	1265	Data truncated for column 'vc' at row 433
+Warning	1265	Data truncated for column 'vc_ft' at row 433
+Warning	1265	Data truncated for column 'vc' at row 434
+Warning	1265	Data truncated for column 'vc_ft' at row 434
+Warning	1265	Data truncated for column 'vc' at row 435
+Warning	1265	Data truncated for column 'vc_ft' at row 435
+Warning	1265	Data truncated for column 'vc' at row 436
+Warning	1265	Data truncated for column 'vc_ft' at row 436
+Warning	1265	Data truncated for column 'vc' at row 437
+Warning	1265	Data truncated for column 'vc_ft' at row 437
+Warning	1265	Data truncated for column 'vc' at row 438
+Warning	1265	Data truncated for column 'vc_ft' at row 438
+Warning	1265	Data truncated for column 'vc' at row 439
+Warning	1265	Data truncated for column 'vc_ft' at row 439
+Warning	1265	Data truncated for column 'vc' at row 440
+Warning	1265	Data truncated for column 'vc_ft' at row 440
+Warning	1265	Data truncated for column 'vc' at row 441
+Warning	1265	Data truncated for column 'vc_ft' at row 441
+Warning	1265	Data truncated for column 'vc' at row 442
+Warning	1265	Data truncated for column 'vc_ft' at row 442
+Warning	1265	Data truncated for column 'vc' at row 443
+Warning	1265	Data truncated for column 'vc_ft' at row 443
+Warning	1265	Data truncated for column 'vc' at row 444
+Warning	1265	Data truncated for column 'vc_ft' at row 444
+Warning	1265	Data truncated for column 'vc' at row 445
+Warning	1265	Data truncated for column 'vc_ft' at row 445
+Warning	1265	Data truncated for column 'vc' at row 446
+Warning	1265	Data truncated for column 'vc_ft' at row 446
+Warning	1265	Data truncated for column 'vc' at row 447
+Warning	1265	Data truncated for column 'vc_ft' at row 447
+Warning	1265	Data truncated for column 'vc' at row 448
+Warning	1265	Data truncated for column 'vc_ft' at row 448
+Warning	1265	Data truncated for column 'vc' at row 449
+Warning	1265	Data truncated for column 'vc_ft' at row 449
+Warning	1265	Data truncated for column 'vc' at row 450
+Warning	1265	Data truncated for column 'vc_ft' at row 450
+Warning	1265	Data truncated for column 'vc' at row 451
+Warning	1265	Data truncated for column 'vc_ft' at row 451
+Warning	1265	Data truncated for column 'vc' at row 452
+Warning	1265	Data truncated for column 'vc_ft' at row 452
+Warning	1265	Data truncated for column 'vc' at row 453
+Warning	1265	Data truncated for column 'vc_ft' at row 453
+Warning	1265	Data truncated for column 'vc' at row 454
+Warning	1265	Data truncated for column 'vc_ft' at row 454
+Warning	1265	Data truncated for column 'vc' at row 455
+Warning	1265	Data truncated for column 'vc_ft' at row 455
+Warning	1265	Data truncated for column 'vc' at row 456
+Warning	1265	Data truncated for column 'vc_ft' at row 456
+Warning	1265	Data truncated for column 'vc' at row 457
+Warning	1265	Data truncated for column 'vc_ft' at row 457
+Warning	1265	Data truncated for column 'vc' at row 458
+Warning	1265	Data truncated for column 'vc_ft' at row 458
+Warning	1265	Data truncated for column 'vc' at row 459
+Warning	1265	Data truncated for column 'vc_ft' at row 459
+Warning	1265	Data truncated for column 'vc' at row 460
+Warning	1265	Data truncated for column 'vc_ft' at row 460
+Warning	1265	Data truncated for column 'vc' at row 461
+Warning	1265	Data truncated for column 'vc_ft' at row 461
+Warning	1265	Data truncated for column 'vc' at row 462
+Warning	1265	Data truncated for column 'vc_ft' at row 462
+Warning	1265	Data truncated for column 'vc' at row 463
+Warning	1265	Data truncated for column 'vc_ft' at row 463
+Warning	1265	Data truncated for column 'vc' at row 464
+Warning	1265	Data truncated for column 'vc_ft' at row 464
+Warning	1265	Data truncated for column 'vc' at row 465
+Warning	1265	Data truncated for column 'vc_ft' at row 465
+Warning	1265	Data truncated for column 'vc' at row 466
+Warning	1265	Data truncated for column 'vc_ft' at row 466
+Warning	1265	Data truncated for column 'vc' at row 467
+Warning	1265	Data truncated for column 'vc_ft' at row 467
+Warning	1265	Data truncated for column 'vc' at row 468
+Warning	1265	Data truncated for column 'vc_ft' at row 468
+Warning	1265	Data truncated for column 'vc' at row 469
+Warning	1265	Data truncated for column 'vc_ft' at row 469
+Warning	1265	Data truncated for column 'vc' at row 470
+Warning	1265	Data truncated for column 'vc_ft' at row 470
+Warning	1265	Data truncated for column 'vc' at row 471
+Warning	1265	Data truncated for column 'vc_ft' at row 471
+Warning	1265	Data truncated for column 'vc' at row 472
+Warning	1265	Data truncated for column 'vc_ft' at row 472
+Warning	1265	Data truncated for column 'vc' at row 473
+Warning	1265	Data truncated for column 'vc_ft' at row 473
+Warning	1265	Data truncated for column 'vc' at row 474
+Warning	1265	Data truncated for column 'vc_ft' at row 474
+Warning	1265	Data truncated for column 'vc' at row 475
+Warning	1265	Data truncated for column 'vc_ft' at row 475
+Warning	1265	Data truncated for column 'vc' at row 476
+Warning	1265	Data truncated for column 'vc_ft' at row 476
+Warning	1265	Data truncated for column 'vc' at row 477
+Warning	1265	Data truncated for column 'vc_ft' at row 477
+Warning	1265	Data truncated for column 'vc' at row 478
+Warning	1265	Data truncated for column 'vc_ft' at row 478
+Warning	1265	Data truncated for column 'vc' at row 479
+Warning	1265	Data truncated for column 'vc_ft' at row 479
+Warning	1265	Data truncated for column 'vc' at row 480
+Warning	1265	Data truncated for column 'vc_ft' at row 480
+Warning	1265	Data truncated for column 'vc' at row 481
+Warning	1265	Data truncated for column 'vc_ft' at row 481
+Warning	1265	Data truncated for column 'vc' at row 482
+Warning	1265	Data truncated for column 'vc_ft' at row 482
+Warning	1265	Data truncated for column 'vc' at row 483
+Warning	1265	Data truncated for column 'vc_ft' at row 483
+Warning	1265	Data truncated for column 'vc' at row 484
+Warning	1265	Data truncated for column 'vc_ft' at row 484
+Warning	1265	Data truncated for column 'vc' at row 485
+Warning	1265	Data truncated for column 'vc_ft' at row 485
+Warning	1265	Data truncated for column 'vc' at row 486
+Warning	1265	Data truncated for column 'vc_ft' at row 486
+Warning	1265	Data truncated for column 'vc' at row 487
+Warning	1265	Data truncated for column 'vc_ft' at row 487
+Warning	1265	Data truncated for column 'vc' at row 488
+Warning	1265	Data truncated for column 'vc_ft' at row 488
+Warning	1265	Data truncated for column 'vc' at row 489
+Warning	1265	Data truncated for column 'vc_ft' at row 489
+Warning	1265	Data truncated for column 'vc' at row 490
+Warning	1265	Data truncated for column 'vc_ft' at row 490
+Warning	1265	Data truncated for column 'vc' at row 491
+Warning	1265	Data truncated for column 'vc_ft' at row 491
+Warning	1265	Data truncated for column 'vc' at row 492
+Warning	1265	Data truncated for column 'vc_ft' at row 492
+Warning	1265	Data truncated for column 'vc' at row 493
+Warning	1265	Data truncated for column 'vc_ft' at row 493
+Warning	1265	Data truncated for column 'vc' at row 494
+Warning	1265	Data truncated for column 'vc_ft' at row 494
+Warning	1265	Data truncated for column 'vc' at row 495
+Warning	1265	Data truncated for column 'vc_ft' at row 495
+Warning	1265	Data truncated for column 'vc' at row 496
+Warning	1265	Data truncated for column 'vc_ft' at row 496
+Warning	1265	Data truncated for column 'vc' at row 497
+Warning	1265	Data truncated for column 'vc_ft' at row 497
+Warning	1265	Data truncated for column 'vc' at row 498
+Warning	1265	Data truncated for column 'vc_ft' at row 498
+Warning	1265	Data truncated for column 'vc' at row 499
+Warning	1265	Data truncated for column 'vc_ft' at row 499
+Warning	1265	Data truncated for column 'vc' at row 500
+Warning	1265	Data truncated for column 'vc_ft' at row 500
+Warning	1265	Data truncated for column 'vc' at row 501
+Warning	1265	Data truncated for column 'vc_ft' at row 501
+Warning	1265	Data truncated for column 'vc' at row 502
+Warning	1265	Data truncated for column 'vc_ft' at row 502
+Warning	1265	Data truncated for column 'vc' at row 503
+Warning	1265	Data truncated for column 'vc_ft' at row 503
+Warning	1265	Data truncated for column 'vc' at row 504
+Warning	1265	Data truncated for column 'vc_ft' at row 504
+Warning	1265	Data truncated for column 'vc' at row 505
+Warning	1265	Data truncated for column 'vc_ft' at row 505
+Warning	1265	Data truncated for column 'vc' at row 506
+Warning	1265	Data truncated for column 'vc_ft' at row 506
+Warning	1265	Data truncated for column 'vc' at row 507
+Warning	1265	Data truncated for column 'vc_ft' at row 507
+Warning	1265	Data truncated for column 'vc' at row 508
+Warning	1265	Data truncated for column 'vc_ft' at row 508
+Warning	1265	Data truncated for column 'vc' at row 509
+Warning	1265	Data truncated for column 'vc_ft' at row 509
+Warning	1265	Data truncated for column 'vc' at row 510
+Warning	1265	Data truncated for column 'vc_ft' at row 510
+Warning	1265	Data truncated for column 'vc' at row 511
+Warning	1265	Data truncated for column 'vc_ft' at row 511
+Warning	1265	Data truncated for column 'vc' at row 512
+Warning	1265	Data truncated for column 'vc_ft' at row 512
+insert into t1 select col1_idx, col2_idx, col3, col4, 'norway sweden', 'norway sweden' from t1 limit 5;
+insert into t2 select col1_idx,col2_idx,col3 from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+
+### Test that optimizer_condition_fanout_filter works ###
+set optimizer_switch='condition_fanout_filter=off';
+
+EXPLAIN SELECT * FROM t1 WHERE col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = 5)
+EXPLAIN SELECT * FROM t1 WHERE col1_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` > 1)
+EXPLAIN SELECT * FROM t1 JOIN t2 WHERE t1.col1_idx=t2.col1_idx;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1_idx` = `test`.`t2`.`col1_idx`)
+set optimizer_switch='condition_fanout_filter=on';
+
+EXPLAIN SELECT * FROM t1 WHERE col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = 5)
+#########################################################
+
+# Testing non-indexed Operators
+
+# Simple operands
+EXPLAIN SELECT * FROM t1 WHERE t1.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=>5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <=> 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` > 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` >= 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` < 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <= 5)
+
+# NOT <simple operands>
+EXPLAIN SELECT * FROM t1 WHERE t1.col3!=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <> 5)
+EXPLAIN SELECT * FROM t1 WHERE NOT t1.col3<=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` > 5)
+
+# BETWEEN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 BETWEEN 5 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` between 5 and 10)
+
+# NOT BETWEEN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT BETWEEN 5 AND 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` not between 5 and 10)
+
+# <column> IN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` in (5,6))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (5, 6, 7, 8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	40.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` in (5,6,7,8))
+# Dependent subquery in IN list. No filtering in t1 
+EXPLAIN SELECT * FROM t1 
+WHERE t1.col3 IN (1, (SELECT col3 FROM t2 where col3=t1.col4 LIMIT 1));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.col4' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` in (1,(/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col3` = `test`.`t1`.`col4`) limit 1)))
+
+# <column> NOT IN
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT IN (5, 6);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	80.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` not in (5,6))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 NOT IN (5, 6, 7, 8);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	60.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` not in (5,6,7,8))
+
+# <row_value> IN
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	3.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+EXPLAIN 
+SELECT * FROM t1 WHERE (t1.col3, t1.col4) IN ((5,5),(6,6),(7,7),(8,8),(9,9),(10,10));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	6.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7)),<cache>((8,8)),<cache>((9,9)),<cache>((10,10))))
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	30.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+
+# <row_value> NOT IN
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, t1.col4) NOT IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	97.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,`test`.`t1`.`col4`) not in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+EXPLAIN SELECT * FROM t1 WHERE (t1.col3, 1) NOT IN ((5,5),(6,6),(7,7));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	70.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3`,1) not in (<cache>((5,5)),<cache>((6,6)),<cache>((7,7))))
+
+# NULL
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` is null)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 = NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` > NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3>=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` >= NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` < NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <= NULL)
+EXPLAIN SELECT * FROM t1 WHERE NULL>t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL > `test`.`t1`.`col3`)
+EXPLAIN SELECT * FROM t1 WHERE NULL>=t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL >= `test`.`t1`.`col3`)
+EXPLAIN SELECT * FROM t1 WHERE NULL<t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL < `test`.`t1`.`col3`)
+EXPLAIN SELECT * FROM t1 WHERE NULL<=t1.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL <= `test`.`t1`.`col3`)
+
+# NOT NULL
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` is not null)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 != NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <> NULL)
+
+# NULL (not nullable column)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where false
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 = NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` = NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4>NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` > NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4>=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` >= NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` < NULL)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<=NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` <= NULL)
+EXPLAIN SELECT * FROM t1 WHERE NULL>t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL > `test`.`t1`.`col4`)
+EXPLAIN SELECT * FROM t1 WHERE NULL>=t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL >= `test`.`t1`.`col4`)
+EXPLAIN SELECT * FROM t1 WHERE NULL<t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL < `test`.`t1`.`col4`)
+EXPLAIN SELECT * FROM t1 WHERE NULL<=t1.col4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (NULL <= `test`.`t1`.`col4`)
+
+# NOT NULL (not nullable column)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where true
+EXPLAIN SELECT * FROM t1 WHERE t1.col4 != NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	90.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` <> NULL)
+
+# LIKE
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE 'america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`vc` like 'america')
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE '%america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`vc` like '%america')
+EXPLAIN SELECT * FROM t1 WHERE t1.vc LIKE 'amer%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`vc` like 'amer%')
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE 'america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((`test`.`t1`.`vc` like 'america')))
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE '%america';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((`test`.`t1`.`vc` like '%america')))
+EXPLAIN SELECT * FROM t1 WHERE t1.vc NOT LIKE 'amer%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((`test`.`t1`.`vc` like 'amer%')))
+
+# FULLTEXT
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc) AGAINST ('+norway' IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (match `test`.`t1`.`vc` against ('+norway' in boolean mode))
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc_ft) AGAINST ('+norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	vc_ft	vc_ft	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (match `test`.`t1`.`vc_ft` against ('+norway'))
+EXPLAIN SELECT * FROM t1 WHERE MATCH(t1.vc_ft) AGAINST ('norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	fulltext	vc_ft	vc_ft	0	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (match `test`.`t1`.`vc_ft` against ('norway'))
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc) AGAINST ('+norway' IN BOOLEAN MODE);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((match `test`.`t1`.`vc` against ('+norway' in boolean mode))))
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc_ft) AGAINST ('+norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((match `test`.`t1`.`vc_ft` against ('+norway'))))
+EXPLAIN SELECT * FROM t1 WHERE NOT MATCH(t1.vc_ft) AGAINST ('norway');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	88.89	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (not((match `test`.`t1`.`vc_ft` against ('norway'))))
+
+# Functions
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (length(`test`.`t1`.`vc`) > 3)
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (length(`test`.`t1`.`vc`) = 3)
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) IS NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (length(`test`.`t1`.`vc`) is null)
+EXPLAIN SELECT * FROM t1 WHERE length(t1.vc) IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (length(`test`.`t1`.`vc`) is not null)
+
+# AND/OR/XOR
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` < 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col4` < 5)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 OR col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	55.55	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3` < 5) or (`test`.`t1`.`col4` < 5))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 AND col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3` < 5) and (`test`.`t1`.`col4` < 5))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR col4<5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	44.44	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3` < 5) xor (`test`.`t1`.`col4` < 5))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR col4<5 XOR col1_idx>3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	48.15	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (((`test`.`t1`.`col3` < 5) xor (`test`.`t1`.`col4` < 5)) xor (`test`.`t1`.`col1_idx` > 3))
+EXPLAIN SELECT * FROM t1 WHERE t1.col3<5 XOR (col4<5 AND col4>1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	37.03	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col3` < 5) xor ((`test`.`t1`.`col4` < 5) and (`test`.`t1`.`col4` > 1)))
+# Done OP non-indexed tests
+
+### START SUBQUERY LOOP ###
+
+#  table scan in subq, no filter
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.col3	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where (`<subquery2>`.`col3` = `test`.`t1`.`col3`)
+
+# table scan in subq, filter from range access
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.col3	1	100.00	NULL
+2	MATERIALIZED	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where ((`<subquery2>`.`col3` = `test`.`t1`.`col3`) and (`test`.`t2`.`col1_idx` > 2))
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	<subquery2>	NULL	eq_ref	<auto_distinct_key>	<auto_distinct_key>	5	test.t1.col3	1	100.00	Using where
+2	MATERIALIZED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`col3` = 3) and (`<subquery2>`.`col3` = 3) and (`test`.`t2`.`col3` = 3))
+
+# range in subquery, no filter
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`col1_idx` > 2)
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`col3` = 3)
+
+# range in subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2 and col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	9.83	Using where; FirstMatch
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`col3` = 3) and (`test`.`t2`.`col1_idx` > 2))
+
+# EXISTS - outer reference
+# dynamic range subq, filter SEL(>)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT 1 FROM t2 where col1_idx>t1.col3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1); FirstMatch(t1)
+Warnings:
+Note	1276	Field or reference 'test.t1.col3' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`col1_idx` > `test`.`t1`.`col3`)
+
+#
+EXPLAIN SELECT * FROM t1 WHERE col3 =   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <=> (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <=> (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 >   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` > (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 >=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` >= (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` < (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <= (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 between (SELECT 1 FROM t2) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` between (/* select#2 */ select 1 from `test`.`t2`) and 2)
+EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` = (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=> (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` <=> (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` > (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` >= (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` < (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` <= (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx between (SELECT 1 FROM t2 LIMIT 1) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	12	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` between (/* select#2 */ select 1 from `test`.`t2` limit 1) and 2)
+
+set optimizer_switch='semijoin=off';
+
+
+#  table scan in subq, no filter
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+
+# table scan in subq, filter from range access
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	98.35	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col1_idx` > 2) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE t1.col3 IN (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`col3`,`test`.`t1`.`col3` in ( <materialize> (/* select#2 */ select `test`.`t2`.`col3` from `test`.`t2` where (`test`.`t2`.`col3` = 3) ), <primary_index_lookup>(`test`.`t1`.`col3` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`col3` = `materialized-subquery`.`col3`)))))
+
+# range in subquery, no filter
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where true
+
+# table scan subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where true
+
+# range in subquery, filter SEL(=)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT col3 FROM t2 where col1_idx>2 and col3=3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	NULL
+2	SUBQUERY	t2	NULL	range	col1_idx	col1_idx	5	NULL	1012	10.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where true
+
+# EXISTS - outer reference
+# dynamic range subq, filter SEL(>)
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT 1 FROM t2 where col1_idx>t1.col3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1276	Field or reference 'test.t1.col3' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where exists(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`col1_idx` > `test`.`t1`.`col3`))
+
+#
+EXPLAIN SELECT * FROM t1 WHERE col3 =   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` = (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <=> (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <=> (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 >   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` > (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 >=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` >= (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <   (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` < (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 <=  (SELECT 1 FROM t2);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	33.33	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` <= (/* select#2 */ select 1 from `test`.`t2`))
+EXPLAIN SELECT * FROM t1 WHERE col3 between (SELECT 1 FROM t2) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	11.11	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col3` between (/* select#2 */ select 1 from `test`.`t2`) and 2)
+EXPLAIN SELECT * FROM t1 WHERE col1_idx =   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` = (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=> (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ref	col1_idx	col1_idx	5	const	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` <=> (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` > (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx >=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` >= (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <   (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	1	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` < (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx <=  (SELECT 1 FROM t2 LIMIT 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	6	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` <= (/* select#2 */ select 1 from `test`.`t2` limit 1))
+EXPLAIN SELECT * FROM t1 WHERE col1_idx between (SELECT 1 FROM t2 LIMIT 1) and 2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	range	col1_idx	col1_idx	5	NULL	12	100.00	Using where
+2	SUBQUERY	t2	NULL	index	NULL	col1_idx	5	NULL	1029	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where (`test`.`t1`.`col1_idx` between (/* select#2 */ select 1 from `test`.`t2` limit 1) and 2)
+
+set optimizer_switch='semijoin=off';
+
+set optimizer_switch=default;
+################
+
+EXPLAIN 
+SELECT * 
+FROM t1 AS t1a JOIN t1 AS t1b ON t1a.col1_idx=t1b.col1_idx 
+WHERE t1b.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1b	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1a	NULL	ref	col1_idx	col1_idx	5	test.t1b.col1_idx	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1a`.`col1_idx` AS `col1_idx`,`test`.`t1a`.`col2_idx` AS `col2_idx`,`test`.`t1a`.`col3` AS `col3`,`test`.`t1a`.`col4` AS `col4`,`test`.`t1a`.`vc` AS `vc`,`test`.`t1a`.`vc_ft` AS `vc_ft`,`test`.`t1b`.`col1_idx` AS `col1_idx`,`test`.`t1b`.`col2_idx` AS `col2_idx`,`test`.`t1b`.`col3` AS `col3`,`test`.`t1b`.`col4` AS `col4`,`test`.`t1b`.`vc` AS `vc`,`test`.`t1b`.`vc_ft` AS `vc_ft` from `test`.`t1` `t1a` join `test`.`t1` `t1b` where ((`test`.`t1a`.`col1_idx` = `test`.`t1b`.`col1_idx`) and (`test`.`t1b`.`col3` = 5))
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t2.col3=5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	10.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1_idx` = `test`.`t2`.`col1_idx`) and (`test`.`t2`.`col3` = 5))
+
+EXPLAIN 
+SELECT *
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col3=t2.col3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx	col1_idx	5	test.t2.col1_idx	8	10.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1_idx` = `test`.`t2`.`col1_idx`) and (`test`.`t1`.`col3` = `test`.`t2`.`col3`))
+
+EXPLAIN 
+SELECT *
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col2_idx=1 AND t2.col2_idx=1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	col1_idx,col2_idx	col2_idx	5	const	6	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col1_idx,col2_idx	col1_idx	5	test.t1.col1_idx	8	0.78	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col1_idx` = `test`.`t1`.`col1_idx`) and (`test`.`t2`.`col2_idx` = 1) and (`test`.`t1`.`col2_idx` = 1))
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx=t2.col1_idx
+WHERE t1.col2_idx>1 AND t2.col2_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ref	col1_idx,col2_idx	col1_idx	5	test.t2.col1_idx	8	99.42	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1_idx` = `test`.`t2`.`col1_idx`) and (`test`.`t1`.`col2_idx` > 1) and (`test`.`t2`.`col2_idx` > 1))
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col2_idx>1 AND t2.col2_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx,col2_idx	NULL	NULL	NULL	1029	33.14	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col2_idx` > 1) and (`test`.`t2`.`col2_idx` > 1) and (`test`.`t1`.`col1_idx` > `test`.`t2`.`col1_idx`))
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col1_idx>1 AND t2.col1_idx>1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.22	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.42	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1_idx` > 1) and (`test`.`t2`.`col1_idx` > 1) and (`test`.`t1`.`col1_idx` > `test`.`t2`.`col1_idx`))
+
+EXPLAIN 
+SELECT * 
+FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx
+WHERE t1.col1_idx!=1 AND t2.col1_idx>4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	96.79	Using where
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	99.51	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`col1_idx` <> 1) and (`test`.`t2`.`col1_idx` > 4) and (`test`.`t1`.`col1_idx` > `test`.`t2`.`col1_idx`))
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col1_idx>t2.col1_idx;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	col1_idx	NULL	NULL	NULL	1029	33.33	Range checked for each record (index map: 0x1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`col1_idx` > `test`.`t2`.`col1_idx`)
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx > 500 AND col2_idx > 500;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	5	1.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` > 500) and (`test`.`t1`.`col2_idx` > 500))
+
+EXPLAIN SELECT * FROM t1 WHERE col1_idx > 120 AND col2_idx > 120;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	128	12.44	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` > 120) and (`test`.`t1`.`col2_idx` > 120))
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col2_idx IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	13	1.26	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` in (120,121,122)) and (`test`.`t1`.`col2_idx` in (120,121,122)))
+# TODO: after wl7019
+# EXPLAIN 
+# SELECT * FROM t1 WHERE col1_idx IN (120,121,122);
+# EXPLAIN 
+# SELECT * FROM t1 WHERE (col1_idx,c) IN ((120,1),(121,2),(122,3));
+
+range on col1_idx and filtering estimate from the range optimizer on col2_idx
+-> no filtering effect for filter_single_col_small
+-> very small filtering effect for filter_single_col_big
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col2_idx NOT IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx,col2_idx	col1_idx	5	NULL	13	98.93	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` in (120,121,122)) and (`test`.`t1`.`col2_idx` not in (120,121,122)))
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col3 IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx	col1_idx	5	NULL	13	30.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` in (120,121,122)) and (`test`.`t1`.`col3` in (120,121,122)))
+
+EXPLAIN 
+SELECT * FROM t1 WHERE col1_idx IN (120,121,122) AND col3 NOT IN (120,121,122);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	col1_idx	col1_idx	5	NULL	13	70.00	Using index condition; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft` from `test`.`t1` where ((`test`.`t1`.`col1_idx` in (120,121,122)) and (`test`.`t1`.`col3` not in (120,121,122)))
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx>20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	100.00	Using where
+1	SIMPLE	t2	NULL	ref	col1_idx	col1_idx	5	test.t1.col3	8	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col1_idx` = `test`.`t1`.`col3`) and (`test`.`t1`.`col3` > 20))
+
+EXPLAIN 
+SELECT * FROM t1 JOIN t2 ON t1.col3=t2.col1_idx WHERE t2.col1_idx=20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ref	col1_idx	col1_idx	5	const	8	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1029	10.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col1_idx` AS `col1_idx`,`test`.`t1`.`col2_idx` AS `col2_idx`,`test`.`t1`.`col3` AS `col3`,`test`.`t1`.`col4` AS `col4`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`vc_ft` AS `vc_ft`,`test`.`t2`.`col1_idx` AS `col1_idx`,`test`.`t2`.`col2_idx` AS `col2_idx`,`test`.`t2`.`col3` AS `col3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col1_idx` = 20) and (`test`.`t1`.`col3` = 20))
+DROP TABLE t1,t2;

@@ -1,19 +1,19 @@
-//>>built
-define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "dijit/_TemplatedMixin", "dojo/fx/easing"], function(dojo, dijit, dojox){
+define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "dijit/_TemplatedMixin", "dojo/fx/easing"],
+function(dojo, dijit, dojox, _Widget, _TemplatedMixin){
 
 	dojo.experimental("dojox.image.Badge");
 	dojo.getObject("image", true, dojox);
 	
-	dojo.declare("dojox.image.Badge", [dijit._Widget, dijit._TemplatedMixin], {
-		// summary: A simple grid of Images that loops through thumbnails
-		//
+	dojo.declare("dojox.image.Badge", [_Widget, _TemplatedMixin], {
+		// summary:
+		//		A simple grid of Images that loops through thumbnails
 
 		baseClass: "dojoxBadge",
 
 		templateString:'<div class="dojoxBadge" dojoAttachPoint="containerNode"></div>',
 
 		// children: String
-		// 		A CSS3 Selector that determines the node to become a child
+		//		A CSS3 Selector that determines the node to become a child
 		children: "div.dojoxBadgeImage",
 
 		// rows: Integer
@@ -54,7 +54,8 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_init: function(){
-			// summary: Setup and layout the images
+			// summary:
+			//		Setup and layout the images
 
 			var _row = 0,
 				_w = this.cellSize;
@@ -96,7 +97,8 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_getCell: function(/* DomNode */ n){
-			// summary: Return information about the position for a given node
+			// summary:
+			//		Return information about the position for a given node
 			var _pos = this._nl.indexOf(n);
 			if(_pos >= 0){
 				var _col = _pos % this.cols;
@@ -108,12 +110,14 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_getImage: function(){
-			// summary: Returns the next image in the list, or the first one if not available
+			// summary:
+			//		Returns the next image in the list, or the first one if not available
 			return "url('')";
 		},
 
 		_enbiggen: function(/* Event|DomNode */ e){
-			// summary: Show the passed node in the picker
+			// summary:
+			//		Show the passed node in the picker
 			var _pos = this._getCell(e.target || e);
 
 			if (_pos){
@@ -156,7 +160,8 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_loadUnder: function(info, props){
-			// summary: figure out which three images are being covered, and
+			// summary:
+			//		figure out which three images are being covered, and
 			//		determine if they need loaded or not
 
 			var idx = info.io;
@@ -189,7 +194,8 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_disenbiggen: function(info, props){
-			// summary: Hide the passed node (info.n), passing along properties
+			// summary:
+			//		Hide the passed node (info.n), passing along properties
 			//		received.
 
 			if(props.top >= 0){
@@ -210,7 +216,8 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 		},
 
 		_cycle: function(info, props){
-			// summary: Select an un-viewed image from the list, and show it
+			// summary:
+			//		Select an un-viewed image from the list, and show it
 
 			var bc = this.baseClass;
 			dojo.removeClass(info.n, bc + "Top");
@@ -225,5 +232,5 @@ define("dojox/image/Badge", ["dojo", "dijit", "dojox/main", "dijit/_Widget", "di
 	});
 
 	return dojox.image.Badge;
-})
+});
 

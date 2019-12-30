@@ -1,23 +1,23 @@
 //>>built
-define("dijit/_base/popup",["dojo/dom-class","../popup","../BackgroundIframe"],function(_1,_2){
-var _3=_2._createWrapper;
-_2._createWrapper=function(_4){
-if(!_4.declaredClass){
-_4={_popupWrapper:(_4.parentNode&&_1.contains(_4.parentNode,"dijitPopup"))?_4.parentNode:null,domNode:_4,destroy:function(){
-}};
+define("dijit/_base/popup",["dojo/dom-class","dojo/_base/window","../popup","../BackgroundIframe"],function(_1,_2,_3){
+var _4=_3._createWrapper;
+_3._createWrapper=function(_5){
+if(!_5.declaredClass){
+_5={_popupWrapper:(_5.parentNode&&_1.contains(_5.parentNode,"dijitPopup"))?_5.parentNode:null,domNode:_5,destroy:function(){
+},ownerDocument:_5.ownerDocument,ownerDocumentBody:_2.body(_5.ownerDocument)};
 }
-return _3.call(this,_4);
+return _4.call(this,_5);
 };
-var _5=_2.open;
-_2.open=function(_6){
-if(_6.orient&&typeof _6.orient!="string"&&!("length" in _6.orient)){
-var _7=[];
-for(var _8 in _6.orient){
-_7.push({aroundCorner:_8,corner:_6.orient[_8]});
+var _6=_3.open;
+_3.open=function(_7){
+if(_7.orient&&typeof _7.orient!="string"&&!("length" in _7.orient)){
+var _8=[];
+for(var _9 in _7.orient){
+_8.push({aroundCorner:_9,corner:_7.orient[_9]});
 }
-_6.orient=_7;
+_7.orient=_8;
 }
-return _5.call(this,_6);
+return _6.call(this,_7);
 };
-return _2;
+return _3;
 });

@@ -92,7 +92,7 @@ explain select * from t1 where v='a';
 #
 # GROUP BY
 # Note that we have a number of keys here that are equivalent under
-# PAD collations, e.g. "a" equals "a ", and there's no knowing which one
+# NO PAD collations, e.g. "a" equals "a ", and there's no knowing which one
 # we get when we just say GROUP BY <field>. Thus, we add TRIM() around it
 # to get a deterministic result.
 #
@@ -105,9 +105,9 @@ select sql_big_result TRIM(v),count(c) from t1 group by TRIM(v) order by TRIM(v)
 select c,count(*) from t1 group by c order by c limit 10;
 select c,count(t) from t1 group by c order by c limit 10;
 select sql_big_result c,count(t) from t1 group by c limit 10;
-select t,count(*) from t1 group by t order by t limit 10;
-select t,count(t) from t1 group by t order by t limit 10;
-select sql_big_result t,count(t) from t1 group by t order by t limit 10;
+select TRIM(t),count(*) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+select TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
+select sql_big_result TRIM(t),count(t) from t1 group by TRIM(t) order by TRIM(t) limit 10;
 
 #
 # Test varchar > 255 bytes

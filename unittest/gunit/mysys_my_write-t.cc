@@ -41,10 +41,10 @@ extern ssize_t (*mock_write)(int fd, const void *buf, size_t count);
 
 namespace mysys_my_write_unittest {
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetErrnoAndReturn;
-using ::testing::_;
 
 class MockWrite {
  public:

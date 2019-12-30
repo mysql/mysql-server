@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -68,8 +68,13 @@ class Common_status_variables {
   Variable m_stmt_ping;
   Variable m_bytes_sent;
   Variable m_bytes_received;
+  Variable m_bytes_sent_compressed_payload;
+  Variable m_bytes_sent_uncompressed_frame;
+  Variable m_bytes_received_compressed_payload;
+  Variable m_bytes_received_uncompressed_frame;
   Variable m_errors_sent;
   Variable m_rows_sent;
+  Variable m_messages_sent;
   Variable m_notice_warning_sent;
   Variable m_notice_other_sent;
   Variable m_notice_global_sent;

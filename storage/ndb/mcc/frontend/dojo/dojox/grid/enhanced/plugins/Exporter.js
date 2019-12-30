@@ -39,77 +39,77 @@ _17.push(g.getItem(i));
 }
 _e(this._goThroughGridData(_17,_10));
 }
-},exportSelected:function(_18,_19){
+},exportSelected:function(_18,_19,_1a){
 if(!_3.isString(_18)){
 return "";
 }
-var _1a=this._getExportWriter(_18,_19);
-return this._goThroughGridData(this.grid.selection.getSelected(),_1a);
-},_buildRow:function(_1b,_1c){
-var _1d=this;
-_2.forEach(_1b._views,function(_1e,_1f){
-_1b.view=_1e;
-_1b.viewIdx=_1f;
-if(_1c.beforeView(_1b)){
-_2.forEach(_1e.structure.cells,function(_20,_21){
-_1b.subrow=_20;
-_1b.subrowIdx=_21;
-if(_1c.beforeSubrow(_1b)){
-_2.forEach(_20,function(_22,_23){
-if(_1b.isHeader&&_1d._isSpecialCol(_22)){
-_1b.spCols.push(_22.index);
+var _1b=this._getExportWriter(_18,_19);
+return _1a(this._goThroughGridData(this.grid.selection.getSelected(),_1b));
+},_buildRow:function(_1c,_1d){
+var _1e=this;
+_2.forEach(_1c._views,function(_1f,_20){
+_1c.view=_1f;
+_1c.viewIdx=_20;
+if(_1d.beforeView(_1c)){
+_2.forEach(_1f.structure.cells,function(_21,_22){
+_1c.subrow=_21;
+_1c.subrowIdx=_22;
+if(_1d.beforeSubrow(_1c)){
+_2.forEach(_21,function(_23,_24){
+if(_1c.isHeader&&_1e._isSpecialCol(_23)){
+_1c.spCols.push(_23.index);
 }
-_1b.cell=_22;
-_1b.cellIdx=_23;
-_1c.handleCell(_1b);
+_1c.cell=_23;
+_1c.cellIdx=_24;
+_1d.handleCell(_1c);
 });
-_1c.afterSubrow(_1b);
-}
-});
-_1c.afterView(_1b);
+_1d.afterSubrow(_1c);
 }
 });
-},_goThroughGridData:function(_24,_25){
-var _26=this.grid,_27=_2.filter(_26.views.views,function(_28){
-return !(_28 instanceof _5);
-}),_29={"grid":_26,"isHeader":true,"spCols":[],"_views":_27,"colOffset":(_27.length<_26.views.views.length?-1:0)};
-if(_25.beforeHeader(_26)){
-this._buildRow(_29,_25);
-_25.afterHeader();
+_1d.afterView(_1c);
 }
-_29.isHeader=false;
-if(_25.beforeContent(_24)){
-_2.forEach(_24,function(_2a,_2b){
-_29.row=_2a;
-_29.rowIdx=_2b;
-if(_25.beforeContentRow(_29)){
-this._buildRow(_29,_25);
-_25.afterContentRow(_29);
+});
+},_goThroughGridData:function(_25,_26){
+var _27=this.grid,_28=_2.filter(_27.views.views,function(_29){
+return !(_29 instanceof _5);
+}),_2a={"grid":_27,"isHeader":true,"spCols":[],"_views":_28,"colOffset":(_28.length<_27.views.views.length?-1:0)};
+if(_26.beforeHeader(_27)){
+this._buildRow(_2a,_26);
+_26.afterHeader();
+}
+_2a.isHeader=false;
+if(_26.beforeContent(_25)){
+_2.forEach(_25,function(_2b,_2c){
+_2a.row=_2b;
+_2a.rowIdx=_2c;
+if(_26.beforeContentRow(_2a)){
+this._buildRow(_2a,_26);
+_26.afterContentRow(_2a);
 }
 },this);
-_25.afterContent();
+_26.afterContent();
 }
-return _25.toString();
-},_isSpecialCol:function(_2c){
-return _2c.isRowSelector||_2c instanceof _7.RowIndex;
-},_getExportWriter:function(_2d,_2e){
-var _2f,cls,_30=_8;
-if(_30.writerNames){
-_2f=_30.writerNames[_2d.toLowerCase()];
-cls=_3.getObject(_2f);
+return _26.toString();
+},_isSpecialCol:function(_2d){
+return _2d.isRowSelector||_2d instanceof _7.RowIndex;
+},_getExportWriter:function(_2e,_2f){
+var _30,cls,_31=_8;
+if(_31.writerNames){
+_30=_31.writerNames[_2e.toLowerCase()];
+cls=_3.getObject(_30);
 if(cls){
-var _31=new cls(_2e);
-_31.formatter=this.formatter;
-return _31;
+var _32=new cls(_2f);
+_32.formatter=this.formatter;
+return _32;
 }else{
-throw new Error("Please make sure class \""+_2f+"\" is required.");
+throw new Error("Please make sure class \""+_30+"\" is required.");
 }
 }
-throw new Error("The writer for \""+_2d+"\" has not been registered.");
+throw new Error("The writer for \""+_2e+"\" has not been registered.");
 }});
-_8.registerWriter=function(_32,_33){
+_8.registerWriter=function(_33,_34){
 _8.writerNames=_8.writerNames||{};
-_8.writerNames[_32]=_33;
+_8.writerNames[_33]=_34;
 };
 _6.registerPlugin(_8);
 return _8;

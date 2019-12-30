@@ -1,4 +1,3 @@
-//>>built
 define("dojox/rpc/ProxiedPath", ["dojo", "dojox", "dojox/rpc/Service"], function(dojo, dojox) {
 
 dojox.rpc.envelopeRegistry.register(

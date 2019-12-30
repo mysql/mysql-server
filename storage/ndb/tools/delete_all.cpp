@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +29,13 @@
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
-#include <NDBT.hpp>
+#include <NdbToolsLogging.hpp>
+#include <NdbToolsProgramExitCodes.hpp>
 
 #include "my_alloc.h"
 
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
-                       bool fetch_across_commit, int parallelism=240);
+                       bool fetch_across_commit, int parallelism = 240);
 
 static const char* _dbname = "TEST_DB";
 static bool _transactional = false;
@@ -58,59 +60,71 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-int main(int argc, char** argv){
+int main(int argc, char** argv)
+{
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_delete_all.trace";
+  opt_debug = "d:t:O,/tmp/ndb_delete_all.trace";
 #endif
   if (opts.handle_options())
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+  {
+    return NdbToolsProgramExitCode::WRONG_ARGS;
+  }
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_delete_all");
-  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
+  if (con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
-  if (con.wait_until_ready(30,0) < 0)
+  if (con.wait_until_ready(30, 0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
 
-  Ndb MyNdb(&con, _dbname );
-  if(MyNdb.init() != 0){
+  Ndb MyNdb(&con, _dbname);
+  if (MyNdb.init() != 0)
+  {
     NDB_ERR(MyNdb.getNdbError());
-    return NDBT_ProgramExit(NDBT_FAILED);
+    return NdbToolsProgramExitCode::FAILED;
   }
-  
+
   // Check if table exists in db
-  int res = NDBT_OK;
-  for(int i = 0; i<argc; i++){
-    const NdbDictionary::Table * pTab = NDBT_Table::discoverTableFromDb(&MyNdb, argv[i]);
-    if(pTab == NULL){
+  int res = NdbToolsProgramExitCode::OK;
+  for (int i = 0; i < argc; i++)
+  {
+    const char * table_name = argv[i];
+    const NdbDictionary::Table * pTab =
+      MyNdb.getDictionary()->getTable(table_name);
+    if (pTab == NULL)
+    {
       ndbout << " Table " << argv[i] << " does not exist!" << endl;
-      return NDBT_ProgramExit(NDBT_WRONGARGS);
+      return NdbToolsProgramExitCode::WRONG_ARGS;
     }
     ndbout << "Deleting all from " << argv[i];
-    if (! _transactional)
+    if (!_transactional)
+    {
       ndbout << " (non-transactional)";
+    }
     ndbout << " ...";
-    if(clear_table(&MyNdb, pTab, ! _transactional) == NDBT_FAILED){
-      res = NDBT_FAILED;
+    if (clear_table(&MyNdb, pTab, !_transactional) ==
+        NdbToolsProgramExitCode::FAILED)
+    {
+      res = NdbToolsProgramExitCode::FAILED;
       ndbout << "FAILED" << endl;
     }
   }
-  return NDBT_ProgramExit(res);
+  return res;
 }
 
 
 int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
                 bool fetch_across_commit, int parallelism)
 {
-  // Scan all records exclusive and delete 
+  // Scan all records exclusive and delete
   // them one by one
   int                  retryAttempt = 0;
   const int            retryMax = 10;
@@ -121,101 +135,122 @@ int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
   NdbError err;
 
   int par = parallelism;
-  while (true){
+  while (true) {
   restart:
-    if (retryAttempt++ >= retryMax){
-      g_info << "ERROR: has retried this operation " << retryAttempt 
-	     << " times, failing!" << endl;
-      return NDBT_FAILED;
+    if (retryAttempt++ >= retryMax)
+    {
+      ndbout << "ERROR: has retried this operation " << retryAttempt
+             << " times, failing!" << endl;
+      return NdbToolsProgramExitCode::FAILED;
     }
-    
+
     pTrans = pNdb->startTransaction();
-    if (pTrans == NULL) {
+    if (pTrans == NULL)
+    {
       err = pNdb->getNdbError();
-      if (err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	NdbSleep_MilliSleep(50);
-	continue;
+      if (err.status == NdbError::TemporaryError)
+      {
+        NDB_ERR(err);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
       goto failed;
     }
 
-    pOp = pTrans->getNdbScanOperation(pTab->getName());	
-    if (pOp == NULL) {
+    pOp = pTrans->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL)
+    {
       goto failed;
     }
-    
+
     int flags = 0;
     flags |= _tupscan ? NdbScanOperation::SF_TupScan : 0;
     flags |= _diskscan ? NdbScanOperation::SF_DiskScan : 0;
-    if( pOp->readTuples(NdbOperation::LM_Exclusive, 
-			flags, par) ) {
+    if (pOp->readTuples(NdbOperation::LM_Exclusive, flags, par))
+    {
       goto failed;
     }
-    
-    if(pTrans->execute(NdbTransaction::NoCommit) != 0){
-      err = pTrans->getNdbError();    
-      if(err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	pNdb->closeTransaction(pTrans);
-	NdbSleep_MilliSleep(50);
-	continue;
+
+    if (pTrans->execute(NdbTransaction::NoCommit) != 0)
+    {
+      err = pTrans->getNdbError();
+      if (err.status == NdbError::TemporaryError)
+      {
+        NDB_ERR(err);
+        pNdb->closeTransaction(pTrans);
+        NdbSleep_MilliSleep(50);
+        continue;
       }
       goto failed;
     }
-    
-    while((check = pOp->nextResult(true)) == 0){
-      do {
-	if (pOp->deleteCurrentTuple() != 0){
-	  goto failed;
-	}
-	deletedRows++;
-      } while((check = pOp->nextResult(false)) == 0);
-      
-      if(check != -1){
-        if (fetch_across_commit) {
-          check = pTrans->execute(NdbTransaction::Commit);   
-          pTrans->restart(); // new tx id
-        } else {
+
+    while ((check = pOp->nextResult(true)) == 0)
+    {
+      do
+      {
+        if (pOp->deleteCurrentTuple() != 0)
+        {
+          goto failed;
+        }
+        deletedRows++;
+      } while ((check = pOp->nextResult(false)) == 0);
+
+      if (check != -1)
+      {
+        if (fetch_across_commit)
+        {
+          check = pTrans->execute(NdbTransaction::Commit);
+          pTrans->restart();  // new tx id
+        }
+        else
+        {
           check = pTrans->execute(NdbTransaction::NoCommit);
         }
       }
-      
-      err = pTrans->getNdbError();    
-      if(check == -1){
-	if(err.status == NdbError::TemporaryError){
-	  NDB_ERR(err);
-	  pNdb->closeTransaction(pTrans);
-	  NdbSleep_MilliSleep(50);
-	  par = 1;
-	  goto restart;
-	}
-	goto failed;
+
+      err = pTrans->getNdbError();
+      if (check == -1)
+      {
+        if (err.status == NdbError::TemporaryError)
+        {
+          NDB_ERR(err);
+          pNdb->closeTransaction(pTrans);
+          NdbSleep_MilliSleep(50);
+          par = 1;
+          goto restart;
+        }
+        goto failed;
       }
     }
-    if(check == -1){
-      err = pTrans->getNdbError();    
-      if(err.status == NdbError::TemporaryError){
-	NDB_ERR(err);
-	pNdb->closeTransaction(pTrans);
-	NdbSleep_MilliSleep(50);
-	par = 1;
-	goto restart;
+    if (check == -1)
+    {
+      err = pTrans->getNdbError();
+      if (err.status == NdbError::TemporaryError)
+      {
+        NDB_ERR(err);
+        pNdb->closeTransaction(pTrans);
+        NdbSleep_MilliSleep(50);
+        par = 1;
+        goto restart;
       }
       goto failed;
     }
-    if (! fetch_across_commit &&
-        pTrans->execute(NdbTransaction::Commit) != 0) {
+    if (!fetch_across_commit &&
+        pTrans->execute(NdbTransaction::Commit) != 0)
+    {
       err = pTrans->getNdbError();
       goto failed;
     }
     pNdb->closeTransaction(pTrans);
-    return NDBT_OK;
+    return NdbToolsProgramExitCode::OK;
   }
-  return NDBT_FAILED;
-  
- failed:
-  if(pTrans != 0) pNdb->closeTransaction(pTrans);
-  NDB_ERR(err);
-  return (err.code != 0 ? err.code : NDBT_FAILED);
+  return NdbToolsProgramExitCode::FAILED;
+
+  failed:
+    if (pTrans != 0)
+    {
+      pNdb->closeTransaction(pTrans);
+    }
+    NDB_ERR(err);
+    return (err.code != 0 ? err.code : NdbToolsProgramExitCode::FAILED);
 }

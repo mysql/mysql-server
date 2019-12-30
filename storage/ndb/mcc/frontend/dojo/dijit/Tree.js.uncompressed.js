@@ -1,27 +1,30 @@
-//>>built
 require({cache:{
-'url:dijit/templates/TreeNode.html':"<div class=\"dijitTreeNode\" role=\"presentation\"\n\t><div data-dojo-attach-point=\"rowNode\" class=\"dijitTreeRow\" role=\"presentation\" data-dojo-attach-event=\"onmouseenter:_onMouseEnter, onmouseleave:_onMouseLeave, onclick:_onClick, ondblclick:_onDblClick\"\n\t\t><img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"expandoNode\" class=\"dijitTreeExpando\" role=\"presentation\"\n\t\t/><span data-dojo-attach-point=\"expandoNodeText\" class=\"dijitExpandoText\" role=\"presentation\"\n\t\t></span\n\t\t><span data-dojo-attach-point=\"contentNode\"\n\t\t\tclass=\"dijitTreeContent\" role=\"presentation\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"iconNode\" class=\"dijitIcon dijitTreeIcon\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"labelNode\" class=\"dijitTreeLabel\" role=\"treeitem\" tabindex=\"-1\" aria-selected=\"false\" data-dojo-attach-event=\"onfocus:_onLabelFocus\"></span>\n\t\t</span\n\t></div>\n\t<div data-dojo-attach-point=\"containerNode\" class=\"dijitTreeContainer\" role=\"presentation\" style=\"display: none;\"></div>\n</div>\n",
-'url:dijit/templates/Tree.html':"<div class=\"dijitTree dijitTreeContainer\" role=\"tree\"\n\tdata-dojo-attach-event=\"onkeypress:_onKeyPress\">\n\t<div class=\"dijitInline dijitTreeIndent\" style=\"position: absolute; top: -9999px\" data-dojo-attach-point=\"indentDetector\"></div>\n</div>\n"}});
+'url:dijit/templates/TreeNode.html':"<div class=\"dijitTreeNode\" role=\"presentation\"\n\t><div data-dojo-attach-point=\"rowNode\" class=\"dijitTreeRow dijitInline\" role=\"presentation\"\n\t\t><div data-dojo-attach-point=\"indentNode\" class=\"dijitInline\"></div\n\t\t><img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"expandoNode\" class=\"dijitTreeExpando\" role=\"presentation\"\n\t\t/><span data-dojo-attach-point=\"expandoNodeText\" class=\"dijitExpandoText\" role=\"presentation\"\n\t\t></span\n\t\t><span data-dojo-attach-point=\"contentNode\"\n\t\t\tclass=\"dijitTreeContent\" role=\"presentation\">\n\t\t\t<img src=\"${_blankGif}\" alt=\"\" data-dojo-attach-point=\"iconNode\" class=\"dijitIcon dijitTreeIcon\" role=\"presentation\"\n\t\t\t/><span data-dojo-attach-point=\"labelNode\" class=\"dijitTreeLabel\" role=\"treeitem\"\n\t\t\t\t\ttabindex=\"-1\" aria-selected=\"false\" id=\"${id}_label\"></span>\n\t\t</span\n\t></div>\n\t<div data-dojo-attach-point=\"containerNode\" class=\"dijitTreeContainer\" role=\"presentation\"\n\t\t style=\"display: none;\" aria-labelledby=\"${id}_label\"></div>\n</div>\n",
+'url:dijit/templates/Tree.html':"<div class=\"dijitTree dijitTreeContainer\" role=\"tree\">\n\t<div class=\"dijitInline dijitTreeIndent\" style=\"position: absolute; top: -9999px\" data-dojo-attach-point=\"indentDetector\"></div>\n</div>\n"}});
 define("dijit/Tree", [
 	"dojo/_base/array", // array.filter array.forEach array.map
 	"dojo/_base/connect",	// connect.isCopyKey()
 	"dojo/cookie", // cookie
 	"dojo/_base/declare", // declare
-	"dojo/_base/Deferred", // Deferred
+	"dojo/Deferred", // Deferred
 	"dojo/DeferredList", // DeferredList
 	"dojo/dom", // dom.isDescendant
 	"dojo/dom-class", // domClass.add domClass.remove domClass.replace domClass.toggle
 	"dojo/dom-geometry", // domGeometry.setMarginBox domGeometry.position
 	"dojo/dom-style",// domStyle.set
 	"dojo/_base/event", // event.stop
+	"dojo/errors/create",	// createError
 	"dojo/fx", // fxUtils.wipeIn fxUtils.wipeOut
 	"dojo/_base/kernel", // kernel.deprecated
 	"dojo/keys",	// arrows etc.
 	"dojo/_base/lang", // lang.getObject lang.mixin lang.hitch
+	"dojo/on",		// on(), on.selector()
 	"dojo/topic",
+	"dojo/touch",
+	"dojo/when",
 	"./focus",
-	"./registry",	// registry.getEnclosingWidget(), manager.defaultDuration
-	"./_base/manager",	// manager.getEnclosingWidget(), manager.defaultDuration
+	"./registry",	// registry.byNode(), registry.getEnclosingWidget()
+	"./_base/manager",	// manager.defaultDuration
 	"./_Widget",
 	"./_TemplatedMixin",
 	"./_Container",
@@ -33,23 +36,18 @@ define("dijit/Tree", [
 	"./tree/ForestStoreModel",
 	"./tree/_dndSelector"
 ], function(array, connect, cookie, declare, Deferred, DeferredList,
-			dom, domClass, domGeometry, domStyle, event, fxUtils, kernel, keys, lang, topic,
+			dom, domClass, domGeometry, domStyle, event, createError, fxUtils, kernel, keys, lang, on, topic, touch, when,
 			focus, registry, manager, _Widget, _TemplatedMixin, _Container, _Contained, _CssStateMixin,
 			treeNodeTemplate, treeTemplate, TreeStoreModel, ForestStoreModel, _dndSelector){
 
-/*=====
-	var _Widget = dijit._Widget;
-	var _TemplatedMixin = dijit._TemplatedMixin;
-	var _CssStateMixin = dijit._CssStateMixin;
-	var _Container = dijit._Container;
-	var _Contained = dijit._Contained;
-=====*/
-
 // module:
 //		dijit/Tree
-// summary:
-//		dijit.Tree widget, and internal dijit._TreeNode widget
 
+// Back-compat shim
+Deferred = declare(Deferred, {
+	addCallback: function(callback){ this.then(callback); },
+	addErrback: function(errback){ this.then(null, errback); }
+});
 
 var TreeNode = declare(
 	"dijit._TreeNode",
@@ -95,8 +93,7 @@ var TreeNode = declare(
 
 	// For hover effect for tree node, and focus effect for label
 	cssStateNodes: {
-		rowNode: "dijitTreeRow",
-		labelNode: "dijitTreeLabel"
+		rowNode: "dijitTreeRow"
 	},
 
 	// Tooltip is defined in _WidgetBase but we need to handle the mapping to DOM here
@@ -129,8 +126,8 @@ var TreeNode = declare(
 		// Math.max() is to prevent negative padding on hidden root node (when indent == -1)
 		var pixels = (Math.max(indent, 0) * this.tree._nodePixelIndent) + "px";
 
-		domStyle.set(this.domNode, "backgroundPosition",	pixels + " 0px");
-		domStyle.set(this.rowNode, this.isLeftToRight() ? "paddingLeft" : "paddingRight", pixels);
+		domStyle.set(this.domNode, "backgroundPosition", pixels + " 0px");	// TODOC: what is this for???
+		domStyle.set(this.indentNode, this.isLeftToRight() ? "paddingLeft" : "paddingRight", pixels);
 
 		array.forEach(this.getChildren(), function(child){
 			child.set("indent", indent+1);
@@ -170,6 +167,8 @@ var TreeNode = declare(
 		this._applyClassAndStyle(item, "icon", "Icon");
 		this._applyClassAndStyle(item, "label", "Label");
 		this._applyClassAndStyle(item, "row", "Row");
+
+		this.tree._startPaint(true);		// signifies paint started and finished (synchronously)
 	},
 
 	_applyClassAndStyle: function(item, lower, upper){
@@ -196,7 +195,7 @@ var TreeNode = declare(
 		domClass.replace(this[nodeName], this[clsName] || "", oldCls || "");
 
 		domStyle.set(this[nodeName], this.tree["get" + upper + "Style"](item, this.isExpanded) || {});
- 	},
+	},
 
 	_updateLayout: function(){
 		// summary:
@@ -239,11 +238,14 @@ var TreeNode = declare(
 
 		// If there's already an expand in progress or we are already expanded, just return
 		if(this._expandDeferred){
-			return this._expandDeferred;		// dojo.Deferred
+			return this._expandDeferred;		// dojo/_base/Deferred
 		}
 
 		// cancel in progress collapse operation
-		this._wipeOut && this._wipeOut.stop();
+		if(this._collapseDeferred){
+			this._collapseDeferred.cancel();
+			delete this._collapseDeferred;
+		}
 
 		// All the state information for when a node is expanded, maybe this should be
 		// set when the animation completes instead
@@ -255,15 +257,17 @@ var TreeNode = declare(
 		domClass.add(this.contentNode,'dijitTreeContentExpanded');
 		this._setExpando();
 		this._updateItemClasses(this.item);
-		if(this == this.tree.rootNode){
+		
+		if(this == this.tree.rootNode && this.tree.showRoot){
 			this.tree.domNode.setAttribute("aria-expanded", "true");
 		}
 
 		var def,
 			wipeIn = fxUtils.wipeIn({
-				node: this.containerNode, duration: manager.defaultDuration,
+				node: this.containerNode,
+				duration: manager.defaultDuration,
 				onEnd: function(){
-					def.callback(true);
+					def.resolve(true);
 				}
 			});
 
@@ -275,14 +279,17 @@ var TreeNode = declare(
 
 		wipeIn.play();
 
-		return def;		// dojo.Deferred
+		return def;		// dojo/_base/Deferred
 	},
 
 	collapse: function(){
 		// summary:
 		//		Collapse this node (if it's expanded)
 
-		if(!this.isExpanded){ return; }
+		if(this._collapseDeferred){
+			// Node is already collapsed, or there's a collapse in progress, just return that Deferred
+			return this._collapseDeferred;
+		}
 
 		// cancel in progress expand operation
 		if(this._expandDeferred){
@@ -292,19 +299,31 @@ var TreeNode = declare(
 
 		this.isExpanded = false;
 		this.labelNode.setAttribute("aria-expanded", "false");
-		if(this == this.tree.rootNode){
+		if(this == this.tree.rootNode && this.tree.showRoot){
 			this.tree.domNode.setAttribute("aria-expanded", "false");
 		}
 		domClass.remove(this.contentNode,'dijitTreeContentExpanded');
 		this._setExpando();
 		this._updateItemClasses(this.item);
 
-		if(!this._wipeOut){
-			this._wipeOut = fxUtils.wipeOut({
-				node: this.containerNode, duration: manager.defaultDuration
+		var def,
+			wipeOut = fxUtils.wipeOut({
+				node: this.containerNode,
+				duration: manager.defaultDuration,
+				onEnd: function(){
+					def.resolve(true);
+				}
 			});
-		}
-		this._wipeOut.play();
+
+		// Deferred that fires when expand is complete
+		def = (this._collapseDeferred = new Deferred(function(){
+			// Canceller
+			wipeOut.stop();
+		}));
+
+		wipeOut.play();
+
+		return def;		// dojo/_base/Deferred
 	},
 
 	// indent: Integer
@@ -316,7 +335,7 @@ var TreeNode = declare(
 		//		Sets the child items of this node, removing/adding nodes
 		//		from current children to match specified items[] array.
 		//		Also, if this.persist == true, expands any children that were previously
-		// 		opened.
+		//		opened.
 		// returns:
 		//		Deferred object that fires after all previously opened children
 		//		have been expanded again (or fires instantly if there are no such children).
@@ -329,9 +348,37 @@ var TreeNode = declare(
 		// Orphan all my existing children.
 		// If items contains some of the same items as before then we will reattach them.
 		// Don't call this.removeChild() because that will collapse the tree etc.
-		array.forEach(this.getChildren(), function(child){
+		var oldChildren = this.getChildren();
+		array.forEach(oldChildren, function(child){
 			_Container.prototype.removeChild.call(this, child);
 		}, this);
+
+		// All the old children of this TreeNode are subject for destruction if
+		//		1) they aren't listed in the new children array (items)
+		//		2) they aren't immediately adopted by another node (DnD)
+		this.defer(function(){
+			array.forEach(oldChildren, function(node){
+				if(!node._destroyed && !node.getParent()){
+					// If node is in selection then remove it.
+					tree.dndController.removeTreeNode(node);
+
+					// Deregister mapping from item id --> this node
+					var id = model.getIdentity(node.item),
+						ary = tree._itemNodesMap[id];
+					if(ary.length == 1){
+						delete tree._itemNodesMap[id];
+					}else{
+						var index = array.indexOf(ary, node);
+						if(index != -1){
+							ary.splice(index, 1);
+						}
+					}
+
+					// And finally we can destroy the node
+					node.destroyRecursive();
+				}
+			});
+		});
 
 		this.state = "LOADED";
 
@@ -341,7 +388,7 @@ var TreeNode = declare(
 			// Create _TreeNode widget for each specified tree node, unless one already
 			// exists and isn't being used (presumably it's from a DnD move and was recently
 			// released
-			array.forEach(items, function(item){
+			array.forEach(items, function(item){	// MARKER: REUSE NODE
 				var id = model.getIdentity(item),
 					existingNodes = tree._itemNodesMap[id],
 					node;
@@ -356,16 +403,17 @@ var TreeNode = declare(
 				}
 				if(!node){
 					node = this.tree._createTreeNode({
-							item: item,
-							tree: tree,
-							isExpandable: model.mayHaveChildren(item),
-							label: tree.getLabel(item),
-							tooltip: tree.getTooltip(item),
-							dir: tree.dir,
-							lang: tree.lang,
-							textDir: tree.textDir,
-							indent: this.indent + 1
-						});
+						item: item,
+						tree: tree,
+						isExpandable: model.mayHaveChildren(item),
+						label: tree.getLabel(item),
+						tooltip: tree.getTooltip(item),
+						ownerDocument: tree.ownerDocument,
+						dir: tree.dir,
+						lang: tree.lang,
+						textDir: tree.textDir,
+						indent: this.indent + 1
+					});
 					if(existingNodes){
 						existingNodes.push(node);
 					}else{
@@ -411,7 +459,9 @@ var TreeNode = declare(
 			}
 		}
 
-		return new DeferredList(defs);	// dojo.Deferred
+		var def =  new DeferredList(defs);
+		this.tree._startPaint(def);		// to reset TreeNode widths after an item is added/removed from the Tree
+		return def;		// dojo/_base/Deferred
 	},
 
 	getTreePath: function(){
@@ -455,16 +505,6 @@ var TreeNode = declare(
 		this._setExpando(false);
 	},
 
-	_onLabelFocus: function(){
-		// summary:
-		//		Called when this row is focused (possibly programatically)
-		//		Note that we aren't using _onFocus() builtin to dijit
-		//		because it's called when focus is moved to a descendant TreeNode.
-		// tags:
-		//		private
-		this.tree._onNodeFocus(this);
-	},
-
 	setSelected: function(/*Boolean*/ selected){
 		// summary:
 		//		A Tree has a (single) currently selected node.
@@ -472,7 +512,7 @@ var TreeNode = declare(
 		// description:
 		//		In particular, setting a node as selected involves setting tabIndex
 		//		so that when user tabs to the tree, focus will go to that node (only).
-		this.labelNode.setAttribute("aria-selected", selected);
+		this.labelNode.setAttribute("aria-selected", selected ? "true" : "false");
 		domClass.toggle(this.rowNode, "dijitTreeRowSelected", selected);
 	},
 
@@ -487,36 +527,6 @@ var TreeNode = declare(
 		this.labelNode.setAttribute("tabIndex", selected ? "0" : "-1");
 	},
 
-	_onClick: function(evt){
-		// summary:
-		//		Handler for onclick event on a node
-		// tags:
-		//		private
-		this.tree._onClick(this, evt);
-	},
-	_onDblClick: function(evt){
-		// summary:
-		//		Handler for ondblclick event on a node
-		// tags:
-		//		private
-		this.tree._onDblClick(this, evt);
-	},
-
-	_onMouseEnter: function(evt){
-		// summary:
-		//		Handler for onmouseenter event on a node
-		// tags:
-		//		private
-		this.tree._onNodeMouseEnter(this, evt);
-	},
-
-	_onMouseLeave: function(evt){
-		// summary:
-		//		Handler for onmouseenter event on a node
-		// tags:
-		//		private
-		this.tree._onNodeMouseLeave(this, evt);
-	},
 
 	_setTextDirAttr: function(textDir){
 		if(textDir &&((this.textDir != textDir) || !this._created)){
@@ -533,12 +543,12 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	// summary:
 	//		This widget displays hierarchical data from a store.
 
-	// store: [deprecated] String||dojo.data.Store
+	// store: [deprecated] String|dojo/data/Store
 	//		Deprecated.  Use "model" parameter instead.
 	//		The store to get data to display in the tree.
 	store: null,
 
-	// model: dijit.Tree.model
+	// model: dijit/tree/model
 	//		Interface to read tree data, get notifications of changes to tree data,
 	//		and for handling drop operations (i.e drag and drop onto the tree)
 	model: null,
@@ -549,7 +559,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	query: null,
 
 	// label: [deprecated] String
-	//		Deprecated.  Use dijit.tree.ForestStoreModel directly instead.
+	//		Deprecated.  Use dijit/tree/ForestStoreModel directly instead.
 	//		Used in conjunction with query parameter.
 	//		If a query is specified (rather than a root node id), and a label is also specified,
 	//		then a fake root node is created and displayed, with this label.
@@ -566,12 +576,12 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 	// paths: String[][] or Item[][]
 	//		Full paths from rootNode to selected nodes expressed as array of items or array of ids.
-	//		Since setting the paths may be asynchronous (because ofwaiting on dojo.data), set("paths", ...)
+	//		Since setting the paths may be asynchronous (because of waiting on dojo.data), set("paths", ...)
 	//		returns a Deferred to indicate when the set is complete.
 	paths: [],
 
 	// path: String[] or Item[]
-	//      Backward compatible singular variant of paths.
+	//		Backward compatible singular variant of paths.
 	path: [],
 
 	// selectedItems: [readonly] Item[]
@@ -582,7 +592,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	selectedItems: null,
 
 	// selectedItem: [readonly] Item
-	//      Backward compatible singular variant of selectedItems.
+	//		Backward compatible singular variant of selectedItems.
 	selectedItem: null,
 
 	// openOnClick: Boolean
@@ -605,8 +615,8 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 	// dndController: [protected] Function|String
 	//		Class to use as as the dnd controller.  Specifying this class enables DnD.
-	//		Generally you should specify this as dijit.tree.dndSource.
-	//      Setting of dijit.tree._dndSelector handles selection only (no actual DnD).
+	//		Generally you should specify this as dijit/tree/dndSource.
+	//		Setting of dijit/tree/_dndSelector handles selection only (no actual DnD).
 	dndController: _dndSelector,
 
 	// parameters to pull off of the tree and pass on to the dndController as its params
@@ -615,26 +625,27 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	//declare the above items so they can be pulled from the tree's markup
 
 	// onDndDrop: [protected] Function
-	//		Parameter to dndController, see `dijit.tree.dndSource.onDndDrop`.
+	//		Parameter to dndController, see `dijit/tree/dndSource.onDndDrop()`.
 	//		Generally this doesn't need to be set.
 	onDndDrop: null,
 
+	itemCreator: null,
 	/*=====
 	itemCreator: function(nodes, target, source){
 		// summary:
 		//		Returns objects passed to `Tree.model.newItem()` based on DnD nodes
 		//		dropped onto the tree.   Developer must override this method to enable
-		// 		dropping from external sources onto this Tree, unless the Tree.model's items
+		//		dropping from external sources onto this Tree, unless the Tree.model's items
 		//		happen to look like {id: 123, name: "Apple" } with no other attributes.
-		// description:
+		//
 		//		For each node in nodes[], which came from source, create a hash of name/value
 		//		pairs to be passed to Tree.model.newItem().  Returns array of those hashes.
 		// nodes: DomNode[]
 		//		The DOMNodes dragged from the source container
 		// target: DomNode
 		//		The target TreeNode.rowNode
-		// source: dojo.dnd.Source
-		//		The source container the nodes were dragged from, perhaps another Tree or a plain dojo.dnd.Source
+		// source: dojo/dnd/Source
+		//		The source container the nodes were dragged from, perhaps another Tree or a plain dojo/dnd/Source
 		// returns: Object[]
 		//		Array of name/value hashes for each new item to be added to the Tree, like:
 		// |	[
@@ -646,10 +657,9 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		return [{}];
 	},
 	=====*/
-	itemCreator: null,
 
 	// onDndCancel: [protected] Function
-	//		Parameter to dndController, see `dijit.tree.dndSource.onDndCancel`.
+	//		Parameter to dndController, see `dijit/tree/dndSource.onDndCancel()`.
 	//		Generally this doesn't need to be set.
 	onDndCancel: null,
 
@@ -657,11 +667,11 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	checkAcceptance: function(source, nodes){
 		// summary:
 		//		Checks if the Tree itself can accept nodes from this source
-		// source: dijit.tree._dndSource
+		// source: dijit/tree/dndSource
 		//		The source which provides items
 		// nodes: DOMNode[]
 		//		Array of DOM nodes corresponding to nodes being dropped, dijitTreeRow nodes if
-		//		source is a dijit.Tree.
+		//		source is a dijit/Tree.
 		// tags:
 		//		extension
 		return true;	// Boolean
@@ -679,8 +689,8 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		//		are asking if the source node can be dropped before/after the target node.
 		// target: DOMNode
 		//		The dijitTreeRoot DOM node inside of the TreeNode that we are dropping on to
-		//		Use dijit.getEnclosingWidget(target) to get the TreeNode.
-		// source: dijit.tree.dndSource
+		//		Use registry.getEnclosingWidget(target) to get the TreeNode.
+		// source: dijit/tree/dndSource
 		//		The (set of) nodes we are dropping
 		// position: String
 		//		"over", "before", or "after"
@@ -728,19 +738,49 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			this.persist = false;
 		}
 
-		this._itemNodesMap={};
+		this._itemNodesMap = {};
 
 		if(!this.cookieName && this.id){
 			this.cookieName = this.id + "SaveStateCookie";
 		}
 
-		this._loadDeferred = new Deferred();
+		// Deferred that fires when all the children have loaded.
+		this.expandChildrenDeferred  = new Deferred();
+
+		// Deferred that fires when all pending operations complete.
+		this.pendingCommandsDeferred = this.expandChildrenDeferred;
 
 		this.inherited(arguments);
 	},
 
 	postCreate: function(){
 		this._initState();
+
+		// Catch events on TreeNodes
+		var self = this;
+		this.own(
+			on(this.domNode, on.selector(".dijitTreeNode", touch.enter), function(evt){
+				self._onNodeMouseEnter(registry.byNode(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeNode", touch.leave), function(evt){
+				self._onNodeMouseLeave(registry.byNode(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeRow", "click"), function(evt){
+				self._onClick(registry.getEnclosingWidget(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeRow", "dblclick"), function(evt){
+				self._onDblClick(registry.getEnclosingWidget(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeNode", "keypress"), function(evt){
+				self._onKeyPress(registry.byNode(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeNode", "keydown"), function(evt){
+				self._onKeyDown(registry.byNode(this), evt);
+			}),
+			on(this.domNode, on.selector(".dijitTreeRow", "focusin"), function(evt){
+				self._onNodeFocus(registry.getEnclosingWidget(this), evt);
+			})
+		);
 
 		// Create glue between store and Tree, if not specified directly by user
 		if(!this.model){
@@ -751,8 +791,6 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		this.connect(this.model, "onChange", "_onItemChange");
 		this.connect(this.model, "onChildrenChange", "_onItemChildrenChange");
 		this.connect(this.model, "onDelete", "_onItemDelete");
-
-		this._load();
 
 		this.inherited(arguments);
 
@@ -768,6 +806,19 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			}
 			this.dndController = new this.dndController(this, params);
 		}
+
+		this._load();
+
+		// If no path was specified to the constructor, use path saved in cookie
+		if(!this.params.path && !this.params.paths && this.persist){
+			this.set("paths", this.dndController._getSavedPaths());
+		}
+
+		// onLoadDeferred should fire when all commands that are part of initialization have completed.
+		// It will include all the set("paths", ...) commands that happen during initialization.
+		this.onLoadDeferred = this.pendingCommandsDeferred;
+				
+		this.onLoadDeferred.then(lang.hitch(this, "onLoad"));
 	},
 
 	_store2model: function(){
@@ -824,15 +875,31 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 					textDir: this.textDir,
 					indent: this.showRoot ? 0 : -1
 				}));
+				
 				if(!this.showRoot){
 					rn.rowNode.style.display="none";
 					// if root is not visible, move tree role to the invisible
 					// root node's containerNode, see #12135
 					this.domNode.setAttribute("role", "presentation");
+					this.domNode.removeAttribute("aria-expanded");
+					this.domNode.removeAttribute("aria-multiselectable");
 
+					// move the aria-label or aria-labelledby to the element with the role
+					if(this["aria-label"]){
+						rn.containerNode.setAttribute("aria-label", this["aria-label"]);
+						this.domNode.removeAttribute("aria-label");
+					}else if(this["aria-labelledby"]){
+						rn.containerNode.setAttribute("aria-labelledby", this["aria-labelledby"]);
+						this.domNode.removeAttribute("aria-labelledby");
+					}
 					rn.labelNode.setAttribute("role", "presentation");
 					rn.containerNode.setAttribute("role", "tree");
+					rn.containerNode.setAttribute("aria-expanded","true");
+					rn.containerNode.setAttribute("aria-multiselectable", !this.dndController.singular);
+				}else{
+				  this.domNode.setAttribute("aria-multiselectable", !this.dndController.singular);
 				}
+				
 				this.domNode.appendChild(rn.domNode);
 				var identity = this.model.getIdentity(item);
 				if(this._itemNodesMap[identity]){
@@ -843,15 +910,17 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 				rn._updateLayout();		// sets "dijitTreeIsRoot" CSS classname
 
-				// load top level children and then fire onLoad() event
-				this._expandNode(rn).addCallback(lang.hitch(this, function(){
-					this._loadDeferred.callback(true);
-					this.onLoad();
+				// Load top level children, and if persist==true, all nodes that were previously opened
+				this._expandNode(rn).then(lang.hitch(this, function(){
+					// Then, select the nodes that were selected last time, or
+					// the ones specified by params.paths[].
+
+					this.expandChildrenDeferred.resolve(true);
 				}));
 			}),
-			function(err){
+			lang.hitch(this, function(err){
 				console.error(this, ": error loading root: ", err);
-			}
+			})
 		);
 	},
 
@@ -877,7 +946,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		//		WARNING: if model use multi-parented items or desired tree node isn't already loaded
 		//		behavior is undefined. Use set('paths', ...) instead.
 		var tree = this;
-		this._loadDeferred.addCallback( lang.hitch(this, function(){
+		return this.pendingCommandsDeferred = this.pendingCommandsDeferred.then( lang.hitch(this, function(){
 			var identities = array.map(items, function(item){
 				return (!item || lang.isString(item)) ? item : tree.model.getIdentity(item);
 			});
@@ -889,9 +958,9 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		}));
 	},
 
-	_setPathAttr: function(/*Item[] || String[]*/ path){
+	_setPathAttr: function(/*Item[]|String[]*/ path){
 		// summary:
-		//      Singular variant of _setPathsAttr
+		//		Singular variant of _setPathsAttr
 		if(path.length){
 			return this.set("paths", [path]);
 		}else{
@@ -900,34 +969,38 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		}
 	},
 
-	_setPathsAttr: function(/*Item[][] || String[][]*/ paths){
+	_setPathsAttr: function(/*Item[][]|String[][]*/ paths){
 		// summary:
 		//		Select the tree nodes identified by passed paths.
 		// paths:
 		//		Array of arrays of items or item id's
 		// returns:
 		//		Deferred to indicate when the set is complete
+
 		var tree = this;
 
-		// We may need to wait for some nodes to expand, so setting
-		// each path will involve a Deferred. We bring those deferreds
-		// together witha DeferredList.
-		return new DeferredList(array.map(paths, function(path){
-			var d = new Deferred();
+		// Let any previous set("path", ...) commands complete before this one starts.
+		return this.pendingCommandsDeferred = this.pendingCommandsDeferred.then(function(){
+			// We may need to wait for some nodes to expand, so setting
+			// each path will involve a Deferred. We bring those deferreds
+			// together with a DeferredList.
+			return new DeferredList(array.map(paths, function(path){
+				var d = new Deferred();
 
-			// normalize path to use identity
-			path = array.map(path, function(item){
-				return lang.isString(item) ? item : tree.model.getIdentity(item);
-			});
+				// normalize path to use identity
+				path = array.map(path, function(item){
+					return lang.isString(item) ? item : tree.model.getIdentity(item);
+				});
 
-			if(path.length){
-				// Wait for the tree to load, if it hasn't already.
-				tree._loadDeferred.addCallback(function(){ selectPath(path, [tree.rootNode], d); });
-			}else{
-				d.errback("Empty path");
-			}
-			return d;
-		})).addCallback(setNodes);
+				if(path.length){
+					// Wait for the tree to load, if it hasn't already.
+					selectPath(path, [tree.rootNode], d);
+				}else{
+					d.reject(new Tree.PathError("Empty path"));
+				}
+				return d;
+			}));
+		}).then(setNodes);
 
 		function selectPath(path, nodes, def){
 			// Traverse path; the next path component should be among "nodes".
@@ -937,19 +1010,19 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			})[0];
 			if(!!nextNode){
 				if(path.length){
-					tree._expandNode(nextNode).addCallback(function(){ selectPath(path, nextNode.getChildren(), def); });
+					tree._expandNode(nextNode).then(function(){ selectPath(path, nextNode.getChildren(), def); });
 				}else{
-					//Successfully reached the end of this path
-					def.callback(nextNode);
+					// Successfully reached the end of this path
+					def.resolve(nextNode);
 				}
 			}else{
-				def.errback("Could not expand path at " + nextPath);
+				def.reject(new Tree.PathError("Could not expand path at " + nextPath));
 			}
 		}
 
 		function setNodes(newNodes){
-			//After all expansion is finished, set the selection to
-			//the set of nodes successfully found.
+			// After all expansion is finished, set the selection to
+			// the set of nodes successfully found.
 			tree.set("selectedNodes", array.map(
 				array.filter(newNodes,function(x){return x[0];}),
 				function(x){return x[1];}));
@@ -960,16 +1033,87 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		this.set('selectedNodes', [node]);
 	},
 	_setSelectedNodesAttr: function(nodes){
-		this._loadDeferred.addCallback( lang.hitch(this, function(){
-			this.dndController.setSelection(nodes);
-		}));
+		// summary:
+		//		Marks the specified TreeNodes as selected.
+		// nodes: TreeNode[]
+		//		TreeNodes to mark.
+		this.dndController.setSelection(nodes);
 	},
 
+
+	expandAll: function(){
+		// summary:
+		//		Expand all nodes in the tree
+		// returns:
+		//		Deferred that fires when all nodes have expanded
+
+		var _this = this;
+
+		function expand(node){
+			var def = new dojo.Deferred();
+
+			// Expand the node
+			_this._expandNode(node).then(function(){
+				// When node has expanded, call expand() recursively on each non-leaf child
+				var childBranches = array.filter(node.getChildren() || [], function(node){
+						return node.isExpandable;
+					}),
+					defs = array.map(childBranches, expand);
+
+				// And when all those recursive calls finish, signal that I'm finished
+				new dojo.DeferredList(defs).then(function(){
+					def.resolve(true);
+				});
+			});
+
+			return def;
+		}
+
+		return expand(this.rootNode);
+	},
+
+	collapseAll: function(){
+		// summary:
+		//		Collapse all nodes in the tree
+		// returns:
+		//		Deferred that fires when all nodes have collapsed
+
+		var _this = this;
+
+		function collapse(node){
+			var def = new dojo.Deferred();
+			def.label = "collapseAllDeferred";
+
+			// Collapse children first
+			var childBranches = array.filter(node.getChildren() || [], function(node){
+					return node.isExpandable;
+				}),
+				defs = array.map(childBranches, collapse);
+
+			// And when all those recursive calls finish, collapse myself, unless I'm the invisible root node,
+			// in which case collapseAll() is finished
+			new dojo.DeferredList(defs).then(function(){
+				if(!node.isExpanded || (node == _this.rootNode && !_this.showRoot)){
+					def.resolve(true);
+				}else{
+					_this._collapseNode(node).then(function(){
+						// When node has collapsed, signal that call is finished
+						def.resolve(true);
+					});
+				}
+			});
+
+
+			return def;
+		}
+
+		return collapse(this.rootNode);
+	},
 
 	////////////// Data store related functions //////////////////////
 	// These just get passed to the model; they are here for back-compat
 
-	mayHaveChildren: function(/*dojo.data.Item*/ /*===== item =====*/){
+	mayHaveChildren: function(/*dojo/data/Item*/ /*===== item =====*/){
 		// summary:
 		//		Deprecated.   This should be specified on the model itself.
 		//
@@ -985,7 +1129,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		// summary:
 		//		Deprecated.   This should be specified on the model itself.
 		//
-		// 		Overridable function that return array of child items of given parent item,
+		//		Overridable function that return array of child items of given parent item,
 		//		or if parentItem==null then return top items in tree
 		// tags:
 		//		deprecated
@@ -993,7 +1137,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 	///////////////////////////////////////////////////////
 	// Functions for converting an item to a TreeNode
-	getLabel: function(/*dojo.data.Item*/ item){
+	getLabel: function(/*dojo/data/Item*/ item){
 		// summary:
 		//		Overridable function to get the label for a tree node (given the item)
 		// tags:
@@ -1001,7 +1145,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		return this.model.getLabel(item);	// String
 	},
 
-	getIconClass: function(/*dojo.data.Item*/ item, /*Boolean*/ opened){
+	getIconClass: function(/*dojo/data/Item*/ item, /*Boolean*/ opened){
 		// summary:
 		//		Overridable function to return CSS class name to display icon
 		// tags:
@@ -1012,7 +1156,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	getLabelClass: function(/*===== item, opened =====*/){
 		// summary:
 		//		Overridable function to return CSS class name to display label
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// opened: Boolean
 		// returns: String
 		//		CSS class name
@@ -1023,7 +1167,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	getRowClass: function(/*===== item, opened =====*/){
 		// summary:
 		//		Overridable function to return CSS class name to display row
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// opened: Boolean
 		// returns: String
 		//		CSS class name
@@ -1034,7 +1178,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	getIconStyle: function(/*===== item, opened =====*/){
 		// summary:
 		//		Overridable function to return CSS styles to display icon
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// opened: Boolean
 		// returns: Object
 		//		Object suitable for input to dojo.style() like {backgroundImage: "url(...)"}
@@ -1045,7 +1189,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	getLabelStyle: function(/*===== item, opened =====*/){
 		// summary:
 		//		Overridable function to return CSS styles to display label
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// opened: Boolean
 		// returns:
 		//		Object suitable for input to dojo.style() like {color: "red", background: "green"}
@@ -1056,7 +1200,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	getRowStyle: function(/*===== item, opened =====*/){
 		// summary:
 		//		Overridable function to return CSS styles to display row
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// opened: Boolean
 		// returns:
 		//		Object suitable for input to dojo.style() like {background-color: "#bbb"}
@@ -1064,7 +1208,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		//		extension
 	},
 
-	getTooltip: function(/*dojo.data.Item*/ /*===== item =====*/){
+	getTooltip: function(/*dojo/data/Item*/ /*===== item =====*/){
 		// summary:
 		//		Overridable function to get the tooltip for a tree node (given the item)
 		// tags:
@@ -1074,50 +1218,55 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 	/////////// Keyboard and Mouse handlers ////////////////////
 
-	_onKeyPress: function(/*Event*/ e){
+	_onKeyPress: function(/*TreeNode*/ treeNode, /*Event*/ e){
 		// summary:
-		//		Translates keypress events into commands for the controller
-		if(e.altKey){ return; }
-		var treeNode = registry.getEnclosingWidget(e.target);
-		if(!treeNode){ return; }
+		//		Handles keystrokes for printable keys, doing search navigation
 
-		var key = e.charOrCode;
-		if(typeof key == "string" && key != " "){	// handle printables (letter navigation)
-			// Check for key navigation.
-			if(!e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey){
-				this._onLetterKeyNav( { node: treeNode, key: key.toLowerCase() } );
-				event.stop(e);
-			}
-		}else{	// handle non-printables (arrow keys)
+		if(e.charCode <= 32){
+			// Avoid duplicate events on firefox (this is an arrow key that will be handled by keydown handler)
+			return;
+		}
+
+		if(!e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey){
+			var c = String.fromCharCode(e.charCode);
+			this._onLetterKeyNav( { node: treeNode, key: c.toLowerCase() } );
+			event.stop(e);
+		}
+	},
+
+	_onKeyDown: function(/*TreeNode*/ treeNode, /*Event*/ e){
+		// summary:
+		//		Handles arrow, space, and enter keys
+
+		var key = e.keyCode;
+
+		var map = this._keyHandlerMap;
+		if(!map){
+			// Setup table mapping keys to events.
+			// On WebKit based browsers, the combination ctrl-enter does not get passed through. To allow accessible
+			// multi-select on those browsers, the space key is also used for selection.
+			// Therefore, also allow space key for keyboard "click" operation.
+			map = {};
+			map[keys.ENTER] = map[keys.SPACE] = map[" "] = "_onEnterKey";
+			map[this.isLeftToRight() ? keys.LEFT_ARROW : keys.RIGHT_ARROW] = "_onLeftArrow";
+			map[this.isLeftToRight() ? keys.RIGHT_ARROW : keys.LEFT_ARROW] = "_onRightArrow";
+			map[keys.UP_ARROW] = "_onUpArrow";
+			map[keys.DOWN_ARROW] = "_onDownArrow";
+			map[keys.HOME] = "_onHomeKey";
+			map[keys.END] = "_onEndKey";
+			this._keyHandlerMap = map;
+		}
+
+		if(this._keyHandlerMap[key]){
 			// clear record of recent printables (being saved for multi-char letter navigation),
 			// because "a", down-arrow, "b" shouldn't search for "ab"
 			if(this._curSearch){
-				clearTimeout(this._curSearch.timer);
+				this._curSearch.timer.remove();
 				delete this._curSearch;
 			}
 
-			var map = this._keyHandlerMap;
-			if(!map){
-				// setup table mapping keys to events
-				map = {};
-				map[keys.ENTER]="_onEnterKey";
-				//On WebKit based browsers, the combination ctrl-enter
-				//does not get passed through. To allow accessible
-				//multi-select on those browsers, the space key is
-				//also used for selection.
-				map[keys.SPACE]= map[" "] = "_onEnterKey";
-				map[this.isLeftToRight() ? keys.LEFT_ARROW : keys.RIGHT_ARROW]="_onLeftArrow";
-				map[this.isLeftToRight() ? keys.RIGHT_ARROW : keys.LEFT_ARROW]="_onRightArrow";
-				map[keys.UP_ARROW]="_onUpArrow";
-				map[keys.DOWN_ARROW]="_onDownArrow";
-				map[keys.HOME]="_onHomeKey";
-				map[keys.END]="_onEndKey";
-				this._keyHandlerMap = map;
-			}
-			if(this._keyHandlerMap[key]){
-				this[this._keyHandlerMap[key]]( { node: treeNode, item: treeNode.item, evt: e } );
-				event.stop(e);
-			}
+			this[this._keyHandlerMap[key]]( { node: treeNode, item: treeNode.item, evt: e } );
+			event.stop(e);
 		}
 	},
 
@@ -1244,7 +1393,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			// We are continuing a search.  Ex: user has pressed 'a', and now has pressed
 			// 'b', so we want to search for nodes starting w/"ab".
 			cs.pattern = cs.pattern + message.key;
-			clearTimeout(cs.timer);
+			cs.timer.remove();
 		}else{
 			// We are starting a new search
 			cs = this._curSearch = {
@@ -1254,9 +1403,8 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		}
 
 		// set/reset timer to forget recent keystrokes
-		var self = this;
-		cs.timer = setTimeout(function(){
-			delete self._curSearch;
+		cs.timer = this.defer(function(){
+			delete this._curSearch;
 		}, this.multiCharSearchDuration);
 
 		// Navigate to TreeNode matching keystrokes [entered so far].
@@ -1279,8 +1427,9 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	isExpandoNode: function(node, widget){
 		// summary:
 		//		check whether a dom node is the expandoNode for a particular TreeNode widget
-		return dom.isDescendant(node, widget.expandoNode);
+		return dom.isDescendant(node, widget.expandoNode) || dom.isDescendant(node, widget.expandoNodeText);
 	},
+
 	_onClick: function(/*TreeNode*/ nodeWidget, /*Event*/ e){
 		// summary:
 		//		Translates click events into commands for the controller to process
@@ -1340,25 +1489,31 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	onClick: function(/*===== item, node, evt =====*/){
 		// summary:
 		//		Callback when a tree node is clicked
-		// item: dojo.data.Item
+		// item: Object
+		//		Object from the dojo/store corresponding to this TreeNode
 		// node: TreeNode
+		//		The TreeNode itself
 		// evt: Event
+		//		The event
 		// tags:
 		//		callback
 	},
 	onDblClick: function(/*===== item, node, evt =====*/){
 		// summary:
 		//		Callback when a tree node is double-clicked
-		// item: dojo.data.Item
+		// item: Object
+		//		Object from the dojo/store corresponding to this TreeNode
 		// node: TreeNode
+		//		The TreeNode itself
 		// evt: Event
+		//		The event
 		// tags:
 		//		callback
 	},
 	onOpen: function(/*===== item, node =====*/){
 		// summary:
 		//		Callback when a node is opened
-		// item: dojo.data.Item
+		// item: dojo/data/Item
 		// node: TreeNode
 		// tags:
 		//		callback
@@ -1366,8 +1521,10 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	onClose: function(/*===== item, node =====*/){
 		// summary:
 		//		Callback when a node is closed
-		// item: dojo.data.Item
+		// item: Object
+		//		Object from the dojo/store corresponding to this TreeNode
 		// node: TreeNode
+		//		The TreeNode itself
 		// tags:
 		//		callback
 	},
@@ -1378,13 +1535,13 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 		if(node.isExpandable && node.isExpanded && node.hasChildren()){
 			// if this is an expanded node, get the first child
-			return node.getChildren()[0];		// _TreeNode
+			return node.getChildren()[0];		// TreeNode
 		}else{
 			// find a parent node with a sibling
 			while(node && node.isTreeNode){
 				var returnNode = node.getNextSibling();
 				if(returnNode){
-					return returnNode;		// _TreeNode
+					return returnNode;		// TreeNode
 				}
 				node = node.getParent();
 			}
@@ -1398,93 +1555,95 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		return this.showRoot ? this.rootNode : this.rootNode.getChildren()[0];
 	},
 
-	_collapseNode: function(/*_TreeNode*/ node){
+	_collapseNode: function(/*TreeNode*/ node){
 		// summary:
 		//		Called when the user has requested to collapse the node
+		// returns:
+		//		Deferred that fires when the node is closed
 
 		if(node._expandNodeDeferred){
 			delete node._expandNodeDeferred;
 		}
 
-		if(node.isExpandable){
-			if(node.state == "LOADING"){
-				// ignore clicks while we are in the process of loading data
-				return;
-			}
+		if(node.state == "LOADING"){
+			// ignore clicks while we are in the process of loading data
+			return;
+		}
 
-			node.collapse();
+		if(node.isExpanded){
+			var ret = node.collapse();
+
 			this.onClose(node.item, node);
-
 			this._state(node, false);
+
+			this._startPaint(ret);	// after this finishes, need to reset widths of TreeNodes
+
+			return ret;
 		}
 	},
 
-	_expandNode: function(/*_TreeNode*/ node, /*Boolean?*/ recursive){
+	_expandNode: function(/*TreeNode*/ node){
 		// summary:
 		//		Called when the user has requested to expand the node
-		// recursive:
-		//		Internal flag used when _expandNode() calls itself, don't set.
 		// returns:
 		//		Deferred that fires when the node is loaded and opened and (if persist=true) all it's descendants
 		//		that were previously opened too
 
-		if(node._expandNodeDeferred && !recursive){
-			// there's already an expand in progress (or completed), so just return
-			return node._expandNodeDeferred;	// dojo.Deferred
+		// Signal that this call is complete
+		var def = new Deferred();
+
+		if(node._expandNodeDeferred){
+			// there's already an expand in progress, or completed, so just return
+			return node._expandNodeDeferred;	// dojo/_base/Deferred
 		}
 
 		var model = this.model,
 			item = node.item,
 			_this = this;
 
-		switch(node.state){
-			case "UNCHECKED":
-				// need to load all the children, and then expand
-				node.markProcessing();
+		// Load data if it's not already loaded
+		if(!node._loadDeferred){
+			// need to load all the children before expanding
+			node.markProcessing();
 
-				// Setup deferred to signal when the load and expand are finished.
-				// Save that deferred in this._expandDeferred as a flag that operation is in progress.
-				var def = (node._expandNodeDeferred = new Deferred());
+			// Setup deferred to signal when the load and expand are finished.
+			// Save that deferred in this._expandDeferred as a flag that operation is in progress.
+			node._loadDeferred = new Deferred();
 
-				// Get the children
-				model.getChildren(
-					item,
-					function(items){
-						node.unmarkProcessing();
+			// Get the children
+			model.getChildren(
+				item,
+				function(items){
+					node.unmarkProcessing();
 
-						// Display the children and also start expanding any children that were previously expanded
-						// (if this.persist == true).   The returned Deferred will fire when those expansions finish.
-						var scid = node.setChildItems(items);
-
-						// Call _expandNode() again but this time it will just to do the animation (default branch).
-						// The returned Deferred will fire when the animation completes.
-						// TODO: seems like I can avoid recursion and just use a deferred to sequence the events?
-						var ed = _this._expandNode(node, true);
-
-						// After the above two tasks (setChildItems() and recursive _expandNode()) finish,
-						// signal that I am done.
-						scid.addCallback(function(){
-							ed.addCallback(function(){
-								def.callback();
-							})
-						});
-					},
-					function(err){
-						console.error(_this, ": error loading root children: ", err);
-					}
-				);
-				break;
-
-			default:	// "LOADED"
-				// data is already loaded; just expand node
-				def = (node._expandNodeDeferred = node.expand());
-
-				this.onOpen(node.item, node);
-
-				this._state(node, true);
+					// Display the children and also start expanding any children that were previously expanded
+					// (if this.persist == true).   The returned Deferred will fire when those expansions finish.
+					node.setChildItems(items).then(function(){
+						node._loadDeferred.resolve(items);
+					});
+				},
+				function(err){
+					console.error(_this, ": error loading " + node.label + " children: ", err);
+					node._loadDeferred.reject(err);
+				}
+			);
 		}
 
-		return def;	// dojo.Deferred
+		// Expand the node after data has loaded
+		node._loadDeferred.then(lang.hitch(this, function(){
+			node.expand().then(function(){
+				def.resolve(true);	// signal that this _expandNode() call is complete
+			});
+
+			// seems like these should be inside of then(), but left here for back-compat about
+			// when this.isOpen flag gets set (ie, at the beginning of the animation)
+			this.onOpen(node.item, node);
+			this._state(node, true);
+		}));
+
+		this._startPaint(def);	// after this finishes, need to reset widths of TreeNodes
+
+		return def;	// dojo/_base/Deferred
 	},
 
 	////////////////// Miscellaneous functions ////////////////
@@ -1499,7 +1658,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		focus.focus(node.labelNode);
 	},
 
-	_onNodeFocus: function(/*dijit._Widget*/ node){
+	_onNodeFocus: function(/*dijit/_WidgetBase*/ node){
 		// summary:
 		//		Called when a TreeNode gets focus, either by user clicking
 		//		it, or programatically by arrow key handling code.
@@ -1519,13 +1678,13 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		}
 	},
 
-	_onNodeMouseEnter: function(/*dijit._Widget*/ /*===== node =====*/){
+	_onNodeMouseEnter: function(/*dijit/_WidgetBase*/ /*===== node =====*/){
 		// summary:
 		//		Called when mouse is over a node (onmouseenter event),
 		//		this is monitored by the DND code
 	},
 
-	_onNodeMouseLeave: function(/*dijit._Widget*/ /*===== node =====*/){
+	_onNodeMouseLeave: function(/*dijit/_WidgetBase*/ /*===== node =====*/){
 		// summary:
 		//		Called when mouse leaves a node (onmouseleave event),
 		//		this is monitored by the DND code
@@ -1554,7 +1713,7 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 		}
 	},
 
-	_onItemChildrenChange: function(/*dojo.data.Item*/ parent, /*dojo.data.Item[]*/ newChildrenList){
+	_onItemChildrenChange: function(/*dojo/data/Item*/ parent, /*dojo/data/Item[]*/ newChildrenList){
 		// summary:
 		//		Processes notification of a change to an item's children
 		var model = this.model,
@@ -1570,7 +1729,9 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 
 	_onItemDelete: function(/*Item*/ item){
 		// summary:
-		//		Processes notification of a deletion of an item
+		//		Processes notification of a deletion of an item.
+		//		Not called from new dojo.store interface but there's cleanup code in setChildItems() instead.
+
 		var model = this.model,
 			identity = model.getIdentity(item),
 			nodes = this._itemNodesMap[identity];
@@ -1623,17 +1784,19 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			}else{
 				delete this._openedNodes[path];
 			}
-			var ary = [];
-			for(var id in this._openedNodes){
-				ary.push(id);
+			if(this.persist && this.cookieName){
+				var ary = [];
+				for(var id in this._openedNodes){
+					ary.push(id);
+				}
+				cookie(this.cookieName, ary.join(","), {expires:365});
 			}
-			cookie(this.cookieName, ary.join(","), {expires:365});
 		}
 	},
 
 	destroy: function(){
 		if(this._curSearch){
-			clearTimeout(this._curSearch.timer);
+			this._curSearch.timer.remove();
 			delete this._curSearch;
 		}
 		if(this.rootNode){
@@ -1657,15 +1820,76 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 			domGeometry.setMarginBox(this.domNode, changeSize);
 		}
 
-		// The only JS sizing involved w/tree is the indentation, which is specified
+		// The main JS sizing involved w/tree is the indentation, which is specified
 		// in CSS and read in through this dummy indentDetector node (tree must be
-		// visible and attached to the DOM to read this)
-		this._nodePixelIndent = domGeometry.position(this.tree.indentDetector).w;
+		// visible and attached to the DOM to read this).
+		// If the Tree is hidden domGeometry.position(this.tree.indentDetector).w will return 0, in which case just
+		// keep the default value.
+		this._nodePixelIndent = domGeometry.position(this.tree.indentDetector).w || this._nodePixelIndent;
 
-		if(this.tree.rootNode){
+		// resize() may be called before this.rootNode is created, so wait until it's available
+		this.expandChildrenDeferred.then(lang.hitch(this, function(){
 			// If tree has already loaded, then reset indent for all the nodes
-			this.tree.rootNode.set('indent', this.showRoot ? 0 : -1);
+			this.rootNode.set('indent', this.showRoot ? 0 : -1);
+
+			// Also, adjust widths of all rows to match width of Tree
+			this._adjustWidths();
+		}));
+	},
+
+	_outstandingPaintOperations: 0,
+	_startPaint: function(/*Promise|Boolean*/ p){
+		// summary:
+		//		Called at the start of an operation that will change what's displayed.
+		// p:
+		//		Promise that tells when the operation will complete.  Alternately, if it's just a Boolean, it signifies
+		//		that the operation was synchronous, and already completed.
+
+		this._outstandingPaintOperations++;
+		if(this._adjustWidthsTimer){
+			this._adjustWidthsTimer.remove();
+			delete this._adjustWidthsTimer;
 		}
+
+		var oc = lang.hitch(this, function(){
+			this._outstandingPaintOperations--;
+
+			if(this._outstandingPaintOperations <= 0 && !this._adjustWidthsTimer && this._started){
+				// Use defer() to avoid a width adjustment when another operation will immediately follow,
+				// such as a sequence of opening a node, then it's children, then it's grandchildren, etc.
+				this._adjustWidthsTimer = this.defer("_adjustWidths");
+			}
+		});
+		when(p, oc, oc);
+	},
+
+	_adjustWidths: function(){
+		// summary:
+		//		Get width of widest TreeNode, or the width of the Tree itself, whichever is greater,
+		//		and then set all TreeNodes to that width, so that selection/hover highlighting
+		//		extends to the edge of the Tree (#13141)
+
+		if(this._adjustWidthsTimer){
+			this._adjustWidthsTimer.remove();
+			delete this._adjustWidthsTimer;
+		}
+
+		var maxWidth = 0,
+			nodes = [];
+		function collect(/*TreeNode*/ parent){
+			var node = parent.rowNode;
+			node.style.width = "auto";		// erase setting from previous run
+			maxWidth = Math.max(maxWidth, node.clientWidth);
+			nodes.push(node);
+			if(parent.isExpanded){
+				array.forEach(parent.getChildren(), collect);
+			}
+		}
+		collect(this.rootNode);
+		maxWidth = Math.max(maxWidth, domGeometry.getContentBox(this.domNode).w);	// do after node.style.width="auto"
+		array.forEach(nodes, function(node){
+			node.style.width = maxWidth + "px";		// assumes no horizontal padding, border, or margin on rowNode
+		});
 	},
 
 	_createTreeNode: function(/*Object*/ args){
@@ -1687,7 +1911,8 @@ var Tree = declare("dijit.Tree", [_Widget, _TemplatedMixin], {
 	}
 });
 
-Tree._TreeNode = TreeNode;	// for monkey patching
+Tree.PathError = createError("TreePathError");
+Tree._TreeNode = TreeNode;	// for monkey patching or creating subclasses of TreeNode
 
 return Tree;
 });

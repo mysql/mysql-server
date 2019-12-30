@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@ INCLUDE(CheckCSourceRuns)
 
 # We require at least XCode 9.0
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
-  IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {

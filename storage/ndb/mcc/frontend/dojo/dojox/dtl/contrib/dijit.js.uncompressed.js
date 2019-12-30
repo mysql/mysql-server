@@ -1,4 +1,3 @@
-//>>built
 define("dojox/dtl/contrib/dijit", [
 	"dojo/_base/lang",
 	"dojo/_base/connect",
@@ -9,11 +8,7 @@ define("dojox/dtl/contrib/dijit", [
 	"dojo/parser",
 	"dojo/_base/sniff"
 ], function(lang,connect,array,Query,dd,dxdom,Parser,has){
-	/*=====
-		Query = dojo.query;
-		Parser = dojo.parser;
-		dd = dojox.dtl;
-	=====*/
+
 	lang.getObject("dojox.dtl.contrib.dijit", true);
 	var ddcd = dd.contrib.dijit;
 	ddcd.AttachNode = lang.extend(function(keys, object){
@@ -217,7 +212,8 @@ define("dojox/dtl/contrib/dijit", [
 			return new dd.AttributeNode("data-dojo-type", dojoType);
 		},
 		on: function(parser, token){
-			// summary: Associates an event type to a function (on the current widget) by name
+			// summary:
+			//		Associates an event type to a function (on the current widget) by name
 			var parts = token.contents.split();
 			return new ddcd.EventNode(parts[0] + ":" + parts.slice(1).join(" "));
 		}

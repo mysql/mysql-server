@@ -182,8 +182,8 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
     }
 
     retval = acl_getroot(tmp_thd ? tmp_thd : current_thd,
-                         reinterpret_cast<Security_context *>(ctx),
-                         (char *)user, (char *)host, (char *)ip, db)
+                         reinterpret_cast<Security_context *>(ctx), user, host,
+                         ip, db)
                  ? true
                  : false;
 

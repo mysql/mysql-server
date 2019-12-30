@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/AutoSave", [
 	"dojo",
 	"dijit",	// _scopeName
@@ -25,11 +24,13 @@ define("dojox/editor/plugins/AutoSave", [
 	"dojo/string",
 	"dojox/editor/plugins/Save",
 	"dojo/i18n!dojox/editor/plugins/nls/AutoSave"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, manager, popup, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin,
+	Dialog, MenuItem, Menu, Button, ComboButton, ComboBox, _TextBoxMixin, TextBox, TooltipDialog, _Plugin,
+	connect, declare, locale, i18n, string, Save) {
 
 dojo.experimental("dojox.editor.plugins.AutoSave");
 
-dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [dijit._Widget, dijit._TemplatedMixin, dijit._WidgetsInTemplateMixin], {
+dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
 	
 	// dialogTitle [public] String
 	//		The tile of the Auto-Save setting dialog
@@ -100,7 +101,7 @@ dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [dijit._Widget, diji
 	},
 	
 	hide: function(){
-		// summray:
+		// summary:
 		//		Hide the setting dialog.
 		// tags:
 		//		public
@@ -126,7 +127,7 @@ dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [dijit._Widget, diji
 	_onKeyDown: function(evt){
 		// summary:
 		//		Handle the keydown event
-		//	tags:
+		// tags:
 		//		private
 		if(evt.keyCode == dojo.keys.ENTER){
 			this.onOk();
@@ -146,10 +147,10 @@ dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [dijit._Widget, diji
 	},
 	
 	_setValueAttr: function(/*String*/ val){
-		//	summary:
+		// summary:
 		//		Set the value attribute if it is acceptable
 		// val:
-		//		The invertal value
+		//		The interval value
 		// tags:
 		//		private
 		if(this._isValidValue(val)){
@@ -176,31 +177,31 @@ dojo.declare("dojox.editor.plugins._AutoSaveSettingDialog", [dijit._Widget, diji
 	}
 });
 
-dojo.declare("dojox.editor.plugins.AutoSave", dojox.editor.plugins.Save, {
+dojo.declare("dojox.editor.plugins.AutoSave", Save, {
 	// summary:
 	//		This plugin provides the auto save capability to the editor. The
 	//		plugin saves the content of the editor in interval. When
 	//		the save action is performed, the document in the editor frame
 	//		will be posted to the URL provided, or none, if none provided.
 	
-	// url [public]	String
+	// url: [public] String
 	//		The URL to POST the content back to.  Used by the save function.
 	url: "",
 
-	// logErrors [public] boolean
+	// logResults: [public] Boolean
 	//		Boolean flag to indicate that the default action for save and
 	//		error handlers is to just log to console.  Default is true.
 	logResults: true,
 	
-	// interval [public] Number
+	// interval: [public] Number
 	//		The interval to perform the save action.
 	interval: 0,
 	
-	// _iconClassPrefix [private] String
+	// _iconClassPrefix: [private] String
 	//		This prefix of the CSS class
 	_iconClassPrefix: "dijitEditorIconAutoSave",
 	
-	// _MIN [private const] Number
+	// _MIN: [private const] Number
 	//		Default 1 minute
 	_MIN: 60000,
 	

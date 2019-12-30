@@ -1,31 +1,25 @@
-//>>built
 define("dojox/layout/RotatorContainer", ["dojo/_base/declare","dojo/_base/html","dojo/_base/connect","dojo/_base/lang","dojo/_base/array",
 	"dojo/_base/fx","dojo/fx","dijit/_base/manager","dijit/layout/StackContainer","dijit/layout/StackController","dijit/_Widget",
 	"dijit/_Templated","dijit/_Contained"
 ],function(declare,html,connect,lang,array,baseFx,coreFx,manager,
 	StackContainer,StackController,Widget,Templated,Contained){
 
-/*===== 
-	var Widget = dijit._Widget, 
-		Templated = dijit._Templated,
-		Contained = dijit._Contained,
-		StackContainer = dijit.layout.StackContainer,
-		StackController = dijit.layout.StackController;
-=====*/
 var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, Templated], {
 	// summary:
 	//		Extends a StackContainer to automatically transition between children
 	//		and display navigation in the form of tabs or a pager.
 	//
 	// description:
-	// 		The RotatorContainer cycles through the children with a transition.
+	//		The RotatorContainer cycles through the children with a transition.
 	//
-	// published topics:
-	// 		[widgetId]-update - Notifies pager(s) that a child has changed.
-	//			Parameters:
-	//				/*boolean*/ playing - true if playing, false if paused
-	//				/*int*/ current     - current selected child
-	//				/*int*/ total       - total number of children
+	//		####published topics:
+	//
+	//		[widgetId]-update - Notifies pager(s) that a child has changed.
+	//		Parameters:
+	//
+	//		- /*boolean*/ playing - true if playing, false if paused
+	//		- /*int*/ current     - current selected child
+	//		- /*int*/ total       - total number of children
 	//
 	// example:
 	// |	<div dojoType="dojox.layout.RotatorContainer" id="myRotator" showTabs="true" autoStart="true" transitionDelay="5000">
@@ -90,7 +84,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
  	pagerClass: "dojox.layout.RotatorPager",
 
 	postCreate: function(){
-		// summary: Initializes the DOM nodes, tabs, and transition stuff.
+		// summary:
+		//		Initializes the DOM nodes, tabs, and transition stuff.
 		this.inherited(arguments);
 
 		// force this DOM node to a relative position and make sure the children are absolute positioned
@@ -140,7 +135,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	startup: function(){
-		// summary: Initializes the pagers.
+		// summary:
+		//		Initializes the pagers.
 		if(this._started){ return; }
 
 		// check if the pager is defined within the rotator container
@@ -166,7 +162,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	destroy: function(){
-		// summary: Unsubscribe to all of our topics
+		// summary:
+		//		Unsubscribe to all of our topics
 		array.forEach(this._subscriptions, connect.unsubscribe);
 		this.inherited(arguments);
 	},
@@ -177,13 +174,15 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_updatePager: function(){
-		// summary: Notify the pager's current and total numbers.
+		// summary:
+		//		Notify the pager's current and total numbers.
 		var c = this.getChildren();
 		connect.publish(this.id+"-update", [this._playing, array.indexOf(c, this.selectedChildWidget)+1, c.length]);
 	},
 
 	_onMouseOver: function(){
-		// summary: Triggered when the mouse is moved over the rotator container.
+		// summary:
+		//		Triggered when the mouse is moved over the rotator container.
 
 		// temporarily suspend the cycling, but don't officially pause it
 		this._resetTimer();
@@ -191,7 +190,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_onMouseOut: function(){
-		// summary: Triggered when the mouse is moved off the rotator container.
+		// summary:
+		//		Triggered when the mouse is moved off the rotator container.
 		this._over = false;
 
 		// if we were playing, resume playback in 200ms
@@ -203,13 +203,15 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_resetTimer: function(){
-		// summary: Resets the timer used to start the next transition.
+		// summary:
+		//		Resets the timer used to start the next transition.
 		clearTimeout(this._timer);
 		this._timer = null;
 	},
 
 	_cycle: function(/*boolean or int*/next){
-		// summary: Cycles to the next/previous child.
+		// summary:
+		//		Cycles to the next/previous child.
 
 		// if next is an int, then _cycle() was called via a timer
 		// if next is a boolean, then _cycle() was called via the next/prev buttons, stop playing and reset cycles
@@ -225,8 +227,9 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_manualChange: function(){
-		// summary: This function is only called when a manual change occurs in which
-		//   case we may need to stop playing and we need to reset the cycle counter
+		// summary:
+		//		This function is only called when a manual change occurs in which
+		//		case we may need to stop playing and we need to reset the cycle counter
 		if(this.pauseOnManualChange){
 			this._playing = false;
 		}
@@ -234,7 +237,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_play: function(skip){
-		// summary: Schedules the next transition.
+		// summary:
+		//		Schedules the next transition.
 		this._playing = true;
 		this._resetTimer();
 		if(skip !== true && this.cycles>0){
@@ -250,13 +254,15 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_pause: function(){
-		// summary: Clears the transition timer and pauses the rotator.
+		// summary:
+		//		Clears the transition timer and pauses the rotator.
 		this._playing = false;
 		this._resetTimer();
 	},
 
 	_state: function(playing){
-		// summary: Fired when the play/pause pager button is toggled.
+		// summary:
+		//		Fired when the play/pause pager button is toggled.
 		if(playing){
 			// since we were manually changed, disable the cycle counter
 			this.cycles = -1;
@@ -267,7 +273,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_transition: function(/*dijit._Widget*/ next, /*dijit._Widget*/ prev){
-		// summary: Dispatches the appropriate transition.
+		// summary:
+		//		Dispatches the appropriate transition.
 		this._resetTimer();
 
 		// check if we have anything to transition
@@ -290,7 +297,8 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 	},
 
 	_fade: function(/*dijit._Widget*/ next, /*dijit._Widget*/ prev){
-		// summary: Crossfades two children.
+		// summary:
+		//		Crossfades two children.
 		this._styleNode(prev.domNode, 1, 1);
 		this._styleNode(next.domNode, 0, 2);
 
@@ -315,8 +323,9 @@ var RotatorContainer = declare("dojox.layout.RotatorContainer",[StackContainer, 
 		anim.play();
 	},
 
-	_styleNode: function(/*DOMnode*/node, /*number*/opacity, /*int*/zIndex){
-		// summary: Helper function to style the children.
+	_styleNode: function(/*DomNode*/node, /*number*/opacity, /*int*/zIndex){
+		// summary:
+		//		Helper function to style the children.
 		html.style(node, "opacity", opacity);
 		html.style(node, "zIndex", zIndex);
 		html.style(node, "position", "absolute");
@@ -329,26 +338,28 @@ declare("dojox.layout.RotatorPager", [Widget, Templated, Contained], {
 	//
 	// description:
 	//		A pager can be defined one of two ways:
-	//			* Externally of the RotatorContainer's template and tell the
-	//			RotatorPager the rotatorId of the RotatorContainer
-	//			* As a direct descendant of the RotatorContainer (i.e. inside the
-	//			RotatorContainer's template)
+	//
+	//		- Externally of the RotatorContainer's template and tell the
+	//		RotatorPager the rotatorId of the RotatorContainer
+	//		- As a direct descendant of the RotatorContainer (i.e. inside the
+	//		RotatorContainer's template)
 	//
 	//		The pager can contain the following components:
-	//			* Previous button
-	//				- Must be a dijit.form.Button
-	//				- dojoAttachPoint must be named "previous"
-	//			* Next button
-	//				- Must be a dijit.form.Button
-	//				- dojoAttachPoint must be named "next"
-	//			* Play/Pause toggle button
-	//				- Must be a dijit.form.ToggleButton
-	//				- dojoAttachPoint must be named "playPause"
-	//				- Use iconClass to specify toggled state
-	//			* Current child #
-	//				- dojoAttachPoint must be named "current"
-	//			* Total # of children
-	//				- dojoAttachPoint must be named "total"
+	//
+	//		- Previous button
+	//			- Must be a dijit.form.Button
+	//			- dojoAttachPoint must be named "previous"
+	//		- Next button
+	//			- Must be a dijit.form.Button
+	//			- dojoAttachPoint must be named "next"
+	//		- Play/Pause toggle button
+	//			- Must be a dijit.form.ToggleButton
+	//			- dojoAttachPoint must be named "playPause"
+	//			- Use iconClass to specify toggled state
+	//		- Current child #
+	//			- dojoAttachPoint must be named "current"
+	//		- Total # of children
+	//			- dojoAttachPoint must be named "total"
 	//
 	//		You can choose to exclude specific controls as well as add elements
 	//		for styling.
@@ -359,13 +370,17 @@ declare("dojox.layout.RotatorPager", [Widget, Templated, Contained], {
 	//		Notifications are received from and sent to the RotatorContainer as
 	//		well as other RotatorPagers.
 	//
-	// published topics:
+	//		####published topics:
+	//
 	//		[widgetId]-cycle - Notify that the next or previous button was pressed.
-	//			Parameters:
-	//				/*boolean*/ next - true if next, false if previous
+	//		Parameters:
+	//
+	//		- /*boolean*/ next - true if next, false if previous
+	//
 	//		[widgetId]-state - Notify that the play/pause button was toggled.
-	//			Parameters:
-	//				/*boolean*/ playing - true if playing, false if paused
+	//		Parameters:
+	//
+	//		- /*boolean*/ playing - true if playing, false if paused
 	//
 	// example:
 	//		A pager with the current/total children and previous/next buttons.
@@ -428,13 +443,14 @@ declare("dojox.layout.RotatorPager", [Widget, Templated, Contained], {
 	},
 
 	destroy: function(){
-		// summary: Unsubscribe to all of our topics
+		// Unsubscribe to all of our topics
 		array.forEach(this._subscriptions, connect.unsubscribe);
 		this.inherited(arguments);
 	},
 
 	_state: function(/*boolean*/playing){
-		// summary: Updates the display of the play/pause button
+		// summary:
+		//		Updates the display of the play/pause button
 		if(this.playPause && this.playPause.checked != playing){
 			this.playPause.set("label", playing ? "Pause" : "Play");
 			this.playPause.set("checked", playing);
@@ -442,7 +458,8 @@ declare("dojox.layout.RotatorPager", [Widget, Templated, Contained], {
 	},
 
 	_update: function(/*boolean*/playing, /*int*/current, /*int*/total){
-		// summary: Updates the pager's play/pause button, current child, and total number of children.
+		// summary:
+		//		Updates the pager's play/pause button, current child, and total number of children.
 		this._state(playing);
 		if(this.current && current){
 			this.current.innerHTML = current;

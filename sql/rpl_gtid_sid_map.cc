@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "control_events.h"
+#include "libbinlogevents/include/control_events.h"
 #include "map_helpers.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -46,17 +46,13 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
     : sid_lock(_sid_lock),
       _sidno_to_sid(key_memory_Sid_map_Node),
       _sorted(key_memory_Sid_map_Node) {
-  DBUG_ENTER("Sid_map::Sid_map");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
-Sid_map::~Sid_map() {
-  DBUG_ENTER("Sid_map::~Sid_map");
-  DBUG_VOID_RETURN;
-}
+Sid_map::~Sid_map() { DBUG_TRACE; }
 
 enum_return_status Sid_map::clear() {
-  DBUG_ENTER("Sid_map::clear");
+  DBUG_TRACE;
   _sid_to_sidno.clear();
   _sidno_to_sid.clear();
   _sorted.clear();
@@ -64,7 +60,7 @@ enum_return_status Sid_map::clear() {
 }
 
 rpl_sidno Sid_map::add_sid(const rpl_sid &sid) {
-  DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   char buf[binary_log::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
@@ -74,7 +70,7 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid) {
   auto it = _sid_to_sidno.find(sid);
   if (it != _sid_to_sidno.end()) {
     DBUG_PRINT("info", ("existed as sidno=%d", it->second->sidno));
-    DBUG_RETURN(it->second->sidno);
+    return it->second->sidno;
   }
 
   bool is_wrlock = false;
@@ -101,11 +97,11 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid) {
       sid_lock->rdlock();
     }
   }
-  DBUG_RETURN(sidno);
+  return sidno;
 }
 
 enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid) {
-  DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
+  DBUG_TRACE;
   if (sid_lock) sid_lock->assert_some_wrlock();
   unique_ptr_my_free<Node> node(
       (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME)));
@@ -154,7 +150,7 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid) {
 }
 
 enum_return_status Sid_map::copy(Sid_map *dest) {
-  DBUG_ENTER("Sid_map::copy(Sid_map)");
+  DBUG_TRACE;
   enum_return_status return_status = RETURN_STATUS_OK;
 
   rpl_sidno max_sidno = get_max_sidno();
@@ -165,5 +161,5 @@ enum_return_status Sid_map::copy(Sid_map *dest) {
     return_status = dest->add_node(sidno, sid);
   }
 
-  DBUG_RETURN(return_status);
+  return return_status;
 }

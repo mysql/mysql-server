@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/_SpellCheckParser", [
 	"dojo",
 	"dojox",

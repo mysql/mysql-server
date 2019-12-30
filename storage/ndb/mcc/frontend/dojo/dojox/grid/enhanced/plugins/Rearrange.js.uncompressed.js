@@ -1,4 +1,3 @@
-//>>built
 define("dojox/grid/enhanced/plugins/Rearrange", [
 	"dojo/_base/kernel",
 	"dojo/_base/lang",
@@ -49,7 +48,7 @@ var Rearrange = declare("dojox.grid.enhanced.plugins.Rearrange", _Plugin, {
 	moveColumns: function(colsToMove, targetPos){
 		// summary:
 		//		Move a set of columns to a given position.
-		// tag:
+		// tags:
 		//		public
 		// colsToMove: Integer[]
 		//		Array of column indexes.
@@ -114,7 +113,7 @@ var Rearrange = declare("dojox.grid.enhanced.plugins.Rearrange", _Plugin, {
 	moveRows: function(rowsToMove, targetPos){
 		// summary:
 		//		Move a set of rows to a given position
-		// tag:
+		// tags:
 		//		public
 		// rowsToMove: Integer[]
 		//		Array of row indexes.
@@ -363,10 +362,11 @@ var Rearrange = declare("dojox.grid.enhanced.plugins.Rearrange", _Plugin, {
 				rowCnt = g.rowCount,
 				mapping = {},
 				obj = {idx: 0},
-				newRows = [], i,
-				emptyTarget = targetPos < 0;
-				_this = this;
-			var len = rowsToMove.length;
+				newRows = [],
+				i,
+				emptyTarget = targetPos < 0,
+				_this = this,
+				len = rowsToMove.length;
 			if(emptyTarget){
 				targetPos = 0;
 			}else{
@@ -389,8 +389,10 @@ var Rearrange = declare("dojox.grid.enhanced.plugins.Rearrange", _Plugin, {
 						//So try to get attrs from grid.layout.cells[], but this might not be right
 						//since some fields may be missed(e.g ID fields), please use "setIdentifierForNewItem()" 
 						//to add those missed fields
-						attrs = array.map(g.layout.cells, function(cell){
+						attrs = array.filter(array.map(g.layout.cells, function(cell){
 							return cell.field;
+						}), function(field){
+							return field; //non empty
 						});
 					}
 					var rowsToFetch = [];
@@ -466,7 +468,7 @@ var Rearrange = declare("dojox.grid.enhanced.plugins.Rearrange", _Plugin, {
 	_getPageInfo: function(){
 		// summary:
 		//		Find pages that contain visible rows
-		// return: Object
+		// returns: Object
 		//		{topPage: xx, bottomPage: xx, invalidPages: [xx,xx,...]}
 		var scroller = this.grid.scroller,
 			topPage = scroller.page,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,9 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-Raw_table::Raw_table(thr_lock_type lock_type, const String_type &name) {
-  m_table_list.init_one_table(STRING_WITH_LEN("mysql"), name.c_str(),
-                              name.length(), name.c_str(), lock_type);
+Raw_table::Raw_table(thr_lock_type lock_type, const String_type &name)
+    : m_table_list(STRING_WITH_LEN("mysql"), name.c_str(), name.length(),
+                   name.c_str(), lock_type) {
   m_table_list.is_dd_ctx_table = true;
 }
 
@@ -63,7 +63,7 @@ Raw_table::Raw_table(thr_lock_type lock_type, const String_type &name) {
 */
 bool Raw_table::find_record(const Object_key &key,
                             std::unique_ptr<Raw_record> &r) {
-  DBUG_ENTER("Raw_table::find_record");
+  DBUG_TRACE;
 
   TABLE *table = get_table();
   std::unique_ptr<Raw_key> k(key.create_access_key(this));
@@ -72,7 +72,7 @@ bool Raw_table::find_record(const Object_key &key,
   if (!table->file->inited &&
       (rc = table->file->ha_index_init(k->index_no, true))) {
     table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   rc = table->file->ha_index_read_idx_map(
@@ -85,18 +85,18 @@ bool Raw_table::find_record(const Object_key &key,
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
     r.reset(NULL);
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Got unexpected error.
   if (rc) {
     table->file->print_error(rc, MYF(0));
     r.reset(NULL);
-    DBUG_RETURN(true);
+    return true;
   }
 
   r.reset(new Raw_record(table));
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -113,7 +113,7 @@ bool Raw_table::find_record(const Object_key &key,
 */
 bool Raw_table::prepare_record_for_update(const Object_key &key,
                                           std::unique_ptr<Raw_record> &r) {
-  DBUG_ENTER("Raw_table::prepare_record_for_update");
+  DBUG_TRACE;
 
   TABLE *table = get_table();
 
@@ -122,11 +122,11 @@ bool Raw_table::prepare_record_for_update(const Object_key &key,
   bitmap_set_all(table->write_set);
   bitmap_set_all(table->read_set);
 
-  if (find_record(key, r)) DBUG_RETURN(true);
+  if (find_record(key, r)) return true;
 
   store_record(table, record[1]);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -146,7 +146,7 @@ Raw_new_record *Raw_table::prepare_record_for_insert() {
 */
 bool Raw_table::open_record_set(const Object_key *key,
                                 std::unique_ptr<Raw_record_set> &rs) {
-  DBUG_ENTER("Raw_table::open_record_set");
+  DBUG_TRACE;
 
   Raw_key *access_key = NULL;
 
@@ -159,11 +159,11 @@ bool Raw_table::open_record_set(const Object_key *key,
   std::unique_ptr<Raw_record_set> rs1(
       new (std::nothrow) Raw_record_set(get_table(), access_key));
 
-  if (rs1->open()) DBUG_RETURN(true);
+  if (rs1->open()) return true;
 
   rs = std::move(rs1);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -182,7 +182,7 @@ bool Raw_table::open_record_set(const Object_key *key,
 /* purecov: begin deadcode */
 bool Raw_table::find_last_record(const Object_key &key,
                                  std::unique_ptr<Raw_record> &r) {
-  DBUG_ENTER("Raw_table::find_last_record");
+  DBUG_TRACE;
 
   TABLE *table = get_table();
   std::unique_ptr<Raw_key> k(key.create_access_key(this));
@@ -191,7 +191,7 @@ bool Raw_table::find_last_record(const Object_key &key,
   if (!table->file->inited &&
       (rc = table->file->ha_index_init(k->index_no, true))) {
     table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   rc = table->file->ha_index_read_idx_map(table->record[0], k->index_no, k->key,
@@ -204,19 +204,19 @@ bool Raw_table::find_last_record(const Object_key &key,
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
     r.reset(NULL);
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Got unexpected error.
   if (rc) {
     table->file->print_error(rc, MYF(0));
     r.reset(NULL);
-    DBUG_RETURN(true);
+    return true;
   }
 
   r.reset(new Raw_record(table));
 
-  DBUG_RETURN(false);
+  return false;
 }
 /* purecov: end */
 

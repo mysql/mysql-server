@@ -1,20 +1,16 @@
-//>>built
-define("dojox/date/relative", ["dojo/_base/kernel", "dojo/_base/lang", "dojo/date/locale", "dojo/i18n"], function(dojo, dlang, ddl, i18n){
+define("dojox/date/relative", ["..", "dojo/_base/lang", "dojo/date/locale", "dojo/i18n"], function(dojox, lang, ddl, i18n){
 
-dojo.getObject("date.relative", true, dojox);
+var drelative = lang.getObject("date.relative", true, dojox);
 
 /*=====
-dojox.date.relative.__FormatOptions = function(){
-//	locale: String
-//		override the locale used to determine formatting rules
-//	relativeDate: Date
-//		Date to calculate relation to (defaults to new Date())
-//	weekCheck: boolean
-//		Whether or not to display the day of week (defaults true)
-	this.locale = locale;
-	this.relativeDate = relativeDate;
-	this.weekCheck = weekCheck;
-}
+var __FormatOptions = {
+	// locale: String
+	//		override the locale used to determine formatting rules
+	// relativeDate: Date
+	//		Date to calculate relation to (defaults to new Date())
+	// weekCheck: boolean
+	//		Whether or not to display the day of week (defaults true)
+};
 =====*/
 
 var DAY = 1000*60*60*24,
@@ -29,7 +25,7 @@ function _clearTime(date){
 	return date;
 }
 
-dojox.date.relative.format = function(/*Date*/dateObject, /*dojox.date.relative.__FormatOptions?*/options){
+drelative.format = function(/*Date*/dateObject, /*__FormatOptions?*/options){
 	// summary:
 	//		Format a Date object as a String, using locale-specific settings,
 	//		relative to the current date or some other date.
@@ -89,4 +85,6 @@ dojox.date.relative.format = function(/*Date*/dateObject, /*dojox.date.relative.
 		}));
 	}
 };
+
+	return drelative;
 });

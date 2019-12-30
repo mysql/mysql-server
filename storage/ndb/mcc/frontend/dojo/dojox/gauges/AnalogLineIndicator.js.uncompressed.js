@@ -1,15 +1,10 @@
-//>>built
 define("dojox/gauges/AnalogLineIndicator", ["dojo/_base/declare","./AnalogIndicatorBase"],
   function(declare, AnalogIndicatorBase) {
 
-/*=====
-	AnalogIndicatorBase = dojox.gauges.AnalogIndicatorBase;
-=====*/
-
 return declare("dojox.gauges.AnalogLineIndicator", [AnalogIndicatorBase], {
-	//	summary:
+	// summary:
 	//		An indicator for the AnalogGauge that draws a segment of line that has for length the length of the indicator
-	// 		and that starts at an offset from the center of the gauge. The line is drawn on the angle that corresponds
+	//		and that starts at an offset from the center of the gauge. The line is drawn on the angle that corresponds
 	//		to the value of the indicator.
 
 	_getShapes: function(/*dojox.gfx.Group*/ group){

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <string>
 #include "mysql.h"
 #include "mysql/plugin_keyring.h"
+#include "sql_common.h"  // NET_SERVER
 
 class THD;
 
@@ -96,11 +97,12 @@ class Migrate_keyring {
   std::string m_destination_plugin_option;
   std::string m_source_plugin_name;
   std::string m_destination_plugin_name;
-  std::string m_internal_option;
+  std::string m_internal_option[2];
   st_mysql_keyring *m_source_plugin_handle;
   st_mysql_keyring *m_destination_plugin_handle;
   std::vector<Key_info> m_source_keys;
   MYSQL *mysql;
+  NET_SERVER server_extn;
 };
 
 #endif /* MIGRATE_KEYRING_H_INCLUDED */

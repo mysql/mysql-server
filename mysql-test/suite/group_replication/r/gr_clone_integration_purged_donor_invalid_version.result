@@ -1,0 +1,51 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Install clone plugin on server1.
+#    Commit some data and then purge all binary logs.
+#    Bootstrap a group on server1.
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+SET sql_log_bin = 0;
+include/gtid_utils.inc
+SET sql_log_bin = 1;
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'CURRENT_BINLOG_FILE';
+include/assert.inc [GTID_PURGED must be equal to GTID_EXECUTED]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Install clone plugin on server2.
+#    Start GR, cloning is the option chosen as recovery
+#    from binary logs is not possible.
+#    But this server is from a higher major version than the donor,
+#    so cloning is not possible and the joiner will error out.
+[connection server2]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
+include/start_group_replication.inc
+include/stop_group_replication.inc
+
+############################################################
+# 3. Cleanup.
+[connection server1]
+DROP TABLE t1;
+include/gtid_utils_end.inc
+UNINSTALL PLUGIN clone;
+[connection server2]
+SET @@GLOBAL.DEBUG= '-d,group_replication_compatibility_higher_major_version';
+UNINSTALL PLUGIN clone;
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("No valid or ONLINE members exist to get the missing data from the group. For cloning check if donors of the same version and with clone plugin installed exist. For incremental recovery check.*");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("Member version is read compatible with the group.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+SET SESSION sql_log_bin=1;
+include/group_replication_end.inc

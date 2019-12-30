@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,17 @@
 
 // MySQL Router version
 #define MYSQL_ROUTER_VERSION "@MySQLRouter_VERSION@"
+// clang-format off
 #define MYSQL_ROUTER_VERSION_MAJOR @MySQLRouter_VERSION_MAJOR@
 #define MYSQL_ROUTER_VERSION_MINOR @MySQLRouter_VERSION_MINOR@
 #define MYSQL_ROUTER_VERSION_PATCH @MySQLRouter_VERSION_PATCH@
+// clang-format on
 #define MYSQL_ROUTER_VERSION_EDITION "@PROJECT_COMPILATION_COMMENT@"
 
 // Package information
 #define MYSQL_ROUTER_PACKAGE_NAME "@MYSQL_ROUTER_NAME@"
 #define MYSQL_ROUTER_PACKAGE_PLATFORM "@SYSTEM_TYPE@"
 #define MYSQL_ROUTER_PACKAGE_ARCH_CPU "@MYSQL_MACHINE_TYPE@"
-#define MYSQL_ROUTER_PACKAGE_ARCH_64BIT @ARCH_64BIT@
 
 // Defaults
 #define CONFIG_FILES R"cfg(@CONFIG_FILES@)cfg"
@@ -45,16 +46,6 @@
 #define MYSQL_ROUTER_RUNTIME_FOLDER "@ROUTER_RUNTIMEDIR@"
 #define MYSQL_ROUTER_LOGGING_FOLDER "@ROUTER_LOGDIR@"
 #define MYSQL_ROUTER_DATA_FOLDER "@ROUTER_DATADIR@"
-
-// Plaform specific
-#cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
-#cmakedefine SIZEOF_CHARP     @SIZEOF_CHARP@
-#cmakedefine SIZEOF_LONG      @SIZEOF_LONG@
-#cmakedefine SIZEOF_SHORT     @SIZEOF_SHORT@
-#cmakedefine SIZEOF_INT       @SIZEOF_INT@
-#cmakedefine SIZEOF_LONG_LONG @SIZEOF_LONG_LONG@
-#cmakedefine SIZEOF_OFF_T     @SIZEOF_OFF_T@
-#cmakedefine SIZEOF_TIME_T    @SIZEOF_TIME_T@
 
 /* Endianess */
 #cmakedefine WORDS_BIGENDIAN 1

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,10 +95,13 @@ class DuktapeStatementReader : public StatementReaderBase {
 
   ~DuktapeStatementReader() override;
 
+  std::vector<AsyncNotice> get_async_notices() override;
+
  private:
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
   std::shared_ptr<MockServerGlobalScope> shared_;
+  bool has_notices_{false};
 
   HandshakeState handshake_state_{HandshakeState::INIT};
 };

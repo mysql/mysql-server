@@ -35,13 +35,13 @@ let $USE_AUTH_PLUGIN= 0;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,,,,,);
+connect(fail_con_u1, localhost, u1,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,haha,,,,);
+connect(fail_con_u1, localhost, u1,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u2, localhost, u2,efgh,,,,);
+connect(fail_con_u2, localhost, u2,efgh,,,,SSL);
 
 -- echo # connection_control_failed_login_attempts should contain entries
 -- echo # for u1@localhost and u2@localhost
@@ -51,13 +51,13 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,,,,,);
+connect(fail_con_u3, localhost, u3,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u2, localhost, u2,haha,,,,);
+connect(fail_con_u2, localhost, u2,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,efgh,,,,);
+connect(fail_con_u3, localhost, u3,efgh,,,,SSL);
 
 -- echo # connection_control_failed_login_attempts should contain entries
 -- echo # for u1@localhost, u2@localhost and u3@localhost
@@ -67,13 +67,13 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u2, localhost, u2,,,,,);
+connect(fail_con_u2, localhost, u2,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,haha,,,,);
+connect(fail_con_u1, localhost, u1,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,efgh,,,,);
+connect(fail_con_u3, localhost, u3,efgh,,,,SSL);
 
 -- echo # failed connection counts should have increased for all users
 
@@ -82,24 +82,24 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u2, localhost, u2,,,,,);
+connect(fail_con_u2, localhost, u2,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,haha,,,,);
+connect(fail_con_u1, localhost, u1,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,efgh,,,,);
+connect(fail_con_u3, localhost, u3,efgh,,,,SSL);
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,haha,,,,);
+connect(fail_con_u1, localhost, u1,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,efgh,,,,);
+connect(fail_con_u3, localhost, u3,efgh,,,,SSL);
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,haha,,,,);
+connect(fail_con_u1, localhost, u1,haha,,,,SSL);
 
 -- echo # Try various queries
 
@@ -123,15 +123,15 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
 SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts
   WHERE FAILED_ATTEMPTS < 5;
   
-connect(con_u1, localhost, u1,abcd,,,,);
-connect(con_u2, localhost, u2,abcd,,,,);
+connect(con_u1, localhost, u1,abcd,,,,SSL);
+connect(con_u2, localhost, u2,abcd,,,,SSL);
 connection default;
 --disconnect con_u1
 --disconnect con_u2
 
 CREATE USER viewer@localhost IDENTIFIED BY 'abcd';
 GRANT CONNECTION_ADMIN ON *.* TO viewer@localhost;
-connect(con_viewer, localhost, viewer,abcd,,,,);
+connect(con_viewer, localhost, viewer,abcd,,,,SSL);
 --echo # After successful login, corresponding entry should disappear
 --echo # from the view
 --sorted_result
@@ -140,7 +140,7 @@ connection default;
 disconnect con_viewer;
 DROP USER viewer@localhost;
 
-connect(con_u3, localhost, u3,abcd,,,,);
+connect(con_u3, localhost, u3,abcd,,,,SSL);
 --echo # A user without privileges should not be able to any information
 --sorted_result
 SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
@@ -150,13 +150,13 @@ connection default;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u1, localhost, u1,,,,,);
+connect(fail_con_u1, localhost, u1,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u3, localhost, u3,haha,,,,);
+connect(fail_con_u3, localhost, u3,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u2, localhost, u2,efgh,,,,);
+connect(fail_con_u2, localhost, u2,efgh,,,,SSL);
 
 -- echo # Subsequent failed attempts should put entries back in the view
 --sorted_result
@@ -164,13 +164,13 @@ SELECT * FROM INFORMATION_SCHEMA.connection_control_failed_login_attempts;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u4, localhost, u4,,,,,);
+connect(fail_con_u4, localhost, u4,,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u5, localhost, u5,haha,,,,);
+connect(fail_con_u5, localhost, u5,haha,,,,SSL);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(fail_con_u6, localhost, u6,efgh,,,,);
+connect(fail_con_u6, localhost, u6,efgh,,,,SSL);
 
 -- echo # Attempts by invalid accounts should be shown in the view
 --sorted_result

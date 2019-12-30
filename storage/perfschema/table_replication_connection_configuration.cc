@@ -52,7 +52,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "replication_connection_configuration",
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
-    "  HOST CHAR(60) collate utf8mb4_bin not null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII not null,\n"
     "  PORT INTEGER not null,\n"
     "  USER CHAR(32) collate utf8mb4_bin not null,\n"
     "  NETWORK_INTERFACE CHAR(60) collate utf8mb4_bin not null,\n"
@@ -74,6 +74,12 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
     "  GET_PUBLIC_KEY ENUM('YES', 'NO') not null,\n"
     "  NETWORK_NAMESPACE VARCHAR(64) not null,\n"
+    "  COMPRESSION_ALGORITHM CHAR(64) collate utf8mb4_bin not null\n"
+    "  COMMENT 'Compression algorithm used for data transfer between master "
+    "and slave.',\n"
+    "  ZSTD_COMPRESSION_LEVEL INTEGER not null\n"
+    "  COMMENT 'Compression level associated with zstd compression "
+    "algorithm.',\n"
     "  PRIMARY KEY (channel_name) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -210,7 +216,7 @@ int table_replication_connection_configuration::index_next(void) {
 }
 
 int table_replication_connection_configuration::make_row(Master_info *mi) {
-  char *temp_store;
+  const char *temp_store;
 
   DBUG_ASSERT(mi != NULL);
 
@@ -227,7 +233,7 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
   m_row.port = (unsigned int)mi->port;
 
   /* can't the user be NULL? */
-  temp_store = (char *)mi->get_user();
+  temp_store = mi->get_user();
   m_row.user_length = strlen(temp_store);
   memcpy(m_row.user, temp_store, m_row.user_length);
 
@@ -247,23 +253,23 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
   m_row.ssl_allowed = mi->ssl ? PS_SSL_ALLOWED_IGNORED : PS_SSL_ALLOWED_NO;
 #endif
 
-  temp_store = (char *)mi->ssl_ca;
+  temp_store = mi->ssl_ca;
   m_row.ssl_ca_file_length = strlen(temp_store);
   memcpy(m_row.ssl_ca_file, temp_store, m_row.ssl_ca_file_length);
 
-  temp_store = (char *)mi->ssl_capath;
+  temp_store = mi->ssl_capath;
   m_row.ssl_ca_path_length = strlen(temp_store);
   memcpy(m_row.ssl_ca_path, temp_store, m_row.ssl_ca_path_length);
 
-  temp_store = (char *)mi->ssl_cert;
+  temp_store = mi->ssl_cert;
   m_row.ssl_certificate_length = strlen(temp_store);
   memcpy(m_row.ssl_certificate, temp_store, m_row.ssl_certificate_length);
 
-  temp_store = (char *)mi->ssl_cipher;
+  temp_store = mi->ssl_cipher;
   m_row.ssl_cipher_length = strlen(temp_store);
   memcpy(m_row.ssl_cipher, temp_store, m_row.ssl_cipher_length);
 
-  temp_store = (char *)mi->ssl_key;
+  temp_store = mi->ssl_key;
   m_row.ssl_key_length = strlen(temp_store);
   memcpy(m_row.ssl_key, temp_store, m_row.ssl_key_length);
 
@@ -273,11 +279,11 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
     m_row.ssl_verify_server_certificate = PS_RPL_NO;
   }
 
-  temp_store = (char *)mi->ssl_crl;
+  temp_store = mi->ssl_crl;
   m_row.ssl_crl_file_length = strlen(temp_store);
   memcpy(m_row.ssl_crl_file, temp_store, m_row.ssl_crl_file_length);
 
-  temp_store = (char *)mi->ssl_crlpath;
+  temp_store = mi->ssl_crlpath;
   m_row.ssl_crl_path_length = strlen(temp_store);
   memcpy(m_row.ssl_crl_path, temp_store, m_row.ssl_crl_path_length);
 
@@ -287,19 +293,26 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
 
   m_row.heartbeat_interval = (double)mi->heartbeat_period;
 
-  temp_store = (char *)mi->tls_version;
+  temp_store = mi->tls_version;
   m_row.tls_version_length = strlen(temp_store);
   memcpy(m_row.tls_version, temp_store, m_row.tls_version_length);
 
-  temp_store = (char *)mi->public_key_path;
+  temp_store = mi->public_key_path;
   m_row.public_key_path_length = strlen(temp_store);
   memcpy(m_row.public_key_path, temp_store, m_row.public_key_path_length);
 
   m_row.get_public_key = mi->get_public_key ? PS_RPL_YES : PS_RPL_NO;
 
-  temp_store = (char *)mi->network_namespace_str();
+  temp_store = mi->network_namespace_str();
   m_row.network_namespace_length = strlen(temp_store);
   memcpy(m_row.network_namespace, temp_store, m_row.network_namespace_length);
+
+  temp_store = mi->compression_algorithm;
+  m_row.compression_algorithm_length = strlen(temp_store);
+  memcpy(m_row.compression_algorithm, temp_store,
+         m_row.compression_algorithm_length);
+
+  m_row.zstd_compression_level = mi->zstd_compression_level;
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -312,8 +325,6 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
                                                                 Field **fields,
                                                                 bool read_all) {
   Field *f;
-
-  DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
@@ -392,6 +403,13 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
         case 21: /** network_namespace */
           set_field_varchar_utf8(f, m_row.network_namespace,
                                  m_row.network_namespace_length);
+          break;
+        case 22: /** compression_algorithm */
+          set_field_char_utf8(f, m_row.compression_algorithm,
+                              m_row.compression_algorithm_length);
+          break;
+        case 23: /** zstd_compression_level */
+          set_field_ulong(f, m_row.zstd_compression_level);
           break;
         default:
           DBUG_ASSERT(false);

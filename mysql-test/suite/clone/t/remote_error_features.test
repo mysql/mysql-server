@@ -1,0 +1,8 @@
+# Test remote clone error conditions with incompatible features
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+
+--source error_features.test

@@ -1,4 +1,7 @@
-//>>built
+require({cache:{
+'url:dojox/grid/enhanced/templates/FilterDefPane.html':"<div class=\"dojoxGridFDPane\">\n\t<div class=\"dojoxGridFDPaneRelation\">${_relMsgFront}\n\t<span class=\"dojoxGridFDPaneModes\" dojoAttachPoint=\"criteriaModeNode\">\n\t\t<select dojoAttachPoint=\"_relSelect\" dojoType=\"dijit.form.Select\" dojoAttachEvent=\"onChange: _onRelSelectChange\">\n\t\t\t<option value=\"0\">${_relAll}</option>\n\t\t\t<option value=\"1\">${_relAny}</option>\n\t\t</select>\n\t</span>\n\t${_relMsgTail}\n\t</div>\n\t<div dojoAttachPoint=\"criteriaPane\" class=\"dojoxGridFDPaneRulePane\"></div>\n\t<div dojoAttachPoint=\"_addCBoxBtn\" dojoType=\"dijit.form.Button\" \n\t\tclass=\"dojoxGridFDPaneAddCBoxBtn\" iconClass=\"dojoxGridFDPaneAddCBoxBtnIcon\"\n\t\tdojoAttachEvent=\"onClick:_onAddCBox\" label=\"${_addRuleBtnLabel}\" showLabel=\"false\">\n\t</div>\n\t<div class=\"dojoxGridFDPaneBtns\" dojoAttachPoint=\"buttonsPane\">\n\t\t<span dojoAttachPoint=\"_cancelBtn\" dojoType=\"dijit.form.Button\" \n\t\t\tdojoAttachEvent=\"onClick:_onCancel\" label=\"${_cancelBtnLabel}\">\n\t\t</span>\n\t\t<span dojoAttachPoint=\"_clearFilterBtn\" dojoType=\"dijit.form.Button\" \n\t\t\tdojoAttachEvent=\"onClick:_onClearFilter\" label=\"${_clearBtnLabel}\" disabled=\"true\">\n\t\t</span>\n\t\t<span dojoAttachPoint=\"_filterBtn\" dojoType=\"dijit.form.Button\" \n\t\t\tdojoAttachEvent=\"onClick:_onFilter\" label=\"${_filterBtnLabel}\" disabled=\"true\">\n\t\t</span>\n\t</div>\n</div>\n",
+'url:dojox/grid/enhanced/templates/CriteriaBox.html':"<div class=\"dojoxGridFCBox\">\n\t<div class=\"dojoxGridFCBoxSelCol\" dojoAttachPoint=\"selColNode\">\n\t\t<span class=\"dojoxGridFCBoxField\">${_colSelectLabel}</span>\n\t\t<select dojoAttachPoint=\"_colSelect\" dojoType=\"dijit.form.Select\" \n\t\t\tclass=\"dojoxGridFCBoxColSelect\"\n\t\t\tdojoAttachEvent=\"onChange:_onChangeColumn\">\n\t\t</select>\n\t</div>\n\t<div class=\"dojoxGridFCBoxCondition\" dojoAttachPoint=\"condNode\">\n\t\t<span class=\"dojoxGridFCBoxField\">${_condSelectLabel}</span>\n\t\t<select dojoAttachPoint=\"_condSelect\" dojoType=\"dijit.form.Select\" \n\t\t\tclass=\"dojoxGridFCBoxCondSelect\"\n\t\t\tdojoAttachEvent=\"onChange:_onChangeCondition\">\n\t\t</select>\n\t\t<div class=\"dojoxGridFCBoxCondSelectAlt\" dojoAttachPoint=\"_condSelectAlt\" style=\"display:none;\"></div>\n\t</div>\n\t<div class=\"dojoxGridFCBoxValue\" dojoAttachPoint=\"valueNode\">\n\t\t<span class=\"dojoxGridFCBoxField\">${_valueBoxLabel}</span>\n\t</div>\n</div>\n",
+'url:dojox/grid/enhanced/templates/FilterBoolValueBox.html':"<div class=\"dojoxGridBoolValueBox\">\n\t<div class=\"dojoxGridTrueBox\">\n\t\t<input dojoType=\"dijit.form.RadioButton\" type='radio' name='a1' id='${_baseId}_rbTrue' checked=\"true\" \n\t\t\tdojoAttachPoint=\"rbTrue\" dojoAttachEvent=\"onChange: onChange\"/>\n\t\t<div class=\"dojoxGridTrueLabel\" for='${_baseId}_rbTrue'>${_lblTrue}</div>\n\t</div>\n\t<div class=\"dojoxGridFalseBox\">\n\t\t<input dojoType=\"dijit.form.RadioButton\" dojoAttachPoint=\"rbFalse\" type='radio' name='a1' id='${_baseId}_rbFalse'/>\n\t\t<div class=\"dojoxGridTrueLabel\" for='${_baseId}_rbFalse'>${_lblFalse}</div>\n\t</div>\n</div>\n"}});
 define("dojox/grid/enhanced/plugins/filter/FilterDefDialog", [
 	"dojo/_base/declare",
 	"dojo/_base/array",
@@ -7,8 +10,8 @@ define("dojox/grid/enhanced/plugins/filter/FilterDefDialog", [
 	"dojo/_base/event",
 	"dojo/_base/html",
 	"dojo/_base/sniff",
-	"dojo/cache",
 	"dojo/keys",
+	"dojo/on",
 	"dojo/string",
 	"dojo/window",
 	"dojo/date/locale",		
@@ -28,14 +31,18 @@ define("dojox/grid/enhanced/plugins/filter/FilterDefDialog", [
 	"dijit/focus",
 	"dojox/html/metrics",
 	"dijit/a11y",
+	"dojo/text!../../templates/FilterDefPane.html",
+	"dojo/text!../../templates/CriteriaBox.html",
+	"dojo/text!../../templates/FilterBoolValueBox.html",	
 	"dijit/Tooltip",
 	"dijit/form/Select",
 	"dijit/form/RadioButton",
 	"dojox/html/ellipsis",
 	"../../../cells/dijit"
-], function(declare, array, connect, lang, event, html, has, cache, keys, string, win, dateLocale, 
+], function(declare, array, connect, lang, event, html, has, keys, on, string, win, dateLocale, 
 	FilterBuilder, Dialog, ComboBox, TextBox, NumberTextBox, DateTextBox, TimeTextBox, Button, 
-	AccordionContainer, ContentPane, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, dijitFocus, metrics, dijitA11y){
+	AccordionContainer, ContentPane, _Widget, _TemplatedMixin, _WidgetsInTemplateMixin, dijitFocus,
+	metrics, dijitA11y, defPaneTemplate, criteriaTemplate, boolValueTemplate){
 		
 var _tabIdxes = {
 		// summary:
@@ -91,10 +98,10 @@ var FilterAccordionContainer = declare("dojox.grid.enhanced.plugins.filter.Accor
 			return;
 		}
 		this.inherited(arguments);
-		if(parseInt(has("ie"), 10) == 7){
+		if(parseInt(has('ie'), 10) == 7){
 			//IE7 will fire a lot of "onresize" event during initialization.
 			array.some(this._connects, function(cnnt){
-				if(cnnt[0][1] == "onresize"){
+				if((cnnt[0] || {})[1] == "onresize"){
 					this.disconnect(cnnt);
 					return true;
 				}
@@ -129,7 +136,7 @@ var FilterAccordionContainer = declare("dojox.grid.enhanced.plugins.filter.Accor
 		}
 		event.stop(e);
 		win.scrollIntoView(this.selectedChildWidget._buttonWidget.domNode.parentNode);
-		if(has("ie")){
+		if(has('ie')){
 			//IE will not show focus indicator if tabIndex is -1
 			this.selectedChildWidget._removeCBoxBtn.focusNode.setAttribute("tabIndex", this._focusOnRemoveBtn ? _tabIdxes.accordionTitle : -1);
 		}
@@ -196,12 +203,12 @@ var FilterAccordionContainer = declare("dojox.grid.enhanced.plugins.filter.Accor
 	},
 	_setupTitleDom: function(child){
 		var w = html.contentBox(child._buttonWidget.titleNode).w;
-		if(has("ie") < 8){ w -= 8; }
+		if(has('ie') < 8){ w -= 8; }
 		html.style(child._buttonWidget.titleTextNode, "width", w + "px");
 	}
 });
 var FilterDefPane = declare("dojox.grid.enhanced.plugins.filter.FilterDefPane",[_Widget, _TemplatedMixin, _WidgetsInTemplateMixin],{
-	templateString: cache("dojox.grid","enhanced/templates/FilterDefPane.html"),
+	templateString: defPaneTemplate,
 	widgetsInTemplate: true,
 	dlg: null,
 	postMixInProperties: function(){
@@ -218,7 +225,9 @@ var FilterDefPane = declare("dojox.grid.enhanced.plugins.filter.FilterDefPane",[
 	},
 	postCreate: function(){
 		this.inherited(arguments);
-		this.connect(this.domNode, "onkeypress", "_onKey");
+		// this.connect(this.domNode, "onkeypress", "_onKey");
+		on(this.domNode, "keydown", lang.hitch(this, "_onKey"));
+		
 		(this.cboxContainer = new FilterAccordionContainer({
 			nls: this.plugin.nls
 		})).placeAt(this.criteriaPane);
@@ -266,7 +275,7 @@ var FilterDefPane = declare("dojox.grid.enhanced.plugins.filter.FilterDefPane",[
 	}
 });
 var CriteriaBox = declare("dojox.grid.enhanced.plugins.filter.CriteriaBox",[_Widget, _TemplatedMixin, _WidgetsInTemplateMixin],{
-	templateString: cache("dojox.grid","enhanced/templates/CriteriaBox.html"),
+	templateString: criteriaTemplate,
 	widgetsInTemplate: true,
 	dlg: null,
 	postMixInProperties: function(){
@@ -294,6 +303,11 @@ var CriteriaBox = declare("dojox.grid.enhanced.plugins.filter.CriteriaBox",[_Wid
 		this._showSelectOrLabel(this._condSelect, this._condSelectAlt);
 		
 		this.connect(g.layout, "moveColumn", "onMoveColumn");
+		var _this = this;
+		setTimeout(function(){
+			var type = dlg.getColumnType(dlg.curColIdx);
+			_this._setValueBoxByType(type);
+		}, 0);
 	},
 	_getColumnOptions: function(){
 		var colIdx = this.dlg.curColIdx >= 0 ? String(this.dlg.curColIdx) : "anycolumn";
@@ -468,13 +482,14 @@ var CriteriaBox = declare("dojox.grid.enhanced.plugins.filter.CriteriaBox",[_Wid
 		if(obj.column){
 			this._colSelect.set("value", obj.column);
 		}
-		if(obj.condition){
-			this._condSelect.set("value", obj.condition);
-		}
 		if(obj.type){
+			this._setConditionsByType(obj.type);
 			this._setValueBoxByType(obj.type);
 		}else{
 			obj.type = this.dlg.getColumnType(this._colSelect.get("value"));
+		}
+		if(obj.condition){
+			this._condSelect.set("value", obj.condition);
 		}
 		var value = obj.value || "";
 		if(value || (obj.type != "date" && obj.type != "time")){
@@ -527,7 +542,7 @@ var CriteriaBox = declare("dojox.grid.enhanced.plugins.filter.CriteriaBox",[_Wid
 			node.title = [column, " ", condition, " ", value].join('');
 		}
 		node.innerHTML = title.join('');
-		if(has("mozilla")){
+		if(has('mozilla')){
 			var tt = html.create("div", {
 				"style": "width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 9999;"
 			}, node);
@@ -612,21 +627,24 @@ var CriteriaBox = declare("dojox.grid.enhanced.plugins.filter.CriteriaBox",[_Wid
 			};
 		if(type == "string"){
 			if(cell && (cell.suggestion || cell.autoComplete)){
-				html.mixin(res, {
+				lang.mixin(res, {
 					store: g.store,
 					searchAttr: cell.field || cell.name,
+					query: g.query || {},
 					fetchProperties: {
 						sort: [{"attribute": cell.field || cell.name}],
-						query: g.query,
-						queryOptions: g.queryOptions
+						queryOptions: lang.mixin({
+							ignoreCase: true,
+							deep: true
+						}, g.queryOptions || {})
 					}
 				});
 			}
 		}else if(type == "boolean"){
-			html.mixin(res, this.dlg.builder.defaultArgs["boolean"]);
+			lang.mixin(res, this.dlg.builder.defaultArgs["boolean"]);
 		}
 		if(cell && cell.dataTypeArgs){
-			html.mixin(res, cell.dataTypeArgs);
+			lang.mixin(res, cell.dataTypeArgs);
 		}
 		return res;
 	},
@@ -677,7 +695,7 @@ var UniqueComboBox = declare("dojox.grid.enhanced.plugins.filter.UniqueComboBox"
 	}
 });
 var BooleanValueBox = declare("dojox.grid.enhanced.plugins.filter.BooleanValueBox", [_Widget, _TemplatedMixin, _WidgetsInTemplateMixin], {
-	templateString: cache("dojox.grid","enhanced/templates/FilterBoolValueBox.html"),
+	templateString: boolValueTemplate,
 	widgetsInTemplate: true,
 	constructor: function(args){
 		var nls = args.cbox.plugin.nls;
@@ -931,7 +949,7 @@ var FilterDefDialog = declare("dojox.grid.enhanced.plugins.filter.FilterDefDialo
 		//Asign an impossibly large scrollTop to scroll the criteria pane to the bottom.
 		this.filterDefPane.criteriaPane.scrollTop = 1000000;
 		if(cbs.length === 4){
-			if(has("ie") <= 6 && !this.__alreadyResizedForIE6){
+			if(has('ie') <= 6 && !this.__alreadyResizedForIE6){
 				var size = html.position(cc.domNode);
 				size.w -= metrics.getScrollbar().w;
 				cc.resize(size);
@@ -1146,7 +1164,7 @@ var FilterDefDialog = declare("dojox.grid.enhanced.plugins.filter.FilterDefDialo
 		//		Triggered when the rendering of the filter definition dialog is completely finished.
 		// cbox:
 		//		Current visible criteria box
-		if(!has("ff")){
+		if(!has('ff')){
 			var elems = dijitA11y._getTabNavigable(html.byId(cbox.domNode));
 			dijitFocus.focus(elems.lowest || elems.first);
 		}else{

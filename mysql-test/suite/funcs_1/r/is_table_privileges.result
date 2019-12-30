@@ -28,7 +28,7 @@ DROP FUNCTION test.f1;
 #########################################################################
 DESCRIBE          information_schema.TABLE_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
-GRANTEE	varchar(81)	NO			
+GRANTEE	varchar(292)	NO			
 TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
@@ -37,7 +37,7 @@ IS_GRANTABLE	varchar(3)	NO
 SHOW CREATE TABLE information_schema.TABLE_PRIVILEGES;
 Table	Create Table
 TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
-  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `GRANTEE` varchar(292) NOT NULL DEFAULT '',
   `TABLE_CATALOG` varchar(512) NOT NULL DEFAULT '',
   `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
   `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
@@ -46,7 +46,7 @@ TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TABLE_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
-GRANTEE	varchar(81)	NO			
+GRANTEE	varchar(292)	NO			
 TABLE_CATALOG	varchar(512)	NO			
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			

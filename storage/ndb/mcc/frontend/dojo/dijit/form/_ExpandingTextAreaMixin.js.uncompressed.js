@@ -1,18 +1,29 @@
-//>>built
 define("dijit/form/_ExpandingTextAreaMixin", [
 	"dojo/_base/declare", // declare
 	"dojo/dom-construct", // domConstruct.create
+	"dojo/has",
 	"dojo/_base/lang", // lang.hitch
-	"dojo/_base/window" // win.body
-], function(declare, domConstruct, lang, win){
+	"dojo/on",
+	"dojo/_base/window", // win.body
+	"../Viewport"
+], function(declare, domConstruct, has, lang, on, win, Viewport){
 
 	// module:
 	//		dijit/form/_ExpandingTextAreaMixin
-	// summary:
-	//		Mixin for textarea widgets to add auto-expanding capability
 
-	// feature detection
-	var needsHelpShrinking;
+	// feature detection, true for mozilla and webkit
+	has.add("textarea-needs-help-shrinking", function(){
+		var body = win.body(),	// note: if multiple documents exist, doesn't matter which one we use
+			te = domConstruct.create('textarea', {
+			rows:"5",
+			cols:"20",
+			value: ' ',
+			style: {zoom:1, fontSize:"12px", height:"96px", overflow:'hidden', visibility:'hidden', position:'absolute', border:"5px solid white", margin:"0", padding:"0", boxSizing: 'border-box', MsBoxSizing: 'border-box', WebkitBoxSizing: 'border-box', MozBoxSizing: 'border-box' }
+		}, body, "last");
+		var needsHelpShrinking = te.scrollHeight >= te.clientHeight;
+		body.removeChild(te);
+		return needsHelpShrinking;
+	});
 
 	return declare("dijit.form._ExpandingTextAreaMixin", null, {
 		// summary:
@@ -26,17 +37,13 @@ define("dijit/form/_ExpandingTextAreaMixin", [
 		postCreate: function(){
 			this.inherited(arguments);
 			var textarea = this.textbox;
-
-			if(needsHelpShrinking == undefined){
-				var te = domConstruct.create('textarea', {rows:"5", cols:"20", value: ' ', style: {zoom:1, overflow:'hidden', visibility:'hidden', position:'absolute', border:"0px solid black", padding:"0px"}}, win.body(), "last");
-				needsHelpShrinking = te.scrollHeight >= te.clientHeight;
-				win.body().removeChild(te);
-			}
-			this.connect(textarea, "onscroll", "_resizeLater");
-			this.connect(textarea, "onresize", "_resizeLater");
-			this.connect(textarea, "onfocus", "_resizeLater");
 			textarea.style.overflowY = "hidden";
-			this._estimateHeight();
+			this.own(on(textarea, "focus, resize", lang.hitch(this, "_resizeLater")));
+		},
+
+		startup: function(){ 
+			this.inherited(arguments);
+			this.own(Viewport.on("resize", lang.hitch(this, "_resizeLater")));
 			this._resizeLater();
 		},
 
@@ -47,26 +54,25 @@ define("dijit/form/_ExpandingTextAreaMixin", [
 
 		_estimateHeight: function(){
 			// summary:
-			// 		Approximate the height when the textarea is invisible with the number of lines in the text.
-			// 		Fails when someone calls setValue with a long wrapping line, but the layout fixes itself when the user clicks inside so . . .
-			// 		In IE, the resize event is supposed to fire when the textarea becomes visible again and that will correct the size automatically.
+			//		Approximate the height when the textarea is invisible with the number of lines in the text.
+			//		Fails when someone calls setValue with a long wrapping line, but the layout fixes itself when the user clicks inside so . . .
+			//		In IE, the resize event is supposed to fire when the textarea becomes visible again and that will correct the size automatically.
 			//
 			var textarea = this.textbox;
-			textarea.style.height = "auto";
 			// #rows = #newlines+1
-			// Note: on Moz, the following #rows appears to be 1 too many.
-			// Actually, Moz is reserving room for the scrollbar.
-			// If you increase the font size, this behavior becomes readily apparent as the last line gets cut off without the +1.
-			textarea.rows = (textarea.value.match(/\n/g) || []).length + 2;
+			textarea.rows = (textarea.value.match(/\n/g) || []).length + 1;
 		},
 
 		_resizeLater: function(){
-			setTimeout(lang.hitch(this, "resize"), 0);
+			this.defer("resize");
 		},
 
 		resize: function(){
 			// summary:
 			//		Resizes the textarea vertically (should be called after a style/value change)
+
+			var textarea = this.textbox;
+
 			function textareaScrollHeight(){
 				var empty = false;
 				if(textarea.value === ''){
@@ -78,45 +84,47 @@ define("dijit/form/_ExpandingTextAreaMixin", [
 				return sh;
 			}
 
-			var textarea = this.textbox;
 			if(textarea.style.overflowY == "hidden"){ textarea.scrollTop = 0; }
-			if(this.resizeTimer){ clearTimeout(this.resizeTimer); }
-			this.resizeTimer = null;
 			if(this.busyResizing){ return; }
 			this.busyResizing = true;
 			if(textareaScrollHeight() || textarea.offsetHeight){
-				var currentHeight = textarea.style.height;
-				if(!(/px/.test(currentHeight))){
-					currentHeight = textareaScrollHeight();
-					textarea.rows = 1;
-					textarea.style.height = currentHeight + "px";
-				}
-				var newH = Math.max(parseInt(currentHeight) - textarea.clientHeight, 0) + textareaScrollHeight();
+				var newH = textareaScrollHeight() + Math.max(textarea.offsetHeight - textarea.clientHeight, 0);
 				var newHpx = newH + "px";
 				if(newHpx != textarea.style.height){
-					textarea.rows = 1;
 					textarea.style.height = newHpx;
+					textarea.rows = 1; // rows can act like a minHeight if not cleared
 				}
-				if(needsHelpShrinking){
-					var scrollHeight = textareaScrollHeight();
-					textarea.style.height = "auto";
-					if(textareaScrollHeight() < scrollHeight){ // scrollHeight can shrink so now try a larger value
-						newHpx = newH - scrollHeight + textareaScrollHeight() + "px";
+				if(has("textarea-needs-help-shrinking")){
+					var	origScrollHeight = textareaScrollHeight(),
+						newScrollHeight = origScrollHeight,
+						origMinHeight = textarea.style.minHeight,
+						decrement = 4, // not too fast, not too slow
+						thisScrollHeight,
+						origScrollTop = textarea.scrollTop;
+					textarea.style.minHeight = newHpx; // maintain current height
+					textarea.style.height = "auto"; // allow scrollHeight to change
+					while(newH > 0){
+						textarea.style.minHeight = Math.max(newH - decrement, 4) + "px";
+						thisScrollHeight = textareaScrollHeight();
+						var change = newScrollHeight - thisScrollHeight;
+						newH -= change;
+						if(change < decrement){
+							break; // scrollHeight didn't shrink
+						}
+						newScrollHeight = thisScrollHeight;
+						decrement <<= 1;
 					}
-					textarea.style.height = newHpx;
+					textarea.style.height = newH + "px";
+					textarea.style.minHeight = origMinHeight;
+					textarea.scrollTop = origScrollTop;
 				}
 				textarea.style.overflowY = textareaScrollHeight() > textarea.clientHeight ? "auto" : "hidden";
+				if(textarea.style.overflowY == "hidden"){ textarea.scrollTop = 0; }
 			}else{
 				// hidden content of unknown size
 				this._estimateHeight();
 			}
 			this.busyResizing = false;
-		},
-
-		destroy: function(){
-			if(this.resizeTimer){ clearTimeout(this.resizeTimer); }
-			if(this.shrinkTimer){ clearTimeout(this.shrinkTimer); }
-			this.inherited(arguments);
 		}
 	});
 });

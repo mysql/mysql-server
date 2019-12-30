@@ -1,0 +1,52 @@
+################################################################################
+# This test verifies that the error conditions are properly handled on the
+# delayed_initialization_thread.
+#
+# Test:
+# 0. The test requires one server: M1.
+# 1. Bootstrap group on M1 injecting a error.
+# 2. Assert check that the error was indeed thrown.
+# 3. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Restart server to force a error on
+--echo #    delayed_initialization_thread.
+--let $allow_rpl_inited= 1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group_replication_group_name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_start_on_boot=1 --loose-debug="+d,group_replication_force_delayed_initialization_thread_handler_error"
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Member will be OFFLINE and there will a error on the
+--echo #    error log.
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_state="OFFLINE";
+--source include/wait_condition_or_abort.inc
+
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/gr_delayed_initialization_thread_handler_error.1.error
+--let $grep_pattern=Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with --initialize, --initialize-insecure or --upgrade=MINIMAL on a server upgrade.
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source include/group_replication_end.inc

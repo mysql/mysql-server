@@ -103,6 +103,22 @@ a
 # delete temp keyring file
 # delete datadir
 #
+# Bug#29584642 DATABASE INITIALISATION FAILURE WITH INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
+#
+# The database initialization would fail without the fix.
+# delete mysqld log
+# delete datadir
+#
+# Bug#29780434 MYSQLD --INITIALIZE FAILS IF LOST+FOUND FROM FILESYSTEM IS IN DATADIR
+#
+# Create the data directory and subdirectories.
+# Add a sub-directory in it with a name that is not ignored.
+# Add a sub-directory in it with a name that is ignored.
+# Add a "hidden" sub-directory, starting with '.'.
+# Run the server with --initialize. Should fail due to 'subdir'.
+# Remove the subdirectory which is not accepted, and start the server with --initialize again.
+# Remove data dir and log file.
+#
 # Cleanup
 #
 # Restarting the server

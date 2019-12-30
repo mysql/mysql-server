@@ -61,9 +61,7 @@ class Process_resultset : public ngs::Resultset_interface {
 
 class Empty_resultset : public ngs::Resultset_interface {
  public:
-  Empty_resultset()
-      : m_callback_delegate(Callback_command_delegate::Start_row_callback(),
-                            Callback_command_delegate::End_row_callback()) {}
+  Empty_resultset() : m_callback_delegate() {}
   ngs::Command_delegate &get_callbacks() override {
     return m_callback_delegate;
   }
@@ -82,7 +80,7 @@ class Collect_resultset : public ngs::Resultset_interface {
   using Field = Buffering_command_delegate::Field_value;
   using Field_types = Buffering_command_delegate::Field_types;
 
-  ngs::Command_delegate &get_callbacks() override {
+  Buffering_command_delegate &get_callbacks() override {
     return m_buffering_delegate;
   }
 
@@ -97,14 +95,6 @@ class Collect_resultset : public ngs::Resultset_interface {
   }
   const Field_types &get_field_types() const {
     return m_buffering_delegate.get_field_types();
-  }
-
- protected:
-  void set_row_list(const Row_list &list) {
-    m_buffering_delegate.set_resultset(list);
-  }
-  void set_field_types(const Field_types &field_types) {
-    m_buffering_delegate.set_field_types(field_types);
   }
 
  private:

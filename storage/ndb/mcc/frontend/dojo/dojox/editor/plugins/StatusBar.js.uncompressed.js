@@ -1,4 +1,3 @@
-//>>built
 define("dojox/editor/plugins/StatusBar", [
 	"dojo",
 	"dijit",
@@ -9,10 +8,10 @@ define("dojox/editor/plugins/StatusBar", [
 	"dojo/_base/connect",
 	"dojo/_base/declare",
 	"dojox/layout/ResizeHandle"
-], function(dojo, dijit, dojox) {
+], function(dojo, dijit, dojox, _Widget, _TemplatedMixin, _Plugin) {
 
 dojo.experimental("dojox.editor.plugins.StatusBar");
-dojo.declare("dojox.editor.plugins._StatusBar", [dijit._Widget, dijit._TemplatedMixin],{
+dojo.declare("dojox.editor.plugins._StatusBar", [_Widget, _TemplatedMixin],{
 	// templateString: String
 	//		Template for the widget.  Currently using table to get the alignment behavior and
 	//		bordering I wanted.  Would prefer not to use table, though.
@@ -51,9 +50,9 @@ dojo.declare("dojox.editor.plugins._StatusBar", [dijit._Widget, dijit._Templated
 	}
 });
 
-dojo.declare("dojox.editor.plugins.StatusBar",dijit._editor._Plugin,{
+dojo.declare("dojox.editor.plugins.StatusBar", _Plugin, {
 	// summary:
-	//		This plugin provides StatusBar cabability to the editor.
+	//		This plugin provides StatusBar capability to the editor.
 	//		Basically a footer bar where status can be published.  It also
 	//		puts a resize handle on the status bar, allowing you to resize the
 	//		editor via mouse.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ class Capability_readonly_value : public Capability_handler {
   template <typename ValueType>
   Capability_readonly_value(const std::string &cap_name, const ValueType &value)
       : m_name(cap_name) {
-    ngs::Setter_any::set_scalar(m_value, value);
+    ngs::Setter_any::set_scalar(&m_value, value);
   }
 
   std::string name() const override { return m_name; }
@@ -45,8 +45,8 @@ class Capability_readonly_value : public Capability_handler {
   void commit() override {}
 
  private:
-  void get_impl(::Mysqlx::Datatypes::Any &any) override {
-    any.CopyFrom(m_value);
+  void get_impl(::Mysqlx::Datatypes::Any *any) override {
+    any->CopyFrom(m_value);
   }
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &) override {
     return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,

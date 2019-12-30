@@ -1,28 +1,29 @@
-//>>built
 define("dojox/validate/regexp", ["dojo/_base/lang", "dojo/regexp", "dojox/main"], 
   function(lang, regexp, dojox){
 
 var dxregexp = lang.getObject("validate.regexp", true, dojox);
 dxregexp = dojox.validate.regexp = {
 	
-	ipAddress: function(/*Object?*/flags){
-		// summary: Builds a RE that matches an IP Address
-		//
+	ipAddress: function(flags){
+		// summary:
+		//		Builds a RE that matches an IP Address
 		// description:
-		//  Supports 5 formats for IPv4: dotted decimal, dotted hex, dotted octal, decimal and hexadecimal.
-		//  Supports 2 formats for Ipv6.
+		//		Supports 5 formats for IPv4: dotted decimal, dotted hex, dotted octal, decimal and hexadecimal.
+		//		Supports 2 formats for Ipv6.
+		// flags: Object?
+		//		All flags are boolean with default = true.
 		//
-		// flags  An object.  All flags are boolean with default = true.
-		//    flags.allowDottedDecimal  Example, 207.142.131.235.  No zero padding.
-		//    flags.allowDottedHex  Example, 0x18.0x11.0x9b.0x28.  Case insensitive.  Zero padding allowed.
-		//    flags.allowDottedOctal  Example, 0030.0021.0233.0050.  Zero padding allowed.
-		//    flags.allowDecimal  Example, 3482223595.  A decimal number between 0-4294967295.
-		//    flags.allowHex  Example, 0xCF8E83EB.  Hexadecimal number between 0x0-0xFFFFFFFF.
-		//      Case insensitive.  Zero padding allowed.
-		//    flags.allowIPv6   IPv6 address written as eight groups of four hexadecimal digits.
+		//		- flags.allowDottedDecimal  Example, 207.142.131.235.  No zero padding.
+		//		- flags.allowDottedHex  Example, 0x18.0x11.0x9b.0x28.  Case insensitive.  Zero padding allowed.
+		//		- flags.allowDottedOctal  Example, 0030.0021.0233.0050.  Zero padding allowed.
+		//		- flags.allowDecimal  Example, 3482223595.  A decimal number between 0-4294967295.
+		//		- flags.allowHex  Example, 0xCF8E83EB.  Hexadecimal number between 0x0-0xFFFFFFFF.
+		//		  Case insensitive.  Zero padding allowed.
+		//		- flags.allowIPv6   IPv6 address written as eight groups of four hexadecimal digits.
+		
 		//	FIXME: ipv6 can be written multiple ways IIRC
-		//    flags.allowHybrid   IPv6 address written as six groups of four hexadecimal digits
-		//      followed by the usual 4 dotted decimal digit notation of IPv4. x:x:x:x:x:x:d.d.d.d
+		//		- flags.allowHybrid   IPv6 address written as six groups of four hexadecimal digits
+		//		-   followed by the usual 4 dotted decimal digit notation of IPv4. x:x:x:x:x:x:d.d.d.d
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -82,15 +83,17 @@ dxregexp = dojox.validate.regexp = {
 		return ipAddressRE; // String
 	},
 
-	host: function(/*Object?*/flags){
-		// summary: Builds a RE that matches a host
-		// description: A host is a named host (A-z0-9_- but not starting with -), a domain name or an IP address, possibly followed by a port number.
-		// flags: An object.
-		//	  flags.allowNamed Allow a named host for local networks. Default is false.
-		//    flags.allowIP  Allow an IP address for hostname.  Default is true.
-		//    flags.allowLocal  Allow the host to be "localhost".  Default is false.
-		//    flags.allowPort  Allow a port number to be present.  Default is true.
-		//    flags in regexp.ipAddress can be applied.
+	host: function(flags){
+		// summary:
+		//		Builds a RE that matches a host
+		// description:
+		//		A host is a named host (A-z0-9_- but not starting with -), a domain name or an IP address, possibly followed by a port number.
+		// flags: Object?
+		//		- flags.allowNamed Allow a named host for local networks. Default is false.
+		//		- flags.allowIP  Allow an IP address for hostname.  Default is true.
+		//		- flags.allowLocal  Allow the host to be "localhost".  Default is false.
+		//		- flags.allowPort  Allow a port number to be present.  Default is true.
+		//		- flags in regexp.ipAddress can be applied.
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -103,7 +106,7 @@ dxregexp = dojox.validate.regexp = {
 		//TODO: support unicode hostnames?
 		// Domain name labels can not end with a dash.
 		var domainLabelRE = "(?:[\\da-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)";
-		var domainNameRE = "(?:[a-zA-Z](?:[-\\da-zA-Z]{0,6}[\\da-zA-Z])?)"; // restricted version to allow backwards compatibility with allowLocal, allowIP
+		var domainNameRE = "(?:[a-zA-Z](?:[-\\da-zA-Z]{0,61}[\\da-zA-Z])?)"; // restricted version to allow backwards compatibility with allowLocal, allowIP
 
 		// port number RE
 		var portRE = flags.allowPort ? "(\\:\\d+)?" : "";
@@ -117,14 +120,14 @@ dxregexp = dojox.validate.regexp = {
 
 	},
 
-	url: function(/*Object?*/flags){
-		// summary: Builds a regular expression that matches a URL
-		//
-		// flags: An object
-		//    flags.scheme  Can be true, false, or [true, false].
-		//      This means: required, not allowed, or match either one.
-		//    flags in regexp.host can be applied.
-		//    flags in regexp.ipAddress can be applied.
+	url: function(flags){
+		// summary:
+		//		Builds a regular expression that matches a URL
+		// flags: Object?
+		//		- flags.scheme  Can be true, false, or [true, false].
+		//		-   This means: required, not allowed, or match either one.
+		//		- flags in regexp.host can be applied.
+		//		- flags in regexp.ipAddress can be applied.
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -141,14 +144,13 @@ dxregexp = dojox.validate.regexp = {
 		return protocolRE + dxregexp.host(flags) + pathRE;
 	},
 
-	emailAddress: function(/*Object?*/flags){
-
-		// summary: Builds a regular expression that matches an email address
-		//
-		//flags: An object
-		//    flags.allowCruft  Allow address like <mailto:foo@yahoo.com>.  Default is false.
-		//    flags in regexp.host can be applied.
-		//    flags in regexp.ipAddress can be applied.
+	emailAddress: function(flags){
+		// summary:
+		//		Builds a regular expression that matches an email address
+		// flags: Object?
+		//		- flags.allowCruft  Allow address like `<mailto:foo@yahoo.com>`.  Default is false.
+		//		- flags in regexp.host can be applied.
+		//		- flags in regexp.ipAddress can be applied.
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -169,14 +171,14 @@ dxregexp = dojox.validate.regexp = {
 		return emailAddressRE; // String
 	},
 
-	emailAddressList: function(/*Object?*/flags){
-		// summary: Builds a regular expression that matches a list of email addresses.
-		//
-		// flags: An object.
-		//    flags.listSeparator  The character used to separate email addresses.  Default is ";", ",", "\n" or " ".
-		//    flags in regexp.emailAddress can be applied.
-		//    flags in regexp.host can be applied.
-		//    flags in regexp.ipAddress can be applied.
+	emailAddressList: function(flags){
+		// summary:
+		//		Builds a regular expression that matches a list of email addresses.
+		// flags: Object?
+		//		- flags.listSeparator  The character used to separate email addresses.  Default is ";", ",", "\n" or " ".
+		//		- flags in regexp.emailAddress can be applied.
+		//		- flags in regexp.host can be applied.
+		//		- flags in regexp.ipAddress can be applied.
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -190,25 +192,27 @@ dxregexp = dojox.validate.regexp = {
 		return emailAddressListRE; // String
 	},
 	
-	numberFormat: function(/*Object?*/flags){
-		// summary: Builds a regular expression to match any sort of number based format
+	numberFormat: function(flags){
+		// summary:
+		//		Builds a regular expression to match any sort of number based format
 		// description:
-		//  Use this method for phone numbers, social security numbers, zip-codes, etc.
-		//  The RE can match one format or one of multiple formats.
+		//		Use this method for phone numbers, social security numbers, zip-codes, etc.
+		//		The RE can match one format or one of multiple formats.
 		//
-		//  Format
-		//    #        Stands for a digit, 0-9.
-		//    ?        Stands for an optional digit, 0-9 or nothing.
-		//    All other characters must appear literally in the expression.
+		//		Format:
 		//
-		//  Example
-		//    "(###) ###-####"       ->   (510) 542-9742
-		//    "(###) ###-#### x#???" ->   (510) 542-9742 x153
-		//    "###-##-####"          ->   506-82-1089       i.e. social security number
-		//    "#####-####"           ->   98225-1649        i.e. zip code
+		//		- #        Stands for a digit, 0-9.
+		//		- ?        Stands for an optional digit, 0-9 or nothing.
+		//		- All other characters must appear literally in the expression.
 		//
-		// flags:  An object
-		//    flags.format  A string or an Array of strings for multiple formats.
+		// example:
+		//		- "(###) ###-####"		-    ->   (510) 542-9742
+		//		- "(###) ###-#### x#???" ->   (510) 542-9742 x153
+		//		- "###-##-####"		- 		-   ->   506-82-1089		-    i.e. social security number
+		//		- "#####-####"		- 		-    ->   98225-1649		- 		- i.e. zip code
+		//
+		// flags:  Object?
+		//		- flags.format  A string or an Array of strings for multiple formats.
 
 		// assign default values to missing paramters
 		flags = (typeof flags == "object") ? flags : {};
@@ -232,27 +236,28 @@ dxregexp = dojox.validate.regexp = {
 	ca: {
 
 		postalCode: function(){
-			// summary: String regular Express to match Canadain Postal Codes
+			// summary:
+			//		String regular Express to match Canadain Postal Codes
 			return "([A-Z][0-9][A-Z] [0-9][A-Z][0-9])";
 		},
 
 		province: function(){
-			// summary: a regular expression to match Canadian Province Abbreviations
+			// summary:
+			//		a regular expression to match Canadian Province Abbreviations
 			return "(AB|BC|MB|NB|NL|NS|NT|NU|ON|PE|QC|SK|YT)";
 		}
 
 	},
 	
 	us:{
+		state: function(flags){
+			// summary:
+			//		A regular expression to match US state and territory abbreviations
+			// flags: Object?
+			//		- flags.allowTerritories  Allow Guam, Puerto Rico, etc.  Default is true.
+			//		- flags.allowMilitary  Allow military 'states', e.g. Armed Forces Europe (AE).  Default is true.
 
-		state: function(/*Object?*/flags){
-			// summary: A regular expression to match US state and territory abbreviations
-			//
-			// flags  An object.
-			//    flags.allowTerritories  Allow Guam, Puerto Rico, etc.  Default is true.
-			//    flags.allowMilitary  Allow military 'states', e.g. Armed Forces Europe (AE).  Default is true.
-
-			// assign default values to missing paramters
+			// assign default values to missing parameters
 			flags = (typeof flags == "object") ? flags : {};
 			if(typeof flags.allowTerritories != "boolean"){ flags.allowTerritories = true; }
 			if(typeof flags.allowMilitary != "boolean"){ flags.allowMilitary = true; }

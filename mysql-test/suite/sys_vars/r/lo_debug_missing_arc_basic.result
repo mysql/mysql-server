@@ -1,0 +1,23 @@
+select @@global.lock_order_debug_missing_arc;
+@@global.lock_order_debug_missing_arc
+0
+select @@session.lock_order_debug_missing_arc;
+ERROR HY000: Variable 'lock_order_debug_missing_arc' is a GLOBAL variable
+show global variables like 'lock_order_debug_missing_arc';
+Variable_name	Value
+lock_order_debug_missing_arc	OFF
+show session variables like 'lock_order_debug_missing_arc';
+Variable_name	Value
+lock_order_debug_missing_arc	OFF
+select * from performance_schema.global_variables
+where variable_name='lock_order_debug_missing_arc';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_debug_missing_arc	OFF
+select * from performance_schema.session_variables
+where variable_name='lock_order_debug_missing_arc';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order_debug_missing_arc	OFF
+set global lock_order_debug_missing_arc=1;
+ERROR HY000: Variable 'lock_order_debug_missing_arc' is a read only variable
+set session lock_order_debug_missing_arc=1;
+ERROR HY000: Variable 'lock_order_debug_missing_arc' is a read only variable

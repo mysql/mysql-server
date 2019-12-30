@@ -6,7 +6,7 @@
 @disabled-color: #d3d3d3;												// Base for disabled backgrounds and borders
 @error-color: #d46464;
 
-@container-background-color:#fff;										// Backgrounds for various content areas such as TitlePane, ContentPane and Inputs
+@container-background-color:#fff;										// Backgrounds for various content areas such as TitlePane, ContentPane and Inputs (if changed, adjust selected tab to match)
 
 @minor-selected-color: spin(saturate(darken(@primary-color, 6), 19), 0);						// Color for various arrows and buttons
 @base-border-color: spin(desaturate(darken(@primary-color, 29), 44), -1);		// Augmented and used directly by variables to create border colors for various widgets
@@ -136,6 +136,9 @@
 @dialog-titlebar-border-color: @container-background-color;	// Inner border around the title sectionof a Dialog, inside the main border of the Dialog and the border between title and content
 @dialog-titlebar-background-color: @minor-selected-color;
 
+// Tooltip
+@tooltip-gradient-color: fade(@primary-color,10%);		// a little swath of color at the bottom of tooltips
+
 // BorderContainer
 @splitter-hovered-background-color: @primary-color;	// Color of splitter when user hovers it, before mouse down
 @splitter-dragged-background-color: @minor-selected-color;	// Color of splitter while it's being dragged
@@ -156,49 +159,29 @@
 @document-shadedsection-background-color: @bar-background-color;// background color used for <pre>, <code>, and table header rows
 @document-border-color: @disabled-color;								// Border for <pre>, <code>, tables, etc.
 
-// Images
+// Icons, arrows, etc.
 @image-arrow-sprite: "images/spriteArrows.png";
-@image-calendar-container: "images/calendarContainerImages.png";
 @image-calendar-arrows: "images/calendarArrows.png";
 @image-calendar-arrows-ie6: "images/calendarArrows8bit.png";
 @image-checkmark: "images/checkmarkNoBorder.png";
 @image-checkmark-ie6: "images/checkmarkNoBorder.gif";
-@image-common-highlight: "images/commonHighlight.png";
 @image-dialog-close: "images/dialogCloseIcon.png";
 @image-dialog-close-ie6: "images/dialogCloseIcon8bit.png";
 @image-dnd: "images/dnd.png";
 @image-editor-icons-enabled: "../../icons/images/editorIconsEnabled.png";
-@image-form-button: "form/images/button.png";
 @image-form-button-arrows: "form/images/buttonArrows.png";
 @image-form-checkbox-and-radios: "form/images/checkboxRadioButtonStates.png";
 @image-form-checkbox-and-radios-ie6: "form/images/checkboxAndRadioButtons_IE6.png";
 @image-form-common-arrows: "form/images/commonFormArrows.png";
 @image-form-error: "form/images/error.png";
-@image-form-highlight: "form/images/formHighlight.png";
-@image-form-slider-horizontal: "form/images/sliderHorizontal.png";
 @image-form-slider-thumbs: "form/images/sliderThumbs.png";
-@image-form-slider-vertical: "form/images/sliderVertical.png";
-@image-form-textbox-background: "form/images/textBox_back.png";
-@image-layout-accordion: "layout/images/accordion.png";
-@image-layout-splitter-horizontal-hover: "layout/images/splitterHorizontalHover.png";
-@image-layout-splitter-vertical-hover: "layout/images/splitterVerticalHover.png";
-@image-layout-tab-bottom: "layout/images/tabBottom.png";
-@image-layout-tab-close: "layout/images/tabClose.png";
-@image-layout-tab-left: "layout/images/tabLeft.png";
-@image-layout-tab-nested: "layout/images/tabNested.png";
-@image-layout-tab-right: "layout/images/tabRight.png";
-@image-layout-tab-top: "layout/images/tabTop.png";
+@image-layout-tab-close: "layout/images/tabClose.png";	// [x] icon to close a tab
 @image-loading-animation: "images/loadingAnimation.gif";
-@image-menu-highlight: "images/menuHighlight.png";
-@image-progressbar-empty: "images/progressBarEmpty.png";
-@image-progressbar-full: "images/progressBarFull.png";
-@image-progressbar-anim: "images/progressBarAnim.gif";
-@image-titlebar: "images/titlebar.png";
-@image-tooltip: "images/tooltip.png";
-@image-tooltip-ie6: "images/tooltip8bit.png";
-@image-tooltip-gradient: "images/tooltipGradient.png";
+@image-tooltip: "images/tooltip.png";	// arrow connectors
+@image-tooltip-ie6: "images/tooltip8bit.png";	// arrow connectors (8 bit)
 @image-tree-expand: "images/treeExpandImages.png";
 @image-tree-expand-ie6: "images/treeExpandImages8bit.png";
+@image-progressbar-anim: "images/progressBarAnim.gif";
 
 // Mixins
 
@@ -241,4 +224,155 @@
 	-webkit-transition-timing-function: @value;
 	-moz-transition-timing-function: @value;
 	transition-timing-function: @value;
+}
+
+.linear-gradient (@value1, @value2) {
+	// summary:
+	//		Expands to browser specific background-image specifications for a linear-gradient (2 stops)
+ 	background-image: -moz-linear-gradient(@value1, @value2); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2);
+}
+.linear-gradient (@value1, @value2, @value3) {
+ 	background-image: -moz-linear-gradient(@value1, @value2, @value3); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2, @value3); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2, @value3); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2, @value3);
+}
+.linear-gradient (@value1, @value2, @value3, @value4) {
+ 	background-image: -moz-linear-gradient(@value1, @value2, @value3, @value4); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2, @value3, @value4); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2, @value3, @value4); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2, @value3, @value4);
+}
+.linear-gradient (@value1, @value2, @value3, @value4, @value5) {
+ 	background-image: -moz-linear-gradient(@value1, @value2, @value3, @value4, @value5); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2, @value3, @value4, @value5); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2, @value3, @value4, @value5); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2, @value3, @value4, @value5);
+}
+.linear-gradient (@value1, @value2, @value3, @value4, @value5, @value6) {
+ 	background-image: -moz-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6);
+}
+.linear-gradient (@value1, @value2, @value3, @value4, @value5, @value6, @value7) {
+ 	background-image: -moz-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6, @value7); // FF3.6 - FF15 (FF16+ supports linear-gradient)
+ 	background-image: -webkit-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6, @value7); // Chrome10+, Safari5.1+
+ 	background-image: -o-linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6, @value7); // Opera 11.10+
+ 	background-image: linear-gradient(@value1, @value2, @value3, @value4, @value5, @value6, @value7);
+}
+
+.alpha-white-gradient (@opacity1, @stop1, @opacity2, @stop2) {
+	// summary:
+	//		For setting up white background-image with variable transparency.
+	// example:
+	//		Gradient starts at top (0%) with 30% opacity, and then ends at bottom (100%) with full transparency
+	//		|	.alpha-white-gradient(0.3, 0%, 0, 100%)
+	//
+	.linear-gradient(rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2);
+}
+.alpha-white-gradient (@start, @opacity1, @stop1, @opacity2, @stop2) {
+	.linear-gradient(@start, rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2);
+}
+.alpha-white-gradient (@opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3) {
+	.linear-gradient(rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3);
+}
+.alpha-white-gradient (@start, @opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3) {
+	.linear-gradient(@start, rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3);
+}
+.alpha-white-gradient (@opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3, @opacity4, @stop4) {
+	.linear-gradient(rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3, rgba(255,255,255, @opacity4) @stop4);
+}
+.alpha-white-gradient (@start, @opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3, @opacity4, @stop4) {
+	.linear-gradient(@start, rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3, rgba(255,255,255, @opacity4) @stop4);
+}
+.alpha-white-gradient (@start, @opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3, @opacity4, @stop4, @opacity5, @stop5) {
+	.linear-gradient(@start, rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3, rgba(255,255,255, @opacity4) @stop4, rgba(255,255,255, @opacity5) @stop5);
+}
+.alpha-white-gradient (@start, @opacity1, @stop1, @opacity2, @stop2, @opacity3, @stop3, @opacity4, @stop4, @opacity5, @stop5, @opacity6, @stop6) {
+	.linear-gradient(@start, rgba(255,255,255,@opacity1) @stop1, rgba(255,255,255,@opacity2) @stop2, rgba(255,255,255, @opacity3) @stop3, rgba(255,255,255, @opacity4) @stop4, rgba(255,255,255, @opacity5) @stop5, rgba(255,255,255, @opacity6) @stop6);
+}
+
+.gradient-and-filter (@color, @fade1, @fade2) {
+	// summary:
+	//		Sets up a background color with a vertical gradient.
+	//		In order to make transitions work properly on mozilla and webkit, this is done by combining
+	//		a background-color which will be changed based on state (ex: hover) with a constant
+	//		white alpha-transparency background-image.  On IE it creates a DXImageTransform filter.
+	// @color:
+	//		The color
+	// @fade1:
+	//		The percent to fade at the top
+	// @fade2:
+	//		The percent to fade at the bottom
+	background-color: @color; // the base color
+	.linear-gradient(fadeout(#fff, 100-@fade1), fadeout(#fff, 100-@fade2));
+	filter: ~"progid:DXImageTransform.Microsoft.gradient(startColorstr="lighten(@color, @fade1)~", endColorstr="lighten(@color, @fade2)~")"; // IE
+}
+.horizontal-gradient-and-filter (@color, @fade1, @fade2) {
+	// summary:
+	//		Sets up a background color with a horizontal gradient.
+	//		In order to make transitions work properly on mozilla and webkit, this is done by combining
+	//		a background-color which will be changed based on state (ex: hover) with a constant
+	//		white alpha-transparency background-image.  On IE it creates a DXImageTransform filter.
+	// @color:
+	//		The color
+	// @fade1:
+	//		The percent to fade at the top
+	// @fade2:
+	//		The percent to fade at the bottom
+	background-color: @color; // the base color
+	.linear-gradient(left, fadeout(#fff, 100-@fade1), fadeout(#fff, 100-@fade2));
+	filter: ~"progid:DXImageTransform.Microsoft.gradient(startColorstr="lighten(@color, @fade1)~", endColorstr="lighten(@color, @fade2)~"gradientType=1)"; // IE
+}
+
+
+// Mixins defining gradients
+
+.textbox-background-image () {
+	// summary:
+	//		Background image used for hovered TextBoxes and similar controls.
+	//		It's just a small inset shadow below the top border (inside of the TextBox).
+	.linear-gradient(rgba(127,127,127,0.2) 0%, rgba(127,127,127,0) 2px);
+}
+
+.standard-gradient (@pathToRoot: "") {
+	// summary:
+	//		Light to dark background-image used by widgets with short height (~16px) including:
+	//			- MenuBar, and hovered MenuItem/MenuBarItem
+	//			- arrow icon wrapper for Select, ComboBox, Spinner
+	//			- Toolbar and hovered Toolbar buttons
+	//			- TitlePane title bar, AccordionContainer title bar, Dialog title bar
+
+	// Fallback for IE
+	background-image: url("@{pathToRoot}images/standardGradient.png");
+	background-repeat: repeat-x;
+
+	// CSS gradient for other browsers
+	.alpha-white-gradient(0.7, 0%, 0, 100%);
+
+	// IE6 can't handle a background-image with transparency and a background-color; the color is blocked out
+	_background-image: none;
+}
+.active-gradient (@pathToRoot: "") {
+	// summary:
+	//		Light to dark background-image with an inset gray shadow at the top,
+	//		used by widgets when they are active (ie: mousedown) or selected, including:
+	//			- active MenuItem/MenuBarItem
+	//			- arrow icon wrapper for Select, ComboBox, Spinner when active or drop down is open
+	//			- active Toolbar buttons
+	//			- active TitlePane title bar, AccordionContainer title bar
+
+	// Fallback for IE
+	background-image: url("@{pathToRoot}images/activeGradient.png");
+	background-repeat: repeat-x;
+
+	// CSS gradient for other browsers
+	.linear-gradient(rgba(190,190,190,0.98) 0px, rgba(255, 255, 255, 0.65) 3px, rgba(255, 255, 255, 0) 100%);
+
+	// IE6 can't handle a background-image with transparency and a background-color; the color is blocked out
+	_background-image: none;
 }

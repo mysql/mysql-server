@@ -1,5 +1,5 @@
 //>>built
-define("dojox/data/XmlStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/xhr","dojo/data/util/simpleFetch","dojo/_base/query","dojo/_base/array","dojo/_base/window","dojo/data/util/filter","dojox/xml/parser","dojox/data/XmlItem"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
+define("dojox/data/XmlStore",["dojo/_base/lang","dojo/_base/declare","dojo/_base/xhr","dojo/data/util/simpleFetch","dojo/_base/query","dojo/_base/array","dojo/_base/kernel","dojo/data/util/filter","dojox/xml/parser","dojox/data/XmlItem"],function(_1,_2,_3,_4,_5,_6,_7,_8,_9,_a){
 var _b=_2("dojox.data.XmlStore",null,{constructor:function(_c){
 if(_c){
 this.url=_c.url;

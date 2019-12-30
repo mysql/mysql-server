@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 #include <utility>
 
 #include <mysql/components/services/log_builtins.h>
@@ -51,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
+#include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/persisted_variable.h"  // Persisted_variables_cache
@@ -61,10 +63,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
 
-#define FREE_RECORD(sysvar)                                           \
-  my_free((void *)(reinterpret_cast<sys_var_pluginvar *>(sysvar)      \
-                       ->plugin_var->name));                          \
-  my_free(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var); \
+#define FREE_RECORD(sysvar)                                              \
+  my_free(const_cast<char *>(                                            \
+      reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var->name)); \
+  my_free(reinterpret_cast<sys_var_pluginvar *>(sysvar)->plugin_var);    \
   delete reinterpret_cast<sys_var_pluginvar *>(sysvar);
 
 PSI_memory_key key_memory_comp_sys_var;
@@ -137,8 +139,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     my_option *opts = NULL;
     bool ret = true;
     int opt_error;
-    int *argc = get_remaining_argc();
-    char ***argv = get_remaining_argv();
+    int *argc;
+    char ***argv;
+    int argc_copy;
+    char **argv_copy;
+    char **to_free = nullptr;
     void *mem;
     get_opt_arg_source *opts_arg_source;
 
@@ -306,6 +311,32 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     plugin_opt_set_limits(opts, opt);
     opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
 
+    /*
+      This does what plugins do:
+      before the server is officially "started" the options are read
+      (and consumed) from the remaining_argv/argc.
+      The goal to that is that once the server is up all of the non-loose
+      options (component and plugin) should be consumed and there should
+      be an alarm sounded if any are remaining.
+      This is approximately what plugin_register_early_plugins() and
+      plugin_register_dynamic_and_init_all() are doing.
+      Once the server is "started" we switch to the original list of options
+      and copy them since handle_options() can modify the list.
+      This is approximately what mysql_install_plugin() does.
+      TODO: clean up the options processing code so all this is not needed.
+    */
+    if (mysqld_server_started) {
+      argc_copy = orig_argc;
+      to_free = argv_copy = (char **)my_malloc(
+          key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
+      memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
+      argv_copy[argc_copy] = nullptr;
+      argc = &argc_copy;
+      argv = &argv_copy;
+    } else {
+      argc = get_remaining_argc();
+      argv = get_remaining_argv();
+    }
     opt_error = handle_options(argc, argv, opts, NULL);
     /* Add back the program name handle_options removes */
     (*argc)++;
@@ -350,6 +381,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
   end:
     my_free(mem);
+    if (to_free) my_free(to_free);
 
     return ret;
   } catch (...) {
@@ -360,31 +392,70 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
 const char *get_variable_value(sys_var *system_var, char *val_buf,
                                size_t *val_length) {
-  const char *value = val_buf;
   char show_var_buffer[sizeof(SHOW_VAR)];
   SHOW_VAR *show = (SHOW_VAR *)show_var_buffer;
   const CHARSET_INFO *fromcs;
   const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
   uint dummy_err;
+  /* buffer capable of storing all numeric values */
+  char val_safe_buffer[FLOATING_POINT_BUFFER];
+  char *variable_data_buffer = val_buf;
+  size_t out_variable_data_length = 0;
+
+  /*
+     Function 'get_one_variable' converts numeric types into a string.
+     User provides a buffer in which the string will be placed,
+     still the function doesn't check buffer limits, thus there is a
+     possibility of a buffer overflow.
+
+     If user didn't provide a buffer large enough, then lets use
+     our own buffer, and after we secured the conversion we will
+     see if the string value can be placed in user buffer.
+   */
+  if (sizeof(val_safe_buffer) > *val_length) {
+    variable_data_buffer = val_safe_buffer;
+  }
 
   show->type = SHOW_SYS;
   show->name = system_var->name.str;
   show->value = (char *)system_var;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  value = get_one_variable(NULL, show, OPT_GLOBAL, show->type, NULL, &fromcs,
-                           val_buf, val_length);
+  const char *variable_value =
+      get_one_variable(current_thd, show, OPT_GLOBAL, show->type, NULL, &fromcs,
+                       variable_data_buffer, &out_variable_data_length);
   mysql_mutex_unlock(&LOCK_global_system_variables);
-  val_buf[*val_length] = '\0';
 
-  /* convert the retrieved value to utf8mb4 */
-  size_t new_len = (tocs->mbmaxlen * (*val_length)) / fromcs->mbminlen + 1;
-  char *result = new char[new_len];
-  memset(result, 0, new_len);
-  *val_length = copy_and_convert(result, new_len, tocs, value, *val_length,
-                                 fromcs, &dummy_err);
-  memcpy(val_buf, result, strlen(result) + 1);
-  delete[] result;
+  /*
+     Allocate a buffer that can hold "worst" case byte-length of the value
+     encoded using utf8mb4.
+  */
+  const size_t new_len =
+      (tocs->mbmaxlen * out_variable_data_length) / fromcs->mbminlen + 1;
+  std::unique_ptr<char[]> result(new char[new_len]);
+  memset(result.get(), 0, new_len);
+  const size_t result_length =
+      copy_and_convert(result.get(), new_len, tocs, variable_value,
+                       out_variable_data_length, fromcs, &dummy_err);
+
+  /*
+     The length of the user supplied buffer is intentionally checked
+     after conversion. Its because "new_len" defines worst case length,
+     still the actual size is known after doing the calculation
+     and in most cases it will be a lot less than "new_len".
+
+     Please note that most optimistic(smallest) size will be following:
+
+         (tocs->mbminlen * (len)) / fromcs->mbmaxlen
+   */
+  const bool is_user_buffer_too_small = *val_length < result_length;
+  *val_length = result_length;
+
+  if (is_user_buffer_too_small) return nullptr;
+
+  memcpy(val_buf, result.get(), result_length);
+  val_buf[result_length] = '\0';
+
   return val_buf;
 }
 
@@ -393,8 +464,10 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
 
   @param component_name Name of the component
   @param var_name Name of the variable
-  @param [out] val Value of the variable
-  @param [out] out_length_of_val length of the output buffer
+  @param[in,out] val On input: a buffer to hold the value. On output a pointer
+  to the value.
+  @param[in,out] out_length_of_val On input: size of longest string that the
+  buffer can contain. On output the length of the copied string.
   @return Status of performed operation
   @retval false success
   @retval true failure
@@ -420,10 +493,9 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
                               com_sys_var_name.length());
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
-    if (var)
-      get_variable_value(var, (char *)*val, out_length_of_val);
-    else
-      return true;
+    if (!var) return true;
+
+    if (!get_variable_value(var, (char *)*val, out_length_of_val)) return true;
 
     return false;
   } catch (...) {

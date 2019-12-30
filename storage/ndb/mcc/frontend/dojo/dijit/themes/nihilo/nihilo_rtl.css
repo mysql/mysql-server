@@ -10,6 +10,9 @@
 	
 	float:left;
 }
+.dj_ie .dijitTextBoxRtl .dijitInputContainer {
+	clear: right;
+}
 .dijitTextBoxRtl .dijitValidationContainer,
 .dijitTextBoxRtl .dijitSpinnerButtonContainer,
 .dijitComboBoxRtl .dijitArrowButtonContainer {
@@ -21,14 +24,16 @@
 	right: 0;
 	left: auto;
 }
-.dj_ie7 .dijitInputContainer {
-	
-	display: inline-block;
+.dijitSelectRtl .dijitButtonText {
+	float: right;
 }
 .dijitTextBoxRtl .dijitSpinnerButtonContainer,
-.dijitTextBoxRtl .dijitValidationContainer,
+.dijitValidationTextBoxRtl .dijitValidationContainer,
 .dijitTextBoxRtl .dijitArrowButtonContainer {
 	float: left;
+}
+div.dijitNumberTextBoxRtl {
+	text-align: right;
 }
 .dijitCalendarRtl .dijitCalendarNextYear {
 	margin:0 0.55em 0 0;
@@ -76,6 +81,22 @@
 	margin-left: 0;
 	margin-right: 1em;
 }
+.dj_ie6 .dijitTabRtl .tabLabel,
+.dj_ie6 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie6 .dijitTabContainerLeft-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerLeft-tabs .dijitTabRtl {
+	zoom: 1;
+}
+.dj_ie6 .dijitTabContainerRight-tabs .dijitTabRtl,
+.dj_ie7 .dijitTabContainerRight-tabs .dijitTabRtl {
+    left: 0;
+}
+.dj_ie6 .dijitTabContainerRightRtl .dijitTabContainerRight-tabs,
+.dj_ie6 .dijitTabContainerLeftRtl .dijitTabContainerLeft-tabs {
+    
+	width: 1%;
+}
 .dj_ie .dijitTimePickerRtl .dijitTimePickerItem {
 	width:100%;
 }
@@ -85,7 +106,16 @@
 	right: 0;
 }
 .dijitSelectRtl .dijitButtonContents {
+	border-style: none none none solid;
 	text-align: right;
+}
+.dijitRtl .dojoDndHorizontal .dojoDndItemBefore {
+    border-width: 0 2px 0 0;
+    padding: 2px 0 2px 2px;
+}
+.dijitRtl .dojoDndHorizontal .dojoDndItemAfter {
+    border-width: 0 0 0 2px;
+    padding: 2px 2px 2px 0;
 }
 .dijitRtl .nihilo .dijitTab {
 	margin-right:0;
@@ -149,19 +179,15 @@
 	border-right-width: 0;
 }
 .dijitRtl .nihilo .dijitSliderIncrementIconH {
-	background:url(images/spriteRoundedIconsSmall.png) no-repeat left top;
-	#background:url(images/spriteRoundedIconsSmall.gif) no-repeat left top;
+	background:url("images/spriteRoundedIconsSmall.png") no-repeat left top;
+	#background:url("images/spriteRoundedIconsSmall.gif") no-repeat left top;
 }
 .dijitRtl .nihilo .dijitSliderDecrementIconH {
-	background:url(images/spriteRoundedIconsSmall.png) no-repeat -30px top;
-	#background:url(images/spriteRoundedIconsSmall.gif) no-repeat -30px top;
+	background:url("images/spriteRoundedIconsSmall.png") no-repeat -30px top;
+	#background:url("images/spriteRoundedIconsSmall.gif") no-repeat -30px top;
 }
-.dijitRtl .nihilo .dijitComboBox .dijitButtonNode {
+.nihilo .dijitComboBoxRtl .dijitButtonNode {
 	border-width: 0 0 0 1px;
-}
-.dijitRtl .nihilo .dijitSelect .dijitButtonContents {
-	border-left: none;
-	border-right-width: 1px;
 }
 .dijitRtl .nihilo .dijitTreeNode,
 .dijitRtl .nihilo .dijitTreeExpandoLeaf {
@@ -174,11 +200,11 @@
 }
 .dijitRtl .nihilo .dijitTreeExpandoOpened {
 	
-	background: url(images/spriteTree_rtl.gif) no-repeat -18px top;
+	background: url("images/spriteTree_rtl.gif") no-repeat -18px top;
 }
 .dijitRtl .nihilo .dijitTreeExpandoClosed {
 	
-	background-image: url(images/spriteTree_rtl.gif);
+	background-image: url("images/spriteTree_rtl.gif");
 }
 .dijitRtl .nihilo .dijitTitlePane .dijitClosed .dijitArrowNode {
 	background-position: 0 top;
@@ -208,17 +234,17 @@
 	background-position: 0 top;
 }
 .dijitRtl .nihilo .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsEnabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsEnabled_rtl.png"); 
 }
 .dijitRtl .nihilo .dijitDisabled .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsDisabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsDisabled_rtl.png"); 
 }
 .dijitEditorRtl .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsEnabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsEnabled_rtl.png"); 
 }
 .dijitEditorRtlDisabled .dijitEditorIcon {
-	background-image: url(../../icons/images/editorIconsDisabled_rtl.png); 
+	background-image: url("../../icons/images/editorIconsDisabled_rtl.png"); 
 }
 .dijitToolbarRtl .dijitToolbarSeparator {
-	background-image: url(../../icons/images/editorIconsEnabled_rtl.png);
+	background-image: url("../../icons/images/editorIconsEnabled_rtl.png");
 }

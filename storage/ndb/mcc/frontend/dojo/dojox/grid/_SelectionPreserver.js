@@ -4,7 +4,7 @@ return _1("dojox.grid._SelectionPreserver",null,{constructor:function(_5){
 this.selection=_5;
 var _6=this.grid=_5.grid;
 this.reset();
-this._connects=[_2.connect(_6,"_setStore",this,"reset"),_2.connect(_6,"_addItem",this,"_reSelectById"),_2.connect(_5,"addToSelection",_3.hitch(this,"_selectById",true)),_2.connect(_5,"deselect",_3.hitch(this,"_selectById",false)),_2.connect(_5,"deselectAll",this,"reset")];
+this._connects=[_2.connect(_6,"_setStore",this,"reset"),_2.connect(_6,"_addItem",this,"_reSelectById"),_2.connect(_5,"onSelected",_3.hitch(this,"_selectById",true)),_2.connect(_5,"onDeselected",_3.hitch(this,"_selectById",false)),_2.connect(_5,"deselectAll",this,"reset")];
 },destroy:function(){
 this.reset();
 _4.forEach(this._connects,_2.disconnect);

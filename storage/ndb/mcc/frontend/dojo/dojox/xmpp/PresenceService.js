@@ -1,8 +1,8 @@
 //>>built
-define(["dijit","dojo","dojox"],function(_1,_2,_3){
-_2.provide("dojox.xmpp.PresenceService");
+define("dojox/xmpp/PresenceService",["dojo","dijit","dojox"],function(_1,_2,_3){
+_1.provide("dojox.xmpp.PresenceService");
 _3.xmpp.presence={UPDATE:201,SUBSCRIPTION_REQUEST:202,SUBSCRIPTION_SUBSTATUS_NONE:204,SUBSCRIPTION_NONE:"none",SUBSCRIPTION_FROM:"from",SUBSCRIPTION_TO:"to",SUBSCRIPTION_BOTH:"both",SUBSCRIPTION_REQUEST_PENDING:"pending",STATUS_ONLINE:"online",STATUS_AWAY:"away",STATUS_CHAT:"chat",STATUS_DND:"dnd",STATUS_EXTENDED_AWAY:"xa",STATUS_OFFLINE:"offline",STATUS_INVISIBLE:"invisible"};
-_2.declare("dojox.xmpp.PresenceService",null,{constructor:function(_4){
+_1.declare("dojox.xmpp.PresenceService",null,{constructor:function(_4){
 this.session=_4;
 this.isInvisible=false;
 this.avatarHash=null;

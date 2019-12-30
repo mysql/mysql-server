@@ -41,10 +41,13 @@
 #include <set>
 #include <string>
 
-#include "binlog_event.h"
-#include "control_events.h"
 #include "lex_string.h"
-#include "load_data_events.h"
+#include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/control_events.h"
+#include "libbinlogevents/include/load_data_events.h"
+#include "libbinlogevents/include/rows_event.h"
+#include "libbinlogevents/include/statement_events.h"
+#include "libbinlogevents/include/uuid.h"
 #include "m_string.h"   // native_strncasecmp
 #include "my_bitmap.h"  // MY_BITMAP
 #include "my_dbug.h"
@@ -58,16 +61,13 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"  // SERVER_VERSION_LENGTH
 #include "partition_info.h"
-#include "rows_event.h"
 #include "sql/query_options.h"  // OPTION_AUTO_IS_NULL
 #include "sql/rpl_gtid.h"       // enum_gtid_type
 #include "sql/rpl_utility.h"    // Hash_slave_rows
 #include "sql/sql_const.h"
 #include "sql/thr_malloc.h"
 #include "sql_string.h"
-#include "statement_events.h"
 #include "typelib.h"  // TYPELIB
-#include "uuid.h"
 
 class THD;
 class Table_id;
@@ -110,12 +110,12 @@ extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 
 /* Forward declarations */
 using binary_log::Binary_log_event;
+using binary_log::checksum_crc32;
+using binary_log::enum_binlog_checksum_alg;
 using binary_log::Format_description_event;
 using binary_log::Log_event_footer;
 using binary_log::Log_event_header;
 using binary_log::Log_event_type;
-using binary_log::checksum_crc32;
-using binary_log::enum_binlog_checksum_alg;
 
 typedef ulonglong sql_mode_t;
 struct db_worker_hash_entry;
@@ -833,7 +833,7 @@ class Log_event {
   void free_temp_buf() {
     if (temp_buf) {
       if (m_free_temp_buf_in_destructor) my_free(temp_buf);
-      temp_buf = 0;
+      temp_buf = nullptr;
     }
   }
   /*
@@ -1039,15 +1039,15 @@ class Log_event {
     return common_header->flags & LOG_EVENT_MTS_ISOLATE_F;
   }
 
-    /**
-       Events of a certain type can start or end a group of events treated
-       transactionally wrt binlog.
+  /**
+     Events of a certain type can start or end a group of events treated
+     transactionally wrt binlog.
 
-       Public access is required by implementation of recovery + skip.
+     Public access is required by implementation of recovery + skip.
 
-       @return true  if the event starts a group (transaction)
-               false otherwise
-    */
+     @return true  if the event starts a group (transaction)
+             false otherwise
+  */
 #endif
   virtual bool starts_group() const { return false; }
   /**
@@ -1093,13 +1093,13 @@ class Log_event {
      @see do_shall_skip
    */
   enum_skip_reason shall_skip(Relay_log_info *rli) {
-    DBUG_ENTER("Log_event::shall_skip");
+    DBUG_TRACE;
     enum_skip_reason ret = do_shall_skip(rli);
     DBUG_PRINT("info", ("skip reason=%d=%s", ret,
                         ret == EVENT_SKIP_NOT
                             ? "NOT"
                             : ret == EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
-    DBUG_RETURN(ret);
+    return ret;
   }
 
   /**
@@ -1298,7 +1298,7 @@ class Query_log_event : public virtual binary_log::Query_event,
       mts_accessed_db_names[0][0] = 0;
     } else {
       for (uchar i = 0; i < mts_accessed_dbs; i++) {
-        char *db_name = mts_accessed_db_names[i];
+        const char *db_name = mts_accessed_db_names[i];
 
         // Only default database is rewritten.
         if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name)) {
@@ -1306,7 +1306,7 @@ class Query_log_event : public virtual binary_log::Query_event,
           const char *db_filtered =
               rpl_filter->get_rewrite_db(db_name, &dummy_len);
           // db_name != db_filtered means that db_name is rewritten.
-          if (strcmp(db_name, db_filtered)) db_name = (char *)db_filtered;
+          if (strcmp(db_name, db_filtered)) db_name = db_filtered;
         }
         arg->name[i] = db_name;
       }
@@ -1729,11 +1729,9 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
                        const Format_description_event *description_event)
       : binary_log::XA_prepare_event(buf, description_event),
         Xid_apply_log_event(header(), footer()) {
-    DBUG_ENTER(
-        "XA_prepare_log_event::XA_prepare_log_event(const char*, const "
-        "Format_description_log_event *)");
-    xid = NULL;
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    xid = nullptr;
+    return;
   }
   Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
   size_t get_data_size() override {
@@ -1844,10 +1842,8 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
                  const Format_description_event *description_event)
       : binary_log::Stop_event(buf, description_event),
         Log_event(header(), footer()) {
-    DBUG_ENTER(
-        "Stop_log_event::Stop_log_event(const char*, const "
-        "Format_description_log_event *)");
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    return;
   }
 
   ~Stop_log_event() override {}
@@ -2202,12 +2198,10 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
         Log_event(header(), footer()) {
-    DBUG_ENTER(
-        "Unknown_log_event::Unknown_log_event(const char *, const "
-        "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    if (!is_valid()) return;
     common_header->set_is_valid(true);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ~Unknown_log_event() override {}
@@ -2443,7 +2437,7 @@ class Rows_applier_psi_stage {
   ulonglong m_n_rows_applied;
 
  public:
-  Rows_applier_psi_stage() : m_progress(NULL), m_n_rows_applied(0) {}
+  Rows_applier_psi_stage() : m_progress(nullptr), m_n_rows_applied(0) {}
 
   void set_progress(PSI_stage_progress *progress) { m_progress = progress; }
 
@@ -2452,7 +2446,7 @@ class Rows_applier_psi_stage {
    @return true if instrumentation is enabled for the given stage, false
    otherwise.
    */
-  bool is_enabled() { return m_progress != NULL; }
+  bool is_enabled() { return m_progress != nullptr; }
 
   /**
    This member function shall update the progress and reestimate the remaining
@@ -2490,7 +2484,7 @@ class Rows_applier_psi_stage {
    Resets this object.
    */
   void end_work() {
-    m_progress = NULL;
+    m_progress = nullptr;
     m_n_rows_applied = 0;
   }
 
@@ -2714,7 +2708,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
        Before we need to do comparisons - i.e. before we need to insert
        elements, we update Rows_log_event::m_key_info once for all.
     */
-    Key_compare(KEY **ki = NULL) : m_key_info(ki) {}
+    Key_compare(KEY **ki = nullptr) : m_key_info(ki) {}
     bool operator()(uchar *k1, uchar *k2) const {
       return key_cmp2((*m_key_info)->key_part, k1, (*m_key_info)->key_length,
                       k2, (*m_key_info)->key_length) < 0;
@@ -3308,33 +3302,33 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
-    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == NULL && message_length == 0);
-    DBUG_VOID_RETURN;
+    DBUG_ASSERT(message == nullptr && message_length == 0);
+    return;
   }
 
   Incident_log_event(THD *thd_arg, enum_incident incident_arg,
-                     LEX_STRING const msg)
+                     LEX_CSTRING const msg)
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
-    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == NULL && message_length == 0);
+    DBUG_ASSERT(message == nullptr && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
       // The allocation failed. Mark this binlog event as invalid.
       common_header->set_is_valid(false);
-      DBUG_VOID_RETURN;
+      return;
     }
     strmake(message, msg.str, msg.length);
     message_length = msg.length;
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 
@@ -3400,9 +3394,9 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, Log_event::EVENT_STMT_CACHE,
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
-    DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    DBUG_TRACE;
     common_header->set_is_valid(true);
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 
@@ -3463,7 +3457,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 #ifdef MYSQL_SERVER
   Rows_query_log_event(THD *thd_arg, const char *query, size_t query_len)
       : Ignorable_log_event(thd_arg) {
-    DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    DBUG_TRACE;
     common_header->type_code = binary_log::ROWS_QUERY_LOG_EVENT;
     if (!(m_rows_query =
               (char *)my_malloc(key_memory_Rows_query_log_event_rows_query,
@@ -3471,7 +3465,7 @@ class Rows_query_log_event : public Ignorable_log_event,
       return;
     snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 
@@ -3486,7 +3480,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 
   ~Rows_query_log_event() override {
     if (m_rows_query) my_free(m_rows_query);
-    m_rows_query = NULL;
+    m_rows_query = nullptr;
   }
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file,
@@ -4044,7 +4038,7 @@ class View_change_log_event : public binary_log::View_change_event,
   size_t get_size_data_map(std::map<std::string, std::string> *map);
 
  public:
-  View_change_log_event(char *view_id);
+  View_change_log_event(const char *view_id);
 
   View_change_log_event(const char *buffer,
                         const Format_description_event *descr_event);
@@ -4118,7 +4112,7 @@ inline bool is_gtid_event(Log_event *evt) {
           false  otherwise
 */
 inline bool is_atomic_ddl_event(Log_event *evt) {
-  return evt != NULL && evt->get_type_code() == binary_log::QUERY_EVENT &&
+  return evt != nullptr && evt->get_type_code() == binary_log::QUERY_EVENT &&
          static_cast<Query_log_event *>(evt)->ddl_xid !=
              binary_log::INVALID_XID;
 }

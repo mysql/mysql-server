@@ -1,19 +1,11 @@
-//>>built
 define("dijit/form/ComboBox", [
 	"dojo/_base/declare", // declare
 	"./ValidationTextBox",
 	"./ComboBoxMixin"
 ], function(declare, ValidationTextBox, ComboBoxMixin){
 
-/*=====
-	var ValidationTextBox = dijit.form.ValidationTextBox;
-	var ComboBoxMixin = dijit.form.ComboBoxMixin;
-=====*/
-
 	// module:
 	//		dijit/form/ComboBox
-	// summary:
-	//		Auto-completing text box
 
 	return declare("dijit.form.ComboBox", [ValidationTextBox, ComboBoxMixin], {
 		// summary:

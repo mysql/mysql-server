@@ -1,0 +1,134 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_myisam.inc
+
+# Some parts of the test require enabled binary log.
+--source include/have_log_bin.inc
+
+--echo #
+--echo # Part of test coverage for WL#9826 "Allow RENAME TABLES under
+--echo # LOCK TABLES" which needs debug build and debug_sync facility.
+--echo #
+--echo # The main part of coverage for this WL resides in rename.test.
+--echo # This file only contains subtests which require debug/debug_sync
+--echo # facilities, hence their odd numbering.
+
+--enable_connect_log
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect (con1, localhost, root,,);
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+
+--echo #
+--echo # 4) Effects of failed RENAME TABLES on set of locked tables and
+--echo #    metadata locks held.
+--echo #
+--echo # 4.1) Atomic RENAME TABLES which fails at late stage should be
+--echo #      fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t0 (m INT) ENGINE=MyISAM;
+
+--echo #
+--echo # 4.3) Non-atomic RENAME TABLES which fails at late stage and
+--echo #      is NOT fully reverted. Tables involved are removed
+--echo #      from the set of locked tables. Metadata locks on both
+--echo #      old and new table names are kept.
+LOCK TABLES t1 WRITE, t2 WRITE, t0 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+RENAME TABLES t0 TO t00, t1 TO t01;
+SET @@debug='-d,injecting_fault_writing';
+--echo # Tables are not available under both old and new names.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t0;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t00;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t1;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t01;
+--echo # Untouched table is still available.
+SELECT * FROM t2;
+connection con1;
+--echo # Access by old and new names from other connections should be
+--echo # blocked.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with old name don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t0;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t00;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t01;
+--echo # And access to untouched table too.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+connection default;
+UNLOCK TABLES;
+DROP TABLES t00, t01, t2;
+
+--echo #
+--echo # 7) RENAME TABLES under LOCK TABLES which moves tables
+--echo #    between schemas.
+--echo #
+--echo #
+--echo # 7.4) Non-atomic RENAME TABLES which moves table to different chema,
+--echo #      fails at late stage and is NOT fully reverted. Tables involved
+--echo #      are removed from the set of locked tables. Metadata locks on
+--echo #      old, new table name and new schema are kept.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t0 (l INT) ENGINE=MyISAM;
+CREATE DATABASE mysqltest;
+LOCK TABLES t0 WRITE, t1 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+RENAME TABLES t0 TO mysqltest.t0, t1 TO t01;
+SET @@debug='-d,injecting_fault_writing';
+--echo # Tables are not available under both old and new names.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t0;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM mysqltest.t0;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t1;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t01;
+connection con1;
+--echo # Access by old and new names from other connections should be
+--echo # blocked.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with old name don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t0;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t0;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t01;
+--echo # New schema is IX locked.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+connection default;
+UNLOCK TABLES;
+DROP TABLES t01;
+DROP DATABASE mysqltest;

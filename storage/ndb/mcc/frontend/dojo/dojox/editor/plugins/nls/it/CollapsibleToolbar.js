@@ -1,10 +1,2 @@
 //>>built
-define(
-//begin v1.x content
-({
-	"collapse": "Comprimi la barra degli strumenti dell'editor",
-	"expand": "Espandi la barra degli strumenti dell'editor"
-})
-
-//end v1.x content
-);
+define("dojox/editor/plugins/nls/it/CollapsibleToolbar",({"collapse":"Comprimi barra degli strumenti dell'editor","expand":"Espandi barra degli strumenti dell'editor"}));

@@ -215,6 +215,9 @@ the checkpoint fields when we make new checkpoints. This field is only
 defined in the first log file. */
 constexpr uint32_t LOG_CHECKPOINT_1 = OS_FILE_LOG_BLOCK_SIZE;
 
+/** Log Encryption information in redo log header. */
+constexpr uint32_t LOG_ENCRYPTION = 2 * OS_FILE_LOG_BLOCK_SIZE;
+
 /** Second checkpoint field in the header of the first log file. */
 constexpr uint32_t LOG_CHECKPOINT_2 = 3 * OS_FILE_LOG_BLOCK_SIZE;
 
@@ -355,6 +358,9 @@ constexpr uint32_t MLOG_TEST_MAX_REC_LEN = 100;
 
 /** Maximum number of MLOG_TEST records in single group of log records. */
 constexpr uint32_t MLOG_TEST_GROUP_MAX_REC_N = 100;
+
+/** Bytes consumed by MLOG_TEST record with an empty payload. */
+constexpr uint32_t MLOG_TEST_REC_OVERHEAD = 37;
 
 /** Redo log system (singleton). */
 extern log_t *log_sys;
@@ -500,12 +506,6 @@ inline lsn_t log_get_checkpoint_lsn(const log_t &log);
 
 #ifndef UNIV_HOTBACKUP
 
-/** When the oldest dirty page age exceeds this value, we start
-an asynchronous preflush of dirty pages. This function does not
-have side-effects, it only reads and returns the limit value.
-@return age of dirty page at which async. preflush is started */
-inline lsn_t log_get_max_modified_age_async();
-
 /** @return true iff log_free_check should be executed. */
 inline bool log_needs_free_check();
 
@@ -513,7 +513,7 @@ inline bool log_needs_free_check();
 about 4 pages. NOTE that this function may only be called when the thread
 owns no synchronization objects except the dictionary mutex.
 
-Checks if current log.sn exceeds log.sn_limit_for_start, in which case waits.
+Checks if current log.sn exceeds log.free_check_limit_sn, in which case waits.
 This is supposed to guarantee that we would not run out of space in the log
 files when holding latches of some dirty pages (which could end up in
 a deadlock, because flush of the latched dirty pages could be required
@@ -742,32 +742,42 @@ at the provided sn, in both the log buffer and in the log files.
 @param[in]	end_sn    end of the range of sn values */
 void log_wait_for_space(log_t &log, sn_t end_sn);
 
-/** Calculates margin which has to be used in log_free_check() call,
-when checking if user thread should wait for more space in redo log.
-@return size of the margin to use */
-sn_t log_free_check_margin(const log_t &log);
+/** Computes capacity of redo log available until log_free_check()
+reaches point where it needs to wait.
+@param[in]  log       redo log
+@return lsn capacity up to free_check_wait happens */
+lsn_t log_get_free_check_capacity(const log_t &log);
+
+/** When the oldest dirty page age exceeds this value, we start
+an asynchronous preflush of dirty pages.
+@param[in]  log       redo log
+@return age of dirty page at which async preflush is started */
+lsn_t log_get_max_modified_age_async(const log_t &log);
 
 /** Waits until there is free space in log files which includes
 concurrency margin required for all threads. You should rather
 use log_free_check().
 @see @ref sect_redo_log_reclaim_space
-@param[in]	log   redo log
-@param[in]	sn    sn for which there should be concurrency margin */
-void log_free_check_wait(log_t &log, sn_t sn);
+@param[in]     log   redo log */
+void log_free_check_wait(log_t &log);
 
-/** Updates sn limit values up to which user threads may consider the
-reserved space as available both in the log buffer and in the log files.
-Both limits - for the start and for the end of reservation, are updated.
-Limit for the end is the only one, which truly guarantees that there is
-space for the whole reservation. Limit for the start is used to check
-free space when being outside mtr (without latches), in which case it
-is unknown how much we will need to reserve and write, so current sn
-is then compared to the limit. This is called whenever these limits
-may change - when write_lsn or last_checkpoint_lsn are advanced,
-when the log buffer is resized or margins are changed (e.g. because
-of changed concurrency limit).
-@param[in,out]	log	redo log */
+/** Updates limits related to free space in redo log files:
+log.available_for_checkpoint_lsn and log.free_check_limit_sn.
+@param[in,out]  log         redo log */
 void log_update_limits(log_t &log);
+
+/** Updates limit used when writing to log buffer. Note that the
+log buffer may have space for log records for which we still do
+not have space in log files (for larger lsn values).
+@param[in,out]   log        redo log */
+void log_update_buf_limit(log_t &log);
+
+/** Updates limit used when writing to log buffer, according to provided
+write_lsn. It must be <= log.write_lsn.load() to protect from log buffer
+overwrites.
+@param[in,out]   log        redo log
+@param[in]       write_lsn  value <= log.write_lsn.load() */
+void log_update_buf_limit(log_t &log, lsn_t write_lsn);
 
 /** Waits until the redo log is written up to a provided lsn.
 @param[in]  log             redo log
@@ -922,6 +932,16 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn);
 @param[in]	new_size	new size (in bytes) */
 void log_write_ahead_resize(log_t &log, size_t new_size);
 
+/** Updates the field log.dict_max_allowed_checkpoint_lsn.
+@param[in,out]  log      redo log
+@param[in]      max_lsn  new value for the field */
+void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn);
+
+/** Updates log.dict_persist_margin and recompute free check limit.
+@param[in,out]  log     redo log
+@param[in]      margin  new value for log.dict_persist_margin */
+void log_set_dict_persist_margin(log_t &log, sn_t margin);
+
 /** Increase concurrency_margin used inside log_free_check() calls. */
 void log_increase_concurrency_margin(log_t &log);
 
@@ -944,12 +964,16 @@ initialization of new log files. Flushes:
 void log_create_first_checkpoint(log_t &log, lsn_t lsn);
 
 /** Calculates limits for maximum age of checkpoint and maximum age of
-the oldest page. Uses current value of srv_thread_concurrency.
+the oldest page.
+@param[in,out]	log	redo log */
+void log_calc_max_ages(log_t &log);
+
+/** Updates concurrency margin. Uses current value of srv_thread_concurrency.
 @param[in,out]	log	redo log
 @retval true if success
 @retval false if the redo log is too small to accommodate the number of
 OS threads in the database server */
-bool log_calc_max_ages(log_t &log);
+bool log_calc_concurrency_margin(log_t &log);
 
 /** Initializes the log system. Note that the log system is not ready
 for user writes after this call is finished. It should be followed by
@@ -967,11 +991,14 @@ Hence the proper order of calls looks like this:
 bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id);
 
 /** Starts the initialized redo log system using a provided
-checkpoint_lsn and current lsn.
-@param[in,out]	log		redo log
-@param[in]	checkpoint_no	checkpoint no (sequential number)
-@param[in]	checkpoint_lsn	checkpoint lsn
-@param[in]	start_lsn	current lsn to start at */
+checkpoint_lsn and current lsn. Block for current_lsn must
+be properly initialized in the log buffer prior to calling
+this function. Therefore a proper value of first_rec_group
+must be set for that block before log_start is called.
+@param[in,out]  log             redo log
+@param[in]      checkpoint_no	  checkpoint no (sequential number)
+@param[in]      checkpoint_lsn  checkpoint lsn
+@param[in]      start_lsn       current lsn to start at */
 void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
                lsn_t start_lsn);
 
@@ -1013,8 +1040,12 @@ to start log background threads in such case.
 @param[in,out]	log	redo log */
 void log_stop_background_threads(log_t &log);
 
-/** @return true iff log threads are started */
-bool log_threads_active(const log_t &log);
+/** Marks the flag which tells log threads to stop and wakes them.
+Does not wait until they are stopped. */
+void log_stop_background_threads_nowait(log_t &log);
+
+/** Wakes up all log threads which are alive. */
+void log_wake_threads(log_t &log);
 
 /** Free the log system data structures. Deallocate all the related memory. */
 void log_sys_close();
@@ -1056,16 +1087,15 @@ void log_checkpointer(log_t *log_ptr);
 
 #define log_checkpointer_mutex_exit(log) mutex_exit(&((log).checkpointer_mutex))
 
-#define log_checkpointer_mutex_own(log)      \
-  (mutex_own(&((log).checkpointer_mutex)) || \
-   !(log).checkpointer_thread_alive.load())
+#define log_checkpointer_mutex_own(log) \
+  (mutex_own(&((log).checkpointer_mutex)) || !log_checkpointer_is_active())
 
 #define log_closer_mutex_enter(log) mutex_enter(&((log).closer_mutex))
 
 #define log_closer_mutex_exit(log) mutex_exit(&((log).closer_mutex))
 
 #define log_closer_mutex_own(log) \
-  (mutex_own(&((log).closer_mutex)) || !(log).closer_thread_alive.load())
+  (mutex_own(&((log).closer_mutex)) || !log_closer_is_active())
 
 #define log_flusher_mutex_enter(log) mutex_enter(&((log).flusher_mutex))
 
@@ -1075,7 +1105,7 @@ void log_checkpointer(log_t *log_ptr);
 #define log_flusher_mutex_exit(log) mutex_exit(&((log).flusher_mutex))
 
 #define log_flusher_mutex_own(log) \
-  (mutex_own(&((log).flusher_mutex)) || !(log).flusher_thread_alive.load())
+  (mutex_own(&((log).flusher_mutex)) || !log_flusher_is_active())
 
 #define log_flush_notifier_mutex_enter(log) \
   mutex_enter(&((log).flush_notifier_mutex))
@@ -1083,9 +1113,8 @@ void log_checkpointer(log_t *log_ptr);
 #define log_flush_notifier_mutex_exit(log) \
   mutex_exit(&((log).flush_notifier_mutex))
 
-#define log_flush_notifier_mutex_own(log)      \
-  (mutex_own(&((log).flush_notifier_mutex)) || \
-   !(log).flush_notifier_thread_alive.load())
+#define log_flush_notifier_mutex_own(log) \
+  (mutex_own(&((log).flush_notifier_mutex)) || !log_flush_notifier_is_active())
 
 #define log_writer_mutex_enter(log) mutex_enter(&((log).writer_mutex))
 
@@ -1095,7 +1124,7 @@ void log_checkpointer(log_t *log_ptr);
 #define log_writer_mutex_exit(log) mutex_exit(&((log).writer_mutex))
 
 #define log_writer_mutex_own(log) \
-  (mutex_own(&((log).writer_mutex)) || !(log).writer_thread_alive.load())
+  (mutex_own(&((log).writer_mutex)) || !log_writer_is_active())
 
 #define log_write_notifier_mutex_enter(log) \
   mutex_enter(&((log).write_notifier_mutex))
@@ -1103,9 +1132,14 @@ void log_checkpointer(log_t *log_ptr);
 #define log_write_notifier_mutex_exit(log) \
   mutex_exit(&((log).write_notifier_mutex))
 
-#define log_write_notifier_mutex_own(log)      \
-  (mutex_own(&((log).write_notifier_mutex)) || \
-   !(log).write_notifier_thread_alive.load())
+#define log_write_notifier_mutex_own(log) \
+  (mutex_own(&((log).write_notifier_mutex)) || !log_write_notifier_is_active())
+
+#define log_limits_mutex_enter(log) mutex_enter(&((log).limits_mutex))
+
+#define log_limits_mutex_exit(log) mutex_exit(&((log).limits_mutex))
+
+#define log_limits_mutex_own(log) mutex_own(&(log).limits_mutex)
 
 #define LOG_SYNC_POINT(a)                \
   do {                                   \
@@ -1131,6 +1165,39 @@ void log_position_unlock(log_t &log);
 @param[out]	checkpoint_lsn	stores checkpoint lsn there */
 void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
                                    lsn_t *checkpoint_lsn);
+
+/** Checks if log writer thread is active.
+@return true if and only if the log writer thread is active */
+inline bool log_writer_is_active();
+
+/** Checks if log write notifier thread is active.
+@return true if and only if the log write notifier thread is active */
+inline bool log_write_notifier_is_active();
+
+/** Checks if log flusher thread is active.
+@return true if and only if the log flusher thread is active */
+inline bool log_flusher_is_active();
+
+/** Checks if log flush notifier thread is active.
+@return true if and only if the log flush notifier thread is active */
+inline bool log_flush_notifier_is_active();
+
+/** Checks if log closer thread is active.
+@return true if and only if the log closer thread is active */
+inline bool log_closer_is_active();
+
+/** Checks if log checkpointer thread is active.
+@return true if and only if the log checkpointer thread is active */
+inline bool log_checkpointer_is_active();
+
+/** Writes encryption information to log header.
+@param[in,out]  buf          log file header
+@param[in]      key          encryption key
+@param[in]      iv           encryption iv
+@param[in]      is_boot      if it's for bootstrap
+@param[in]      encrypt_key  encrypt with master key */
+bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
+                                     bool is_boot, bool encrypt_key);
 
 #else /* !UNIV_HOTBACKUP */
 

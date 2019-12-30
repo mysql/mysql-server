@@ -5,8 +5,8 @@
   position: absolute;
   border: 0;
   background-color: transparent;
-  -webkit-box-shadow: 0px 0px 50px black;
-  -webkit-border-radius: 0px;
+  -webkit-box-shadow: 0 0 50px black;
+  border-radius: 0;
 }
 .mblReset {
   margin: 0;
@@ -17,24 +17,23 @@
   color: inherit;
 }
 .mblComboBoxMenu {
-  overflow-y: hidden !important;
   position: relative;
+  overflow-y: hidden !important;
   overflow: hidden;
   border: 1px solid black;
-  -webkit-border-radius: 0px;
+  border-radius: 0;
   background-color: white;
 }
 .mblComboBoxMenuItem {
-  white-space: nowrap;
   padding: .1em .2em;
   border-width: 1px 0 1px 0;
   border-style: solid;
+  text-align: left;
+  white-space: nowrap;
   border-color: #ffffff;
   color: inherit;
-  text-align: left;
 }
 .mblComboBoxMenuItemSelected {
-  background-color: black;
   background-image: -webkit-gradient(linear, left top, left bottom, from(#048bf4), to(#005ce5));
   color: white;
 }

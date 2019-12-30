@@ -37,7 +37,7 @@ ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1)'), -1);
 ERROR 22003: Invalid radius provided to function st_distance_sphere: Radius must be greater than zero.
 SELECT ST_Distance_Sphere(POINT(-50, -50), POINT(50, 50), 1.0e308);
-ERROR HY000: Overflow error error: INFINITY in function st_distance_sphere.
+ERROR HY000: Overflow error: INFINITY in function st_distance_sphere.
 # Creating the spatial Geometry object
 USE test;
 CREATE TABLE gis_geometrycollection (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);

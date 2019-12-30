@@ -36,8 +36,8 @@
 
 using namespace Mysql::Tools::Base::Options;
 using Mysql::Tools::Base::Abstract_program;
-using std::placeholders::_1;
 using std::string;
+using std::placeholders::_1;
 
 extern const char *load_default_groups[];
 

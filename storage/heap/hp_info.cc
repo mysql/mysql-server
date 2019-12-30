@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos) {
    current position anymore;  Use heap_position instead */
 
 int heap_info(HP_INFO *info, HEAPINFO *x, int flag) {
-  DBUG_ENTER("heap_info");
+  DBUG_TRACE;
   x->records = info->s->records;
   x->deleted = info->s->deleted;
   x->reclength = info->s->reclength;
@@ -46,5 +46,5 @@ int heap_info(HP_INFO *info, HEAPINFO *x, int flag) {
   x->errkey = info->errkey;
   x->create_time = info->s->create_time;
   if (flag & HA_STATUS_AUTO) x->auto_increment = info->s->auto_increment + 1;
-  DBUG_RETURN(0);
+  return 0;
 } /* heap_info */

@@ -1,57 +1,62 @@
-//>>built
 define("dojox/fx/_base", ["dojo/_base/array","dojo/_base/lang", "dojo/_base/fx", "dojo/fx", "dojo/dom", "dojo/dom-style",
 	    "dojo/dom-geometry", "dojo/_base/connect", "dojo/_base/html"],
 	function(arrayUtil, lang, baseFx, coreFx, dom, domStyle, domGeom, connectUtil, htmlUtil){
-// summary: Experimental and extended Animations beyond Dojo Core / Base functionality.
-//	Provides advanced Lines, Animations, and convenience aliases.
+
+/*=====
+return {
+	// summary:
+	//		Experimental and extended Animations beyond Dojo Core / Base functionality.
+	//		Provides advanced Lines, Animations, and convenience aliases.
+};
+=====*/
+
 var dojoxFx = lang.getObject("dojox.fx", true);
-/*
-lang.mixin(dojox.fx, {
+
+lang.mixin(dojoxFx, {
 
 	// anim: Function
-	//	Alias of `dojo.anim` - the shorthand `dojo.animateProperty` with auto-play
-	anim: dojo.fx.anim,
+	//		Alias of `dojo.anim` - the shorthand `dojo.animateProperty` with auto-play
+	anim: baseFx.anim,
 
 	// animateProperty: Function
-	//	Alias of `dojo.animateProperty` - animate any CSS property
-	animateProperty: dojox.fx.animateProperty,
+	//		Alias of `dojo.animateProperty` - animate any CSS property
+	animateProperty: baseFx.animateProperty,
 
 	// fadeTo: Function
 	//		Fade an element from an opacity to an opacity.
 	//		Omit `start:` property to detect. `end:` property is required.
 	//		Ultimately an alias to `dojo._fade`
-	fadeTo: dojo._fade,
+	fadeTo: baseFx._fade,
 
 	// fadeIn: Function
-	//	Alias of `dojo.fadeIn` - Fade a node in.
-	fadeIn: dojo.fadeIn,
+	//		Alias of `dojo.fadeIn` - Fade a node in.
+	fadeIn: baseFx.fadeIn,
 	
 	// fadeOut: Function
-	//	Alias of `dojo.fadeOut` - Fades a node out.
-	fadeOut: dojo.fadeOut,
+	//		Alias of `dojo.fadeOut` - Fades a node out.
+	fadeOut: baseFx.fadeOut,
 
 	// combine: Function
-	//	Alias of `dojo.fx.combine` - Run an array of animations in parallel
-	combine: dojo.fx.combine,
+	//		Alias of `dojo.fx.combine` - Run an array of animations in parallel
+	combine: coreFx.combine,
 
 	// chain: Function
-	//	Alias of `dojo.fx.chain` - Run an array of animations in sequence
-	chain: dojo.fx.chain,
+	//		Alias of `dojo.fx.chain` - Run an array of animations in sequence
+	chain: coreFx.chain,
 
 	// slideTo: Function
-	//	Alias of `dojo.fx.slideTo` - Slide a node to a defined top/left coordinate
-	slideTo: dojo.fx.slideTo,
+	//		Alias of `dojo.fx.slideTo` - Slide a node to a defined top/left coordinate
+	slideTo: coreFx.slideTo,
 
 	// wipeIn: Function
-	//	Alias of `dojo.fx.wipeIn` - Wipe a node to visible
-	wipeIn: dojo.fx.wipeIn,
+	//		Alias of `dojo.fx.wipeIn` - Wipe a node to visible
+	wipeIn: coreFx.wipeIn,
 
 	// wipeOut: Function
-	//	Alias of `dojo.fx.wipeOut` - Wipe a node to non-visible
-	wipeOut: dojo.fx.wipeOut
-
+	//		Alias of `dojo.fx.wipeOut` - Wipe a node to non-visible
+	wipeOut: coreFx.wipeOut
 });
-*/
+
 
 dojoxFx.sizeTo = function(/* Object */args){
 	// summary:
@@ -193,12 +198,10 @@ dojoxFx.slideBy = function(/* Object */args){
 dojoxFx.crossFade = function(/* Object */args){
 	// summary:
 	//		Returns an animation cross fading two element simultaneously
-	//
 	// args:
-	//	args.nodes: Array - two element array of domNodes, or id's
+	//		- args.nodes: Array - two element array of domNodes, or id's
 	//
-	//	all other standard animation args mixins apply. args.node ignored.
-	//
+	//		all other standard animation args mixins apply. args.node ignored.
 
 	// simple check for which node is visible, maybe too simple?
 	var node1 = args.nodes[0] = dom.byId(args.nodes[0]),

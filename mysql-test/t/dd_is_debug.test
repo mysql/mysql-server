@@ -7,28 +7,6 @@
 CALL mtr.add_suppression("Could not parse key-value pairs in property string.*");
 
 --echo #
---echo # Bug#24487414 - SIG 11 IN DD::INFO_SCHEMA::STATISTICS_CACHE::READ_STAT_BY_OPEN_TABLE
---echo #
-SET SESSION information_schema_stats_expiry=0;
-
-# time_zone table name is used here to set debug point
-# kill_query_on_open_table_from_tz_find from the
-# simulate_kill_query_on_open_table debug point.
-CREATE TABLE time_zone(f1 INT PRIMARY KEY) ENGINE=MyISAM;
-INSERT INTO time_zone VALUES (10);
-
-SET SESSION DEBUG="+d,simulate_kill_query_on_open_table";
---echo # Without fix, following query results in crash when query is killed while
---echo # opening "test.time_zone" table.
---error ER_QUERY_INTERRUPTED
-SELECT * FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND
-                                                  TABLE_NAME = 'time_zone';
-SET SESSION DEBUG="-d,simulate_kill_query_on_open_table";
-
-DROP TABLE time_zone;
-
-SET SESSION information_schema_stats_expiry=default;
---echo #
 --echo # Bug#26318759 ASSERT IN ROW_DROP_TABLE_FOR_MYSQL IN ROW/ROW0MYSQL.CC
 --echo #
 
@@ -57,7 +35,7 @@ SET SESSION information_schema_stats_expiry=default;
 CREATE TABLE t1(i INT);
 
 SET SESSION debug="+d,sim_acq_fail_in_store_ci";
---error ER_UNKNOWN_ERROR_NUMBER
+--error ER_DA_UNKNOWN_ERROR_NUMBER
 SHOW CREATE TABLE t1;
 
 SET SESSION debug="";
@@ -80,3 +58,56 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 --let SEARCH_PATTERN= Could not parse key-value pairs in property string.*
 --source include/search_pattern.inc
 
+--echo #
+--echo # Bug#28875646 - ASSERTION `THD->GET_TRANSACTION()->IS_EMPTY(TRANSACTION_CTX::STMT) || (THD->STAT
+--echo #
+CREATE TABLE t1 (f1 INT );
+
+--echo # Case 1: Test case to verify re-prepare of a prepared statement using
+--echo #         INFORMATION_SCHEMA table in LOCK TABLE mode does not add a SE
+--echo #         to the transaction while opening query tables.
+--echo #         (Scenario reported in the bug page)
+PREPARE stmt FROM 'show events';
+EXECUTE stmt;
+FLUSH TABLES;
+LOCK TABLE t1 READ;
+SET DEBUG_SYNC="after_statement_reprepare SIGNAL flush_tables WAIT_FOR continue";
+--SEND EXECUTE stmt
+
+CONNECT (con1, localhost, root);
+SET DEBUG_SYNC="now WAIT_FOR flush_tables";
+SET DEBUG="+d,skip_dd_table_access_check";
+FLUSH TABLES mysql.events;
+SET DEBUG="-d,skip_dd_table_access_check";
+SET DEBUG_SYNC="now SIGNAL continue";
+
+CONNECTION default;
+--echo # Without fix, execution of a prepared statement in the debug build will
+--echo # hit the assert condition to check no SEs added to the transaction while
+--echo # opening query tables. In non-debug build execution continues without
+--echo # any issues.
+--echo # With fix, in debug build "stmt" execution succeeds.
+--reap
+
+--echo # Case 2: Test case added for the coverage.
+--echo #         Test case to verify no SEs added to the transaction when open
+--echo #         table fails after opening INFORMATION_SCHEMA tables in LOCK TABLE
+--echo #         mode. In debug build, assert condition mentioned in the bug
+--echo #         report fails if there are any SEs added to the transaction.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM INFORMATION_SCHEMA.EVENTS, t2;
+UNLOCK TABLES;
+
+--echo # Case 3: Test case added for the coverage.
+--echo #         Test case to verify no SEs added to the transaction when open
+--echo #         table fails after opening INFORMATION_SCHEMA tables. In debug
+--echo #         build, assert condition mentioned in the bug report fails if
+--echo #         there are any SEs added to the transaction.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM INFORMATION_SCHEMA.EVENTS, t2;
+
+# Cleanup
+DISCONNECT con1;
+DROP TABLE t1;
+DROP PREPARE stmt;
+SET DEBUG_SYNC=RESET;

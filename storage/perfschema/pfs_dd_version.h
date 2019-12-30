@@ -96,15 +96,41 @@
 
   performance_schema.keyring_keys
 
-  Version published is now 80015.
+  80017: -- WARNING, EXPOSED BY MySQL 8.0.16 --
 
-  80017:
-
-  performance_schema tables changed in MySQL 8.0.17
+  Unfortunately, MySQL 8.0.16 claim the 80017 tag, due to a bad merge.
+  performance_schema tables changed in MySQL 8.0.16
   - replication_connection_configuration, added column NETWORK_NAMESPACE
 
-  Version published is now 80017.
+  800171: -- WARNING, EXPOSED BY MySQL 8.0.17 --
+    ---------------------------------------------------------------------
+    IMPORTANT NOTE:
+    The release 8.0.16 made use of version 80017 incorrectly, which makes
+    the upgrade from 8.0.16 to 8.0.17 release immutable. This was
+    introduced by WL#12720.
+
+    In order to allow upgrade from 8.0.16 to 8.0.17, we choose the new
+    version number as 800171 for 8.0.17 release. Going forward the
+    release 8.0.18 would use 80018.
+
+    Note that, any comparison between two PFS version numbers should be
+    carefully done.
+    ---------------------------------------------------------------------
+
+  performance_schema tables changed in MySQL 8.0.17
+  - WL#12571 increases the HOST name length from 60 to 255.
+
+  Version published is now 800171. The next number to use is 80018.
+
+  80018:
+
+  performance_schema tables changed in MySQL 8.0.18
+  - replication_connection_configuration, added column
+  MASTER_COMPRESSION_ALGORITHMS, MASTER_COMPRESSION_LEVEL
+
+  Version published is now 800172.
 */
-static const uint PFS_DD_VERSION = 80017;
+
+static const uint PFS_DD_VERSION = 80018;
 
 #endif /* PFS_DD_VERSION_H */

@@ -228,7 +228,7 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
@@ -248,7 +248,7 @@ protected:
     new (ssptr) Ss;
     ssptr->m_ssId = ssId;
     sp.m_usage++;
-    D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssSeize" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     return *ssptr;
   }
 
@@ -284,7 +284,7 @@ protected:
     SsPool<Ss>& sp = Ss::pool(this);
     ndbrequire(sp.m_usage != 0);
     ndbrequire(ssId != 0);
-    D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    //D("ssRelease" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
     Ss* ssptr = ssSearch<Ss>(ssId);
     ndbrequire(ssptr != 0);
     ssptr->m_ssId = 0;

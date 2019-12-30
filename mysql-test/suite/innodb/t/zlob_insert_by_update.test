@@ -1,0 +1,27 @@
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--echo #
+--echo # Bug #29440408 ASSERTION FAILURE: BUF0BUF.CC:4040:M_MODE ==
+--echo # PAGE_FETCH::POSSIBLY_FREED || !BLOC
+--echo #
+
+create table t1 (f1 int primary key, f2 longblob) engine=innodb row_format=compressed;
+insert into t1 values (1, repeat('x', 64*1024));
+delete from t1 where f1 = 1;
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'blob_write_middle SIGNAL do_purge WAIT_FOR continue_insert';
+--send
+insert into t1 values (1, repeat('y', 128*1024));
+
+--echo # Connection default:
+connection default;
+set DEBUG_SYNC = 'now WAIT_FOR do_purge';
+
+--source include/kill_and_restart_mysqld.inc
+
+drop table t1;
+
