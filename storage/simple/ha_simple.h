@@ -71,6 +71,7 @@ class ha_simple : public handler {
   Simple_share *get_share(const char *table_name);  ///< Get the share
   File data_file;             /// データファイルのdescripter
   String buffer;
+  off_t current_position;     /// read用のポジション
 
  public:
   ha_simple(handlerton *hton, TABLE_SHARE *table_arg);
@@ -266,6 +267,7 @@ class ha_simple : public handler {
   int rnd_init(bool scan);  // required
   int rnd_end();
   int rnd_next(uchar *buf);             ///< required
+  int find_current_row(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);  ///< required
   void position(const uchar *record);   ///< required
   int info(uint);                       ///< required

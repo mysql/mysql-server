@@ -300,7 +300,7 @@ int ha_simple::write_row(uchar *) {
       if(init_writer()) DBUG_RETURN(-1);
 
   size = encode_quote();
-  if((my_write(share->write_fd, (uchar *)buffer.ptr(), size, MYF(0))) < 0)
+  if((my_write(share->write_fd, (uchar *)buffer.ptr(), size, MYF(0))) <= 0)
       DBUG_RETURN(-1);
 
   stats.records++;
@@ -496,6 +496,10 @@ int ha_simple::index_last(uchar *) {
 */
 int ha_simple::rnd_init(bool) {
   DBUG_ENTER("ha_simple::rnd_init");
+
+  current_position = 0;
+  stats.records = 0;
+
   DBUG_RETURN(0);
 }
 
@@ -519,11 +523,64 @@ int ha_simple::rnd_end() {
   filesort.cc, records.cc, sql_handler.cc, sql_select.cc, sql_table.cc and
   sql_update.cc
 */
-int ha_simple::rnd_next(uchar *) {
-  int rc;
+int ha_simple::rnd_next(uchar *buf) {
   DBUG_ENTER("ha_simple::rnd_next");
-  rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
+
+  int err = find_current_row(buf);
+  if(!err) {
+      stats.records++;
+  }
+
+  DBUG_RETURN(err);
+}
+
+/**
+ * Added for rnd_next()
+ */
+int ha_simple::find_current_row(uchar *buf) {
+    DBUG_ENTER("ha_simple::find_current_row");
+
+    my_bitmap_map *org_bitmap;
+    uchar read_buf[IO_SIZE];
+    bool is_end_quote;
+    uchar *p;
+    uchar current_char;
+    uint bytes_read;
+
+    memset(buf, 0, table->s->null_bytes); // NULL指定ビットマップの初期化
+    org_bitmap = tmp_use_all_columns(table, table->write_set); //?? 書き込み用のbitを立てる
+
+    for(Field **field = table->field; *field; field++) {
+        bytes_read = my_pread(data_file, read_buf, sizeof(read_buf), current_position, MYF(0)); //?? read_bufにファイルの行を読み込む
+        if(!bytes_read) { // 読み終わったら
+            tmp_restore_column_map(table->write_set, org_bitmap);
+            DBUG_RETURN(HA_ERR_END_OF_FILE);
+        }
+
+        p = read_buf;
+        current_char = *p;
+        buffer.length(0);
+        is_end_quote = false;
+
+        for(;;) { // bufferに読み取った行を詰める
+            if(current_char == '"') {
+                if(is_end_quote) {
+                    current_position += 2;
+                    break;
+                }
+                is_end_quote = true;
+            } else {
+                buffer.append(current_char);
+            }
+            current_char = *++p;
+            current_position++;
+        }
+        (*field)->store(buffer.ptr(), buffer.length(), buffer.charset()); // bufferの内容をbufに格納する
+    }
+
+    tmp_restore_column_map(table->write_set, org_bitmap);
+    DBUG_RETURN(0);
 }
 
 /**
@@ -613,6 +670,9 @@ int ha_simple::rnd_pos(uchar *, uchar *) {
 */
 int ha_simple::info(uint) {
   DBUG_ENTER("ha_simple::info");
+  if (stats.records < 2) {
+      stats.records = 2;
+  }
   DBUG_RETURN(0);
 }
 
