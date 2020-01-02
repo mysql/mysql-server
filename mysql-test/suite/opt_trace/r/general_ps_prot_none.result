@@ -11738,21 +11738,6 @@ explain select * from v1 where id="b"	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "`v1`",
-                "in_plan_at_position": 0,
-                "columns": 2,
-                "row_length": 69,
-                "key_length": 64,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
-          {
             "join_explain": {
               "select#": 2,
               "steps": [
