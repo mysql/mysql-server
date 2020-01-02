@@ -1675,10 +1675,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                 "table_condition_attached": null
               },
               {
-                "table": "`t1` `table2`",
-                "unknown_key_1": {
-                  "constant_condition_in_bnl": "<nop>(<in_optimizer>(`table2`.`col_int_nokey`,<exists>(/* select#3 */ select 5 from `t2` where <if>(outer_field_is_not_null, (<cache>(`table2`.`col_int_nokey`) <> 5), true))))"
-                }
+                "table": "`t1` `table2`"
               }
             ] /* refine_plan */
           }
