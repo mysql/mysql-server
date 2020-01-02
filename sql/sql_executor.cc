@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2014,6 +2014,64 @@ static void ExtractJoinConditions(const QEP_TAB *current_table,
   *predicates = move(real_predicates);
 }
 
+// See if a given subtree contains a pushed join that are self-contained within
+// the subtree. Consider the following execution tree:
+//
+//       +--join 1--+
+//       |          |
+//  +--join 2--+    t3
+//  |          |
+//  t1         t2
+//
+// If there is a pushed join between t2 and t3, this function will return
+// 'false' for both sides of 'join 1' as the pushed join is a part of multiple
+// subtrees.
+static bool SubtreeHasIncompletePushedJoin(JOIN *join, qep_tab_map subtree) {
+  for (QEP_TAB *qep_tab : TablesContainedIn(join, subtree)) {
+    handler *handler = qep_tab->table()->file;
+    table_map tables_in_pushed_join = handler->tables_in_pushed_join();
+
+    // See if any of the tables in the pushed join does not belong to the given
+    // subtree.
+    if (tables_in_pushed_join & ~subtree) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Given a pushed join between t1 and t2 where t1 is the root of the pushed
+// join, reading a row from t1 causes NDB to do a join against t2 so that next
+// read from t2 will give back the matching row(s). This means that one read
+// from t1 must be followed by read from t2 until EOF. In other words, joins
+// must be executed using nested loop for pushed joins to work correctly. With
+// hash join, this pattern is broken; both inputs may be written out to disk,
+// causing multiple reads from one subtree before doing any reads from the other
+// subtree. This means that if one side of the hash join contains a pushed join
+// with tables outside of said side, hash join cannot be used.
+//
+// Note that if we force _inner_ hash joins to not spill to disk, the right side
+// (the probe input) of the hash join will not be materialized, causing it to
+// resemble a block nested loop. So if the join is a inner join, hash join can
+// be used as long as we do not spill to disk _and_ the left side (the build
+// input) does not contain an incomplete pushed join. This is not true for
+// semi/anti/outer hash join, as the right side is the _build_ input for these
+// join types.
+static bool PushedJoinRejectsHashJoin(JOIN *join, qep_tab_map left_subtree,
+                                      qep_tab_map right_subtree,
+                                      JoinType join_type) {
+  if (join_type == JoinType::INNER) {
+    // Inner hash join works fine with pushed joins as long as we ensure that we
+    // do not spill to disk, _and_ the left subtree (the build input) does not
+    // have an incomplete pushed join.
+    return SubtreeHasIncompletePushedJoin(join, left_subtree);
+  }
+
+  return SubtreeHasIncompletePushedJoin(join, left_subtree) ||
+         SubtreeHasIncompletePushedJoin(join, right_subtree);
+}
+
 static bool UseHashJoin(QEP_TAB *qep_tab) {
   return qep_tab->op_type == QEP_TAB::OT_BNL;
 }
@@ -2251,6 +2309,9 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     QEP_TAB *qep_tab = &qep_tabs[i];
     if (substructure == Substructure::OUTER_JOIN ||
         substructure == Substructure::SEMIJOIN) {
+      qep_tab_map left_tables = TablesBetween(first_idx, i);
+      qep_tab_map right_tables = TablesBetween(i, substructure_end);
+
       // Outer or semijoin, consisting of a subtree (possibly of only one
       // table), so we send the entire subtree down to a recursive invocation
       // and then join the returned root into our existing tree.
@@ -2262,6 +2323,8 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       if (substructure == Substructure::SEMIJOIN) {
         // Semijoins don't have special handling of WHERE, so simply recurse.
         if (UseHashJoin(qep_tab) &&
+            !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
+                                       right_tables, JoinType::SEMI) &&
             !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
           // We must move any join conditions inside the subtructure up to this
           // level so that they can be attached to the hash join iterator.
@@ -2395,8 +2458,6 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // the function comment. Note that this cannot happen for inner joins
       // (join conditions can always be pulled up for them), so we do not
       // replicate this check for inner joins below.
-      qep_tab_map left_tables = TablesBetween(first_idx, i);
-      qep_tab_map right_tables = TablesBetween(i, substructure_end);
       const bool right_side_depends_on_outer =
           Overlaps(conditions_depend_on_outer_tables_subtree,
                    ConvertQepTabMapToTableMap(qep_tab->join(), left_tables));
@@ -2435,7 +2496,10 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       } else if (iterator == nullptr) {
         DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
         iterator = move(subtree_iterator);
-      } else if (((UseHashJoin(qep_tab) && !right_side_depends_on_outer) ||
+      } else if (((UseHashJoin(qep_tab) &&
+                   !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
+                                              right_tables, join_type) &&
+                   !right_side_depends_on_outer) ||
                   UseBKA(qep_tab)) &&
                  !QueryMixesOuterBKAAndBNL(qep_tab->join())) {
         // Join conditions that were inside the substructure are placed in the
@@ -2543,12 +2607,28 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     unique_ptr_destroy_only<RowIterator> table_iterator =
         GetTableIterator(thd, qep_tab, qep_tabs);
 
+    qep_tab_map right_tables = qep_tab->idx_map();
+    qep_tab_map left_tables = 0;
+
+    // Get the left side tables of this join.
+    if (calling_context == DIRECTLY_UNDER_SEMIJOIN ||
+        InsideOuterOrAntiJoin(qep_tab)) {
+      // Join buffering (hash join, BKA) supports semijoin with only one inner
+      // table (see setup_join_buffering), so the calling context for a
+      // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
+      left_tables |= TablesBetween(upper_first_idx, first_idx);
+    } else {
+      left_tables |= TablesBetween(first_idx, i);
+    }
+
     // If this is a BNL, we should replace it with hash join. We did decide
     // during create_iterators that we actually can replace the BNL with a hash
     // join, so we don't bother checking any further that we actually can
     // replace the BNL with a hash join.
     const bool replace_with_hash_join =
-        UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
+        UseHashJoin(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join()) &&
+        !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables, right_tables,
+                                   JoinType::INNER);
 
     vector<Item *> predicates_below_join;
     vector<Item *> join_conditions;
@@ -2563,52 +2643,36 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                     &predicates_above_join,
                     replace_with_hash_join ? pending_join_conditions : nullptr);
 
-    qep_tab_map left_tables = 0;
-
     // We can always do BKA. The setup is very similar to hash join.
     const bool is_bka =
         UseBKA(qep_tab) && !QueryMixesOuterBKAAndBNL(qep_tab->join());
 
-    if (replace_with_hash_join || is_bka) {
-      // Get the left tables of this join.
-      if (calling_context == DIRECTLY_UNDER_SEMIJOIN ||
-          InsideOuterOrAntiJoin(qep_tab)) {
-        // Join buffering (hash join, BKA) supports semijoin with only one inner
-        // table (see setup_join_buffering), so the calling context for a
-        // semijoin with join buffering will always be DIRECTLY_UNDER_SEMIJOIN.
-        left_tables |= TablesBetween(upper_first_idx, first_idx);
-      } else {
-        left_tables |= TablesBetween(first_idx, i);
+    if (is_bka) {
+      TABLE_REF &ref = qep_tab->ref();
+
+      table_iterator = NewIterator<MultiRangeRowIterator>(
+          thd, qep_tab->cache_idx_cond, qep_tab->table(),
+          qep_tab->copy_current_rowid, &ref,
+          qep_tab->position()->table->join_cache_flags);
+      qep_tab->mrr_iterator =
+          down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
+
+      if (qep_tab->cache_idx_cond != nullptr) {
+        *conditions_depend_on_outer_tables |=
+            qep_tab->cache_idx_cond->used_tables();
       }
-
-      if (is_bka) {
-        TABLE_REF &ref = qep_tab->ref();
-
-        table_iterator = NewIterator<MultiRangeRowIterator>(
-            thd, qep_tab->cache_idx_cond, qep_tab->table(),
-            qep_tab->copy_current_rowid, &ref,
-            qep_tab->position()->table->join_cache_flags);
-        qep_tab->mrr_iterator =
-            down_cast<MultiRangeRowIterator *>(table_iterator->real_iterator());
-
-        if (qep_tab->cache_idx_cond != nullptr) {
-          *conditions_depend_on_outer_tables |=
-              qep_tab->cache_idx_cond->used_tables();
-        }
-        for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
-             ++key_part_idx) {
-          *conditions_depend_on_outer_tables |=
-              ref.items[key_part_idx]->used_tables();
-        }
-      } else {
-        // We will now take all the join conditions (both equi- and
-        // non-equi-join conditions) and move them to a separate vector so we
-        // can attach them to the hash join iterator later. Conditions that
-        // should be attached after the join remain in "predicates_below_join"
-        // (i.e. filters).
-        ExtractJoinConditions(qep_tab, &predicates_below_join,
-                              &join_conditions);
+      for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
+           ++key_part_idx) {
+        *conditions_depend_on_outer_tables |=
+            ref.items[key_part_idx]->used_tables();
       }
+    } else if (replace_with_hash_join) {
+      // We will now take all the join conditions (both equi- and
+      // non-equi-join conditions) and move them to a separate vector so we
+      // can attach them to the hash join iterator later. Conditions that
+      // should be attached after the join remain in "predicates_below_join"
+      // (i.e. filters).
+      ExtractJoinConditions(qep_tab, &predicates_below_join, &join_conditions);
     }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
@@ -2690,7 +2754,6 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
 
       if (is_bka) {
-        qep_tab_map right_tables = qep_tab->idx_map();
         iterator = CreateBKAIterator(thd, qep_tab->join(), move(iterator),
                                      left_tables, move(table_iterator),
                                      right_tables, qep_tab->table(),
@@ -2701,7 +2764,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         // input, so use that as the build input.
         iterator = CreateHashJoinIterator(
             thd, qep_tab, move(iterator), left_tables, move(table_iterator),
-            qep_tab->idx_map(), JoinType::INNER, &join_conditions,
+            right_tables, JoinType::INNER, &join_conditions,
             conditions_depend_on_outer_tables);
 
         // Attach any remaining non-equi-join conditions as a filter after the

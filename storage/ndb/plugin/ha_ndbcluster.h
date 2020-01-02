@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,6 +364,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uint number_of_pushed_joins() const override;
   const TABLE *member_of_pushed_join() const override;
   const TABLE *parent_of_pushed_join() const override;
+  table_map tables_in_pushed_join() const override;
 
   int index_read_pushed(uchar *buf, const uchar *key,
                         key_part_map keypart_map) override;

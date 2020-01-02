@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
@@ -5485,6 +5486,10 @@ class handler {
     returned TABLE instance being my parent?
   */
   virtual const TABLE *parent_of_pushed_join() const { return nullptr; }
+
+  /// @returns a map of the tables involved in this pushed join, or 0 if not
+  ///   part of a pushed join.
+  virtual table_map tables_in_pushed_join() const { return 0; }
 
   int ha_index_read_pushed(uchar *buf, const uchar *key,
                            key_part_map keypart_map);
