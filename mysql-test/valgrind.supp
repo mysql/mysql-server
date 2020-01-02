@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -763,7 +763,7 @@
    ...
    fun:_Z19my_b_flush_io_cacheP8IO_CACHEi
    fun:_Z11_my_b_writeP8IO_CACHEPKhm
-   fun:_Z10my_b_writeP8IO_CACHEPKhm
+   ...
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP8IO_CACHES4_
    ...
    fun:_Z8filesortP3THDP8Filesort*
