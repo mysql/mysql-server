@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ import java.util.Properties;
 
 import com.mysql.clusterj.Constants;
 
-public class MgmClient {
+public class MgmClient implements AutoCloseable {
 
     Socket mgmSocket;
     PrintWriter mgmSocketWriter;
@@ -96,21 +96,28 @@ public class MgmClient {
                     new InputStreamReader(mgmSocket.getInputStream()));
         } catch (UnknownHostException e) {
             // Should not happen
-            throw new RuntimeException("Failed to connect to the management node");
+            throw new RuntimeException("Failed to connect to the management node", e);
         }
 
         // Fetch node list and store
         retrieveNodeStatus();
     }
 
-    protected void finalize() {
+    @Override
+    public void close() {
         // Close the reader, writer and socket
         try {
-            mgmSocketReader.close();
-            mgmSocketWriter.close();
-            mgmSocket.close();
+            if (mgmSocketReader != null) {
+                mgmSocketReader.close();
+            }
+            if (mgmSocketWriter != null) {
+                mgmSocketWriter.close();
+            }
+            if (mgmSocket != null) {
+                mgmSocket.close();
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Caught exception when closing the MgmClient : " + e.getMessage());
         }
     }
 
@@ -198,8 +205,7 @@ public class MgmClient {
             reply.remove(reply.size() - 1);
         } catch (IOException e) {
             // Failed to read/write data
-            e.printStackTrace();
-            System.err.println("Failed to read/write into the socket.");
+            System.err.println("Failed to read/write into the socket. Caught exception : " + e.getMessage());
             return false;
         }
         return true;
