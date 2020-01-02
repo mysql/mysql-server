@@ -2962,15 +2962,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table_ref);
 
-    // Now that we have decided which index to use, it is time to filter away
-    // base columns for virtual generated columns from the read_set. This is
-    // so that if we are scanning on a covering index, code that uses the
-    // table's read set (join buffering, hash join, filesort; they all use it
-    // to figure out which records to pack into their buffers) do not try
-    // to pack the non-existent base columns. See
-    // filter_virtual_gcol_base_cols().
-    filter_virtual_gcol_base_cols(qep_tab);
-
     if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE)
       qep_tab->init_join_cache(tab);
 
@@ -3071,6 +3062,15 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         DBUG_ASSERT(0);
         break; /* purecov: deadcode */
     }
+
+    // Now that we have decided which index to use and whether to use "dynamic
+    // range scan", it is time to filter away base columns for virtual generated
+    // columns from the read_set. This is so that if we are scanning on a
+    // covering index, code that uses the table's read set (join buffering, hash
+    // join, filesort; they all use it to figure out which records to pack into
+    // their buffers) do not try to pack the non-existent base columns. See
+    // filter_virtual_gcol_base_cols().
+    filter_virtual_gcol_base_cols(qep_tab);
 
     if (tab->position()->filter_effect <= COND_FILTER_STALE) {
       /*
