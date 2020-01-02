@@ -323,9 +323,11 @@ INSERT INTO t1
 SELECT a,LEFT(REPEAT(d,100*a),65535),REPEAT(d,20*a),d FROM t2,t3 order by a, d;
 DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
+SET SESSION sort_buffer_size = 1048576;
 SELECT a,
 LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1
 ORDER BY 1, 2, 3, 4, 5, 6;
+SET SESSION sort_buffer_size = DEFAULT;
 # in-place alter table should trigger ER_PRIMARY_CANT_HAVE_NULL
 --error ER_DUP_ENTRY
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));

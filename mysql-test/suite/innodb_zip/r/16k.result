@@ -335,6 +335,7 @@ DROP TABLE t2, t3;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5
+SET SESSION sort_buffer_size = 1048576;
 SELECT a,
 LENGTH(b),b=LEFT(REPEAT(d,100*a),65535),LENGTH(c),c=REPEAT(d,20*a),d FROM t1
 ORDER BY 1, 2, 3, 4, 5, 6;
@@ -364,6 +365,7 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 66	65535	1	15840	1	adfdpplkeock
 66	65535	1	17160	1	adfdijnmnb78k
 66	65535	1	21120	1	adfdijn0loKNHJik
+SET SESSION sort_buffer_size = DEFAULT;
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
 ERROR 23000: Duplicate entry '22' for key 't1.PRIMARY'
 DELETE FROM t1 WHERE d='null';
