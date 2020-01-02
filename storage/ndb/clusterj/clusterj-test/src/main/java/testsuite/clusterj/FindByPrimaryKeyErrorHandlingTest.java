@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,41 +59,37 @@ public class FindByPrimaryKeyErrorHandlingTest
     }
 
     private void testErrorHandling() {
-        // Insert error to simulate a temporary error while reading
-        MgmClient mgmClient = null;
-        try {
-            mgmClient = new MgmClient(props);
+        try (MgmClient mgmClient = new MgmClient(props)) {
+            // Insert error to simulate a temporary error while reading
+            if (!mgmClient.insertErrorOnAllDataNodes(5098)) {
+                error("Failed to insert error on data nodes");
+                // reset any partially inserted errors
+                mgmClient.insertErrorOnAllDataNodes(0);
+                return;
+            }
+
+            // Lookup for an existing row and expect it to throw error
+            try {
+                session.find(Employee.class, 5);
+                // The previous find() call should have thrown an exception.
+                // If it didn't, log it as an error.
+                error("session.find() failed to throw a proper exception on temporary error");
+            } catch (ClusterJDatastoreException cjde) {
+                // Verify that the expected error has been caught
+                verifyException("Simulating temporary read error in session.find()",
+                        cjde, ".*Error code: 1,218.*");
+            } catch (Exception ex) {
+                // Any other exception caught is invalid
+                error("Caught exception : " + ex.getMessage());
+            }
+
+            // Reset the error inserted to data nodes
+            if (!mgmClient.insertErrorOnAllDataNodes(0)) {
+                error("Failed to reset error on data nodes");
+            }
         } catch (IOException e) {
-            e.printStackTrace();
-            error("Failed to connect to Management Server");
+            error("Failed to connect to Management Server. Caught exception : " + e.getMessage());
             return;
-        }
-        if (!mgmClient.insertErrorOnAllDataNodes(5098)) {
-            error("Failed to insert error on data nodes");
-            // reset any partially inserted errors
-            mgmClient.insertErrorOnAllDataNodes(0);
-            return;
-        }
-
-        // Lookup for an existing row and expect it to throw error
-        try {
-            session.find(Employee.class, 5);
-            // The previous find() call should have thrown an exception.
-            // If it didn't, log it as an error.
-            error("session.find() failed to throw a proper exception on temporary error");
-        } catch (ClusterJDatastoreException cjde) {
-            // Verify that the expected error has been caught
-            verifyException("Simulating temporary read error in session.find()",
-                    cjde, ".*Error code: 1,218.*");
-        } catch (Exception ex) {
-            // Any other exception caught is invalid
-            ex.printStackTrace();
-            error("Caught exception : " + ex.getMessage());
-        }
-
-        // Reset the error inserted to data nodes
-        if (!mgmClient.insertErrorOnAllDataNodes(0)) {
-            error("Failed to reset error on data nodes");
         }
     }
 }
