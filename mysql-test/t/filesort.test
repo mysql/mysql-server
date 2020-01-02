@@ -50,7 +50,7 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES ( 2, REPEAT('-', 1048576) );
 INSERT INTO t1 VALUES ( 1, REPEAT('x', 1048576) );
 
---replace_regex /(.){1024}/\1{1024}/
+--replace_regex /x{1024}/x{1024}/ /-{1024}/-{1024}/
 SELECT * FROM t1 ORDER BY f1;
 
 DROP TABLE t1;
