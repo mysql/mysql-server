@@ -1260,16 +1260,16 @@ Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #36
@@ -1636,16 +1636,16 @@ Variable_name	Value
 Handler_read_key	9
 Handler_read_next	7
 Handler_read_rnd	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	13
 Handler_read_next	7
 Handler_read_rnd	8
 Handler_update	4
-Sort_range	1
 Sort_rows	4
+Sort_scan	1
 
 DROP TABLE t1, t2;
 #46
@@ -2422,11 +2422,11 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_key	2
-Sort_range	1
+Sort_scan	1
 
 DROP TABLE t1;
 #
