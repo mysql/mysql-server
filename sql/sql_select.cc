@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2281,7 +2281,13 @@ store_key::store_key_result store_key::copy() {
 
 enum store_key::store_key_result store_key_hash_item::copy_inner() {
   enum store_key_result res = store_key_item::copy_inner();
-  if (res != STORE_KEY_FATAL) *hash = unique_hash(to_field, hash);
+  if (res != STORE_KEY_FATAL) {
+    // Convert to and from little endian, since that is what gets
+    // stored in the hash field we are lookup up against.
+    ulonglong h = uint8korr(pointer_cast<char *>(hash));
+    h = unique_hash(to_field, &h);
+    int8store(pointer_cast<char *>(hash), h);
+  }
   return res;
 }
 
