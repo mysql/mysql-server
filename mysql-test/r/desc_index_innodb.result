@@ -1633,6 +1633,9 @@ pk	col_int_key
 2	1
 ALTER TABLE t1 ADD INDEX key1 (pk);
 ALTER TABLE t1 ADD INDEX key2 (col_int_key);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
