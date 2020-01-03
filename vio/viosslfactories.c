@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "vio_priv.h"
+#include "my_openssl.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -437,7 +438,8 @@ void ssl_start()
   {
     ssl_initialized= TRUE;
 
-    SSL_library_init();
+    mysql_OPENSSL_init();
+
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
 
