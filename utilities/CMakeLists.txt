@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@ DISABLE_MISSING_PROFILE_WARNING()
 IF(NOT CMAKE_CROSSCOMPILING)
   MYSQL_ADD_EXECUTABLE(comp_err
     comp_err.cc
-    COMPONENT Server
+    COMPONENT Test
     LINK_LIBRARIES mysys
     )
 ENDIF()

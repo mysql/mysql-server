@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1030,7 +1030,6 @@ fi
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 
-%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/innochecksum
 %attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -1304,7 +1303,6 @@ fi
 %files devel
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
 %ifarch %{multiarchs}
@@ -1343,6 +1341,7 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(-, root, root) %{_datadir}/mysql-test
+%attr(755, root, root) %{_bindir}/comp_err
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %if 0%{?systemd}
 %attr(755, root, root) %{_bindir}/mysqld_safe
@@ -1350,6 +1349,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/mysqltest_safe_process
 %attr(755, root, root) %{_bindir}/mysqlxtest
+%attr(644, root, root) %{_mandir}/man1/comp_err.1*
 
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
