@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -437,6 +437,10 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
   const char *plugindir;
+  const CHARSET_INFO *cs = NULL;
+  size_t len = (name ? strlen(name) : 0);
+  int well_formed_error;
+  size_t res = 0;
 #ifdef _WIN32
   char win_errormsg[2048];
 #endif
@@ -469,6 +473,31 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
     {
       plugindir= PLUGINDIR;
     }
+  }
+  if (mysql && mysql->charset)
+    cs = mysql->charset;
+  else
+    cs = &my_charset_latin1;
+  /* check if plugin name does not have any directory separator character */
+  if ((my_strcspn(cs, name, name + len, FN_DIRSEP, strlen(FN_DIRSEP))) < len) {
+    errmsg = "No paths allowed for shared library";
+    goto err;
+  }
+  /* check if plugin name does not exceed its maximum length */
+  res = cs->cset->well_formed_len(cs, name, name + len, NAME_CHAR_LEN,
+                                  &well_formed_error);
+
+  if (well_formed_error || len != res) {
+    errmsg = "Invalid plugin name";
+    goto err;
+  }
+  /*
+   check if length of(plugin_dir + plugin name) does not exceed its maximum
+   length
+  */
+  if ((strlen(plugindir) + len + 1) >= FN_REFLEN) {
+    errmsg = "Invalid path";
+    goto err;
   }
 
   /* Compile dll path */
