@@ -1,3 +1,4 @@
+call mtr.add_suppression("Could not acquire global schema lock");
 Waiting for node 1 to enter start phase 100
 Giving BI threads time to get stuck
 Removing error insert
