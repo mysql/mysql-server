@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1809,6 +1809,19 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   if (err != 0) {
+    /* Log donor error number and message. */
+    if (err == ER_CLONE_DONOR) {
+      const char *donor_mesg = nullptr;
+      int donor_error = 0;
+      bool success =
+          Clone_handler::get_donor_error(nullptr, donor_error, donor_mesg);
+      if (success && donor_error != 0 && donor_mesg != nullptr) {
+        char info_mesg[128];
+        snprintf(info_mesg, 128, "Clone Donor error : %d : %s", donor_error,
+                 donor_mesg);
+        LogErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
+      }
+    }
     return true;
   }
 
@@ -1895,10 +1908,10 @@ bool Sql_cmd_clone::execute_server(THD *thd) {
   return ret;
 }
 
-void Sql_cmd_clone::rewrite(THD *thd) {
+bool Sql_cmd_clone::rewrite(THD *thd) {
   /* No password for local clone. */
   if (is_local()) {
-    return;
+    return false;
   }
 
   String *rlb = &thd->rewritten_query;
@@ -1936,10 +1949,7 @@ void Sql_cmd_clone::rewrite(THD *thd) {
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
     rlb->append(STRING_WITH_LEN(" REQUIRE SSL"));
   }
-
-  /* Set the query to be displayed in SHOW PROCESSLIST */
-  thd->set_query(rlb->c_ptr_safe(), rlb->length());
-  thd->set_query_for_display(rlb->c_ptr_safe(), rlb->length());
+  return true;
 }
 
 bool Sql_cmd_create_role::execute(THD *thd) {

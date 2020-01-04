@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -448,8 +448,9 @@ class Sql_cmd_clone : public Sql_cmd {
   bool load(THD *thd);
 
   /** Re-write clone statement to hide password.
-  @param[in,out] thd server session */
-  void rewrite(THD *thd);
+  @param[in,out] thd server session
+  @return true iff query is re-written */
+  bool rewrite(THD *thd);
 
   /** @return true, if it is local clone command */
   bool is_local() const { return (m_is_local); }

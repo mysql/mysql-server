@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,10 @@
 #include "sql/clone_handler.h"
 
 #include <string.h>
+#include <cctype>
 #include <chrono>
+#include <cstdlib>
+#include <string>
 #include <thread>
 
 #include "my_dbug.h"
@@ -41,16 +44,86 @@
 #include "sql/sql_class.h"
 #include "sql/sql_parse.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
-#include "sql_string.h"      // to_lex_cstring
+#include "sql/srv_session.h"
+#include "sql_string.h"  // to_lex_cstring
 #include "violite.h"
 
 class THD;
+
+/* To get current session thread default THD */
+THD *thd_get_current_thd();
 
 /** Clone handler global */
 Clone_handler *clone_handle = nullptr;
 
 /** Clone plugin name */
 const char *clone_plugin_nm = "clone";
+
+bool Clone_handler::get_donor_error(Srv_session *session, int &error,
+                                    const char *&message) {
+  error = 0;
+  message = nullptr;
+  THD *thd = nullptr;
+
+  if (session != nullptr) {
+    thd = session->get_thd();
+  }
+
+  /* Check if THD exists. */
+  if (thd == nullptr) {
+    /* Try to get current THD handle. */
+    thd = thd_get_current_thd();
+    if (thd == nullptr) {
+      return (false);
+    }
+  }
+
+  /* Check if DA exists. */
+  auto da = thd->get_stmt_da();
+  if (da == nullptr || !da->is_error()) {
+    return (false);
+  }
+
+  if (da->mysql_errno() != ER_CLONE_DONOR) {
+    return (false);
+  }
+
+  /* Assign current error from DA */
+  error = da->mysql_errno();
+  message = da->message_text();
+
+  /* Parse and find out donor error and message. */
+  size_t err_pos = 0;
+  std::string msg_string(message);
+
+  while (!std::isdigit(message[err_pos])) {
+    /* Find position of next ":". */
+    err_pos = msg_string.find(": ", err_pos);
+
+    /* No more separator, return. */
+    if (err_pos == std::string::npos) {
+      DBUG_ASSERT(false);
+      return (false);
+    }
+    /* Skip ":" and space. */
+    err_pos += 2;
+  }
+
+  error = std::atoi(message + err_pos);
+
+  if (error != 0) {
+    err_pos = msg_string.find(": ", err_pos);
+    /* Should find the error message following the error code. */
+    if (err_pos == std::string::npos) {
+      DBUG_ASSERT(false);
+      return (false);
+    }
+    /* Skip ":" and space. */
+    err_pos += 2;
+    message = message + err_pos;
+  }
+  return (true);
+}
 
 int Clone_handler::clone_local(THD *thd, const char *data_dir) {
   int error;
@@ -260,6 +333,7 @@ void clone_plugin_unlock(THD *thd, plugin_ref plugin) {
 std::atomic<int> Clone_handler::s_xa_counter{0};
 std::atomic<bool> Clone_handler::s_xa_block_op{false};
 std::atomic<int> Clone_handler::s_provision_in_progress{0};
+std::atomic<bool> Clone_handler::s_is_data_dropped{false};
 
 mysql_mutex_t Clone_handler::s_xa_mutex;
 

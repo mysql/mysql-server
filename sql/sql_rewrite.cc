@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -281,8 +281,7 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
       rw.reset(new Rewriter_prepare(thd, type));
       break;
     case SQLCOM_CLONE: {
-      auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(thd->lex->m_sql_cmd);
-      clone_cmd->rewrite(thd);
+      rw.reset(new Rewriter_clone(thd, type));
       break;
     }
     default: /* unhandled query types are legal. */
@@ -1485,4 +1484,21 @@ bool Rewriter_prepare::rewrite() const {
   rlb->append(lex->prepared_stmt_name.str, lex->prepared_stmt_name.length);
   rlb->append(STRING_WITH_LEN(" FROM ..."));
   return true;
+}
+
+Rewriter_clone::Rewriter_clone(THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite the query for the CLONE statement to hide password.
+
+  @retval true  the query is rewritten
+  @retval false otherwise
+*/
+bool Rewriter_clone::rewrite() const {
+  String *rlb = &m_thd->rewritten_query;
+  rlb->mem_free();
+
+  auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(m_thd->lex->m_sql_cmd);
+  return (clone_cmd->rewrite(m_thd));
 }

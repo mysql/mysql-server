@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,6 +309,13 @@ class Rewriter_alter_server final : public Rewriter_server_option {
 class Rewriter_prepare final : public I_rewriter {
  public:
   Rewriter_prepare(THD *thd, Consumer_type type);
+  bool rewrite() const override;
+};
+
+/** Rewrites CLONE statement.*/
+class Rewriter_clone final : public I_rewriter {
+ public:
+  Rewriter_clone(THD *thd, Consumer_type type);
   bool rewrite() const override;
 };
 #endif /* SQL_REWRITE_INCLUDED */
