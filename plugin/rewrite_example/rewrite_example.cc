@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,          /* plugin type                   */
     &rewrite_example_descriptor, /* type specific descriptor      */
     "rewrite_example",           /* plugin name                   */
-    "Oracle",                    /* author                        */
+    PLUGIN_AUTHOR_ORACLE,        /* author                        */
     "An example of a query rewrite"
     " plugin that rewrites all queries"
     " to lower case",   /* description                   */

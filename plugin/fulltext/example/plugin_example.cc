@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,7 +248,7 @@ mysql_declare_plugin(ftexample){
     MYSQL_FTPARSER_PLUGIN,     /* type                            */
     &simple_parser_descriptor, /* descriptor                      */
     "simple_parser",           /* name                            */
-    "Oracle Corp",             /* author                          */
+    PLUGIN_AUTHOR_ORACLE,      /* author                          */
     "Simple Full-Text Parser", /* description                     */
     PLUGIN_LICENSE_GPL,
     simple_parser_plugin_init,   /* init function (when loaded)     */

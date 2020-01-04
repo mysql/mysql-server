@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -602,7 +602,7 @@ mysql_declare_plugin(validate_password){
     MYSQL_VALIDATE_PASSWORD_PLUGIN, /*   type                            */
     &validate_password_descriptor,  /*   descriptor                      */
     "validate_password",            /*   name                            */
-    "Oracle Corporation",           /*   author                          */
+    PLUGIN_AUTHOR_ORACLE,           /*   author                          */
     "check password strength",      /*   description                     */
     PLUGIN_LICENSE_GPL,
     validate_password_init,             /*   init function (when loaded)     */

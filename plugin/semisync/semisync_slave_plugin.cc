@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,7 +239,7 @@ mysql_declare_plugin(semi_sync_slave){
     MYSQL_REPLICATION_PLUGIN,
     &semi_sync_slave_plugin,
     "rpl_semi_sync_slave",
-    "He Zhenxing",
+    PLUGIN_AUTHOR_ORACLE,
     "Semi-synchronous replication slave",
     PLUGIN_LICENSE_GPL,
     semi_sync_slave_plugin_init,   /* Plugin Init */

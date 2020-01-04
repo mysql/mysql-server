@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ REQUIRES_MYSQL_MUTEX_SERVICE, REQUIRES_MYSQL_RWLOCK_SERVICE,
     REQUIRES_PSI_TRANSACTION_SERVICE, END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(pfs_example)
-METADATA("mysql.author", "Marc Alff, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(pfs_example, "mysql:pfs_example")

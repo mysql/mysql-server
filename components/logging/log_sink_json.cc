@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -416,7 +416,7 @@ REQUIRES_SERVICE(log_builtins), REQUIRES_SERVICE(log_builtins_string),
 
 /* component description */
 BEGIN_COMPONENT_METADATA(log_sink_json)
-METADATA("mysql.author", "T.A. Nuernberg, Oracle Corporation"),
+METADATA("mysql.author", "Oracle Corporation"),
     METADATA("mysql.license", "GPL"), METADATA("log_service_type", "sink"),
     END_COMPONENT_METADATA();
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ mysql_declare_plugin(mecab_parser){
     MYSQL_FTPARSER_PLUGIN,                 /*!< type	*/
     &mecab_parser_descriptor,              /*!< descriptor	*/
     "mecab",                               /*!< name	*/
-    "Oracle Corp",                         /*!< author	*/
+    PLUGIN_AUTHOR_ORACLE,                  /*!< author	*/
     "Mecab Full-Text Parser for Japanese", /*!< description*/
     PLUGIN_LICENSE_GPL,                    /*!< license	*/
     mecab_parser_plugin_init,              /*!< init function (when loaded)*/

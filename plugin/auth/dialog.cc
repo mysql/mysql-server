@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ mysql_declare_plugin(dialog){
     MYSQL_AUTHENTICATION_PLUGIN,
     &two_handler,
     "two_questions",
-    "Sergei Golubchik",
+    PLUGIN_AUTHOR_ORACLE,
     "Dialog plugin demo 1",
     PLUGIN_LICENSE_GPL,
     nullptr, /* Init */
@@ -348,7 +348,7 @@ static int init_dialog(char *unused1 MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-mysql_declare_client_plugin(AUTHENTICATION) "dialog", "Sergei Golubchik",
-    "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
-    nullptr, init_dialog, nullptr, nullptr, perform_dialog,
+mysql_declare_client_plugin(AUTHENTICATION) "dialog",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
+    {0, 1, 0}, "GPL", nullptr, init_dialog, nullptr, nullptr, perform_dialog,
     nullptr mysql_end_client_plugin;

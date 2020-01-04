@@ -17859,7 +17859,7 @@ mysql_declare_plugin(ndbcluster){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &ndbcluster_storage_engine,
     ndbcluster_hton_name,
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "Clustered, fault-tolerant tables",
     PLUGIN_LICENSE_GPL,
     ndbcluster_init,   /* plugin init */

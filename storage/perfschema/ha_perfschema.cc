@@ -1485,7 +1485,7 @@ mysql_declare_plugin(perfschema)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &pfs_storage_engine,
   pfs_engine_name,
-  "Marc Alff, Oracle", /* Formerly Sun Microsystems, formerly MySQL */
+  PLUGIN_AUTHOR_ORACLE,
   "Performance Schema",
   PLUGIN_LICENSE_GPL,
   pfs_init_func,                                /* Plugin Init */

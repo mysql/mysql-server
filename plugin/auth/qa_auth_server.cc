@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ mysql_declare_plugin(test_plugin){
     MYSQL_AUTHENTICATION_PLUGIN,
     &qa_auth_test_handler,
     "qa_auth_server",
-    "Horst Hunger",
+    PLUGIN_AUTHOR_ORACLE,
     "plugin API test plugin",
     PLUGIN_LICENSE_GPL,
     nullptr, /* Init */

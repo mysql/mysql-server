@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ mysql_declare_plugin(keyring_udf){
     MYSQL_DAEMON_PLUGIN,
     &keyring_udf_decriptor,
     "keyring_udf",
-    "Oracle Corporation",
+    PLUGIN_AUTHOR_ORACLE,
     "Keyring UDF plugin",
     PLUGIN_LICENSE_GPL,
     keyring_udf_init,   /* Plugin Init */

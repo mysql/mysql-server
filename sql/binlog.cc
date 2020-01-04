@@ -11505,7 +11505,7 @@ mysql_declare_plugin(binlog){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &binlog_storage_engine,
     "binlog",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "This is a pseudo storage engine to represent the binlog in a transaction",
     PLUGIN_LICENSE_GPL,
     binlog_init,   /* Plugin Init */

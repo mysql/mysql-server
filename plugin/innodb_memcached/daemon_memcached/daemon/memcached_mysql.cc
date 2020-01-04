@@ -202,7 +202,7 @@ mysql_declare_plugin(daemon_memcached)
 	MYSQL_DAEMON_PLUGIN,
 	&daemon_memcached_plugin,
 	"daemon_memcached",
-	"Oracle Corporation",
+	PLUGIN_AUTHOR_ORACLE,
 	"Memcached Daemon",
 	PLUGIN_LICENSE_GPL,
 	daemon_memcached_plugin_init,	/* Plugin Init */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -861,7 +861,7 @@ mysql_declare_plugin(mysqlx){
     MYSQL_DAEMON_PLUGIN,
     &xpl_plugin_info,
     MYSQLX_PLUGIN_NAME,
-    "Oracle Corp",
+    PLUGIN_AUTHOR_ORACLE,
     "X Plugin for MySQL",
     PLUGIN_LICENSE_GPL,
     xpl_plugin_init,             /* init       */
@@ -877,7 +877,7 @@ mysql_declare_plugin(mysqlx){
         MYSQL_AUDIT_PLUGIN,      /* plugin type                   */
         &xpl_sha2_cache_cleaner, /* type specific descriptor      */
         "mysqlx_cache_cleaner",  /* plugin name                   */
-        "Oracle Inc",            /* author                        */
+        PLUGIN_AUTHOR_ORACLE,    /* author                        */
         "Cache cleaner for sha2 authentication in X plugin", /* description */
         PLUGIN_LICENSE_GPL,            /* license                       */
         xpl_sha2_cache_cleaner_init,   /* plugin initializer            */

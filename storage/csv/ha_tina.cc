@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1590,7 +1590,7 @@ mysql_declare_plugin(csv){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &csv_storage_engine,
     "CSV",
-    "Brian Aker, MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "CSV storage engine",
     PLUGIN_LICENSE_GPL,
     tina_init_func, /* Plugin Init */

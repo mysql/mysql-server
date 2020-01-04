@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -451,7 +451,7 @@ mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,                  /* plugin type                   */
     &connection_control_descriptor,      /* type specific descriptor      */
     "CONNECTION_CONTROL",                /* plugin name                   */
-    "Oracle Inc",                        /* author                        */
+    PLUGIN_AUTHOR_ORACLE,                /* author                        */
     "Connection event processing",       /* description                   */
     PLUGIN_LICENSE_GPL,                  /* license                       */
     connection_control_init,             /* plugin initializer            */
@@ -466,7 +466,7 @@ mysql_declare_plugin(audit_log){
     {MYSQL_INFORMATION_SCHEMA_PLUGIN,
      &connection_control_failed_attempts_view,
      "CONNECTION_CONTROL_FAILED_LOGIN_ATTEMPTS",
-     "Oracle Inc",
+     PLUGIN_AUTHOR_ORACLE,
      "I_S table providing a view into failed attempts statistics",
      PLUGIN_LICENSE_GPL,
      connection_control_failed_attempts_view_init,

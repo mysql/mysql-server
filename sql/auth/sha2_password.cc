@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1445,7 +1445,7 @@ mysql_declare_plugin(caching_sha2_password){
     &caching_sha2_auth_handler,  /* type specific descriptor      */
     Cached_authentication_plugins::get_plugin_name(
         PLUGIN_CACHING_SHA2_PASSWORD),      /* plugin name          */
-    "Oracle",                               /* author                        */
+    PLUGIN_AUTHOR_ORACLE,                   /* author                        */
     "Caching sha2 authentication",          /* description                   */
     PLUGIN_LICENSE_GPL,                     /* license                       */
     caching_sha2_authentication_init,       /* plugin initializer            */
@@ -1461,7 +1461,7 @@ mysql_declare_plugin(caching_sha2_password){
         MYSQL_AUDIT_PLUGIN,   /* plugin type                   */
         &sha2_cache_cleaner,  /* type specific descriptor      */
         "sha2_cache_cleaner", /* plugin name                   */
-        "Oracle Inc",         /* author                        */
+        PLUGIN_AUTHOR_ORACLE, /* author                        */
         "Cache cleaner for Caching sha2 authentication", /* description */
         PLUGIN_LICENSE_GPL,                /* license                       */
         caching_sha2_cache_cleaner_init,   /* plugin initializer            */

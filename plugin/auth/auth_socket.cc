@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ mysql_declare_plugin(socket_auth){
     MYSQL_AUTHENTICATION_PLUGIN,
     &socket_auth_handler,
     "auth_socket",
-    "Sergei Golubchik",
+    PLUGIN_AUTHOR_ORACLE,
     "Unix Socket based authentication",
     PLUGIN_LICENSE_GPL,
     nullptr, /* Init */

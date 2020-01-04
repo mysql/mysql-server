@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4421,7 +4421,7 @@ mysql_declare_plugin(group_replication_plugin){
     MYSQL_GROUP_REPLICATION_PLUGIN,
     &group_replication_descriptor,
     "group_replication",
-    "ORACLE",
+    PLUGIN_AUTHOR_ORACLE,
     "Group Replication (1.1.0)", /* Plugin name with full version*/
     PLUGIN_LICENSE_GPL,
     plugin_group_replication_init,            /* Plugin Init */

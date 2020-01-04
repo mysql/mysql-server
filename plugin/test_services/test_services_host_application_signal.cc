@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ mysql_declare_plugin(test_services_host_application_signal){
     MYSQL_DAEMON_PLUGIN,
     &plugin,
     "test_services_host_application_signal",
-    "Oracle",
+    PLUGIN_AUTHOR_ORACLE,
     "test the plugin host application signal service",
     PLUGIN_LICENSE_GPL,
     plugin_init,   /* Plugin Init */

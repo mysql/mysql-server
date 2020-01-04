@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3741,7 +3741,7 @@ static auth_plugin_t native_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
     native_password_plugin_name,
-    "R.J.Silk, Sergei Golubchik",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE,
     "Native MySQL authentication",
     {1, 0, 0},
     "GPL",
@@ -3756,7 +3756,7 @@ static auth_plugin_t clear_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
     "mysql_clear_password",
-    "Georgi Kodinov",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE,
     "Clear password authentication plugin",
     {0, 1, 0},
     "GPL",
@@ -3771,7 +3771,7 @@ static auth_plugin_t sha256_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
     "sha256_password",
-    "Oracle Inc",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE,
     "SHA256 based authentication with salt",
     {1, 0, 0},
     "GPL",
@@ -3786,7 +3786,7 @@ static auth_plugin_t caching_sha2_password_client_plugin = {
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
     MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
     caching_sha2_password_plugin_name,
-    "Oracle Inc",
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE,
     "SHA2 based authentication with salt",
     {1, 0, 0},
     "GPL",

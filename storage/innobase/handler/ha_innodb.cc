@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -22152,7 +22152,7 @@ mysql_declare_plugin(innobase){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &innobase_storage_engine,
     innobase_hton_name,
-    plugin_author,
+    PLUGIN_AUTHOR_ORACLE,
     "Supports transactions, row-level locking, and foreign keys",
     PLUGIN_LICENSE_GPL,
     innodb_init, /* Plugin Init */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,7 +203,7 @@ mysql_declare_plugin(daemon_example){
     MYSQL_DAEMON_PLUGIN,
     &daemon_example_plugin,
     "daemon_example",
-    "Brian Aker",
+    PLUGIN_AUTHOR_ORACLE,
     "Daemon example, creates a heartbeat beat file in mysql-heartbeat.log",
     PLUGIN_LICENSE_GPL,
     daemon_example_plugin_init,   /* Plugin Init */

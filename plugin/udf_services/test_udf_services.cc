@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ mysql_declare_plugin(test_udf_services){
     MYSQL_DAEMON_PLUGIN,
     &test_udf_services_plugin,
     "test_udf_services",
-    "Georgi Kodinov",
+    PLUGIN_AUTHOR_ORACLE,
     "MySQL mtr test framework",
     PLUGIN_LICENSE_GPL,
     nullptr, /* Plugin Init          */
@@ -78,7 +78,7 @@ mysql_declare_plugin(test_udf_services){
         MYSQL_DAEMON_PLUGIN,
         &test_udf_registration_plugin,
         "test_udf_registration",
-        "Georgi Kodinov",
+        PLUGIN_AUTHOR_ORACLE,
         "MySQL mtr test framework",
         PLUGIN_LICENSE_GPL,
         test_udf_registration_init,   /* Plugin Init          */
@@ -94,7 +94,7 @@ mysql_declare_plugin(test_udf_services){
         MYSQL_DAEMON_PLUGIN,
         &test_udf_extension_services_plugin,
         "test_udf_extension_services",
-        "Oracle Corp",
+        PLUGIN_AUTHOR_ORACLE,
         "MySQL mtr test framework",
         PLUGIN_LICENSE_GPL,
         test_udf_extension_init,   /* Plugin Init          */

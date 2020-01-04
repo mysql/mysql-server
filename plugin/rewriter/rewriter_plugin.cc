@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -178,7 +178,7 @@ mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,        /* plugin type                   */
     &rewrite_query_descriptor, /* type specific descriptor      */
     PLUGIN_NAME,               /* plugin name                   */
-    "Oracle",                  /* author                        */
+    PLUGIN_AUTHOR_ORACLE,      /* author                        */
     "A query rewrite plugin that"
     " rewrites queries using the"
     " parse tree.",              /* description                   */

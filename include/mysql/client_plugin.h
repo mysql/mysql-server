@@ -80,6 +80,8 @@ extern "C" {
 
 #define MYSQL_CLIENT_MAX_PLUGINS 4
 
+#define MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE "Oracle Corporation"
+
 #define mysql_declare_client_plugin(X)           \
   MYSQL_PLUGIN_EXPORT st_mysql_client_plugin_##X \
       _mysql_client_plugin_declaration_ = {      \

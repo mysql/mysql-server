@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5300,7 +5300,7 @@ mysql_declare_plugin(mysql_password){
     &native_password_handler,    /* type descriptor  */
     Cached_authentication_plugins::get_plugin_name(
         PLUGIN_MYSQL_NATIVE_PASSWORD), /* Name           */
-    "R.J.Silk, Sergei Golubchik",      /* Author           */
+    PLUGIN_AUTHOR_ORACLE,              /* Author           */
     "Native MySQL authentication",     /* Description      */
     PLUGIN_LICENSE_GPL,                /* License          */
     nullptr,                           /* Init function    */
@@ -5317,7 +5317,7 @@ mysql_declare_plugin(mysql_password){
         &sha256_password_handler,    /* type descriptor  */
         Cached_authentication_plugins::get_plugin_name(
             PLUGIN_SHA256_PASSWORD),      /* Name             */
-        "Oracle",                         /* Author           */
+        PLUGIN_AUTHOR_ORACLE,             /* Author           */
         "SHA256 password authentication", /* Description      */
         PLUGIN_LICENSE_GPL,               /* License          */
         &init_sha256_password_handler,    /* Init function    */

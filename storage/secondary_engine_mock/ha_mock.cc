@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -324,7 +324,7 @@ mysql_declare_plugin(mock){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &mock_storage_engine,
     "MOCK",
-    "MySQL",
+    PLUGIN_AUTHOR_ORACLE,
     "Mock storage engine",
     PLUGIN_LICENSE_GPL,
     Init,

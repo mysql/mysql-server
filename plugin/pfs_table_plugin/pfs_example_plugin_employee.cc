@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -444,7 +444,7 @@ mysql_declare_plugin(pfs_example_plugin_employee)
   MYSQL_DAEMON_PLUGIN,
   &pfs_example_plugin_employee,
   "pfs_example_plugin_employee",
-  "Oracle Corporation",
+  PLUGIN_AUTHOR_ORACLE,
   "pfs_example_plugin_employee",
   PLUGIN_LICENSE_GPL,
   pfs_example_plugin_employee_init,   /* Plugin Init      */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ mysql_declare_plugin(test_security_context){
     MYSQL_AUDIT_PLUGIN,                /* type                            */
     &test_security_context_descriptor, /* descriptor                      */
     "test_security_context",           /* name                            */
-    "Oracle Corp",                     /* author                          */
+    PLUGIN_AUTHOR_ORACLE,              /* author                          */
     "Test security context service",   /* description                     */
     PLUGIN_LICENSE_GPL,
     nullptr,          /* init function (when loaded)     */

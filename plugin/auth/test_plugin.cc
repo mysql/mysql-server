@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,7 @@ mysql_declare_plugin(test_plugin){
     MYSQL_AUTHENTICATION_PLUGIN,
     &auth_test_handler,
     "test_plugin_server",
-    "Georgi Kodinov",
+    PLUGIN_AUTHOR_ORACLE,
     "plugin API test plugin",
     PLUGIN_LICENSE_GPL,
     test_plugin_init,
@@ -204,7 +204,7 @@ mysql_declare_plugin(test_plugin){
         MYSQL_AUTHENTICATION_PLUGIN,
         &auth_cleartext_handler,
         "cleartext_plugin_server",
-        "Georgi Kodinov",
+        PLUGIN_AUTHOR_ORACLE,
         "cleartext plugin API test plugin",
         PLUGIN_LICENSE_GPL,
         nullptr, /* Init */
@@ -300,6 +300,6 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "auth_test_plugin",
-    "Georgi Kodinov", "Dialog Client Authentication Plugin", {0, 1, 0}, "GPL",
-    nullptr, nullptr, nullptr, nullptr, test_plugin_client,
+    MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "Dialog Client Authentication Plugin",
+    {0, 1, 0}, "GPL", nullptr, nullptr, nullptr, nullptr, test_plugin_client,
     nullptr mysql_end_client_plugin;

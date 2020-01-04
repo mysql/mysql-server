@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2120,7 +2120,7 @@ mysql_declare_plugin(myisam){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &myisam_storage_engine,
     "MyISAM",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "MyISAM storage engine",
     PLUGIN_LICENSE_GPL,
     myisam_init,    /* Plugin Init */

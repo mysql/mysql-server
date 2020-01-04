@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1180,7 +1180,7 @@ mysql_declare_plugin(replication_observers_example){
     MYSQL_REPLICATION_PLUGIN,
     &replication_observers_example_plugin,
     "replication_observers_example",
-    "ORACLE",
+    PLUGIN_AUTHOR_ORACLE,
     "Replication observer infrastructure example.",
     PLUGIN_LICENSE_GPL,
     replication_observers_example_plugin_init,   /* Plugin Init */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,7 +247,7 @@ mysql_declare_plugin(keyring_file){
     MYSQL_KEYRING_PLUGIN, /*   type                            */
     &keyring_descriptor,  /*   descriptor                      */
     "keyring_file",       /*   name                            */
-    "Oracle Corporation", /*   author                          */
+    PLUGIN_AUTHOR_ORACLE, /*   author                          */
     "store/fetch authentication data to/from a flat file", /*   description */
     PLUGIN_LICENSE_GPL,
     keyring_init,                  /*   init function (when loaded)     */

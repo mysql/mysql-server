@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -707,7 +707,7 @@ mysql_declare_plugin(heap){
     MYSQL_STORAGE_ENGINE_PLUGIN,
     &heap_storage_engine,
     "MEMORY",
-    "MySQL AB",
+    PLUGIN_AUTHOR_ORACLE,
     "Hash based, stored in memory, useful for temporary tables",
     PLUGIN_LICENSE_GPL,
     heap_init,
