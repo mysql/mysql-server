@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2224,6 +2224,7 @@ static int clone_drop_binary_logs(THD *thd) {
 
 static int clone_drop_user_data(THD *thd, bool allow_threads) {
   ib::warn(ER_IB_CLONE_USER_DATA, "Started");
+  Clone_handler::set_drop_data();
 
   auto dc = dd::get_dd_client(thd);
   Releaser releaser(dc);
