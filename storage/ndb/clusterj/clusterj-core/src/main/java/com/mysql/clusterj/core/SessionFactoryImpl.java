@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,9 +97,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** Connection pool size obtained from the property PROPERTY_CONNECTION_POOL_SIZE */
     int connectionPoolSize;
 
-    /** Map of Proxy to Class */
+    /** Map of Proxy Interfaces to Domain Class */
     // TODO make this non-static
-    static private Map<Class<?>, Class<?>> proxyClassToDomainClass = new HashMap<Class<?>, Class<?>>();
+    static private Map<String, Class<?>> proxyInterfacesToDomainClass = new HashMap<String, Class<?>>();
 
     /** Map of Domain Class to DomainTypeHandler. */
     // TODO make this non-static
@@ -468,6 +468,19 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         }
     }
 
+    /** Generate a key from the given interfaces to lookup the proxyInterfacesToDomainClass map
+     * @param proxyInterfaces List of proxy interfaces to generate the key from
+     * @return the generated lookup key
+     */
+    private static String generateProxyInterfacesKey(Class<?>[] proxyInterfaces) {
+        // The generated key is of form : CanonicalNameOfInterface1;CanonicalNameOfInterface2;...
+        StringBuilder key = new StringBuilder();
+        for (Class<?> proxyInterface : proxyInterfaces) {
+            key.append(proxyInterface.getCanonicalName()).append(';');
+        }
+        return key.toString();
+    }
+
     /** Create or get the DomainTypeHandler for a class.
      * Use the dictionary to validate against schema.
      * @param cls the Class for which to get domain type handler
@@ -490,9 +503,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                         + cls.getName() + "(" + cls
                         + ") returned " + domainTypeHandler);
                 typeToHandlerMap.put(cls, domainTypeHandler);
-                Class<?> proxyClass = domainTypeHandler.getProxyClass();
-                if (proxyClass != null) {
-                    proxyClassToDomainClass.put(proxyClass, cls);
+                Class<?>[] proxyInterfaces = domainTypeHandler.getProxyInterfaces();
+                if (proxyInterfaces != null) {
+                    String key = generateProxyInterfacesKey(proxyInterfaces);
+                    proxyInterfacesToDomainClass.put(key, cls);
                 }
             }
             return domainTypeHandler;
@@ -512,12 +526,21 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     @SuppressWarnings("unchecked")
+    /** Get the domain class of the given proxy object.
+     * @param object the object
+     * @return the Domain class of the object
+     */
     protected static <T> Class<T> getClassForProxy(T object) {
-        Class cls = object.getClass();
+        Class<?> cls = object.getClass();
         if (java.lang.reflect.Proxy.isProxyClass(cls)) {
-            cls = proxyClassToDomainClass.get(cls);
+            // The underlying class is a Proxy. Retrieve the interfaces implemented
+            // by the proxy class and use them to fetch the domain class from
+            // proxyInterfacesToDomainClass map.
+            Class<?>[] proxyInterfaces = cls.getInterfaces();
+            String key = generateProxyInterfacesKey(proxyInterfaces);
+            cls = proxyInterfacesToDomainClass.get(key);
         }
-        return cls;        
+        return (Class<T>)cls;
     }
 
     public <T> T newInstance(Class<T> cls, Dictionary dictionary, Db db) {
