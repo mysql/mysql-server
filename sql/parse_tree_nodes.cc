@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -561,12 +561,29 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
   if (m_qe->contextualize(&pc)) {
     return nullptr;
   }
-  if (m_into != nullptr && m_qe->has_into_clause()) {
+
+  const bool has_into_clause_inside_query_block = thd->lex->result != nullptr;
+
+  if (has_into_clause_inside_query_block && m_into != nullptr) {
     my_error(ER_MULTIPLE_INTO_CLAUSES, MYF(0));
     return nullptr;
   }
   if (contextualize_safe(&pc, m_into)) {
     return nullptr;
+  }
+
+  if (m_into != nullptr && m_has_trailing_locking_clauses) {
+    // Example: ... INTO ... FOR UPDATE;
+    push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+  } else if (has_into_clause_inside_query_block && thd->lex->unit->is_union()) {
+    // Example: ... UNION ... INTO ...;
+    if (!m_qe->has_trailing_into_clause()) {
+      // Example: ... UNION SELECT * INTO OUTFILE 'foo' FROM ...;
+      push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+    } else if (m_has_trailing_locking_clauses) {
+      // Example: ... UNION SELECT ... FROM ... INTO OUTFILE 'foo' FOR UPDATE;
+      push_warning(thd, ER_WARN_DEPRECATED_INNER_INTO);
+    }
   }
 
   if (thd->lex->sql_command == SQLCOM_SELECT)

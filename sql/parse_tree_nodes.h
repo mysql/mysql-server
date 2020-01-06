@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -785,6 +785,7 @@ class PT_query_expression_body : public Parse_tree_node {
   */
   virtual bool can_absorb_order_and_limit(bool order, bool limit) const = 0;
   virtual bool has_into_clause() const = 0;
+  virtual bool has_trailing_into_clause() const = 0;
 
   virtual bool is_table_value_constructor() const = 0;
   virtual PT_insert_values_list *get_row_value_list() const = 0;
@@ -1432,6 +1433,7 @@ class PT_query_specification : public PT_query_primary {
   Query_options options;
   PT_item_list *item_list;
   PT_into_destination *opt_into1;
+  const bool m_is_from_clause_implicit;
   Mem_root_array_YY<PT_table_reference *> from_clause;  // empty list for DUAL
   Item *opt_where_clause;
   PT_group *opt_group_clause;
@@ -1444,16 +1446,20 @@ class PT_query_specification : public PT_query_primary {
       PT_item_list *item_list_arg, PT_into_destination *opt_into1_arg,
       const Mem_root_array_YY<PT_table_reference *> &from_clause_arg,
       Item *opt_where_clause_arg, PT_group *opt_group_clause_arg,
-      Item *opt_having_clause_arg, PT_window_list *opt_window_clause_arg)
+      Item *opt_having_clause_arg, PT_window_list *opt_window_clause_arg,
+      bool implicit_from_clause)
       : opt_hints(opt_hints_arg),
         options(options_arg),
         item_list(item_list_arg),
         opt_into1(opt_into1_arg),
+        m_is_from_clause_implicit{implicit_from_clause},
         from_clause(from_clause_arg),
         opt_where_clause(opt_where_clause_arg),
         opt_group_clause(opt_group_clause_arg),
         opt_having_clause(opt_having_clause_arg),
-        opt_window_clause(opt_window_clause_arg) {}
+        opt_window_clause(opt_window_clause_arg) {
+    DBUG_ASSERT(implicit_from_clause ? from_clause.empty() : true);
+  }
 
   PT_query_specification(
       const Query_options &options_arg, PT_item_list *item_list_arg,
@@ -1463,28 +1469,34 @@ class PT_query_specification : public PT_query_primary {
         options(options_arg),
         item_list(item_list_arg),
         opt_into1(nullptr),
+        m_is_from_clause_implicit{true},
         from_clause(from_clause_arg),
         opt_where_clause(opt_where_clause_arg),
         opt_group_clause(nullptr),
         opt_having_clause(nullptr),
         opt_window_clause(nullptr) {}
 
-  explicit PT_query_specification(const Query_options &options_arg,
-                                  PT_item_list *item_list_arg)
+  PT_query_specification(const Query_options &options_arg,
+                         PT_item_list *item_list_arg)
       : opt_hints(nullptr),
         options(options_arg),
         item_list(item_list_arg),
         opt_into1(nullptr),
+        m_is_from_clause_implicit{false},
+        from_clause{},
         opt_where_clause(nullptr),
         opt_group_clause(nullptr),
         opt_having_clause(nullptr),
-        opt_window_clause(nullptr) {
-    from_clause.init_empty_const();
-  }
+        opt_window_clause(nullptr) {}
 
   bool contextualize(Parse_context *pc) override;
 
   bool has_into_clause() const override { return opt_into1 != nullptr; }
+  bool has_trailing_into_clause() const override {
+    return (has_into_clause() && is_implicit_from_clause() &&
+            opt_where_clause == nullptr && opt_group_clause == nullptr &&
+            opt_having_clause == nullptr && opt_window_clause == nullptr);
+  }
 
   bool is_union() const override { return false; }
 
@@ -1492,6 +1504,9 @@ class PT_query_specification : public PT_query_primary {
 
   bool is_table_value_constructor() const override { return false; }
   PT_insert_values_list *get_row_value_list() const override { return nullptr; }
+
+ private:
+  bool is_implicit_from_clause() const { return m_is_from_clause_implicit; }
 };
 
 class PT_table_value_constructor : public PT_query_primary {
@@ -1506,6 +1521,7 @@ class PT_table_value_constructor : public PT_query_primary {
   bool contextualize(Parse_context *pc) override;
 
   bool has_into_clause() const override { return false; }
+  bool has_trailing_into_clause() const override { return false; }
 
   bool is_union() const override { return false; }
 
@@ -1550,6 +1566,10 @@ class PT_query_expression final : public PT_query_primary {
   bool is_union() const override { return m_body->is_union(); }
 
   bool has_into_clause() const override { return m_body->has_into_clause(); }
+  bool has_trailing_into_clause() const override {
+    return (m_body->has_trailing_into_clause() && m_order == nullptr &&
+            m_limit == nullptr);
+  }
 
   bool can_absorb_order_and_limit(bool order, bool limit) const override {
     if (m_body->is_union()) {
@@ -1639,6 +1659,7 @@ class PT_locking final : public PT_query_primary {
   bool has_into_clause() const override {
     return m_query_expression->has_into_clause();
   }
+  bool has_trailing_into_clause() const override { return false; }
 
   bool can_absorb_order_and_limit(bool order, bool limit) const override {
     return m_query_expression->can_absorb_order_and_limit(order, limit);
@@ -1681,11 +1702,12 @@ class PT_subquery : public Parse_tree_node {
 class PT_union : public PT_query_expression_body {
  public:
   PT_union(PT_query_expression_body *lhs, const POS &lhs_pos, bool is_distinct,
-           PT_query_primary *rhs)
+           PT_query_primary *rhs, bool is_rhs_in_parentheses = false)
       : m_lhs(lhs),
         m_lhs_pos(lhs_pos),
         m_is_distinct(is_distinct),
-        m_rhs(rhs) {}
+        m_rhs(rhs),
+        m_is_rhs_in_parentheses{is_rhs_in_parentheses} {}
 
   bool contextualize(Parse_context *pc) override;
 
@@ -1693,6 +1715,9 @@ class PT_union : public PT_query_expression_body {
 
   bool has_into_clause() const override {
     return m_lhs->has_into_clause() || m_rhs->has_into_clause();
+  }
+  bool has_trailing_into_clause() const override {
+    return !m_is_rhs_in_parentheses && m_rhs->has_trailing_into_clause();
   }
 
   bool can_absorb_order_and_limit(bool, bool) const override { return false; }
@@ -1706,6 +1731,7 @@ class PT_union : public PT_query_expression_body {
   bool m_is_distinct;
   PT_query_primary *m_rhs;
   PT_into_destination *m_into;
+  const bool m_is_rhs_in_parentheses;
 };
 
 class PT_select_stmt : public Parse_tree_root {
@@ -1717,17 +1743,27 @@ class PT_select_stmt : public Parse_tree_root {
     @param sql_command The type of SQL command.
   */
   PT_select_stmt(enum_sql_command sql_command, PT_query_expression_body *qe)
-      : m_sql_command(sql_command), m_qe(qe), m_into(nullptr) {}
+      : m_sql_command(sql_command),
+        m_qe(qe),
+        m_into(nullptr),
+        m_has_trailing_locking_clauses{false} {}
 
   /**
     Creates a SELECT command. Only SELECT commands can have into.
 
-    @param qe The query expression.
-    @param into The trailing INTO destination.
+    @param qe                           The query expression.
+    @param into                         The own INTO destination.
+    @param has_trailing_locking_clauses True if there are locking clauses (like
+                                        `FOR UPDATE`) at the end of the
+                                        statement.
   */
   explicit PT_select_stmt(PT_query_expression_body *qe,
-                          PT_into_destination *into = nullptr)
-      : m_sql_command(SQLCOM_SELECT), m_qe(qe), m_into(into) {}
+                          PT_into_destination *into = nullptr,
+                          bool has_trailing_locking_clauses = false)
+      : m_sql_command{SQLCOM_SELECT},
+        m_qe{qe},
+        m_into{into},
+        m_has_trailing_locking_clauses{has_trailing_locking_clauses} {}
 
   Sql_cmd *make_cmd(THD *thd) override;
 
@@ -1735,6 +1771,7 @@ class PT_select_stmt : public Parse_tree_root {
   enum_sql_command m_sql_command;
   PT_query_expression_body *m_qe;
   PT_into_destination *m_into;
+  const bool m_has_trailing_locking_clauses;
 };
 
 /**

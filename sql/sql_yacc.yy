@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9006,7 +9006,8 @@ select_stmt:
           }
         | query_expression locking_clause_list
           {
-            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2));
+            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $2),
+                                        nullptr, true);
           }
         | query_expression_parens
           {
@@ -9058,7 +9059,7 @@ select_stmt_with_into:
           }
         | query_expression into_clause locking_clause_list
           {
-            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $3), $2);
+            $$ = NEW_PTN PT_select_stmt(NEW_PTN PT_locking($1, $3), $2, true);
           }
         | query_expression locking_clause_list into_clause
           {
@@ -9158,11 +9159,11 @@ query_expression_body:
           }
         | query_expression_body UNION_SYM union_option query_expression_parens
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
           }
         | query_expression_parens UNION_SYM union_option query_expression_parens
           {
-            $$ = NEW_PTN PT_union($1, @1, $3, $4);
+            $$ = NEW_PTN PT_union($1, @1, $3, $4, true);
           }
         ;
 
@@ -9217,7 +9218,8 @@ query_specification:
                                       $6,  // where
                                       $7,  // group
                                       $8,  // having
-                                      $9); // windows
+                                      $9,  // windows
+                                      @5.raw.is_empty()); // implicit FROM
           }
         | SELECT_SYM
           select_options
@@ -9237,7 +9239,8 @@ query_specification:
                                       $5,  // where
                                       $6,  // group
                                       $7,  // having
-                                      $8); // windows
+                                      $8,  // windows
+                                      @4.raw.is_empty()); // implicit FROM
           }
         ;
 
