@@ -443,7 +443,7 @@ void warn_about_deprecated_binary(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 91
+%expect 63
 
 /*
    MAINTAINER:
@@ -9461,7 +9461,7 @@ expr:
           {
             $$= NEW_PTN Item_func_isnotnull(@$, $1);
           }
-        | bool_pri
+        | bool_pri %prec SET_VAR
         ;
 
 bool_pri:
@@ -9490,7 +9490,7 @@ bool_pri:
               YYTHD->syntax_error_at(@2);
             $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $4);
           }
-        | predicate
+        | predicate %prec SET_VAR
         ;
 
 predicate:
@@ -9579,7 +9579,7 @@ predicate:
             Item *item= NEW_PTN Item_func_regexp_like(@$, args);
             $$= NEW_PTN PTI_truth_transform(@$, item, Item::BOOL_NEGATED);
           }
-        | bit_expr
+        | bit_expr %prec SET_VAR
         ;
 
 opt_of:
@@ -9644,7 +9644,7 @@ bit_expr:
           {
             $$= NEW_PTN Item_func_bit_xor(@$, $1, $3);
           }
-        | simple_expr
+        | simple_expr %prec SET_VAR
         ;
 
 or:
