@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,11 @@ namespace binary_log {
 namespace transaction {
 namespace unittests {
 
+static std::size_t MAX_BUFFER_SIZE = 1024 * 1024 * 512;
+
+static std::array<std::size_t, 4> buffer_sizes{128, 256, 512,
+                                               MAX_BUFFER_SIZE / 2};
+
 class TransactionPayloadCompressionTest : public ::testing::Test {
  public:
   std::vector<std::size_t> m_payloads;
@@ -40,10 +45,7 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
   TransactionPayloadCompressionTest() {}
 
   virtual void SetUp() {
-    m_payloads.push_back(128);
-    m_payloads.push_back(256);
-    m_payloads.push_back(512);
-    m_payloads.push_back(32 * 1024 * 1024);
+    for (auto size : buffer_sizes) m_payloads.push_back(size);
   }
 
   virtual void TearDown() { m_payloads.clear(); }
@@ -119,7 +121,7 @@ class TransactionPayloadCompressionTest : public ::testing::Test {
       binary_log::transaction::compression::Compressor &c,
       binary_log::transaction::compression::Decompressor &d) {
     std::size_t size = 0, old_size = 0;
-    std::size_t buffer_size = 1024 * 1024 * 1024;
+    std::size_t buffer_size = MAX_BUFFER_SIZE;
     std::size_t chunk_size = buffer_size / 8;
     std::size_t next_pos = 0;
 
