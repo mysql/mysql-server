@@ -1130,7 +1130,7 @@ i	j
 explain select * from v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `mysqltest1`.`t1`.`i` AS `i`,`mysqltest1`.`t2`.`j` AS `j` from `mysqltest1`.`t1` join `mysqltest1`.`t2`
 ... as noam

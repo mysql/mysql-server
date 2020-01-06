@@ -1479,7 +1479,7 @@ where customer2.pk in (7,9)
 group by customer2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	customer1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
-1	SIMPLE	customer2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	customer2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`customer1`.`a` AS `a`,count(0) AS `count(*)` from `test`.`customer1` join `test`.`customer2` where ((`test`.`customer2`.`b` = `test`.`customer1`.`a`) and (`test`.`customer2`.`pk` in (7,9))) group by `test`.`customer2`.`b`
 drop table customer1,customer2;
@@ -2210,7 +2210,7 @@ explain select (select 2 from t2 where exists(select t1.b from t3)) as col from 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using index; FirstMatch(t2); Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using index; FirstMatch(t2); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` semi join (`test`.`t3`) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
@@ -2218,7 +2218,7 @@ explain select (select 2 from t2 where not exists(select t1.b from t3)) as col f
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
 Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` anti join (`test`.`t3`) on((1 = 1)) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`

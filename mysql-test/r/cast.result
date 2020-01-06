@@ -714,19 +714,19 @@ CREATE TABLE n_t (i INT, d DECIMAL, f FLOAT, dc DECIMAL);
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`i` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`d` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.dt = n_t.f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`dt` as double) = `test`.`n_t`.`f`)
 #
@@ -735,25 +735,25 @@ Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS 
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`i` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`d` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.d = n_t.f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = `test`.`n_t`.`f`)
 EXPLAIN SELECT * from dt_t JOIN n_t on dt_t.d = n_t.dc;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`d` as double) = cast(`test`.`n_t`.`dc` as double))
 #
@@ -762,19 +762,19 @@ Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS 
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = cast(`test`.`n_t`.`i` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = cast(`test`.`n_t`.`d` as double))
 EXPLAIN SELECT * from dt_t JOIN n_t ON dt_t.t = n_t.f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS `d`,`test`.`dt_t`.`t` AS `t`,`test`.`n_t`.`i` AS `i`,`test`.`n_t`.`d` AS `d`,`test`.`n_t`.`f` AS `f`,`test`.`n_t`.`dc` AS `dc` from `test`.`dt_t` join `test`.`n_t` where (cast(`test`.`dt_t`.`t` as double) = `test`.`n_t`.`f`)
 #
@@ -783,7 +783,7 @@ Note	1003	/* select#1 */ select `test`.`dt_t`.`dt` AS `dt`,`test`.`dt_t`.`d` AS 
 EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt1`.`dt` = cast(`test`.`dt2`.`d` as datetime))
 #
@@ -792,7 +792,7 @@ Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d
 EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.dt = dt2.t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt1`.`dt` = cast(`test`.`dt2`.`t` as datetime))
 #
@@ -801,26 +801,26 @@ Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d
 EXPLAIN SELECT * from dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (cast(`test`.`dt1`.`d` as datetime) = cast(`test`.`dt2`.`t` as datetime))
 EXPLAIN SELECT * FROM dt_t dt1 JOIN dt_t dt2 ON dt1.d = dt2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`dt1`.`dt` AS `dt`,`test`.`dt1`.`d` AS `d`,`test`.`dt1`.`t` AS `t`,`test`.`dt2`.`dt` AS `dt`,`test`.`dt2`.`d` AS `d`,`test`.`dt2`.`t` AS `t` from `test`.`dt_t` `dt1` join `test`.`dt_t` `dt2` where (`test`.`dt2`.`d` = `test`.`dt1`.`d`)
 EXPLAIN SELECT dt_t.dt = n_t.i from dt_t, n_t;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select (cast(`test`.`dt_t`.`dt` as double) = cast(`test`.`n_t`.`i` as double)) AS `dt_t.dt = n_t.i` from `test`.`dt_t` join `test`.`n_t`
 EXPLAIN SELECT MAX(dt_t.d) AS max_d, MAX(n_t.i) AS max_i
 FROM dt_t, n_t HAVING max_d = max_i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dt_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	n_t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`dt_t`.`d`) AS `max_d`,max(`test`.`n_t`.`i`) AS `max_i` from `test`.`dt_t` join `test`.`n_t` having (cast(`max_d` as double) = cast(`max_i` as double))
 EXPLAIN SELECT dt=d from dt_t ORDER BY dt = d;

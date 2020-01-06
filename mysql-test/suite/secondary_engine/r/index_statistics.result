@@ -158,7 +158,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,
 EXPLAIN SELECT * FROM t1 a, t1 b WHERE a.id < b.id;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using secondary engine MOCK
-1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (Block Nested Loop); Using secondary engine MOCK
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`x` AS `x`,`test`.`a`.`y` AS `y`,`test`.`b`.`id` AS `id`,`test`.`b`.`x` AS `x`,`test`.`b`.`y` AS `y` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`id` < `test`.`b`.`id`)
 DROP TABLE t1;

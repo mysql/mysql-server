@@ -1229,7 +1229,7 @@ EXPLAIN SELECT a.two, b.eighty FROM t1 AS a,t1 AS b
 WHERE a.ten = b.sixty AND b.tenPercent < (9 + (5*10));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	197	33.33	Using where
-1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	197	10.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	197	10.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`two` AS `two`,`test`.`b`.`eighty` AS `eighty` from `test`.`t1` `a` join `test`.`t1` `b` where ((`test`.`a`.`ten` = `test`.`b`.`sixty`) and (`test`.`b`.`tenPercent` < <cache>((9 + (5 * 10)))))
 DROP TABLE t1;

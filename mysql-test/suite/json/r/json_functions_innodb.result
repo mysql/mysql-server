@@ -8318,7 +8318,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`
 SELECT * FROM t1 WHERE j > i ORDER BY i;
@@ -8361,7 +8361,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`i` AS `i` fr
 EXPLAIN SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using filesort
-1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	b	NULL	ALL	t1_idx	NULL	NULL	NULL	6	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use range access on index 't1_idx' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`a`.`j` AS `j`,`test`.`a`.`i` AS `i`,`test`.`b`.`j` AS `j`,`test`.`b`.`i` AS `i` from `test`.`t1` `a` join `test`.`t1` `b` where (`test`.`a`.`j` > `test`.`b`.`i`) order by `test`.`b`.`i`,`test`.`a`.`i`

@@ -76,7 +76,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "rows_produced_per_join": 2,
 +          "filtered": "100.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -49,5 +50,5 @@
              "read_cost": "0.25",
 -            "eval_cost": "0.10",

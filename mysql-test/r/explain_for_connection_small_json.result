@@ -183,7 +183,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -34,2 +34,3 @@
            "filtered": "10.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -45,4 +46,3 @@
              "c1"
 -          ],
@@ -193,7 +193,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -56,2 +56,3 @@
            "filtered": "33.33",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -67,4 +68,3 @@
              "c2"
 -          ],
@@ -643,7 +643,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
              "filtered": "20.00",
 +            "using_where": true,
-             "using_join_buffer": "Block Nested Loop",
+             "using_join_buffer": "hash join",
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
@@ -672,7 +672,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -43,2 +43,3 @@
              "filtered": "20.00",
 +            "using_where": true,
-             "using_join_buffer": "Block Nested Loop",
+             "using_join_buffer": "hash join",
 @@ -53,4 +54,3 @@
                "col_varchar_nokey"
 -            ],
@@ -770,7 +770,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 +          "rows_produced_per_join": 2,
 +          "filtered": "100.00",
 +          "using_where": true,
-           "using_join_buffer": "Block Nested Loop",
+           "using_join_buffer": "hash join",
 @@ -49,5 +50,5 @@
              "read_cost": "0.25",
 -            "eval_cost": "0.10",

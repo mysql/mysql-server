@@ -58,7 +58,7 @@ SET optimizer_switch = 'firstmatch=off,materialization=off';
 EXPLAIN SELECT * FROM t WHERE x IN (SELECT x FROM t);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`x` AS `x` from `test`.`t` semi join (`test`.`t`) where (`test`.`t`.`x` = `test`.`t`.`x`)
 SELECT * FROM t WHERE x IN (SELECT x FROM t);

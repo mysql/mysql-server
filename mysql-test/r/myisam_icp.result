@@ -530,7 +530,7 @@ ON table3.col_int_nokey = table1.col_int_key
 WHERE table3.col_int_key != SOME ( SELECT c1 FROM t2 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	table1	NULL	ALL	col_int_key	NULL	NULL	NULL	19	100.00	NULL
-1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	19	10.00	Using where; Using join buffer (hash join)
 1	PRIMARY	table2	NULL	ref	col_varchar_key	col_varchar_key	7	test.table3.col_varchar_key	2	100.00	Using index
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
@@ -744,7 +744,7 @@ WHERE (t2.pk <= 4 AND t1.pk IN (2,1)) OR
 (t1.pk > 1 AND t2.pk BETWEEN 6 AND 6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition
-1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	50.00	Using index condition; Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c2` AS `c2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c1` = `test`.`t1`.`c1`) and (((`test`.`t2`.`pk` <= 4) and (`test`.`t1`.`pk` in (2,1))) or ((`test`.`t1`.`pk` > 1) and (`test`.`t2`.`pk` between 6 and 6))))
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
@@ -844,7 +844,7 @@ OR subquery_t2.c1 = 'a'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	subquery_t1	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	subquery_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	subquery_t2	NULL	ALL	col_int_key	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i1`,<exists>(/* select#2 */ select straight_join 1 from `test`.`t1` `subquery_t1` join `test`.`t2` `subquery_t2` where ((`test`.`subquery_t2`.`i1` = `test`.`subquery_t1`.`pk`) and ((`test`.`subquery_t1`.`i1` > 0) or (`test`.`subquery_t2`.`c1` = 'a')) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`i1`) = `test`.`subquery_t1`.`pk`), true))) is false)
 SELECT t1.i1

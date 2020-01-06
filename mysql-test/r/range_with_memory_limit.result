@@ -308,7 +308,7 @@ test.t1	analyze	status	OK
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x between 7 and t1.y+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -316,7 +316,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t
 explain select * from t1, t1 t2 where t1.y = 8 and t2.x >= 7 and t2.x <= t1.y+0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -324,7 +324,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between t1.y-1 and t1.y+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -332,7 +332,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= t1.y-1 and t2.x <= t1.y+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -340,7 +340,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x between 0 and t1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -348,7 +348,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t
 explain select * from t1, t1 t2 where t1.y = 2 and t2.x >= 0 and t2.x <= t1.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	y	y	5	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	x	NULL	NULL	NULL	9	11.11	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -377,7 +377,7 @@ INSERT INTO t2 VALUES (0),(0),(1),(1),(2),(2);
 explain select * from t1, t2 where (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	j1	j1	4	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	33.33	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -386,7 +386,7 @@ explain select * from t1 force index(i1), t2 force index(j1) where
 (t1.key1 <t2.keya + 1) and t2.keya=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	j1	j1	4	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	i1	i1	4	NULL	7	33.33	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -2633,7 +2633,7 @@ EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
-1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	PRIMARY,col_int_key	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`pk` AS `pk`,`test`.`t2`.`col_int_key` AS `col_int_key`,`test`.`t2`.`col_varchar` AS `col_varchar`,`test`.`t2`.`pk` AS `pk` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`col_int_key` = `test`.`t1`.`col_int`) and (`test`.`t2`.`pk` < `test`.`t1`.`pk`))
@@ -3084,7 +3084,7 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -3102,7 +3102,7 @@ Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exce
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
@@ -3466,7 +3466,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (0, 0));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((0,0))))
@@ -3476,7 +3476,7 @@ FROM t4 JOIN t1
 WHERE (t1.a, t1.b) IN ((t4.a, t4.b), (1, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	640	100.00	NULL
-1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	index	x	x	10	NULL	4098	2.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t4` join `test`.`t1` where ((`test`.`t1`.`a`,`test`.`t1`.`b`) in ((`test`.`t4`.`a`,`test`.`t4`.`b`),<cache>((1,1))))
@@ -3542,7 +3542,7 @@ WHERE t7.a IN (t5.b, t6.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where
 1	SIMPLE	t5	NULL	ref	a	a	5	test.t6.a	1	100.00	NULL
-1	SIMPLE	t7	NULL	index	a	a	10	NULL	7	28.57	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t7	NULL	index	a	a	10	NULL	7	28.57	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and (`test`.`t7`.`a` in (`test`.`t5`.`b`,`test`.`t6`.`b`)))
@@ -3572,7 +3572,7 @@ WHERE (t7.a, t7.b) IN ((t5.b, 1), (t6.b, 1));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	ALL	a	NULL	NULL	NULL	5	100.00	Using where
 1	SIMPLE	t5	NULL	ref	a	a	5	test.t6.a	1	100.00	NULL
-1	SIMPLE	t7	NULL	index	a	a	10	NULL	7	14.29	Using where; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t7	NULL	index	a	a	10	NULL	7	14.29	Using where; Using index; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select `test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t6`.`a` AS `a`,`test`.`t6`.`b` AS `b`,`test`.`t7`.`a` AS `a`,`test`.`t7`.`b` AS `b` from `test`.`t5` join `test`.`t6` join `test`.`t7` where ((`test`.`t5`.`a` = `test`.`t6`.`a`) and ((`test`.`t7`.`a`,`test`.`t7`.`b`) in ((`test`.`t5`.`b`,1),(`test`.`t6`.`b`,1))))
@@ -4289,7 +4289,7 @@ test.t2	analyze	status	OK
 EXPLAIN SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	i,vc	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	i,vc	NULL	NULL	NULL	3	55.56	Using where; Using join buffer (hash join)
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(t1.pk)` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`vc` = `test`.`t1`.`vc`) or (`test`.`t2`.`i` = `test`.`t1`.`pk`))

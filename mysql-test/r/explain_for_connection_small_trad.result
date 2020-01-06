@@ -166,7 +166,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -3,3 +3,3 @@
- 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+ 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 -1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 +1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x4)
  1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
@@ -175,7 +175,7 @@ STATUS:NOT_EQUAL
 SYNC_POINT:after_join_optimize
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -3,3 +3,3 @@
- 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+ 1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 -1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 +1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x4)
  1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
@@ -197,7 +197,7 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -2,2 +2,2 @@
  1	SIMPLE	alias1	NULL	ref	col_int_key	col_int_key	5	const	1	100.00	NULL
--1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
-+1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (hash join)
++1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
 STATUS: EQUAL

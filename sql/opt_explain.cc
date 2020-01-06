@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1580,9 +1580,11 @@ bool Explain_join::explain_extra() {
 
     if (tab->op_type == QEP_TAB::OT_BNL || tab->op_type == QEP_TAB::OT_BKA) {
       StringBuffer<64> buff(cs);
-      if (tab->op_type == QEP_TAB::OT_BNL)
-        buff.append("Block Nested Loop");
-      else if (tab->op_type == QEP_TAB::OT_BKA)
+      if (tab->op_type == QEP_TAB::OT_BNL) {
+        // BNL does not exist in the iterator executor, but is nearly
+        // always rewritten to hash join, so use that in traditional EXPLAIN.
+        buff.append("hash join");
+      } else if (tab->op_type == QEP_TAB::OT_BKA)
         buff.append("Batched Key Access");
       else
         DBUG_ASSERT(0); /* purecov: inspected */

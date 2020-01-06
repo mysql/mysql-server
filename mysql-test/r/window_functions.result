@@ -6350,7 +6350,7 @@ EXPLAIN
           "rows_produced_per_join": 3,
           "filtered": "33.33",
           "first_match": "upper",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "2.54",
             "eval_cost": "0.30",

@@ -263,7 +263,7 @@ id	x	y	id	z	id	x
 EXPLAIN SELECT * FROM t1, INFORMATION_SCHEMA.COLUMN_PRIVILEGES t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`t2`.`GRANTEE` AS `GRANTEE`,`t2`.`TABLE_CATALOG` AS `TABLE_CATALOG`,`t2`.`TABLE_SCHEMA` AS `TABLE_SCHEMA`,`t2`.`TABLE_NAME` AS `TABLE_NAME`,`t2`.`COLUMN_NAME` AS `COLUMN_NAME`,`t2`.`PRIVILEGE_TYPE` AS `PRIVILEGE_TYPE`,`t2`.`IS_GRANTABLE` AS `IS_GRANTABLE` from `test`.`t1` join `information_schema`.`COLUMN_PRIVILEGES` `t2`
 CREATE TABLE t_with_autoinc(id INT PRIMARY KEY AUTO_INCREMENT, x INT)
@@ -1096,7 +1096,7 @@ FROM t1 JOIN (SELECT f2, SUM(f22) AS b FROM t2 GROUP BY f2) AS dt
 ON t1.f1=dt.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using secondary engine MOCK
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
 2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary; Using secondary engine MOCK
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f11` AS `f11`,`dt`.`f2` AS `f2`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,sum(`test`.`t2`.`f22`) AS `b` from `test`.`t2` group by `test`.`t2`.`f2`) `dt` where (`dt`.`f2` = `test`.`t1`.`f1`)
@@ -1121,7 +1121,7 @@ FROM (SELECT * FROM t1 WHERE x < 7 LIMIT 20) tt1,
 WHERE tt1.x> 5 and tt1.x=tt2.x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
-1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; Using join buffer (hash join)
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	21	33.33	Using where; Using secondary engine MOCK
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	21	33.33	Using where; Using secondary engine MOCK
 Warnings:

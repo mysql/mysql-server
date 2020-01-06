@@ -329,7 +329,7 @@ patient_uq	clinic_uq
 explain select * from t6 where exists (select * from t7 where uq = clinic_uq);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t7	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index
-1	SIMPLE	t6	NULL	ALL	i1	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t6	NULL	ALL	i1	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t6.clinic_uq' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t6`.`patient_uq` AS `patient_uq`,`test`.`t6`.`clinic_uq` AS `clinic_uq` from `test`.`t7` join `test`.`t6` where (`test`.`t6`.`clinic_uq` = `test`.`t7`.`uq`)
@@ -2266,7 +2266,7 @@ a	b
 explain select * from t1 up where exists (select * from t1 where t1.a=up.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	up	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(up); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(up); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.up.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`up`.`a` AS `a`,`test`.`up`.`b` AS `b` from `test`.`t1` `up` semi join (`test`.`t1`) where (`test`.`t1`.`a` = `test`.`up`.`a`)
@@ -4235,7 +4235,7 @@ EXPLAIN
 SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select 2 AS `2` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
@@ -4680,7 +4680,7 @@ from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	a	a	5	func	2	10.00	Using where; Full scan on NULL key
-2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or (`test`.`t1`.`b` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `z` from `test`.`t2`
@@ -5202,7 +5202,7 @@ a
 EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Not exists; Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Not exists; Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` anti join (`test`.`t2`) on((`test`.`t1`.`a` = `test`.`t2`.`a`)) where true
 DROP TABLE t1, t2;
@@ -5336,7 +5336,7 @@ WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
 ORDER BY COUNT(*);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	a	5	NULL	2	100.00	Using index
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Not exists; Using join buffer (hash join)
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
@@ -6601,7 +6601,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using index; FirstMatch
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = 7)
 
@@ -6771,7 +6771,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using index; FirstMatch
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) where (`test`.`t1`.`a` = 7)
 
@@ -7000,7 +7000,7 @@ WHERE f1_key != table2.f1_key AND f1_key >= table1.f1 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
 1	SIMPLE	t2	NULL	ALL	f1_key	NULL	NULL	NULL	10	33.33	Range checked for each record (index map: 0x1)
-1	SIMPLE	table2	NULL	index	NULL	f1_key	7	NULL	10	90.00	Using where; Using index; End temporary; Using join buffer (Block Nested Loop)
+1	SIMPLE	table2	NULL	index	NULL	f1_key	7	NULL	10	90.00	Using where; Using index; End temporary; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.table2.f1_key' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.table1.f1' of SELECT #2 was resolved in SELECT #1
@@ -7053,9 +7053,9 @@ FROM
 t1 AS t1f STRAIGHT_JOIN t3 AS t3f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1f	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t3f	NULL	index	NULL	col_varchar_key	9	NULL	3	100.00	Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	t3f	NULL	index	NULL	col_varchar_key	9	NULL	3	100.00	Using index; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	t1s	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where
-2	DEPENDENT SUBQUERY	t3s	NULL	index	NULL	col_int_key	5	NULL	3	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3s	NULL	index	NULL	col_int_key	5	NULL	3	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1f.col_varchar_nokey' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1f`.`col_int_key` AS `col_int_key`,`test`.`t1f`.`col_varchar_key` AS `col_varchar_key`,`test`.`t1f`.`col_varchar_nokey` AS `col_varchar_nokey`,`test`.`t3f`.`col_int_key` AS `col_int_key`,`test`.`t3f`.`col_varchar_key` AS `col_varchar_key`,(/* select#2 */ select min(`test`.`t3s`.`col_int_key`) from `test`.`t3` `t3s` join `test`.`t1` `t1s` where ((`test`.`t1s`.`col_varchar_key` = 'e') and (`test`.`t1s`.`col_int_key` = 9) and ('e' <> `test`.`t1f`.`col_varchar_nokey`))) AS `(
@@ -7235,7 +7235,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
-1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
@@ -7279,7 +7279,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 EXPLAIN SELECT * FROM v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
-1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
@@ -7310,7 +7310,7 @@ AND sq2_alias1.col_varchar_key > alias1.col_varchar_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	100.00	Start temporary
-1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	20.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	5	26.66	Range checked for each record (index map: 0x4)
 1	SIMPLE	sq2_alias2	NULL	ref	col_int_key	col_int_key	4	func	2	100.00	Using where; Using index; End temporary
 Warnings:
@@ -8282,7 +8282,7 @@ FROM t3 AS outr;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	innr2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.outr.col_int_key' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`outr`.`pk` AS `pk`,<in_optimizer>(`test`.`outr`.`col_int`,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr2` left join (`test`.`t2`) on((`test`.`innr2`.`col_date` <> `test`.`t2`.`col_date`)) where ((`test`.`outr`.`col_int_key` < 6) and <if>(outer_field_is_not_null, ((<cache>(`test`.`outr`.`col_int`) = `test`.`t2`.`pk`) or (`test`.`t2`.`pk` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`pk`), true))) AS `x` from `test`.`t3` `outr`

@@ -376,7 +376,7 @@ test
 explain select * from v0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	#	NULL	index	PRIMARY	name	194	NULL	#	#	Using index; Using temporary; Using filesort
-1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	#	NULL	ALL	catalog_id,default_collation_id	NULL	NULL	NULL	#	#	Using where; Using join buffer (hash join)
 1	SIMPLE	#	NULL	eq_ref	PRIMARY,character_set_id	PRIMARY	8	mysql.sch.default_collation_id	#	#	NULL
 1	SIMPLE	#	NULL	eq_ref	PRIMARY	PRIMARY	8	mysql.col.character_set_id	#	#	Using index
 Warnings:

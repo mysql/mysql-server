@@ -40,14 +40,14 @@ t19
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11875000000	100.00	NULL
 2	DERIVED	t10_1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
-2	DERIVED	t10_2	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t10_3	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t10_4	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t10_5	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t10_6	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t19	NULL	index	NULL	PRIMARY	4	NULL	19	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t25_1	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (Block Nested Loop)
-2	DERIVED	t25_2	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (Block Nested Loop)
+2	DERIVED	t10_2	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t10_3	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t10_4	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t10_5	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t10_6	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t19	NULL	index	NULL	PRIMARY	4	NULL	19	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t25_1	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (hash join)
+2	DERIVED	t25_2	NULL	index	NULL	PRIMARY	4	NULL	25	100.00	Using index; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `d`.`pk` AS `pk`,`d`.`i` AS `i` from (/* select#2 */ select `test`.`t10_1`.`pk` AS `pk`,`test`.`t10_1`.`i` AS `i` from `test`.`t10` `t10_1` join `test`.`t10` `t10_2` join `test`.`t10` `t10_3` join `test`.`t10` `t10_4` join `test`.`t10` `t10_5` join `test`.`t10` `t10_6` join `test`.`t25` `t25_1` join `test`.`t25` `t25_2` join `test`.`t19`) `d`
 set optimizer_switch=@optimizer_switch_saved;

@@ -113,7 +113,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
 3	DERIVED	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
 4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
+4	DERIVED	<derived5>	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (hash join)
 5	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`.`i` AS `i` from (/* select#3 */ select `a2`.`i` AS `i` from (/* select#4 */ select `a1`.`i` AS `i` from (/* select#5 */ select `test`.`t1`.`i` AS `i` from `test`.`t1`) `a1` join `test`.`t2`) `a2`) `a3`) `a4`
@@ -221,7 +221,7 @@ EXPLAIN
                             "rows_examined_per_scan": 7,
                             "rows_produced_per_join": 14,
                             "filtered": "100.00",
-                            "using_join_buffer": "Block Nested Loop",
+                            "using_join_buffer": "hash join",
                             "cost_info": {
                               "read_cost": "2.59",
                               "eval_cost": "1.40",
@@ -279,7 +279,7 @@ set optimizer_switch= @optimizer_switch_saved;
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t1`.`i` = 10) and (`test`.`t2`.`i` = 10))
@@ -319,7 +319,7 @@ EXPLAIN
           "rows_produced_per_join": 0,
           "filtered": "50.00",
           "first_match": "t1",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.60",
             "eval_cost": "0.10",
@@ -506,7 +506,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` union /*
 EXPLAIN             (SELECT t1.i FROM t1 JOIN t2) UNION ALL (SELECT * FROM t3 WHERE i IN (SELECT i FROM t4 ORDER BY RAND()));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using join buffer (hash join)
 2	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` join `test`.`t2` union all /* select#2 */ select NULL AS `i` from `test`.`t3` semi join (`test`.`t4`) where multiple equal(NULL, `test`.`t4`.`i`)
@@ -548,7 +548,7 @@ EXPLAIN
                   "rows_examined_per_scan": 7,
                   "rows_produced_per_join": 14,
                   "filtered": "100.00",
-                  "using_join_buffer": "Block Nested Loop",
+                  "using_join_buffer": "hash join",
                   "cost_info": {
                     "read_cost": "0.50",
                     "eval_cost": "1.40",
@@ -1015,7 +1015,7 @@ INSERT INTO t4 VALUES (2,10), (2,10);
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
@@ -1113,7 +1113,7 @@ EXPLAIN
           "rows_produced_per_join": 2,
           "filtered": "50.00",
           "first_match": "t1",
-          "using_join_buffer": "Block Nested Loop",
+          "using_join_buffer": "hash join",
           "cost_info": {
             "read_cost": "0.50",
             "eval_cost": "0.20",
@@ -1211,7 +1211,7 @@ EXPLAIN
                     "rows_examined_per_scan": 12,
                     "rows_produced_per_join": 4,
                     "filtered": "10.00",
-                    "using_join_buffer": "Block Nested Loop",
+                    "using_join_buffer": "hash join",
                     "cost_info": {
                       "read_cost": "0.51",
                       "eval_cost": "0.48",
@@ -1452,8 +1452,8 @@ WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 1	SIMPLE	t3	NULL	ref	c_key	c_key	5	test.t4.c_key	1	100.00	Using index
 1	SIMPLE	t1	NULL	ref	c_key	c_key	5	test.t2.c_key	2	100.00	Using index; End temporary
 Warnings:
@@ -1496,7 +1496,7 @@ EXPLAIN
             "rows_examined_per_scan": 3,
             "rows_produced_per_join": 3,
             "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.50",
               "eval_cost": "0.30",
@@ -1517,7 +1517,7 @@ EXPLAIN
             "rows_examined_per_scan": 3,
             "rows_produced_per_join": 3,
             "filtered": "33.33",
-            "using_join_buffer": "Block Nested Loop",
+            "using_join_buffer": "hash join",
             "cost_info": {
               "read_cost": "0.50",
               "eval_cost": "0.30",
@@ -2028,7 +2028,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 2	SUBQUERY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (Block Nested Loop)
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` group by greatest(`test`.`t1`.`a`,(/* select#2 */ select 1 from dual))
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 GROUP BY GREATEST(t1.a, (SELECT 1 FROM (SELECT t1.b FROM t1, t1 t2 ORDER BY t1.a, t1.a LIMIT 1) AS d));
@@ -2121,7 +2121,7 @@ EXPLAIN
                           "rows_examined_per_scan": 2,
                           "rows_produced_per_join": 4,
                           "filtered": "100.00",
-                          "using_join_buffer": "Block Nested Loop",
+                          "using_join_buffer": "hash join",
                           "cost_info": {
                             "read_cost": "0.50",
                             "eval_cost": "0.40",

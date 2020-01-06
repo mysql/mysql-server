@@ -396,12 +396,12 @@ WHERE
 AND ((t1.id=j_lj_t3.id AND t3_lj.id IS NULL) OR (t1.id=t3.id AND t3.idx=2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	id	id	4	NULL	2	100.00	Using index; Using temporary
-1	SIMPLE	t2	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (Block Nested Loop)
-1	SIMPLE	j_lj_t2	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
-1	SIMPLE	t2_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
-1	SIMPLE	j_lj_t3	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
-1	SIMPLE	t3_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	index	id	id	8	NULL	1	100.00	Using index; Distinct; Using join buffer (hash join)
+1	SIMPLE	j_lj_t2	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
+1	SIMPLE	t2_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
+1	SIMPLE	j_lj_t3	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
+1	SIMPLE	t3_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`id` AS `id` from `test`.`t1` straight_join `test`.`t2` straight_join `test`.`t3` straight_join `test`.`t1` `j_lj_t2` left join `test`.`t2` `t2_lj` on((`test`.`t2_lj`.`id` = `test`.`j_lj_t2`.`id`)) straight_join `test`.`t1` `j_lj_t3` left join `test`.`t3` `t3_lj` on((`test`.`t3_lj`.`id` = `test`.`j_lj_t3`.`id`)) where ((((`test`.`j_lj_t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2_lj`.`id` is null)) or ((`test`.`t2`.`idx` = 2) and (`test`.`t2`.`id` = `test`.`t1`.`id`))) and (((`test`.`j_lj_t3`.`id` = `test`.`t1`.`id`) and (`test`.`t3_lj`.`id` is null)) or ((`test`.`t3`.`idx` = 2) and (`test`.`t3`.`id` = `test`.`t1`.`id`))))
 SELECT DISTINCT
@@ -676,7 +676,7 @@ Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` 
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1_1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
-1	SIMPLE	t1_2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index; Distinct; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1_2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index; Distinct; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1_1`.`a` AS `a`,`test`.`t1_1`.`b` AS `b` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2`
 EXPLAIN SELECT DISTINCT t1_1.a, t1_1.b FROM t1 t1_1, t1 t1_2
@@ -1093,7 +1093,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
 2	DERIVED	it_a	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DERIVED	it_b	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	it_b	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select distinct `subselect`.`b` AS `b` from `test`.`t1` left join (/* select#2 */ select `test`.`it_b`.`a` AS `a`,`test`.`it_b`.`b` AS `b` from `test`.`t1` `it_a` left join `test`.`t1` `it_b` on(true) where true) `subselect` on((`subselect`.`b` = `test`.`t1`.`a`)) where true
 SELECT DISTINCT subselect.b

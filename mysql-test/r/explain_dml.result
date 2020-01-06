@@ -142,7 +142,7 @@ WHERE t1.c2 = t2.c1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t1	p0_subp0,p0_subp1,p1_subp6,p1_subp7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	p0_subp0,p0_subp1,p1_subp6,p1_subp7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	insert /*+ NO_BNL(`t2`@`qb1`) */ into `test`.`t3` /* select#1 */ select /*+ QB_NAME(`qb1`) */ `test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`c2` = `test`.`t2`.`c1`)
 EXPLAIN
@@ -153,7 +153,7 @@ WHERE t1.c2 = t2.c1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	p0_subp0,p0_subp1,p1_subp6,p1_subp7	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	insert /*+ NO_ICP(`t2`@`select#1`) */ into `test`.`t3` /* select#1 */ select `test`.`t2`.`c1` AS `c1` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`c2` = `test`.`t2`.`c1`)
 EXPLAIN

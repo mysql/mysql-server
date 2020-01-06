@@ -76,7 +76,7 @@ sq2_t1.col_int_key <= table2.col_int_key
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	sq1_t2	NULL	index	NULL	col_varchar_key	7	NULL	7	100.00	Using index
-1	PRIMARY	sq1_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	sq1_t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
 1	PRIMARY	table2	NULL	ALL	col_int_key	NULL	NULL	NULL	2	100.00	NULL
 1	PRIMARY	table3	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	test.table2.col_int_key	1	100.00	Using where
 3	DEPENDENT SUBQUERY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
@@ -501,7 +501,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	<subquery2>	NULL	const	<auto_distinct_key>	<auto_distinct_key>	8	const	1	100.00	NULL
 2	MATERIALIZED	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-2	MATERIALIZED	alias1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+2	MATERIALIZED	alias1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`cv` AS `cv` from `test`.`t1` semi join (`test`.`t1` `alias2` left join `test`.`t1` `alias1` on((`test`.`alias1`.`cv` = `test`.`alias2`.`cv`))) where true
 SELECT cv
@@ -532,7 +532,7 @@ WHERE col_varchar_key > @var1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 3	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (`test`.`t1`.`col_varchar_key` > <cache>((@`var1`))))) and (`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (`test`.`t1`.`col_varchar_key` > <cache>((@`var1`))))))
@@ -561,7 +561,7 @@ WHERE col_varchar_key = RAND()
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch(t1); Using join buffer (hash join)
 3	UNCACHEABLE SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` semi join (`test`.`t1`) where ((`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (`test`.`t1`.`col_varchar_key` = rand()))) and (`test`.`t1`.`col_varchar_key` = (/* select#3 */ select `test`.`t1`.`col_varchar_key` from `test`.`t1` where (`test`.`t1`.`col_varchar_key` = rand()))))
@@ -706,15 +706,15 @@ SELECT /*+ MERGE(qn) */ * FROM qn
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where; Using join buffer (hash join)
 1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	<subquery4>.sq3_field1	2	100.00	NULL
 1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	<subquery4>.col_int_key	2	100.00	NULL
 4	MATERIALIZED	sq3_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-3	DERIVED	sq2_alias3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
-3	DERIVED	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+3	DERIVED	sq2_alias3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+3	DERIVED	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 2	DERIVED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-2	DERIVED	sq1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+2	DERIVED	sq1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'alias3.pk' of SELECT #5 was resolved in SELECT #1
 Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#4`) */ `test`.`alias1`.`col_time_gckey` AS `field1`,`test`.`alias1`.`col_datetime_gckey` AS `field2` from `test`.`t1` `alias1` join (/* select#2 */ select distinct `test`.`sq1_alias2`.`pk` AS `pk`,`test`.`sq1_alias2`.`col_int_key` AS `col_int_key`,`test`.`sq1_alias2`.`col_datetime_gckey` AS `col_datetime_gckey`,`test`.`sq1_alias2`.`col_time_gckey` AS `col_time_gckey`,`test`.`sq1_alias2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` `sq1_alias1` join `test`.`t1` `sq1_alias2`) `alias2` join (/* select#3 */ select `test`.`sq2_alias1`.`pk` AS `pk`,`test`.`sq2_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq2_alias1`.`col_datetime_gckey` AS `col_datetime_gckey`,`test`.`sq2_alias1`.`col_time_gckey` AS `col_time_gckey`,`test`.`sq2_alias1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` `sq2_alias2` join `test`.`t2` `sq2_alias3` left join `test`.`t1` `sq2_alias1` on((`test`.`sq2_alias3`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where (`test`.`sq2_alias3`.`col_int_key` = `test`.`sq2_alias2`.`col_int_key`)) `alias3` semi join (`test`.`t1` `sq3_alias1`) where ((`alias3`.`pk` = `<subquery4>`.`col_int_key`) and (`alias2`.`col_int_key` = `<subquery4>`.`sq3_field1`))
@@ -981,7 +981,7 @@ FROM t1 as alias1
 );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	subq	NULL	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where; FirstMatch
-1	PRIMARY	table1	NULL	index	NULL	idx_CC_col_varchar_key	7	NULL	20	100.00	Using index; Using join buffer (Block Nested Loop)
+1	PRIMARY	table1	NULL	index	NULL	idx_CC_col_varchar_key	7	NULL	20	100.00	Using index; Using join buffer (hash join)
 1	PRIMARY	table2	NULL	ref	idx_CC_col_varchar_key	idx_CC_col_varchar_key	7	test.table1.col_varchar_key	1	100.00	NULL
 3	DEPENDENT SUBQUERY	alias1	NULL	index	NULL	idx_CC_col_time_key	4	NULL	20	100.00	Using index
 Warnings:
@@ -1207,7 +1207,7 @@ FROM
 t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; FirstMatch
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 Warnings:
 Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t3`,`t1`) */ `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_nokey` AS `col_int_nokey` from `test`.`t1` semi join (`test`.`t1` `t3`) where (`test`.`t3`.`col_int_nokey` = 3)
 EXPLAIN FORMAT=TREE SELECT /*+ JOIN_ORDER(t3,t1) */ *
