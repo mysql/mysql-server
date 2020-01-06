@@ -15,7 +15,7 @@ drop database if exists my_local_db;
 
 create database my_local_db;
 
-create table my_local_db.my_tx_table(a bigint) engine = innodb;
+create table my_local_db.my_non_tx_table(a bigint) engine = myisam;
 
 use test;
 drop table if exists marker_start;
@@ -23,7 +23,7 @@ drop table if exists marker_start;
 # --binlog-ignore-db only works with the current database.
 use my_local_db;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   values (1000), (2000), (3000);
 
 use test;
@@ -79,25 +79,26 @@ drop table if exists marker_insert_select;
 # - replicated tables
 
 use my_local_db;
-insert into my_tx_table(a)
+
+insert into my_non_tx_table(a)
   select thread_id from performance_schema.threads;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select id from information_schema.processlist;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select thread_id from mysql.general_log;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select thread_id from mysql.slow_log;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select Relay_log_pos from mysql.slave_relay_log_info;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select Master_log_pos from mysql.slave_master_info;
 
-insert into my_tx_table(a)
+insert into my_non_tx_table(a)
   select Relay_log_pos from mysql.slave_worker_info;
 
 use test;

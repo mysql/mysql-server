@@ -1,4 +1,5 @@
-
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 # Make some data that we can work on:
 
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';

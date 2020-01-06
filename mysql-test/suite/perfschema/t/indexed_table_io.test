@@ -3,6 +3,8 @@
 
 # Setup
 
+--source include/have_myisam.inc
+--source include/force_myisam_default.inc
 let $engine_type= MyISAM;
 
 --disable_warnings
