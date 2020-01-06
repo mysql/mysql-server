@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,6 +515,26 @@ bool Foreign_key_error_handler::handle_condition(
         return true;
       }
     }
+  }
+  return false;
+}
+
+Ignore_json_syntax_handler::Ignore_json_syntax_handler(THD *thd, bool enabled)
+    : m_thd(thd), m_enabled(enabled) {
+  if (enabled) thd->push_internal_handler(this);
+}
+
+Ignore_json_syntax_handler::~Ignore_json_syntax_handler() {
+  if (m_enabled) m_thd->pop_internal_handler();
+}
+
+bool Ignore_json_syntax_handler::handle_condition(
+    THD *, uint sql_errno, const char *,
+    Sql_condition::enum_severity_level *level, const char *) {
+  switch (sql_errno) {
+    case ER_INVALID_JSON_TEXT_IN_PARAM:
+      (*level) = Sql_condition::SL_WARNING;
+      break;
   }
   return false;
 }

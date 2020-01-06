@@ -53,7 +53,7 @@ class Table_ident;
 enum class Acl_type;
 enum class enum_ha_read_modes;
 enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
+enum class Json_on_response_type : uint16;
 enum class enum_key_algorithm;
 enum class partition_type;
 struct Alter_tablespace_parse_context;
@@ -493,14 +493,15 @@ union YYSTYPE {
   class PT_locking_clause *locking_clause;
   class PT_locking_clause_list *locking_clause_list;
   Mem_root_array<PT_json_table_column *> *jtc_list;
-  struct jt_on_response {
-    enum_jtc_on type;
+  // ON EMPTY/ON ERROR response for JSON_TABLE and JSON_VALUE.
+  struct Json_on_response {
+    Json_on_response_type type;
     Item *default_string;
-  } jt_on_response;
+  } json_on_response;
   struct {
-    struct jt_on_response error;
-    struct jt_on_response empty;
-  } jt_on_error_or_empty;
+    Json_on_response error;
+    Json_on_response empty;
+  } json_on_error_or_empty;
   PT_json_table_column *jt_column;
   enum_jt_column jt_column_type;
   struct {

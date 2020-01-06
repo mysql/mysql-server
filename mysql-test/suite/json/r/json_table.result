@@ -793,6 +793,28 @@ f FLOAT PATH '$',
 d DECIMAL PATH '$')) AS jt;
 tm	dt	i	f	d
 NULL	NULL	NULL	NULL	NULL
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON EMPTY)) jt' at line 2
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL ON ERROR)) jt' at line 2
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x DATE
+PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
+SELECT * FROM
+JSON_TABLE('{}', '$' COLUMNS (x DATE
+PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
+ERROR 42000: This version of MySQL doesn't yet support 'non-string DEFAULT value for a column in a JSON_TABLE expression'
 #
 # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 #

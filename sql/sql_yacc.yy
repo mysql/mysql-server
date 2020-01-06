@@ -1244,6 +1244,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM 996 /* MYSQL */
 %token<lexer.keyword> STREAM_SYM 997                    /* MYSQL */
 %token<lexer.keyword> OFF_SYM 998                       /* SQL-1999-R */
+%token<lexer.keyword> RETURNING_SYM 999                 /* SQL-2016-N */
 /*
   Here is an intentional gap in token numbers.
 
@@ -1252,6 +1253,7 @@ void warn_about_deprecated_binary(THD *thd)
   2. digest special internal token numbers (see gen_lex_token.cc, PART 6).
 */
 %token NOT_A_TOKEN_SYM 1150                             /* INTERNAL */
+%token<lexer.keyword> JSON_VALUE_SYM 1151               /* SQL-2016-R */
 
 
 /*
@@ -1417,6 +1419,9 @@ void warn_about_deprecated_binary(THD *thd)
         where_clause
         opt_having_clause
         opt_simple_limit
+        null_as_literal
+        literal_or_null
+        signed_literal_or_null
 
 
 %type <item_string> window_name opt_existing_window_name
@@ -1483,7 +1488,7 @@ void warn_about_deprecated_binary(THD *thd)
 %type <ha_read_mode> handler_scan_function
         handler_rkey_function
 
-%type <cast_type> cast_type
+%type <cast_type> cast_type opt_returning_type
 
 %type <lexer.keyword> ident_keyword label_keyword role_keyword
         lvalue_keyword
@@ -1883,8 +1888,9 @@ void warn_about_deprecated_binary(THD *thd)
 // used by JSON_TABLE
 %type <jtc_list> columns_clause columns_list
 %type <jt_column> jt_column
-%type <jt_on_response> jt_on_response opt_on_error opt_on_empty
-%type <jt_on_error_or_empty> opt_on_empty_or_error
+%type <json_on_response> json_on_response on_empty on_error
+%type <json_on_error_or_empty> opt_on_empty_or_error
+        opt_on_empty_or_error_json_table
 %type <jt_column_type> jt_column_type
 
 %type <acl_type> opt_acl_type
@@ -4020,7 +4026,7 @@ signal_information_item_list:
   Only a limited subset of <expr> are allowed in SIGNAL/RESIGNAL.
 */
 signal_allowed_expr:
-          literal
+          literal_or_null
           { ITEMIZE($1, &$$); }
         | variable
           {
@@ -6916,7 +6922,7 @@ now_or_signed_literal:
           {
             $$= NEW_PTN Item_func_now_local(@$, static_cast<uint8>($1));
           }
-        | signed_literal
+        | signed_literal_or_null
         ;
 
 character_set:
@@ -8309,7 +8315,7 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_enable_keys(true);
           }
-        | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal
+        | ALTER opt_column ident SET_SYM DEFAULT_SYM signed_literal_or_null
           {
             $$= NEW_PTN PT_alter_table_set_default($3.str, $6);
           }
@@ -9724,7 +9730,7 @@ simple_expr:
           {
             $$= NEW_PTN Item_func_set_collation(@$, $1, $3);
           }
-        | literal
+        | literal_or_null
         | param_marker { $$= $1; }
         | variable
         | set_function_specification
@@ -9780,7 +9786,7 @@ simple_expr:
           }
         | CAST_SYM '(' expr AS cast_type opt_array_cast ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, &$5, $6);
+            $$= create_func_cast(YYTHD, @3, $3, $5, $6);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9788,7 +9794,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, $5, false);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
@@ -9871,6 +9877,13 @@ function_call_keyword:
         | INTERVAL_SYM '(' expr ',' expr ',' expr_list ')' %prec INTERVAL_SYM
           {
             $$= NEW_PTN Item_func_interval(@$, YYMEM_ROOT, $3, $5, $7);
+          }
+        | JSON_VALUE_SYM '(' simple_expr ',' text_literal
+          opt_returning_type opt_on_empty_or_error ')'
+          {
+            $$= create_func_json_value(YYTHD, @3, $3, $5, $6,
+                                       $7.empty.type, $7.empty.default_string,
+                                       $7.error.type, $7.error.default_string);
           }
         | LEFT '(' expr ',' expr ')'
           {
@@ -10057,6 +10070,19 @@ function_call_nonkeyword:
           }
         ;
 
+// JSON_VALUE's optional JSON returning clause.
+opt_returning_type:
+          // The default returning type is CHAR(512). (The max length of 512
+          // is chosen so that the returned values are not handled as BLOBs
+          // internally. See CONVERT_IF_BIGGER_TO_BLOB.)
+          {
+            $$= {ITEM_CAST_CHAR, nullptr, "512", nullptr};
+          }
+        | RETURNING_SYM cast_type
+          {
+            $$= $2;
+          }
+        ;
 /*
   Functions calls using a non reserved keyword, and using a regular syntax.
   Because the non reserved keyword is used in another part of the grammar,
@@ -11264,7 +11290,7 @@ jt_column:
             $$= NEW_PTN PT_json_table_column_for_ordinality($1);
           }
         | ident type opt_collate jt_column_type PATH_SYM text_literal
-          opt_on_empty_or_error
+          opt_on_empty_or_error_json_table
           {
             auto column = make_unique_destroy_only<Json_table_column>(
                 YYMEM_ROOT, $4, $6, $7.error.type, $7.error.default_string,
@@ -11289,28 +11315,36 @@ jt_column_type:
           }
         ;
 
+// The optional ON EMPTY and ON ERROR clauses for JSON_TABLE and
+// JSON_VALUE. If both clauses are specified, the ON EMPTY clause
+// should come before the ON ERROR clause.
 opt_on_empty_or_error:
           /* empty */
           {
-            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
-            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.empty = {Json_on_response_type::IMPLICIT, nullptr};
+            $$.error = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_empty
+        | on_empty
           {
             $$.empty = $1;
-            $$.error = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.error = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_error
+        | on_error
           {
             $$.error = $1;
-            $$.empty = {enum_jtc_on::JTO_IMPLICIT, nullptr};
+            $$.empty = {Json_on_response_type::IMPLICIT, nullptr};
           }
-        | opt_on_empty opt_on_error
+        | on_empty on_error
           {
             $$.empty = $1;
             $$.error = $2;
           }
-        | opt_on_error opt_on_empty
+        ;
+
+// JSON_TABLE extends the syntax by allowing ON ERROR to come before ON EMPTY.
+opt_on_empty_or_error_json_table:
+          opt_on_empty_or_error { $$ = $1; }
+        | on_error on_empty
           {
             push_warning(
               YYTHD, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
@@ -11320,24 +11354,24 @@ opt_on_empty_or_error:
           }
         ;
 
-opt_on_empty:
-          jt_on_response ON_SYM EMPTY_SYM       { $$= $1; }
+on_empty:
+          json_on_response ON_SYM EMPTY_SYM     { $$= $1; }
         ;
-opt_on_error:
-          jt_on_response ON_SYM ERROR_SYM       { $$= $1; }
+on_error:
+          json_on_response ON_SYM ERROR_SYM     { $$= $1; }
         ;
-jt_on_response:
+json_on_response:
           ERROR_SYM
           {
-            $$ = {enum_jtc_on::JTO_ERROR, nullptr};
+            $$ = {Json_on_response_type::ERROR, nullptr};
           }
         | NULL_SYM
           {
-            $$ = {enum_jtc_on::JTO_NULL, nullptr};
+            $$ = {Json_on_response_type::NULL_VALUE, nullptr};
           }
-        | DEFAULT_SYM text_literal
+        | DEFAULT_SYM signed_literal
           {
-            $$ = {enum_jtc_on::JTO_DEFAULT, $2};
+            $$ = {Json_on_response_type::DEFAULT, $2};
           }
         ;
 
@@ -13830,12 +13864,13 @@ signed_literal:
           }
         ;
 
+signed_literal_or_null:
+          signed_literal
+        | null_as_literal
+        ;
 
-literal:
-          text_literal { $$= $1; }
-        | NUM_literal  { $$= $1; }
-        | temporal_literal
-        | NULL_SYM
+null_as_literal:
+          NULL_SYM
           {
             Lex_input_stream *lip= YYLIP;
             /*
@@ -13847,6 +13882,12 @@ literal:
             lip->reduce_digest_token(TOK_GENERIC_VALUE, NULL_SYM);
             $$= NEW_PTN Item_null(@$);
           }
+        ;
+
+literal:
+          text_literal { $$= $1; }
+        | NUM_literal  { $$= $1; }
+        | temporal_literal
         | FALSE_SYM
           {
             $$= NEW_PTN Item_func_false(@$);
@@ -13871,6 +13912,11 @@ literal:
           {
             $$= NEW_PTN PTI_literal_underscore_charset_bin_num(@$, $1, $2);
           }
+        ;
+
+literal_or_null:
+          literal
+        | null_as_literal
         ;
 
 NUM_literal:
@@ -14502,6 +14548,7 @@ ident_keywords_unambiguous:
         | ISOLATION
         | ISSUER_SYM
         | JSON_SYM
+        | JSON_VALUE_SYM
         | KEY_BLOCK_SIZE
         | LAST_SYM
         | LEAVES
@@ -14648,6 +14695,7 @@ ident_keywords_unambiguous:
         | RESUME_SYM
         | RETAIN_SYM
         | RETURNED_SQLSTATE_SYM
+        | RETURNING_SYM
         | RETURNS_SYM
         | REUSE_SYM
         | REVERSE_SYM

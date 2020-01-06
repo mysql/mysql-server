@@ -104,8 +104,6 @@ class Parse_tree_root;
 class Query_result_interceptor;
 class Window;
 class sp_pcontext;
-enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
 struct sql_digest_state;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;

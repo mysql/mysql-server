@@ -418,6 +418,17 @@ double Item::val_real_from_decimal() {
   return result;
 }
 
+double Item::val_real_from_string() {
+  DBUG_ASSERT(fixed);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp;
+  const String *res = val_str(&tmp);
+  if (res == nullptr) return 0.0;
+  int err_not_used;
+  const char *end_not_used;
+  return my_strntod(res->charset(), res->ptr(), res->length(), &end_not_used,
+                    &err_not_used);
+}
+
 longlong Item::val_int_from_decimal() {
   /* Note that fix_fields may not be called for Item_avg_field items */
   longlong result;
@@ -461,6 +472,16 @@ longlong Item::val_int_from_datetime() {
       return TIME_to_ulonglong_datetime_round(ltime, warnings);
     });
   }
+}
+
+longlong Item::val_int_from_string() {
+  DBUG_ASSERT(fixed);
+  StringBuffer<MY_INT64_NUM_DECIMAL_DIGITS + 1> tmp;
+  const String *res = val_str(&tmp);
+  if (res == nullptr) return 0;
+  int err_not_used;
+  return my_strntoll(res->charset(), res->ptr(), res->length(), 10, nullptr,
+                     &err_not_used);
 }
 
 type_conversion_status Item::save_time_in_field(Field *field) {

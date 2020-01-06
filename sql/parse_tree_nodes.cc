@@ -2521,11 +2521,33 @@ PT_json_table_column_with_path::PT_json_table_column_with_path(
 
 PT_json_table_column_with_path::~PT_json_table_column_with_path() = default;
 
+static bool check_unsupported_json_table_default(const Item *item) {
+  if (item == nullptr) return false;
+
+  // JSON_TABLE currently only supports string literals on JSON format in
+  // DEFAULT clauses. Other literals used to be rejected by the grammar, but the
+  // grammar was extended for JSON_VALUE and now accepts all types of literals.
+  // Until JSON_TABLE gets support for non-string defaults, reject them here.
+  if (item->data_type() != MYSQL_TYPE_VARCHAR) {
+    my_error(
+        ER_NOT_SUPPORTED_YET, MYF(0),
+        "non-string DEFAULT value for a column in a JSON_TABLE expression");
+    return true;
+  }
+
+  return false;
+}
+
 bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || m_type->contextualize(pc)) return true;
 
   if (m_column->m_path_string->itemize(pc, &m_column->m_path_string))
     return true;
+
+  if (check_unsupported_json_table_default(m_column->m_default_empty_string) ||
+      check_unsupported_json_table_default(m_column->m_default_error_string))
+    return true;
+
   if (itemize_safe(pc, &m_column->m_default_empty_string)) return true;
   if (itemize_safe(pc, &m_column->m_default_error_string)) return true;
 

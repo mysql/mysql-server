@@ -635,6 +635,8 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
+
+  longlong val_int_from_real();
 };
 
 class Item_real_func : public Item_func {
@@ -978,7 +980,7 @@ class Item_typecast_real final : public Item_func {
   Item_typecast_real(Item *a) : Item_func(a) { set_data_type_double(); }
   String *val_str(String *str) override;
   double val_real() override;
-  longlong val_int() override;
+  longlong val_int() override { return val_int_from_real(); }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;

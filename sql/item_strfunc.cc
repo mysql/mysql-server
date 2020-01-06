@@ -215,29 +215,6 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   return decimal_value;
 }
 
-double Item_str_func::val_real() {
-  DBUG_ASSERT(fixed == 1);
-  int err_not_used;
-  const char *end_not_used;
-  char buff[64];
-  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
-  res = val_str(&tmp);
-  return res ? my_strntod(res->charset(), res->ptr(), res->length(),
-                          &end_not_used, &err_not_used)
-             : 0.0;
-}
-
-longlong Item_str_func::val_int() {
-  DBUG_ASSERT(fixed == 1);
-  int err;
-  char buff[22];
-  String *res, tmp(buff, sizeof(buff), &my_charset_bin);
-  res = val_str(&tmp);
-  return (res ? my_strntoll(res->charset(), res->ptr(), res->length(), 10, NULL,
-                            &err)
-              : (longlong)0);
-}
-
 String *Item_func_md5::val_str_ascii(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *sptr = args[0]->val_str(str);

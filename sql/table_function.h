@@ -184,13 +184,13 @@ enum class enum_jt_column {
   JTC_NESTED_PATH
 };
 
-/// Types of ON ERROR/ON EMPTY clause for JSON_TABLE function
+/// Types of ON EMPTY/ON ERROR clauses for JSON_TABLE and JSON_VALUE.
 /// @note uint16 enum base limitation is necessary for YYSTYPE.
-enum class enum_jtc_on : uint16 {
-  JTO_ERROR,
-  JTO_NULL,
-  JTO_DEFAULT,
-  JTO_IMPLICIT
+enum class Json_on_response_type : uint16 {
+  ERROR,
+  NULL_VALUE,
+  DEFAULT,
+  IMPLICIT
 };
 
 /**
@@ -236,9 +236,9 @@ class Json_table_column : public Create_field {
   /// Column type
   enum_jt_column m_jtc_type;
   /// Type of ON ERROR clause
-  enum_jtc_on m_on_error{enum_jtc_on::JTO_IMPLICIT};
+  Json_on_response_type m_on_error{Json_on_response_type::IMPLICIT};
   /// Type of ON EMPTY clause
-  enum_jtc_on m_on_empty{enum_jtc_on::JTO_IMPLICIT};
+  Json_on_response_type m_on_empty{Json_on_response_type::IMPLICIT};
   /// Default value string for ON EMPTY clause
   Item *m_default_empty_string{nullptr};
   /// Parsed JSON for default value of ON MISSING clause
@@ -269,9 +269,9 @@ class Json_table_column : public Create_field {
 
  public:
   explicit Json_table_column(enum_jt_column type) : m_jtc_type(type) {}
-  Json_table_column(enum_jt_column col_type, Item *path, enum_jtc_on on_err,
-                    Item *error_default, enum_jtc_on on_miss,
-                    Item *missing_default)
+  Json_table_column(enum_jt_column col_type, Item *path,
+                    Json_on_response_type on_err, Item *error_default,
+                    Json_on_response_type on_miss, Item *missing_default)
       : m_jtc_type(col_type),
         m_on_error(on_err),
         m_on_empty(on_miss),
@@ -397,4 +397,19 @@ class Table_function_json final : public Table_function {
   bool do_init_args() override;
   void do_cleanup() override;
 };
+
+/**
+  Print ON EMPTY or ON ERROR clauses.
+
+  @param thd             thread handler
+  @param str             the string to print to
+  @param query_type      formatting options
+  @param on_empty        true for ON EMPTY, false for ON ERROR
+  @param response_type   the type of the ON ERROR/ON EMPTY response
+  @param default_string  the default string in case of DEFAULT type
+*/
+void print_on_empty_or_error(const THD *thd, String *str,
+                             enum_query_type query_type, bool on_empty,
+                             Json_on_response_type response_type,
+                             const Item *default_string);
 #endif /* TABLE_FUNCTION_INCLUDED */

@@ -9293,6 +9293,13 @@ ER_WARN_DEPRECATED_JSON_TABLE_ON_ERROR_ON_EMPTY
 
 ER_WARN_DEPRECATED_INNER_INTO
   eng "The INTO clause is deprecated inside query blocks of query expressions and will be removed in a future release. Please move the INTO clause to the end of statement instead."
+
+ER_MISSING_JSON_VALUE 22035
+  eng "No value was found by '%.192s' on the specified path."
+
+ER_MULTIPLE_JSON_VALUES 22034
+  eng "More than one value was found by '%.192s' on the specified path."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

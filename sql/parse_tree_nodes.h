@@ -61,11 +61,10 @@
 #include "sql/sql_load.h"  // Sql_cmd_load_table
 #include "sql/sql_partition_admin.h"
 #include "sql/sql_restart_server.h"  // Sql_cmd_restart_server
-#include "sql/sql_show.h"
-#include "sql/sql_tablespace.h"  // Tablespace_options
-#include "sql/sql_truncate.h"    // Sql_cmd_truncate_table
-#include "sql/table.h"           // Common_table_expr
-#include "sql/window.h"          // Window
+#include "sql/sql_tablespace.h"      // Tablespace_options
+#include "sql/sql_truncate.h"        // Sql_cmd_truncate_table
+#include "sql/table.h"               // Common_table_expr
+#include "sql/window.h"              // Window
 #include "sql/window_lex.h"
 #include "thr_lock.h"
 
@@ -84,8 +83,6 @@ class sp_name;
 class Sql_cmd;
 class String;
 class THD;
-enum class enum_jt_column;
-enum class enum_jtc_on : uint16;
 struct CHARSET_INFO;
 
 /**

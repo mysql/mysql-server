@@ -104,7 +104,6 @@
 #include "sql/sql_tmp_table.h"  // tmp tables
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/table_function.h"
 #include "sql/temp_table_param.h"
 #include "sql/thd_raii.h"
 #include "sql/window.h"  // ignore_gaf_const_opt

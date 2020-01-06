@@ -1614,7 +1614,9 @@ class Item : public Parse_tree_node {
   longlong val_int_from_date();
   longlong val_int_from_time();
   longlong val_int_from_datetime();
+  longlong val_int_from_string();
   double val_real_from_decimal();
+  double val_real_from_string();
 
   /**
     Get the value to return from val_bool() in case of errors.

@@ -422,6 +422,32 @@ SELECT * FROM JSON_TABLE ('"asdf"', '$' COLUMNS(
   f FLOAT PATH '$',
   d DECIMAL PATH '$')) AS jt;
 
+# DEFAULT NULL is not accepted syntax.
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON EMPTY)) jt;
+--error ER_PARSE_ERROR
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT NULL ON ERROR)) jt;
+
+# The DEFAULT value must be a string on JSON format for now.
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x INT PATH '$.x' DEFAULT 0 ON ERROR)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON EMPTY)) jt;
+--error ER_NOT_SUPPORTED_YET
+SELECT * FROM
+  JSON_TABLE('{}', '$' COLUMNS (x DATE
+                                  PATH '$.x'
+                                  DEFAULT DATE'2020-01-01' ON ERROR)) jt;
+
 --echo #
 --echo # Bug#25413069: SIG11 IN CHECK_COLUMN_GRANT_IN_TABLE_REF
 --echo #

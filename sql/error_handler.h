@@ -432,4 +432,18 @@ class Ignore_warnings_error_handler final : public Internal_error_handler {
   }
 };
 
+/// An error handler which downgrades JSON syntax errors to warnings.
+class Ignore_json_syntax_handler : public Internal_error_handler {
+ public:
+  Ignore_json_syntax_handler(THD *thd, bool enabled);
+  ~Ignore_json_syntax_handler() override;
+  bool handle_condition(THD *, uint, const char *,
+                        Sql_condition::enum_severity_level *,
+                        const char *) override;
+
+ private:
+  THD *m_thd;
+  bool m_enabled;
+};
+
 #endif  // ERROR_HANDLER_INCLUDED

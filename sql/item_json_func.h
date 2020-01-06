@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stddef.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <memory>
 #include <utility>  // std::forward
@@ -56,6 +57,9 @@ class Json_wrapper;
 class PT_item_list;
 class THD;
 class my_decimal;
+enum Cast_target : unsigned char;
+enum class Json_on_response_type : uint16;
+struct Cast_type;
 struct TABLE;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
@@ -837,7 +841,6 @@ class Item_func_json_storage_free final : public Item_int_func {
   longlong val_int() override;
 };
 
-enum Cast_target : unsigned char;
 /**
   Class that represents CAST(<expr> AS <type> ARRAY)
 */
@@ -941,6 +944,95 @@ class Item_func_member_of : public Item_bool_func {
 };
 
 /**
+  Class implementing the JSON_VALUE function.
+
+  Functionality-wise it's a combination of CAST, JSON_UNQUOTE and JSON_EXTRACT,
+  but with additional functionality for flexible handling of empty values and
+  conversion errors.
+*/
+class Item_func_json_value final : public Item_func {
+ public:
+  Item_func_json_value(const POS &pos, Item *arg, Item *path,
+                       const Cast_type &cast_type, unsigned length,
+                       unsigned precision, Json_on_response_type on_empty_type,
+                       Item *on_empty_default,
+                       Json_on_response_type on_error_type,
+                       Item *on_error_default);
+  ~Item_func_json_value() override;
+  const char *func_name() const override { return "json_value"; }
+  enum Item_result result_type() const override;
+  bool resolve_type(THD *) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  bool eq(const Item *item, bool binary_cmp) const override;
+  bool val_json(Json_wrapper *wr) override;
+  String *val_str(String *buffer) override;
+  double val_real() override;
+  longlong val_int() override;
+  my_decimal *val_decimal(my_decimal *value) override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t flags) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+
+ private:
+  /// Represents a default value given in JSON_VALUE's DEFAULT xxx ON EMPTY or
+  /// DEFAULT xxx ON ERROR clause.
+  struct Default_value;
+
+  /// Parsed path.
+  Json_path m_path_json;
+  /// Type of the ON EMPTY clause.
+  Json_on_response_type m_on_empty;
+  /// Type of the ON ERROR clause.
+  Json_on_response_type m_on_error;
+  /// The default value for ON EMPTY (if not ERROR or NULL ON EMPTY).
+  unique_ptr_destroy_only<Default_value> m_default_empty;
+  /// The default value for ON EMPTY (if not ERROR or NULL ON EMPTY).
+  unique_ptr_destroy_only<Default_value> m_default_error;
+  /// The target data type.
+  Cast_target m_cast_target;
+
+  /**
+    Creates a Json_value_default object representing the default value given in
+    a DEFAULT xxx ON EMPTY clause or a DEFAULT xxx ON ERROR clause.
+
+    @param thd       the current session
+    @param item      the Item that represents the default value expression
+    @return a pointer to the created object on success, nullptr on error
+  */
+  unique_ptr_destroy_only<Default_value> create_json_value_default(THD *thd,
+                                                                   Item *item);
+
+  /**
+    Extracts the JSON value at the given path.
+
+    @param[out] json the extracted JSON value, if the path matched exactly
+      one value; empty otherwise
+    @param[out] return_default the default value to return if a
+      DEFAULT ... ON EMPTY or DEFAULT ... ON ERROR clause was invoked,
+      or nullptr if no DEFAULT clause was invoked
+    @return true if an error was raised, false otherwise
+  */
+  bool extract_json_value(Json_wrapper *json,
+                          const Default_value **return_default);
+
+  /// Implements val_int() for RETURNING SIGNED and RETURNING UNSIGNED.
+  int64_t extract_integer_value();
+  /// Implements get_date() for RETURNING DATE.
+  bool extract_date_value(MYSQL_TIME *ltime);
+  /// Implements get_time() for RETURNING TIME.
+  bool extract_time_value(MYSQL_TIME *ltime);
+  /// Implements get_date() for RETURNING DATETIME.
+  bool extract_datetime_value(MYSQL_TIME *ltime);
+  /// Implements val_decimal() for RETURNING DECIMAL.
+  my_decimal *extract_decimal_value(my_decimal *value);
+  /// Implements val_str() for RETURNING CHAR and RETURNING BINARY.
+  String *extract_string_value(String *buffer);
+  /// Implements val_real() for RETURNING FLOAT/REAL/DOUBLE.
+  double extract_real_value();
+};
+
+/**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification
   revison 1.0. This method is implemented in item_geofunc.cc.
 
@@ -1005,7 +1097,6 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 typedef Prealloced_array<size_t, 16> Sorted_index_array;
 bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
 
-enum class enum_jtc_on : uint16;
 bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
                         bool no_error);
 #endif /* ITEM_JSON_FUNC_INCLUDED */

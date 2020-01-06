@@ -1697,7 +1697,7 @@ double Item_typecast_real::val_real() {
   return check_float_overflow(res);
 }
 
-longlong Item_typecast_real::val_int() {
+longlong Item_func::val_int_from_real() {
   double res = val_real();
   if (null_value) return 0;
 
