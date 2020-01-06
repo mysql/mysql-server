@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,109 +314,109 @@ static inline void RunSortBenchmark(size_t num_iterations, bool stable_sort) {
 static void BM_StdSortmemcmp(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_memcmp>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortmemcmp);
+BENCHMARK(BM_StdSortmemcmp)
 
 static void BM_StdStableSortmemcmp(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_memcmp>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortmemcmp);
+BENCHMARK(BM_StdStableSortmemcmp)
 
 static void BM_StdSortCompare0(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_0>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare0);
+BENCHMARK(BM_StdSortCompare0)
 
 static void BM_StdStableSortCompare0(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_0>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare0);
+BENCHMARK(BM_StdStableSortCompare0)
 
 static void BM_StdSortCompare0ZeroSafe(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_0_zerosafe>(num_iterations,
                                            /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare0ZeroSafe);
+BENCHMARK(BM_StdSortCompare0ZeroSafe)
 
 static void BM_StdStableSortCompare0ZeroSafe(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_0_zerosafe>(num_iterations,
                                            /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare0ZeroSafe);
+BENCHMARK(BM_StdStableSortCompare0ZeroSafe)
 
 static void BM_StdSortCompare1(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_1>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare1);
+BENCHMARK(BM_StdSortCompare1)
 
 static void BM_StdStableSortCompare1(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_1>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare1);
+BENCHMARK(BM_StdStableSortCompare1)
 
 static void BM_StdSortCompare2(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_2>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare2);
+BENCHMARK(BM_StdSortCompare2)
 
 static void BM_StdStableSortCompare2(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_2>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare2);
+BENCHMARK(BM_StdStableSortCompare2)
 
 static void BM_StdSortCompare3(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_3>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare3);
+BENCHMARK(BM_StdSortCompare3)
 
 static void BM_StdStableSortCompare3(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_3>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare3);
+BENCHMARK(BM_StdStableSortCompare3)
 
 static void BM_StdSortCompare4(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_4>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare4);
+BENCHMARK(BM_StdSortCompare4)
 
 static void BM_StdStableSortCompare4(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_4>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare4);
+BENCHMARK(BM_StdStableSortCompare4)
 
 static void BM_StdSortCompare5(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_5>(num_iterations, /*stable_sort=*/false);
 }
-BENCHMARK(BM_StdSortCompare5);
+BENCHMARK(BM_StdSortCompare5)
 
 static void BM_StdStableSortCompare5(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_5>(num_iterations, /*stable_sort=*/true);
 }
-BENCHMARK(BM_StdStableSortCompare5);
+BENCHMARK(BM_StdStableSortCompare5)
 
 // Disabled: experimental.
 static void MY_ATTRIBUTE((unused)) BM_StdSortIntCompare(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/false);
 }
-// BENCHMARK(BM_StdSortIntCompare);
+// BENCHMARK(BM_StdSortIntCompare)
 
 static void MY_ATTRIBUTE((unused))
     BM_StdStableSortIntCompare(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int>(num_iterations, /*stable_sort=*/true);
 }
-// BENCHMARK(BM_StdStableSortIntCompare);
+// BENCHMARK(BM_StdStableSortIntCompare)
 
 // Disabled: experimental.
 static void MY_ATTRIBUTE((unused))
     BM_StdSortIntIntIntInt(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/false);
 }
-// BENCHMARK(BM_StdSortIntIntIntInt);
+// BENCHMARK(BM_StdSortIntIntIntInt)
 
 // Disabled: experimental.
 static void MY_ATTRIBUTE((unused))
     BM_StdStableSortIntIntIntInt(size_t num_iterations) {
   RunSortBenchmark<Mem_compare_int_4>(num_iterations, /*stable_sort=*/true);
 }
-// BENCHMARK(BM_StdStableSortIntIntIntInt);
+// BENCHMARK(BM_StdStableSortIntIntIntInt)
 
 }  // namespace filesort_compare_unittest
