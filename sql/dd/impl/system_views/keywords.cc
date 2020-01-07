@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,8 @@ Keywords::Keywords() {
   for (auto x : keyword_list)
     ss << "[\"" << x.word << "\"," << x.reserved << "],";
   ss.seekp(ss.tellp() - static_cast<std::streamoff>(1));  // remove last ','
-  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << max_word_size << ") PATH '$[0]',"
+  ss << "]', '$[*]' COLUMNS(word VARCHAR(" << max_word_size
+     << ") CHARSET utf8mb4 PATH '$[0]',"
      << "reserved INT PATH '$[1]')) AS j";
 
   m_target_def.set_view_name(view_name());

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,7 +170,11 @@ namespace info_schema {
 
   800201: Current
   ------------------------------------
+  Changes from version 80020:
 
+  - Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+    This bug updates the character set of columns returned from JSON_TABLE
+    expressions in INFORMATION_SCHEMA views.
 
   80021: Next IS version number after the previous is public.
   ------------------------------------

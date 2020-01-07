@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ class Table_function {
       true  on error
       false on success
   */
-  virtual bool print(String *str, enum_query_type query_type) = 0;
+  virtual bool print(String *str, enum_query_type query_type) const = 0;
   /**
     Clean up table function
   */
@@ -357,7 +357,7 @@ class Table_function_json final : public Table_function {
       true  on error
       false on success
   */
-  bool print(String *str, enum_query_type query_type) override;
+  bool print(String *str, enum_query_type query_type) const override;
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
 
@@ -389,19 +389,6 @@ class Table_function_json final : public Table_function {
     @param [out] last  last column which belongs to the given NESTED PATH
   */
   void set_subtree_to_null(Json_table_column *root, Json_table_column **last);
-  /**
-    Helper function to print single NESTED PATH column
-
-    @param col        column to print
-    @param str        string to print to
-    @param query_type type of the query
-
-    @returns
-      true  on error
-      false on success
-  */
-  bool print_nested_path(Json_table_column *col, String *str,
-                         enum_query_type query_type);
 
   /**
     Return list of fields to create result table from

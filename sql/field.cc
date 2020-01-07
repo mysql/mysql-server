@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <float.h>
 #include <stddef.h>
 
+#include "m_ctype.h"
 #include "my_config.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -35,7 +36,6 @@
 #include <algorithm>
 #include <cmath>   // isnan
 #include <memory>  // unique_ptr
-#include <utility>
 
 #include "decimal.h"
 #include "m_string.h"
@@ -68,21 +68,17 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
-#include "sql/rpl_utility.h"
+#include "sql/rpl_rli.h"                // Relay_log_info
+#include "sql/rpl_slave.h"              // rpl_master_has_bug
 #include "sql/spatial.h"                // Geometry
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception
-#include "sql/sql_join_buffer.h"        // CACHE_FIELD
 #include "sql/sql_lex.h"
-#include "sql/sql_show.h"
 #include "sql/sql_time.h"       // str_to_datetime_with_warn
 #include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
-#include "sql/table_function.h"  // enum_jtc_on
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"      // Time_zone
 #include "template_utils.h"  // pointer_cast
@@ -10012,12 +10008,13 @@ int Field_typed_array::do_save_field_metadata(uchar *metadata_ptr) const {
 }
 
 void Field_typed_array::sql_type(String &str) const {
-  uint metadata;
-  uchar *metadata_ptr = reinterpret_cast<uchar *>(&metadata);
-  do_save_field_metadata(metadata_ptr);
-  std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
-      static_cast<const uchar *>(metadata_ptr), binlog_type());
-  show_sql_type(real_type(), true, pack.second.first, &str, charset());
+  const Field *const conv_field = m_conv_item->field;
+  // There is no need to append the character set and collation to the type,
+  // since utf8mb4_0900_bin is the only collation supported for arrays.
+  DBUG_ASSERT(!conv_field->has_charset() ||
+              conv_field->charset() == &my_charset_utf8mb4_0900_bin);
+  conv_field->sql_type(str);
+  str.append(STRING_WITH_LEN(" array"));
 }
 
 void Field_typed_array::make_send_field(Send_field *field) const {

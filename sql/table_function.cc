@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <utility>
 
 #include "field_types.h"
+#include "m_ctype.h"
 #include "m_string.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_base.h"
@@ -42,8 +43,7 @@
 #include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_utility.h"  // read_field_metadata
-#include "sql/sql_class.h"    // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_exception_handler.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
@@ -697,56 +697,68 @@ static bool print_on_empty_error(const THD *thd, String *str,
   return true;
 }
 
-bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
-                                            enum_query_type query_type) {
+/**
+  Helper function to print a single NESTED PATH column.
+
+  @param thd        the current session
+  @param table      the TABLE object representing the JSON_TABLE expression
+  @param col        the column to print
+  @param query_type the type of the query
+  @param str        the string to print to
+
+  @returns true on error, false on success
+*/
+static bool print_nested_path(const THD *thd, const TABLE *table,
+                              const Json_table_column *col,
+                              enum_query_type query_type, String *str) {
   col->m_path_string->print(thd, str, query_type);
   if (str->append(STRING_WITH_LEN(" columns ("))) return true;
-  Json_table_column *jtc;
-  List_iterator<Json_table_column> li(*col->m_nested_columns);
   bool first = true;
-  while ((jtc = li++)) {
-    if (!first) {
-      if (str->append(STRING_WITH_LEN(", "))) return true;
-    } else
-      first = false;
+  for (const Json_table_column &jtc : *col->m_nested_columns) {
+    if (!first && str->append(STRING_WITH_LEN(", "))) return true;
+    first = false;
 
-    switch (jtc->m_jtc_type) {
+    switch (jtc.m_jtc_type) {
       case enum_jt_column::JTC_ORDINALITY: {
-        if (str->append(jtc->field_name, strlen(jtc->field_name)) ||
-            str->append(STRING_WITH_LEN(" for ordinality")))
-          return true;
+        append_identifier(thd, str, jtc.field_name, strlen(jtc.field_name));
+        if (str->append(STRING_WITH_LEN(" for ordinality"))) return true;
         break;
       }
       case enum_jt_column::JTC_EXISTS:
       case enum_jt_column::JTC_PATH: {
-        String type(15);
-        if (str->append(jtc->field_name, strlen(jtc->field_name)) ||
-            str->append(' '))
-          return true;
-        uint data = 0;
-        Field *fld = get_field(jtc->m_field_idx);
-        fld->save_field_metadata((uchar *)&data);
-        std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
-            reinterpret_cast<const uchar *>(&data), fld->binlog_type());
-        data = pack.second.first;
-        DBUG_ASSERT(fld->binlog_type() != MYSQL_TYPE_TYPED_ARRAY);
-        show_sql_type(jtc->sql_type, false, data, &type, fld->charset());
-        str->append(type);
-        if (jtc->m_jtc_type == enum_jt_column::JTC_EXISTS) {
+        append_identifier(thd, str, jtc.field_name, strlen(jtc.field_name));
+        if (str->append(' ')) return true;
+        const Field *field = table->field[jtc.m_field_idx];
+        StringBuffer<STRING_BUFFER_USUAL_SIZE> type;
+        field->sql_type(type);
+        if (str->append(type)) return true;
+        if (field->has_charset()) {
+          // Append the character set.
+          if (str->append(STRING_WITH_LEN(" character set ")) ||
+              str->append(field->charset()->csname))
+            return true;
+          // Append the collation, if it is not the primary collation of the
+          // character set.
+          if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
+              (str->append(STRING_WITH_LEN(" collate ")) ||
+               str->append(field->charset()->name)))
+            return true;
+        }
+        if (jtc.m_jtc_type == enum_jt_column::JTC_EXISTS) {
           if (str->append(STRING_WITH_LEN(" exists"))) return true;
         }
         if (str->append(STRING_WITH_LEN(" path "))) return true;
-        jtc->m_path_string->print(thd, str, query_type);
-        if (jtc->m_jtc_type == enum_jt_column::JTC_EXISTS) break;
-        if (jtc->m_on_empty != enum_jtc_on::JTO_IMPLICIT) {
-          if (print_on_empty_error(thd, str, query_type, jtc->m_on_empty,
-                                   jtc->m_default_empty_string) ||
+        jtc.m_path_string->print(thd, str, query_type);
+        if (jtc.m_jtc_type == enum_jt_column::JTC_EXISTS) break;
+        if (jtc.m_on_empty != enum_jtc_on::JTO_IMPLICIT) {
+          if (print_on_empty_error(thd, str, query_type, jtc.m_on_empty,
+                                   jtc.m_default_empty_string) ||
               str->append(STRING_WITH_LEN(" empty")))
             return true;
         }
-        if (jtc->m_on_error != enum_jtc_on::JTO_IMPLICIT) {
-          if (print_on_empty_error(thd, str, query_type, jtc->m_on_error,
-                                   jtc->m_default_error_string) ||
+        if (jtc.m_on_error != enum_jtc_on::JTO_IMPLICIT) {
+          if (print_on_empty_error(thd, str, query_type, jtc.m_on_error,
+                                   jtc.m_default_error_string) ||
               str->append(STRING_WITH_LEN(" error")))
             return true;
         }
@@ -754,7 +766,7 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
       }
       case enum_jt_column::JTC_NESTED_PATH: {
         if (str->append(STRING_WITH_LEN("nested path ")) ||
-            print_nested_path(jtc, str, query_type))
+            print_nested_path(thd, table, &jtc, query_type, str))
           return true;
         break;
       }
@@ -763,11 +775,11 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
   return str->append(')');
 }
 
-bool Table_function_json::print(String *str, enum_query_type query_type) {
+bool Table_function_json::print(String *str, enum_query_type query_type) const {
   if (str->append(STRING_WITH_LEN("json_table("))) return true;
   source->print(thd, str, query_type);
   return (thd->is_error() || str->append(STRING_WITH_LEN(", ")) ||
-          print_nested_path(m_columns->head(), str, query_type) ||
+          print_nested_path(thd, table, m_columns->head(), query_type, str) ||
           str->append(')'));
 }
 

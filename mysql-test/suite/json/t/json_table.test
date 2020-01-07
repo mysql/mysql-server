@@ -1374,3 +1374,63 @@ INSERT INTO t SELECT * FROM
             ) AS jt;
 SELECT * FROM t ORDER BY id;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30263373: INCORRECT OUTPUT FROM TABLE_FUNCTION_JSON::PRINT()
+--echo #
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS (`name with space 1` INT PATH '$',
+                                      `name with space 2` FOR ORDINALITY)) jt;
+# Used to fail with a syntax error, due to unquoted column names in
+# the view definition.
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT HEX(x), HEX(y) FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS (x BINARY(10) PATH '$',
+                                        y VARBINARY(10) PATH '$')) jt;
+# Used to say CHAR(10) and VARCHAR(10) instead of BINARY(10) and VARBINARY(10).
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[123]', '$[*]' COLUMNS(ti  TINYINT   PATH '$',
+                                     si  SMALLINT  PATH '$',
+                                     mi  MEDIUMINT PATH '$',
+                                     i   INT       PATH '$',
+                                     bi  BIGINT    PATH '$',
+                                     tiu TINYINT UNSIGNED   PATH '$',
+                                     siu SMALLINT UNSIGNED  PATH '$',
+                                     miu MEDIUMINT UNSIGNED PATH '$',
+                                     iu  INT UNSIGNED       PATH '$',
+                                     biu BIGINT UNSIGNED    PATH '$')) jt;
+# Used to lack the UNSIGNED attribute for the unsigned columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('[]', '$[*]' COLUMNS (g GEOMETRY PATH '$',
+                                   ls LINESTRING PATH '$')) AS jt;
+# Used to say GEOMETRY for both columns.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+SELECT * FROM v;
+DROP VIEW v;
+
+CREATE VIEW v AS SELECT * FROM
+  JSON_TABLE('["abc"]', '$[*]' COLUMNS
+    (x VARCHAR(10) CHARSET latin1 PATH '$',
+     y VARCHAR(10) COLLATE utf8mb4_de_pb_0900_ai_ci PATH '$',
+     z LONGTEXT COLLATE utf8mb4_bin PATH '$')) jt;
+# Character set and collation information wasn't included.
+SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS
+  WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'v';
+# Used to return the default collation instead of the collation
+# specified in the JSON_TABLE column definitions.
+SELECT x, y, z, COLLATION(x) c_x, COLLATION(y) c_y, COLLATION(z) c_z FROM v;
+DROP VIEW v;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,8 @@ Enabled_roles::Enabled_roles() {
   m_target_def.add_from(
       "JSON_TABLE(INTERNAL_GET_ENABLED_ROLE_JSON(),"
       " '$[*]' COLUMNS ("
-      " ROLE_NAME VARCHAR(255) PATH '$.ROLE_NAME', "
-      " ROLE_HOST VARCHAR(255) PATH '$.ROLE_HOST') "
+      " ROLE_NAME VARCHAR(255) CHARSET utf8mb4 PATH '$.ROLE_NAME', "
+      " ROLE_HOST VARCHAR(255) CHARSET utf8mb4 PATH '$.ROLE_HOST') "
       " ) current_user_enabled_roles");
 }
 
