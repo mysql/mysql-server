@@ -60,6 +60,15 @@ var nodes = function(host, port_and_state) {
       gr_id: mysqld.global.gr_id
     };
 
+    var router_set_gr_consistency_level = common_stmts.get("router_set_gr_consistency_level", {});
+    if (stmt === router_set_gr_consistency_level.stmt) {
+        return router_set_gr_consistency_level;
+    }
+    var router_set_session_options = common_stmts.get("router_set_session_options", {});
+    if (stmt === router_set_session_options.stmt) {
+        return router_set_session_options;
+    }
+
     // first node is PRIMARY
     options.group_replication_primary_member = options.group_replication_membership[mysqld.global.primary_id][0];
 

@@ -73,6 +73,12 @@ var nodes = function(host, port_and_state) {
     var select_port =
         common_stmts.get("select_port", options);
 
+    var router_set_session_options =
+        common_stmts.get("router_set_session_options", options);
+
+    var router_set_gr_consistency_level =
+        common_stmts.get("router_set_gr_consistency_level", options);
+
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
       "router_commit",
@@ -97,6 +103,12 @@ var nodes = function(host, port_and_state) {
 
     if (stmt === select_port.stmt) {
       return select_port;
+    }
+    if (stmt === router_set_session_options.stmt) {
+      return router_set_session_options;
+    }
+    if (stmt === router_set_gr_consistency_level.stmt) {
+      return router_set_gr_consistency_level;
     }
     else if (stmt === router_start_transaction.stmt) {
       mysqld.global.transaction_count++;

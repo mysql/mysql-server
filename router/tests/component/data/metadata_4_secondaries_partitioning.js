@@ -44,6 +44,8 @@ var router_select_group_membership_with_primary_mode_partitioned =
 // common stmts
 
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "select_port",
   "router_start_transaction",
   "router_commit",

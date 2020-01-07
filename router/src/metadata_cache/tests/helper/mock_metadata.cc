@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ ClusterMetadata::ReplicaSetsByName MockNG::fetch_instances(
  *
  * @return a boolean to indicate if the connection was successful.
  */
-bool MockNG::connect(
+bool MockNG::connect_and_setup_session(
     const metadata_cache::ManagedInstance &metadata_server) noexcept {
   (void)metadata_server;
   return true;

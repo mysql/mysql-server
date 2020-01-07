@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -88,15 +88,17 @@ class METADATA_API ClusterMetadata : public MetaData {
    */
   ~ClusterMetadata() override;
 
-  /** @brief Connects with the Metadata server
+  /** @brief Connects with the Metadata server and sets up the session
+   * parameters
    *
    *
    * @param metadata_server the server instance for which the connection
    *                        should be attempted.
    *
-   * @return a boolean to indicate if the connection was successful.
+   * @return a boolean to indicate if the connection and session parameters
+   * setup was successful.
    */
-  bool connect(
+  bool connect_and_setup_session(
       const metadata_cache::ManagedInstance &metadata_server) noexcept override;
 
   /** @brief Disconnects from the Metadata server

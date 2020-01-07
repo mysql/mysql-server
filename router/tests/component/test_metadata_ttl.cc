@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,14 +104,22 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     return json_doc[field_name.c_str()].GetInt();
   }
 
-  std::string get_string_field_value(const std::string &json_string,
-                                     const std::string &field_name) {
+  auto get_array_field_value(const std::string &json_string,
+                             const std::string &field_name) {
+    std::vector<std::string> result;
+
     rapidjson::Document json_doc;
     json_doc.Parse(json_string.c_str());
-    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()));
-    EXPECT_TRUE(json_doc[field_name.c_str()].IsString());
+    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()))
+        << "json:" << json_string;
+    EXPECT_TRUE(json_doc[field_name.c_str()].IsArray()) << json_string;
 
-    return json_doc[field_name.c_str()].GetString();
+    auto arr = json_doc[field_name.c_str()].GetArray();
+    for (size_t i = 0; i < arr.Size(); ++i) {
+      result.push_back(arr[i].GetString());
+    }
+
+    return result;
   }
 
   int get_ttl_queries_count(const std::string &json_string) {
@@ -124,29 +132,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
   int get_update_last_check_in_count(const std::string &json_string) {
     return get_int_field_value(json_string, "update_last_check_in_count");
-  }
-
-  bool wait_log_contains(const ProcessWrapper &router,
-                         const std::string &needle,
-                         std::chrono::milliseconds timeout) {
-    if (getenv("WITH_VALGRIND")) {
-      timeout *= 10;
-    }
-
-    const auto MSEC_STEP = 50ms;
-    bool found = false;
-    const auto started = std::chrono::steady_clock::now();
-    do {
-      const std::string log_content = router.get_full_logfile();
-      found = (log_content.find(needle) != log_content.npos);
-      if (!found) {
-        auto step = std::min(timeout, MSEC_STEP);
-        std::this_thread::sleep_for(std::chrono::milliseconds(step));
-        timeout -= step;
-      }
-    } while (!found && timeout > std::chrono::steady_clock::now() - started);
-
-    return found;
   }
 
   bool wait_for_refresh_thread_started(
@@ -677,13 +662,22 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   SCOPED_TRACE(
       "// Let's check if the first query is starting a trasaction and the "
       "second checking the version");
-  const std::string &first_sql =
-      get_string_field_value(server_globals, "first_query");
-  const std::string &second_sql =
-      get_string_field_value(server_globals, "second_query");
-  EXPECT_STREQ("START TRANSACTION", first_sql.c_str());
+
+  const auto queries = get_array_field_value(server_globals, "queries");
+  EXPECT_EQ(4u, queries.size()) << server_globals;
+
+  EXPECT_STREQ(
+      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+      "@@SESSION.character_set_results=utf8, "
+      "@@SESSION.character_set_connection=utf8, "
+      "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+      "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+      queries.at(0).c_str());
+  EXPECT_STREQ("SET @@SESSION.group_replication_consistency='EVENTUAL'",
+               queries.at(1).c_str());
+  EXPECT_STREQ("START TRANSACTION", queries.at(2).c_str());
   EXPECT_STREQ("SELECT * FROM mysql_innodb_cluster_metadata.schema_version",
-               second_sql.c_str());
+               queries.at(3).c_str());
 
   if (GetParam().cluster_type != ClusterType::GR_V1) {
     SCOPED_TRACE("// last_check_in should be attempted at least once");

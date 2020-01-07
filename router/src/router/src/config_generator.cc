@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1053,6 +1053,10 @@ class ClusterAwareDecorator {
   virtual ~ClusterAwareDecorator() = default;
 
  protected:
+  void connect(MySQLSession &session, const std::string &host,
+               const unsigned port);
+  void setup_session(MySQLSession &session);
+
   ClusterMetadata &metadata_;
   const std::string &cluster_initial_username_;
   const std::string &cluster_initial_password_;
@@ -1062,6 +1066,27 @@ class ClusterAwareDecorator {
   unsigned long connection_timeout_;
   std::set<MySQLErrorc> failure_codes_;
 };
+
+void ClusterAwareDecorator::connect(MySQLSession &session,
+                                    const std::string &host,
+                                    const unsigned port) {
+  try {
+    session.connect(host, port, cluster_initial_username_,
+                    cluster_initial_password_, "", "", connection_timeout_);
+  } catch (const std::exception &) {
+    if (session.is_connected()) session.disconnect();
+    throw;
+  }
+}
+
+void ClusterAwareDecorator::setup_session(MySQLSession &session) {
+  try {
+    return mysqlrouter::setup_metadata_session(session);
+  } catch (const std::exception &) {
+    if (session.is_connected()) session.disconnect();
+    throw;
+  }
+}
 
 /**
  * Cluster (GR or AR) aware failover.
@@ -1169,13 +1194,20 @@ R ClusterAwareDecorator::failover_on_failure(std::function<R()> wrapped_func) {
                port);
 
       try {
-        metadata_.get_session().connect(host, port, cluster_initial_username_,
-                                        cluster_initial_password_, "", "",
-                                        connection_timeout_);
+        connect(metadata_.get_session(), host, port);
       } catch (const std::exception &inner_e) {
         log_info("Failed connecting to %s:%ld: %s, trying next", host.c_str(),
                  port, inner_e.what());
+        continue;
       }
+
+      try {
+        setup_session(metadata_.get_session());
+      } catch (const std::exception &inner_e) {
+        log_info("Failed setting up a metadata session %s:%ld: %s, trying next",
+                 host.c_str(), port, inner_e.what());
+      }
+
       // if this fails, we should just skip it and go to the next
     } while (!metadata_.get_session().is_connected());
   } while (true);

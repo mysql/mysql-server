@@ -35,12 +35,12 @@ if(mysqld.global.upgrade_in_progress === undefined){
   mysqld.global.upgrade_in_progress = 0;
 }
 
-if(mysqld.global.first_query === undefined){
-  mysqld.global.first_query = "";
+if(mysqld.global.queries_count === undefined){
+  mysqld.global.queries_count = 0;
 }
 
-if(mysqld.global.second_query === undefined){
-  mysqld.global.second_query = "";
+if(mysqld.global.queries === undefined){
+  mysqld.global.queries = [];
 }
 
 var nodes = function(host, port_and_state) {
@@ -52,11 +52,11 @@ var nodes = function(host, port_and_state) {
 ({
   stmts: function (stmt) {
     // let's grab first queries for the verification
-    if (mysqld.global.first_query === "") {
-      mysqld.global.first_query = stmt;
-    }
-    else if (mysqld.global.second_query === "") {
-      mysqld.global.second_query = stmt;
+    if (mysqld.global.queries_count < 4) {
+      var tmp = mysqld.global.queries;
+      tmp.push(stmt)
+      mysqld.global.queries = tmp;
+      mysqld.global.queries_count++;
     }
 
     var group_replication_membership_online =
@@ -75,6 +75,8 @@ var nodes = function(host, port_and_state) {
 
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
+      "router_set_session_options",
+      "router_set_gr_consistency_level",
       "select_port",
       "router_start_transaction",
       "router_commit",
