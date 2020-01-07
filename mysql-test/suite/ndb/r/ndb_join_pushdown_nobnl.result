@@ -6477,10 +6477,9 @@ explain
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	subq	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Child of 't1' in pushed join@1; FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq' as child of 't1', semi join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq`) where (`test`.`subq`.`c` = `test`.`t1`.`c`)
 select count(*) from t1 where
 t1.c in (select c from t1 as subq);
@@ -6491,13 +6490,10 @@ select count(*) from t1 where
 t1.c in (select c from t1 as subq1) and
 t1.d in (select d from t1 as subq2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c,d	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
-1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	d	d	4	test.t1.d	2	100.00	FirstMatch(subq1)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c,d	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
+1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Child of 't1' in pushed join@1; FirstMatch(t1)
+1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	d	d	4	test.t1.d	2	100.00	Child of 't1' in pushed join@1; FirstMatch(subq1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
-Note	1003	Can't push table 'subq2' as child of 't1', semi join of scan-child not implemented
-Note	1003	Can't push table 'subq2' as child of 'subq1', no parent-child dependency exists between these tables
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1`) semi join (`test`.`t1` `subq2`) where ((`test`.`subq2`.`d` = `test`.`t1`.`d`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1) and
@@ -6509,12 +6505,10 @@ select count(*) from t1 where
 t1.c in (select c from t1 as subq1 where 
 subq1.c in (select c from t1 as subq2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Parent of 2 pushed join@1
-1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Child of 'subq1' in pushed join@1; FirstMatch(t1)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
+1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	Child of 't1' in pushed join@1; FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
-Note	1003	Can't push table 'subq2' as child of 't1', semi join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1` join `test`.`t1` `subq2`) where ((`test`.`subq1`.`c` = `test`.`t1`.`c`) and (`test`.`subq2`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1 where 
@@ -6525,12 +6519,10 @@ explain
 select count(*) from t1 where 
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
+1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.subq1.a	2	100.00	Child of 'subq1' in pushed join@1; FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
-Note	1003	Can't push table 'subq2' as child of 't1', column 'subq1.a' is outside scope of pushable join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1` straight_join `test`.`t1` `subq2`) where ((`test`.`subq2`.`c` = `test`.`subq1`.`a`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
@@ -6672,11 +6664,10 @@ FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
 WHERE table1.b IN
 (SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	100.00	Child of 'table1' in pushed join@1
-1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	FirstMatch(table2)
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	Child of 'table1' in pushed join@1; FirstMatch(table2)
 Warnings:
-Note	1003	Can't push table 'table1s' as child of 'table1', semi join of scan-child not implemented
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ count(0) AS `count(*)` from `test`.`t1` `table1` join `test`.`t1` `table2` semi join (`test`.`t1` `table1s`) where ((`test`.`table2`.`a` = `test`.`table1`.`a`) and (`test`.`table2`.`b` = `test`.`table1`.`b`) and (`test`.`table1s`.`c` = `test`.`table1`.`b`))
 SELECT count(*)
 FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
@@ -7110,7 +7101,7 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	8
-Ndb_pushed_queries_defined	506
+Ndb_pushed_queries_defined	510
 Ndb_pushed_queries_dropped	8
 Ndb_sorted_scan_count	31
 drop table server_counts_at_startup;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -439,6 +439,12 @@ Join_plan::Join_plan(const JOIN *join)
   {
     const QEP_TAB *qep_tab = get_qep_tab();
     return qep_tab->last_sj_inner();
+  }
+
+  bool Table_access::is_sj_firstmatch() const
+  {
+    const QEP_TAB *qep_tab = get_qep_tab();
+    return (qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH);
   }
 }
 // namespace AQP

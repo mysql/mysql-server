@@ -635,8 +635,8 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
       /**
        * Use is_pushable_as_child() to analyze whether this table is
        * pushable as part of query starting with 'root'. Note that
-       * outer joined table scans can not be completely analyzed by
-       * is_pushable_as_child(): Pushability also depends on that all
+       * outer- and semi-joined table scans can not be completely analyzed
+       * by is_pushable_as_child(): Pushability also depends on that all
        * later tables in the same nest are pushed, and that there are no
        * unpushed conditions for any (later) tables in this nest.
        * These extra conditions are later checked by validate_join_nest(),
@@ -655,14 +655,26 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
 
       /**
        * This table can be the last inner table of join-nest(s).
-       * Thus we might have to unwind the join-nest structures.
-       * Note that the same tab_no may unwind several join-nests.
+       * That will require additional pushability checks of entire nest
+       */
+      if (table->get_last_sj_inner() == (int)tab_no) {
+        if (first_sj_inner > (int)root_no) {  // Leaving the semi_join nest
+          // Phase 2 of pushability check, see big comment above.
+          validate_join_nest(sj_nest, first_sj_inner, tab_no, "semi");
+        }
+        first_sj_inner = -1;
+        sj_nest.clear_all();
+      }
+
+      /**
+       * Note that the same tab_no may unwind several inner join-nests.
+       * ... all having the same 'last_inner' (this tab_no)
        */
       while (tab_no == last_inner &&  // End of current join-nest, and
              first_upper >= 0) {      // has an embedding upper nest
         if (first_inner > root_no) {  // Leaving an outer joined nest
           // Phase 2 of pushability check, see big comment above.
-          validate_join_nest(first_inner, inner_nest);
+          validate_join_nest(inner_nest, first_inner, tab_no, "outer");
         }
 
         // The upper_nest becomes our new inner_nest when we 'unwind'.
@@ -951,14 +963,13 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
 }  // ndb_pushed_builder_ctx::is_pushable_as_child
 
 /***************************************************************
- *  is_pushable_as_child_scan()
+ *  is_pushable_within_nest() / is_pushable_as_child_scan()
  *
  * There are additional limitation on when an index scan is pushable
  * relative to a (single row) primary key or unique key lookup operation.
  *
  * Such limitations exists for index scan operation being outer- or
  * semi-joined: Consider the query:
- *
  *
  * select * from t1 left join t2
  *   on t1.attr=t2.ordered_index
@@ -975,7 +986,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
  * +---------+---------+
  *
  * Since we could not return all t2 rows matching 't1.row1' in the first
- * batch, it is repeated for the nest batch of t2 rows. From mysqld POW it
+ * batch, it is repeated for the next batch of t2 rows. From mysqld POW it
  * will appear as a different row, even if it is the same rows as returned
  * in the first batch. This works just fine when the nest loop joiner
  * create a plain INNER JOIN result; the different instances of 't1.row1'
@@ -1046,6 +1057,61 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
  * would be sufficient, however we prefer to 'fail fast'.
  *
  ****************************************************************/
+bool ndb_pushed_builder_ctx::is_pushable_within_nest(
+    const AQP::Table_access *table, ndb_table_access_map nest,
+    const char *nest_type) {
+  DBUG_TRACE;
+  DBUG_ASSERT(!ndbcluster_is_lookup_operation(table->get_access_type()));
+  const uint tab_no = table->get_access_no();
+
+  // Logic below assume that 'this' table is not part of the 'nest'.
+  nest.clear_bit(tab_no);
+
+  /**
+   * 1) Check if outer- or semi-joined table depends on 'unpushed condition'
+   */
+  if (unlikely(m_has_pending_cond.contain(tab_no))) {  // 1a)
+    // This table has unpushed condition
+    EXPLAIN_NO_PUSH(
+        "Can't push %s joined table '%s' as child of '%s', "
+        "table condition can not be fully evaluated by pushed join",
+        nest_type, table->get_table()->alias, m_join_root->get_table()->alias);
+    return false;
+  }
+
+  if (unlikely(m_has_pending_cond.is_overlapping(nest))) {  // 1b,1c:
+    // Other (lookup tables) withing nest has unpushed condition
+    ndb_table_access_map pending_conditions(m_has_pending_cond);
+    pending_conditions.intersect(nest);
+    // Report the closest violating table, may be multiple.
+    const uint violating = pending_conditions.last_table(tab_no);
+    EXPLAIN_NO_PUSH(
+        "Can't push %s joined table '%s' as child of '%s', "
+        "condition on its dependant table '%s' is not pushed down",
+        nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
+        m_plan.get_table_access(violating)->get_table()->alias);
+    return false;
+  }
+
+  /**
+   * 2) Check if outer- or semi-joined table depends on 'unpushed tables'
+   */
+  if (unlikely(!m_join_scope.contain(nest))) {  // 2b,2c
+    ndb_table_access_map unpushed_tables(nest);
+    unpushed_tables.subtract(m_join_scope);
+    // Report the closest unpushed table, may be multiple.
+    const uint violating = unpushed_tables.last_table(tab_no);
+    EXPLAIN_NO_PUSH(
+        "Can't push %s joined table '%s' as child of '%s', "
+        "table '%s' in its dependant join-nest(s) is not part of the "
+        "pushed join",
+        nest_type, table->get_table()->alias, m_join_root->get_table()->alias,
+        m_plan.get_table_access(violating)->get_table()->alias);
+    return false;
+  }
+  return true;
+}
+
 bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     const AQP::Table_access *table, const ndb_table_access_map all_parents) {
   DBUG_TRACE;
@@ -1062,10 +1128,10 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
      */
 
     /**
-     * Online upgrade, check of we are connected to a 'ndb' allowing us to push
+     * Online upgrade, check if we are connected to a 'ndb' allowing us to push
      * outer joined scan operation (ver >= 8.0.20), Else we reject pushing.
      */
-    if (!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
+    if (unlikely(!NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb))) {
       EXPLAIN_NO_PUSH(
           "Can't push table '%s' as child of '%s', "
           "outer join of scan-child not implemented",
@@ -1086,45 +1152,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
       upper = m_tables[upper].m_first_upper;
     }
 
-    /**
-     * 1) Check if outer joined table depends on 'unpushed condition'
-     */
-    if (unlikely(m_has_pending_cond.contain(tab_no))) {  // 1a)
-      // Table has unpushed condition
-      EXPLAIN_NO_PUSH(
-          "Can't push outer joined table '%s' as child of '%s', "
-          "table condition can not be fully evaluated by pushed join",
-          table->get_table()->alias, m_join_root->get_table()->alias);
-      return false;
-    } else if (unlikely(m_has_pending_cond.is_overlapping(  // 1b,1c
-                   outer_join_nests))) {
-      // Nest(s) has unpushed condition
-      ndb_table_access_map pending_conditions(m_has_pending_cond);
-      pending_conditions.intersect(outer_join_nests);
-      // Report the closest violating table, may be multiple.
-      const uint violating = pending_conditions.last_table(tab_no);
-      EXPLAIN_NO_PUSH(
-          "Can't push outer joined table '%s' as child of '%s', "
-          "condition on its dependant table '%s' is not pushed down",
-          table->get_table()->alias, m_join_root->get_table()->alias,
-          m_plan.get_table_access(violating)->get_table()->alias);
-      return false;
-    }
-
-    /**
-     * 2) Check if outer joined table depends on 'unpushed tables'
-     */
-    if (unlikely(!m_join_scope.contain(outer_join_nests))) {  // 2b,2c
-      ndb_table_access_map unpushed_tables(outer_join_nests);
-      unpushed_tables.subtract(m_join_scope);
-      // Report the closest unpushed table, may be multiple.
-      const uint violating = unpushed_tables.last_table(tab_no);
-      EXPLAIN_NO_PUSH(
-          "Can't push outer joined table '%s' as child of '%s', "
-          "table '%s' in its dependant join-nest(s) is not part of the "
-          "pushed join",
-          table->get_table()->alias, m_join_root->get_table()->alias,
-          m_plan.get_table_access(violating)->get_table()->alias);
+    if (!is_pushable_within_nest(table, outer_join_nests, "outer")) {
       return false;
     }
 
@@ -1187,8 +1215,18 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
    * with another table within the same semi_join nest is an
    * INNER JOIN wrt. that other table. (Which is pushable)
    */
-  if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
-    // This table is part of a semi_join
+
+  if (table->is_sj_firstmatch() &&
+      NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
+    // 'table' is part of a semi-join
+    // (We support semi-join only if firstMatch strategy is used)
+    DBUG_ASSERT(m_tables[tab_no].m_sj_nest.contain(table->get_access_no()));
+
+    const ndb_table_access_map sj_nest(m_tables[tab_no].m_sj_nest);
+    if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
+      return false;
+    }
+  } else if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
     if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
       // Semi-joined relative to some other tables in join_scope
       EXPLAIN_NO_PUSH(
@@ -1350,8 +1388,10 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
  * is_pushable_as_child(). However, we want to catch these non pushable
  * tables as early as possible, so we effectively duplicates these checks.
  ******************************************************************************/
-void ndb_pushed_builder_ctx::validate_join_nest(
-    uint first_inner, ndb_table_access_map inner_nest) {
+void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
+                                                const uint first_inner,
+                                                const uint last_inner,
+                                                const char *nest_type) {
   DBUG_TRACE;
   if (first_inner <= m_join_root->get_access_no()) return;
 
@@ -1359,8 +1399,6 @@ void ndb_pushed_builder_ctx::validate_join_nest(
   const bool nest_has_scans =
       (m_scan_operations.first_table(first_inner) < m_plan.get_access_count());
   if (nest_has_scans) {
-    DBUG_ASSERT(m_tables[first_inner].m_last_inner > 0);
-    const uint last_inner = m_tables[first_inner].m_last_inner;
     ndb_table_access_map filter_cond;
 
     /**
@@ -1463,21 +1501,24 @@ void ndb_pushed_builder_ctx::validate_join_nest(
          */
         if (nest_has_unpushed) {
           EXPLAIN_NO_PUSH(
-              "Can't push outer joined table '%s' as child of '%s', "
+              "Can't push %s joined table '%s' as child of '%s', "
               "some tables in embedding nest(s) are not part of pushed join",
-              table->get_table()->alias, m_join_root->get_table()->alias);
+              nest_type, table->get_table()->alias,
+              m_join_root->get_table()->alias);
           remove_pushable(table);
         } else if (nest_has_pending_cond) {
           EXPLAIN_NO_PUSH(
-              "Can't push outer joined table '%s' as child of '%s', "
+              "Can't push %s joined table '%s' as child of '%s', "
               "nest containing the table has pending unpushed_conditions",
-              table->get_table()->alias, m_join_root->get_table()->alias);
+              nest_type, table->get_table()->alias,
+              m_join_root->get_table()->alias);
           remove_pushable(table);
         } else if (nest_has_filter_cond) {
           EXPLAIN_NO_PUSH(
-              "Can't push outer joined table '%s' as child of '%s', "
+              "Can't push %s joined table '%s' as child of '%s', "
               "nest containing the table has a FILTER conditions",
-              table->get_table()->alias, m_join_root->get_table()->alias);
+              nest_type, table->get_table()->alias,
+              m_join_root->get_table()->alias);
           remove_pushable(table);
         }
       }
@@ -2129,6 +2170,18 @@ int ndb_pushed_builder_ctx::build_query() {
       if (m_tables[tab_no].isInnerJoined(m_tables[parent_no])) {
         // 'tab_no' is inner joined with its parent
         options.setMatchType(NdbQueryOptions::MatchNonNull);
+      }
+
+      if (table->is_sj_firstmatch()) {
+        /**
+         * Is a Firstmatch'ed sj_nest:
+         * Entire nest has to be pushed in order for firstMatch elimination
+         * to be used as part of pushed join evaluation.
+         */
+        const int last_sj_inner = table->get_last_sj_inner();
+        if (m_join_scope.contain(m_tables[last_sj_inner].m_sj_nest)) {
+          options.setMatchType(NdbQueryOptions::MatchFirst);
+        }
       }
 
       /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,6 +212,9 @@ namespace AQP
 
     int get_first_sj_inner() const;
     int get_last_sj_inner() const;
+
+    // Is member of a firstMatch sj_nest?
+    bool is_sj_firstmatch() const;
 
     /**
       Getter and setters for an opaque object for each table.

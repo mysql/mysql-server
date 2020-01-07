@@ -212,6 +212,10 @@ class ndb_pushed_builder_ctx {
   bool is_pushable_as_child_scan(const AQP::Table_access *table,
                                  ndb_table_access_map all_key_parents);
 
+  bool is_pushable_within_nest(const AQP::Table_access *table,
+                               ndb_table_access_map nest,
+                               const char *nest_type);
+
   bool is_outer_nests_referable(const AQP::Table_access *table,
                                 ndb_table_access_map key_parents);
 
@@ -222,7 +226,8 @@ class ndb_pushed_builder_ctx {
                               const KEY_PART_INFO *key_part,
                               ndb_table_access_map &parents);
 
-  void validate_join_nest(uint first_inner, ndb_table_access_map inner_nest);
+  void validate_join_nest(ndb_table_access_map nest, uint first, uint last,
+                          const char *nest_type);
 
   void remove_pushable(const AQP::Table_access *table);
 
@@ -440,7 +445,6 @@ class ndb_pushed_builder_ctx {
       return m_first_inner > parent.m_first_inner;
     }
     bool isInnerJoined(pushed_tables &parent) const {
-      // return !isOuterJoined(parent);
       return m_first_inner <= parent.m_first_inner;
     }
 
