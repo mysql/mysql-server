@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0event.h"
 #include "ut0counter.h"
 #endif /* !UNIV_HOTBACKUP */
+#include <atomic>
 #include "ut0mutex.h"
 
 struct rw_lock_t;
@@ -494,12 +495,13 @@ UNIV_INLINE
 lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
 
 /** This function sets the lock->writer_thread and lock->recursive fields. For
-platforms where we are using atomic builtins instead of lock->mutex it sets
-the lock->writer_thread field using atomics to ensure memory ordering. Note
-that it is assumed that the caller of this function effectively owns the lock
-i.e.: nobody else is allowed to modify lock->writer_thread at this point in
-time. The protocol is that lock->writer_thread MUST be updated BEFORE the
-lock->recursive flag is set.
+platforms where INNODB_RW_LOCKS_USE_ATOMICS is defined we set the
+lock->recursive field using atomic release after setting lock->writer thread to
+ensure proper memory ordering of the two. Otherwise we use lock->mutex to ensure
+this. Note that it is assumed that the caller of this function effectively owns
+the lock i.e.: nobody else is allowed to modify lock->writer_thread at this
+point in time. The protocol is that lock->writer_thread MUST be updated BEFORE
+the lock->recursive flag is set.
 @param[in,out]	lock		lock to work on
 @param[in]	recursive	true if recursion allowed */
 UNIV_INLINE
@@ -557,6 +559,16 @@ struct rw_lock_t
     : public latch_t
 #endif /* UNIV_DEBUG */
 {
+  rw_lock_t() = default;
+
+  /** rw_lock_t is not a copyable object, the reasoning
+  behind this is the same as the reasoning behind why
+  std::mutex is not copyable. It is supposed to represent
+  a synchronization primitive for which copying semantics
+  do not make sense. */
+  rw_lock_t(const rw_lock_t &) = delete;
+  rw_lock_t &operator=(const rw_lock_t &) = delete;
+
   /** Holds the state of the lock. */
   volatile lint lock_word;
 
@@ -572,7 +584,7 @@ struct rw_lock_t
   If this flag is set then writer_thread MUST contain the thread
   id of the current x-holder or wait-x thread.  This flag must be
   reset in x_unlock functions before incrementing the lock_word */
-  volatile bool recursive;
+  std::atomic<bool> recursive;
 
   /** number of granted SX locks. */
   volatile ulint sx_recursive;
@@ -585,7 +597,7 @@ struct rw_lock_t
 
   /** Thread id of writer thread. Is only guaranteed to have sane
   and non-stale value iff recursive flag is set. */
-  volatile os_thread_id_t writer_thread;
+  os_thread_id_t writer_thread;
 
   /** Used by sync0arr.cc for thread queueing */
   os_event_t event;
@@ -632,17 +644,9 @@ struct rw_lock_t
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 #ifdef UNIV_DEBUG
-/** Value of rw_lock_t::magic_n */
-#define RW_LOCK_MAGIC_N 22643
-
-  /** Constructor */
-  rw_lock_t() { magic_n = RW_LOCK_MAGIC_N; }
-
-  rw_lock_t &operator=(const rw_lock_t &) = default;
-
   /** Destructor */
   virtual ~rw_lock_t() {
-    ut_ad(magic_n == RW_LOCK_MAGIC_N);
+    ut_ad(magic_n == MAGIC_N);
     magic_n = 0;
   }
 
@@ -650,14 +654,14 @@ struct rw_lock_t
   virtual std::string locked_from() const;
 
   /** For checking memory corruption. */
-  ulint magic_n;
+  static const uint32_t MAGIC_N = 22643;
+  uint32_t magic_n = {MAGIC_N};
 
   /** In the debug version: pointer to the debug info list of the lock */
   UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
 
   /** Level in the global latching order. */
   latch_level_t level;
-
 #endif /* UNIV_DEBUG */
 };
 #ifdef UNIV_DEBUG
