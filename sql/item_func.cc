@@ -8186,30 +8186,28 @@ longlong Item_func_can_access_routine::val_int() {
     return 1;
 
   /*
-    Before WL#7897 changes, full access to routine information is provided to
-    the definer of routine and to the user having SELECT privilege on
-    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
-    definer user can not have full access on the routine. So backup of routine
-    or getting exact create string of stored routine is not possible with this
-    change.
-    So as workaround for this issue, currently full access on stored routine
-    provided to any user having global SELECT privilege.
-    Correct solution to this issue will be provided with the WL#8131
-    and WL#9049.
+    Check if user has full access to the routine properties (i.e including
+    stored routine code), or partial access (i.e to view its other properties).
   */
+
+  char user_name_holder[USERNAME_LENGTH + 1];
+  LEX_STRING user_name = {user_name_holder, USERNAME_LENGTH};
+
+  char host_name_holder[HOSTNAME_LENGTH + 1];
+  LEX_STRING host_name = {host_name_holder, HOSTNAME_LENGTH};
+
+  parse_user(definer_ptr->ptr(), definer_ptr->length(), user_name.str,
+             &user_name.length, host_name.str, &host_name.length);
+
   THD *thd = current_thd;
-  char sp_user[USER_HOST_BUFF_SIZE];
-  strxmov(sp_user, thd->security_context()->priv_user().str, "@",
-          thd->security_context()->priv_host().str, NullS);
-  bool full_access = (thd->security_context()->check_access(
-                          SELECT_ACL, schema_name_ptr->ptr()) ||
-                      !strcmp(sp_user, definer_ptr->ptr()));
+  bool full_access = has_full_view_routine_access(thd, schema_name_ptr->ptr(),
+                                                  user_name.str, host_name.str);
 
   if (check_full_access) {
     return full_access ? 1 : 0;
-  } else if (!full_access &&
-             check_some_routine_access(thd, schema_name_ptr->ptr(),
-                                       routine_name_ptr->ptr(), is_procedure)) {
+  } else if (!full_access && !has_partial_view_routine_access(
+                                 thd, schema_name_ptr->ptr(),
+                                 routine_name_ptr->ptr(), is_procedure)) {
     return 0;
   }
 

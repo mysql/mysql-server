@@ -774,6 +774,13 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadTableEncryptionAdminPriv = 0 AND 
 DELETE FROM global_grants WHERE user = 'mysql.session' AND host = 'localhost' AND priv = 'TABLE_ENCRYPTION_ADMIN';
 COMMIT;
 
+-- Add the privilege SHOW_ROUTINE for every user who has global SELECT privilege
+-- provided that there isn't a user who already has the privilege SHOW_ROUTINE
+SET @hadShowRoutinePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SHOW_ROUTINE');
+INSERT INTO global_grants SELECT user, host, 'SHOW_ROUTINE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE select_priv = 'Y' AND @hadShowRoutinePriv = 0 AND user NOT IN ('mysql.infoschema','mysql.session','mysql.sys');
+COMMIT;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

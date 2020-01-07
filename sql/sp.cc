@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1211,26 +1211,17 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   DBUG_TRACE;
 
   /*
-    Before WL#7897 changes, full access to routine information is provided to
-    the definer of routine and to the user having SELECT privilege on
-    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
-    definer user can not have full access on the routine. So backup of routine
-    or getting exact create string of stored routine is not possible with this
-    change.
-    So as workaround for this issue, currently full access on stored routine
-    is provided to any user having global SELECT privilege.
-    Correct solution to this issue will be provided with the WL#8131 and
-    WL#9049.
+    Check if user has full access to the routine properties (i.e including
+    stored routine code), or partial access (i.e to view its other properties).
   */
-  Security_context *sctx = thd->security_context();
-  bool full_access =
-      (sctx->check_access(SELECT_ACL, sp->m_db.str) ||
-       (!strcmp(routine->definer_user().c_str(), sctx->priv_user().str) &&
-        !strcmp(routine->definer_host().c_str(), sctx->priv_host().str)));
+
+  bool full_access = has_full_view_routine_access(
+      thd, sp->m_db.str, routine->definer_user().c_str(),
+      routine->definer_host().c_str());
 
   if (!full_access &&
-      check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
-                                type == enum_sp_type::PROCEDURE))
+      !has_partial_view_routine_access(thd, sp->m_db.str, sp->m_name.str,
+                                       type == enum_sp_type::PROCEDURE))
     return true;
 
   // prepare st_sp_chistics object from the dd::Routine.

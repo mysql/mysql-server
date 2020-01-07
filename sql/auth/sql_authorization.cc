@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2083,22 +2083,52 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table) {
 }
 
 /**
-  Check if the routine has any of the routine privileges.
+  @brief Check if user has full access to view routine's properties (i.e
+  including stored routine code). User must have GLOBAL SELECT or SHOW_ROUTINE
+  privilege, or be the definer of this routine.
 
-  @param thd	       Thread handler
-  @param db           Database name
-  @param name         Routine name
-  @param is_proc     True if this is a SP rather than a function
-  @retval
-    0            ok
-  @retval
-    1            error
+  @param thd                  Thread handler
+  @param db                   Database name
+  @param definer_user         Definer username
+  @param definer_host         Definer host
+
+  @return
+    @retval false   no full access.
+    @retval true    has full access.
+*/
+bool has_full_view_routine_access(THD *thd, const char *db,
+                                  const char *definer_user,
+                                  const char *definer_host) {
+  DBUG_TRACE;
+  Security_context *sctx = thd->security_context();
+
+  return sctx->check_access(SELECT_ACL, db) ||
+         sctx->has_global_grant(STRING_WITH_LEN("SHOW_ROUTINE")).first ||
+         (!strcmp(definer_user, sctx->priv_user().str) &&
+          !my_strcasecmp(system_charset_info, definer_host,
+                         sctx->priv_host().str));
+}
+
+/**
+  @brief Check if user has partial access to view routine's properties
+  (i.e. excluding stored routine code). User must have EXECUTE/CREATE/ALTER
+  ROUTINE privileges.
+
+  @param thd                  Thread handler
+  @param db                   Database name
+  @param routine_name         Routine name
+  @param is_proc              True if this routine is a stored procedure, rather
+  than a stored function.
+
+  @return
+    @retval false   no access.
+    @retval true    has partial access.
 */
 
-bool check_some_routine_access(THD *thd, const char *db, const char *name,
-                               bool is_proc) {
+bool has_partial_view_routine_access(THD *thd, const char *db,
+                                     const char *routine_name, bool is_proc) {
   DBUG_TRACE;
-  ulong save_priv;
+
   /*
     The following test is just a shortcut for check_access() (to avoid
     calculating db_access)
@@ -2109,12 +2139,15 @@ bool check_some_routine_access(THD *thd, const char *db, const char *name,
     as it only opens SHOW_PROC_ACLS.
   */
   if (thd->security_context()->check_access(SHOW_PROC_ACLS, db ? db : "", true))
-    return false;
+    return true;
+
+  ulong save_priv;
   if (!check_access(thd, SHOW_PROC_ACLS, db, &save_priv, nullptr, false,
                     true) ||
       (save_priv & SHOW_PROC_ACLS))
-    return false;
-  return check_routine_level_acl(thd, db, name, is_proc);
+    return true;
+
+  return !check_routine_level_acl(thd, db, routine_name, is_proc);
 }
 
 /**

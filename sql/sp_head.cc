@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3392,26 +3392,16 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 
 bool sp_head::check_show_access(THD *thd, bool *full_access) {
   /*
-    Before WL#7897 changes, full access to routine information is provided to
-    the definer of routine and to the user having SELECT privilege on
-    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
-    definer user can not have full access on routine. So backup of routine or
-    getting exact create string of stored routine is not possible with this
-    change.
-    So as workaround for this issue, currently full access on stored routine
-    provided to any user having global SELECT privilege.
-    Correct solution to this issue will be provided with the WL#8131 and
-    WL#9049.
+    Check if user has full access to the routine properties (i.e including
+    stored routine code), or partial access (i.e to view its other properties).
   */
-  *full_access =
-      (thd->security_context()->check_access(SELECT_ACL, m_db.str) ||
-       (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
-        !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 
-  return *full_access
-             ? false
-             : check_some_routine_access(thd, m_db.str, m_name.str,
-                                         m_type == enum_sp_type::PROCEDURE);
+  *full_access = has_full_view_routine_access(thd, m_db.str, m_definer_user.str,
+                                              m_definer_host.str);
+  return *full_access ? false
+                      : !has_partial_view_routine_access(
+                            thd, m_db.str, m_name.str,
+                            m_type == enum_sp_type::PROCEDURE);
 }
 
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx) {

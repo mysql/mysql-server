@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -214,6 +214,7 @@ bool dynamic_privilege_init(void) {
       ret |= service->register_privilege(STRING_WITH_LEN("AUDIT_ADMIN"));
       ret |=
           service->register_privilege(STRING_WITH_LEN("REPLICATION_APPLIER"));
+      ret |= service->register_privilege(STRING_WITH_LEN("SHOW_ROUTINE"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);
