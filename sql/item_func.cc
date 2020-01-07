@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9335,4 +9335,15 @@ longlong Item_func_internal_is_enabled_role::val_int() {
   }
 
   return 0;
+}
+
+bool Item_func::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
+  const table_map reachable_tables = *pointer_cast<table_map *>(arg);
+  for (uint i = 0; i < arg_count; ++i) {
+    if (args[i]->type() == FIELD_ITEM) {
+      args[i] =
+          FindEqualField(down_cast<Item_field *>(args[i]), reachable_tables);
+    }
+  }
+  return false;
 }

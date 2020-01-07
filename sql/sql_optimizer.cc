@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -4299,24 +4299,14 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
     if (eq_item) eq_list.push_back(eq_item);
 
     if (head->type() == Item::FIELD_ITEM) {
-      // Allocate a new Item that we attach to the equality instead of re-using
-      // the existing item. We must do this because if this condition is used as
-      // a join condition in a hash join, we may end up in a scenario where we
-      // have to go in and undo the equality propagation. If the field we are
-      // replacing during this operation is the same field that is used in other
-      // conditions, we may end up doing illegal changes. See
-      // Item_func::ensure_multi_equality_fields_are_available for more details.
-      Item_field *new_item_field =
-          new Item_field(thd, down_cast<Item_field *>(head));
-
       // Store away all fields that were considered equal, so that we are able
       // to undo this operation later if we have to. See
       // Item_func::ensure_multi_equality_fields_are_available for more details.
-      new_item_field->set_item_equal(item_equal);
-      eq_item = new Item_func_eq(item_field, new_item_field);
-    } else {
-      eq_item = new Item_func_eq(item_field, head);
+      Item_field *head_field = down_cast<Item_field *>(head);
+      head_field->set_item_equal_all_join_nests(item_equal);
     }
+    eq_item = new Item_func_eq(item_field, head);
+
     if (!eq_item || down_cast<Item_func_eq *>(eq_item)->set_cmp_func())
       return nullptr;
 

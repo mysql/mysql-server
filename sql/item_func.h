@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -554,6 +554,8 @@ class Item_func : public Item_result_field {
   /// for hash join (join conditions in hash join must be equi-join conditions),
   /// or if it should be placed as a filter after the join.
   virtual bool contains_only_equi_join_condition() const { return false; }
+
+  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
 
  protected:
   /**

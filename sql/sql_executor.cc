@@ -963,19 +963,10 @@ unique_ptr_destroy_only<RowIterator> CreateBKAIterator(
         continue;
       }
 
-      // Allocate a new Item that we attach to the ref instead of re-using
-      // the existing item. We must do this because the Item_field might be
-      // used in a filter somewhere else, with different table availability.
-      // Note that we clone Item_fields similarly in eliminate_item_equal(),
-      // for pretty much the same reasons.
-      Item_field *new_item_field =
-          new Item_field(thd, down_cast<Item_field *>(item));
-      ref->items[part_no] = new_item_field;
-      new_item_field->walk(
-          &Item::ensure_multi_equality_fields_are_available_walker,
-          enum_walk::POSTFIX, pointer_cast<uchar *>(&left_table_map));
+      item->walk(&Item::ensure_multi_equality_fields_are_available_walker,
+                 enum_walk::POSTFIX, pointer_cast<uchar *>(&left_table_map));
       down_cast<store_key_field *>(ref->key_copy[part_no])
-          ->replace_from_field(down_cast<Item_field *>(new_item_field)->field);
+          ->replace_from_field(down_cast<Item_field *>(item)->field);
     }
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5401,6 +5401,7 @@ void Item_field::cleanup() {
   field = nullptr;
   result_field = nullptr;
   item_equal = nullptr;
+  item_equal_all_join_nests = nullptr;
   null_value = false;
 }
 
@@ -5601,7 +5602,7 @@ Item *Item_field::replace_equal_field(uchar *) {
       // reachable from hash join. Store which multi-equality we found the field
       // substitution in, so that we can go back and find a field that the hash
       // join can reach.
-      subst->set_item_equal(item_equal);
+      subst->set_item_equal_all_join_nests(item_equal);
       return subst;
     }
   }
@@ -9876,31 +9877,34 @@ string ItemToString(const Item *item) {
   return to_string(str);
 }
 
-bool Item_field::ensure_multi_equality_fields_are_available_walker(uchar *arg) {
-  if (item_equal != nullptr) {
-    // We have established in
-    // 'Item_func_eq::ensure_multi_equality_fields_are_available' that this item
-    // references a field that is outside of our reach. We also have a
-    // multi-equality (item_equal is set), so we go through all fields in the
-    // multi-equality and find the first that is within our reach. The table_map
-    // provided in 'arg' defines the tables within our reach.
-    table_map reachable_tables = *pointer_cast<table_map *>(arg);
-    Item_equal_iterator item_equal_iterator(*item_equal);
-    Item_field *it;
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
+  if (item_field->item_equal_all_join_nests == nullptr) {
+    return item_field;
+  }
 
-    while ((it = item_equal_iterator++)) {
-      if (it == this) {
-        continue;
-      }
+  // We have established in
+  // 'Item_func_eq::ensure_multi_equality_fields_are_available' that this
+  // item references a field that is outside of our reach. We also have a
+  // multi-equality (item_equal_all_join_nests is set), so we go through all
+  // fields in the multi-equality and find the first that is within our reach.
+  // The table_map provided in 'reachable_tables' defines the tables within our
+  // reach.
+  Item_equal_iterator item_equal_iterator(
+      *item_field->item_equal_all_join_nests);
+  Item_field *it;
 
-      table_map item_field_used_tables = it->used_tables();
-      if ((item_field_used_tables & reachable_tables) ==
-          item_field_used_tables) {
-        set_field(it->field);
-        return false;
-      }
+  while ((it = item_equal_iterator++)) {
+    if (it->field == item_field->field) {
+      continue;
+    }
+
+    table_map item_field_used_tables = it->used_tables();
+    if ((item_field_used_tables & reachable_tables) == item_field_used_tables) {
+      Item_field *new_item_field = new Item_field(current_thd, item_field);
+      new_item_field->reset_field(it->field);
+      return new_item_field;
     }
   }
 
-  return false;
+  return item_field;
 }

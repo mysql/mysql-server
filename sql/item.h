@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3368,13 +3368,24 @@ class Item_field : public Item_ident {
   Field *result_field{nullptr};
 
  public:
-  void set_item_equal(Item_equal *item_equal_arg) {
-    if (item_equal == nullptr && item_equal_arg != nullptr) {
-      item_equal = item_equal_arg;
+  void set_item_equal_all_join_nests(Item_equal *item_equal) {
+    if (item_equal != nullptr) {
+      item_equal_all_join_nests = item_equal;
     }
   }
 
   Item_equal *item_equal;
+
+  // A list of fields that are considered "equal" to this field. E.g., a query
+  // on the form "a JOIN b ON a.i = b.i JOIN c ON b.i = c.i" would consider
+  // a.i, b.i and c.i equal due to equality propagation. This is the same as
+  // "item_equal" above, except that "item_equal" will only contain fields from
+  // the same join nest. This is used by hash join and BKA when they need to
+  // undo multi-equality propagation done by the optimizer. (The optimizer may
+  // generate join conditions that references unreachable fields for said
+  // iterators.) The split is done because NDB expects the list to only
+  // contain fields from the same join nest.
+  Item_equal *item_equal_all_join_nests{nullptr};
   bool no_const_subst;
   /*
     if any_privileges set to true then here real effective privileges will
@@ -3568,9 +3579,23 @@ class Item_field : public Item_ident {
 
   bool replace_field_processor(uchar *arg) override;
   bool strip_db_table_name_processor(uchar *) override;
-
-  bool ensure_multi_equality_fields_are_available_walker(uchar *) override;
 };
+
+// See if the provided item points to a reachable field (one that belongs to a
+// table within 'reachable_tables'). If not, go through the list of 'equal'
+// items in the item and see if we have a field that is reachable. If any such
+// field is found, create a new Item_field that points to this reachable field
+// and return it. If the provided item is already reachable, or if we cannot
+// find a reachable field, return the provided item unchanged. This is used when
+// creating a hash join iterator, where the join condition may point to a
+// non-reachable field due to multi-equality propagation during optimization.
+// (Ideally, the optimizer should not set up such condition in the first place.
+// This is difficult, if not impossible, to accomplish, given that the plan
+// created by the optimizer does not map 100% to the iterator executor.) Note
+// that if the field is not reachable, and we cannot find a reachable field, we
+// provided field is returned unchanged. The effect is that the hash join will
+// degrade into a nested loop.
+Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables);
 
 class Item_null : public Item_basic_constant {
   typedef Item_basic_constant super;

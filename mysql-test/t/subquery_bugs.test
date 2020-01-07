@@ -1004,3 +1004,77 @@ t AS upper JOIN LATERAL
  WHERE (t.a > upper.a)) der ;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
+--echo #
+
+CREATE TABLE t1 (
+  col_int INTEGER,
+  pk INTEGER
+);
+
+INSERT INTO t1 VALUES (6,24),(7,0),(8,2),(0,15);
+
+CREATE TABLE t2 (
+  pk INTEGER,
+  UNIQUE ( pk )
+);
+
+INSERT INTO t2 VALUES (6),(27),(41);
+
+CREATE TABLE t3 (
+  pk INTEGER
+);
+
+INSERT INTO t3 VALUES (4),(40),(46);
+
+CREATE TABLE t4 (
+  col_int INTEGER
+);
+
+ANALYZE TABLE t1, t2, t3, t4;
+
+# Verify that the IS NOT NULL condition added on t3 refers to t3 and not t1,
+# even though we have substituted t3 with t1 elsewhere when re-resolving
+# multi-equalities for the hash join condition.
+EXPLAIN FORMAT=tree
+  SELECT * FROM
+    t1
+      JOIN t2 ON t1.pk = t2.pk
+      JOIN t3 ON t2.pk = t3.pk
+  WHERE (t1.col_int + t2.pk) IN ( SELECT col_int FROM t4 );
+
+DROP TABLE t1, t2, t3, t4;
+
+CREATE TABLE t1 (
+  col1 CHAR(16),
+  UNIQUE KEY col1_idx (col1)
+);
+
+CREATE TABLE t2 (
+  col1 INTEGER,
+  col2 INTEGER,
+  UNIQUE KEY ix1 (col1)
+);
+
+CREATE TABLE t3 (
+  col1 INTEGER,
+  col2 INTEGER NOT NULL,
+  UNIQUE KEY ix1 (col1)
+);
+
+ANALYZE TABLE t1,t2,t3;
+
+# Very much like the previous test case; verify that the BETWEEN attached to t3
+# refers to t3 and not to t2, even though we have substituted t3 with t2
+# elsewhere when re-resolving multi-equalities for the hash join condition.
+EXPLAIN FORMAT=tree
+  SELECT /*+ JOIN_ORDER(t3,t2,t1) */ * FROM t1
+  WHERE t1.col1 = ANY (
+    SELECT t1.col1 + t2.col2
+    FROM t2 JOIN t3 ON t2.col2 = t3.col2 AND t2.col1 =  t3.col1
+    WHERE t2.col2 BETWEEN 2 AND 9
+  );
+
+DROP TABLE t1, t2, t3;

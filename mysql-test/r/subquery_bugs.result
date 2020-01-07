@@ -1286,3 +1286,92 @@ a	rn
 1	2
 2	1
 DROP TABLE t;
+#
+# Bug #30717861: WL#13377 REGRESSION, ITEM REFS ARE SUBSTITUTED TO REFER TABLES NOT YET AVAILABLE
+#
+CREATE TABLE t1 (
+col_int INTEGER,
+pk INTEGER
+);
+INSERT INTO t1 VALUES (6,24),(7,0),(8,2),(0,15);
+CREATE TABLE t2 (
+pk INTEGER,
+UNIQUE ( pk )
+);
+INSERT INTO t2 VALUES (6),(27),(41);
+CREATE TABLE t3 (
+pk INTEGER
+);
+INSERT INTO t3 VALUES (4),(40),(46);
+CREATE TABLE t4 (
+col_int INTEGER
+);
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT * FROM
+t1
+JOIN t2 ON t1.pk = t2.pk
+JOIN t3 ON t2.pk = t3.pk
+WHERE (t1.col_int + t2.pk) IN ( SELECT col_int FROM t4 );
+EXPLAIN
+-> Nested loop inner join
+    -> Inner hash join (t1.pk = t3.pk), ((t1.col_int + t1.pk) = `<subquery2>`.col_int)
+        -> Table scan on t1  (cost=0.12 rows=4)
+        -> Hash
+            -> Inner hash join (no condition)
+                -> Filter: (t3.pk is not null)  (cost=0.55 rows=3)
+                    -> Table scan on t3  (cost=0.55 rows=3)
+                -> Hash
+                    -> Table scan on <subquery2>
+                        -> Materialize with deduplication
+                            -> Filter: (t4.col_int is not null)  (cost=0.35 rows=1)
+                                -> Table scan on t4  (cost=0.35 rows=1)
+    -> Single-row index lookup on t2 using pk (pk=t3.pk)  (cost=0.12 rows=1)
+
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (
+col1 CHAR(16),
+UNIQUE KEY col1_idx (col1)
+);
+CREATE TABLE t2 (
+col1 INTEGER,
+col2 INTEGER,
+UNIQUE KEY ix1 (col1)
+);
+CREATE TABLE t3 (
+col1 INTEGER,
+col2 INTEGER NOT NULL,
+UNIQUE KEY ix1 (col1)
+);
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+EXPLAIN FORMAT=tree
+SELECT /*+ JOIN_ORDER(t3,t2,t1) */ * FROM t1
+WHERE t1.col1 = ANY (
+SELECT t1.col1 + t2.col2
+FROM t2 JOIN t3 ON t2.col2 = t3.col2 AND t2.col1 =  t3.col1
+WHERE t2.col2 BETWEEN 2 AND 9
+);
+EXPLAIN
+-> Remove duplicate t1 rows using temporary table (weedout)  (cost=1.05 rows=1)
+    -> Filter: (t1.col1 = (t1.col1 + t2.col2))  (cost=1.05 rows=1)
+        -> Inner hash join (no condition)  (cost=1.05 rows=1)
+            -> Index scan on t1 using col1_idx  (cost=0.35 rows=1)
+            -> Hash
+                -> Nested loop inner join  (cost=0.70 rows=1)
+                    -> Filter: ((t3.col2 between 2 and 9) and (t3.col1 is not null))  (cost=0.35 rows=1)
+                        -> Table scan on t3  (cost=0.35 rows=1)
+                    -> Filter: (t2.col2 = t3.col2)  (cost=0.35 rows=1)
+                        -> Single-row index lookup on t2 using ix1 (col1=t3.col1)  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
+DROP TABLE t1, t2, t3;
