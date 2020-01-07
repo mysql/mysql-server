@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -313,6 +313,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
    */
   if (where_tables & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT)) return false;
 
+  if (!select->sj_nests.empty())
+    // Cannot optimize when there is a semijoin or antijoin
+    return false;
+
   /*
     Analyze outer join dependencies, and, if possible, compute the number
     of returned rows.
@@ -391,11 +395,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
           /*
             If the expr in COUNT(expr) can never be null we can change this
             to the number of rows in the tables if this number is exact and
-            there are no outer joins nor semi-joins.
+            there are no outer joins.
           */
           if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
-              !inner_tables && !select->has_sj_nests && !select->has_aj_nests &&
-              tables_filled) {
+              !inner_tables && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
             } else {
