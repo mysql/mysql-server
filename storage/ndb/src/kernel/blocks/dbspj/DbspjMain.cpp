@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5005,6 +5005,11 @@ Dbspj::lookup_build(Build_context& ctx,
       LqhKeyReq::setNoDiskFlag(requestInfo,
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
+
+      // FirstMatch in a lookup request can just be ignored
+      //if (treeBits & DABits::NI_FIRST_MATCH)
+      //{}
+
       dst->requestInfo = requestInfo;
     }
 
@@ -6611,6 +6616,12 @@ Dbspj::scanFrag_build(Build_context& ctx,
                                  (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                  (paramBits & DABits::PI_DISK_ATTR) == 0);
 
+      if (treeBits & DABits::NI_FIRST_MATCH && treeNodePtr.p->isLeaf())
+      {
+        // Can only push firstMatch elimination to data nodes if results does
+        // not depends of finding matches from children -> has to be a leaf
+        ScanFragReq::setFirstMatchFlag(requestInfo, 1);
+      }
       dst->requestInfo = requestInfo;
     }
 
@@ -9704,6 +9715,16 @@ Dbspj::parseDA(Build_context& ctx,
       treeNodePtr.p->m_bits |= TreeNode::T_INNER_JOIN;
     } // DABits::NI_INNER_JOIN
 
+    // TODO: FirstMatch not implemented in SPJ block yet.
+    // Later implementation will build on the BUFFER_ROW / _MATCH mechanisms
+    // to eliminate already found matches from SCAN_NEXTREQ
+    if (treeBits & DABits::NI_FIRST_MATCH)
+    {
+      jam();
+      DEBUG("FIRST_MATCH optimization used");
+      treeNodePtr.p->m_bits |= TreeNode::T_FIRST_MATCH;
+    } // DABits::NI_FIRST_MATCH
+
     if (treeBits & DABits::NI_HAS_PARENT)
     {
       jam();
@@ -9747,7 +9768,6 @@ Dbspj::parseDA(Build_context& ctx,
           jam();
           break;
         }
-        parentPtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
         treeNodePtr.p->m_parentPtrI = parentPtr.i;
       }
 
@@ -10137,6 +10157,9 @@ Dbspj::parseDA(Build_context& ctx,
         }
         sum_read += cnt;
         treeNodePtr.p->m_bits |= TreeNode::T_EXPECT_TRANSID_AI;
+
+        // Having a key projection for LINKED child, implies not-LEAF
+        treeNodePtr.p->m_bits &= ~(Uint32)TreeNode::T_LEAF;
       }
       /**
        * If no LINKED_ATTR's including the CORR_FACTOR was requested by

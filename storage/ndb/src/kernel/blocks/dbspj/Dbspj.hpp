@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1003,6 +1003,12 @@ public:
        * (Also require that T_SCAN_PARALLEL is set)
        */
       T_SORTED_ORDER = 0x100000,
+
+      /**
+       * Allow FirstMatch elimination when multiple rows matching the
+       * same key or range
+       */
+      T_FIRST_MATCH = 0x200000,
 
       // End marker...
       T_END = 0
