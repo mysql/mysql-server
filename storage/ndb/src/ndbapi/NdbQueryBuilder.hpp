@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,19 +131,19 @@ public:
    * These are hints only.
    * The implementation is allowed to take a conservative approach
    * and produce more rows than specified by the MatchType.
-   * However, not more rows than specified by 'MatchAll' should be produced.
+   * However, no more rows than specified by 'MatchAll' should be produced.
    * As additional rows should be expected, the receiver should be prepared to
    * filter away unwanted rows if another MatchType than 'MatchAll' was specified.
    */
   enum MatchType
   {
-    MatchAll,        // DEFAULT: Output all matches, including duplicates.
+    MatchAll = 0x00, // DEFAULT: Output all matches, including duplicates.
                      // Append a single NULL complemented row for non-matching childs.
-    MatchNonNull,    // Output all matches, including duplicates. 
+    MatchNonNull = 0x01,// Output all matches, including duplicates.
                      // Parents without any matches are discarded.
     MatchNullOnly,   // Output only parent rows without any child matches.
                      // Append a single NULL complemented row for the non_matching child
-    MatchSingle,     // Output a single row when >=1 child matches.
+    MatchFirst = 0x02,// Output a single row when >=1 child matches.
                      // One of the matching child row is included in the output.
     Default = MatchAll
   };

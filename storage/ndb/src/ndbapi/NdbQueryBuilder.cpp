@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2605,9 +2605,15 @@ NdbQueryPKLookupOperationDefImpl
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
-  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  if (getMatchType() & NdbQueryOptions::MatchNonNull)
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
+  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  {
+    // We set FirstMatch for 'completeness', even if it isn't really
+    // required for a PK lookup. (There can only be a single 'first')
+    requestInfo |= DABits::NI_FIRST_MATCH;
   }
 
   /**
@@ -2674,9 +2680,15 @@ NdbQueryIndexOperationDefImpl
     serializedDef.alloc(QN_LookupNode::NodeSize);
     Uint32 requestInfo = QN_LookupNode::L_UNIQUE_INDEX;
 
-    if (getMatchType() == NdbQueryOptions::MatchNonNull)
+    if (getMatchType() & NdbQueryOptions::MatchNonNull)
     {
       requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+    }
+    if (getMatchType() & NdbQueryOptions::MatchFirst)
+    {
+      // We set FirstMatch for 'completeness', even if it isn't really
+      // required for a UQ lookup. (There can only be a single 'first')
+      requestInfo |= DABits::NI_FIRST_MATCH;
     }
 
     // Optional part1: Make list of parent nodes.
@@ -2820,9 +2832,13 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
       return QRY_OJ_NOT_SUPPORTED;
   }
 
-  if (getMatchType() == NdbQueryOptions::MatchNonNull)
+  if (getMatchType() & NdbQueryOptions::MatchNonNull)
   {
     requestInfo |= DABits::NI_INNER_JOIN; //No outer-joins
+  }
+  if (getMatchType() & NdbQueryOptions::MatchFirst)
+  {
+    requestInfo |= DABits::NI_FIRST_MATCH;
   }
 
   // Optional part1: Make list of parent nodes.
