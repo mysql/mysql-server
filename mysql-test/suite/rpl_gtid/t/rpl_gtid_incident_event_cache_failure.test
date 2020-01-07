@@ -43,6 +43,11 @@ SET GLOBAL max_binlog_stmt_cache_size = 4096;
 CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 --let $data= `SELECT CONCAT('"', repeat('a',2000), '"')`
 
+# Sync the slave threads and stop the slave IO thread until the end of the
+# test.
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_io.inc
+
 --echo # Testing the failure of cache creation while writing incident events.
 --echo #
 --echo # Since generation of GTIDs is tightly coupled with IO caches, if there is any
@@ -54,7 +59,8 @@ CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE=MyIsam;
 --echo # enough to accommodate the changes.
 --echo #
 
-# Add a debug point so that cache creation fails.
+# Add a debug point on master so that cache creation fails.
+--source include/rpl_connection_master.inc
 --let $debug_point= simulate_cache_creation_failure
 --source include/add_debug_point.inc
 
@@ -117,6 +123,7 @@ eval INSERT INTO t1 (c1, data)
 --source include/rpl_reconnect.inc
 
 # Check that error is present in error log
+--source include/rpl_connection_master.inc
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_incident_event_cache_failure
 --let $assert_select = Hence aborting the server
@@ -124,14 +131,14 @@ eval INSERT INTO t1 (c1, data)
 --let $assert_text = Found the message about the failure of cache creation in the error log.
 --source include/assert_grep.inc
 
+# Start the slave IO thread.
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
 # Suppress the errors on master
 --source include/rpl_connection_master.inc
 CALL mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
 CALL mtr.add_suppression("ERROR.*Could not create IO cache while writing an incident event to the binary log.*");
-
-# Suppress the errors on slave
---source include/rpl_connection_slave.inc
-# TODO: Add slave suppression messages
 
 # Cleanup
 --source include/rpl_connection_master.inc
