@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -227,22 +227,32 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     IF(MY_UNAME)
       EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
-          (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+          (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[678](uek)?\\.")
           OR
-          (MY_HOST_FILESYSTEM_NAME MATCHES "\\.el[67]\\."))
+          (MY_HOST_FILESYSTEM_NAME MATCHES "\\.el[678]\\."))
         MESSAGE(STATUS
-          "This is el6 or el7 as found from 'uname -r' or 'rpm -qf /'")
+          "This is el6, el7 or el8 as found from 'uname -r' or 'rpm -qf /'")
         MESSAGE(STATUS "We probably need some devtoolset compiler")
+        # el6 /opt/rh/devtoolset-8/root/usr/bin/gcc
+        # el7 /opt/rh/devtoolset-9/root/usr/bin/gcc
+        # el8 /opt/rh/gcc-toolset-9/root/usr/bin/gcc
+        SET(ALTERNATIVE_PATHS
+          "/opt/rh/devtoolset-9"
+          "/opt/rh/gcc-toolset-9"
+          "/opt/rh/devtoolset-8"
+          )
+        FOREACH(OPT_PATH ${ALTERNATIVE_PATHS})
+          FIND_PROGRAM(ALTERNATIVE_GCC gcc
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}/root/usr/bin")
+          FIND_PROGRAM(ALTERNATIVE_GPP g++
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}/root/usr/bin")
+          FIND_PROGRAM(ALTERNATIVE_ENABLE enable
+            NO_DEFAULT_PATH
+            PATHS "${OPT_PATH}")
+        ENDFOREACH()
 
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/root/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_ENABLE enable
-          NO_DEFAULT_PATH
-          PATHS "/opt/rh/devtoolset-8/")
         IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
           SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
           SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
