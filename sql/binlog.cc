@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8448,7 +8448,7 @@ static inline int call_after_sync_hook(THD *queue_head) {
 void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                                                       bool need_lock_log,
                                                       const char *message) {
-  char errmsg[MYSQL_ERRMSG_SIZE];
+  char errmsg[MYSQL_ERRMSG_SIZE] = {0};
   if (message == nullptr)
     sprintf(
         errmsg,
