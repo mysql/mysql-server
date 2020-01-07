@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9418,17 +9418,14 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
                                                       bool need_lock_log,
                                                       const char* message)
 {
-  char errmsg[MYSQL_ERRMSG_SIZE];
+  char errmsg[MYSQL_ERRMSG_SIZE]= {0};
   if (!message)
     sprintf(errmsg, "An error occurred during %s stage of the commit. "
             "'binlog_error_action' is set to '%s'.",
             thd->commit_error== THD::CE_FLUSH_ERROR ? "flush" : "sync",
             binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   else
-  {
     strncpy(errmsg, message, MYSQL_ERRMSG_SIZE-1);
-    errmsg[MYSQL_ERRMSG_SIZE - 1] = '\0';
-  }
   if (binlog_error_action == ABORT_SERVER)
   {
     char err_buff[MYSQL_ERRMSG_SIZE + 27];
