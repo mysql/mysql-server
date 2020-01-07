@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,8 @@ class ndb_pushed_builder_ctx {
   bool is_pushable_as_child_scan(const AQP::Table_access *table,
                                  ndb_table_access_map all_key_parents);
 
-  bool is_outer_nests_referable(const AQP::Table_access *table);
+  bool is_outer_nests_referable(const AQP::Table_access *table,
+                                ndb_table_access_map key_parents);
 
   bool is_const_item_pushable(const Item *key_item,
                               const KEY_PART_INFO *key_part);
