@@ -1,58 +1,58 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License, version 2.0,
-# as published by the Free Software Foundation.
-#
-# This program is also distributed with certain software (including
-# but not limited to OpenSSL) that is licensed under separate terms,
-# as designated in a particular file or component or in included license
-# documentation.  The authors of MySQL hereby grant you an additional
-# permission to link the program and your derivative works with the
-# separately licensed software that they have included with MySQL.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License, version 2.0, for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-
-#===========================================================================
-#
-# MySQL Doxyfile for the MySQL server.
-#
-# Helper commands, to run from the top level directory
-#
-# To run doxygen:
-# ---------------
-#
-# Single-config builds:
-#
-#   make doxygen
-#
-# or
-#
-#   ninja doxygen
-#
-# Multi-config builds (Xcode, Visual Studio):
-#
-#   cmake --build . --config <Debug|RelWithDebInfo> --target doxygen
-#
-# The documentation can be found in ./doxygen/html/index.html
-# Doxygen stdout is written to ./doxyoutput.log
-# Doxygen stderr is written to ./doxyerror.log
-# All errors and warnings are written to ./tofix-all.log
-# Regressions are written to ./tofix-regressions.log
-#
-# To edit the list of known errors:
-# ---------------------------------
-#
-# See file Doxyfile-ignored
-#
-#===========================================================================
+## Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+##
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License, version 2.0,
+## as published by the Free Software Foundation.
+##
+## This program is also distributed with certain software (including
+## but not limited to OpenSSL) that is licensed under separate terms,
+## as designated in a particular file or component or in included license
+## documentation.  The authors of MySQL hereby grant you an additional
+## permission to link the program and your derivative works with the
+## separately licensed software that they have included with MySQL.
+##
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License, version 2.0, for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+##
+##===========================================================================
+##
+## MySQL Doxyfile for the MySQL server.
+##
+## Helper commands, to run from the top level directory
+##
+## To run doxygen:
+## ---------------
+##
+## Single-config builds:
+##
+##   make doxygen
+##
+## or
+##
+##   ninja doxygen
+##
+## Multi-config builds (Xcode, Visual Studio):
+##
+##   cmake --build . --config <Debug|RelWithDebInfo> --target doxygen
+##
+## The documentation can be found in ./doxygen/html/index.html
+## Doxygen stdout is written to ./doxyoutput.log
+## Doxygen stderr is written to ./doxyerror.log
+## All errors and warnings are written to ./tofix-all.log
+## Regressions are written to ./tofix-regressions.log
+##
+## To edit the list of known errors:
+## ---------------------------------
+##
+## See file Doxyfile-ignored
+##
+##===========================================================================
 
 # Doxyfile 1.8.17
 
@@ -155,7 +155,7 @@ OUTPUT_LANGUAGE        = English
 # Possible values are: None, LTR, RTL and Context.
 # The default value is: None.
 
-OUTPUT_TEXT_DIRECTION  = None
+# OUTPUT_TEXT_DIRECTION  = None
 
 # If the BRIEF_MEMBER_DESC tag is set to YES, doxygen will include brief member
 # descriptions after the members that are listed in the file and class
@@ -251,7 +251,7 @@ JAVADOC_AUTOBRIEF      = YES
 # interpreted by doxygen.
 # The default value is: NO.
 
-JAVADOC_BANNER         = NO
+# JAVADOC_BANNER         = NO
 
 # If the QT_AUTOBRIEF tag is set to YES then doxygen will interpret the first
 # line (until the first dot) of a Qt-style comment as the brief description. If
@@ -350,7 +350,7 @@ OPTIMIZE_OUTPUT_VHDL   = NO
 # separated into more groups, etc.
 # The default value is: NO.
 
-OPTIMIZE_OUTPUT_SLICE  = NO
+# OPTIMIZE_OUTPUT_SLICE  = NO
 
 # Doxygen selects the parser to use depending on the extension of the files it
 # parses. With this tag you can assign which parser to use for a given
@@ -526,7 +526,7 @@ EXTRACT_PRIVATE        = YES
 # methods of a class will be included in the documentation.
 # The default value is: NO.
 
-EXTRACT_PRIV_VIRTUAL   = NO
+# EXTRACT_PRIV_VIRTUAL   = NO
 
 # If the EXTRACT_PACKAGE tag is set to YES, all members with package or internal
 # scope will be included in the documentation.
@@ -882,7 +882,7 @@ WARN_LOGFILE           =
 ## whether is it meant to be part of the public documentation or not.
 ## Always explicitly add new components by name.
 ## For the same reason, do not add "plugin/" alone,
-## but list plugins explicitely
+## but list plugins explicitly
 
 INPUT                  = ./client \
                          ./components \
@@ -1369,7 +1369,7 @@ HTML_TIMESTAMP         = NO
 # The default value is: YES.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_DYNAMIC_MENUS     = YES
+# HTML_DYNAMIC_MENUS     = YES
 
 # If the HTML_DYNAMIC_SECTIONS tag is set to YES then the generated HTML
 # documentation will contain sections that can be hidden and shown after the
@@ -1656,7 +1656,7 @@ FORMULA_TRANSPARENT    = YES
 # to create new LaTeX commands to be used in formulas as building blocks. See
 # the section "Including formulas" for details.
 
-FORMULA_MACROFILE      =
+# FORMULA_MACROFILE      =
 
 # Enable the USE_MATHJAX option to render LaTeX formulas using MathJax (see
 # https://www.mathjax.org) which uses client side JavaScript for the rendering
@@ -1840,7 +1840,7 @@ MAKEINDEX_CMD_NAME     = makeindex
 # The default value is: makeindex.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-LATEX_MAKEINDEX_CMD    = makeindex
+# LATEX_MAKEINDEX_CMD    = makeindex
 
 # If the COMPACT_LATEX tag is set to YES, doxygen generates more compact LaTeX
 # documents. This may be useful for small projects and may help to save some
@@ -1982,7 +1982,7 @@ LATEX_TIMESTAMP        = NO
 # LATEX_OUTPUT directory will be used.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-LATEX_EMOJI_DIRECTORY  =
+# LATEX_EMOJI_DIRECTORY  =
 
 #---------------------------------------------------------------------------
 # Configuration options related to the RTF output
@@ -2126,7 +2126,7 @@ XML_PROGRAMLISTING     = YES
 # The default value is: NO.
 # This tag requires that the tag GENERATE_XML is set to YES.
 
-XML_NS_MEMB_FILE_SCOPE = NO
+# XML_NS_MEMB_FILE_SCOPE = NO
 
 #---------------------------------------------------------------------------
 # Configuration options related to the DOCBOOK output
