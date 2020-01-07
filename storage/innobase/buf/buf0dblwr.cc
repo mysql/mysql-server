@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -284,26 +284,38 @@ class Double_write {
     return s_instances->at(i);
   }
 
-  /** Wait for any pending batch to complete. */
-  void wait_for_pending_batch() noexcept {
+  /** Wait for any pending batch to complete.
+  @return true if the thread had to wait for another batch. */
+  bool wait_for_pending_batch() noexcept {
     ut_ad(mutex_own(&m_mutex));
 
     auto sig_count = os_event_reset(m_event);
 
     std::atomic_thread_fence(std::memory_order_acquire);
 
-    while (m_batch_running.load(std::memory_order_acquire)) {
+    if (m_batch_running.load(std::memory_order_acquire)) {
+      mutex_exit(&m_mutex);
+
       MONITOR_INC(MONITOR_DBLWR_FLUSH_WAIT_EVENTS);
       os_event_wait_low(m_event, sig_count);
       sig_count = os_event_reset(m_event);
+      return true;
     }
+
+    return false;
   }
 
   /** Flush buffered pages to disk, clear the buffers.
-  @param[in] flush_type           FLUSH LIST or LRU LIST flush. */
-  void flush_to_disk(buf_flush_t flush_type) noexcept {
+  @param[in] flush_type           FLUSH LIST or LRU LIST flush.
+  @return false if there was a write batch already in progress. */
+  bool flush_to_disk(buf_flush_t flush_type) noexcept {
+    ut_ad(mutex_own(&m_mutex));
+
     /* Wait for any batch writes that are in progress. */
-    wait_for_pending_batch();
+    if (wait_for_pending_batch()) {
+      ut_ad(!mutex_own(&m_mutex));
+      return false;
+    }
 
     MONITOR_INC(MONITOR_DBLWR_FLUSH_REQUESTS);
 
@@ -312,6 +324,8 @@ class Double_write {
 
     ut_a(m_buffer.empty());
     ut_a(m_buf_pages.empty());
+
+    return true;
   }
 
   /** Process the requests in the flush queue, write the blocks to the
@@ -323,9 +337,13 @@ class Double_write {
   /** Force a flush of the page queue.
   @param[in] flush_type           FLUSH LIST or LRU LIST flush. */
   void force_flush(buf_flush_t flush_type) noexcept {
-    mutex_enter(&m_mutex);
-    if (!m_buf_pages.empty()) {
-      flush_to_disk(flush_type);
+    for (;;) {
+      mutex_enter(&m_mutex);
+      if (!m_buf_pages.empty() && !flush_to_disk(flush_type)) {
+        ut_ad(!mutex_own(&m_mutex));
+        continue;
+      }
+      break;
     }
     mutex_exit(&m_mutex);
   }
@@ -344,13 +362,20 @@ class Double_write {
 
     ut_a(len <= univ_page_size.physical());
 
-    mutex_enter(&m_mutex);
+    for (;;) {
+      mutex_enter(&m_mutex);
 
-    if (!m_buffer.append(frame, len)) {
-      flush_to_disk(flush_type);
+      if (m_buffer.append(frame, len)) {
+        break;
+      }
 
-      auto success = m_buffer.append(frame, len);
-      ut_a(success);
+      if (flush_to_disk(flush_type)) {
+        auto success = m_buffer.append(frame, len);
+        ut_a(success);
+        break;
+      }
+
+      ut_ad(!mutex_own(&m_mutex));
     }
 
     m_buf_pages.push_back(bpage);
