@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,9 @@ public:
   // is the same as 'fragmentNoKeyLen'.
   static void setMultiFragFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getMultiFragFlag(const Uint32 & requestInfo);
+
+  static void setFirstMatchFlag(Uint32 & requestInfo, Uint32 val);
+  static Uint32 getFirstMatchFlag(const Uint32 requestInfo);
 };
 
 /*
@@ -315,6 +318,7 @@ public:
  * a = Prio A scan           - 1  Bit 18
  * i = Not interpreted flag  - 1  Bit 19
  * m = Multi fragment scan   - 1  Bit 20
+ * f = First match flag      - 1  Bit 21
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -348,6 +352,7 @@ public:
 #define SF_PRIO_A_SHIFT     (18)
 #define SF_NOT_INTERPRETED_SHIFT (19)
 #define SF_MULTI_FRAG_SHIFT  (20)
+#define SF_FIRST_MATCH_SHIFT (21)
 
 inline 
 Uint32
@@ -557,6 +562,20 @@ ScanFragReq::setMultiFragFlag(UintR & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setMultiFragFlag");
   requestInfo= (requestInfo & ~(1 << SF_MULTI_FRAG_SHIFT)) |
                (val << SF_MULTI_FRAG_SHIFT);
+}
+
+inline
+Uint32
+ScanFragReq::getFirstMatchFlag(const Uint32 requestInfo){
+  return (requestInfo >> SF_FIRST_MATCH_SHIFT) & 1;
+}
+
+inline
+void
+ScanFragReq::setFirstMatchFlag(Uint32 & requestInfo, UintR val){
+  ASSERT_BOOL(val, "ScanFragReq::setFirstMatchFlag");
+  requestInfo= (requestInfo & ~(1 << SF_FIRST_MATCH_SHIFT)) |
+               (val << SF_FIRST_MATCH_SHIFT);
 }
 
 inline
