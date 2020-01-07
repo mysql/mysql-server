@@ -1,3 +1,4 @@
+set @@global.ndb_schema_dist_lock_wait_timeout = 240;
 call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible memleak");
 create table parent(a int primary key, b int, key(b)) engine=ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
@@ -130,3 +131,4 @@ drop table parent;
 drop procedure query_eq_ref_load;
 drop procedure query_ref_load;
 drop procedure query_ref_b_load;
+set @@global.ndb_schema_dist_lock_wait_timeout = 30;
