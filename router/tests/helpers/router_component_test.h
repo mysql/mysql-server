@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #ifndef _ROUTER_COMPONENT_TEST_H_
 #define _ROUTER_COMPONENT_TEST_H_
 
+#include <chrono>
+
 #include <gmock/gmock.h>
 
 #include "process_manager.h"
@@ -45,6 +47,19 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
   /** @brief Deinitializes the test
    */
   void TearDown() override;
+
+  /** @brief Wait until the process' log contains a given pattern
+   *
+   * @param process process handle
+   * @param pattern pattern in the log file to wait for
+   * @param timeout maximum time to wait for a given pattern
+   *
+   * @return bool value indicating if the pattern was found in the log file or
+   * not
+   */
+  bool wait_log_contains(const ProcessWrapper &process,
+                         const std::string &pattern,
+                         std::chrono::milliseconds timeout);
 };
 
 #endif  // _ROUTER_COMPONENT_TEST_H_

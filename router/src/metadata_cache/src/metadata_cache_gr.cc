@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -491,7 +491,7 @@ bool GRMetadataCache::refresh() {
       break;
     }
 
-    if (!meta_data_->connect(metadata_server)) {
+    if (!meta_data_->connect_and_setup_session(metadata_server)) {
       log_error("Failed to connect to metadata server %s",
                 metadata_server.mysql_server_uuid.c_str());
       continue;

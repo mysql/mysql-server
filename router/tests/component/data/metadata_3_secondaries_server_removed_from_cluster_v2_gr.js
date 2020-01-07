@@ -64,6 +64,8 @@ var router_select_group_membership_with_primary_mode_removed_secondary =
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "router_start_transaction",
   "router_commit",
   "router_select_schema_version",

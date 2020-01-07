@@ -14,6 +14,8 @@ var options = {
 };
 
 var common_responses = common_stmts.prepare_statement_responses([
+  "router_set_session_options",
+  "router_set_gr_consistency_level",
   "router_start_transaction",
   "router_select_replication_group_name",
   "router_select_cluster_id_v2_ar",

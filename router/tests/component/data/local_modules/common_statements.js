@@ -956,6 +956,21 @@ exports.get = function get(stmt_key, options) {
               "NOW() where router_id = " + options.router_id,
       "ok": {}
     },
+
+    router_set_session_options:
+    {
+      "stmt": "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, " +
+              "@@SESSION.character_set_results=utf8, @@SESSION.character_set_connection=utf8, " +
+              "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES," +
+              "NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'",
+      "ok": {}
+    },
+
+    router_set_gr_consistency_level:
+    {
+      "stmt": "SET @@SESSION.group_replication_consistency='EVENTUAL'",
+      "ok": {}
+    },
   };
 
   return statements[stmt_key];

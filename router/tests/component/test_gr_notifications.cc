@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -529,7 +529,7 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {1500ms,
+             {2500ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -686,7 +686,7 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
       << cluster_node.get_full_output();
 
-  SCOPED_TRACE("// Make our metadata server return 1 metadata server");
+  SCOPED_TRACE("// Make our metadata server return 1 cluster node");
   set_mock_metadata(cluster_http_port, kGroupId, {cluster_classic_port},
                     {cluster_x_port});
   // instrumentate the mock to treat the mysqlx_wait_timeout as unsupported
@@ -796,12 +796,13 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
       << "mock: " << cluster_node.get_full_output() << "\n"
       << "router: " << router.get_full_logfile();
 
-  const std::string log_content = router.get_full_logfile();
-  EXPECT_TRUE(
-      pattern_found(log_content,
-                    "WARNING.* Failed enabling notices on the node.* This "
-                    "MySQL server version does not support GR notifications.*"))
-      << log_content;
+  const bool found = wait_log_contains(
+      router,
+      "WARNING.* Failed enabling notices on the node.* This "
+      "MySQL server version does not support GR notifications.*",
+      2s);
+
+  EXPECT_TRUE(found) << router.get_full_logfile();
 }
 
 INSTANTIATE_TEST_CASE_P(GrNotificationNoticesUnsupported,

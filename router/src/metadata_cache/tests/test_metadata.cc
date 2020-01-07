@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -315,7 +315,7 @@ class MetadataTest : public ::testing::Test {
         {"127.0.0.1:3310", "127.0.0.1:3320", "127.0.0.1:3330"});
 
     EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
-    EXPECT_TRUE(metadata.connect(metadata_servers[0]));
+    EXPECT_TRUE(metadata.connect_and_setup_session(metadata_servers[0]));
   }
 
   void enable_connection(unsigned session, unsigned port) {
@@ -444,7 +444,7 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
 
   // should connect successfully
   EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
-  EXPECT_TRUE(metadata.connect(metadata_server));
+  EXPECT_TRUE(metadata.connect_and_setup_session(metadata_server));
 }
 
 TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
@@ -454,7 +454,7 @@ TEST_F(MetadataTest, ConnectToMetadataServer_Failed) {
 
   // connetion attempt should fail
   EXPECT_CALL(session_factory.get(0), flag_fail(_, 3310)).Times(1);
-  EXPECT_FALSE(metadata.connect(metadata_server));
+  EXPECT_FALSE(metadata.connect_and_setup_session(metadata_server));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -940,6 +940,30 @@ std::vector<std::string> ClusterMetadataGRV2::get_grant_statements(
 std::vector<std::string> ClusterMetadataAR::get_grant_statements(
     const std::string &new_accounts) const {
   return get_grant_statements_v2(new_accounts);
+}
+
+// default SQL_MODE as of 8.0.19
+constexpr const char *kDefaultSqlMode =
+    "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,"
+    "NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION";
+
+void setup_metadata_session(MySQLSession &session) {
+  session.execute(
+      "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+      "@@SESSION.character_set_results=utf8, "
+      "@@SESSION.character_set_connection=utf8, @@SESSION.sql_mode='"s +
+      kDefaultSqlMode + "'");
+
+  try {
+    session.execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
+  } catch (const MySQLSession::Error &e) {
+    if (e.code() != ER_UNKNOWN_SYSTEM_VARIABLE) {
+      // ER_UNKNOWN_SYSTEM_VARIABLE is ok, means that this version does not
+      // support group_replication_consistency so we don't have to worry about
+      // it
+      throw;
+    }
+  }
 }
 
 }  // namespace mysqlrouter

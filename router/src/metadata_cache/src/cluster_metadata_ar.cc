@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
   for (size_t i = 0; i < instances.size(); ++i) {
     const auto &instance = instances[i];
     try {
-      if (!connect(instance)) {
+      if (!connect_and_setup_session(instance)) {
         log_warning("Could not connect to the instance: %s on %s:%d",
                     instance.mysql_server_uuid.c_str(), instance.host.c_str(),
                     instance.port);

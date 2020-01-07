@@ -74,6 +74,8 @@ var nodes = function(host, port_and_state) {
 
     // prepare the responses for common statements
     var common_responses = common_stmts.prepare_statement_responses([
+      "router_set_session_options",
+      "router_set_gr_consistency_level",
       "select_port",
       "router_commit",
       "router_rollback",

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,9 +72,19 @@ class FailoverTest : public ::testing::Test {
   // make queries on metadata schema return a 3 members replicaset
   void expect_metadata_1() {
     MySQLSessionReplayer &m = *session;
-    m.expect_execute("START TRANSACTION");
+
+    m.expect_execute(
+        "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+        "@@SESSION.character_set_results=utf8, "
+        "@@SESSION.character_set_connection=utf8, "
+        "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+        "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+    m.then_ok();
+    m.expect_execute("SET @@SESSION.group_replication_consistency='EVENTUAL'");
     m.then_ok();
 
+    m.expect_execute("START TRANSACTION");
+    m.then_ok();
     m.expect_query_one(
         "SELECT * FROM mysql_innodb_cluster_metadata.schema_version");
     m.then_return(3, {
