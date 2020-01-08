@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -462,10 +462,8 @@ SET(SQL_SHARED_SOURCES
   resourcegroups/resource_group_mgr.cc
   resourcegroups/resource_group_sql_cmd.cc
   rpl_group_replication.cc
-  rpl_handler.cc
   rpl_transaction_ctx.cc
   rpl_transaction_write_set_ctx.cc
-  rpl_trx_tracking.cc
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
@@ -1022,6 +1020,7 @@ IF(MSVC)
     "$<TARGET_FILE:binlogevents_static>"
     "$<TARGET_FILE:mysys>"
     "$<TARGET_FILE:mytime>"
+    "$<TARGET_FILE:rpl>"
     "$<TARGET_FILE:slave>"
     "$<TARGET_FILE:sql_main>"
     "$<TARGET_FILE:strings>"

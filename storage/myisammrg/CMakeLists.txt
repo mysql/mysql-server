@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@ SET(MYISAMMRG_SOURCES
   myrg_rnext_same.cc
   myrg_rprev.cc
   myrg_rrnd.cc
-  myrg_rsame.cc
   myrg_static.cc
   myrg_update.cc
   myrg_write.cc
