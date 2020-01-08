@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,7 @@ class View_error_handler : public Internal_error_handler {
 };
 
 /**
-  This internal handler is used to trap ER_NO_SUCH_TABLE.
+  This internal handler is used to trap ER_NO_SUCH_TABLE and ER_BAD_DB_ERROR.
 */
 
 class No_such_table_error_handler : public Internal_error_handler {
@@ -219,7 +219,7 @@ class No_such_table_error_handler : public Internal_error_handler {
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
                                 const char *) {
-    if (sql_errno == ER_NO_SUCH_TABLE) {
+    if (sql_errno == ER_BAD_DB_ERROR || sql_errno == ER_NO_SUCH_TABLE) {
       m_handled_errors++;
       return true;
     }
@@ -229,14 +229,15 @@ class No_such_table_error_handler : public Internal_error_handler {
   }
 
   /**
-    Returns true if one or more ER_NO_SUCH_TABLE errors have been
-    trapped and no other errors have been seen. false otherwise.
+    Returns true if one or more ER_NO_SUCH_TABLE and ER_BAD_DB_ERROR errors have
+    been trapped and no other errors have been seen. false otherwise.
   */
   bool safely_trapped_errors() const {
     /*
       If m_unhandled_errors != 0, something else, unanticipated, happened,
       so the error is not trapped but returned to the caller.
-      Multiple ER_NO_SUCH_TABLE can be raised in case of views.
+      Multiple ER_NO_SUCH_TABLE and ER_BAD_DB_ERROR can be raised in case of
+      views.
     */
     return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
   }
