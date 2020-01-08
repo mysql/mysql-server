@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,7 +66,7 @@ struct Buffer {
 
     auto n_bytes = m_n_bytes + univ_page_size.physical();
 
-    m_ptr_unaligned = static_cast<byte *>(ut_malloc_nokey(n_bytes));
+    m_ptr_unaligned = static_cast<byte *>(ut_zalloc_nokey(n_bytes));
 
     m_ptr = static_cast<byte *>(ut_align(m_ptr_unaligned, UNIV_PAGE_SIZE));
 
