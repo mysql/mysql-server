@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -663,13 +663,13 @@ TEST_F(CommonBootstrapTest, BootstrapPidfileOpt) {
  */
 TEST_F(CommonBootstrapTest, BootstrapPidfileCfg) {
   TempDirectory mytmp;
+  TempDirectory conf_dir("conf");
   std::string pidfile =
       mysql_harness::Path(mytmp.name()).real_path().join("test.pid").str();
 
   auto params = get_DEFAULT_defaults();
   params["pid_file"] = pidfile;
-  std::string conf_file =
-      create_config_file(get_data_dir().c_str(), "", &params);
+  std::string conf_file = create_config_file(conf_dir.name(), "", &params);
 
   {
     std::vector<Config> config{
