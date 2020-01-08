@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -517,13 +517,19 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
   Uint32 bitPos = 0;
   const Uint8 *pos = NULL;
 
+  bool pk_is_known = false;
   if (likely(result_record != NULL))
   {
     for (Uint32 i= 0; i<result_record->noOfColumns; i++)
     {
       const NdbRecord::Attr *col= &result_record->columns[i];
+      const bool is_pk= (col->flags & NdbRecord::IsKey);
       const Uint32 attrId= col->attrId;
 
+      if (is_pk)
+      {
+        pk_is_known = true;
+      }
       /* Skip column if result_mask says so and we don't need
        * to read it 
        */
@@ -556,7 +562,12 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
   // variable size bitmask the 'packed' columns and their null bits.
   if (sizeInWords > 0)
   {
-    const Uint32 attrCount= result_record->columns[result_record->noOfColumns -1].attrId+1;
+    Uint32 attrCount= result_record->columns[result_record->noOfColumns -1].attrId+1;
+    if (! pk_is_known)
+    {
+      // Hidden key column is still present in bitmask
+      attrCount++;
+    }
     const Uint32 sigBitmaskWords= ((attrCount+nullCount+31)>>5);
     sizeInWords += (1+sigBitmaskWords);   //AttrHeader + bitMask
   }
