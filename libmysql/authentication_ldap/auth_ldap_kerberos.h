@@ -23,7 +23,7 @@
 #ifndef AUTH_LDAP_KERBEROS_H_
 #define AUTH_LDAP_KERBEROS_H_
 
-#include <krb5.h>
+#include <krb5/krb5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -87,7 +87,7 @@ class Sasl_client {
   int send_sasl_request_to_server(const unsigned char *request, int request_len,
                                   unsigned char **reponse, int *response_len);
   void set_user_info(std::string name, std::string pwd);
-  void sasl_client_done_wrapper();
+  static void sasl_client_done_wrapper();
   std::string get_method();
 
  protected:
