@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1214,14 +1214,14 @@ static bool trx_purge_check_if_marked_undo_is_empty(purge_iter_t *limit) {
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
   Rsegs *marked_rsegs = marked_space->rsegs();
 
-  /* If an undo tablespace is marked, its rsegs are inactive. */
-  ut_ad(!marked_rsegs->is_active());
-
   /* Scan over each rseg in this inactive undo tablespace
   and ensure that it does not hold any active undo records. */
   bool all_free = true;
 
   marked_rsegs->x_lock();
+
+  /* If an undo tablespace is marked, its rsegs are inactive. */
+  ut_ad(!marked_rsegs->is_active());
 
   for (auto rseg : *marked_rsegs) {
     rseg->latch();
