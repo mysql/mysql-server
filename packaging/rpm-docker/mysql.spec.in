@@ -78,9 +78,6 @@ BuildRequires:  devtoolset-8-gcc
 BuildRequires:  devtoolset-8-gcc-c++
 %endif
 BuildRequires:  bison >= 2.1
-BuildRequires:  perl
-BuildRequires:  perl(Time::HiRes)
-BuildRequires:  perl(Env)
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
@@ -311,6 +308,7 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 rm -rf %{buildroot}/usr/share/mysql-*/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
+rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
 %endif
@@ -359,7 +357,6 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
 %attr(755, root, root) %{_sbindir}/ndbd
 %attr(755, root, root) %{_sbindir}/ndbmtd
-%attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
 %{_datadir}/mysql-*/memcache-api/
@@ -470,6 +467,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Wed Jan 8 2020 Piotr Obrzut <piotr.obrzut@oracle.com> - 8.0.20-1
+- Remove Perl dependency for cluster
+
 * Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
 - Added component_test_udf_services test component
 
