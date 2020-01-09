@@ -1241,6 +1241,9 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> REQUIRE_ROW_FORMAT_SYM        /* MYSQL */
 %token<lexer.keyword> PASSWORD_LOCK_TIME_SYM        /* MYSQL */
 %token<lexer.keyword> FAILED_LOGIN_ATTEMPTS_SYM     /* MYSQL */
+%token<lexer.keyword> REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM  /* MYSQL */
+%token<lexer.keyword> STREAM_SYM                    /* MYSQL */
+%token<lexer.keyword> OFF_SYM                       /* SQL-1999-R */
 
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
@@ -2665,6 +2668,7 @@ master_def:
               Lex->mi.require_row_format = $3;
             }
           }
+        | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM EQ table_primary_key_check_def
         | master_file_def
         ;
 
@@ -2692,6 +2696,21 @@ privilege_check_def:
             Lex->mi.privilege_checks_none= true;
             Lex->mi.privilege_checks_username= NULL;
             Lex->mi.privilege_checks_hostname= NULL;
+          }
+        ;
+
+table_primary_key_check_def:
+          STREAM_SYM
+          {
+            Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_STREAM;
+          }
+        | ON_SYM
+          {
+            Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_ON;
+          }
+        | OFF_SYM
+          {
+            Lex->mi.require_table_primary_key_check= LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF;
           }
         ;
 
@@ -14526,6 +14545,7 @@ ident_keywords_unambiguous:
         | NULLS_SYM
         | NUMBER_SYM
         | NVARCHAR_SYM
+        | OFF_SYM
         | OFFSET_SYM
         | OJ_SYM
         | OLD_SYM
@@ -14588,6 +14608,7 @@ ident_keywords_unambiguous:
         | REPLICATE_WILD_DO_TABLE
         | REPLICATE_WILD_IGNORE_TABLE
         | REQUIRE_ROW_FORMAT_SYM
+        | REQUIRE_TABLE_PRIMARY_KEY_CHECK_SYM
         | RESOURCES
         | RESPECT_SYM
         | RESTORE_SYM
@@ -14638,6 +14659,7 @@ ident_keywords_unambiguous:
         | STATS_SAMPLE_PAGES_SYM
         | STATUS_SYM
         | STORAGE_SYM
+        | STREAM_SYM
         | STRING_SYM
         | SUBCLASS_ORIGIN_SYM
         | SUBDATE_SYM

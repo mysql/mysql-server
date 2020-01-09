@@ -127,6 +127,20 @@
 #
 #       --let $rpl_require_row_format= *:1
 #
+#   $rpl_require_table_primary_key_check
+#     By default, CHANGE MASTER is executed without specifying the
+#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` parameter.
+#     Instantiating `$rpl_require_table_primary_key_check` sets
+#     `REQUIRE_TABLE_PRIMARY_KEY_CHECK` for the `CHANGE MASTER TO...` command.
+#     For example, to specify that server_1 should use STREAM as its policy
+#     for primary keys and server_5 shouldn't do the checks do:
+#
+#       --let $rpl_require_table_primary_key_check= 1:STREAM,5:OFF
+#
+#     To specify that all servers should have the same check policy, do:
+#
+#       --let $rpl_require_table_primary_key_check= *:ON
+#
 # ==== Internal variables configured by this file ====
 #
 # This file sets up the following variables, which are used by other
@@ -255,6 +269,12 @@ if ($_rpl_change_topology_privilege_checks_all_index)
 if ($_rpl_change_topology_require_row_all_index)
 {
   --let $_rpl_change_topology_require_row_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_row_format", $_rpl_change_topology_require_row_all_index), ',', 1), ':', -1)`
+}
+
+--let $_rpl_require_table_primary_key_check_all_index= `SELECT LOCATE('*:', "$rpl_require_table_primary_key_check")`
+if ($_rpl_require_table_primary_key_check_all_index)
+{
+  --let $_rpl_require_table_primary_key_check_all= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_table_primary_key_check", $_rpl_require_table_primary_key_check_all_index), ',', 1), ':', -1)`
 }
 
 if (!$rpl_skip_change_master)

@@ -79,7 +79,7 @@ insert into test.pfs_published_schema
 
 insert into test.pfs_published_schema
  values("MySQL 8.0.20",
-        "2faa48a2fd4d623deacf931ac88de8e4980c8fc9650665ff0f73f32c456a52aa");
+        "a9aa0ab4a94ca91622145d735e60bbb03577616970351032d3194d8bfd7a69c7");
 
 create table test.pfs_check_table
   (id int NOT NULL AUTO_INCREMENT,

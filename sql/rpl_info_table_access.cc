@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,7 +303,11 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
     if (fields[field_idx]->is_null()) {
       bitmap_set_bit(&field_values->is_null, field_idx);
     } else {
-      fields[field_idx]->val_str(&str);
+      if (fields[field_idx]->real_type() == MYSQL_TYPE_ENUM) {
+        longlong enum_value = fields[field_idx]->val_int();
+        str.set_int(enum_value, false, &my_charset_bin);
+      } else
+        fields[field_idx]->val_str(&str);
       field_values->value[field_idx].copy(str.c_ptr_safe(), str.length(),
                                           &my_charset_bin);
       bitmap_clear_bit(&field_values->is_null, field_idx);

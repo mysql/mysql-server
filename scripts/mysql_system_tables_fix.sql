@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -860,6 +860,9 @@ ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 C
                                  MODIFY Sql_delay INTEGER COMMENT 'The number of seconds that the slave must lag behind the master.',
                                  MODIFY Number_of_workers INTEGER UNSIGNED,
                                  MODIFY Id INTEGER UNSIGNED COMMENT 'Internal Id that uniquely identifies this record.';
+
+# Columns added to keep information about REQUIRE_TABLE_PRIMARY_KEY_CHECK replication field
+ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries' AFTER Require_row_format;
 
 #
 # Drop legacy NDB distributed privileges function & procedures

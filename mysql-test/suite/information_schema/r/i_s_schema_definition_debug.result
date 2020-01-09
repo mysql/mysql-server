@@ -1637,6 +1637,5 @@ include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to I_S version 80020.
 The schema checksum corresponds to I_S version 800201.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]

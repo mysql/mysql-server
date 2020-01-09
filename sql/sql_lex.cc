@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4711,6 +4711,7 @@ void LEX_MASTER_INFO::initialize() {
   privilege_checks_none = false;
   privilege_checks_username = privilege_checks_hostname = nullptr;
   require_row_format = -1;
+  require_table_primary_key_check = LEX_MI_PK_CHECK_UNCHANGED;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

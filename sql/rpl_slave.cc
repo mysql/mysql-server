@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1368,9 +1368,11 @@ bool reset_info(Master_info *mi) {
     return true;
   }
 
-  bool have_relay_log_data_to_persist =                  // Only want to keep
-      (!mi->rli->is_privilege_checks_user_null() ||      // if PCU is not null
-       mi->rli->is_row_format_required()) &&             // or RRF is 1
+  bool have_relay_log_data_to_persist =              // Only want to keep
+      (!mi->rli->is_privilege_checks_user_null() ||  // if PCU is not null
+       mi->rli->is_row_format_required() ||          // or RRF is 1
+       Relay_log_info::PK_CHECK_STREAM !=            // or RTPKC != STREAM
+           mi->rli->get_require_table_primary_key_check()) &&
       opt_rli_repository_id == INFO_REPOSITORY_TABLE &&  // in TABLE repository.
       opt_mi_repository_id == INFO_REPOSITORY_TABLE;
 
@@ -5793,6 +5795,14 @@ static void *handle_slave_worker(void *arg) {
 
   thd->variables.require_row_format = rli->is_row_format_required();
 
+  if (Relay_log_info::PK_CHECK_STREAM !=
+      rli->get_require_table_primary_key_check())
+    thd->variables.sql_require_primary_key =
+        (rli->get_require_table_primary_key_check() ==
+         Relay_log_info::PK_CHECK_ON);
+  w->set_require_table_primary_key_check(
+      rli->get_require_table_primary_key_check());
+
   thd_manager->add_thd(thd);
   thd_added = true;
 
@@ -6809,6 +6819,13 @@ extern "C" void *handle_slave_sql(void *arg) {
     /* Set applier thread InnoDB priority */
     set_thd_tx_priority(thd, rli->get_thd_tx_priority());
     thd->variables.require_row_format = rli->is_row_format_required();
+
+    if (Relay_log_info::PK_CHECK_STREAM !=
+        rli->get_require_table_primary_key_check())
+      thd->variables.sql_require_primary_key =
+          (rli->get_require_table_primary_key_check() ==
+           Relay_log_info::PK_CHECK_ON);
+
     rli->transaction_parser.reset();
 
     thd_manager->add_thd(thd);
@@ -9147,7 +9164,9 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO *lex_mi,
   /* Check if *at least one* execute option is given on change master command*/
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos ||
       lex_mi->sql_delay != -1 || lex_mi->privilege_checks_username != nullptr ||
-      lex_mi->privilege_checks_none || lex_mi->require_row_format != -1)
+      lex_mi->privilege_checks_none || lex_mi->require_row_format != -1 ||
+      lex_mi->require_table_primary_key_check !=
+          LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED)
     have_execute_option = true;
 
   if (lex_mi->relay_log_name || lex_mi->relay_log_pos)
@@ -9389,6 +9408,28 @@ static bool change_execute_options(LEX_MASTER_INFO *lex_mi, Master_info *mi) {
 
   if (lex_mi->require_row_format != -1) {  // Is included in CHM statement
     mi->rli->set_require_row_format(lex_mi->require_row_format);
+  }
+
+  if (lex_mi->require_table_primary_key_check !=
+      LEX_MASTER_INFO::LEX_MI_PK_CHECK_UNCHANGED) {
+    switch (lex_mi->require_table_primary_key_check) {
+      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_STREAM):
+        mi->rli->set_require_table_primary_key_check(
+            Relay_log_info::PK_CHECK_STREAM);
+        break;
+      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_ON):
+        mi->rli->set_require_table_primary_key_check(
+            Relay_log_info::PK_CHECK_ON);
+        break;
+      case (LEX_MASTER_INFO::LEX_MI_PK_CHECK_OFF):
+        mi->rli->set_require_table_primary_key_check(
+            Relay_log_info::PK_CHECK_OFF);
+        break;
+
+      default:          /* purecov: tested */
+        DBUG_ASSERT(0); /* purecov: tested */
+        break;
+    }
   }
 
   if (lex_mi->relay_log_name) {

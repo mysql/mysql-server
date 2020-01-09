@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,8 @@ const char *info_rli_fields[] = {"number_of_lines",
                                  "channel_name",
                                  "privilege_checks_user",
                                  "privilege_checks_hostname",
-                                 "require_row_format"};
+                                 "require_row_format",
+                                 "require_table_primary_key_check"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -142,6 +143,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       m_privilege_checks_hostname{""},
       m_privilege_checks_user_corrupted{false},
       m_require_row_format(false),
+      m_require_table_primary_key_check(PK_CHECK_STREAM),
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
       ignore_log_space_limit(false),
@@ -1972,6 +1974,10 @@ bool Relay_log_info::clear_info() {
 
   if (this->handler->set_info(this->m_require_row_format)) return true;
 
+  if (DBUG_EVALUATE_IF("rpl_rli_clear_info_error", true, false) ||
+      this->handler->set_info((ulong)this->m_require_table_primary_key_check))
+    return true;
+
   if (this->handler->flush_info(true)) return true;
 
   this->group_relay_log_name[0] = '\0';
@@ -2011,6 +2017,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   int temp_sql_delay = 0;
   int temp_internal_id = internal_id;
   int temp_require_row_format = 0;
+  ulong temp_require_table_primary_key_check = Relay_log_info::PK_CHECK_STREAM;
   Rpl_info_handler::enum_field_get_status status{
       Rpl_info_handler::enum_field_get_status::FAILURE};
 
@@ -2140,6 +2147,16 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   }
   m_require_row_format = temp_require_row_format;
 
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_REQUIRE_TABLE_PRIMARY_KEY_CHECK) {
+    if (!!from->get_info(&temp_require_table_primary_key_check, 1)) return true;
+  }
+  if (temp_require_table_primary_key_check < PK_CHECK_STREAM ||
+      temp_require_table_primary_key_check > Relay_log_info::PK_CHECK_OFF)
+    return true;
+  m_require_table_primary_key_check =
+      static_cast<Relay_log_info::enum_require_table_primary_key>(
+          temp_require_table_primary_key_check);
+
   group_relay_log_pos = temp_group_relay_log_pos;
   group_master_log_pos = temp_group_master_log_pos;
   sql_delay = (int32)temp_sql_delay;
@@ -2224,6 +2241,10 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
   }
 
   if (to->set_info((int)m_require_row_format)) {
+    return true; /* purecov: inspected */
+  }
+
+  if (to->set_info((ulong)m_require_table_primary_key_check)) {
     return true; /* purecov: inspected */
   }
   return false;
@@ -3134,6 +3155,17 @@ bool Relay_log_info::is_row_format_required() const {
 void Relay_log_info::set_require_row_format(bool require_row) {
   DBUG_TRACE;
   this->m_require_row_format = require_row;
+}
+
+Relay_log_info::enum_require_table_primary_key
+Relay_log_info::get_require_table_primary_key_check() const {
+  return this->m_require_table_primary_key_check;
+}
+
+void Relay_log_info::set_require_table_primary_key_check(
+    Relay_log_info::enum_require_table_primary_key require_pk) {
+  DBUG_TRACE;
+  this->m_require_table_primary_key_check = require_pk;
 }
 
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }

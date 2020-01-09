@@ -17,16 +17,6 @@
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
-# SET @@sql_log_bin = 0;
-# CALL mtr.add_suppression(".*Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'.*");
-# CALL mtr.add_suppression(".*Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'.*");
-# CALL mtr.add_suppression(".*Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'.*");
-# CALL mtr.add_suppression(".*Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'.*");
-# CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
-# SET @@sql_log_bin = 1;
-
-# --source include/rpl_sync.inc
-
 --echo
 --echo # 1) Stop the applier for `server1`.
 --source include/gr_stop_applier_sql_thread.inc

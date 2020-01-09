@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4713,7 +4713,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->variables.default_collation_for_utf8mb4 =
             &my_charset_utf8mb4_general_ci;
 
-      if (sql_require_primary_key != 0xff) {
+      if (sql_require_primary_key != 0xff &&
+          Relay_log_info::PK_CHECK_STREAM ==
+              rli->get_require_table_primary_key_check()) {
         DBUG_ASSERT(sql_require_primary_key == 0 ||
                     sql_require_primary_key == 1);
         if (!security_context.skip_priv_checks() &&

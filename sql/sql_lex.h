@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -375,6 +375,21 @@ struct LEX_MASTER_INFO {
     stream.
    */
   int require_row_format;
+
+  /**
+    Identifies what is the slave policy on primary keys in tables.
+    If set to STREAM it just replicates the value of sql_require_primary_key.
+    If set to ON it fails when the source tries to replicate a table creation
+    or alter operation that does not have a primary key.
+    If set to OFF it does not enforce any policies on the channel for primary
+    keys.
+  */
+  enum {
+    LEX_MI_PK_CHECK_UNCHANGED = 0,
+    LEX_MI_PK_CHECK_STREAM = 1,
+    LEX_MI_PK_CHECK_ON = 2,
+    LEX_MI_PK_CHECK_OFF = 3
+  } require_table_primary_key_check;
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();

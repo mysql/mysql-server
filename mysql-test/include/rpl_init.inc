@@ -65,6 +65,7 @@
 #    [--let $rpl_privilege_checks_user= 1:'user'@'host',2:NULL]
 #    [--let $rpl_privilege_checks_user_additional_grants= CREATE,INSERT,SELECT]
 #    [--let $rpl_require_row_format= *:0,1:0,2:1]
+#    [--let $rpl_require_table_primary_key_check= *:STREAM,1:ON,2:OFF]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -155,6 +156,9 @@
 #      See `include/rpl_change_topology.inc`.
 #
 #   $rpl_require_row_format
+#      See `include/rpl_change_topology.inc`.
+#
+#   $rpl_require_table_primary_key_check
 #      See `include/rpl_change_topology.inc`.
 #
 # ==== Side effects ====

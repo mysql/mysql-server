@@ -182,6 +182,23 @@ if (!$_rpl_change_topology_helper_skip)
   }
   --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_ROW_FORMAT = $_rpl_change_topology_helper_require_row,
 
+  # Get REQUIRE_TABLE_PRIMARY_KEY_CHECK for current `$rpl_slave`
+  --let $_rpl_change_topology_helper_require_table_primary_key_check_index= `SELECT LOCATE('$rpl_slave:', "$rpl_require_table_primary_key_check")`
+  --let $_rpl_change_topology_helper_require_table_primary_key_check = -1
+  if ($_rpl_change_topology_helper_require_table_primary_key_check_index)
+  {
+    --let $_rpl_change_topology_helper_require_table_primary_key_check= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING("$rpl_require_table_primary_key_check", $_rpl_change_topology_helper_require_table_primary_key_check_index), ',', 1), ':', -1)`
+  }
+  # Get _rpl_change_topology_helper_require_table_primary_key_check_index for all slaves
+  if (`SELECT $_rpl_change_topology_helper_require_table_primary_key_check_index = 0 AND "$_rpl_require_table_primary_key_check_all" != ""`)
+  {
+    --let $_rpl_change_topology_helper_require_table_primary_key_check= $_rpl_require_table_primary_key_check_all
+  }
+  # Set it if defined
+  if ($_rpl_change_topology_helper_require_table_primary_key_check != -1){
+    --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_rpl_change_topology_helper_require_table_primary_key_check,
+  }
+
   --replace_regex /[0-9]{4}/####/
     if (!$rpl_multi_source)
     {
