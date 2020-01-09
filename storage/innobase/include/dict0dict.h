@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1139,7 +1139,7 @@ struct dict_sys_t {
   static constexpr space_id_t s_min_undo_space_id =
       s_log_space_first_id - (FSP_MAX_UNDO_TABLESPACES * undo_space_id_range);
 
-  /** The highest undo  tablespace ID. */
+  /** The highest undo tablespace ID. */
   static constexpr space_id_t s_max_undo_space_id = s_log_space_first_id - 1;
 
   /** The first reserved tablespace ID */

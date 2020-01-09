@@ -1529,10 +1529,10 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   /* If this is opening an existing database, create and open any
   undo tablespaces that are still needed. For a new DB, create
   them all. */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
   err = srv_undo_tablespaces_create();
   if (err != DB_SUCCESS) {
-    mutex_exit(&(undo::ddl_mutex));
+    mutex_exit(&undo::ddl_mutex);
     return (err);
   }
 
@@ -1542,11 +1542,11 @@ static dberr_t srv_undo_tablespaces_init(bool create_new_db) {
   This list includes any tablespace newly created or fixed-up. */
   err = srv_undo_tablespaces_construct(create_new_db);
   if (err != DB_SUCCESS) {
-    mutex_exit(&(undo::ddl_mutex));
+    mutex_exit(&undo::ddl_mutex);
     return (err);
   }
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
   return (DB_SUCCESS);
 }
 
@@ -3265,7 +3265,7 @@ static void srv_shutdown_background_threads() {
 
   uint32_t count = 0;
 
-  while (true) {
+  for (;;) {
     /* Print messages every 60 seconds when we are waiting for any
     of those threads to exit. */
     bool print;

@@ -448,7 +448,7 @@ class Double_write {
   /** Writes a page that has already been written to the
   doublewrite buffer to the data file. It is the job of the
   caller to sync the datafile.
-  @param[in]	in_bpage          Page to write.
+  @param[in]  in_bpage          Page to write.
   @param[in]  sync              true if it's a synchronous write.
   @return DB_SUCCESS or error code */
   static dberr_t write_to_datafile(const buf_page_t *in_bpage, bool sync)
@@ -653,7 +653,7 @@ class Segment {
 
     auto err = os_file_write(req, m_file.m_name.c_str(), m_file.m_pfs, ptr,
                              m_start, len);
-    ut_a(err == DB_SUCCESS);
+    ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
   }
 
   /** Flush the segment to disk. */
@@ -1043,7 +1043,9 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage,
   auto err = fil_io(io_request, sync, bpage->id, bpage->size, 0,
                     bpage->size.physical(), frame, bpage);
 
-  ut_a(err == DB_SUCCESS);
+  /* When a tablespace is deleted with BUF_REMOVE_NONE, fil_io() might
+  return DB_TABLESPACE_DELETED. */
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
   return err;
 }
@@ -1082,17 +1084,16 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage) noexcept {
 #endif /* UNIV_DEBUG */
 
   auto err = write_to_datafile(bpage, true);
-  ut_a(err == DB_SUCCESS);
+  if (err == DB_SUCCESS) {
+    fil_flush(bpage->id.space());
 
-  fil_flush(bpage->id.space());
+    while (!s_single_segments->enqueue(segment)) {
+      UT_RELAX_CPU();
+    }
 
-  while (!s_single_segments->enqueue(segment)) {
-    UT_RELAX_CPU();
+    /* true means we want to evict this page from the LRU list as well. */
+    buf_page_io_complete(bpage, true);
   }
-
-  /* true means we want to evict this page from the LRU list as well. */
-  buf_page_io_complete(bpage, true);
-
   return DB_SUCCESS;
 }
 
@@ -1411,7 +1412,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
     bpage->set_dblwr_batch_id(batch_segment->id());
 
     auto err = write_to_datafile(bpage, false);
-    ut_a(err == DB_SUCCESS);
+    ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
 #ifdef UNIV_DEBUG
     if (dblwr::Force_crash.equals_to(page_id)) {
@@ -1526,6 +1527,15 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
                      bool sync) noexcept {
   dberr_t err;
 
+  if (fsp_is_undo_tablespace(bpage->id.space()) &&
+      fil_is_deleted(bpage->id.space())) {
+    /* Disable batch completion in write_complete(). */
+    bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
+    buf_page_io_complete(bpage, flush_type == BUF_FLUSH_LRU);
+
+    return DB_TABLESPACE_DELETED;
+  }
+
   if (srv_read_only_mode || fsp_is_system_temporary(bpage->id.space()) ||
       !dblwr::enabled || Double_write::s_instances == nullptr) {
     /* Disable use of double-write buffer for temporary tablespace.
@@ -1554,6 +1564,7 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
 #endif /* UNIV_DEBUG */
     } else {
       MONITOR_INC(MONITOR_DBLWR_SYNC_REQUESTS);
+      /* Disable batch completion in write_complete(). */
       bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
       err = Double_write::sync_page_flush(bpage);
     }
@@ -1948,7 +1959,7 @@ static bool dblwr_recover_page(page_no_t dblwr_page_no, fil_space_t *space,
   err = fil_io(write_request, true, page_id, page_size, 0, page_size.physical(),
                const_cast<byte *>(page), nullptr);
 
-  ut_a(err == DB_SUCCESS);
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
   ib::info(ER_IB_MSG_DBLWR_1308)
       << "Recovered page " << page_id << " from the doublewrite buffer.";

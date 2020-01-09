@@ -5150,8 +5150,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       page may contain garbage in MySQL < 4.1.1,
       which only supported bpage->space == 0. */
 
-      ib::error(ER_IB_MSG_79) << "Space id and page no stored in "
-                                 "the page, read in are "
+      ib::error(ER_IB_MSG_79) << "Space id and page number stored in "
+                                 "the page read in are "
                               << page_id_t(read_space_id, read_page_no)
                               << ", should be " << bpage->id;
     }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,12 +74,17 @@ enum buf_flush_t {
 /** Algorithm to remove the pages for a tablespace from the buffer pool.
 See buf_LRU_flush_or_remove_pages(). */
 enum buf_remove_t {
-  BUF_REMOVE_ALL_NO_WRITE,   /*!< Remove all pages from the buffer
-                             pool, don't write or sync to disk */
-  BUF_REMOVE_FLUSH_NO_WRITE, /*!< Remove only, from the flush list,
-                             don't write or sync to disk */
-  BUF_REMOVE_FLUSH_WRITE     /*!< Flush dirty pages to disk only
-                             don't remove from the buffer pool */
+  /** Don't remove any pages. */
+  BUF_REMOVE_NONE,
+
+  /** Remove all pages from the buffer pool, don't write or sync to disk */
+  BUF_REMOVE_ALL_NO_WRITE,
+
+  /** Remove only from the flush list, don't write or sync to disk */
+  BUF_REMOVE_FLUSH_NO_WRITE,
+
+  /** Flush dirty pages to disk only don't remove from the buffer pool */
+  BUF_REMOVE_FLUSH_WRITE
 };
 
 /** Flags for io_fix types */

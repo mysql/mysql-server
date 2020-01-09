@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -949,6 +949,8 @@ static bool log_consider_checkpoint(log_t &log) {
 
   log_checkpoint(log);
 
+  fil_checkpoint(log.last_checkpoint_lsn.load());
+
   return (true);
 }
 
@@ -959,7 +961,7 @@ void log_checkpointer(log_t *log_ptr) {
 
   log_checkpointer_mutex_enter(log);
 
-  while (true) {
+  for (;;) {
     auto do_some_work = [&log] {
       ut_ad(log_checkpointer_mutex_own(log));
 

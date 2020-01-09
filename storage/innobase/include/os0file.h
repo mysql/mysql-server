@@ -371,7 +371,7 @@ class IORequest {
 
   /** @return true if the read should be validated */
   bool validate() const MY_ATTRIBUTE((warn_unused_result)) {
-    ut_a(is_read() ^ is_write());
+    ut_ad(is_read() ^ is_write());
 
     return (!is_read() || !punch_hole());
   }

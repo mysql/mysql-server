@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -318,6 +318,13 @@ struct fil_space_t {
 
   /** FIL_SPACE_MAGIC_N */
   ulint magic_n;
+
+  /** LSN when the instance was deleted. */
+  lsn_t m_deleted_lsn;
+
+  /** Determine if this space was deleted with BUF_REMOVE_NONE.
+  @return true if the space was deleted */
+  bool is_deleted() { return m_deleted_lsn > 0; }
 
   /** System tablespace */
   static fil_space_t *s_sys_space;
@@ -1306,7 +1313,7 @@ std::string fil_system_open_fetch(space_id_t space_id)
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Truncate the tablespace to needed size with a new space_id.
+/** Drop and create an UNDO tablespace.
 @param[in]  old_space_id   Tablespace ID to truncate
 @param[in]  new_space_id   Tablespace ID to for the new file
 @param[in]  size_in_pages  Truncate size.
@@ -1389,7 +1396,7 @@ dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                        uint32_t flags, page_no_t size)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Deletes an IBD tablespace, either general or single-table.
+/** Deletes an IBD  or IBU tablespace.
 The tablespace must be cached in the memory cache. This will delete the
 datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
 @param[in]	space_id	Tablespace ID
@@ -1993,4 +2000,27 @@ void fil_space_update_name(fil_space_t *space, const char *name);
 @param[in]	extn	file extension */
 void fil_adjust_name_import(dict_table_t *table, const char *path,
                             ib_file_suffix extn);
+
+#ifndef UNIV_HOTBACKUP
+
+/** Set the low water mark for the buffer pool. This will remove all
+dirty pages lower than this LSN in the BP.
+@param[in] lwm  Low water mark */
+void fil_checkpoint(lsn_t lwm);
+
+/** Count how many truncated undo space IDs are still tracked in
+the buffer pool and the file_system cache..
+@param[in]  undo_num  undo tablespace number.
+@return number of undo tablespaces that are still in memory.*/
+size_t fil_count_deleted(space_id_t undo_num);
+
+/** Check if a particular undo space_id for a page in the buffer pool has
+been deleted recently.  Its space_id will be found in m_deleted until
+Fil:shard::checkpoint removes all its pages from the buffer pool and the
+fil_space_t from Fil_system.
+@return true if this space_id is in the list of recently deleted undo spaces. */
+bool fil_is_deleted(space_id_t space_id);
+
+#endif /* !UNIV_HOTBACKUP */
+
 #endif /* fil0fil_h */

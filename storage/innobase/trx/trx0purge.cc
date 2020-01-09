@@ -71,6 +71,9 @@ ulong srv_max_purge_lag_delay = 0;
 /** The global data structure coordinating a purge */
 trx_purge_t *purge_sys = nullptr;
 
+/** Wait for a short delay between checks. */
+static constexpr int64_t PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS = 1000;
+
 #ifdef UNIV_DEBUG
 bool srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
@@ -250,9 +253,7 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys->heap = mem_heap_create(8 * 1024);
 }
 
-/************************************************************************
-Frees the global purge system control structure. */
-void trx_purge_sys_close(void) {
+void trx_purge_sys_close() {
   que_graph_free(purge_sys->query);
 
   ut_a(purge_sys->trx->id == 0);
@@ -284,6 +285,8 @@ void trx_purge_sys_close(void) {
   purge_sys->heap = nullptr;
 
   UT_DELETE(purge_sys->rseg_iter);
+
+  call_destructor(&purge_sys->undo_trunc);
 
   ut_free(purge_sys);
 
@@ -697,6 +700,46 @@ space_id_t get_next_available_space_num() {
   }
 
   return (SPACE_UNKNOWN);
+}
+
+bool Tablespace::needs_truncation() {
+  /* If it is already inactive, even implicitly, then proceed. */
+  m_rsegs->s_lock();
+  if (m_rsegs->is_inactive_implicit() || m_rsegs->is_inactive_explicit()) {
+    m_rsegs->s_unlock();
+    return (true);
+  }
+
+  /* If implicit undo truncation is turned off, or if the rsegs don't exist
+  yet, don't bother checking the size. */
+  if (!srv_undo_log_truncate || m_rsegs == nullptr || m_rsegs->is_empty() ||
+      m_rsegs->is_init()) {
+    m_rsegs->s_unlock();
+    return (false);
+  }
+  ut_ad(m_rsegs->is_active());
+  m_rsegs->s_unlock();
+
+  /* Check if undo truncation is happening so often that too many pages
+  from old space IDs are still in memory. Since undo spaces are deleted
+  with BUF_REMOVE_NONE, the actual space is not deleted for that old
+  space ID until all pages have been passively removed from the buffer
+  pool. */
+  auto count = fil_count_deleted(undo::id2num(m_id));
+  if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
+    ib::warn(ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN);
+    return (false);
+  }
+
+  page_no_t trunc_size = ut_max(
+      static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
+      static_cast<page_no_t>(SRV_UNDO_TABLESPACE_SIZE_IN_PAGES));
+
+  if (fil_space_get_size(id()) > trunc_size) {
+    return (true);
+  }
+
+  return (false);
 }
 
 /** Change the space_id from its current value.
@@ -1118,54 +1161,107 @@ bool is_active(space_id_t space_id, bool get_latch) {
 /* Declare this global object. */
 Space_Ids undo::s_under_construction;
 
-/** Iterate over all the UNDO tablespaces and check if any of the UNDO
-tablespace qualifies for TRUNCATE (size > threshold).
+/** Decide if an undo truncation needs to be done at this time. If an undo
+tablespace is already marked, return that so that this truncation will get
+finished. If none is marked, iterate over all the UNDO tablespaces and check
+if any qualify to be truncated.
+  Normal operation; Choose the marked space.
+                    If none are marked, choose an explicitly inactive space.
+                    If none exist, check if conditions allow implicit
+                       truncation.
+                    If conditions allow, choose an implicitly inactive space.
+                    If none exist and no space has been truncated yet,
+                       look for an undo space that is too big.
+  Fast shutdown;    Do not truncate.  This routine is not called.
+  Slow shutdown;    Choose the marked space.
+                    If none are marked, choose an explicitly inactive
+                       space.
+                    If none exist, check if conditions allow implicit
+                       truncation.
+                    If conditions allow, ignoring the previous truncate count,
+                    look for an undo space that is too big.
+@param[in]  truncate_count    number of times this is called in a loop
 @return true if an undo tablespace was marked for truncate. */
-static bool trx_purge_mark_undo_for_truncate() {
-  undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
-
-  /* We always have at least 2 undo spaces,
-  but they might not both be active. */
+static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
+  /* We always have at least 2 undo spaces, even though one of them may be
+  inactive. */
   ut_a(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
+  /* Note if we are currently in a fast or slow shutdown. */
+  bool normal_operation = (srv_shutdown_state == SRV_SHUTDOWN_NONE);
+  bool in_fast_shutdown = (!normal_operation && srv_fast_shutdown > 0);
+
+  /* Save time during a fast shutdown by skipping undo truncation.
+  This does not affect correctness since undo tablespaces that need
+  truncation can be truncated during or after startup.*/
+  if (in_fast_shutdown) {
+    return (false);
+  }
+
   /* Return true if an undo tablespace is already marked for truncate. */
+  auto undo_trunc = &purge_sys->undo_trunc;
   if (undo_trunc->is_marked()) {
     return (true);
   }
 
+  undo::spaces->s_lock();
+
   /* In order to implicitly select an undo space to truncate, we need
-  at least 2 active UNDO tablespaces.  But if one of them has been set
-  inactive explicitly, then we can go ahead here and select that space
-  for truncate so that it can be truncated and made empty.  As long as
-  there is one undo tablespace active the server will continue to operate. */
+  at least 2 active UNDO tablespaces.  As long as there is one undo
+  tablespace active the server will continue to operate. */
   ulint num_active = 0;
-  ulint num_inactive_explicit = 0;
-  undo::spaces->s_lock();
+
+  /* Look for any undo space that is inactive explicitly. */
   for (auto undo_ts : undo::spaces->m_spaces) {
+    if (undo_ts->is_inactive_explicit()) {
+      undo_trunc->mark(undo_ts);
+      undo::spaces->s_unlock();
+      return (true);
+    }
     num_active += (undo_ts->is_active() ? 1 : 0);
-    num_inactive_explicit += (undo_ts->is_inactive_explicit() ? 1 : 0);
   }
+
   undo::spaces->s_unlock();
-  ut_ad(num_active > 0);
-  if (num_active == 1 && num_inactive_explicit == 0) {
+
+  /* If we get here, there are no undo spaces currently being truncated
+  and none that are SET INACTIVE explicitly. */
+  ut_a(num_active > 0);
+
+  /* There may be some reasons not to truncate implicitly.
+  If truncate is disabled, do not truncate. */
+  if (!srv_undo_log_truncate) {
     return (false);
   }
 
-  /* Return false if truncate is disabled and SET INACTIVE was not issued. */
-  if (!srv_undo_log_truncate && num_inactive_explicit == 0) {
-    return (false);
+  if (normal_operation) {
+    /* Skip truncate if there is only one active undo tablespace to check. */
+    if (num_active == 1) {
+      return (false);
+    }
+
+    /* Skip truncate if the caller has already truncated an undo space. */
+    if (truncate_count > 0) {
+      return (false);
+    }
+
+    /* Wait at least one second between searches. */
+    if (undo_trunc->check_timer() < PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS) {
+      return (false);
+    }
+    undo_trunc->reset_timer();
   }
 
-  /* Find an undo tablespace that needs truncation.  We are looking for
-  either an inactive_explicit state or size > threshold.  Avoid bias
-  selection and so start the scan from immediate next of the last undo
-  tablespace selected for truncate. Scan through all undo tablespaces. */
+  /* Find an undo tablespace that is too big and needs truncation.  Avoid
+  bias selection and so start the scan from immediate next of the last
+  space selected for truncate. Scan through all undo tablespaces. */
 
   undo::spaces->s_lock();
+
   space_id_t space_num = undo_trunc->get_scan_space_num();
   space_id_t first_space_num_scanned = space_num;
+
   do {
-    undo::Tablespace *undo_space = undo::spaces->find(space_num);
+    auto undo_space = undo::spaces->find(space_num);
 
     if (undo_space->needs_truncation()) {
       /* Tablespace qualifies for truncate. */
@@ -1177,6 +1273,7 @@ static bool trx_purge_mark_undo_for_truncate() {
     space_num = undo_trunc->increment_scan();
 
   } while (space_num != first_space_num_scanned);
+
   undo::spaces->s_unlock();
 
   /* Return false if no undo space needs to be truncated. */
@@ -1184,13 +1281,34 @@ static bool trx_purge_mark_undo_for_truncate() {
     return (false);
   }
 
-#ifdef UNIV_DEBUG
   ut_ad(space_num == undo_trunc->get_marked_space_num());
-  ib::info(ER_IB_MSG_1167) << "Undo tablespace number " << space_num
-                           << " is marked for truncate";
-#endif /* UNIV_DEBUG */
 
   return (true);
+}
+
+void undo::Truncate::mark(Tablespace *undo_space) {
+  /* Set the internal state of this undo space to inactive_implicit
+  so that its rsegs will not be allocated to any new transaction.
+  If the space is already in the inactive_explicit state, it will
+  stay there.
+  Note that the DD is not modified since in case of crash, the
+  action must be completed before the DD is available.
+  Set both the state and this marked id while this routine has
+  an x_lock on m_rsegs because a concurrent user thread might issue
+  undo_space->alter_active(). */
+  undo_space->set_inactive_implicit(&m_space_id_marked);
+
+  m_marked_space_is_empty = false;
+
+  /* We found an UNDO-tablespace to truncate so set the
+  local purge rseg truncate frequency to 3. This will help
+  accelerate the purge action and in turn truncate. */
+  set_rseg_truncate_frequency(3);
+
+#ifdef UNIV_DEBUG
+  ib::info(ER_IB_MSG_1167) << "Undo tablespace number " << undo_space->num()
+                           << " is marked for truncate";
+#endif /* UNIV_DEBUG */
 }
 
 size_t undo::Truncate::s_scan_pos;
@@ -1323,21 +1441,12 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     return (false);
   }
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_buf_flush",
-                  ib::info(ER_IB_MSG_1174) << "ib_undo_trunc_before_buf_flush";
+  DBUG_EXECUTE_IF("ib_undo_trunc_before_state_update",
+                  ib::info(ER_IB_MSG_1174)
+                      << "ib_undo_trunc_before_state_update";
                   DBUG_SUICIDE(););
 
   space_id_t new_space_id = marked_space->id();
-
-  /* Flush all the buffer pages for this new undo tablespace to disk. */
-  auto counter_time_flush = ut_time_monotonic_us();
-  FlushObserver *new_space_flush_observer =
-      UT_NEW_NOKEY(FlushObserver(new_space_id, nullptr, nullptr));
-  new_space_flush_observer->flush();
-  UT_DELETE(new_space_flush_observer);
-  MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_FLUSH_COUNT, 1);
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_FLUSH_MICROSECOND,
-                                 counter_time_flush);
 
   /* Determine the next state. */
   dd_space_states next_state;
@@ -1402,7 +1511,6 @@ static bool trx_purge_truncate_marked_undo() {
   ut_ad(undo_trunc->is_marked_space_empty());
   undo::spaces->s_lock();
   space_id_t space_num = undo_trunc->get_marked_space_num();
-  space_id_t old_space_id = undo::num2id(space_num);
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
   std::string space_name = marked_space->space_name();
   undo::spaces->s_unlock();
@@ -1412,19 +1520,9 @@ static bool trx_purge_truncate_marked_undo() {
 
   /* Since we are about to delete the current file, invalidate all
   its buffer pages from the buffer pool. */
-  DBUG_EXECUTE_IF("ib_undo_trunc_before_buf_remove_all",
-                  ib::info(ER_IB_MSG_1168)
-                      << "ib_undo_trunc_before_buf_remove_all";
+  DBUG_EXECUTE_IF("ib_undo_trunc_before_mdl", ib::info(ER_IB_MSG_1168)
+                                                  << "ib_undo_trunc_before_mdl";
                   DBUG_SUICIDE(););
-  auto counter_time_sweep = ut_time_monotonic_us();
-  FlushObserver *old_space_flush_observer =
-      UT_NEW_NOKEY(FlushObserver(old_space_id, nullptr, nullptr));
-  old_space_flush_observer->interrupted();
-  old_space_flush_observer->flush();
-  UT_DELETE(old_space_flush_observer);
-  MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_SWEEP_COUNT, 1);
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_SWEEP_MICROSECOND,
-                                 counter_time_sweep);
 
   /* Get the MDL lock to prevent an ALTER or DROP command from interferring
   with this undo tablespace while it is being truncated. */
@@ -1460,10 +1558,10 @@ static bool trx_purge_truncate_marked_undo() {
   }
 
   /* Serialize this truncate with all undo tablespace DDLs */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   if (!trx_purge_truncate_marked_undo_low(space_num, space_name)) {
-    mutex_exit(&(undo::ddl_mutex));
+    mutex_exit(&undo::ddl_mutex);
     dd_release_mdl(mdl_ticket);
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                    counter_time_truncate);
@@ -1489,7 +1587,7 @@ static bool trx_purge_truncate_marked_undo() {
                                                   << "ib_undo_trunc_trunc_done";
                   DBUG_SUICIDE(););
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_UNDO_TRUNCATE_MICROSECOND,
                                  counter_time_truncate);
@@ -1503,9 +1601,8 @@ static void trx_purge_truncate_history(
     purge_iter_t *limit,  /*!< in: truncate limit */
     const ReadView *view) /*!< in: purge view */
 {
-  ulint i;
-
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
+
   auto counter_time_truncate_history = ut_time_monotonic_us();
 
   /* We play safe and set the truncate limit at most to the purge view
@@ -1523,7 +1620,7 @@ static void trx_purge_truncate_history(
   some time and we do not want an undo DDL to attempt an x_lock during
   this time.  If it did, all other transactions seeking a short s_lock()
   would line up behind it.  So get the ddl_mutex before this s_lock(). */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
     /* Skip undo tablespace that is already empty and marked for truncation. */
@@ -1542,9 +1639,9 @@ static void trx_purge_truncate_history(
     }
     undo_space->rsegs()->s_unlock();
   }
-  ulint space_count = undo::spaces->size();
+
   undo::spaces->s_unlock();
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 
   /* Purge rollback segments in the system tablespace, if any.
   Use an s-lock for the whole list since it can have gaps and
@@ -1562,45 +1659,31 @@ static void trx_purge_truncate_history(
   }
   trx_sys->tmp_rsegs.s_unlock();
 
+  auto &undo_trunc = purge_sys->undo_trunc;
+
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_PURGE_TRUNCATE_HISTORY_MICROSECOND,
                                  counter_time_truncate_history);
 
-  /* UNDO tablespace truncate. We will try to truncate as much as we
-  can (greedy approach). This will ensure when the server is idle we
-  try and truncate all the UNDO tablespaces. */
-
-  for (i = 0; i < space_count; i++) {
-    /* Check all undo spaces.  Mark the first one that needs
-    to be truncated. */
-    if (!trx_purge_mark_undo_for_truncate()) {
-      /* If none are marked, no truncation is needed
-      at this time. */
-      ut_ad(!purge_sys->undo_trunc.is_marked());
-      break;
+  /* Undo Truncation. */
+  const size_t space_count = undo::spaces->size();
+  for (size_t i = 0; i < space_count; ++i) {
+    /* Check current activity and if conditions allow,
+    mark the undo space that needs to be truncated. */
+    if (!trx_purge_mark_undo_for_truncate(i)) {
+      break; /* No truncation is needed at this time. */
     }
 
     /* A space was marked but may not be yet empty. */
-    ut_ad(purge_sys->undo_trunc.is_marked());
+    ut_a(undo_trunc.is_marked());
 
-    /* Once the marked space is empty of undo logs,
-    it can be truncated. */
+    /* If any undo logs need to be purged from this marked space,
+    try again later. */
     if (!trx_purge_check_if_marked_undo_is_empty(limit)) {
-      /* During slow shutdown, keep checking until
-      it is empty. */
-      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
-          srv_fast_shutdown == 0) {
-        continue;
-      }
-
-      /* During normal operation or fast shutdown,
-      there is no need to stay in this tight loop.
-      Give some time for the marked space to become
-      empty. */
       break;
     }
 
     /* A space has been marked and is now empty. */
-    ut_ad(purge_sys->undo_trunc.is_marked_space_empty());
+    ut_a(undo_trunc.is_marked_space_empty());
 
     /* Truncate the marked space. */
     if (!trx_purge_truncate_marked_undo()) {

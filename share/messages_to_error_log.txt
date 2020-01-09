@@ -10827,6 +10827,9 @@ ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED
 ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
   eng "Invalid archived file name format. The archived file is supposed to have the format %s + [0-9]*."
 
+ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN
+  eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

@@ -155,7 +155,8 @@ const char *deprecated_undo_logs =
     " See " REFMAN "innodb-undo-logs.html";
 
 /** Rate at which UNDO records should be purged. */
-ulong srv_purge_rseg_truncate_frequency = 128;
+ulong srv_purge_rseg_truncate_frequency =
+    static_cast<ulong>(undo::TRUNCATE_FREQUENCY);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Enable or Disable Truncate of UNDO tablespace.
@@ -174,6 +175,11 @@ unsigned long long srv_max_undo_tablespace_size;
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
 const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
     ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
+
+/** Maximum number of recently truncated undo tablespace IDs for
+the same undo number. */
+const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT =
+    dict_sys_t::undo_space_id_range / 8;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
@@ -2519,7 +2525,7 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 /* Enable UNDO tablespace encryption */
 bool srv_enable_undo_encryption(bool is_boot) {
   /* Make sure undo::ddl_mutex is owned. */
-  ut_ad(mutex_own(&(undo::ddl_mutex)));
+  ut_ad(mutex_own(&undo::ddl_mutex));
 
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
   undo::spaces->s_lock();
@@ -2557,7 +2563,7 @@ bool srv_enable_undo_encryption(bool is_boot) {
     mtr_commit(&mtr);
     undo_space->rsegs()->s_unlock();
 
-    /* Announce encryption is successfully enabled for the undo tablesapce. */
+    /* Announce encryption is successfully enabled for the undo tablespace. */
     ib::info(ER_IB_MSG_1055, undo_space->space_name());
   }
   undo::spaces->s_unlock();
@@ -2581,7 +2587,7 @@ static void srv_sys_check_set_encryption() {
     fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
     ut_a(space);
 
-    /* Encryption for redo tablesapce must already have been set. This is
+    /* Encryption for redo tablespace must already have been set. This is
     safeguard to encrypt it if not done earlier. */
     ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
@@ -2599,7 +2605,7 @@ static void srv_sys_check_set_encryption() {
   /* Rotate default master key for undo log encryption if it is set */
   ut_ad(!undo::spaces->empty());
 
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   bool encrypt_undo = false;
   undo::spaces->s_lock();
@@ -2607,7 +2613,7 @@ static void srv_sys_check_set_encryption() {
     fil_space_t *space = fil_space_get(undo_ts->id());
     ut_ad(space != nullptr);
 
-    /* Encryption for undo tablesapce must already have been set. This is
+    /* Encryption for undo tablespace must already have been set. This is
     safeguard to encrypt it if not done earlier. */
     ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
     if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
@@ -2625,7 +2631,7 @@ static void srv_sys_check_set_encryption() {
     ut_ad(!ret);
   }
   undo_rotate_default_master_key();
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 }
 
 /** The master thread controlling the server. */

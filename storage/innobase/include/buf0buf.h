@@ -951,7 +951,7 @@ the buffer pool.
 @param[in]	bpage	pointer to the block in question
 @param[in]	evict	whether or not to evict the page from LRU list
 @return true if successful */
-bool buf_page_io_complete(buf_page_t *bpage, bool evict = false);
+bool buf_page_io_complete(buf_page_t *bpage, bool evict);
 
 /** Calculates the index of a buffer pool to the buf_pool[] array.
  @return the position of the buffer pool in buf_pool[] */

@@ -2942,7 +2942,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   if (is_encrypted) {
     /* We don't support encrypt intrinsic and temporary table.  */
     ut_ad(!m_table->is_intrinsic() && !m_table->is_temporary());
-    /* This flag will be used to set file-per-table tablesapce
+    /* This flag will be used to set file-per-table tablespace
     encryption flag */
     DICT_TF2_FLAG_SET(m_table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE);
   }

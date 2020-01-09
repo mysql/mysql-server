@@ -400,6 +400,10 @@ extern bool srv_undo_log_encrypt;
 /** Default size of UNDO tablespace while it is created new. */
 extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
+/** Maximum number of recently truncated undo tablespace IDs for
+the same undo number. */
+extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
+
 extern char *srv_log_group_home_dir;
 
 /** Enable or Disable Encrypt of REDO tablespace. */

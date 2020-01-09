@@ -2977,7 +2977,7 @@ static bool innobase_ddse_dict_init(dict_init_mode_t dict_init_mode,
 /** Save the state of undo tablespaces from the dd to the undo::Tablespace
 @param[in]  space_id    tablespace ID
 @param[in]  dd_space    dd::Tablespace object
-@return true if success and falso if the undo tablespace state is not saved. */
+@return true if success and false if the undo tablespace state is not saved. */
 bool apply_dd_undo_state(space_id_t space_id, const dd::Tablespace *dd_space) {
   bool success = true;
   if (!fsp_is_undo_tablespace(space_id)) {
@@ -3199,9 +3199,9 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     /* If the trunc log file is still around, this undo tablespace needs to be
     rebuilt now. */
     if (fsp_is_undo_tablespace(space_id)) {
-      mutex_enter(&(undo::ddl_mutex));
+      mutex_enter(&undo::ddl_mutex);
       dberr_t err = srv_undo_tablespace_fixup(space_name, filename, space_id);
-      mutex_exit(&(undo::ddl_mutex));
+      mutex_exit(&undo::ddl_mutex);
       if (err != DB_SUCCESS) {
         ib::error(ER_IB_MSG_FAILED_TO_FINISH_TRUNCATE, prefix.c_str(),
                   space_name);
@@ -3635,12 +3635,12 @@ static void innobase_post_recover() {
       srv_undo_log_encrypt = false;
     } else {
       /* Enable encryption for UNDO tablespaces */
-      mutex_enter(&(undo::ddl_mutex));
+      mutex_enter(&undo::ddl_mutex);
       if (srv_enable_undo_encryption(true)) {
         ut_ad(false);
         srv_undo_log_encrypt = false;
       }
-      mutex_exit(&(undo::ddl_mutex));
+      mutex_exit(&undo::ddl_mutex);
     }
   }
 
@@ -15128,7 +15128,7 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
   /* Create the tablespace object. */
 
   /* Serialize all undo tablespace DDLs */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   /* Get the transaction associated with the current thd and make
   sure it will not block this DDL. */
@@ -15172,7 +15172,7 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
 cleanup:
   trx_free_for_mysql(trx);
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 
   return error;
 }
@@ -15246,6 +15246,20 @@ static int innodb_alter_undo_tablespace_inactive(handlerton *hton, THD *thd,
     }
   }
 
+  /* If truncation is happening too often on this undo tablespace there
+  may be too many old files still in the fil_system with their pages
+  still in the buffer pool.  If this is the case, return an error. */
+  auto count = fil_count_deleted(undo_space->num());
+  if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
+    my_printf_error(ER_DISALLOWED_OPERATION,
+                    "Cannot set %s inactive since there would be"
+                    " more than 64 old versions of this undo tablespaces"
+                    " in cache. Please wait for the next checkpoint.",
+                    MYF(0), undo_space->space_name());
+
+    return (HA_ERR_NOT_ALLOWED_COMMAND);
+  }
+
   /* Make sure the DD shows inactive if it is active. */
   dd_tablespace_set_state(dd_space, DD_SPACE_STATE_INACTIVE);
 
@@ -15303,7 +15317,7 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
   dd_tablespace_get_state(dd_space, &dd_state, space_id);
 
   /* Serialize all undo tablespace DDLs */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   /* Get the current undo_space object. */
   undo::spaces->s_lock();
@@ -15329,7 +15343,7 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
 
   undo::spaces->s_unlock();
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 
   return err;
 }
@@ -15343,7 +15357,6 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
 static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
                                        st_alter_tablespace *alter_info,
                                        const dd::Tablespace *dd_space) {
-  int error = 0;
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
@@ -15372,7 +15385,7 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   }
 
   /* Serialize all undo tablespace DDLs */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   undo::spaces->x_lock();
   space_id_t space_num = undo::id2num(space_id);
@@ -15382,8 +15395,15 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   continue to completion. */
   if (undo_space == nullptr) {
     undo::spaces->x_unlock();
-    mutex_exit(&(undo::ddl_mutex));
-    return (error);
+    mutex_exit(&undo::ddl_mutex);
+
+    /* Start the transaction associated with the current thd so that MySQL
+    can continue. */
+    trx_t *trx = check_trx_exists(thd);
+    trx_start_if_not_started(trx, true);
+    ++trx->will_lock;
+
+    return (0);
   }
 
   /* Verify that the undo tablespace is not one of the first two undo spaces,
@@ -15404,7 +15424,7 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
     }
 
     undo::spaces->x_unlock();
-    mutex_exit(&(undo::ddl_mutex));
+    mutex_exit(&undo::ddl_mutex);
 
     return HA_ERR_TABLESPACE_IS_NOT_EMPTY;
   }
@@ -15413,8 +15433,10 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   dropping it. */
   buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, nullptr);
 
-  /* Empty and inactive, take it out of view. */
+  /* Save the file name before undo_space is dropped. */
   std::string file_name{undo_space->file_name()};
+
+  /* Empty and inactive, take it out of view. */
   undo::spaces->drop(undo_space);
   undo::spaces->x_unlock();
 
@@ -15424,13 +15446,15 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   TrxInInnoDB trx_in_innodb(trx);
   trx_start_if_not_started(trx, true);
   ++trx->will_lock;
-  dberr_t err = log_ddl->write_delete_space_log(trx, nullptr, space_id,
-                                                file_name.c_str(), true, false);
+
+  auto err = log_ddl->write_delete_space_log(trx, nullptr, space_id,
+                                             file_name.c_str(), true, false);
+  int error = 0;
   if (err != DB_SUCCESS) {
     error = convert_error_code_to_mysql(err, 0, nullptr);
   }
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
   return error;
 }
 
@@ -20171,7 +20195,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
   }
 
   /* UNDO tablespace encryption to be mutually exclusive with any UNDO DDL */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   /* Enable encryption for UNDO tablespaces */
   bool ret = srv_enable_undo_encryption(false);
@@ -20181,7 +20205,7 @@ static int validate_innodb_undo_log_encrypt(THD *thd, SYS_VAR *var, void *save,
     *static_cast<bool *>(save) = true;
   }
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
   clone_mark_free();
   return (0);
 }
@@ -20273,7 +20297,7 @@ static void innodb_rollback_segments_update(THD *thd, SYS_VAR *var,
   }
 
   /* Serialize this adjustment with all undo tablespace DDLs. */
-  mutex_enter(&(undo::ddl_mutex));
+  mutex_enter(&undo::ddl_mutex);
 
   if (!trx_rseg_adjust_rollback_segments(target)) {
     ib::warn(ER_IB_MSG_580)
@@ -20283,7 +20307,7 @@ static void innodb_rollback_segments_update(THD *thd, SYS_VAR *var,
 
   srv_rollback_segments = target;
 
-  mutex_exit(&(undo::ddl_mutex));
+  mutex_exit(&undo::ddl_mutex);
 }
 
 /** Parse and enable InnoDB monitor counters during server startup.

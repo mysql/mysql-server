@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -190,15 +190,18 @@ void trx_undo_free_last_page_func(
   trx_undo_free_last_page_func(undo, mtr)
 #endif /* UNIV_DEBUG */
 
-/** Truncates an undo log from the end. This function is used during a rollback
- to free space from an undo log. */
+/** Truncates an undo log from the end. This function is used during
+a rollback to free space from an undo log.
+@param[in]  trx    transaction for this undo log
+@param[in]  undo   undo log
+@param[in]  limit  all undo records with undo number;
+                   This value should be truncated. */
 void trx_undo_truncate_end_func(
 #ifdef UNIV_DEBUG
-    const trx_t *trx, /*!< in: transaction whose undo log it is */
-#endif                /* UNIV_DEBUG */
-    trx_undo_t *undo, /*!< in/out: undo log */
-    undo_no_t limit); /*!< in: all undo records with undo number
-                      >= this value should be truncated */
+    const trx_t *trx,
+#endif /* UNIV_DEBUG */
+    trx_undo_t *undo, undo_no_t limit);
+
 #ifdef UNIV_DEBUG
 #define trx_undo_truncate_end(trx, undo, limit) \
   trx_undo_truncate_end_func(trx, undo, limit)

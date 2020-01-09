@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1212,7 +1212,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   dberr_t err = dblwr::write(flush_type, bpage, sync);
 
-  ut_a(err == DB_SUCCESS);
+  ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_DELETED);
 
   /* Increment the counter of I/O operations used
   for selecting LRU policy. */
@@ -1379,7 +1379,7 @@ bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block) {
 }
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-/** Check the page is in buffer pool and can be flushed.
+/** Check if the page is in buffer pool and can be flushed.
 @param[in]	page_id		page id
 @param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
 @return true if the page can be flushed. */
@@ -1572,13 +1572,13 @@ static ulint buf_flush_try_neighbors(const page_id_t &page_id,
 }
 
 /** Check if the block is modified and ready for flushing.
-is ready to flush then flush the page and try o flush its neighbors. The caller
+If ready to flush then flush the page and try o flush its neighbors. The caller
 must hold the buffer pool list mutex corresponding to the type of flush.
-@param[in]	bpage		buffer control block,
-                                must be buf_page_in_file(bpage)
-@param[in]	flush_type	BUF_FLUSH_LRU or BUF_FLUSH_LIST
-@param[in]	n_to_flush	number of pages to flush
-@param[in,out]	count		number of pages flushed
+@param[in]  bpage       buffer control block,
+                        must be buf_page_in_file(bpage)
+@param[in]  flush_type  BUF_FLUSH_LRU or BUF_FLUSH_LIST
+@param[in]  n_to_flush  number of pages to flush
+@param[in,out]  count   number of pages flushed
 @return	true if the list mutex was released during this function.  This does
 not guarantee that some pages were written as well. */
 static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,

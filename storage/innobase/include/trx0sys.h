@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -309,7 +309,7 @@ slots */
 /* Originally, InnoDB defined TRX_SYS_N_RSEGS as 256 but created only one
 rollback segment.  It initialized some arrays with this number of entries.
 We must remember this limit in order to keep file compatibility. */
-#define TRX_SYS_OLD_N_RSEGS 256
+constexpr size_t TRX_SYS_OLD_N_RSEGS = 256;
 
 /* The system temporary tablespace was originally allocated rseg_id slot
 numbers 1 through 32 in the TRX_SYS page.  But those slots were not used
@@ -317,7 +317,7 @@ because those Rollback segments were recreated at startup and after any
 crash. These slots are now used for redo-enabled rollback segments.
 The default number of rollback segments in the temporary tablespace
 remains the same. */
-#define TRX_SYS_OLD_TMP_RSEGS 32
+constexpr size_t TRX_SYS_OLD_TMP_RSEGS = 32;
 
 /** Maximum length of MySQL binlog file name, in bytes. */
 #define TRX_SYS_MYSQL_LOG_NAME_LEN 512

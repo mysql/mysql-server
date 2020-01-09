@@ -8,8 +8,8 @@
 --echo #
 --echo # 1. Crash before removing all pages from the buffer pool.
 --echo #
-let $debug_point="+d,ib_undo_trunc_before_buf_remove_all";
-let SEARCH_PATTERN = ib_undo_trunc_before_buf_remove_all;
+let $debug_point="+d,ib_undo_trunc_before_mdl";
+let SEARCH_PATTERN = ib_undo_trunc_before_mdl;
 --source suite/innodb_undo/include/truncate_recover_run.inc
 
 # Cleanup this test

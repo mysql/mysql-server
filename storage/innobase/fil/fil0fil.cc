@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -774,6 +774,77 @@ class Fil_shard {
     }
   }
 
+#ifndef UNIV_HOTBACKUP
+  /** Purge entries from m_deleted that are lower than LWM.
+  @param[in]  lwm  No dirty pages in the buffer pool less than this LSN. */
+  void checkpoint(lsn_t lwm) {
+    /* Avoid cleaning up old undo files while this is on. */
+    DBUG_EXECUTE_IF("ib_undo_trunc_checkpoint_off", return;);
+
+    mutex_acquire();
+
+    for (auto it = m_deleted.begin(); it != m_deleted.end(); /* No op */) {
+      auto space = it->second;
+
+      if (space->m_deleted_lsn <= lwm) {
+        ut_a(space->files.front().n_pending == 0);
+
+        space_delete(space->id);
+        space_free_low(space);
+
+        it = m_deleted.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
+    mutex_release();
+  }
+
+  /** Count how many truncated undo space IDs are still tracked in
+  the buffer pool and the file_system cache..
+  @param[in]  undo_num  undo tablespace number.
+  @return number of undo tablespaces that are still in memory.*/
+  size_t count_deleted(space_id_t undo_num) {
+    size_t count = 0;
+
+    mutex_acquire();
+
+    for (auto deleted : m_deleted) {
+      if (undo::id2num(deleted.first) == undo_num) {
+        count++;
+      }
+    }
+
+    mutex_release();
+
+    return (count);
+  }
+
+  /** Check if a particular undo space_id for a page in the buffer pool has
+  been deleted recently.  Its space_id will be found in m_deleted until
+  Fil:shard::checkpoint removes all its pages from the buffer pool and the
+  fil_space_t from Fil_system.
+  @return true if this space_id is in the list of recently deleted spaces. */
+  bool is_deleted(space_id_t space_id) {
+    bool found = false;
+
+    mutex_acquire();
+
+    for (auto deleted : m_deleted) {
+      if (deleted.first == space_id) {
+        found = true;
+        break;
+      }
+    }
+
+    mutex_release();
+
+    return (found);
+  }
+
+#endif /* !UNIV_HOTBACKUP */
+
   /** Frees a space object from the tablespace memory cache.
   Closes a tablespaces' files but does not delete them.
   There must not be any pending I/O's or flushes on the files.
@@ -901,7 +972,7 @@ class Fil_shard {
                        const char *new_name, const char *new_path_in)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Deletes an IBD tablespace, either general or single-table.
+  /** Deletes an IBD or IBU tablespace.
   The tablespace must be cached in the memory cache. This will delete the
   datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
   @param[in]	space_id	Tablespace ID
@@ -1159,6 +1230,15 @@ class Fil_shard {
 
   Names m_names;
 
+#ifndef UNIV_HOTBACKUP
+  /** Deleted space IDs, ignore writes to these tablespaces. Note the
+  LSN at which the tablespace was deleted. All pages before this LSN
+  should not be flushed to disk. Once the LWM is >= the recorded LSN
+  we can delete the entry from m_deleted. */
+
+  std::vector<std::pair<space_id_t, fil_space_t *>> m_deleted;
+#endif /* !UNIV_HOTBACKUP */
+
   /** Base node for the LRU list of the most recently used open
   files with no pending I/O's; if we start an I/O on the file,
   we first remove it from this list, and return it to the start
@@ -1277,6 +1357,41 @@ class Fil_system {
   @param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_LOG,
                                   can be ORred */
   void flush_file_spaces(uint8_t purpose);
+
+#ifndef UNIV_HOTBACKUP
+  /** Clean up the shards.
+  @param[in] lwm No dirty pages less than this LSN in the buffer pool. */
+  void checkpoint(lsn_t lwm) {
+    for (auto shard : m_shards) {
+      shard->checkpoint(lwm);
+    }
+  }
+
+  /** Count how many truncated undo space IDs are still tracked in
+  the buffer pool and the file_system cache..
+  @param[in]  undo_num  undo tablespace number.
+  @return number of undo tablespaces that are still in memory.*/
+  size_t count_deleted(space_id_t undo_num) {
+    size_t count = 0;
+
+    for (auto shard : m_shards) {
+      count += shard->count_deleted(undo_num);
+    }
+
+    return (count);
+  }
+
+  /** Check if a particular undo space_id for a page in the buffer pool has
+  been deleted recently.  Its space_id will be found in Fil_shard::m_deleted
+  until Fil:shard::checkpoint removes all its pages from the buffer pool and
+  the fil_space_t from Fil_system.
+  @return true if this space_id is in the list of recently deleted spaces. */
+  bool is_deleted(space_id_t space_id) {
+    auto shard = shard_by_id(space_id);
+
+    return (shard->is_deleted(space_id));
+  }
+#endif /* !UNIV_HOTBACKUP */
 
   /** Fetch the fil_space_t instance that maps to the name.
   @param[in]	name		Tablespace name to lookup
@@ -2855,18 +2970,6 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
 #endif /* !UNIV_HOTBACKUP */
   }
 
-#if 0
-	/* The magic value of 300 comes from innodb.open_file_lru.test */
-	if (fil_system->m_max_n_open == 300) {
-		ib::warn(ER_IB_MSG_280)
-			<< "Too many (" << s_n_open
-			<< ") files are open the maximum allowed"
-			<< " value is " << fil_system->m_max_n_open
-			<< ". You should raise the value of"
-			<< " --innodb-open-files in my.cnf.";
-	}
-#endif
-
   mutex_acquire();
 
   return (true);
@@ -2921,10 +3024,6 @@ void Fil_shard::file_close_to_free(fil_node_t *file, fil_space_t *space) {
   }
 }
 
-/** Detach a space object from the tablespace memory cache.
-Closes the tablespace files but does not delete them.
-There must not be any pending I/O's or flushes on the files.
-@param[in,out]	space		tablespace */
 void Fil_shard::space_detach(fil_space_t *space) {
   ut_ad(mutex_owned());
 
@@ -2950,9 +3049,6 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-  // FIXME
-  // ut_ad(srv_fast_shutdown == 2);
-
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
 
@@ -3279,9 +3375,7 @@ fil_space_t *Fil_shard::space_load(space_id_t space_id) {
       ut_a(1 == space->files.size());
 
       {
-        fil_node_t *file;
-
-        file = &space->files.front();
+        auto file = &space->files.front();
 
         /* It must be a single-table tablespace and
         we have not opened the file yet; the following
@@ -4105,13 +4199,6 @@ std::string fil_system_open_fetch(space_id_t space_id) {
 
 #endif /* !UNIV_HOTBACKUP */
 
-/** Deletes an IBD tablespace, either general or single-table.
-The tablespace must be cached in the memory cache. This will delete the
-datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace ID
-@param[in]	buf_remove	Specify the action to take on the pages
-                                for this table in the buffer pool.
-@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
 dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   char *path = nullptr;
   fil_space_t *space = nullptr;
@@ -4148,10 +4235,16 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   space from the flush_list. Note that if a block is IO-fixed
   we'll wait for IO to complete.
 
+  For buf_remove == BUF_REMOVE_NONE we mark the fil_space_t instance
+  as deleted by setting the fil_space_t::m_deleted_lsn to the current
+  LSN. We wait for any pending IO to complete after that.
+
   To deal with potential read requests, we will check the
   ::stop_new_ops flag in fil_io(). */
 
-  buf_LRU_flush_or_remove_pages(space_id, buf_remove, nullptr);
+  if (buf_remove != BUF_REMOVE_NONE) {
+    buf_LRU_flush_or_remove_pages(space_id, buf_remove, nullptr);
+  }
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4161,22 +4254,21 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 #ifdef UNIV_HOTBACKUP
     /* When replaying the operation in MySQL Enterprise
     Backup, we do not try to write any log record. */
-#else /* UNIV_HOTBACKUP */
+#else  /* UNIV_HOTBACKUP */
     /* Before deleting the file, write a log record about it, so that
-    InnoDB crash recovery will expect the file to be gone.  Skip this
-    for undo tablespaces since they use the trunc log file.  */
-    if (!fsp_is_undo_tablespace(space_id)) {
-      mtr_t mtr;
-      mtr_start(&mtr);
-      fil_op_write_log(MLOG_FILE_DELETE, space_id, path, nullptr, 0, &mtr);
-      mtr_commit(&mtr);
+    InnoDB crash recovery will expect the file to be gone. */
+    mtr_t mtr;
 
-      /* Even if we got killed shortly after deleting the
-      tablespace file, the record must have already been
-      written to the redo log. */
-      log_write_up_to(*log_sys, mtr.commit_lsn(), true);
-    }
+    mtr.start();
 
+    fil_op_write_log(MLOG_FILE_DELETE, space_id, path, nullptr, 0, &mtr);
+
+    mtr.commit();
+
+    /* Even if we got killed shortly after deleting the
+    tablespace file, the record must have already been
+    written to the redo log. */
+    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
 #endif /* UNIV_HOTBACKUP */
 
     char *cfg_name = Fil_path::make_cfg(path);
@@ -4199,24 +4291,62 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   /* Must set back to active before returning from function. */
   clone_mark_abort(true);
 
+#ifndef UNIV_HOTBACKUP
+  lsn_t lsn = log_get_lsn(*log_sys);
+#endif /* !UNIV_HOTBACKUP */
+
   mutex_acquire();
 
   /* Double check the sanity of pending ops after reacquiring
   the fil_system::mutex. */
   if (const fil_space_t *s = get_space_by_id(space_id)) {
     ut_a(s == space);
-    ut_a(space->n_pending_ops == 0);
     ut_a(space->files.size() == 1);
-    ut_a(space->files.front().n_pending == 0);
+    ut_a(space->n_pending_ops == 0);
+
+#ifndef UNIV_HOTBACKUP
+    if (buf_remove == BUF_REMOVE_NONE) {
+      ut_a(space->m_deleted_lsn == 0);
+
+      /* Mark the instance as deleted, this should inform any writer
+      threads that the tablespace can't be written to anymore. */
+      space->m_deleted_lsn = lsn;
+
+      /* Release the mutex because we want the IO to complete. */
+      mutex_release();
+
+      os_thread_yield();
+
+      mutex_acquire();
+
+      /* Wait for any pending writes. */
+      while (space->files.front().n_pending > 0) {
+        mutex_release();
+
+        os_thread_yield();
+
+        mutex_acquire();
+      }
+
+      m_deleted.push_back({space->id, space});
+    }
+#endif /* !UNIV_HOTBACKUP */
 
     space_detach(space);
 
-    space_delete(space_id);
+    /* Delete the tablespace unless BUF_REMOVE_NONE was used. */
+    if (space->m_deleted_lsn == 0) {
+      ut_a(space->files.front().n_pending == 0);
+
+      space_delete(space_id);
+    }
 
     mutex_release();
 
-    space_free_low(space);
-    ut_a(space == nullptr);
+    if (space->m_deleted_lsn == 0) {
+      space_free_low(space);
+      ut_a(space == nullptr);
+    }
 
     if (!os_file_delete(innodb_data_file_key, path) &&
         !os_file_delete_if_exists(innodb_data_file_key, path, nullptr)) {
@@ -4225,7 +4355,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 
       err = DB_IO_ERROR;
     }
-
   } else {
     mutex_release();
 
@@ -4239,13 +4368,6 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   return (err);
 }
 
-/** Deletes an IBD tablespace, either general or single-table.
-The tablespace must be cached in the memory cache. This will delete the
-datafile, fil_space_t & fil_node_t entries from the file_system_t cache.
-@param[in]	space_id	Tablespace ID
-@param[in]	buf_remove	Specify the action to take on the pages
-                                for this table in the buffer pool.
-@return DB_SUCCESS, DB_TABLESPCE_NOT_FOUND or DB_IO_ERROR */
 dberr_t fil_delete_tablespace(space_id_t space_id, buf_remove_t buf_remove) {
   auto shard = fil_system->shard_by_id(space_id);
 
@@ -4331,79 +4453,6 @@ bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages) {
   auto shard = fil_system->shard_by_id(space_id);
 
   return (shard->space_truncate(space_id, size_in_pages));
-}
-
-/** Truncate the tablespace to needed size with a new space_id.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  fil_space_t *space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Delete the old file and space object. */
-  dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_ALL_NO_WRITE);
-  if (err != DB_SUCCESS) {
-    return (false);
-  }
-
-  /* Create the new one. */
-  bool success;
-  pfs_os_file_t fh = os_file_create(
-      innodb_data_file_key, file_name.c_str(),
-      srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE, OS_FILE_NORMAL,
-      OS_DATA_FILE, srv_read_only_mode, &success);
-  if (!success) {
-    ib::error(ER_IB_MSG_1214, space_name.c_str(), "during truncate");
-    return (success);
-  }
-
-  /* Now write it full of zeros */
-  success = os_file_set_size(file_name.c_str(), fh, 0,
-                             size_in_pages << UNIV_PAGE_SIZE_SHIFT,
-                             srv_read_only_mode, true);
-  if (!success) {
-    ib::info(ER_IB_MSG_1074, file_name.c_str());
-    return (success);
-  }
-
-  os_file_close(fh);
-
-  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Delete the fil_space_t object for the new_space_id if it exists. */
-  if (fil_space_get(new_space_id) != nullptr) {
-    fil_space_free(new_space_id, false);
-  }
-
-  space = fil_space_create(space_name.c_str(), new_space_id, flags,
-                           FIL_TYPE_TABLESPACE);
-  if (space == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  page_no_t n_pages = SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
-#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  bool atomic_write = false;
-  if (!dblwr::enabled) {
-    atomic_write = fil_fusionio_enable_atomic_write(fh);
-  }
-#else
-  bool atomic_write = false;
-#endif /* !NO_FALLOCATE && UNIV_LINUX */
-
-  char *fn =
-      fil_node_create(file_name.c_str(), n_pages, space, false, atomic_write);
-  if (fn == nullptr) {
-    ib::error(ER_IB_MSG_1082, space_name.c_str());
-    return (false);
-  }
-
-  return (true);
 }
 
 #ifdef UNIV_DEBUG
@@ -5378,7 +5427,33 @@ dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                                 FIL_TYPE_TEMPORARY));
 }
 
+bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
+                            page_no_t size_in_pages) {
+  auto space = fil_space_get(old_space_id);
+  std::string space_name(space->name);
+  std::string file_name(space->files.front().name);
+
+  /* Mark the old tablespace to be deleted. We defer the actual deletion
+  to avoid concurrency bottleneck.  Leave the pages in the buffer pool
+  and record the lsn in fil_space_t::m_deleted_lsn. */
+  dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
+
+  if (err != DB_SUCCESS) {
+    return (false);
+  }
+
+  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
+
+  /* Create the new UNDO tablespace. */
+  err =
+      fil_create_tablespace(new_space_id, space_name.c_str(), file_name.c_str(),
+                            flags, size_in_pages, FIL_TYPE_TABLESPACE);
+
+  return (err == DB_SUCCESS);
+}
+
 #ifndef UNIV_HOTBACKUP
+
 /** Open a single-table tablespace and optionally check the space id is
 right in it. If not successful, print an error message to the error log. This
 function is used to open a tablespace when we start up mysqld, and also in
@@ -5490,7 +5565,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return (DB_SUCCESS);
   }
 
-  /* We pass UNINITIALIZED flags while we try to open DD tablesapce. In that
+  /* We pass UNINITIALIZED flags while we try to open DD tablespace. In that
   case, set the flags now based on what is read from disk.*/
   if (FSP_FLAGS_ARE_NOT_SET(flags) && fsp_is_dd_tablespace(space_id)) {
     flags = df.flags();
@@ -7049,12 +7124,6 @@ ulint fil_space_get_n_reserved_extents(space_id_t space_id) {
 
 /*============================ FILE I/O ================================*/
 
-/** Prepares a file for I/O. Opens the file if it is closed. Updates the
-pending I/O's field in the file and the system appropriately. Takes the file
-off the LRU list if it is in the LRU list.
-@param[in]	file		Tablespace file
-@param[in]	extend		true if file is being extended
-@return false if the file can't be opened, otherwise true */
 bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
   ut_ad(mutex_owned());
 
@@ -7073,6 +7142,10 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
 
       prev_time = curr_time;
     }
+  }
+
+  if (space->is_deleted()) {
+    return (false);
   }
 
   if (!file->is_open) {
@@ -7400,24 +7473,6 @@ dberr_t Fil_shard::do_redo_io(const IORequest &type, const page_id_t &page_id,
   return (err);
 }
 
-/** Read or write data. This operation could be asynchronous (aio).
-@param[in]	type		IO context
-@param[in]	sync		whether synchronous aio is desired
-@param[in]	page_id		page id
-@param[in]	page_size	page size
-@param[in]	byte_offset	remainder of offset in bytes; in aio this
-                                must be divisible by the OS block
-                                size
-@param[in]	len		how many bytes to read or write; this must
-                                not cross a file boundary; in AIO this must
-                                be a block size multiple
-@param[in,out]	buf		buffer where to store read data or from where
-                                to write; in aio this must be appropriately
-                                aligned
-@param[in]	message		message for aio handler if !sync, else ignored
-@return error code
-@retval DB_SUCCESS on success
-@retval DB_TABLESPACE_DELETED if the tablespace does not exist */
 dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
                          const page_id_t &page_id, const page_size_t &page_size,
                          ulint byte_offset, ulint len, void *buf,
@@ -7438,7 +7493,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   ut_ad(recv_no_ibuf_operations || req_type.is_write() ||
         !ibuf_bitmap_page(page_id, page_size) || sync || req_type.is_log());
 
-  AIO_mode aio_mode = get_AIO_mode(req_type, sync);
+  auto aio_mode = get_AIO_mode(req_type, sync);
 
   if (req_type.is_read()) {
     srv_stats.data_read.add(len);
@@ -7454,6 +7509,13 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       aio_mode = AIO_mode::IBUF;
     }
 
+#ifdef UNIV_DEBUG
+    /* Should never attempt to read from a deleted tablespace. */
+    for (auto pair : m_deleted) {
+      ut_ad(pair.first != page_id.space());
+    }
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
+
   } else if (req_type.is_write()) {
     ut_ad(!srv_read_only_mode || fsp_is_system_temporary(page_id.space()));
 
@@ -7461,7 +7523,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   }
 #else  /* !UNIV_HOTBACKUP */
   ut_a(sync);
-  AIO_mode aio_mode = AIO_mode::SYNC;
+  auto aio_mode = AIO_mode::SYNC;
 #endif /* !UNIV_HOTBACKUP */
 
   /* Reserve the mutex and make sure that we can open at
@@ -7504,8 +7566,8 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   ut_ad(aio_mode != AIO_mode::IBUF || fil_type_is_data(space->purpose));
 
   fil_node_t *file;
-  page_no_t page_no = page_id.page_no();
-  dberr_t err = get_file_for_io(req_type, space, &page_no, file);
+  auto page_no = page_id.page_no();
+  auto err = get_file_for_io(req_type, space, &page_no, file);
 
   if (err == DB_TABLE_NOT_FOUND) {
     mutex_release();
@@ -7538,6 +7600,19 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   }
 
   if (!opened) {
+#ifndef UNIV_HOTBACKUP
+    if (space->is_deleted()) {
+      ut_a(fsp_is_undo_tablespace(space->id));
+      mutex_release();
+
+      if (!sync) {
+        buf_page_io_complete(static_cast<buf_page_t *>(message), false);
+      }
+
+      return (DB_TABLESPACE_DELETED);
+    }
+#endif /* !UNIV_HOTBACKUP */
+
     if (fil_type_is_data(space->purpose) && fsp_is_ibd_tablespace(space->id)) {
       mutex_release();
 
@@ -7587,7 +7662,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
   ut_a(page_size.is_compressed() ||
        page_size.physical() == page_size.logical());
 
-  os_offset_t offset = (os_offset_t)page_no * page_size.physical();
+  auto offset = (os_offset_t)page_no * page_size.physical();
 
   offset += byte_offset;
 
@@ -7747,7 +7822,7 @@ void fil_aio_wait(ulint segment) {
       /* async single page writes from the dblwr buffer don't have
       access to the page */
       if (m2 != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(m2));
+        buf_page_io_complete(static_cast<buf_page_t *>(m2), false);
       }
       return;
     case FIL_TYPE_LOG:
@@ -9969,7 +10044,8 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 
   ptr += len;
 
-  if (!Fil_path::has_suffix(IBD, name)) {
+  if (!(Fil_path::has_suffix(IBD, name) ||
+        fsp_is_undo_tablespace(page_id.space()))) {
     recv_sys->found_corrupt_log = true;
 
     return (nullptr);
@@ -10196,7 +10272,8 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
   ptr += len;
 
-  if (!Fil_path::has_suffix(IBD, name)) {
+  if (!(Fil_path::has_suffix(IBD, name) ||
+        fsp_is_undo_tablespace(page_id.space()))) {
     recv_sys->found_corrupt_log = true;
 
     return (nullptr);
@@ -11285,6 +11362,18 @@ void Fil_path::convert_to_lower_case(std::string &path) {
   innobase_casedn_path(lc_path);
 
   path.assign(lc_path);
+}
+
+void fil_checkpoint(lsn_t lwm) { fil_system->checkpoint(lwm); }
+
+size_t fil_count_deleted(space_id_t undo_num) {
+  return (fil_system->count_deleted(undo_num));
+}
+
+bool fil_is_deleted(space_id_t space_id) {
+  ut_ad(fsp_is_undo_tablespace(space_id));
+
+  return (fil_system->is_deleted(space_id));
 }
 
 #endif /* !UNIV_HOTBACKUP */
