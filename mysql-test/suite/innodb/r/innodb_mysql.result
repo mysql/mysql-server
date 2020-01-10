@@ -520,12 +520,16 @@ insert into t1 (id, c) values
 (NULL, 'a'),
 (NULL, 'a')
 on duplicate key update id = values(id), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 2	a	2
 insert into t1 (id, c) values
 (NULL, 'b')
 on duplicate key update id = values(id), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 2	a	2
@@ -537,12 +541,18 @@ id	c	counter
 1	a	1
 insert into t1 (id, c) values (NULL, 'b'), (NULL, 'b')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 1	a	1
 3	b	2
 insert into t1 (id, c) values (NULL, 'a')
 on duplicate key update id = values(id), c = values(c), counter = counter + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1;
 id	c	counter
 3	b	2

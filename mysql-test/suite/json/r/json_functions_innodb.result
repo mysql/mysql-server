@@ -8538,16 +8538,22 @@ DROP TABLE t;
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	[1]
 INSERT INTO t VALUES (1, '[1,2]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"ab": [1, 2]}
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 SELECT * FROM t;
 id	j
 1	{"abc": [1, 2, 3]}

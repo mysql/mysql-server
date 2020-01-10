@@ -48,6 +48,8 @@ insert into v3(b) select b from t2;
 Warnings:
 Warning	1048	Column 'a' cannot be null
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 select * from t1 ;
 a	b
 10002	NULL

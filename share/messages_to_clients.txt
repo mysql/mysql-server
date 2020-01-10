@@ -9300,6 +9300,10 @@ ER_MISSING_JSON_VALUE 22035
 ER_MULTIPLE_JSON_VALUES 22034
   eng "More than one value was found by '%.192s' on the specified path."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error code.
+ER_WARN_DEPRECATED_VALUES_FUNCTION_ALWAYS_NULL
+  eng "The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

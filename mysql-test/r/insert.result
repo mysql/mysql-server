@@ -319,6 +319,8 @@ insert into t1 (a,b) values (a,b);
 insert into t1 SET a=1, b=a+1;
 insert into t1 (a,b) select 1,2;
 INSERT INTO t1 ( a ) SELECT 0 ON DUPLICATE KEY UPDATE a = a + VALUES (a);
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
 prepare stmt1 from ' replace into t1 (a,a) select 100, ''hundred'' ';
 ERROR 42000: Column 'a' specified twice
 insert into t1 (a,b) values (1,1,1);
@@ -1018,3 +1020,23 @@ WHERE alias1.f1 < 20
 );
 FLUSH TABLES;
 DROP TABLE t1, t2;
+#
+# WL#13325: Deprecate VALUES syntax in INSERT ... ON DUPLICATE KEY UPDATE
+#
+CREATE TABLE t(id INT PRIMARY KEY, x INT);
+INSERT INTO t VALUES (0, 0) ON DUPLICATE KEY UPDATE x = VALUES(x) + 1;
+Warnings:
+Warning	1287	'VALUES function' is deprecated and will be removed in a future release. Please use an alias (INSERT INTO ... VALUES (...) AS alias) and replace VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col instead
+INSERT INTO t VALUES (0, 0)
+ON DUPLICATE KEY UPDATE x = (SELECT VALUES(x)+1 FROM t t1);
+Warnings:
+Warning	1287	The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause.
+SELECT VALUES(x) FROM t;
+VALUES(x)
+NULL
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
+INSERT INTO t VALUES (1, VALUES(x));
+Warnings:
+Warning	1681	'VALUES function' is deprecated and will be removed in a future release.
+DROP TABLE t;
