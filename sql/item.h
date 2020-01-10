@@ -2726,6 +2726,15 @@ class Item : public Parse_tree_node {
     For items that represent scalar or row subqueries, it is true if
     one of the returned columns could be null, or if the subquery
     could return zero rows.
+
+    It is worth noting that this information is correct only until
+    equality propagation has been run by the optimization phase.
+    Indeed, consider:
+     select * from t1, t2,t3 where t1.pk=t2.a and t1.pk+1...
+    the '+' is not nullable as t1.pk is not nullable;
+    but if the optimizer chooses plan is t2-t3-t1, then, due to equality
+    propagation it will replace t1.pk in '+' with t2.a (as t2 is before t1
+    in plan), making the '+' capable of returning NULL when t2.a is NULL.
   */
   bool maybe_null;
   bool null_value;  ///< True if item is null

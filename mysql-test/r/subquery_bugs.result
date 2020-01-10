@@ -1375,3 +1375,50 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.t1.col1' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1, t2, t3;
+#
+# Bug#30659623 ASSERT IN SQL/ITEM_SUBSELECT.CC:3571: SUBSELECT_HASH_SJ_ENGINE::EXEC()
+#
+CREATE TABLE t1 (col_int_key INT);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (
+col_int_key INT, col_int_unique INT,
+UNIQUE KEY (col_int_unique), KEY (col_int_key)
+);
+INSERT INTO t2 VALUES (26,14),(3,46),(45,2),(18,30),(11,22),(19,8),(41,3),(1,5),
+(1,9),(38,4),(13,38),(32,12),(11,7),(2,26),(5,10),(16,45);
+CREATE TABLE t3 (pk INT NOT NULL PRIMARY KEY);
+ANALYZE TABLE t1,t2,t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+explain format = tree SELECT *
+FROM t1
+LEFT JOIN t2 ON t1.col_int_key = t2.col_int_key
+JOIN t3 ON t1.col_int_key =  t3.pk
+WHERE t3.pk+6 NOT IN (
+SELECT /*+ subquery(materialization) */
+table1s.col_int_unique AS field4 FROM t2 AS table1s);
+EXPLAIN
+-> Nested loop left join  (cost=1.10 rows=1)
+    -> Nested loop inner join  (cost=0.70 rows=1)
+        -> Filter: (<in_optimizer>((t1.col_int_key + 6),(t1.col_int_key + 6) in (select #2) is false) and (t1.col_int_key is not null))  (cost=0.35 rows=1)
+            -> Table scan on t1  (cost=0.35 rows=1)
+            -> Select #2 (subquery in condition; run only once)
+                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))
+                    -> Limit: 1 row(s)
+                        -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t1.col_int_key + 6))
+                            -> Materialize with deduplication
+                                -> Index scan on table1s using col_int_unique  (cost=1.85 rows=16)
+        -> Single-row index lookup on t3 using PRIMARY (pk=t1.col_int_key)  (cost=0.35 rows=1)
+    -> Index lookup on t2 using col_int_key (col_int_key=t1.col_int_key)  (cost=0.40 rows=1)
+
+SELECT *
+FROM t1
+LEFT JOIN t2 ON t1.col_int_key = t2.col_int_key
+JOIN t3 ON t1.col_int_key =  t3.pk
+WHERE t3.pk+6 NOT IN (
+SELECT /*+ subquery(materialization) */
+table1s.col_int_unique AS field4 FROM t2 AS table1s);
+col_int_key	col_int_key	col_int_unique	pk
+DROP TABLE t1,t2,t3;

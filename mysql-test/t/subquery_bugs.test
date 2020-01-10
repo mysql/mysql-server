@@ -1078,3 +1078,37 @@ EXPLAIN FORMAT=tree
   );
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30659623 ASSERT IN SQL/ITEM_SUBSELECT.CC:3571: SUBSELECT_HASH_SJ_ENGINE::EXEC()
+--echo #
+
+CREATE TABLE t1 (col_int_key INT);
+
+INSERT INTO t1 VALUES (NULL);
+
+CREATE TABLE t2 (
+  col_int_key INT, col_int_unique INT,
+  UNIQUE KEY (col_int_unique), KEY (col_int_key)
+);
+
+INSERT INTO t2 VALUES (26,14),(3,46),(45,2),(18,30),(11,22),(19,8),(41,3),(1,5),
+(1,9),(38,4),(13,38),(32,12),(11,7),(2,26),(5,10),(16,45);
+
+CREATE TABLE t3 (pk INT NOT NULL PRIMARY KEY);
+
+ANALYZE TABLE t1,t2,t3;
+
+let $query=
+SELECT *
+FROM t1
+  LEFT JOIN t2 ON t1.col_int_key = t2.col_int_key
+  JOIN t3 ON t1.col_int_key =  t3.pk
+WHERE t3.pk+6 NOT IN (
+  SELECT /*+ subquery(materialization) */
+    table1s.col_int_unique AS field4 FROM t2 AS table1s);
+
+eval explain format = tree $query;
+eval $query;
+
+DROP TABLE t1,t2,t3;
