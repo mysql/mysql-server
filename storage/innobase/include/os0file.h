@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -536,7 +536,7 @@ class IORequest {
       os << " | IGNORE_MISSING";
     }
 
-    if (m_type | PUNCH_HOLE) {
+    if (m_type & PUNCH_HOLE) {
       os << " | PUNCH_HOLE";
     }
 
