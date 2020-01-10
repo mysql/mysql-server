@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1331,11 +1331,11 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       if (res == nullptr)  // Value is NULL.
       {
         DBUG_ASSERT(item->maybe_null);
+        *null_indicator = 0;
         if (is_varlen) {
           // Don't store anything except the NULL flag.
           return 0;
         }
-        *null_indicator = 0;
         memset(to, 0, dst_length.value());
         return dst_length.value();
       }
