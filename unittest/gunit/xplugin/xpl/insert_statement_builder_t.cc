@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -177,10 +177,11 @@ TEST_F(Insert_statement_builder_test, add_projection_document_one_item) {
 TEST_F(Insert_statement_builder_test, add_upsert) {
   ASSERT_NO_THROW(builder().add_upsert(k_dm_document));
   EXPECT_STREQ(
+      " AS _UPSERT_NEW_VALUES_(_NEW_DOC_)"
       " ON DUPLICATE KEY UPDATE"
       " doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))"
-      " = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')),"
-      " VALUES(doc), MYSQLX_ERROR(5018))",
+      " = JSON_UNQUOTE(JSON_EXTRACT(_UPSERT_NEW_VALUES_._NEW_DOC_, '$._id')),"
+      " _UPSERT_NEW_VALUES_._NEW_DOC_, MYSQLX_ERROR(5018))",
       query.get().c_str());
   ASSERT_THROW(builder().add_upsert(k_dm_table), ngs::Error_code);
 }
@@ -213,10 +214,11 @@ TEST_F(Insert_statement_builder_test, build_document_upsert) {
   EXPECT_STREQ(
       "INSERT INTO `xtest`.`xcoll` (doc) VALUES "
       "('" EXPECT_DOC_EXAMPLE1 "'),('" EXPECT_DOC_EXAMPLE2
-      "') ON DUPLICATE KEY UPDATE"
+      "') AS _UPSERT_NEW_VALUES_(_NEW_DOC_)"
+      " ON DUPLICATE KEY UPDATE"
       " doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))"
-      " = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')),"
-      " VALUES(doc), MYSQLX_ERROR(5018))",
+      " = JSON_UNQUOTE(JSON_EXTRACT(_UPSERT_NEW_VALUES_._NEW_DOC_, '$._id')),"
+      " _UPSERT_NEW_VALUES_._NEW_DOC_, MYSQLX_ERROR(5018))",
       query.get().c_str());
 }
 

@@ -8155,12 +8155,31 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
     }
 
     set_field(def_field);
+
+    // The VALUES function is deprecated.
+    if (m_is_values_function)
+      push_deprecated_warn(
+          thd, "VALUES function",
+          "an alias (INSERT INTO ... VALUES (...) AS alias) and replace "
+          "VALUES(col) in the ON DUPLICATE KEY UPDATE clause with alias.col");
   } else {
     // VALUES() is used out-of-scope - its value is always NULL
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     Item *const item = new Item_null(this->item_name);
     if (!item) return true;
     *reference = item;
+
+    // The VALUES function is deprecated. It always returns NULL in this
+    // context, but if it is inside an ON DUPLICATE KEY UPDATE clause, the user
+    // probably meant something else. In that case, suggest an alternative
+    // syntax which doesn't always return NULL.
+    DBUG_ASSERT(m_is_values_function);
+    if (thd->lex->in_update_value_clause) {
+      push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                   ER_THD(thd, ER_WARN_DEPRECATED_VALUES_FUNCTION_ALWAYS_NULL));
+    } else {
+      push_deprecated_warn_no_replacement(thd, "VALUES function");
+    }
   }
   return false;
 }

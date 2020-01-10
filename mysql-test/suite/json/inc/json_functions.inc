@@ -3044,6 +3044,7 @@ DROP TABLE t;
 --echo # JSON should work with INSERT .. ON DUPLICATE KEY UPDATE
 --echo #
 CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+--disable_ps_protocol # Different number of warnings until WL#6570.
 INSERT INTO t VALUES (1, '[1]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("a", VALUES(j));
 SELECT * FROM t;
@@ -3052,6 +3053,7 @@ ON DUPLICATE KEY UPDATE j = JSON_OBJECT("ab", VALUES(j));
 SELECT * FROM t;
 INSERT INTO t VALUES (1, '[1,2,3]')
 ON DUPLICATE KEY UPDATE j = JSON_OBJECT("abc", VALUES(j));
+--enable_ps_protocol
 SELECT * FROM t;
 DROP TABLE t;
 

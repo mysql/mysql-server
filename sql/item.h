@@ -5565,10 +5565,24 @@ class Item_insert_value final : public Item_field {
 
  public:
   Item *arg;
+
+  /**
+    Constructs an Item_insert_value that represents a call to the deprecated
+    VALUES function.
+  */
   Item_insert_value(const POS &pos, Item *a)
-      : Item_field(pos, nullptr, nullptr, nullptr), arg(a) {}
+      : Item_field(pos, nullptr, nullptr, nullptr),
+        arg(a),
+        m_is_values_function(true) {}
+
+  /**
+    Constructs an Item_insert_value that represents a derived table that wraps a
+    table value constructor.
+  */
   Item_insert_value(Name_resolution_context *context_arg, Item *a)
-      : Item_field(context_arg, nullptr, nullptr, nullptr), arg(a) {}
+      : Item_field(context_arg, nullptr, nullptr, nullptr),
+        arg(a),
+        m_is_values_function(false) {}
 
   bool itemize(Parse_context *pc, Item **res) override {
     if (skip_itemize(res)) return false;
@@ -5597,6 +5611,14 @@ class Item_insert_value final : public Item_field {
     func_arg->banned_function_name = "values";
     return true;
   }
+
+ private:
+  /**
+    This flag is true if the item represents a call to the deprecated VALUES
+    function. It is false if the item represents a derived table that wraps a
+    table value constructor.
+  */
+  const bool m_is_values_function;
 };
 
 /**

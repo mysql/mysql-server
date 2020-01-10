@@ -165,6 +165,8 @@ b=(SELECT '' AS b FROM t1 GROUP BY VALUES(b));
 ERROR 42S22: Unknown column '' in 'VALUES() function'
 INSERT INTO t2(a,b) VALUES (1,0) ON DUPLICATE KEY UPDATE
 b=(SELECT VALUES(a)+2 FROM t1);
+Warnings:
+Warning	1287	The VALUES function is deprecated and will be removed in a future release. It always returns NULL in this context. If you meant to access a value from the VALUES clause of the INSERT statement, consider using an alias (INSERT INTO ... VALUES (...) AS alias) and reference alias.col instead of VALUES(col) in the ON DUPLICATE KEY UPDATE clause.
 DROP TABLE t1, t2;
 #
 # Bug#54812: assert in Diagnostics_area::set_ok_status during EXPLAIN
