@@ -3563,10 +3563,6 @@ class Item_field : public Item_ident {
   float get_cond_filter_default_probability(double max_distinct_values,
                                             float default_filter) const;
 
-  friend class Item_default_value;
-  friend class Item_insert_value;
-  friend class SELECT_LEX_UNIT;
-
   /**
      @note that field->table->alias_name_used is reliable only if
      thd->lex->need_correct_ident() is true.
@@ -5576,7 +5572,7 @@ class Item_insert_value final : public Item_field {
 
   bool itemize(Parse_context *pc, Item **res) override {
     if (skip_itemize(res)) return false;
-    return super::itemize(pc, res) || arg->itemize(pc, &arg);
+    return Item_field::itemize(pc, res) || arg->itemize(pc, &arg);
   }
 
   enum Type type() const override { return INSERT_VALUE_ITEM; }
