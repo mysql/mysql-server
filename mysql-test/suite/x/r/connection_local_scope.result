@@ -4,6 +4,7 @@
 #
 ## Testcase
 #
+call mtr.add_suppression("Hostname '.*' does not resolve to .*");
 call mtr.add_suppression("IP address .* could not be resolved: .*");
 
 # Using MySQL client
