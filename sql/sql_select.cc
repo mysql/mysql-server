@@ -337,7 +337,19 @@ static bool reads_not_secondary_columns(const LEX *lex) {
     // Check all read columns of table.
     for (unsigned int i = bitmap_get_first_set(tl->table->read_set);
          i != MY_BIT_NONE; i = bitmap_get_next_set(tl->table->read_set, i)) {
-      if (tl->table->field[i]->flags & NOT_SECONDARY_FLAG) return true;
+      if (tl->table->field[i]->flags & NOT_SECONDARY_FLAG) {
+        Opt_trace_context *trace = &lex->thd->opt_trace;
+        if (trace->is_started()) {
+          std::string message("");
+          message.append("Column ");
+          message.append(tl->table->field[i]->field_name);
+          message.append(" is marked as NOT SECONDARY.");
+          Opt_trace_object trace_wrapper(trace);
+          Opt_trace_object oto(trace, "secondary_engine_not_used");
+          oto.add_alnum("reason", message.c_str());
+        }
+        return true;
+      }
     }
   }
 
