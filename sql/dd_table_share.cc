@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2248,6 +2248,10 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
         Sql_check_constraint_share_list(&share->mem_root);
     if (share->check_constraint_share_list == nullptr) return true;  // OOM
 
+    if (share->check_constraint_share_list->reserve(
+            tab_obj->check_constraints().size()))
+      return true;  // OOM
+
     for (auto &cc : tab_obj->check_constraints()) {
       // Check constraint name.
       LEX_CSTRING name;
@@ -2266,12 +2270,8 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
       bool is_cc_enforced =
           (cc->constraint_state() == dd::Check_constraint::CS_ENFORCED);
 
-      Sql_check_constraint_share *cc_share = new (&share->mem_root)
-          Sql_check_constraint_share(name, check_clause, is_cc_enforced);
-      if (cc_share == nullptr) return true;  // OOM
-
-      if (share->check_constraint_share_list->push_back(cc_share))
-        return true;  // OOM
+      share->check_constraint_share_list->push_back(
+          Sql_check_constraint_share(name, check_clause, is_cc_enforced));
     }
   }
 

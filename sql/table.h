@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,11 +119,11 @@ class Common_table_expr;
 
 class Sql_table_check_constraint;
 using Sql_table_check_constraint_list =
-    Mem_root_array<Sql_table_check_constraint *>;
+    Mem_root_array<Sql_table_check_constraint>;
 
 class Sql_check_constraint_share;
 using Sql_check_constraint_share_list =
-    Mem_root_array<Sql_check_constraint_share *>;
+    Mem_root_array<Sql_check_constraint_share>;
 
 typedef Mem_root_array_YY<LEX_CSTRING> Create_col_name_list;
 
