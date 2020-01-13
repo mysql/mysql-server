@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -935,7 +935,7 @@ Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
     } catch (const std::bad_alloc &) {
       my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0),
                "while getting replication_group_member_stats table rows",
-               __FUNCTION__);
+               "get_pipeline_stats");
       return nullptr;
     }
   }
