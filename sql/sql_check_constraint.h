@@ -114,8 +114,6 @@ class Sql_check_constraint_share {
                              const LEX_CSTRING &expr_str, bool is_enforced)
       : m_name(name), m_expr_str(expr_str), m_is_enforced(is_enforced) {}
 
-  ~Sql_check_constraint_share() = default;
-
   /// Constraint name.
   LEX_CSTRING &name() { return m_name; }
   /// Check expression in string form.
@@ -153,8 +151,6 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
       : Sql_check_constraint_share(name, expr_str, is_enforced),
         m_val_gen(val_gen),
         m_table(table) {}
-
-  ~Sql_table_check_constraint() = default;
 
   /// Value generator.
   Value_generator *value_generator() { return m_val_gen; }
