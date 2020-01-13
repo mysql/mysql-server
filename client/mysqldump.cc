@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1558,7 +1558,7 @@ static int connect_to_db(char *host, char *user, char *passwd) {
                 &opt_zstd_compress_level);
 
   if (opt_network_timeout) {
-    uint timeout = 700;
+    uint timeout = 86400;  // 1 day in seconds
     ulong max_packet_allowed = 1024L * 1024L * 1024L;
 
     mysql_options(&mysql_connection, MYSQL_OPT_READ_TIMEOUT, (char *)&timeout);
@@ -1636,8 +1636,8 @@ static int connect_to_db(char *host, char *user, char *passwd) {
   */
   if (opt_network_timeout) {
     snprintf(buff, sizeof(buff),
-             "SET SESSION NET_READ_TIMEOUT= 700, "
-             "SESSION NET_WRITE_TIMEOUT= 700 ");
+             "SET SESSION NET_READ_TIMEOUT= 86400, "
+             "SESSION NET_WRITE_TIMEOUT= 86400 ");  // 1 day in seconds
     if (mysql_query_with_error_report(mysql, nullptr, buff)) return 1;
   }
 
