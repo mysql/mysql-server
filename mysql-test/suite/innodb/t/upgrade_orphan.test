@@ -59,6 +59,7 @@ SHOW CREATE TABLE mysql.user;
 SHOW CREATE TABLE mysql.innodb_table_stats;
 SHOW CREATE TABLE mysql.innodb_index_stats;
 
+--sorted_result
 SELECT COLUMN_NAME,CHARACTER_MAXIMUM_LENGTH
   FROM INFORMATION_SCHEMA.COLUMNS col
     JOIN INFORMATION_SCHEMA.TABLES tab ON col.table_name=tab.table_name
@@ -80,6 +81,7 @@ SHOW CREATE TABLE test.t_gen_stored_myisam2;
 SHOW CREATE TABLE test.jemp_myisam;
 
 
+--sorted_result
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
  FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 --echo # Check for views
