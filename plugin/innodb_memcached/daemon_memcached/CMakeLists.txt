@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -75,11 +75,14 @@ SET(MEMCACHED_SOURCES
   daemon/topkeys.h
   trace.h)
 
-SET(SASL_LIBRARY)
+SET(MEMCACHED_SASL_LIBRARY)
 IF(ENABLE_MEMCACHED_SASL)
-  SET(SASL_LIBRARY "sasl2")
+  SET(MEMCACHED_SASL_LIBRARY "sasl2")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
-  LINK_LIBRARIES ${LIBEVENT_LIBRARIES} memcached_utilities ${SASL_LIBRARY}
+  LINK_LIBRARIES
+  ${LIBEVENT_LIBRARIES}
+  memcached_utilities
+  ${MEMCACHED_SASL_LIBRARY}
   MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")
