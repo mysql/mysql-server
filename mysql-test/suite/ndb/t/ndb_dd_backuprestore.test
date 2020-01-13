@@ -291,6 +291,7 @@ SELECT table_name, partition_name, partition_ordinal_position, partition_method,
 --sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't2'; 
 
+--sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3'; 
 
 --sorted_result
@@ -299,6 +300,7 @@ SELECT table_name, partition_name, partition_ordinal_position, partition_method,
 --sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't5'; 
 
+--sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 
 
@@ -435,6 +437,7 @@ SELECT table_name, partition_name, partition_ordinal_position, partition_method,
 --sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't2';
 
+--sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't3';
 
 --sorted_result
@@ -443,6 +446,7 @@ SELECT table_name, partition_name, partition_ordinal_position, partition_method,
 --sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression FROM information_schema.partitions WHERE table_name= 't5';
 
+--sorted_result
 SELECT table_name, partition_name, partition_ordinal_position, partition_method, partition_expression, partition_description FROM information_schema.partitions WHERE table_name= 't6';
 
 SELECT COUNT(*) FROM test.t1; 
