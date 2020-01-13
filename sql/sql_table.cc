@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18212,10 +18212,10 @@ static bool prepare_check_constraints_for_create_like_table(
         return true;
 
       //  check constraint expression.
-      cc_spec->check_expr = table_cc->value_generator()->expr_item;
+      cc_spec->check_expr = table_cc.value_generator()->expr_item;
 
       // Copy check constraint status.
-      cc_spec->is_enforced = table_cc->is_enforced();
+      cc_spec->is_enforced = table_cc.is_enforced();
 
       alter_info->check_constraint_spec_list.push_back(cc_spec);
 
@@ -18224,7 +18224,7 @@ static bool prepare_check_constraints_for_create_like_table(
         generated check constraint name for target table.
       */
       if (push_check_constraint_mdl_request_to_list(
-              thd, src_table->db, table_cc->name().str, cc_mdl_request_list) ||
+              thd, src_table->db, table_cc.name().str, cc_mdl_request_list) ||
           push_check_constraint_mdl_request_to_list(
               thd, target_table->db, cc_spec->name.str, cc_mdl_request_list))
         return true;
@@ -18304,9 +18304,9 @@ static bool prepare_check_constraints_for_alter(
 
     bool cc_found = false;
     if (table->table_check_constraint_list != nullptr) {
-      for (Sql_table_check_constraint *table_cc :
+      for (Sql_table_check_constraint &table_cc :
            *table->table_check_constraint_list) {
-        if (!my_strcasecmp(system_charset_info, table_cc->name().str,
+        if (!my_strcasecmp(system_charset_info, table_cc.name().str,
                            drop->name)) {
           dropped_cc_names.push_back(drop->name);
           cc_found = true;
@@ -18331,11 +18331,11 @@ static bool prepare_check_constraints_for_alter(
   if (table->table_check_constraint_list != nullptr) {
     for (const Alter_drop *drop : alter_info->drop_list) {
       if (drop->type == Alter_drop::COLUMN) {
-        for (Sql_table_check_constraint *table_cc :
+        for (Sql_table_check_constraint &table_cc :
              *table->table_check_constraint_list) {
           if (check_constraint_expr_refers_to_only_column(
-                  table_cc->value_generator()->expr_item, drop->name))
-            dropped_cc_names.push_back(table_cc->name().str);
+                  table_cc.value_generator()->expr_item, drop->name))
+            dropped_cc_names.push_back(table_cc.name().str);
         }
       }
     }
@@ -18363,13 +18363,12 @@ static bool prepare_check_constraints_for_alter(
         Push MDL_request for the existing check constraint name.
         Note: Notice that this also handles case of dropped constraints.
       */
-      if (push_check_constraint_mdl_request_to_list(thd, alter_tbl_ctx->db,
-                                                    table_cc->name().str,
-                                                    cc_mdl_request_list))
+      if (push_check_constraint_mdl_request_to_list(
+              thd, alter_tbl_ctx->db, table_cc.name().str, cc_mdl_request_list))
         return true;
 
       // Skip if constraint is marked for drop.
-      if (find_cc_name(dropped_cc_names, table_cc->name().str) != nullptr)
+      if (find_cc_name(dropped_cc_names, table_cc.name().str) != nullptr)
         continue;
 
       Sql_check_constraint_spec *cc_spec =
@@ -18377,8 +18376,8 @@ static bool prepare_check_constraints_for_alter(
       if (cc_spec == nullptr) return true;  // OOM
 
       bool is_generated_name = dd::is_generated_check_constraint_name(
-          alter_tbl_ctx->table_name, table_name_len, table_cc->name().str,
-          table_cc->name().length);
+          alter_tbl_ctx->table_name, table_name_len, table_cc.name().str,
+          table_cc.name().length);
       /*
         Get number from generated name and update max generated number if
         needed.
@@ -18386,7 +18385,7 @@ static bool prepare_check_constraints_for_alter(
       if (is_generated_name) {
         char *end;
         uint number =
-            my_strtoull(table_cc->name().str + table_name_len +
+            my_strtoull(table_cc.name().str + table_name_len +
                             sizeof(dd::CHECK_CONSTRAINT_NAME_SUBSTR) - 1,
                         &end, 10);
         if (number > cc_max_generated_number) cc_max_generated_number = number;
@@ -18396,7 +18395,7 @@ static bool prepare_check_constraints_for_alter(
       if (is_generated_name && alter_tbl_ctx->is_table_name_changed()) {
         char *end;
         uint number =
-            my_strtoull(table_cc->name().str + table_name_len +
+            my_strtoull(table_cc.name().str + table_name_len +
                             sizeof(dd::CHECK_CONSTRAINT_NAME_SUBSTR) - 1,
                         &end, 10);
         if (number > cc_max_generated_number) cc_max_generated_number = number;
@@ -18406,16 +18405,16 @@ static bool prepare_check_constraints_for_alter(
                                            cc_spec->name, true))
           return true;
       } else {
-        lex_string_strmake(thd->mem_root, &cc_spec->name, table_cc->name().str,
-                           table_cc->name().length);
+        lex_string_strmake(thd->mem_root, &cc_spec->name, table_cc.name().str,
+                           table_cc.name().length);
         if (cc_spec->name.str == nullptr) return true;  // OOM
       }
 
       //  check constraint expression.
-      cc_spec->check_expr = table_cc->value_generator()->expr_item;
+      cc_spec->check_expr = table_cc.value_generator()->expr_item;
 
       // Copy check constraint status.
-      cc_spec->is_enforced = table_cc->is_enforced();
+      cc_spec->is_enforced = table_cc.is_enforced();
 
       // Push check constraint to new list.
       new_check_cons_list.push_back(cc_spec);
@@ -18547,8 +18546,8 @@ static bool prepare_check_constraints_for_alter(
     if (table->table_check_constraint_list != nullptr) {
       for (auto &table_cc : *table->table_check_constraint_list) {
         if (!my_strcasecmp(system_charset_info, cc->name.str,
-                           table_cc->name().str) &&
-            !table_cc->is_enforced() && cc->is_enforced) {
+                           table_cc.name().str) &&
+            !table_cc.is_enforced() && cc->is_enforced) {
           final_enforced_state = true;
           break;
         }

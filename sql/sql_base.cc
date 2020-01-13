@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9220,7 +9220,7 @@ static bool check_inserting_record(THD *thd, Field **ptr) {
 bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
   if (table->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table->table_check_constraint_list) {
-      if (table_cc->is_enforced()) {
+      if (table_cc.is_enforced()) {
         /*
           Invoke check constraints only if column(s) used by check constraint is
           updated.
@@ -9228,14 +9228,14 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
         if ((thd->lex->sql_command == SQLCOM_UPDATE ||
              thd->lex->sql_command == SQLCOM_UPDATE_MULTI) &&
             !bitmap_is_overlapping(
-                &table_cc->value_generator()->base_columns_map,
+                &table_cc.value_generator()->base_columns_map,
                 table->write_set)) {
           DEBUG_SYNC(thd, "skip_check_constraints_on_unaffected_columns");
           continue;
         }
 
         // Validate check constraint.
-        Item *check_const_expr_item = table_cc->value_generator()->expr_item;
+        Item *check_const_expr_item = table_cc.value_generator()->expr_item;
         check_const_expr_item->m_in_check_constraint_exec_ctx = true;
         bool is_constraint_violated = (!check_const_expr_item->val_bool() &&
                                        !check_const_expr_item->null_value);
@@ -9249,7 +9249,7 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
         */
         if (is_constraint_violated || thd->is_error()) {
           if (thd->is_error()) thd->clear_error();
-          my_error(ER_CHECK_CONSTRAINT_VIOLATED, MYF(0), table_cc->name().str);
+          my_error(ER_CHECK_CONSTRAINT_VIOLATED, MYF(0), table_cc.name().str);
           return true;
         }
       }

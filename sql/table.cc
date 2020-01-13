@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2404,7 +2404,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
                   (uchar *)context);
   save_where = thd->where;
 
-  dd::String_type where_str;
+  std::string where_str;
   if (source == VGS_GENERATED_COLUMN || source == VGS_DEFAULT_EXPRESSION) {
     thd->where = field->is_field_for_functional_index()
                      ? "functional index"
@@ -2413,8 +2413,10 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
                            : "default value expression";
   } else {
     DBUG_ASSERT(source == VGS_CHECK_CONSTRAINT);
-    where_str =
-        "check constraint " + dd::String_type(source_name) + " expression";
+    where_str.reserve(256);
+    where_str.append(STRING_WITH_LEN("check constraint "));
+    where_str.append(source_name);
+    where_str.append(STRING_WITH_LEN(" expression"));
     thd->where = where_str.c_str();
   }
 
@@ -3128,43 +3130,24 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         new (root) Sql_table_check_constraint_list(root);
     if (outparam->table_check_constraint_list == nullptr) goto err;  // OOM
 
+    if (outparam->table_check_constraint_list->reserve(
+            share->check_constraint_share_list->size()))
+      goto err;  // OOM
+
     for (auto &cc_share : *share->check_constraint_share_list) {
-      // Check constraint name.
-      LEX_CSTRING name;
-      if (lex_string_strmake(root, &name, cc_share->name().str,
-                             cc_share->name().length))
-        goto err;  // OOM
-
-      // Check constraint expression.
-      LEX_CSTRING expr_str;
-      if (lex_string_strmake(root, &expr_str, cc_share->expr_str().str,
-                             cc_share->expr_str().length))
-        goto err;  // OOM
-
-      /*
-        Value generator instance for the check constraint expression. Memory
-        for val_gen is allocated in the thd->mem_root here intentionally.
-        Parser instantiate another value generator object in TABLE's mem_root
-        in unpack_value_generator().
-      */
-      Value_generator *val_gen = new (thd->mem_root) Value_generator();
-      val_gen->dup_expr_str(thd->mem_root, expr_str.str, expr_str.length);
-
-      Sql_table_check_constraint *table_cc =
-          new (root) Sql_table_check_constraint(
-              name, expr_str, cc_share->is_enforced(), val_gen, outparam);
-      if (table_cc == nullptr) goto err;  // OOM
-
       // Unpack check constraint expression.
-      if (unpack_value_generator(thd, outparam, &val_gen, VGS_CHECK_CONSTRAINT,
-                                 table_cc->name().str, nullptr, is_create_table,
-                                 &error_reported))
+      Value_generator val_gen;
+      val_gen.expr_str = to_lex_string(cc_share.expr_str());
+      Value_generator *val_gen_ptr = &val_gen;
+      if (unpack_value_generator(thd, outparam, &val_gen_ptr,
+                                 VGS_CHECK_CONSTRAINT, cc_share.name().str,
+                                 nullptr, is_create_table, &error_reported))
         goto err;
 
-      // Use value generator obtained from the parser.
-      table_cc->set_value_generator(val_gen);
-
-      if (outparam->table_check_constraint_list->push_back(table_cc)) goto err;
+      outparam->table_check_constraint_list->push_back(
+          Sql_table_check_constraint(cc_share.name(), cc_share.expr_str(),
+                                     cc_share.is_enforced(), val_gen_ptr,
+                                     outparam));
     }
   }
 
@@ -3280,7 +3263,7 @@ err:
   }
   if (outparam->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *outparam->table_check_constraint_list) {
-      free_items(table_cc->value_generator()->item_list);
+      free_items(table_cc.value_generator()->item_list);
     }
   }
   outparam->file = nullptr;  // For easier error checking
@@ -3316,7 +3299,7 @@ int closefrm(TABLE *table, bool free_share) {
   }
   if (table->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table->table_check_constraint_list) {
-      free_items(table_cc->value_generator()->item_list);
+      free_items(table_cc.value_generator()->item_list);
     }
   }
   destroy(table->file);
@@ -4239,11 +4222,11 @@ bool TABLE::refix_value_generator_items(THD *thd) {
 
   if (table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table_check_constraint_list) {
-      Value_generator *cc_expr = table_cc->value_generator();
+      Value_generator *cc_expr = table_cc.value_generator();
       DBUG_ASSERT(cc_expr != nullptr && cc_expr->expr_item != nullptr);
-      refix_inner_value_generator_items(thd, cc_expr, nullptr,
-                                        table_cc->table(), VGS_CHECK_CONSTRAINT,
-                                        table_cc->name().str);
+      refix_inner_value_generator_items(thd, cc_expr, nullptr, table_cc.table(),
+                                        VGS_CHECK_CONSTRAINT,
+                                        table_cc.name().str);
     }
   }
 
@@ -4320,7 +4303,7 @@ void TABLE::cleanup_value_generator_items() {
 
   if (table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table_check_constraint_list)
-      cleanup_items(table_cc->value_generator()->item_list);
+      cleanup_items(table_cc.value_generator()->item_list);
   }
 
   if (!has_gcol()) return;
@@ -6218,20 +6201,20 @@ void TABLE::mark_check_constraint_columns(bool is_update) {
   DBUG_ASSERT(table_check_constraint_list != nullptr);
 
   bool bitmap_updated = false;
-  for (Sql_table_check_constraint *tbl_cc : *table_check_constraint_list) {
-    if (tbl_cc->is_enforced()) {
+  for (Sql_table_check_constraint &tbl_cc : *table_check_constraint_list) {
+    if (tbl_cc.is_enforced()) {
       /*
         For update operation, check constraint should be evaluated if it is
         dependent on any of the updated column.
       */
       if (is_update &&
           !bitmap_is_overlapping(write_set,
-                                 &tbl_cc->value_generator()->base_columns_map))
+                                 &tbl_cc.value_generator()->base_columns_map))
         continue;
 
       // Mark all the columns used in the check constraint.
       const MY_BITMAP *columns_map =
-          &tbl_cc->value_generator()->base_columns_map;
+          &tbl_cc.value_generator()->base_columns_map;
       for (uint i = bitmap_get_first_set(columns_map); i != MY_BIT_NONE;
            i = bitmap_get_next_set(columns_map, i)) {
         DBUG_ASSERT(i < s->fields);

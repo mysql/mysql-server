@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,9 +61,9 @@ bool Constraint_type_resolver::is_check_constraint(const TABLE *src_table,
                                                    const char *name) {
   if (src_table->table_check_constraint_list == nullptr) return false;
 
-  for (Sql_table_check_constraint *table_cc :
+  for (Sql_table_check_constraint &table_cc :
        *src_table->table_check_constraint_list) {
-    if (!my_strcasecmp(system_charset_info, table_cc->name().str, name))
+    if (!my_strcasecmp(system_charset_info, table_cc.name().str, name))
       return true;
   }
 

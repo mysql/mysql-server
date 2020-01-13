@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1551,12 +1551,11 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   */
   if (table->table_check_constraint_list != nullptr) {
     for (auto &cc : *table->table_check_constraint_list) {
-      packet->append(STRING_WITH_LEN(",\n  "));
-      packet->append(STRING_WITH_LEN("CONSTRAINT "));
-      append_identifier(thd, packet, cc->name().str, cc->name().length);
+      packet->append(STRING_WITH_LEN(",\n  CONSTRAINT "));
+      append_identifier(thd, packet, cc.name().str, cc.name().length);
 
       packet->append(STRING_WITH_LEN(" CHECK ("));
-      packet->append(cc->expr_str().str, cc->expr_str().length,
+      packet->append(cc.expr_str().str, cc.expr_str().length,
                      system_charset_info);
       packet->append(STRING_WITH_LEN(")"));
 
@@ -1564,7 +1563,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         If check constraint is not-enforced then it is listed with the comment
         "NOT ENFORCED".
       */
-      if (!cc->is_enforced()) {
+      if (!cc.is_enforced()) {
         packet->append(STRING_WITH_LEN(" /*!80016 NOT ENFORCED */"));
       }
     }
