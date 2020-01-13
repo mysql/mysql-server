@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -520,11 +520,10 @@ ibool rw_lock_x_lock_low(
     if (!pass) {
       bool recursive = lock->recursive;
       os_rmb;
-      os_thread_id_t writer_thread = lock->writer_thread;
 
       /* Decrement failed: An X or SX lock is held by either
       this thread or another. Try to relock. */
-      if (recursive && os_thread_eq(writer_thread, thread_id)) {
+      if (recursive && os_thread_eq(lock->writer_thread, thread_id)) {
         /* Other s-locks can be allowed. If it is request x
         recursively while holding sx lock, this x lock should
         be along with the latching-order. */
@@ -594,12 +593,11 @@ ibool rw_lock_sx_lock_low(
     if (!pass) {
       bool recursive = lock->recursive;
       os_rmb;
-      os_thread_id_t writer_thread = lock->writer_thread;
 
       /* Decrement failed: It already has an X or SX lock by this
       thread or another thread. If it is this thread, relock,
       else fail. */
-      if (recursive && os_thread_eq(writer_thread, thread_id)) {
+      if (recursive && os_thread_eq(lock->writer_thread, thread_id)) {
         /* This thread owns an X or SX lock */
         if (lock->sx_recursive++ == 0) {
           /* This thread is making first SX-lock request
