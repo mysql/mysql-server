@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1546,7 +1546,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     }
   }
   thd->set_query_id(next_query_id());
-  thd->rewritten_query.mem_free();
+  thd->reset_rewritten_query();
   thd_manager->inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -2193,7 +2193,7 @@ done:
   thd->m_digest = nullptr;
 
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
-  thd->rewritten_query.mem_free();
+  thd->reset_rewritten_query();
 
   thd_manager->dec_thread_running();
 
@@ -5218,23 +5218,23 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
 
   if (!err) {
     /*
-      Rewrite the query for logging and for the Performance Schema statement
-      tables. Raw logging happened earlier.
+      Rewrite the query for logging and for the Performance Schema
+      statement tables. (Raw logging happened earlier.)
 
       Sub-routines of mysql_rewrite_query() should try to only rewrite when
       necessary (e.g. not do password obfuscation when query contains no
       password).
 
-      If rewriting does not happen here, thd->rewritten_query is still empty
-      from being reset above.
+      If rewriting does not happen here, thd->m_rewritten_query is still
+      empty from being reset in alloc_query().
     */
-    mysql_rewrite_query(thd);
+    if (thd->rewritten_query().length() == 0) mysql_rewrite_query(thd);
 
-    if (thd->rewritten_query.length()) {
+    if (thd->rewritten_query().length()) {
       lex->safe_to_cache_query = false;  // see comments below
 
-      thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
-                                 thd->rewritten_query.length());
+      thd->set_query_for_display(thd->rewritten_query().ptr(),
+                                 thd->rewritten_query().length());
     } else if (thd->slave_thread) {
       /*
         In the slave, we add the information to pfs.events_statements_history,
@@ -5247,10 +5247,10 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
     }
 
     if (!(opt_general_log_raw || thd->slave_thread)) {
-      if (thd->rewritten_query.length())
+      if (thd->rewritten_query().length())
         query_logger.general_log_write(thd, COM_QUERY,
-                                       thd->rewritten_query.c_ptr_safe(),
-                                       thd->rewritten_query.length());
+                                       thd->rewritten_query().ptr(),
+                                       thd->rewritten_query().length());
       else {
         size_t qlen = found_semicolon ? (found_semicolon - thd->query().str)
                                       : thd->query().length;

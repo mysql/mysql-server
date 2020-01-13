@@ -2075,15 +2075,23 @@ class List_process_list : public Do_THD_Impl {
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
-      if ((query_length = inspect_thd->rewritten_query.length()) > 0) {
-        query_str = inspect_thd->rewritten_query.c_ptr();
-      } else {
+      const char *query_str = nullptr;
+      size_t query_length = 0;
+
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query.
+      */
+      else {
         query_length = inspect_thd->query().length;
         query_str = inspect_thd->query().str;
       }
 
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session()) {
         buf.append(query_length ? "PLUGIN: " : "PLUGIN");
@@ -2094,6 +2102,7 @@ class List_process_list : public Do_THD_Impl {
         query_length = buf.length();
       }
       /* No else. We need fall-through */
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str) {
         const size_t width = min<size_t>(m_max_query_length, query_length);
         const char *q = m_client_thd->strmake(query_str, width);
@@ -2268,17 +2277,23 @@ class Fill_process_list : public Do_THD_Impl {
     /* INFO */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     {
-      const char *query_str;
-      size_t query_length;
+      const char *query_str = nullptr;
+      size_t query_length = 0;
 
-      if (inspect_thd->rewritten_query.length()) {
-        query_str = inspect_thd->rewritten_query.c_ptr_safe();
-        query_length = inspect_thd->rewritten_query.length();
-      } else {
-        query_str = inspect_thd->query().str;
+      /* If a rewritten query exists, use that. */
+      if (inspect_thd->rewritten_query().length() > 0) {
+        query_length = inspect_thd->rewritten_query().length();
+        query_str = inspect_thd->rewritten_query().ptr();
+      }
+      /*
+        Otherwise, use the original query.
+      */
+      else {
         query_length = inspect_thd->query().length;
+        query_str = inspect_thd->query().str;
       }
 
+      /* In the stand-alone server, add "PLUGIN" as needed. */
       String buf;
       if (inspect_thd->is_a_srv_session()) {
         buf.append(query_length ? "PLUGIN: " : "PLUGIN");
@@ -2289,6 +2304,7 @@ class Fill_process_list : public Do_THD_Impl {
         query_length = buf.length();
       }
       /* No else. We need fall-through */
+      /* If we managed to create query info, set a copy on thd_info. */
       if (query_str) {
         const size_t width = min<size_t>(PROCESS_LIST_INFO_WIDTH, query_length);
         table->field[7]->store(query_str, width, inspect_thd->charset());

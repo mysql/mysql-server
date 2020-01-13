@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -560,9 +560,8 @@ Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
     const List<LEX_CSTRING> *dynamic_privs)
     : operation(op), db(thd->db().str, thd->db().length) {
-  if (thd->rewritten_query.length()) {
-    query.assign(thd->rewritten_query.c_ptr_safe(),
-                 thd->rewritten_query.length());
+  if (thd->rewritten_query().length()) {
+    query.assign(thd->rewritten_query().ptr(), thd->rewritten_query().length());
   } else {
     query.assign(thd->query().str, thd->query().length);
   }
@@ -704,19 +703,20 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
   result = thd->is_error() || extra_error || thd->transaction_rollback_request;
   /* Write to binlog and textlogs only if there is no error */
   if (!result) {
-    mysql_rewrite_acl_query(thd, Consumer_type::BINLOG, rewrite_params);
+    String rlb;
+    mysql_rewrite_acl_query(thd, rlb, Consumer_type::BINLOG, rewrite_params);
     if (write_to_binlog) {
       LEX_CSTRING query;
       enum_sql_command command;
       size_t num_extra_users = extra_users ? extra_users->size() : 0;
       command = thd->lex->sql_command;
       if (mysql_bin_log.is_open()) {
-        query.str = thd->rewritten_query.length()
-                        ? thd->rewritten_query.c_ptr_safe()
+        query.str = thd->rewritten_query().length()
+                        ? thd->rewritten_query().ptr()
                         : thd->query().str;
 
-        query.length = thd->rewritten_query.length()
-                           ? thd->rewritten_query.length()
+        query.length = thd->rewritten_query().length()
+                           ? thd->rewritten_query().length()
                            : thd->query().length;
 
         /* Write to binary log */
@@ -763,7 +763,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
       Rewrite query in the thd again for the consistent logging for all consumer
       type TEXTLOG later on. For instance: Audit logs.
     */
-    mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
+    mysql_rewrite_acl_query(thd, rlb, Consumer_type::TEXTLOG, rewrite_params);
   }
 
   if (acl_end_trans_and_close_tables(thd, result)) result = true;
