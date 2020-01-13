@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 #include <NdbTick.h>
 #include <portlib/ndb_localtime.h>
 
-#include <NDBT.hpp>
+#include <NdbToolsProgramExitCodes.hpp>
 
 #include <kernel/NodeBitmask.hpp>
 
@@ -109,7 +109,7 @@ int main(int argc, char** argv){
 
   if (handle_options(&argc, &argv, my_long_options,
                      ndb_std_get_one_option))
-    return NDBT_ProgramExit(NDBT_WRONGARGS);
+    return NdbToolsProgramExitCode::WRONG_ARGS;
 
   const char* connect_string = argv[0];
   if (connect_string == 0)
@@ -177,8 +177,9 @@ int main(int argc, char** argv){
   }
 
   if (waitClusterStatus(connect_string, wait_status) != 0)
-    return NDBT_ProgramExit(NDBT_FAILED);
-  return NDBT_ProgramExit(NDBT_OK);
+    return NdbToolsProgramExitCode::FAILED;
+
+  return NdbToolsProgramExitCode::OK;
 }
 
 #define MGMERR(h) \
@@ -207,14 +208,14 @@ getStatus(){
       ndb_mgm_disconnect(handle);
       if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
         MGMERR(handle);
-        g_err  << "Reconnect failed" << endl;
+        ndberr << "Reconnect failed" << endl;
         break;
       }
       continue;
     }
     int count = status->no_of_nodes;
     for (int i = 0; i < count; i++){
-      node = &status->node_states[i];      
+      node = &status->node_states[i];
       switch(node->node_type){
       case NDB_MGM_NODE_TYPE_NDB:
         if (!nowait_nodes_bitmask.get(node->node_id))
@@ -287,19 +288,19 @@ waitClusterStatus(const char* _addr,
 
   handle = ndb_mgm_create_handle();
   if (handle == NULL){
-    g_err << "Could not create ndb_mgm handle" << endl;
+    ndberr << "Could not create ndb_mgm handle" << endl;
     return -1;
   }
-  g_info << "Connecting to mgmsrv at " << _addr << endl;
+  ndbout << "Connecting to mgmsrv at " << _addr << endl;
   if (ndb_mgm_set_connectstring(handle, _addr))
   {
     MGMERR(handle);
-    g_err  << "Connectstring " << _addr << " invalid" << endl;
+    ndberr << "Connectstring " << _addr << " invalid" << endl;
     return -1;
   }
   if (ndb_mgm_connect(handle, opt_connect_retries - 1, opt_connect_retry_delay, 1)) {
     MGMERR(handle);
-    g_err  << "Connection to " << _addr << " failed" << endl;
+    ndberr << "Connection to " << _addr << " failed" << endl;
     return -1;
   }
 
@@ -342,14 +343,14 @@ waitClusterStatus(const char* _addr,
       }
 
       if (!waitMore || resetAttempts > MAX_RESET_ATTEMPTS){
-	g_err << "waitNodeState("
+	ndberr << "waitNodeState("
 	      << ndb_mgm_get_node_status_string(_status)
 	      <<", "<<_startphase<<")"
 	      << " timeout after " << attempts << " attempts" << endl;
 	return -1;
       }
 
-      g_err << "waitNodeState("
+      ndberr << "waitNodeState("
 	    << ndb_mgm_get_node_status_string(_status)
 	    <<", "<<_startphase<<")"
 	    << " resetting timeout "
@@ -375,7 +376,7 @@ waitClusterStatus(const char* _addr,
 
       require(ndbNode != NULL);
 
-      g_info << "Node " << ndbNode->node_id << ": "
+      ndbout << "Node " << ndbNode->node_id << ": "
 	     << ndb_mgm_get_node_status_string(ndbNode->node_status)<< endl;
 
       if (ndbNode->node_status !=  _status)
@@ -384,13 +385,13 @@ waitClusterStatus(const char* _addr,
 
     if (!allInState) {
       char timestamp[9];
-      g_info << "[" << getTimeAsString(timestamp, sizeof(timestamp)) << "] "
+      ndbout << "[" << getTimeAsString(timestamp, sizeof(timestamp)) << "] "
              << "Waiting for cluster enter state "
              << ndb_mgm_get_node_status_string(_status) << endl;
     }
 
     attempts++;
-    
+
     now = NdbTick_getCurrentTicks();
   }
   return 0;
