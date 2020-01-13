@@ -85,7 +85,7 @@ TARGET_LINK_LIBRARIES(ndb_drop_index ndbclient_static ndbNDBT)
 MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient_static ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient_static)
 
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
