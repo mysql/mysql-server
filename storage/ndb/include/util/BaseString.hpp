@@ -139,6 +139,14 @@ public:
   bool splitKeyValue(BaseString& key, BaseString& value) const;
 
   /**
+   * Same as split except that splitWithQuotedStrings does not consider
+   * spaces within quotes(double or single) as a separators.
+   */
+  int splitWithQuotedStrings(Vector<BaseString> &vector,
+        const BaseString &separator = BaseString(" "),
+        int maxSize = -1) const;
+
+  /**
    * Returns the index of the first occurance of the character c.
    *
    * @params c character to look for

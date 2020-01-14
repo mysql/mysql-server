@@ -1221,6 +1221,22 @@ split_args(const char* line, Vector<BaseString>& args)
       args.erase(i--);
 }
 
+static void
+split_args_with_quotes(const char* line, Vector<BaseString>& args)
+{
+  // Split the command line on space
+  BaseString tmp(line);
+  tmp.splitWithQuotedStrings(args);
+
+  // Remove any empty args which come from double
+  // spaces in the command line
+  // ie. "hello<space><space>world" becomes ("hello, "", "world")
+  //
+  for (unsigned i= 0; i < args.size(); i++)
+    if (args[i].length() == 0)
+      args.erase(i--);
+}
+
 
 bool
 CommandInterpreter::execute_impl(const char *_line, bool interactive)
@@ -3129,9 +3145,11 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   unsigned long long int tmp_backupId = 0;
 
   Vector<BaseString> args;
+  Vector<BaseString> args1;
   if (parameters)
-    split_args(parameters, args);
-
+  {
+    split_args_with_quotes(parameters, args);
+  }
   // Retain case of password, convert the rest to uppercase
   for (unsigned i= 0; i < args.size(); i++)
   {

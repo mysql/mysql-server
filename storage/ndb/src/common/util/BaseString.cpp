@@ -322,6 +322,53 @@ BaseString::splitKeyValue(BaseString& key, BaseString& value) const
   return false;
 }
 
+int
+BaseString::splitWithQuotedStrings(Vector<BaseString> &v,
+      const BaseString &separator,
+      int maxSize) const
+{
+  char *str = strdup(m_chr);
+  int i, start, len, num = 0;
+  len = (int)strlen(str);
+  const char* opening_quote = nullptr;
+
+  for(start = i = 0;
+      (i <= len) && ((maxSize < 0) || ((int)v.size() <= maxSize-1));
+      i++)
+  {
+    if (str[i] != '\0')
+    {
+      const char* curr_quote = strchr("'\"", str[i]);
+      if (curr_quote != nullptr)
+      {
+        if (opening_quote == nullptr)
+        {
+          // Opening quote found, ignore separator till closing quote is found
+          opening_quote = curr_quote;
+        }
+        else
+        {
+          // Closing quote found, check for separator from now
+          opening_quote = nullptr;
+        }
+        continue;
+      }
+    }
+    if ((strchr(separator.c_str(), str[i]) && (opening_quote == nullptr)) ||
+        (i == len))
+    {
+      if ((maxSize < 0) || ((int)v.size() < (maxSize - 1)))
+        str[i] = '\0';
+      v.push_back(BaseString(str+start));
+      num++;
+      start = i+1;
+    }
+  }
+  free(str);
+
+  return num;
+}
+
 ssize_t
 BaseString::indexOf(char c, size_t pos) const
 {
