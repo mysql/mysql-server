@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,10 +95,11 @@ When one supplies long data for a placeholder:
 #include "my_config.h"
 
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
-#include <atomic>
+#include <limits>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -125,10 +126,12 @@ When one supplies long data for a placeholder:
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -142,6 +145,7 @@ When one supplies long data for a placeholder:
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
+#include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/resourcegroups/resource_group_mgr.h"
@@ -1411,9 +1415,9 @@ static bool init_param_array(Prepared_statement *stmt) {
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
-    stmt->param_array = (Item_param **)stmt->thd->mem_root->Alloc(
-        sizeof(Item_param *) * stmt->param_count);
-    if (!stmt->param_array) return true;
+    stmt->param_array =
+        stmt->thd->mem_root->ArrayAlloc<Item_param *>(stmt->param_count);
+    if (stmt->param_array == nullptr) return true;
     for (to = stmt->param_array; to < stmt->param_array + stmt->param_count;
          ++to) {
       *to = param_iterator++;
@@ -2917,9 +2921,15 @@ bool Prepared_statement::execute_server_runnable(
 /**
   Reprepare this prepared statement.
 
-  Currently this is implemented by creating a new prepared
-  statement, preparing it with the original query and then
-  swapping the new statement and the original one.
+  Performs a light reset of the Prepared_statement object (resets its MEM_ROOT
+  and clears its MEM_ROOT allocated members), and calls prepare() on it again.
+
+  The resetting of the MEM_ROOT and clearing of the MEM_ROOT allocated members
+  is performed by a swap operation (swap_prepared_statement()) on this
+  Prepared_statement and a newly created, intermediate Prepared_statement. This
+  both clears the data from this object and stores a backup of the original data
+  in the intermediate object. If the repreparation fails, the original data is
+  swapped back into this Prepared_statement.
 
   @retval  true   an error occurred. Possible errors include
                   incompatibility of new and old result set
@@ -2931,42 +2941,69 @@ bool Prepared_statement::reprepare() {
   char saved_cur_db_name_buf[NAME_LEN + 1];
   LEX_STRING saved_cur_db_name = {saved_cur_db_name_buf,
                                   sizeof(saved_cur_db_name_buf)};
-  bool cur_db_changed;
-  bool error;
 
+  /*
+    Create an intermediate Prepared_statement object and move the MEM_ROOT
+    allocated data of the original Prepared_statement into it. Set up a guard
+    that moves the data back into the original statement if the repreparation
+    fails.
+  */
   Prepared_statement copy(thd);
-
-  copy.set_sql_prepare(); /* To suppress sending metadata to the client. */
+  swap_prepared_statement(&copy);
+  auto copy_guard =
+      create_scope_guard([&]() { swap_prepared_statement(&copy); });
 
   thd->status_var.com_stmt_reprepare++;
 
-  if (mysql_opt_change_db(thd, m_db, &saved_cur_db_name, true, &cur_db_changed))
+  /*
+    m_name has been moved to the copy. Allocate it again in the original
+    statement.
+  */
+  if (copy.m_name.str != nullptr && set_name(copy.m_name)) return true;
+
+  bool cur_db_changed;
+  if (mysql_opt_change_db(thd, copy.m_db, &saved_cur_db_name, true,
+                          &cur_db_changed))
     return true;
 
-  error = ((m_name.str && copy.set_name(m_name)) ||
-           copy.prepare(m_query_string.str, m_query_string.length) ||
-           validate_metadata(&copy));
+  /*
+    Suppress sending metadata to the client while repreparing. It was sent
+    during the initial preparation.
+  */
+  const unsigned saved_flags = flags;
+  set_sql_prepare();
+  const bool prepare_error =
+      prepare(copy.m_query_string.str, copy.m_query_string.length);
+  flags = saved_flags;
 
   if (cur_db_changed)
     mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
-  if (!error) {
-    copy.m_prepared_stmt = m_prepared_stmt;
-    /* Update reprepare count for this prepared statement in P_S table. */
-    MYSQL_REPREPARE_PS(copy.m_prepared_stmt);
+  if (prepare_error) return true;
 
-    swap_prepared_statement(&copy);
-    swap_parameter_array(param_array, copy.param_array, param_count);
-    /*
-      Clear possible warnings during reprepare, it has to be completely
-      transparent to the user. We use clear_warning_info() since
-      there were no separate query id issued for re-prepare.
-      Sic: we can't simply silence warnings during reprepare, because if
-      it's failed, we need to return all the warnings to the user.
-    */
-    thd->get_stmt_da()->reset_condition_info(thd);
-  }
-  return error;
+  if (validate_metadata(&copy)) return true;
+
+  /* Update reprepare count for this prepared statement in P_S table. */
+  MYSQL_REPREPARE_PS(m_prepared_stmt);
+
+  /*
+    A new parameter array was created by prepare(). Make sure it contains the
+    same values as the original array.
+  */
+  DBUG_ASSERT(param_count == copy.param_count);
+  swap_parameter_array(param_array, copy.param_array, param_count);
+
+  /*
+    Clear possible warnings during reprepare, it has to be completely
+    transparent to the user. We use reset_condition_info() since
+    there were no separate query id issued for re-prepare.
+    Sic: we can't simply silence warnings during reprepare, because if
+    it's failed, we need to return all the warnings to the user.
+  */
+  thd->get_stmt_da()->reset_condition_info(thd);
+
+  copy_guard.commit();
+  return false;
 }
 
 /**
@@ -3002,10 +3039,17 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy) {
 }
 
 /**
-  Replace the original prepared statement with a prepared copy.
+  Swap the MEM_ROOT allocated data of two prepared statements.
 
-  This is a private helper that is used as part of statement
-  reprepare.
+  This is a private helper that is used as part of statement reprepare. It is
+  used in the beginning of reprepare() to clear the MEM_ROOT of the statement
+  before the new preparation, while keeping the data available as some of it is
+  needed later in the repreparation. It is also used for restoring the original
+  data from the copy, should the repreparation fail.
+
+  The operation is symmetric. It can be used both for saving an original
+  statement into a backup, and for restoring the original state of the statement
+  from the backup.
 */
 
 void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
@@ -3029,6 +3073,8 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
     is allocated in the old arena.
   */
   std::swap(param_array, copy->param_array);
+  std::swap(param_count, copy->param_count);
+
   /* Don't swap flags: the copy has IS_SQL_PREPARE always set. */
   /* std::swap(flags, copy->flags); */
   /* Swap names, the old name is allocated in the wrong memory root */
@@ -3036,17 +3082,7 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   /* Ditto */
   std::swap(m_db, copy->m_db);
 
-  // The call to copy.prepare() will have set the copy as the owner of
-  // the Sql_cmd object, if there is one. Set it back to this.
-  if (lex->m_sql_cmd != nullptr) {
-    DBUG_ASSERT(lex->m_sql_cmd->get_owner() == copy);
-    lex->m_sql_cmd->set_owner(this);
-  }
-
-  DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
-  last_error[0] = '\0';
-  last_errno = 0;
 }
 
 /**
