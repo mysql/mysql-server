@@ -946,6 +946,7 @@ public:
     Uint32 m_o_direct;
     Uint32 m_compressed_backup;
     Uint32 m_compressed_lcp;
+    bool   m_encryption_required;
   };
   
   /**

@@ -2730,6 +2730,22 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     calculate_real_disk_write_speed_parameters();
     return;
   }
+  case DumpStateOrd::BackupEncryptionRequired:
+  {
+    jam();
+    if (signal->length() == 2)
+    {
+      if (signal->theData[1] == true)
+      {
+        c_defaults.m_encryption_required = true;
+      }
+      else if (signal->theData[1] == false)
+      {
+        c_defaults.m_encryption_required = false;
+      }
+    }
+    return;
+  }
   default:
     /* continue to debug section */
     break;
@@ -4261,6 +4277,14 @@ Backup::execBACKUP_REQ(Signal* signal)
     return;
   }//if
   
+  if (c_defaults.m_encryption_required && ((flags & BackupReq::ENCRYPTED_BACKUP) == 0))
+  {
+    jam();
+    sendBackupRef(senderRef, flags, signal, senderData,
+                  BackupRef::EncryptionPassphraseMissing);
+    return;
+  }
+
 #ifdef DEBUG_ABORT
   dumpUsedResources();
 #endif
@@ -6460,6 +6484,13 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   }
   else
   {
+    if (c_defaults.m_encryption_required && ((req->flags & BackupReq::ENCRYPTED_BACKUP) == 0))
+    {
+      jam();
+      defineBackupRef(signal, ptr, BackupRef::EncryptionPassphraseMissing);
+      return;
+    }
+
     for (Uint32 i = 0; i < 3; i++)
     {
       jam();

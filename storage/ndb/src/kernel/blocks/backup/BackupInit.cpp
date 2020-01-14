@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,6 +260,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 			    &c_defaults.m_compressed_backup);
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
+  c_defaults.m_encryption_required = false;
 
   m_enable_partial_lcp = 1; /* Default to enabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
