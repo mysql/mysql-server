@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1272,10 +1272,11 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       point by switching to multi-table UPDATE/DELETE)
       8. We're not in a confluent table-less subquery, like "SELECT 1".
       9. No execution method was already chosen (by a prepared statement)
-      10. Parent select is not a confluent table-less select
-      11. Neither parent nor child select have STRAIGHT_JOIN option.
-      12. LHS of IN predicate is deterministic
-      13. The surrounding truth test, and the nullability of expressions,
+      10. Parent query block is not a confluent table-less query block.
+      11. Neither parent nor child query block has straight join.
+      12. Parent query block does not prohibit semi-join.
+      13. LHS of IN predicate is deterministic
+      14. The surrounding truth test, and the nullability of expressions,
       are compatible with the conversion.
   */
   if (semijoin_enabled(thd) &&                                    // 0
@@ -1289,15 +1290,15 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
        outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&  // 6a
       !outer->semijoin_disallowed &&                              // 6b
       outer->sj_candidates &&                                     // 7
-      leaf_table_count &&                                         // 8
-      predicate->exec_method ==                                   //  9
-          SubqueryExecMethod::EXEC_UNSPECIFIED &&                 //  9
-      outer->leaf_table_count &&                                  // 10
+      leaf_table_count > 0 &&                                     // 8
+      predicate->exec_method ==                                   // 9
+          SubqueryExecMethod::EXEC_UNSPECIFIED &&                 // 9
+      outer->leaf_table_count > 0 &&                              // 10
       !((active_options() | outer->active_options()) &            // 11
         SELECT_STRAIGHT_JOIN) &&                                  // 11
-      deterministic &&                                            // 12
-      predicate->choose_semijoin_or_antijoin())                   // 13
-
+      !(outer->active_options() & SELECT_NO_SEMI_JOIN) &&         // 12
+      deterministic &&                                            // 13
+      predicate->choose_semijoin_or_antijoin())                   // 14
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
