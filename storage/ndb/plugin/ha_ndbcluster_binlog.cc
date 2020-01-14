@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -795,6 +795,7 @@ static bool migrate_table_with_old_extra_metadata(
     return false;
   }
 
+  dd_client.commit();
   return true;
 }
 
@@ -1380,19 +1381,18 @@ class Ndb_binlog_setup {
             "Skipping setup of table '%s.%s', it has "
             "unsupported extra metadata version %d.",
             schema_name, table_name, version);
+        free(unpacked_data);
         return true;  // Skipped
       }
 
       if (version == 1) {
-        const bool migrate_result = migrate_table_with_old_extra_metadata(
-            thd, ndb, schema_name, table_name, unpacked_data, unpacked_len,
-            force_overwrite);
-
-        if (!migrate_result) {
+        // Migrate table with version 1 metadata to DD and return
+        if (!migrate_table_with_old_extra_metadata(
+                thd, ndb, schema_name, table_name, unpacked_data, unpacked_len,
+                force_overwrite)) {
           free(unpacked_data);
           return false;
         }
-
         free(unpacked_data);
         return true;
       }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ class Ndb_dd_client {
                      Ndb_referenced_tables_invalidator *invalidator = nullptr);
   bool migrate_table(const char *schema_name, const char *table_name,
                      const unsigned char *frm_data, unsigned int unpacked_len,
-                     bool force_overwrite, bool compare_definitions = false);
+                     bool force_overwrite);
   bool get_table(const char *schema_name, const char *table_name,
                  const dd::Table **table_def);
   bool table_exists(const char *schema_name, const char *table_name,
@@ -173,6 +173,7 @@ class Ndb_dd_client {
   bool set_object_id_and_version_in_table(const char *schema_name,
                                           const char *table_name, int object_id,
                                           int object_version);
+  bool store_table(dd::Table *install_table) const;
 
   bool fetch_all_schemas(std::map<std::string, const dd::Schema *> &);
   bool fetch_schema_names(std::vector<std::string> *);
@@ -185,6 +186,7 @@ class Ndb_dd_client {
                                    bool *found_local_tables);
   bool is_local_table(const char *schema_name, const char *table_name,
                       bool &local_table);
+  bool get_schema(const char *schema_name, const dd::Schema **schema_def) const;
   bool schema_exists(const char *schema_name, bool *schema_exists);
   bool update_schema_version(const char *schema_name, unsigned int counter,
                              unsigned int node_id);

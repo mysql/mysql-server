@@ -51,10 +51,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "mysqld_error.h"                    // ER_*
-#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
-#include "sql/dd/dd_schema.h"                // Schema_MDL_locker
-#include "sql/dd/dd_table.h"                 // create_dd_user_table
+#include "mysqld_error.h"     // ER_*
+#include "sql/dd/dd_table.h"  // create_dd_user_table
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/utils.h"  // execute_query
 #include "sql/dd/properties.h"
@@ -63,8 +61,6 @@
 #include "sql/field.h"
 #include "sql/handler.h"  // legacy_db_type
 #include "sql/key.h"
-#include "sql/log.h"
-#include "sql/mdl.h"
 #include "sql/mysqld.h"      // mysql_real_data_home
 #include "sql/parse_file.h"  // File_option
 #include "sql/partition_element.h"
@@ -79,15 +75,11 @@
 #include "sql/sql_parse.h"  // check_string_char_length
 #include "sql/sql_table.h"  // build_tablename
 #include "sql/system_variables.h"
-#include "sql/table.h"     // Table_check_intact
 #include "sql/thd_raii.h"  // Implicit_substatement_state_guard
 #include "sql/thr_malloc.h"
-#include "sql/transaction.h"  // trans_commit
 #include "sql_string.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"  // Ndb_dd_client
 #include "storage/ndb/plugin/ndb_log.h"
-#include "storage/ndb/plugin/ndb_metadata.h"     // Ndb_metadata::compare
-#include "storage/ndb/plugin/ndb_table_guard.h"  // Ndb_table_guard
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"  // Thd_ndb
 #include "thr_lock.h"
@@ -275,64 +267,6 @@ static bool fix_generated_columns_for_upgrade(
 }
 
 /**
-  Call handler API to get storage engine specific metadata. Storage Engine
-  should fill table id and version
-
-  @param[in]    thd             Thread Handle
-  @param[in]    schema_name     Name of schema
-  @param[in]    table_name      Name of table
-  @param[in]    table           TABLE object
-
-  @retval true   ON SUCCESS
-  @retval false  ON FAILURE
-*/
-
-static bool set_se_data_for_user_tables(THD *thd,
-                                        const String_type &schema_name,
-                                        const String_type &table_name,
-                                        TABLE *table) {
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::Schema_MDL_locker mdl_locker(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-
-  const dd::Schema *sch = nullptr;
-  if (thd->dd_client()->acquire<dd::Schema>(schema_name.c_str(), &sch))
-    return false;
-
-  dd::Table *table_def = nullptr;
-  if (thd->dd_client()->acquire_for_modification(
-          schema_name.c_str(), table_name.c_str(), &table_def)) {
-    // Error is reported by the dictionary subsystem.
-    return false;
-  }
-
-  if (!table_def) {
-    /*
-       Should never hit this case as the caller of this function stores
-       the information in dictionary.
-    */
-    ndb_log_error("Error in fetching %s.%s table data from dictionary",
-                  table_name.c_str(), schema_name.c_str());
-    return false;
-  }
-
-  if (table->file->ha_upgrade_table(thd, schema_name.c_str(),
-                                    table_name.c_str(), table_def, table)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return false;
-  }
-
-  if (thd->dd_client()->update<dd::Table>(table_def)) {
-    trans_rollback_stmt(thd);
-    trans_rollback(thd);
-    return false;
-  }
-
-  return !(trans_commit_stmt(thd) || trans_commit(thd));
-}
-
-/**
   THD::mem_root is only switched with the given mem_root and switched back
   on destruction. This does not free any mem_root.
  */
@@ -353,11 +287,11 @@ class Thd_mem_root_guard {
   Read .frm files and enter metadata for tables
 */
 
-bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
+bool migrate_table_to_dd(THD *thd, Ndb_dd_client *dd_client,
+                         const String_type &schema_name,
                          const String_type &table_name,
                          const unsigned char *frm_data,
-                         const unsigned int unpacked_len,
-                         bool compare_definitions) {
+                         const unsigned int unpacked_len) {
   DBUG_TRACE;
 
   FRM_context frm_context;
@@ -617,9 +551,8 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     still have to acquire locks. IX locks are acquired on tablespaces
     to satisfy asserts in dd::create_table()).
   */
-  Ndb_dd_client dd_client(thd);
   for (const std::string &tablespace_name : tablespace_names) {
-    if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true)) {
+    if (!dd_client->mdl_lock_tablespace(tablespace_name.c_str(), true)) {
       thd_ndb->push_warning(ER_CANT_LOCK_TABLESPACE,
                             "Unable to acquire lock on tablespace %s",
                             tablespace_name.c_str());
@@ -646,19 +579,9 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   // Set sql_mode=0 for handling default values, it will be restored via RAII.
   thd->variables.sql_mode = 0;
-  // Disable autocommit option in thd variable
-  Disable_autocommit_guard autocommit_guard(thd);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj = nullptr;
-  String_type to_table_name(table_name);
-
-  if (thd->dd_client()->acquire(schema_name, &sch_obj)) {
-    // Error is reported by the dictionary subsystem.
-    return false;
-  }
-
-  if (!sch_obj) {
+  const dd::Schema *schema_def = nullptr;
+  if (!dd_client->get_schema(schema_name.c_str(), &schema_def) || !schema_def) {
     thd_ndb->push_warning(ER_BAD_DB_ERROR, "Unknown database '%s'",
                           schema_name.c_str());
     ndb_log_error("Unknown database '%s'", schema_name.c_str());
@@ -667,73 +590,23 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
 
   Implicit_substatement_state_guard substatement_guard(thd);
 
+  const String_type to_table_name(table_name);
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
-      thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
+      thd, *schema_def, to_table_name, &create_info, alter_info.create_list,
       key_info_buffer, key_count, Alter_info::ENABLE, nullptr, 0, nullptr,
       table.file);
-
-  if (!table_def || thd->dd_client()->store(table_def.get())) {
+  if (!table_def) {
     thd_ndb->push_warning(ER_DD_ERROR_CREATING_ENTRY,
                           "Error in Creating DD entry for %s.%s",
                           schema_name.c_str(), table_name.c_str());
     ndb_log_error("Error in Creating DD entry for %s.%s", schema_name.c_str(),
                   table_name.c_str());
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
     return false;
   }
 
-  if (compare_definitions) {
-    if (table.file->ha_upgrade_table(thd, schema_name.c_str(),
-                                     table_name.c_str(), table_def.get(),
-                                     &table)) {
-      thd_ndb->push_warning(ER_DD_CANT_FIX_SE_DATA,
-                            "Failed to set SE specific data for table %s.%s",
-                            schema_name.c_str(), table_name.c_str());
-      ndb_log_error("Failed to set SE specific data for table %s.%s",
-                    schema_name.c_str(), table_name.c_str());
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
-      return false;
-    }
-    Ndb *ndb = thd_ndb->ndb;
-    Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
-    const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
-    if (ndbtab == nullptr) {
-      thd_ndb->push_warning("Failed to get table %s.%s from NDB Dictionary",
-                            schema_name.c_str(), table_name.c_str());
-      ndb_log_error("Failed to get table '%s.%s' from NDB Dictionary",
-                    schema_name.c_str(), table_name.c_str());
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
-      return false;
-    }
-    if (!Ndb_metadata::compare(thd, ndbtab, table_def.get()) ||
-        !Ndb_metadata::compare_indexes(ndb->getDictionary(), ndbtab,
-                                       table_def.get())) {
-      thd_ndb->push_warning(
-          "Definition of table %s.%s in NDB Dictionary has changed",
-          schema_name.c_str(), table_name.c_str());
-      ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
-                    schema_name.c_str(), table_name.c_str());
-      trans_rollback_stmt(thd);
-      trans_rollback(thd);
-      return false;
-    }
-  }
-
-  if (trans_commit_stmt(thd) || trans_commit(thd)) {
-    thd_ndb->push_warning(
-        ER_DD_ERROR_CREATING_ENTRY,
-        "Failed to create DD entry for %s.%s, transaction failed",
-        schema_name.c_str(), table_name.c_str());
-    ndb_log_error("Failed to create DD entry for %s.%s, transaction failed",
-                  schema_name.c_str(), table_name.c_str());
-    return false;
-  }
-
-  if (!set_se_data_for_user_tables(thd, schema_name, to_table_name, &table)) {
+  // Set storage engine specific metadata in the new DD table object
+  if (table.file->ha_upgrade_table(thd, schema_name.c_str(), table_name.c_str(),
+                                   table_def.get(), &table)) {
     thd_ndb->push_warning(ER_DD_CANT_FIX_SE_DATA,
                           "Failed to set SE specific data for table %s.%s",
                           schema_name.c_str(), table_name.c_str());
@@ -742,6 +615,15 @@ bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     return false;
   }
 
+  // As a final step, store the newly created DD table object
+  if (!dd_client->store_table(table_def.get())) {
+    thd_ndb->push_warning(ER_DD_ERROR_CREATING_ENTRY,
+                          "Error in Creating DD entry for %s.%s",
+                          schema_name.c_str(), table_name.c_str());
+    ndb_log_error("Error in Creating DD entry for %s.%s", schema_name.c_str(),
+                  table_name.c_str());
+    return false;
+  }
   return true;
 }
 
