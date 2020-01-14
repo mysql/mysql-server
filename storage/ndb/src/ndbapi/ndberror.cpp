@@ -635,6 +635,7 @@ ErrorBundle ErrorCodes[] = {
   { 1304, DMEC, IE, "Sequence failure" },
   { 1305, DMEC, IE, "Backup definition not implemented" },
   { 1306, DMEC, AE, "Backup not supported in diskless mode (change Diskless)" },
+  { 1307, DMEC, IE, "Encrypted backup is not supported by the data node/s" },
 
   { 1321, DMEC, UD, "Backup aborted by user request" },
   { 1322, DMEC, IE, "Backup already completed" },

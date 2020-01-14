@@ -905,6 +905,8 @@ public:
     {
       backup.progError(line, cause, extra, check);
     }
+
+    EncryptionPasswordData m_encryption_password_data;
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;

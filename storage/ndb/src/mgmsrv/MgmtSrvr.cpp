@@ -4624,7 +4624,10 @@ MgmtSrvr::eventReport(const Uint32 *theSignalData,
  ***************************************************************************/
 
 int
-MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId, Uint32 backuppoint)
+MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted,
+                      Uint32 input_backupId, Uint32 backuppoint,
+                      const char* encryption_password,
+                      Uint32 password_length)
 {
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
@@ -4642,6 +4645,7 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
+  EncryptionPasswordData epd;
   /*
    * Single-threaded backup.  Set instance key 1.  In the kernel
    * this maps to main instance 0 or worker instance 1 (if MT LQH).
@@ -4663,6 +4667,26 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId
   req->flags = waitCompleted & 0x3;
   if(backuppoint == 1)
     req->flags |= BackupReq::USE_UNDO_LOG;
+
+  if (encryption_password != nullptr)
+  {
+    if (ndbd_support_backup_file_encryption(
+        getNodeInfo(nodeId).m_info.m_version))
+    {
+      epd.password_length = password_length;
+      strncpy(epd.encryption_password, encryption_password,
+              MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH);
+
+      ssig.ptr[0].p = (Uint32*)&epd;
+      ssig.ptr[0].sz = (sizeof(EncryptionPasswordData) + 3) / 4;
+      ssig.header.m_noOfSections = 1;
+      req->flags |= BackupReq::ENCRYPTED_BACKUP;
+    }
+    else
+    {
+      return BackupRef::EncryptionNotSupported;
+    }
+  }
 
   int do_send = 1;
   while (1) {

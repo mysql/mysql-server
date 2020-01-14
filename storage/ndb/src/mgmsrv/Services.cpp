@@ -214,6 +214,10 @@ ParserRow<MgmApiSession> commands[] = {
     MGM_ARG("completed", Int, Optional ,"Wait until completed"),
     MGM_ARG("backupid", Int, Optional ,"User input backup id"),
     MGM_ARG("backuppoint", Int, Optional ,"backup snapshot at start time or complete time"),
+    MGM_ARG("encryption_password", LongString, Optional,
+            "Encryption password to encrypt the backup files"),
+    MGM_ARG("password_length", Int, Optional,
+            "Length of encryption password in bytes"),
 
   MGM_CMD("abort backup", &MgmApiSession::abortBackup, ""),
     MGM_ARG("id", Int, Mandatory, "Backup id"),
@@ -764,6 +768,8 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
   unsigned input_backupId= 0;
   unsigned backuppoint= 0;
   Uint32 completed= 2;
+  const char* encryption_password = nullptr;
+  Uint32 password_length;
   int result;
 
   args.get("completed", &completed);
@@ -772,8 +778,15 @@ MgmApiSession::startBackup(Parser<MgmApiSession>::Context &,
     args.get("backupid", &input_backupId);
   if(args.contains("backuppoint"))
     args.get("backuppoint", &backuppoint);
-
-  result = m_mgmsrv.startBackup(backupId, completed, input_backupId, backuppoint);
+  if (args.contains("encryption_password"))
+  {
+    args.get("encryption_password", &encryption_password);
+    assert(args.contains("password_length"));
+    args.get("password_length", &password_length);
+  }
+  result = m_mgmsrv.startBackup(backupId, completed, input_backupId,
+                                backuppoint, encryption_password,
+                                password_length);
 
   m_output->println("start backup reply");
   if(result != 0)

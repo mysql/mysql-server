@@ -4221,6 +4221,21 @@ Backup::execBACKUP_REQ(Signal* signal)
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
   const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
   const Uint32 input_backupId = signal->getLength() > 3 ? req->inputBackupId : 0;
+  EncryptionPasswordData epd;
+
+  if (flags & BackupReq::ENCRYPTED_BACKUP)
+  {
+    jam();
+    ndbrequire(signal->getNoOfSections() >= 1)
+    SegmentedSectionPtr ptr;
+    SectionHandle handle(this, signal);
+    handle.getSection(ptr, 0);
+    ndbrequire(ptr.sz == (sizeof(EncryptionPasswordData) + 3) / 4);
+    copy((Uint32*)&epd, ptr);
+    ndbrequire(epd.encryption_password[MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH] == '\0');
+    g_eventLogger->debug("Encryption password:%s", epd.encryption_password);
+    releaseSections(handle);
+  }
 
   if (getOwnNodeId() != getMasterNodeId())
   {
@@ -4271,6 +4286,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
+  ptr.p->m_encryption_password_data = epd;
 
   Uint32 node = ptr.p->nodes.find_first();
   Uint32 version = getNodeInfo(getOwnNodeId()).m_version;

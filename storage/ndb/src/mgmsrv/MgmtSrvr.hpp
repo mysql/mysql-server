@@ -218,7 +218,10 @@ public:
   /**
    * Backup functionallity
    */
-  int startBackup(Uint32& backupId, int waitCompleted= 2, Uint32 input_backupId= 0, Uint32 backuppoint= 0);
+  int startBackup(Uint32& backupId, int waitCompleted= 2,
+                  Uint32 input_backupId= 0, Uint32 backuppoint= 0,
+                  const char* encryption_password= nullptr,
+                  Uint32 password_length= 0);
   int abortBackup(Uint32 backupId);
   int performBackup(Uint32* backupId);
 
