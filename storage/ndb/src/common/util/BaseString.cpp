@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -301,6 +301,25 @@ BaseString::split(Vector<BaseString> &v,
     free(str);
 
     return num;
+}
+
+bool
+BaseString::splitKeyValue(BaseString& key, BaseString& value) const
+{
+  for (Uint32 i = 0; i < length(); i++)
+  {
+    if (m_chr[i] == '=')
+    {
+      if (i == 0)
+        key = BaseString();
+      else
+        key = BaseString(m_chr, i);
+
+      value = BaseString(m_chr + i + 1);
+      return true;
+    }
+  }
+  return false;
 }
 
 ssize_t

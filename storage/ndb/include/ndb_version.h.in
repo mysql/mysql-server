@@ -652,4 +652,16 @@ ndbd_send_min_api_version(Uint32 x)
   return x >= NDBD_SEND_MIN_API_VERSION;
 }
 
+
+// Backup file encryption
+
+#define NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION NDB_MAKE_VERSION(8,0,22)
+
+static
+inline
+bool
+ndbd_support_backup_file_encryption(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
+}
 #endif

@@ -43,6 +43,7 @@
 #include <InputStream.hpp>
 #include <ConfigObject.hpp>
 #include <ndb_base64.h>
+#include <ndb_limits.h>
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -521,9 +522,36 @@ ndb_mgm_call(NdbMgmHandle handle,
 	out.println("%s: %llu", name, val_64);
 	break;
       case PropertiesType_char:
-	cmd_args->get(name, val_s);
-	out.println("%s: %s", name, val_s.c_str());
-	break;
+      {
+        const char* strfmt = "%s:\"%s\"";
+        // '\n' and '\0' are appended by println
+        const int reserved_bytes_for_format = 5;  // 2 x '"', ':', '\n', '\0'
+
+        cmd_args->get(name, val_s);
+
+        /**
+         *  MaxParseBytes is 512, check if line length is exceeded.
+         *  Todo:
+         *  To support sending of longer strings to mgmd, the append
+         *  capability of LongString must be used, i.e sending the
+         *  string in chunks with a "+" prefix to the argument name
+         *  from the second chunk onwards.
+         *  Another notable problem that needs to be solved related to
+         *  this is that the chunks are sent out of order since iterations
+         *  over Properties object aren't ordered.
+         */
+        if ((reserved_bytes_for_format + strlen(name) + val_s.length()) > 512)
+        {
+          BaseString errStr = "Line length exceeded due to argument: ";
+          errStr.append(name);
+          SET_ERROR(handle, NDB_MGM_USAGE_ERROR, errStr.c_str());
+          DBUG_RETURN(NULL);
+        }
+
+        // send to mgmd
+        out.println(strfmt, name, val_s.c_str());
+        break;
+      }
       case PropertiesType_Properties:
 	DBUG_PRINT("info",("Ignoring PropertiesType_Properties."));
 	/* Ignore */
@@ -2750,11 +2778,13 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
 		     struct ndb_mgm_reply*, /*reply*/
 		     unsigned int input_backupId,
-		     unsigned int backuppoint) 
+		     unsigned int backuppoint,
+		     const char* encryption_password,
+		     unsigned int password_length)
 {
   DBUG_ENTER("ndb_mgm_start_backup");
 
@@ -2772,6 +2802,8 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
     DBUG_RETURN(-1);
 
   bool sendBackupPoint = (handle->mgmd_version() >= NDB_MAKE_VERSION(6,4,0));
+  bool sendEncryptionPassword =
+      ndbd_support_backup_file_encryption(handle->mgmd_version());
 
   Properties args;
   args.put("completed", wait_completed);
@@ -2779,7 +2811,35 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
     args.put("backupid", input_backupId);
   if (sendBackupPoint)
     args.put("backuppoint", backuppoint);
-
+  if (sendEncryptionPassword)
+  {
+    if (encryption_password != nullptr)
+    {
+      for (Uint32 i = 0; i < password_length; i++)
+      {
+        if ((encryption_password[i] < 32) ||
+            (encryption_password[i] > 126))
+        {
+          char out[1024];
+          BaseString::snprintf(out,
+                               sizeof(out),
+                               "Encryption password has invalid character"
+                               " at position %u", i);
+          SET_ERROR(handle, NDB_MGM_USAGE_ERROR, out);
+          DBUG_RETURN(-1);
+        }
+      }
+      args.put("encryption_password", encryption_password);
+      args.put("password_length", password_length);
+    }
+  }
+  else
+  {
+    SET_ERROR(handle, NDB_MGM_COULD_NOT_START_BACKUP,
+              "MGM server does not support encrypted backup, "
+              "try without ENCRYPT PASSWORD=<password>");
+    DBUG_RETURN(-1);
+  }
   const Properties *reply;
   { // start backup can take some time, set timeout high
     int old_timeout= handle->timeout;
@@ -2803,6 +2863,18 @@ ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
 
   delete reply;
   DBUG_RETURN(0);
+}
+
+extern "C"
+int
+ndb_mgm_start_backup3(NdbMgmHandle handle, int wait_completed,
+                      unsigned int* _backup_id,
+                      struct ndb_mgm_reply* reply,
+                      unsigned int input_backupId,
+                      unsigned int backuppoint)
+{
+  return ndb_mgm_start_backup4(handle, wait_completed, _backup_id, reply, input_backupId,
+                               backuppoint, nullptr, 0);
 }
 
 extern "C"

@@ -1327,6 +1327,32 @@ extern "C" {
 			   unsigned int backuppoint);
 
   /**
+   * Start backup
+   *
+   * @param   handle                NDB management handle.
+   * @param   wait_completed        0:  Don't wait for confirmation<br>
+   *                                1:  Wait for backup to be started<br>
+   *                                2:  Wait for backup to be completed
+   * @param   backup_id             Backup ID is returned from function.
+   * @param   reply                 Reply message.
+   * @param   input_backupId        run as backupId and set next backup id to input_backupId+1.
+   * @param   backuppoint           Backup happen at start time(1) or complete time(0).
+   * @param   encryption_password   Password to encrypt the backup files
+   * @param   password_length       Length of the encryption password
+   * @return                        -1 on error.
+   * @note                          backup_id will not be returned if
+   *                                wait_completed == 0
+   */
+  int ndb_mgm_start_backup4(NdbMgmHandle handle, int wait_completed,
+         unsigned int* backup_id,
+         struct ndb_mgm_reply* reply,
+         unsigned int input_backupId,
+         unsigned int backuppoint,
+         const char* encryption_password,
+         unsigned int password_length);
+
+
+  /**
    * Abort backup
    *
    * @param   handle        NDB management handle.

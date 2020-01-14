@@ -136,6 +136,8 @@ public:
 	    const BaseString &separator = BaseString(" "),
 	    int maximum = -1) const;
 
+  bool splitKeyValue(BaseString& key, BaseString& value) const;
+
   /**
    * Returns the index of the first occurance of the character c.
    *

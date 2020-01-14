@@ -307,7 +307,7 @@ static const char* helpTextStartBackup =
 " NDB Cluster -- Management Client -- Help for START BACKUP command\n"
 "---------------------------------------------------------------------------\n"
 "START BACKUP  Start a cluster backup\n\n"
-"START BACKUP [<backup id>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [ENCRYPT PASSWORD=<password>] [SNAPSHOTSTART | SNAPSHOTEND] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                   Start a backup for the cluster.\n"
 "                   Each backup gets an ID number that is reported to the\n"
 "                   user. This ID number can help you find the backup on the\n"
@@ -316,6 +316,9 @@ static const char* helpTextStartBackup =
 "                   You can also start specified backup using START BACKUP <backup id> \n\n"
 "                   <backup id> \n"
 "                     Start a specified backup using <backup id> as bakcup ID number.\n" 
+"                   <password> \n"
+"                      Password for encrypting the backup files.\n"
+"                      Should be enclosed in double/single quotes.\n"
 "                   SNAPSHOTSTART \n"
 "                     Backup snapshot is taken around the time the backup is started.\n" 
 "                   SNAPSHOTEND \n"
@@ -1314,6 +1317,8 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   else if(native_strcasecmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  native_strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+    // password length should be less than sizeof(line_buffer)
+    STATIC_ASSERT(MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH < 512)
     m_error= executeStartBackup(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
@@ -3124,15 +3129,30 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
   if (parameters)
     split_args(parameters, args);
 
+  // Retain case of password, convert the rest to uppercase
   for (unsigned i= 0; i < args.size(); i++)
-    args[i].ndb_toupper();
-
+  {
+    BaseString arg_copy = args[i];
+    arg_copy.ndb_toupper();
+    if (arg_copy.starts_with("PASSWORD="))
+    {
+      args[i] = BaseString("PASSWORD=").append(
+      args[i].substr(strlen("PASSWORD="), args[i].length()));
+    }
+    else
+    {
+      args[i].ndb_toupper();
+    }
+  }
   int sz= args.size();
 
   int result;
   int flags = 2;
   //1,snapshot at start time. 0 snapshot at end time
   unsigned int backuppoint = 0;
+  BaseString encryption_password = "";
+  bool encryption_password_set = false;
+
   bool b_log = false;
   bool b_nowait = false;
   bool b_wait_completed = false;
@@ -3217,6 +3237,57 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       }
       continue;
     }
+    if (args[i] == "ENCRYPT")
+    {
+      if (encryption_password.length() != 0)
+      {
+        // password already set
+        invalid_command(parameters);
+        return -1;
+      }
+
+      if ((i + 1) < sz)
+      {
+        BaseString key, value;
+        if ((args[i + 1].splitKeyValue(key, value)) &&
+            (key == "PASSWORD"))
+        {
+          char out[1024];
+          encryption_password = value;
+          Uint32 len = encryption_password.length();
+          const char* passwd = encryption_password.c_str();
+
+          if ((len >= 2) &&
+              (strchr("\"'", passwd[0])) &&
+              (passwd[0] == passwd[len - 1]))
+          {
+            encryption_password = encryption_password.substr(1, len - 1);
+          }
+          else
+          {
+            BaseString::snprintf(out,
+                                 sizeof(out),
+                                 "Encryption password should be within"
+                                 " quotes");
+            invalid_command(parameters, out);
+            return -1;
+          }
+          encryption_password_set = true;
+          i++;
+        }
+        else
+        {
+          invalid_command(parameters);
+          return -1;
+        }
+      }
+      else
+      {
+        invalid_command(parameters);
+        return -1;
+      }
+      continue;
+    }
     invalid_command(parameters);
     return -1;
   }
@@ -3241,12 +3312,28 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     }
   }
 
-  //start backup N | start backup snapshotstart/snapshotend
-  if (input_backupId > 0 || b_log == true)
-    result = ndb_mgm_start_backup3(m_mgmsrv, flags, &backupId, &reply, input_backupId, backuppoint);
-  //start backup
+  if (encryption_password_set)
+  {
+    /**
+     * start backup N | start backup snapshotstart/snapshotend |
+     * start backup encrypt password=X
+     */
+    result = ndb_mgm_start_backup4(m_mgmsrv, flags, &backupId, &reply,
+                                   input_backupId, backuppoint,
+                                   encryption_password.c_str(),
+                                   encryption_password.length());
+  }
+  else if (input_backupId > 0 || b_log == true)
+  {
+    // start backup N | start backup snapshotstart/snapshotend
+    result = ndb_mgm_start_backup3(m_mgmsrv, flags, &backupId, &reply,
+                                   input_backupId, backuppoint);
+  }
   else
+  {
+    //start backup
     result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
+  }
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;

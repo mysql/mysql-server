@@ -99,7 +99,7 @@ read_and_execute(Ndb_mgmclient* com, int try_reconnect)
   if (line_read && *line_read)
     add_history (line_read);
 #else
-  static char linebuffer[254];
+  static char linebuffer[512];
   fputs(com->get_current_prompt(), stdout);
   linebuffer[sizeof(linebuffer)-1]=0;
   line_read = fgets(linebuffer, sizeof(linebuffer)-1, stdin);
