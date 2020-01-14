@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -778,6 +778,8 @@ protected:
   void execDATA_FILE_ORD(Signal*);
 
   void execDBINFO_SCANREQ(Signal*);
+public:
+  bool idle_fragment_lcp(Uint32 tableId, Uint32 fragmentId); 
 
 private:
   static Uint32 get_sublist_no(Page_state state);

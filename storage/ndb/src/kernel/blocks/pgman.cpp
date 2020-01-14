@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1710,6 +1710,57 @@ Pgman::execSYNC_EXTENT_PAGES_CONF(Signal *signal)
   sendEND_LCPCONF(signal);
 }
 
+bool
+Pgman::idle_fragment_lcp(Uint32 tableId, Uint32 fragmentId)
+{
+  /**
+   * Our handling of disk data requires us to be in synch with
+   * the backup block on which fragment has completed the LCP.
+   * In addition if we for some reason has outstanding disk
+   * writes and/or there are dirty pages. This is possible
+   * even when no committed changes have been performed when
+   * timing is such that the commit haven't happened yet, but
+   * the page have been set to dirty.
+   *
+   * Since we want to keep consistency to be able to check for
+   * various error conditions we report that we need a real
+   * LCP to be done in those cases. An idle LCP would endanger
+   * our consistency of the count of outstanding Prepare LCP
+   * writes. This consistency is guaranteed if we use a normal
+   * LCP execution.
+   *
+   * If idle list is empty we are also certain that no outstanding
+   * Prepare LCP requests are around. They are removed from dirty
+   * list when the disk IO request is done.
+   */
+  FragmentRecord key(*this, tableId, fragmentId);
+  FragmentRecordPtr fragPtr;
+  if (m_fragmentRecordHash.find(fragPtr, key))
+  {
+    jam();
+    if (likely(fragPtr.p->m_dirty_list.isEmpty()))
+    {
+      jam();
+      m_lcp_table_id = tableId;
+      m_lcp_fragment_id = fragmentId;
+      return true;
+    }
+    else
+    {
+      jam();
+      return false;
+    }
+  }
+  jam();
+  /**
+   * m_lcp_table_id and m_lcp_fragment_id points to the
+   * last disk data fragment that completed the checkpoint.
+   * If this points to a table without disk data it will
+   * point to a non-existing record in PGMAN.
+   */
+  return true;
+}
+ 
 /**
  * This is the module that handles LCP, SYNC_PAGE_CACHE_REQ orders
  * LCP on a fragment for the data pages. SYNC_EXTENT_PAGES_REQ orders
