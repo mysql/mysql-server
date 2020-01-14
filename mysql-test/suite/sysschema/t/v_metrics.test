@@ -2,6 +2,21 @@
 # Tests for sys schema
 # Verify the sys.metrics and sys.metrics_56 views
 
+# TODO: Bug#30760026.
+# View metadata updates make the view columns after
+# the first server restart different from what they look
+# like after an upgrade, because the view meta data update
+# triggered by the storing of the DD meta data for the
+# underlying entities is done using sql_mode=0, which
+# is different from the sql_mode used during CREATE
+# (i.e. the default sql_mode).
+#
+# As a short term fix, to avoid noise from test runs,
+# we mask the values that become different in order to
+# get deterministic results. This short term fix should
+# be removed when the underlying issue is fixed.
+--replace_column 3 X 5 X
+
 # Ensure structure changes don't slip in
 DESC sys.metrics;
 
