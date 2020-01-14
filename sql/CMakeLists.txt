@@ -532,6 +532,20 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl binlogevents_static)
 
+# Plugins may need more symbols than the server does.
+IF(UNIX AND STATIC_SSL_LIBRARY)
+  IF(APPLE)
+    TARGET_LINK_LIBRARIES(mysqld
+      -Wl,-force_load ${CRYPTO_LIBRARY}
+      -Wl,-force_load ${OPENSSL_LIBRARY}
+      )
+  ELSE()
+    TARGET_LINK_LIBRARIES(mysqld
+      -Wl,--whole-archive ${SSL_LIBRARIES} -Wl,--no-whole-archive
+      )
+  ENDIF()
+ENDIF()
+
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
 IF(INTERFACE_LIBS)
