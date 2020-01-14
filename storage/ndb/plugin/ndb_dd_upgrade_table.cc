@@ -22,67 +22,24 @@
 
 #include "storage/ndb/plugin/ndb_dd_upgrade_table.h"
 
-#include <assert.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/stat.h>
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-#include <sys/types.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
 #include <algorithm>
 #include <string>
 #include <unordered_set>
 
-#include "lex_string.h"
-#include "m_string.h"
-#include "my_alloc.h"
-#include "my_base.h"
-#include "my_dbug.h"
-#include "my_dir.h"
-#include "my_io.h"
-#include "my_loglevel.h"
-#include "my_sys.h"
-#include "my_user.h"  // parse_user
-#include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
-#include "mysqld_error.h"     // ER_*
-#include "sql/dd/dd_table.h"  // create_dd_user_table
-#include "sql/dd/dictionary.h"
-#include "sql/dd/impl/utils.h"  // execute_query
-#include "sql/dd/properties.h"
-#include "sql/dd/types/table.h"  // dd::Table
-#include "sql/dd/upgrade_57/upgrade.h"
-#include "sql/field.h"
-#include "sql/handler.h"  // legacy_db_type
-#include "sql/key.h"
-#include "sql/mysqld.h"      // mysql_real_data_home
-#include "sql/parse_file.h"  // File_option
-#include "sql/partition_element.h"
-#include "sql/partition_info.h"  // partition_info
-#include "sql/psi_memory_key.h"  // key_memory_TABLE
-#include "sql/sp_head.h"         // sp_head
-#include "sql/sql_alter.h"
-#include "sql/sql_base.h"  // open_tables
-#include "sql/sql_const.h"
-#include "sql/sql_lex.h"  // new_empty_query_block
-#include "sql/sql_list.h"
-#include "sql/sql_parse.h"  // check_string_char_length
-#include "sql/sql_table.h"  // build_tablename
-#include "sql/system_variables.h"
-#include "sql/thd_raii.h"  // Implicit_substatement_state_guard
-#include "sql/thr_malloc.h"
-#include "sql_string.h"
+#include "my_dbug.h"               // DBUG_TRACE
+#include "mysql/psi/mysql_file.h"  // mysql_file_create
+#include "sql/create_field.h"      // Create_field
+#include "sql/dd/dd_table.h"       // create_dd_user_table
+#include "sql/dd/types/table.h"    // dd::Table
+#include "sql/mysqld.h"            // key_file_frm
+#include "sql/sql_lex.h"           // lex_start
+#include "sql/sql_parse.h"         // free_items
+#include "sql/sql_table.h"         // build_tablename
+#include "sql/thd_raii.h"          // Implicit_substatement_state_guard
 #include "storage/ndb/plugin/ndb_dd_client.h"  // Ndb_dd_client
-#include "storage/ndb/plugin/ndb_log.h"
-#include "storage/ndb/plugin/ndb_thd.h"
-#include "storage/ndb/plugin/ndb_thd_ndb.h"  // Thd_ndb
-#include "thr_lock.h"
+#include "storage/ndb/plugin/ndb_log.h"        // ndb_log_error
+#include "storage/ndb/plugin/ndb_thd.h"        // get_thd_ndb
+#include "storage/ndb/plugin/ndb_thd_ndb.h"    // Thd_ndb
 
 namespace dd {
 class Schema;
