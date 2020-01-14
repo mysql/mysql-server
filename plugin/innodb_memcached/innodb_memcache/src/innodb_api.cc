@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -121,16 +121,6 @@ ib_err_t innodb_api_begin(
     snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
 #endif
 
-    err = ib_cb_cursor_open_table(table_name, ib_trx, crsr);
-
-    if (err != DB_SUCCESS) {
-      fprintf(stderr,
-              " InnoDB_Memcached: Unable to open"
-              " table '%s'\n",
-              table_name);
-      return (err);
-    }
-
     /* If MDL is enabled, we need to create mysql handler. */
     if (engine) {
       if (lock_mode == IB_LOCK_NONE) {
@@ -146,8 +136,6 @@ ib_err_t innodb_api_begin(
           conn_data->thd = handler_create_thd(engine->enable_binlog);
 
           if (!conn_data->thd) {
-            innodb_cb_cursor_close(*crsr);
-            *crsr = NULL;
             return (DB_ERROR);
           }
         }
@@ -159,6 +147,15 @@ ib_err_t innodb_api_begin(
               handler_open_table(conn_data->thd, dbname, name, lock_type);
         }
       }
+    }
+    err = ib_cb_cursor_open_table(table_name, ib_trx, crsr);
+
+    if (err != DB_SUCCESS) {
+      fprintf(stderr,
+              " InnoDB_Memcached: Unable to open"
+              " table '%s'\n",
+              table_name);
+      return (err);
     }
 
     err = innodb_cb_cursor_lock(engine, *crsr, lock_mode);
@@ -607,8 +604,8 @@ ib_err_t innodb_api_search(
   meta_column_t *col_info = meta_info->col_info;
   meta_index_t *meta_index = &meta_info->index_info;
   ib_tpl_t key_tpl;
-  ib_tpl_t cmp_tpl = NULL;
-  ib_crsr_t srch_crsr;
+  ib_tpl_t cmp_tpl = nullptr;
+  ib_crsr_t srch_crsr = nullptr;
 
   if (item) {
     memset(item, 0, sizeof(*item));
@@ -617,7 +614,7 @@ ib_err_t innodb_api_search(
   /* If srch_use_idx is set to META_USE_SECONDARY, we will use the
   secondary index to find the record first */
   if (meta_index->srch_use_idx == META_USE_SECONDARY) {
-    ib_crsr_t idx_crsr;
+    ib_crsr_t idx_crsr = nullptr;
 
     if (sel_only) {
       idx_crsr = cursor_data->idx_read_crsr;
@@ -637,7 +634,7 @@ ib_err_t innodb_api_search(
     srch_crsr = idx_crsr;
 
   } else {
-    ib_crsr_t crsr;
+    ib_crsr_t crsr = nullptr;
 
     if (sel_only) {
       crsr = cursor_data->read_crsr;
@@ -1764,7 +1761,7 @@ bool innodb_reset_conn(
   }
 
   if (conn_data->crsr_trx) {
-    ib_crsr_t ib_crsr;
+    ib_crsr_t ib_crsr = nullptr;
     meta_cfg_info_t *meta_info = conn_data->conn_meta;
     meta_index_t *meta_index = &meta_info->index_info;
 
@@ -1836,32 +1833,29 @@ void innodb_api_cursor_reset(
       conn_data->n_reads_since_commit >= engine->read_batch_size ||
       conn_data->n_writes_since_commit >= engine->write_batch_size ||
       (op_type == CONN_OP_FLUSH) || !commit) {
-    commit_trx = innodb_reset_conn(conn_data, op_type == CONN_OP_FLUSH, commit,
-                                   engine->enable_binlog);
+    commit_trx =
+        innodb_reset_conn(conn_data, false, commit, engine->enable_binlog);
   }
 
   if (!commit_trx) {
-    LOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH, conn_data);
+    LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
     if (op_type != CONN_OP_FLUSH) {
       assert(conn_data->in_use);
     }
 
     conn_data->in_use = false;
-    UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH, conn_data);
+    UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
   }
 }
 
 /** Following are a set of InnoDB callback function wrappers for functions
 that will be used outside innodb_api.c */
 
-/*************************************************************/ /**
- Close a cursor
- @return DB_SUCCESS if successful or error code */
-ib_err_t innodb_cb_cursor_close(
-    /*===================*/
-    ib_crsr_t ib_crsr) /*!< in/out: cursor to close */
-{
-  return (ib_cb_cursor_close(ib_crsr));
+void innodb_cb_cursor_close(ib_crsr_t &ib_crsr) {
+  if (ib_crsr != nullptr) {
+    ib_cb_cursor_close(ib_crsr);
+    ib_crsr = nullptr;
+  }
 }
 
 /*************************************************************/ /**

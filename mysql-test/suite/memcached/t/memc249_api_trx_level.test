@@ -59,6 +59,6 @@ commit;
 
 DROP TABLE t1;
 
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
