@@ -51,4 +51,3 @@ FOREACH(test ${TESTS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small)
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
-
