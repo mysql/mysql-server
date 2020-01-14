@@ -3912,7 +3912,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 EXPLAIN
--> Sort: <temporary>.x
+-> Sort: x
     -> Stream results
         -> Group aggregate: count(distinct t1.f2)
             -> Index scan on t1 using k1  (cost=0.85 rows=6)

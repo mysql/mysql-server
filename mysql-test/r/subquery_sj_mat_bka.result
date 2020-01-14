@@ -12789,7 +12789,7 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: <temporary>.col_int_key
+-> Sort: t4.col_int_key
     -> Stream results
         -> Inner hash join (t4.col_int_key = `<subquery2>`.col_int_key)
             -> Table scan on t4  (cost=0.35 rows=6)

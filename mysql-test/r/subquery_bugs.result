@@ -809,7 +809,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 EXPLAIN
--> Sort: <temporary>.f1
+-> Sort: d0.f1
     -> Stream results
         -> Nested loop left join
             -> Table scan on d0
@@ -1163,7 +1163,7 @@ WHERE
 EXISTS ( SELECT c FROM c AS c_inner_inner )
 ) ORDER BY d.c;
 EXPLAIN
--> Sort: <temporary>.c
+-> Sort: d.c
     -> Stream results
         -> Inner hash join (no condition)
             -> Index scan on c using idx_c  (cost=0.45 rows=2)

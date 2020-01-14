@@ -1004,7 +1004,7 @@ c1	c2	COUNT(*)
 4	4	1
 EXPLAIN FORMAT=tree SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
 EXPLAIN
--> Sort with duplicate removal: <temporary>.c2
+-> Sort with duplicate removal: t1.c2
     -> Filter: (count(0) > 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
@@ -1254,7 +1254,7 @@ INSERT INTO t1 SELECT RAND() FROM t1;
 INSERT INTO t1 SELECT RAND() FROM t1;
 EXPLAIN FORMAT=tree SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 EXPLAIN
--> Sort with duplicate removal: <temporary>.num
+-> Sort with duplicate removal: num
     -> Filter: (num = 1)
         -> Table scan on <temporary>
             -> Aggregate using temporary table
@@ -1285,7 +1285,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
 EXPLAIN
--> Sort with duplicate removal: <temporary>.a DESC
+-> Sort with duplicate removal: t1.a DESC
     -> Stream results
         -> Group (no aggregates)
             -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)

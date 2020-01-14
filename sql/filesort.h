@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,5 +102,25 @@ void change_double_for_sort(double nr, uchar *to);
 
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
+
+/// Declared here for Item_func_weight_string.
+longlong get_int_sort_key_for_item(Item *item);
+
+// Avoid pulling in sql/field.h.
+template <bool Is_big_endian>
+void copy_integer(uchar *to, size_t to_length, const uchar *from,
+                  size_t from_length, bool is_unsigned);
+
+static inline void copy_native_longlong(uchar *to, size_t to_length,
+                                        longlong val, bool is_unsigned) {
+#ifdef WORDS_BIGENDIAN
+  constexpr bool Is_big_endian = true;
+#else
+  constexpr bool Is_big_endian = false;
+#endif
+  copy_integer<Is_big_endian>(to, to_length,
+                              static_cast<uchar *>(static_cast<void *>(&val)),
+                              sizeof(longlong), is_unsigned);
+}
 
 #endif /* FILESORT_INCLUDED */

@@ -200,8 +200,7 @@ select * from t1 order by c1	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "c1"
+                "expression": "`t1`.`c1`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -359,8 +358,7 @@ select * from t1 order by c1	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "c1"
+                "expression": "`t1`.`c1`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -518,8 +516,7 @@ select * from t1 order by c1	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "c1"
+                "expression": "`t1`.`c1`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -940,8 +937,7 @@ SELECT * FROM t1 ORDER BY c1	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "c1"
+                "expression": "`t1`.`c1`"
               }
             ],
             "filesort_priority_queue_optimization": {

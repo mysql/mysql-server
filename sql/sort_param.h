@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,15 +79,13 @@ inline const char *addon_fields_text(Addon_fields_status afs) {
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  const Field *field;  ///< Field to sort
-  Item *item;          ///< Item if not sorting fields
+  Item *item;  ///< Item to sort
 
   /// Length of sort field. Beware, can be 0xFFFFFFFFu (infinite)!
   uint length;
 
-  uint suffix_length;           ///< Length suffix (0-4)
-  Item_result result_type;      ///< Type of item (not used for fields)
-  enum_field_types field_type;  ///< Field type of the field or item
+  Item_result result_type;      ///< Type of item
+  enum_field_types field_type;  ///< Field type of the item
   bool reverse;                 ///< if descending sort
   bool is_varlen;               ///< If key part has variable length
   bool maybe_null;              ///< If key part is nullable

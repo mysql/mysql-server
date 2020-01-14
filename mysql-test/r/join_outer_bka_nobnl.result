@@ -19,7 +19,7 @@ grp	a	c	id	a	c	d
 3	6	D	3	6	C	6
 EXPLAIN FORMAT=tree select t1.*,t2.* from t1 left join t2 on (t1.a=t2.a) order by t1.grp,t1.a,t2.c;
 EXPLAIN
--> Sort: <temporary>.grp, <temporary>.a, <temporary>.c
+-> Sort: t1.grp, t1.a, t2.c
     -> Stream results
         -> Batched key access left join
             -> Batch input rows

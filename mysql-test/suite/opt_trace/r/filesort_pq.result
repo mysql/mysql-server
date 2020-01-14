@@ -261,13 +261,11 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f1"
+                "expression": "`t1`.`f1`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -279,8 +277,8 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 9,
-              "row_size": 223,
+              "key_size": 17,
+              "row_size": 231,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -455,13 +453,11 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f1"
+                "expression": "`t1`.`f1`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -472,8 +468,8 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 9,
-              "row_size": 219,
+              "key_size": 17,
+              "row_size": 227,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -684,13 +680,11 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -701,8 +695,8 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -935,13 +929,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -952,8 +944,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 21,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -1176,13 +1168,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -1193,8 +1183,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 21,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -1372,13 +1362,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -1389,8 +1377,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 11,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -1693,7 +1681,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "rand(2)"
+                "expression": "`<temporary>`.`rand(2)`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -1882,13 +1870,11 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f1"
+                "expression": "`t1`.`f1`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -1899,8 +1885,8 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 9,
-              "row_size": 219,
+              "key_size": 17,
+              "row_size": 227,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -2111,13 +2097,11 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -2128,8 +2112,8 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -2362,13 +2346,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -2379,8 +2361,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 21,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -2603,13 +2585,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -2620,8 +2600,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 21,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -2799,13 +2779,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -2816,8 +2794,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 11,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -3005,13 +2983,11 @@ ORDER BY f1, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f1"
+                "expression": "`t1`.`f1`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -3022,8 +2998,8 @@ ORDER BY f1, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 9,
-              "row_size": 223,
+              "key_size": 17,
+              "row_size": 231,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -3177,13 +3153,11 @@ ORDER BY f1, f0 LIMIT 0	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f1"
+                "expression": "`t1`.`f1`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -3194,8 +3168,8 @@ ORDER BY f1, f0 LIMIT 0	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 9,
-              "row_size": 223,
+              "key_size": 17,
+              "row_size": 231,
               "max_rows_per_buffer": 110,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -3401,13 +3375,11 @@ ORDER BY f2, f0 LIMIT 20	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -3418,8 +3390,8 @@ ORDER BY f2, f0 LIMIT 20	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 419,
+              "key_size": 209,
+              "row_size": 423,
               "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -3605,13 +3577,11 @@ ORDER BY f2, f0 LIMIT 0	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -3622,8 +3592,8 @@ ORDER BY f2, f0 LIMIT 0	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 419,
+              "key_size": 209,
+              "row_size": 423,
               "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -3819,13 +3789,11 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -3836,8 +3804,8 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 419,
+              "key_size": 209,
+              "row_size": 423,
               "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -4023,13 +3991,11 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -4040,8 +4006,8 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 205,
-              "row_size": 419,
+              "key_size": 209,
+              "row_size": 423,
               "max_rows_per_buffer": 76,
               "num_rows_estimate": 110,
               "num_rows_found": 89,
@@ -4342,11 +4308,11 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f1"
+                "expression": "`tmp`.`f1`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -4357,8 +4323,8 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 9,
-              "row_size": 244,
+              "key_size": 17,
+              "row_size": 252,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
@@ -4652,11 +4618,11 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f1"
+                "expression": "`tmp`.`f1`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -4667,8 +4633,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 9,
-              "row_size": 244,
+              "key_size": 17,
+              "row_size": 252,
               "max_rows_per_buffer": 61,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
@@ -4971,11 +4937,11 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f1"
+                "expression": "`tmp`.`f1`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -4986,9 +4952,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 9,
-              "row_size": 248,
-              "max_rows_per_buffer": 1280,
+              "key_size": 17,
+              "row_size": 256,
+              "max_rows_per_buffer": 1241,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -5349,11 +5315,11 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f1"
+                "expression": "`tmp`.`f1`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -5364,9 +5330,9 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 9,
-              "row_size": 248,
-              "max_rows_per_buffer": 1280,
+              "key_size": 17,
+              "row_size": 256,
+              "max_rows_per_buffer": 1241,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1185,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -5685,13 +5651,11 @@ SELECT * FROM v1	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f1"
+                      "expression": "`t1`.`f1`"
                     },
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f0"
+                      "expression": "`t1`.`f0`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -5702,8 +5666,8 @@ SELECT * FROM v1	{
                   ],
                   "filesort_summary": {
                     "memory_available": 327680,
-                    "key_size": 9,
-                    "row_size": 219,
+                    "key_size": 17,
+                    "row_size": 227,
                     "max_rows_per_buffer": 31,
                     "num_rows_estimate": 510,
                     "num_rows_found": 500,
@@ -6025,13 +5989,11 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f1"
+                      "expression": "`t1`.`f1`"
                     },
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f0"
+                      "expression": "`t1`.`f0`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -6042,8 +6004,8 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_summary": {
                     "memory_available": 327680,
-                    "key_size": 9,
-                    "row_size": 219,
+                    "key_size": 17,
+                    "row_size": 227,
                     "max_rows_per_buffer": 101,
                     "num_rows_estimate": 510,
                     "num_rows_found": 500,
@@ -6062,13 +6024,11 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`v1`",
-                "field": "f2"
+                "expression": "`v1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`v1`",
-                "field": "f0"
+                "expression": "`v1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -6079,8 +6039,8 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -6759,13 +6719,11 @@ LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f1"
+                      "expression": "`t1`.`f1`"
                     },
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f0"
+                      "expression": "`t1`.`f0`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -6776,8 +6734,8 @@ LIMIT 30	{
                   ],
                   "filesort_summary": {
                     "memory_available": 327680,
-                    "key_size": 9,
-                    "row_size": 219,
+                    "key_size": 17,
+                    "row_size": 227,
                     "max_rows_per_buffer": 101,
                     "num_rows_estimate": 510,
                     "num_rows_found": 500,
@@ -6796,15 +6754,15 @@ LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f2"
+                "expression": "`v1`.`f2`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`v1`.`f0`"
               },
               {
                 "direction": "asc",
-                "field": "f0"
+                "expression": "`v2`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -6836,13 +6794,11 @@ LIMIT 30	{
                       "filesort_information": [
                         {
                           "direction": "asc",
-                          "table": "`t1`",
-                          "field": "f2"
+                          "expression": "`t1`.`f2`"
                         },
                         {
                           "direction": "asc",
-                          "table": "`t1`",
-                          "field": "f0"
+                          "expression": "`t1`.`f0`"
                         }
                       ],
                       "filesort_priority_queue_optimization": {
@@ -6853,8 +6809,8 @@ LIMIT 30	{
                       ],
                       "filesort_summary": {
                         "memory_available": 327680,
-                        "key_size": 205,
-                        "row_size": 415,
+                        "key_size": 209,
+                        "row_size": 419,
                         "max_rows_per_buffer": 101,
                         "num_rows_estimate": 510,
                         "num_rows_found": 500,
@@ -6871,8 +6827,8 @@ LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 209,
-              "row_size": 628,
+              "key_size": 217,
+              "row_size": 636,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 325,
@@ -7060,11 +7016,11 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "count(f2)"
+                "expression": "`count(f2)`"
               },
               {
                 "direction": "asc",
-                "field": "f3"
+                "expression": "`f3`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -7336,13 +7292,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -7353,8 +7307,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 510,
               "num_rows_found": 445,
@@ -7545,13 +7499,11 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -7562,8 +7514,8 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 510,
               "num_rows_found": 445,
@@ -7755,13 +7707,11 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`t1`",
-                "field": "f0"
+                "expression": "`t1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -7772,8 +7722,8 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 205,
-              "row_size": 419,
+              "key_size": 209,
+              "row_size": 423,
               "max_rows_per_buffer": 510,
               "num_rows_estimate": 510,
               "num_rows_found": 445,
@@ -8089,13 +8039,11 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   "filesort_information": [
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f1"
+                      "expression": "`t1`.`f1`"
                     },
                     {
                       "direction": "asc",
-                      "table": "`t1`",
-                      "field": "f0"
+                      "expression": "`t1`.`f0`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -8106,8 +8054,8 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                   ],
                   "filesort_summary": {
                     "memory_available": 327680,
-                    "key_size": 9,
-                    "row_size": 219,
+                    "key_size": 17,
+                    "row_size": 227,
                     "max_rows_per_buffer": 101,
                     "num_rows_estimate": 510,
                     "num_rows_found": 500,
@@ -8126,13 +8074,11 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`v1`",
-                "field": "f2"
+                "expression": "`v1`.`f2`"
               },
               {
                 "direction": "asc",
-                "table": "`v1`",
-                "field": "f0"
+                "expression": "`v1`.`f0`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -8143,8 +8089,8 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
             ],
             "filesort_summary": {
               "memory_available": 327680,
-              "key_size": 205,
-              "row_size": 415,
+              "key_size": 209,
+              "row_size": 419,
               "max_rows_per_buffer": 31,
               "num_rows_estimate": 110,
               "num_rows_found": 100,
@@ -8552,7 +8498,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "field": "f2"
+                "expression": "`d1`.`f2`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -8584,8 +8530,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                       "filesort_information": [
                         {
                           "direction": "asc",
-                          "table": "`t1`",
-                          "field": "f1"
+                          "expression": "`t1`.`f1`"
                         }
                       ],
                       "filesort_priority_queue_optimization": {
@@ -8596,8 +8541,8 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                       ],
                       "filesort_summary": {
                         "memory_available": 327680,
-                        "key_size": 5,
-                        "row_size": 215,
+                        "key_size": 9,
+                        "row_size": 219,
                         "max_rows_per_buffer": 31,
                         "num_rows_estimate": 510,
                         "num_rows_found": 500,
@@ -8893,8 +8838,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "table": "`t1`",
-                            "field": "f1"
+                            "expression": "`t1`.`f1`"
                           }
                         ],
                         "filesort_priority_queue_optimization": {
@@ -8905,8 +8849,8 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                         ],
                         "filesort_summary": {
                           "memory_available": 327680,
-                          "key_size": 5,
-                          "row_size": 10,
+                          "key_size": 9,
+                          "row_size": 14,
                           "max_rows_per_buffer": 2,
                           "num_rows_estimate": 510,
                           "num_rows_found": 500,
@@ -12678,8 +12622,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "table": "`t1`",
-                            "field": "f1"
+                            "expression": "`t1`.`f1`"
                           }
                         ],
                         "filesort_priority_queue_optimization": {
@@ -12690,8 +12633,8 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                         ],
                         "filesort_summary": {
                           "memory_available": 327680,
-                          "key_size": 5,
-                          "row_size": 10,
+                          "key_size": 9,
+                          "row_size": 14,
                           "max_rows_per_buffer": 3,
                           "num_rows_estimate": 510,
                           "num_rows_found": 500,
@@ -12878,13 +12821,11 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "`t`",
-                "field": "j"
+                "expression": "`t`.`j`"
               },
               {
                 "direction": "asc",
-                "table": "`t`",
-                "field": "id"
+                "expression": "`t`.`id`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -13060,13 +13001,11 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
             "filesort_information": [
               {
                 "direction": "desc",
-                "table": "`t`",
-                "field": "j"
+                "expression": "`t`.`j`"
               },
               {
                 "direction": "asc",
-                "table": "`t`",
-                "field": "id"
+                "expression": "`t`.`id`"
               }
             ],
             "filesort_priority_queue_optimization": {
@@ -13248,8 +13187,7 @@ limit 2 offset 2	{
               },
               {
                 "direction": "asc",
-                "table": "`t`",
-                "field": "id"
+                "expression": "`t`.`id`"
               }
             ],
             "filesort_priority_queue_optimization": {

@@ -12561,7 +12561,7 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: <temporary>.col_int_key
+-> Sort: t4.col_int_key
     -> Stream results
         -> Remove duplicate t4 rows using temporary table (weedout)  (cost=7.85 rows=7)
             -> Inner hash join (t4.col_int_key = t1.col_int_key)  (cost=7.85 rows=7)

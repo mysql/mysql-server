@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -652,13 +652,7 @@ vector<string> SortingIterator::DebugString() const {
     }
 
     const st_sort_field *order = &m_filesort->sortorder[i];
-    if (order->item) {
-      ret += ItemToString(order->item);
-    } else {
-      ret += order->field->table->alias;
-      ret += ".";
-      ret += order->field->field_name;
-    }
+    ret += ItemToString(order->item);
     if (order->reverse) {
       ret += " DESC";
     }

@@ -108,6 +108,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
+#include "sql/tztime.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -326,18 +327,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
   for (; s_length--; sortorder++) {
     Opt_trace_object oto(trace);
     oto.add_alnum("direction", sortorder->reverse ? "desc" : "asc");
-
-    if (sortorder->field) {
-      TABLE *t = sortorder->field->table;
-      if (strlen(t->alias) != 0)
-        oto.add_utf8_table(t->pos_in_table_list);
-      else
-        oto.add_alnum("table", "intermediate_tmp_table");
-      oto.add_alnum("field", sortorder->field->field_name
-                                 ? sortorder->field->field_name
-                                 : "tmp_table_column");
-    } else
-      oto.add("expression", sortorder->item);
+    oto.add("expression", sortorder->item);
   }
 }
 
@@ -698,34 +688,11 @@ uint Filesort::make_sortorder(ORDER *order) {
   pos = sort = sortorder;
   for (ord = order; ord; ord = ord->next, pos++) {
     Item *const item = ord->item[0], *const real_item = item->real_item();
-    if (real_item->type() == Item::FIELD_ITEM) {
-      /*
-        Could be a field, or Item_view_ref/Item_ref wrapping a field
-        If it is an Item_outer_ref, only_full_group_by has been switched off.
-      */
-      DBUG_ASSERT(
-          item->type() == Item::FIELD_ITEM ||
-          (item->type() == Item::REF_ITEM &&
-           (down_cast<Item_ref *>(item)->ref_type() == Item_ref::VIEW_REF ||
-            down_cast<Item_ref *>(item)->ref_type() == Item_ref::OUTER_REF ||
-            down_cast<Item_ref *>(item)->ref_type() == Item_ref::REF)));
-      pos->field = down_cast<Item_field *>(real_item)->field;
-    } else if (real_item->type() == Item::SUM_FUNC_ITEM &&
-               !real_item->const_item()) {
-      // Aggregate, or Item_aggregate_ref
-      DBUG_ASSERT(item->type() == Item::SUM_FUNC_ITEM ||
-                  (item->type() == Item::REF_ITEM &&
-                   static_cast<Item_ref *>(item)->ref_type() ==
-                       Item_ref::AGGREGATE_REF));
-      pos->field = item->get_tmp_table_field();
-    } else if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
+    if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
       pos->item = static_cast<Item_copy *>(real_item)->get_item();
     } else
-      pos->item = item;
+      pos->item = real_item;
     pos->reverse = (ord->direction == ORDER_DESC);
-    DBUG_ASSERT(pos->field != nullptr || pos->item != nullptr);
-    DBUG_PRINT("info", ("sorting on %s: %s", (pos->field ? "field" : "item"),
-                        (pos->field ? pos->field->field_name : "")));
   }
   return count;
 }
@@ -1130,18 +1097,6 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   return 0;
 } /* write_keys */
 
-#ifdef WORDS_BIGENDIAN
-const bool Is_big_endian = true;
-#else
-const bool Is_big_endian = false;
-#endif
-static void copy_native_longlong(uchar *to, size_t to_length, longlong val,
-                                 bool is_unsigned) {
-  copy_integer<Is_big_endian>(to, to_length,
-                              static_cast<uchar *>(static_cast<void *>(&val)),
-                              sizeof(longlong), is_unsigned);
-}
-
 /**
   Make a sort key for the JSON value in an Item.
 
@@ -1238,52 +1193,18 @@ inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
   return false;
 }
 
-/*
-  Writes a NULL indicator byte (if the field may be NULL), leaves space for a
-  varlength prefix (if varlen and not NULL), and then the actual sort key.
-  Returns the length of the key, sans NULL indicator byte and varlength prefix,
-  or UINT_MAX if the value would not provably fit within the given bounds.
-*/
-size_t make_sortkey_from_field(const Field *field, Nullable<size_t> dst_length,
-                               uchar *to, uchar *to_end, bool *maybe_null) {
-  bool is_varlen = !dst_length.has_value();
-
-  *maybe_null = field->is_nullable() || field->table->is_nullable();
-  if (*maybe_null) {
-    if (write_uint8_overflows(field->is_null() ? 0 : 1, to_end, &to))
-      return UINT_MAX;
-    if (field->is_null()) {
-      if (is_varlen) {
-        // Don't store anything except the NULL flag.
-        return 0;
-      }
-      if (clear_overflows(dst_length.value(), to_end, &to)) return UINT_MAX;
-      return dst_length.value();
-    }
-  }
-
-  size_t actual_length;
-  if (is_varlen) {
-    if (advance_overflows(VARLEN_PREFIX, to_end, &to)) return UINT_MAX;
-    size_t max_length = to_end - to;
-    if (max_length % 2 != 0) {
-      // Heed the contract that strnxfrm needs an even number of bytes.
-      --max_length;
-    }
-    actual_length = field->make_sort_key(to, max_length);
-    if (actual_length >= max_length) {
-      /*
-        The sort key either fit perfectly, or overflowed; we can't distinguish
-        between the two, so we have to count it as overflow.
-      */
-      return UINT_MAX;
-    }
-  } else {
-    if (static_cast<size_t>(to_end - to) < dst_length.value()) return UINT_MAX;
-    actual_length = field->make_sort_key(to, dst_length.value());
-    DBUG_ASSERT(actual_length == dst_length.value());
-  }
-  return actual_length;
+static inline longlong get_int_sort_key_for_item_inline(Item *item) {
+  // Temporal items are sorted on the underlying UTC value,
+  // so temporarily set the time zone.
+  Time_zone *old_tz = current_thd->variables.time_zone;
+  current_thd->variables.time_zone = my_tz_UTC;
+  longlong value = item->data_type() == MYSQL_TYPE_TIME
+                       ? item->val_time_temporal()
+                       : item->is_temporal_with_date()
+                             ? item->val_date_temporal()
+                             : item->val_int();
+  current_thd->variables.time_zone = old_tz;
+  return value;
 }
 
 /*
@@ -1372,11 +1293,8 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     }
     case INT_RESULT: {
       DBUG_ASSERT(!is_varlen);
-      longlong value = item->data_type() == MYSQL_TYPE_TIME
-                           ? item->val_time_temporal()
-                           : item->is_temporal_with_date()
-                                 ? item->val_date_temporal()
-                                 : item->val_int();
+      longlong value = get_int_sort_key_for_item_inline(item);
+
       /*
         Note: item->null_value can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have
@@ -1444,6 +1362,11 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
 
 }  // namespace
 
+// Expose for Item_func_weight_string.
+longlong get_int_sort_key_for_item(Item *item) {
+  return get_int_sort_key_for_item_inline(item);
+}
+
 uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
                               const uchar *ref_pos,
                               size_t *longest_addon_so_far) {
@@ -1469,25 +1392,12 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     Nullable<size_t> dst_length;
     if (!sort_field->is_varlen) dst_length = sort_field->length;
     uint actual_length;
-    if (sort_field->field) {
-      const Field *field = sort_field->field;
-      DBUG_ASSERT(sort_field->field_type == field->type());
+    Item *item = sort_field->item;
+    DBUG_ASSERT(sort_field->field_type == item->data_type());
 
-      actual_length =
-          make_sortkey_from_field(field, dst_length, to, to_end, &maybe_null);
-
-      if (sort_field->field_type == MYSQL_TYPE_JSON) {
-        DBUG_ASSERT(use_hash);
-        unique_hash(field, &hash);
-      }
-    } else {  // Item
-      Item *item = sort_field->item;
-      DBUG_ASSERT(sort_field->field_type == item->data_type());
-
-      actual_length =
-          make_sortkey_from_item(item, sort_field->result_type, dst_length,
-                                 &tmp_buffer, to, to_end, &maybe_null, &hash);
-    }
+    actual_length =
+        make_sortkey_from_item(item, sort_field->result_type, dst_length,
+                               &tmp_buffer, to, to_end, &maybe_null, &hash);
 
     if (actual_length == UINT_MAX) {
       // Overflow.
@@ -2093,82 +2003,66 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
 
   for (; s_length--; sortorder++) {
     bool is_string_type = false;
-    if (sortorder->field) {
-      const Field *field = sortorder->field;
-      const CHARSET_INFO *cs = field->sort_charset();
-      sortorder->length = field->sort_length();
-      sortorder->is_varlen = field->sort_key_is_varlen();
-
-      // How many bytes do we need (including sort weights) for strnxfrm()?
-      if (sortorder->length < (10 << 20)) {  // 10 MB.
-        sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
-      } else {
-        /*
-          If over 10 MB, just set the length as effectively infinite, so we
-          don't get overflows in strnxfrmlen().
-         */
-        sortorder->length = 0xFFFFFFFFu;
-      }
-
-      sortorder->maybe_null =
-          field->is_nullable() || field->table->is_nullable();
-      sortorder->field_type = field->type();
-      is_string_type = field->result_type() == STRING_RESULT &&
-                       !is_temporal_type(field->type());
-    } else {
-      const Item *item = sortorder->item;
-      sortorder->result_type = item->result_type();
-      sortorder->field_type = item->data_type();
-      if (sortorder->field_type == MYSQL_TYPE_JSON)
-        sortorder->is_varlen = true;
-      else
-        sortorder->is_varlen = false;
-      if (item->is_temporal()) sortorder->result_type = INT_RESULT;
-      switch (sortorder->result_type) {
-        case STRING_RESULT: {
-          const CHARSET_INFO *cs = item->collation.collation;
-          sortorder->length = item->max_length;
-
-          if (cs->pad_attribute == NO_PAD) {
-            sortorder->is_varlen = true;
-          }
-
-          if (sortorder->length < (10 << 20)) {  // 10 MB.
-            // How many bytes do we need (including sort weights) for
-            // strnxfrm()?
-            sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
-          } else {
-            /*
-              If over 10 MB, just set the length as effectively infinite, so we
-              don't get overflows in strnxfrmlen().
-             */
-            sortorder->length = 0xFFFFFFFFu;
-          }
-          is_string_type = true;
-          break;
-        }
-        case INT_RESULT:
-#if SIZEOF_LONG_LONG > 4
-          sortorder->length = 8;  // Size of intern longlong
-#else
-          sortorder->length = 4;
-#endif
-          break;
-        case DECIMAL_RESULT:
-          sortorder->length = my_decimal_get_binary_size(
-              item->max_length - (item->decimals ? 1 : 0), item->decimals);
-          break;
-        case REAL_RESULT:
-          sortorder->length = sizeof(double);
-          break;
-        case ROW_RESULT:
-        default:
-          // This case should never be choosen
-          DBUG_ASSERT(0);
-          break;
-      }
-      sortorder->maybe_null = item->maybe_null;
+    const Item *item = sortorder->item;
+    sortorder->result_type = item->result_type();
+    sortorder->field_type = item->data_type();
+    if (item->type() == Item::FIELD_ITEM &&
+        (down_cast<const Item_field *>(item)->field->real_type() ==
+             MYSQL_TYPE_ENUM ||
+         down_cast<const Item_field *>(item)->field->real_type() ==
+             MYSQL_TYPE_SET)) {
+      // Sort enum and set fields as their underlying ints.
+      sortorder->result_type = INT_RESULT;
     }
+    if (sortorder->field_type == MYSQL_TYPE_JSON)
+      sortorder->is_varlen = true;
+    else
+      sortorder->is_varlen = false;
+    if (item->is_temporal()) sortorder->result_type = INT_RESULT;
+    switch (sortorder->result_type) {
+      case STRING_RESULT: {
+        const CHARSET_INFO *cs = item->collation.collation;
+        sortorder->length = item->max_length;
+
+        if (cs->pad_attribute == NO_PAD) {
+          sortorder->is_varlen = true;
+        }
+
+        if (sortorder->length < (10 << 20)) {  // 10 MB.
+          // How many bytes do we need (including sort weights) for
+          // strnxfrm()?
+          sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
+        } else {
+          /*
+            If over 10 MB, just set the length as effectively infinite, so we
+            don't get overflows in strnxfrmlen().
+           */
+          sortorder->length = 0xFFFFFFFFu;
+        }
+        is_string_type = true;
+        break;
+      }
+      case INT_RESULT:
+#if SIZEOF_LONG_LONG > 4
+        sortorder->length = 8;  // Size of intern longlong
+#else
+        sortorder->length = 4;
+#endif
+        break;
+      case DECIMAL_RESULT:
+        sortorder->length = my_decimal_get_binary_size(
+            item->max_length - (item->decimals ? 1 : 0), item->decimals);
+        break;
+      case REAL_RESULT:
+        sortorder->length = sizeof(double);
+        break;
+      case ROW_RESULT:
+      default:
+        // This case should never be choosen
+        DBUG_ASSERT(0);
+        break;
+    }
+    sortorder->maybe_null = item->maybe_null;
     if (!sortorder->is_varlen && is_string_type) {
       /*
         We would love to never have to care about max_sort_length anymore,
@@ -2187,7 +2081,6 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
       AddWithSaturate(VARLEN_PREFIX, &sortorder->length);
     AddWithSaturate(sortorder->length, &total_length);
   }
-  sortorder->field = nullptr;  // end marker
   DBUG_PRINT("info", ("sort_length: %u", total_length));
   return total_length;
 }

@@ -13,7 +13,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
--> Sort: <temporary>.col1
+-> Sort: t1.col1
     -> Stream results
         -> Inner hash join (t2.col1 = t1.col1)  (cost=2.50 rows=4)
             -> Table scan on t2  (cost=0.09 rows=4)
@@ -37,7 +37,7 @@ test.t2	analyze	status	OK
 EXPLAIN FORMAT=tree
 SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
 EXPLAIN
--> Sort: <temporary>.col1
+-> Sort: t1.col1
     -> Stream results
         -> Inner hash join (t1.col1 = t2.col1)  (cost=2.50 rows=4)
             -> Table scan on t2  (cost=0.09 rows=4)
@@ -1506,7 +1506,7 @@ alias1.col_int_key DESC, field1
 LIMIT 2 OFFSET 2;
 EXPLAIN
 -> Limit/Offset: 2/2 row(s)
-    -> Sort: <temporary>.col_int_key DESC, <temporary>.field1
+    -> Sort: alias1.col_int_key DESC, alias1.pk
         -> Filter: (field1 <> 0)
             -> Table scan on <temporary>
                 -> Temporary table with deduplication
@@ -3062,7 +3062,7 @@ t2 LEFT JOIN t3 ON t2.col1 = t3.col1)
 ON t2.col1 = t1.col1
 ORDER BY t1.col1, t2.col1, t3.col1;
 EXPLAIN
--> Sort: <temporary>.col1, <temporary>.col1, <temporary>.col1
+-> Sort: t1.col1, t2.col1, t3.col1
     -> Stream results
         -> Left hash join (t2.col1 = t1.col1)  (cost=1.36 rows=6)
             -> Table scan on t1  (cost=0.55 rows=3)
