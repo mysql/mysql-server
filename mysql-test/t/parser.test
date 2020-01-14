@@ -2562,3 +2562,20 @@ SELECT t1.`*`, t1.* FROM t1;
 SELECT test.t1.`*`, test.t1.* FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#30592703: UNDOCUMENTED SYNTAX
+--echo #               '('<QUERY BLOCK>')' {LIMIT|ORDER [LIMIT]} INTO ...
+--echo #
+
+(SELECT 1) LIMIT 1 INTO @var;
+SELECT @var;
+
+(SELECT 2 AS c) ORDER BY c INTO @var;
+SELECT @var;
+
+(SELECT 3 AS c) ORDER BY c LIMIT 1 INTO @var;
+SELECT @var;
+
+(SELECT 4) INTO @var;
+SELECT @var;
