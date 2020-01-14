@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -771,7 +771,7 @@ bool Ndb_dd_client::migrate_table(const char *schema_name,
   }
 
   const bool migrate_result = dd::ndb_upgrade::migrate_table_to_dd(
-      m_thd, schema_name, table_name, frm_data, unpacked_len, false,
+      m_thd, schema_name, table_name, frm_data, unpacked_len,
       compare_definitions);
 
   return migrate_result;
