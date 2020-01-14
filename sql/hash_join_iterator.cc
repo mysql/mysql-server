@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -413,14 +413,6 @@ bool HashJoinIterator::BuildHashTable() {
   // inserted into the hash table.
   if (m_row_buffer.Initialized() &&
       m_row_buffer.LastRowStored() != m_row_buffer.end()) {
-    // If the NULL row flag is set, it may override the NULL flags for the
-    // columns. This may in turn cause columns not to be restored when they
-    // should, so clear the NULL row flag before restoring the row. Note that
-    // the NULL row flag is only relevant for outer joins.
-    if (m_join_type == JoinType::OUTER) {
-      m_build_input->SetNullRowFlag(/*is_null_row=*/false);
-    }
-
     hash_join_buffer::LoadIntoTableBuffers(
         m_build_input_tables, m_row_buffer.LastRowStored()->second);
   }

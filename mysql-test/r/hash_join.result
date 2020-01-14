@@ -3621,3 +3621,56 @@ SELECT 1 FROM t1 LEFT JOIN t1 AS t2 ON t1.a=t2.a;
 1
 1
 DROP TABLE t1;
+#
+# Bug#30716607 SIG11 IN WELL_FORMED_COPY_NCHARS() AT
+#              SQL-COMMON/SQL_STRING.CC
+# Bug#30648809 HASH_JOIN_BUFFER::LOADINTOTABLEBUFFERS() HITS AN ASSERT
+#              AND CRASH
+CREATE TABLE t1 (
+str_col VARCHAR(1)
+);
+CREATE TABLE t2 (
+i INTEGER,
+str_col VARCHAR(1),
+PRIMARY KEY (i),
+KEY idx (str_col)
+);
+CREATE TABLE t3 (i INTEGER);
+INSERT INTO t1 VALUES ('r'), ('s');
+INSERT INTO t2 VALUES (9,'s'), (11,'o');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SET sql_mode = '';
+EXPLAIN FORMAT=tree SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
+WHERE (t1.str_col, t1.str_col) NOT IN (
+SELECT c1_1.str_col, MIN(c1_2.str_col)
+FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
+);
+EXPLAIN
+-> Filter: <in_optimizer>((t1.str_col,t1.str_col),<exists>(select #2) is false)  (cost=0.88 rows=4)
+    -> Left hash join (t1.str_col = t2.str_col)  (cost=0.88 rows=4)
+        -> Index scan on t2 using idx  (cost=0.45 rows=2)
+        -> Hash
+            -> Table scan on t1  (cost=0.23 rows=2)
+    -> Select #2 (subquery in condition; dependent)
+        -> Limit: 1 row(s)
+            -> Filter: (<if>(outer_field_is_not_null, ((<cache>(t1.str_col) = c1_1.str_col) or (c1_1.str_col is null)), true) and <if>(outer_field_is_not_null, ((<cache>(t1.str_col) = min(c1_2.str_col)) or (min(c1_2.str_col) is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(c1_1.str_col), true) and <if>(outer_field_is_not_null, <is_not_null_test>(min(c1_2.str_col)), true))
+                -> Aggregate: min(c1_2.str_col)
+                    -> Inner hash join (t3.i = c1_2.i)  (cost=1.75 rows=4)
+                        -> Table scan on t3  (cost=0.09 rows=1)
+                        -> Hash
+                            -> Inner hash join (no condition)  (cost=1.10 rows=4)
+                                -> Index scan on c1_2 using idx  (cost=0.23 rows=2)
+                                -> Hash
+                                    -> Index scan on c1_1 using idx  (cost=0.45 rows=2)
+
+SELECT 1 FROM t1 RIGHT JOIN t2 ON t2.str_col = t1.str_col
+WHERE (t1.str_col, t1.str_col) NOT IN (
+SELECT c1_1.str_col, MIN(c1_2.str_col)
+FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
+);
+SET sql_mode = DEFAULT;
+DROP TABLE t1, t2, t3;

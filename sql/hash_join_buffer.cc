@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,6 +279,11 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
                                   const uchar *ptr) {
   for (const Table &tbl : tables.tables()) {
     TABLE *table = tbl.qep_tab->table();
+
+    // If the NULL row flag is set, it may override the NULL flags for the
+    // columns. This may in turn cause columns not to be restored when they
+    // should, so clear the NULL row flag when restoring the row.
+    table->reset_null_row();
 
     if (tbl.copy_null_flags) {
       memcpy(table->null_flags, ptr, table->s->null_bytes);
