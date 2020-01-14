@@ -4173,6 +4173,49 @@ Backup::execINCL_NODEREQ(Signal* signal)
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
 }
 
+Uint32
+Backup::validateEncryptionPassword(const EncryptionPasswordData* epd)
+{
+  Uint32 allowedASCIIRanges[][2] = {{32, 32}, {35, 35}, {38, 38}, {40, 91},
+                                    {93, 93}, {95, 95}, {97, 126}};
+  Uint32 numElem = sizeof(allowedASCIIRanges) / (2* sizeof(Uint32));
+
+  Uint32 epdLength = epd->password_length;
+  if (epdLength > MAX_BACKUP_ENCRYPTION_PASSWORD_LENGTH)
+  {
+    return BackupRef::EncryptionPasswordTooLong;
+  }
+  else if (epdLength == 0)
+  {
+    return BackupRef::EncryptionPasswordZeroLength;
+  }
+  ndbrequire(epd->encryption_password[epdLength] == '\0');
+
+  for (Uint32 i = 0; i < epdLength; i++)
+  {
+    bool charMatch = false;
+    for (Uint32 j = 0; (j < numElem) && !charMatch; j++)
+    {
+      Uint32 low = allowedASCIIRanges[j][0];
+      Uint32 high = allowedASCIIRanges[j][1];
+
+      for(Uint32 k = low; k <= high; k++)
+      {
+        ndbrequire(epd->encryption_password[i] >= 0);
+        if ((Uint32)epd->encryption_password[i] == k)
+        {
+          charMatch = true;
+          break;
+        }
+      }
+    }
+    if (!charMatch)
+    {
+      return BackupRef::BadEncryptionPassword;
+    }
+  }
+  return 0;
+}
 /*****************************************************************************
  * 
  * Master functionallity - Define backup
@@ -4277,12 +4320,23 @@ Backup::execBACKUP_REQ(Signal* signal)
     return;
   }//if
   
-  if (c_defaults.m_encryption_required && ((flags & BackupReq::ENCRYPTED_BACKUP) == 0))
+  if (c_defaults.m_encryption_required &&
+      ((flags & BackupReq::ENCRYPTED_BACKUP) == 0))
   {
     jam();
     sendBackupRef(senderRef, flags, signal, senderData,
-                  BackupRef::EncryptionPassphraseMissing);
+                  BackupRef::EncryptionPasswordMissing);
     return;
+  }
+  else if ((flags & BackupReq::ENCRYPTED_BACKUP) != 0)
+  {
+    jam();
+    Uint32 ret = validateEncryptionPassword(&epd);
+    if (ret != 0)
+    {
+      sendBackupRef(senderRef, flags, signal, senderData, ret);
+      return;
+    }
   }
 
 #ifdef DEBUG_ABORT
@@ -6487,7 +6541,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     if (c_defaults.m_encryption_required && ((req->flags & BackupReq::ENCRYPTED_BACKUP) == 0))
     {
       jam();
-      defineBackupRef(signal, ptr, BackupRef::EncryptionPassphraseMissing);
+      defineBackupRef(signal, ptr, BackupRef::EncryptionPasswordMissing);
       return;
     }
 

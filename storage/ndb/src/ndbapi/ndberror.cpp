@@ -637,6 +637,9 @@ ErrorBundle ErrorCodes[] = {
   { 1306, DMEC, AE, "Backup not supported in diskless mode (change Diskless)" },
   { 1307, DMEC, IE, "Encrypted backup is not supported by the data node/s" },
   { 1308, DMEC, CE, "Data node/s configured to have encryption but password not provided" },
+  { 1309, DMEC, CE, "Encryption password has bad character/s (see 'HELP START BACKUP')" },
+  { 1310, DMEC, CE, "Encryption password is too long (see 'HELP START BACKUP')" },
+  { 1311, DMEC, CE, "Encryption password is of zero length" },
 
   { 1321, DMEC, UD, "Backup aborted by user request" },
   { 1322, DMEC, IE, "Backup already completed" },

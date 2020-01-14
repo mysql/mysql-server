@@ -160,7 +160,10 @@ private:
     BackupDefinitionNotImplemented = 1305,
     CannotBackupDiskless = 1306,
     EncryptionNotSupported = 1307,
-    EncryptionPassphraseMissing = 1308,
+    EncryptionPasswordMissing = 1308,
+    BadEncryptionPassword = 1309,
+    EncryptionPasswordTooLong = 1310,
+    EncryptionPasswordZeroLength = 1311,
     BackupDuringUpgradeUnsupported = 1329
   };
   Uint32 senderData;
