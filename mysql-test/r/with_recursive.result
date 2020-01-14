@@ -1082,7 +1082,7 @@ t2.id=tree_of_a.rightpar
 )
 select * from tree_of_a order by path;
 EXPLAIN
--> Sort: tree_of_a.path
+-> Sort: tree_of_a.`path`
     -> Table scan on tree_of_a
         -> Materialize recursive CTE tree_of_a
             -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)
@@ -2432,7 +2432,7 @@ t2.id=tree_of_a.rightpar
 )
 select * from tree_of_a order by path;
 EXPLAIN
--> Sort: tree_of_a.path
+-> Sort: tree_of_a.`path`
     -> Table scan on tree_of_a
         -> Materialize recursive CTE tree_of_a
             -> Filter: (t2.`name` = 'A')  (cost=1.75 rows=2)

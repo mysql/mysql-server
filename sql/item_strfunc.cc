@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,11 +84,13 @@
 #include "sql/derror.h"          // ER_THD
 #include "sql/error_handler.h"   // Internal_error_handler
 #include "sql/events.h"          // Events::reconstruct_interval_expression
+#include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                             // binary_keyword etc
 #include "sql/resourcegroups/resource_group_mgr.h"  // num_vcpus
 #include "sql/rpl_gtid.h"
+#include "sql/sort_param.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -3126,7 +3128,23 @@ String *Item_func_weight_string::val_str(String *str) {
   bool rounded_up = false;
   DBUG_ASSERT(fixed == 1);
 
-  if (args[0]->result_type() != STRING_RESULT ||
+  // Ask filesort what type it would sort this as. Currently, we support strings
+  // and integers (the latter include temporal types).
+  st_sort_field sortorder;
+  sortorder.item = args[0];
+  sortlength(current_thd, &sortorder, /*s_length=*/1);
+  if (sortorder.result_type == INT_RESULT) {
+    longlong value = get_int_sort_key_for_item(args[0]);
+    if (args[0]->maybe_null && args[0]->null_value) return error_str();
+    if (tmp_value.alloc(sortorder.length)) return error_str();
+    copy_native_longlong(pointer_cast<uchar *>(tmp_value.ptr()),
+                         sortorder.length, value, args[0]->unsigned_flag);
+    tmp_value.length(sortorder.length);
+    null_value = false;
+    return &tmp_value;
+  }
+
+  if (sortorder.result_type != STRING_RESULT ||
       !(input = args[0]->val_str(str)))
     return error_str();
 

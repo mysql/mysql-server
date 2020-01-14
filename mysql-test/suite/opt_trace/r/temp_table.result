@@ -1234,8 +1234,7 @@ ORDER BY cc	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": " `tt`",
-                "field": "c1"
+                "expression": "`tt`.`c1`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -1246,9 +1245,9 @@ ORDER BY cc	{
             ] /* filesort_execution */,
             "filesort_summary": {
               "memory_available": 262144,
-              "key_size": 4,
-              "row_size": 765,
-              "max_rows_per_buffer": 339,
+              "key_size": 8,
+              "row_size": 769,
+              "max_rows_per_buffer": 337,
               "num_rows_estimate": 1820,
               "num_rows_found": 132,
               "num_initial_chunks_spilled_to_disk": 0,
@@ -1262,7 +1261,7 @@ ORDER BY cc	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "cc"
+                "expression": "`cc`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {

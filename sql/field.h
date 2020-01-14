@@ -1362,12 +1362,6 @@ class Field {
   virtual void make_send_field(Send_field *send_field) const;
 
   /**
-    Returns whether make_sort_key() writes variable-length sort keys,
-    ie., whether it can return fewer bytes than it's asked for.
-  */
-  virtual bool sort_key_is_varlen() const { return false; }
-
-  /**
     Writes a copy of the current value in the record buffer, suitable for
     sorting using byte-by-byte comparison. Integers are always in big-endian
     regardless of hardware architecture. At most length bytes are written
@@ -1377,9 +1371,10 @@ class Field {
 
     @param length Number of bytes to write.
 
-    @retval The number of bytes actually written. Note that unless
-      sort_key_is_varlen() returns true, this must be exactly the same
-      as length.
+    @retval The number of bytes actually written.
+
+    @note This is now only used by replication; filesort makes its own
+     sort keys based off of Items, not Fields.
   */
   virtual size_t make_sort_key(uchar *buff, size_t length) const = 0;
   virtual bool optimize_range(uint idx, uint part) const;
@@ -3608,9 +3603,6 @@ class Field_varstring : public Field_longstr {
   int cmp(const uchar *a, const uchar *b) const final override {
     return cmp_max(a, b, ~0L);
   }
-  bool sort_key_is_varlen() const final override {
-    return (field_charset->pad_attribute == NO_PAD);
-  }
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   size_t get_key_image(uchar *buff, size_t length,
                        imagetype type) const final override;
@@ -3806,9 +3798,6 @@ class Field_blob : public Field_longstr {
   uint32 pack_length_no_ptr() const { return (uint32)(packlength); }
   uint row_pack_length() const final override { return pack_length_no_ptr(); }
   uint32 sort_length() const final override;
-  bool sort_key_is_varlen() const override {
-    return (field_charset->pad_attribute == NO_PAD);
-  }
   uint32 max_data_length() const final override {
     return (uint32)(((ulonglong)1 << (packlength * 8)) - 1);
   }
@@ -4202,7 +4191,6 @@ class Field_json : public Field_blob {
   Item_result cast_to_int_type() const final override { return INT_RESULT; }
   int cmp_binary(const uchar *a, const uchar *b,
                  uint32 max_length = ~0L) const final override;
-  bool sort_key_is_varlen() const final override { return true; }
   size_t make_sort_key(uchar *to, size_t length) const override;
 
   /**

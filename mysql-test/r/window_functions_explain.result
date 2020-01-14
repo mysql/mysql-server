@@ -16771,7 +16771,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                         "filesort_information": [
                           {
                             "direction": "asc",
-                            "field": "i"
+                            "expression": "`t`.`i`"
                           }
                         ],
                         "filesort_priority_queue_optimization": {
@@ -16801,7 +16801,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
                   "filesort_information": [
                     {
                       "direction": "desc",
-                      "field": "i"
+                      "expression": "`t`.`i`"
                     }
                   ],
                   "filesort_priority_queue_optimization": {
@@ -16831,7 +16831,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "i"
+                "expression": "`t`.`i`"
               }
             ],
             "filesort_priority_queue_optimization": {

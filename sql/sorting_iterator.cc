@@ -652,13 +652,7 @@ vector<string> SortingIterator::DebugString() const {
     }
 
     const st_sort_field *order = &m_filesort->sortorder[i];
-    if (order->item) {
-      ret += ItemToString(order->item);
-    } else {
-      ret += order->field->table->alias;
-      ret += ".";
-      ret += order->field->field_name;
-    }
+    ret += ItemToString(order->item);
     if (order->reverse) {
       ret += " DESC";
     }

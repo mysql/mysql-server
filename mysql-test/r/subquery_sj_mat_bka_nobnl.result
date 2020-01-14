@@ -12783,7 +12783,7 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: <temporary>.col_int_key
+-> Sort: t4.col_int_key
     -> Stream results
         -> Nested loop inner join
             -> Table scan on <subquery2>
