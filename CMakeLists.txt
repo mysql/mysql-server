@@ -229,6 +229,8 @@ IF(WITH_DEFAULT_FEATURE_SET)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/feature_set.cmake)
 ENDIF()
 
+INCLUDE(CMakePushCheckState)
+
 # Add macros
 INCLUDE(character_sets)
 INCLUDE(cpu_info)
@@ -237,6 +239,7 @@ INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
+INCLUDE(ldap)
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
@@ -273,6 +276,9 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
+OPTION(WITH_AUTHENTICATION_LDAP
+  "Report error if the LDAP authentication plugin cannot be built." OFF)
+
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
@@ -579,6 +585,8 @@ MYSQL_CHECK_LIBEVENT()
 MYSQL_CHECK_LZ4()
 # Add SASL library
 MYSQL_CHECK_SASL()
+# Add LDAP library
+MYSQL_CHECK_LDAP()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
