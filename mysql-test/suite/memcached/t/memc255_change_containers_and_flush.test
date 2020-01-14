@@ -71,11 +71,12 @@ $memd->disconnect_all;
 EOF
 
 
+# Stop plugin before innodb_memcached configuration
+UNINSTALL PLUGIN daemon_memcached;
+
 DROP TABLE t1;
 DROP TABLE t2;
 
-# Stop plugin befor innodb_memcached configuration
-UNINSTALL PLUGIN daemon_memcached;
 DROP DATABASE innodb_memcache;
 
 SET @@global.transaction_isolation= @transaction_isolation;

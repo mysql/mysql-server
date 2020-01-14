@@ -1,0 +1,6 @@
+--source include/big_test.inc
+--let ENV_TEST_EMPTY_KEYS=1
+--let ENV_MEMCACHED_ADDRESS=127.0.0.1:11257
+--let ENV_STEPS_SUBSET=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16
+
+--source ../include/run_memcached_multithreaded_test.inc

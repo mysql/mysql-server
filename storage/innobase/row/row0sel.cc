@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1170,6 +1170,7 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
 
   trx = thr_get_trx(thr);
   trx_mutex_enter(trx);
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   bool too_many_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000);
   trx_mutex_exit(trx);
 

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -57,18 +57,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /** Define also present in daemon/memcached.h */
 #define KEY_MAX_LENGTH 250
-
-/** Time (in seconds) that background thread sleeps before it wakes
-up and commit idle connection transactions */
-#define BK_COMMIT_THREAD_SLEEP_INTERVAL 5
-
-/** Maximum number of connections that background thread processes each
-time */
-#define BK_MAX_PROCESS_COMMIT 5
-
-/** Minimum time (in seconds) that a connection has been idle, that makes
-it candidate for background thread to commit it */
-#define CONN_IDLE_TIME_TO_BK_COMMIT 5
 
 #ifdef UNIV_MEMCACHED_SDI
 static const char SDI_PREFIX[] = "sdi_";
@@ -306,6 +294,22 @@ create_instance(
 
   return (ENGINE_SUCCESS);
 }
+static void innodb_close_cursors(innodb_conn_data_t *conn_data) {
+  innodb_cb_cursor_close(conn_data->idx_read_crsr);
+  innodb_cb_cursor_close(conn_data->idx_crsr);
+  innodb_cb_cursor_close(conn_data->read_crsr);
+  innodb_cb_cursor_close(conn_data->crsr);
+}
+static void innodb_commit_and_release_crsr_trx(innodb_conn_data_t *conn_data) {
+  assert(!conn_data->mysql_tbl);
+  innodb_close_cursors(conn_data);
+  innodb_cb_trx_commit(conn_data->crsr_trx);
+  auto err MY_ATTRIBUTE((unused)) = ib_cb_trx_release(conn_data->crsr_trx);
+  assert(err == DB_SUCCESS);
+  conn_data->crsr_trx = nullptr;
+}
+
+void innodb_close_mysql_table(innodb_conn_data_t *conn_data);
 
 /*******************************************************************/ /**
  background thread to commit trx.
@@ -315,7 +319,6 @@ static void *innodb_bk_thread(
     void *arg) {
   ENGINE_HANDLE *handle;
   struct innodb_engine *innodb_eng;
-  innodb_conn_data_t *conn_data;
 
   bk_thd_exited = false;
 
@@ -328,19 +331,8 @@ static void *innodb_bk_thread(
   threads, we will "pretend" to be each connection. */
   void *thd = handler_create_thd(innodb_eng->enable_binlog);
 
-  conn_data = UT_LIST_GET_FIRST(innodb_eng->conn_data);
-
   while (!memcached_shutdown) {
-    innodb_conn_data_t *next_conn_data;
-    uint64_t time;
-    uint64_t trx_start = 0;
-    uint64_t processed_count = 0;
-
-    if (handler_check_global_read_lock_active()) {
-      release_mdl_lock = true;
-    } else {
-      release_mdl_lock = false;
-    }
+    release_mdl_lock = handler_check_global_read_lock_active();
 
     /* Do the cleanup every innodb_eng->bk_commit_interval
     seconds. We also check if the plugin is being shutdown
@@ -354,122 +346,42 @@ static void *innodb_bk_thread(
       }
     }
 
-    time = mci_get_time();
-
-    if (UT_LIST_GET_LEN(innodb_eng->conn_data) == 0) {
-      continue;
-    }
-
-    if (!conn_data) {
-      conn_data = UT_LIST_GET_FIRST(innodb_eng->conn_data);
-    }
-
-    if (conn_data) {
-      next_conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
-    } else {
-      next_conn_data = NULL;
-    }
+    LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
 
     /* Set the clean_stale_conn to prevent force clean in
     innodb_conn_clean. */
-    LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
     innodb_eng->clean_stale_conn = true;
-    UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
+    innodb_conn_data_t *next_conn_data = nullptr;
 
-    while (conn_data) {
-      if (release_mdl_lock && !conn_data->is_stale) {
-        int err;
+    for (innodb_conn_data_t *conn_data =
+             UT_LIST_GET_FIRST(innodb_eng->conn_data);
+         conn_data; conn_data = next_conn_data) {
+      next_conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
+      if (conn_data->is_waiting_for_mdl) {
+        continue;
+      }
 
-        if (conn_data->is_waiting_for_mdl) {
-          goto next_item;
-        }
-
-        err = LOCK_CURRENT_CONN_TRYLOCK(conn_data);
-        if (err != 0) {
-          goto next_item;
-        }
-        /* We have got the lock here */
-      } else {
-        LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
+      if (LOCK_CURRENT_CONN_TRYLOCK(conn_data) != 0) {
+        continue;
       }
 
       if (conn_data->is_stale) {
-        UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-        LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
+        assert(!conn_data->in_use);
         UT_LIST_REMOVE(conn_list, innodb_eng->conn_data, conn_data);
-        UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
-        innodb_conn_clean_data(conn_data, false, true);
-        goto next_item;
-      }
-
-      if (release_mdl_lock) {
+        innodb_conn_clean_data(conn_data, true, true);
+      } else if (!conn_data->in_use) {
         if (conn_data->thd) {
           handler_thd_attach(conn_data->thd, NULL);
         }
-
-        if (conn_data->in_use) {
-          UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-          goto next_item;
-        }
-
         innodb_reset_conn(conn_data, true, true, innodb_eng->enable_binlog);
-        if (conn_data->mysql_tbl) {
-          handler_unlock_table(conn_data->thd, conn_data->mysql_tbl, HDL_READ);
-          conn_data->mysql_tbl = NULL;
-        }
-
-        /*Close the data cursor */
-        if (conn_data->crsr) {
-          innodb_cb_cursor_close(conn_data->crsr);
-          conn_data->crsr = NULL;
-        }
-        if (conn_data->crsr_trx != NULL) {
-          ib_cb_trx_release(conn_data->crsr_trx);
-          conn_data->crsr_trx = NULL;
-        }
-
-        UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-        goto next_item;
-      }
-
-      if (conn_data->crsr_trx) {
-        trx_start = ib_cb_trx_get_start_time(conn_data->crsr_trx);
-      }
-
-      /* Check the trx, if it is qualified for
-      reset and commit */
-      if ((conn_data->n_writes_since_commit > 0 ||
-           conn_data->n_reads_since_commit > 0) &&
-          trx_start && (time - trx_start > CONN_IDLE_TIME_TO_BK_COMMIT) &&
-          !conn_data->in_use) {
-        /* binlog is running, make the thread
-        attach to conn_data->thd for binlog
-        committing */
-        if (thd && conn_data->thd) {
-          handler_thd_attach(conn_data->thd, NULL);
-        }
-
-        innodb_reset_conn(conn_data, true, true, innodb_eng->enable_binlog);
-        processed_count++;
+        innodb_close_mysql_table(conn_data);
+        innodb_conn_clean_data(conn_data, true, false);
       }
 
       UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-
-    next_item:
-      conn_data = next_conn_data;
-
-      /* Process BK_MAX_PROCESS_COMMIT (5) trx at a time */
-      if (!release_mdl_lock && processed_count > BK_MAX_PROCESS_COMMIT) {
-        break;
-      }
-
-      if (conn_data) {
-        next_conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
-      }
     }
 
     /* Set the clean_stale_conn back. */
-    LOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
     innodb_eng->clean_stale_conn = false;
     UNLOCK_CONN_IF_NOT_LOCKED(false, innodb_eng);
   }
@@ -553,7 +465,6 @@ static ENGINE_ERROR_CODE innodb_initialize(
   UT_LIST_INIT(innodb_eng->conn_data);
   pthread_mutex_init(&innodb_eng->conn_mutex, NULL);
   pthread_mutex_init(&innodb_eng->cas_mutex, NULL);
-  pthread_mutex_init(&innodb_eng->flush_mutex, NULL);
 
   /* Fetch InnoDB specific settings */
   innodb_eng->meta_info = innodb_config(NULL, 0, &innodb_eng->meta_hash);
@@ -610,25 +521,7 @@ static void innodb_conn_clean_data(
 
   LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
-  if (conn_data->idx_crsr) {
-    innodb_cb_cursor_close(conn_data->idx_crsr);
-    conn_data->idx_crsr = NULL;
-  }
-
-  if (conn_data->idx_read_crsr) {
-    innodb_cb_cursor_close(conn_data->idx_read_crsr);
-    conn_data->idx_read_crsr = NULL;
-  }
-
-  if (conn_data->crsr) {
-    innodb_cb_cursor_close(conn_data->crsr);
-    conn_data->crsr = NULL;
-  }
-
-  if (conn_data->read_crsr) {
-    innodb_cb_cursor_close(conn_data->read_crsr);
-    conn_data->read_crsr = NULL;
-  }
+  innodb_close_cursors(conn_data);
 
   if (conn_data->crsr_trx) {
     ib_err_t err MY_ATTRIBUTE((unused));
@@ -833,7 +726,6 @@ static void innodb_destroy(
 
   pthread_mutex_destroy(&innodb_eng->conn_mutex);
   pthread_mutex_destroy(&innodb_eng->cas_mutex);
-  pthread_mutex_destroy(&innodb_eng->flush_mutex);
 
   if (innodb_eng->default_engine) {
     def_eng->engine.destroy(innodb_eng->default_engine, force);
@@ -914,9 +806,9 @@ static innodb_conn_data_t *innodb_conn_init(
   meta_cfg_info_t *meta_info;
   meta_index_t *meta_index;
   ib_err_t err = DB_SUCCESS;
-  ib_crsr_t crsr;
-  ib_crsr_t read_crsr;
-  ib_crsr_t idx_crsr;
+  ib_crsr_t crsr = nullptr;
+  ib_crsr_t read_crsr = nullptr;
+  ib_crsr_t idx_crsr = nullptr;
   bool trx_updated = false;
 
   /* Get this connection's conn_data */
@@ -970,7 +862,7 @@ static innodb_conn_data_t *innodb_conn_init(
     }
     memset(conn_data->row_buf, 0, NUM_MAX_MEM_SLOT * sizeof(void *));
 
-    conn_data->row_buf[0] = (void *)malloc(16384);
+    conn_data->row_buf[0] = (void *)malloc(REC_BUF_SLOT_SIZE);
 
     if (conn_data->row_buf[0] == NULL) {
       UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine);
@@ -999,7 +891,6 @@ static innodb_conn_data_t *innodb_conn_init(
 #ifdef UNIV_MEMCACHED_SDI
     conn_data->sdi_buf = NULL;
 #endif /* UNIV_MEMCACHED_SDI */
-    conn_data->is_flushing = false;
 
     conn_data->conn_cookie = (void *)cookie;
 
@@ -1035,13 +926,6 @@ have_conn:
   }
 
   LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
-
-  /* If flush is running, then wait for it complete. */
-  if (conn_data->is_flushing) {
-    /* Request flush_mutex for waiting for flush completed. */
-    pthread_mutex_lock(&engine->flush_mutex);
-    pthread_mutex_unlock(&engine->flush_mutex);
-  }
 
   /* This special case added to facilitate unlocking
      of MDL lock during FLUSH TABLE WITH READ LOCK */
@@ -1080,12 +964,7 @@ have_conn:
                            &conn_data->idx_crsr, lock_mode);
 
     if (err != DB_SUCCESS) {
-      innodb_cb_cursor_close(conn_data->crsr);
-      conn_data->crsr = NULL;
-      innodb_cb_trx_commit(conn_data->crsr_trx);
-      err = ib_cb_trx_release(conn_data->crsr_trx);
-      assert(err == DB_SUCCESS);
-      conn_data->crsr_trx = NULL;
+      innodb_commit_and_release_crsr_trx(conn_data);
       conn_data->in_use = false;
       UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
       return (NULL);
@@ -1117,12 +996,7 @@ have_conn:
                              &conn_data->idx_crsr, lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->crsr);
-        conn_data->crsr = NULL;
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
 
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
@@ -1141,12 +1015,7 @@ have_conn:
       err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->crsr);
-        conn_data->crsr = NULL;
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
         return (NULL);
@@ -1168,12 +1037,7 @@ have_conn:
       err = innodb_cb_cursor_lock(engine, crsr, lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->crsr);
-        conn_data->crsr = NULL;
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
         return (NULL);
@@ -1190,10 +1054,19 @@ have_conn:
       }
     }
   } else {
-    bool auto_commit = (engine->read_batch_size == 1 &&
-                        !(engine->cfg_status & IB_CFG_DISABLE_ROWLOCK))
-                           ? true
-                           : false;
+    /* This is a read operation, but depending on isolation level, it might
+    require an InnoDB shared table intention lock, and/or a shared record lock.
+    We need to tell in advance if our trx is "read_write" and "autocommit".
+    These concepts are mapped through API and InnoDB's trx_start_low() in a
+    complicated way. In particular the auto_commit maps to trx->api_auto_commit
+    and if trx->api_auto_commit is true then trx_start_low does not set
+    trx->will_lock (it stays 0). When we later request a lock, we violate
+      !trx_is_autocommit_non_locking((t))
+    assert in lock sys. So, if we plan to take locks, we should not set
+    auto_commit, as InnoDB would interpret it as "autocommit non locking".*/
+    const bool will_lock = lock_mode != IB_LOCK_NONE;
+    const bool auto_commit = (!will_lock && engine->read_batch_size == 1 &&
+                              !(engine->cfg_status & IB_CFG_DISABLE_ROWLOCK));
     assert(conn_option == CONN_MODE_READ);
 
     if (!read_crsr) {
@@ -1215,12 +1088,7 @@ have_conn:
                              lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->read_crsr);
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
-        conn_data->read_crsr = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
@@ -1244,12 +1112,7 @@ have_conn:
       err = innodb_cb_cursor_lock(engine, conn_data->read_crsr, lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->read_crsr);
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
-        conn_data->read_crsr = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
@@ -1273,12 +1136,7 @@ have_conn:
       err = innodb_cb_cursor_lock(engine, conn_data->read_crsr, lock_mode);
 
       if (err != DB_SUCCESS) {
-        innodb_cb_cursor_close(conn_data->read_crsr);
-        innodb_cb_trx_commit(conn_data->crsr_trx);
-        err = ib_cb_trx_release(conn_data->crsr_trx);
-        assert(err == DB_SUCCESS);
-        conn_data->crsr_trx = NULL;
-        conn_data->read_crsr = NULL;
+        innodb_commit_and_release_crsr_trx(conn_data);
         conn_data->in_use = false;
         UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
 
@@ -1790,7 +1648,7 @@ static ENGINE_ERROR_CODE innodb_get(
     uint16_t next_get)     /*!< in: has more item to get */
 {
   struct innodb_engine *innodb_eng = innodb_handle(handle);
-  ib_crsr_t crsr;
+  ib_crsr_t crsr = nullptr;
   ib_err_t err = DB_SUCCESS;
   mci_item_t *result = NULL;
   ENGINE_ERROR_CODE err_ret = ENGINE_SUCCESS;
@@ -2013,7 +1871,7 @@ search_done:
     result = (mci_item_t *)(conn_data->result);
 
     memset(result, 0, sizeof(*result));
-
+    assert(conn_data->row_buf_used + strlen(table_name) < REC_BUF_SLOT_SIZE);
     memcpy((char *)(conn_data->row_buf[conn_data->row_buf_slot]) +
                conn_data->row_buf_used,
            table_name, strlen(table_name));
@@ -2022,6 +1880,7 @@ search_done:
         ((char *)conn_data->row_buf[conn_data->row_buf_slot]) +
         conn_data->row_buf_used;
     result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
+    conn_data->row_buf_used += result->col_value[MCI_COL_VALUE].value_len;
     result->col_value[MCI_COL_VALUE].is_str = true;
     result->col_value[MCI_COL_VALUE].is_valid = true;
   }
@@ -2379,60 +2238,6 @@ static ENGINE_ERROR_CODE innodb_arithmetic(
 }
 
 /*******************************************************************/ /**
- Cleanup idle connections if "clear_all" is false, and clean up all
- connections if "clear_all" is true.
- @return number of connection cleaned */
-static bool innodb_flush_sync_conn(
-    /*===================*/
-    innodb_engine_t *engine, /*!< in/out: InnoDB memcached
-                             engine */
-    const void *cookie,      /*!< in: connection cookie */
-    bool flush_flag)         /*!< in: flush is running or not */
-{
-  innodb_conn_data_t *conn_data = NULL;
-  innodb_conn_data_t *curr_conn_data;
-  bool ret = true;
-
-  curr_conn_data =
-      (innodb_conn_data_t *)engine->server.cookie->get_engine_specific(cookie);
-  assert(curr_conn_data);
-
-  conn_data = UT_LIST_GET_FIRST(engine->conn_data);
-
-  while (conn_data) {
-    if (conn_data != curr_conn_data && (!conn_data->is_stale)) {
-      if (conn_data->thd) {
-        handler_thd_attach(conn_data->thd, NULL);
-      }
-      LOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-      if (flush_flag == false) {
-        conn_data->is_flushing = flush_flag;
-        UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-        conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
-        continue;
-      }
-      if (!conn_data->in_use) {
-        /* Set flushing flag to conn_data for preventing
-        it is get by other request.  */
-        conn_data->is_flushing = flush_flag;
-        UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-      } else {
-        ret = false;
-        UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(false, conn_data);
-        break;
-      }
-    }
-    conn_data = UT_LIST_GET_NEXT(conn_list, conn_data);
-  }
-
-  if (curr_conn_data->thd) {
-    handler_thd_attach(curr_conn_data->thd, NULL);
-  }
-
-  return (ret);
-}
-
-/*******************************************************************/ /**
  Support memcached "FLUSH_ALL" command, clean up storage (trunate InnoDB Table)
  @return ENGINE_SUCCESS if successfully, otherwise error code */
 static ENGINE_ERROR_CODE innodb_flush(
@@ -2463,35 +2268,23 @@ static ENGINE_ERROR_CODE innodb_flush(
     }
   }
 
-  /* Lock the whole engine, so no other connection can start
-  new opeartion */
-  pthread_mutex_lock(&innodb_eng->conn_mutex);
-
-  /* Lock the flush_mutex for blocking other DMLs. */
-  pthread_mutex_lock(&innodb_eng->flush_mutex);
-
   conn_data =
       (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(
           cookie);
 
   if (conn_data) {
-    /* Commit any work on this connection */
+    /* Commit any work on this connection before waiting for locks.
+    This is to avoid a deadlock, in which another thread also doing flush_all
+    will wait for a lock we hold on our conn_data */
     innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
+    innodb_conn_clean_data(conn_data, false, false);
   }
 
   conn_data = innodb_conn_init(innodb_eng, cookie, CONN_MODE_WRITE,
-                               IB_LOCK_TABLE_X, true, NULL);
+                               IB_LOCK_TABLE_X, false, NULL);
 
   if (!conn_data) {
-    pthread_mutex_unlock(&innodb_eng->flush_mutex);
-    pthread_mutex_unlock(&innodb_eng->conn_mutex);
-    return (ENGINE_SUCCESS);
-  }
-
-  if (!innodb_flush_sync_conn(innodb_eng, cookie, true)) {
-    pthread_mutex_unlock(&innodb_eng->flush_mutex);
-    pthread_mutex_unlock(&innodb_eng->conn_mutex);
-    innodb_flush_sync_conn(innodb_eng, cookie, false);
+    /* TBD: why in the past we've returned ENGINE_SUCCESS in this case? */
     return (ENGINE_TMPFAIL);
   }
 
@@ -2503,11 +2296,6 @@ static ENGINE_ERROR_CODE innodb_flush(
   /* Commit work and release the MDL table. */
   innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
   innodb_conn_clean_data(conn_data, false, false);
-
-  pthread_mutex_unlock(&innodb_eng->flush_mutex);
-  pthread_mutex_unlock(&innodb_eng->conn_mutex);
-
-  innodb_flush_sync_conn(innodb_eng, cookie, false);
 
   return ((ib_err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_TMPFAIL);
 }
@@ -2620,7 +2408,7 @@ static bool innodb_sdi_remove(struct innodb_engine *innodb_eng,
   }
 
   ib_trx_t trx = conn_data->crsr_trx;
-  ib_crsr_t crsr;
+  ib_crsr_t crsr = nullptr;
   /* +2 for the '/' and trailing '\0' */
   char table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 2];
   char *name;
@@ -2678,7 +2466,7 @@ static bool innodb_sdi_get(innodb_conn_data_t *conn_data,
   mci_item_t *result = (mci_item_t *)conn_data->result;
 
   ib_trx_t trx = conn_data->crsr_trx;
-  ib_crsr_t crsr;
+  ib_crsr_t crsr = nullptr;
 
   /* +2 for the '/' and trailing '\0' */
   char table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 2];
@@ -2818,7 +2606,7 @@ static bool innodb_sdi_store(struct innodb_engine *innodb_eng,
   }
 
   ib_trx_t trx = conn_data->crsr_trx;
-  ib_crsr_t crsr;
+  ib_crsr_t crsr = nullptr;
 
   /* +2 for the '/' and trailing '\0' */
   char table_name[MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 2];

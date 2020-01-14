@@ -115,7 +115,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with not existing table in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -190,7 +190,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with not existing database in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -265,7 +265,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with not existing key column in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -340,7 +340,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with not existing value columns in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -415,7 +415,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with NULL value columns in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -490,7 +490,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case with not existing non-mandatory column in container;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;
@@ -566,7 +566,7 @@ SELECT c1,c11,c2,c21 FROM t1;
 
 echo #######################################################;
 echo # Test case map to a partitioned table;
-# Stop plugin befor innodb_memcached configuration
+# Stop plugin before innodb_memcached configuration
 UNINSTALL PLUGIN daemon_memcached;
 
 DROP DATABASE innodb_memcache;

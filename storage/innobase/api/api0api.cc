@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -306,7 +306,7 @@ static ib_err_t ib_read_tuple(
   if (rec_buf_list && *rec_buf_list) {
     void *rec_buf = rec_buf_list[*cur_slot];
 
-    if ((16384 - *used_len) < offset_size + 8) {
+    if ((REC_BUF_SLOT_SIZE - *used_len) < offset_size + 8) {
       (*cur_slot) += 1;
 
       /* Limit the record buffer size to 16 MB */
@@ -314,8 +314,8 @@ static ib_err_t ib_read_tuple(
         return (DB_END_OF_INDEX);
       }
 
-      if (rec_buf_list[*cur_slot] == NULL) {
-        rec_buf_list[*cur_slot] = malloc(16384);
+      if (rec_buf_list[*cur_slot] == nullptr) {
+        rec_buf_list[*cur_slot] = malloc(REC_BUF_SLOT_SIZE);
       }
 
       rec_buf = rec_buf_list[*cur_slot];
@@ -702,6 +702,8 @@ static ib_err_t ib_create_cursor(ib_crsr_t *ib_crsr,  /*!< out: InnoDB cursor */
   ib_cursor_t *cursor;
   ib_err_t err = DB_SUCCESS;
 
+  // passing non-null might mean a memleak of old cursor
+  ut_ad(*ib_crsr == nullptr);
   heap = mem_heap_create(sizeof(*cursor) * 2);
 
   if (heap != NULL) {

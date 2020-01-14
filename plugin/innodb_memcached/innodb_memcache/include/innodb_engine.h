@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,6 @@ struct innodb_conn_data_struct {
                                is processing a request */
   bool is_stale;               /*!< connection closed, this is
                                stale */
-  bool is_flushing;            /*!< if flush is running. */
   bool is_waiting_for_mdl;
   /*!< Used to detrmine if the connection is
   locked and waiting on MDL */
@@ -206,8 +205,6 @@ typedef struct innodb_engine {
                                connection specific data */
   pthread_mutex_t cas_mutex;   /*!< mutex synchronizes
                                CAS */
-  pthread_mutex_t flush_mutex; /*!< mutex synchronizes
-                               flush and DMLs. */
   pthread_t bk_thd_for_commit; /*!< background thread for
                              committing long running
                              transactions */
