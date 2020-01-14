@@ -11296,7 +11296,7 @@ insert into v1 values("z", 100)	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+            "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
           }
         ] /* steps */
       } /* join_preparation */
@@ -11320,7 +11320,7 @@ delete from v1 where data=100	{
         "select#": 2,
         "steps": [
           {
-            "expanded_query": "/* select#2 */ select straight_join `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
+            "expanded_query": "/* select#2 */ select `t1`.`id` AS `id`,`t1`.`data` AS `data` from `t1` where (`t1`.`id` < 'c')"
           }
         ] /* steps */
       } /* join_preparation */
