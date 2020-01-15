@@ -1741,8 +1741,8 @@ Pgman::idle_fragment_lcp(Uint32 tableId, Uint32 fragmentId)
     if (likely(fragPtr.p->m_dirty_list.isEmpty()))
     {
       jam();
-      m_lcp_table_id = tableId;
-      m_lcp_fragment_id = fragmentId;
+      m_prev_lcp_table_id = tableId;
+      m_prev_lcp_fragment_id = fragmentId;
       return true;
     }
     else
