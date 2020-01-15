@@ -1275,3 +1275,25 @@ b BIT(62) NOT NULL
 SELECT DISTINCT b FROM t1 GROUP BY a, b;
 b
 DROP TABLE t1;
+#
+# Bug 30760534: THE "ORDER BY DESC" OPTION DOES NOT WORK
+#
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
+EXPLAIN
+-> Sort with duplicate removal: <temporary>.a DESC
+    -> Stream results
+        -> Group (no aggregates)
+            -> Sort: t1.a DESC, t1.b  (cost=0.80 rows=3)
+                -> Table scan on t1
+
+SELECT DISTINCT SQL_BIG_RESULT a FROM t1 GROUP BY a,b ORDER BY a DESC;
+a
+3
+2
+1
+DROP TABLE t1;

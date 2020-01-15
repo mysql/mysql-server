@@ -4985,6 +4985,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
         Filesort(thd, tab->table(), keep_buffers, *sort_order, HA_POS_ERROR,
                  force_stable_sort,
                  /*remove_duplicates=*/false, force_sort_position);
+    tab->filesort_pushed_order = sort_order->order;
   }
   if (!tab->filesort) return true;
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");

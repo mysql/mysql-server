@@ -2992,8 +2992,18 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
     // O(n log n) cost.
     if (qep_tab->needs_duplicate_removal) {
       bool all_order_fields_used;
+
+      // If there's an ORDER BY on the query, it needs to be heeded in the
+      // re-sort for DISTINCT. Note that the global ORDER BY could be pushed
+      // to the first table, so we need to check there, too.
+      ORDER *desired_order = this->order;
+      if (desired_order == nullptr &&
+          this->qep_tab[0].filesort_pushed_order != nullptr) {
+        desired_order = this->qep_tab[0].filesort_pushed_order;
+      }
+
       ORDER *order = create_order_from_distinct(
-          thd, ref_items[qep_tab->ref_item_slice], this->order, fields_list,
+          thd, ref_items[qep_tab->ref_item_slice], desired_order, fields_list,
           /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
           &all_order_fields_used);
       if (order == nullptr) {

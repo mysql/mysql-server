@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -541,6 +541,12 @@ class QEP_TAB : public QEP_shared_owner {
 
   /* Sorting related info */
   Filesort *filesort;
+
+  /**
+    If we pushed a global ORDER BY down onto this first table, that ORDER BY
+    list will be preseved here.
+   */
+  ORDER *filesort_pushed_order = nullptr;
 
   /**
     Slice number of the ref items array to switch to before reading rows from
