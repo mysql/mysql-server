@@ -1129,6 +1129,18 @@ static bool IsJoinCondition(const Item *item, const QEP_TAB *qep_tab) {
   return false;
 }
 
+/// @returns the innermost condition of a nested trigger condition. If the item
+///   is not a trigger condition, the item itself is returned.
+static Item *GetInnermostCondition(Item *item) {
+  Item_func_trig_cond *trig_cond = GetTriggerCondOrNull(item);
+  while (trig_cond != nullptr) {
+    item = trig_cond->arguments()[0];
+    trig_cond = GetTriggerCondOrNull(item);
+  }
+
+  return item;
+}
+
 /*
   There are three kinds of conditions stored into a table's QEP_TAB object:
 
@@ -1192,7 +1204,10 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
         // qep_tab->table()->reginfo.not_exists_optimize in ConnectJoins().
         Item_func_trig_cond *inner_trig_cond = GetTriggerCondOrNull(inner_cond);
         if (inner_trig_cond != nullptr) {
-          Item *inner_inner_cond = inner_trig_cond->arguments()[0];
+          // Note that we can have a condition inside multiple levels of a
+          // trigger condition. We want the innermost condition, as we really do
+          // not care about trigger conditions after this point.
+          Item *inner_inner_cond = GetInnermostCondition(inner_trig_cond);
           if (join_conditions != nullptr) {
             // If join_conditions is set, it indicates that we are on the right
             // side of an outer join that will be executed using hash join. The
@@ -1825,6 +1840,7 @@ static bool ConditionIsAlwaysTrue(Item *item) {
 // condition (pure join conditions must refer to both sides of the join).
 static bool ItemRefersToOneSideOnly(Item *item, table_map left_side,
                                     table_map right_side) {
+  item->update_used_tables();
   const table_map item_used_tables = item->used_tables();
 
   if ((left_side & item_used_tables) == 0 ||

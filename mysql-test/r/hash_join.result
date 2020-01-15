@@ -3674,3 +3674,33 @@ FROM t2 AS c1_1 INNER JOIN t2 AS c1_2 STRAIGHT_JOIN t3 ON t3.i = c1_2.i
 );
 SET sql_mode = DEFAULT;
 DROP TABLE t1, t2, t3;
+#
+# Bug#30738687 CRASH IN HASHJOINCONDITION::HASHJOINCONDITION
+#
+CREATE TABLE t (
+c TEXT
+);
+EXPLAIN FORMAT=tree SELECT c FROM
+(
+SELECT 1 AS c FROM t AS a
+RIGHT JOIN t AS b ON 1
+RIGHT JOIN t AS c ON 1
+RIGHT JOIN t AS d ON 1
+) AS z
+NATURAL RIGHT JOIN t;
+EXPLAIN
+-> Left hash join (1 = t.c)  (cost=1.83 rows=1)
+    -> Table scan on t  (cost=0.35 rows=1)
+    -> Hash
+        -> Left hash join (no condition)  (cost=1.46 rows=1)
+            -> Table scan on d  (cost=0.37 rows=1)
+            -> Hash
+                -> Left hash join (no condition)  (cost=1.10 rows=1)
+                    -> Table scan on c  (cost=0.37 rows=1)
+                    -> Hash
+                        -> Left hash join (no condition)  (cost=0.73 rows=1)
+                            -> Table scan on b  (cost=0.37 rows=1)
+                            -> Hash
+                                -> Table scan on a  (cost=0.37 rows=1)
+
+DROP TABLE t;

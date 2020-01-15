@@ -2191,3 +2191,23 @@ eval $query;
 SET sql_mode = DEFAULT;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#30738687 CRASH IN HASHJOINCONDITION::HASHJOINCONDITION
+--echo #
+CREATE TABLE t (
+  c TEXT
+);
+
+# The join condition attached to the topmost hash join iterator should not be
+# inside a "found_match" trigger.
+EXPLAIN FORMAT=tree SELECT c FROM
+(
+  SELECT 1 AS c FROM t AS a
+  RIGHT JOIN t AS b ON 1
+  RIGHT JOIN t AS c ON 1
+  RIGHT JOIN t AS d ON 1
+) AS z
+NATURAL RIGHT JOIN t;
+
+DROP TABLE t;
