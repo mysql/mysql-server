@@ -11122,3 +11122,12 @@ SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON within a ROW in the IN operator'
 DROP TABLE t1;
+#
+# Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+#
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a)
+0
+DROP TABLE t;

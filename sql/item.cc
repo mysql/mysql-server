@@ -6574,60 +6574,41 @@ bool Item_json::val_json(Json_wrapper *result) {
 }
 
 /*
-  The functions below don't get called currently, because Item_json
-  is used in a more limited way than other subclasses of
-  Item_basic_constant. Most notably, there is no JSON literal syntax
-  which gets translated into Item_json objects by the parser.
-
-  Still, the functions need to be implemented in order to satisfy
-  the compiler. Annotate them so that they don't clutter the test
-  coverage results.
+  The functions below are rarely called, some of them are probably unreachable
+  from SQL, because Item_json is used in a more limited way than other
+  subclasses of Item_basic_constant. Most notably, there is no JSON literal
+  syntax which gets translated into Item_json objects by the parser.
 */
 
-/* purecov: begin deadcode */
+double Item_json::val_real() { return m_value->coerce_real(item_name.ptr()); }
 
-double Item_json::val_real() {
-  DBUG_ASSERT(false);  // Not expected to be called.
-  return m_value->coerce_real(item_name.ptr());
-}
-
-longlong Item_json::val_int() {
-  DBUG_ASSERT(false);  // Not expected to be called.
-  return m_value->coerce_int(item_name.ptr());
-}
+longlong Item_json::val_int() { return m_value->coerce_int(item_name.ptr()); }
 
 String *Item_json::val_str(String *str) {
-  DBUG_ASSERT(false);  // Not expected to be called.
   str->length(0);
   if (m_value->to_string(str, true, item_name.ptr())) return error_str();
   return str;
 }
 
 my_decimal *Item_json::val_decimal(my_decimal *buf) {
-  DBUG_ASSERT(false);  // Not expected to be called.
   return m_value->coerce_decimal(buf, item_name.ptr());
 }
 
 bool Item_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) {
-  DBUG_ASSERT(false);  // Not expected to be called.
   return m_value->coerce_date(ltime, item_name.ptr());
 }
 
 bool Item_json::get_time(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(false);  // Not expected to be called.
   return m_value->coerce_time(ltime, item_name.ptr());
 }
 
 Item *Item_json::clone_item() const {
-  DBUG_ASSERT(false);  // Not expected to be called.
   THD *const thd = current_thd;
   auto wr = make_unique_destroy_only<Json_wrapper>(thd->mem_root,
                                                    m_value->clone_dom(thd));
   if (wr == nullptr) return nullptr;
   return new Item_json(std::move(wr), item_name);
 }
-
-/* purecov: end */
 
 /**
   This is only called from items that is not of type item_field.

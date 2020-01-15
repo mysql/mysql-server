@@ -4127,6 +4127,14 @@ SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#30753642: ASSERTION `FALSE' FAILED. IN ITEM_JSON::VAL_STR
+--echo #
+CREATE TABLE t(a DATETIME);
+INSERT INTO t VALUES ('2019-01-13 00:00:00');
+SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

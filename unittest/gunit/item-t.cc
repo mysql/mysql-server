@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,20 +25,31 @@
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
+#include <new>
 
+#include "decimal.h"
+#include "field_types.h"
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_table_map.h"
+#include "mysql_time.h"
 #include "mysys_err.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_strfunc.h"
 #include "sql/item_timefunc.h"
+#include "sql/json_dom.h"
+#include "sql/my_decimal.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/tztime.h"
+#include "sql_string.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/mysys_util.h"
@@ -835,6 +846,70 @@ TEST_F(ItemTest, CompareEmptyStrings) {
   comparator.set_cmp_func(owner, &item1, &item2, false);
 
   EXPECT_EQ(0, comparator.compare_binary_string());
+}
+
+TEST_F(ItemTest, ItemJson) {
+  MEM_ROOT *const mem_root = initializer.thd()->mem_root;
+
+  const Item_name_string name(Name_string(STRING_WITH_LEN("json")));
+
+  Json_string jstr("123");
+  Item_json *item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(mem_root, &jstr, true), name);
+
+  Json_wrapper wr;
+  EXPECT_FALSE(item->val_json(&wr));
+  EXPECT_EQ(&jstr, wr.get_dom());
+
+  String string_buffer;
+  const String *str = item->val_str(&string_buffer);
+  EXPECT_EQ("\"123\"", to_string(*str));
+  EXPECT_EQ(item->collation.collation, str->charset());
+
+  EXPECT_EQ(123.0, item->val_real());
+  EXPECT_EQ(123, item->val_int());
+
+  my_decimal decimal_buffer;
+  const my_decimal *decimal = item->val_decimal(&decimal_buffer);
+  double dbl = 0;
+  EXPECT_EQ(E_DEC_OK, decimal2double(decimal, &dbl));
+  EXPECT_EQ(123.0, dbl);
+
+  Item *clone = item->clone_item();
+  EXPECT_NE(item, clone);
+  EXPECT_TRUE(item->eq(clone, true));
+  EXPECT_FALSE(clone->val_json(&wr));
+  EXPECT_NE(&jstr, wr.get_dom());
+  EXPECT_EQ(0, wr.compare(Json_wrapper(&jstr, true)));
+  EXPECT_EQ(123, clone->val_int());
+
+  const MysqlTime date(2020, 1, 2);
+  EXPECT_EQ(MYSQL_TIMESTAMP_DATE, date.time_type);
+  item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(
+          mem_root, std::unique_ptr<Json_dom>(new (std::nothrow) Json_datetime(
+                        date, MYSQL_TYPE_DATE))),
+      name);
+  MYSQL_TIME time_result;
+  EXPECT_FALSE(item->get_date(&time_result, 0));
+  EXPECT_EQ(date.time_type, time_result.time_type);
+  EXPECT_EQ(date.year, time_result.year);
+  EXPECT_EQ(date.month, time_result.month);
+  EXPECT_EQ(date.day, time_result.day);
+
+  const MysqlTime time(0, 0, 0, 10, 20, 30, 40, false, MYSQL_TIMESTAMP_TIME);
+  item = new Item_json(
+      make_unique_destroy_only<Json_wrapper>(
+          mem_root, std::unique_ptr<Json_dom>(new (std::nothrow) Json_datetime(
+                        time, MYSQL_TYPE_TIME))),
+      name);
+  EXPECT_FALSE(item->get_time(&time_result));
+  EXPECT_EQ(time.time_type, time_result.time_type);
+  EXPECT_EQ(time.hour, time_result.hour);
+  EXPECT_EQ(time.minute, time_result.minute);
+  EXPECT_EQ(time.second, time_result.second);
+  EXPECT_EQ(time.second_part, time_result.second_part);
+  EXPECT_EQ(time.neg, time_result.neg);
 }
 
 }  // namespace item_unittest
