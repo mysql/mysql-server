@@ -278,7 +278,6 @@ class ndb_pushed_builder_ctx {
     pushed_tables()
         : m_inner_nest(),
           m_upper_nests(),
-          m_outer_nest(),
           m_first_inner(0),
           m_last_inner(0),
           m_first_upper(-1),
@@ -389,7 +388,7 @@ class ndb_pushed_builder_ctx {
 
     /**
      * In additions to the above inner- and upper-nest dependencies, there
-     * may be dependencies on tables outside of the embedding nests.
+     * may be dependencies on tables outside of the set of inner_ & upper_nests.
      * Such dependencies are caused by explicit references to non-embedded
      * tables from the join conditions.
      *
@@ -421,26 +420,18 @@ class ndb_pushed_builder_ctx {
      * similar to the one we added in an example further up. For t3 it also
      * implies ''t2 IS NOT NULL'.  -> Query becomes pushable.
      *
-     * The outer_nest map for each table is used to keep track of known
-     * dependencies to tables outside of the embedding nests.
+     * We handle this by allowing such explicit 'out of nests' references
+     * to become members of the upper_nests of the nest tables referring them.
      * In the case above the 'outer' references to t2 from t3 will result in
-     * t3.m_outer_nest = [t2] being set. When analyzing t4 pushability,
-     * we will find that the parent table t3 already has the required
-     * dependency on t2. Thus t4 becomes pushable.
+     * t2 being added to the upper_nests of t3. When analyzing t4 pushability,
+     * we will find that the parent table t3 already has t2 as part of its
+     * embedding_nests. Thus t4 becomes pushable.
      *
-     * Note that m_outer_nest is only set on the first_inner table in the nest.
-     * All outer references made from any tables in the nest is aggregated at
-     * the first_inner table.
+     * When we leave the nest containing the table(s) which made the
+     * 'out of nests' references, such added upper_nests references will
+     * also go out of scope.
      */
-    ndb_table_access_map m_outer_nest;
 
-    // Return all inner-, upper- and outer-tables available as 'parents'
-    ndb_table_access_map parent_nests() const {
-      ndb_table_access_map nests(m_inner_nest);
-      nests.add(m_upper_nests);
-      nests.add(m_outer_nest);
-      return nests;
-    }
     bool isOuterJoined(pushed_tables &parent) const {
       return m_first_inner > parent.m_first_inner;
     }
@@ -499,5 +490,20 @@ class ndb_pushed_builder_ctx {
     const NdbQueryOperationDef *m_op;
 
   } m_tables[MAX_TABLES];
+
+  // Return all tables in the inner nest, including table after
+  // this 'tab_no' which are members of the same join-nest.
+  ndb_table_access_map full_inner_nest(uint tab_no, uint last) const {
+    ndb_table_access_map nest(m_tables[tab_no].m_inner_nest);
+    nest.add(tab_no);
+    for (uint i = tab_no + 1; i <= last; i++) {
+      if (m_tables[i].m_first_inner == i) {  // Start of embedded nest?
+        i = m_tables[i].m_last_inner;        // Skip embedded nest
+      } else {                               // Include member of nest
+        nest.add(i);
+      }
+    }
+    return nest;
+  }
 
 };  // class ndb_pushed_builder_ctx
