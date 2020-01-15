@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -480,7 +480,7 @@ Mts_submode_logical_clock::Mts_submode_logical_clock() {
 longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
                                                       bool need_lock) {
   longlong lwm_estim;
-  Slave_job_group *ptr_g;
+  Slave_job_group *ptr_g = nullptr;
   bool is_stale = false;
 
   if (!need_lock) mysql_mutex_lock(&rli->mts_gaq_LOCK);

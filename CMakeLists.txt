@@ -570,6 +570,17 @@ IF(WITH_LOCK_ORDER)
     )
 ENDIF()
 
+IF(DEFINED WITH_LTO_DEFAULT)
+  SET(WITH_LTO_DEFAULT ${WITH_LTO_DEFAULT})
+ELSE()
+  SET(WITH_LTO_DEFAULT OFF)
+ENDIF()
+
+OPTION(WITH_LTO
+  "Enable the link-time optimizer. Currently works for gcc7/gcc8/gcc9/macos only."
+  ${WITH_LTO_DEFAULT}
+  )
+
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 # We need some extra FAIL_REGEX patterns
@@ -770,7 +781,8 @@ ENDIF()
 
 # Use lld for Clang if available and not explicitly disabled.
 # Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
-IF(LINUX)
+# LTO build fails with lld, so turn it off by default.
+IF(LINUX AND NOT WITH_LTO)
   OPTION(USE_LD_LLD "Use llvm lld linker" ON)
 ELSE()
   OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
@@ -1061,17 +1073,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   )
 
-
-IF(DEFINED WITH_LTO_DEFAULT)
-  SET(WITH_LTO_DEFAULT ${WITH_LTO_DEFAULT})
-ELSE()
-  SET(WITH_LTO_DEFAULT OFF)
-ENDIF()
-
-OPTION(WITH_LTO
-  "Enable the link-time optimizer. Currently works for gcc7/gcc8/gcc9/macos only."
-  ${WITH_LTO_DEFAULT}
-  )
 IF(WITH_LTO)
   IF(APPLE)
     # Requires CMake 3.9+

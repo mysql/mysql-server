@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
   }
 
   const char *parse_err;
-  size_t err_offset;
+  size_t err_offset = 0;
   *dom = Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
 
   if (*dom == nullptr && parse_err != nullptr) {

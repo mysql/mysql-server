@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,13 +146,13 @@ class Json_path_leg final {
   enum_json_path_leg_type m_leg_type;
 
   /// The index of an array cell, or the start of an array range.
-  size_t m_first_array_index;
+  size_t m_first_array_index = 0;
 
   /// Is #m_first_array_index relative to the end of the array?
   bool m_first_array_index_from_end = false;
 
   /// The end (inclusive) of an array range.
-  size_t m_last_array_index;
+  size_t m_last_array_index = 0;
 
   /// Is #m_last_array_index relative to the end of the array?
   bool m_last_array_index_from_end = false;

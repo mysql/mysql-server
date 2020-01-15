@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2886,7 +2886,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
   ulint total_len = 0;
 
   for (;;) {
-    mlog_id_t type;
+    mlog_id_t type = MLOG_BIGGEST_TYPE;
     byte *body;
     page_no_t page_no = 0;
     space_id_t space_id = 0;
@@ -2957,10 +2957,10 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     /* This will apply MLOG_FILE_ records. */
 
-    mlog_id_t type;
+    mlog_id_t type = MLOG_BIGGEST_TYPE;
     byte *body;
-    page_no_t page_no;
-    space_id_t space_id;
+    page_no_t page_no = 0;
+    space_id_t space_id = 0;
 
     ulint len =
         recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
