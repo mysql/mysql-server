@@ -5,9 +5,11 @@
 --source include/have_lo0_local_scope.inc
 --source include/xplugin_preamble.inc
 
+
 --echo #
 --echo ## Testcase
 --echo #
+call mtr.add_suppression("Hostname '.*' does not resolve to .*");
 call mtr.add_suppression("IP address .* could not be resolved: .*");
 
 --echo
