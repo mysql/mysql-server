@@ -72,8 +72,6 @@ Unable to connect with connect string: nodeid=0,no_such_host:1186
 Unable to connect to management server.
  - Error: '1011: Could not connect to socket: Unable to connect with connect string: nodeid=0,no_such_host:1186'
 
-NDBT_ProgramExit: 1 - Failed
-
 Testing ndb_waiter
 Connecting to mgmsrv at no_such_host
 Unable to connect with connect string: nodeid=0,no_such_host:1186

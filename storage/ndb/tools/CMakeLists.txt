@@ -110,7 +110,7 @@ MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools
   ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static ndbNDBT
+  LINK_LIBRARIES ndbclient_static
   )
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
