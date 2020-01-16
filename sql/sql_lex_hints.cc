@@ -95,9 +95,6 @@ void Hint_scanner::syntax_warning(const char *msg) const {
 
 /**
   Add hint tokens to main lexer's digest calculation buffer.
-
-  @note This function adds transformed hint keyword token values with the help
-        of the TOK_HINT_ADJUST() adjustment macro.
 */
 void Hint_scanner::add_hint_token_digest() {
   if (digest_state == nullptr) return;  // cant add: digest buffer is full
@@ -181,7 +178,7 @@ void Hint_scanner::add_hint_token_digest() {
           default:
             DBUG_ASSERT(false);
         }
-        add_digest(TOK_HINT_ADJUST(prev_token));
+        add_digest(prev_token);
       }
   }
 }
