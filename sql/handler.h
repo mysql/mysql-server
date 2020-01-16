@@ -5128,14 +5128,17 @@ class handler {
     activate the pushed (part of) the execution plan on the storage
     engines.
 
-    @param  Abstract Query Plan 'table' object for the table
+    @param  table
+            Abstract Query Plan 'table' object for the table
             being pushed to
 
     @returns
       0     on success
       error otherwise
   */
-  virtual int engine_push(AQP::Table_access *) { return 0; }
+  virtual int engine_push(AQP::Table_access *table MY_ATTRIBUTE((unused))) {
+    return 0;
+  }
 
   /**
     Start read (before write) removal on the current table.
