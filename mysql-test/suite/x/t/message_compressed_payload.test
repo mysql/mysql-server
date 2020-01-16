@@ -221,7 +221,19 @@ Mysqlx.Crud.Find {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_crud_find_with_repeated_nested_objects	51
--->recverror ER_X_BAD_MESSAGE
+
+## -->expecterror ER_X_BAD_MESSAGE
+## -->recvresult
+## It's because, error is always printed with message.
+## X Plugin error message depends on Protobuf version, thus
+## this test must not check it.
+noquery_result;
+recvmessage Mysqlx.Error {
+  code: 5000
+};
+query_result;
+echo Received error message with code: ER_X_BAD_MESSAGE;
+
 callmacro Wait_until_disconnect;
 
 EOF

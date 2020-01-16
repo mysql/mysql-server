@@ -122,14 +122,7 @@ Login OK
 
 command ok
 Try to send number of object more than the X Protocol limit 101 (2 * 51)
-Got expected error:
-Mysqlx.Error {
-  severity: FATAL
-  code: 5000
-  msg: "X Protocol message recursion limit (100) exceeded"
-  sql_state: "HY000"
-}
-
+Received error message with code: ER_X_BAD_MESSAGE
 closing session SESS_SINGLE5
 switched to session default
 Mysqlx.Ok {
@@ -256,14 +249,7 @@ Login OK
 
 command ok
 Try to send number of object more than the X Protocol limit 101 (2 * 51)
-Got expected error:
-Mysqlx.Error {
-  severity: FATAL
-  code: 5000
-  msg: "X Protocol message recursion limit (100) exceeded"
-  sql_state: "HY000"
-}
-
+Received error message with code: ER_X_BAD_MESSAGE
 closing session SESS_SINGLE5
 switched to session default
 Mysqlx.Ok {
@@ -390,14 +376,7 @@ Login OK
 
 command ok
 Try to send number of object more than the X Protocol limit 101 (2 * 51)
-Got expected error:
-Mysqlx.Error {
-  severity: FATAL
-  code: 5000
-  msg: "X Protocol message recursion limit (100) exceeded"
-  sql_state: "HY000"
-}
-
+Received error message with code: ER_X_BAD_MESSAGE
 closing session SESS_SINGLE5
 switched to session default
 Mysqlx.Ok {
