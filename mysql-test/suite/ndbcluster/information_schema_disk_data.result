@@ -7,12 +7,8 @@ ENGINE=NDB;
 id    type                 state    logging database     schema   name
 logfilegroup_objectid    LogfileGroup         Online   -                             lg_1
 
-NDBT_ProgramExit: 0 - OK
-
 id    type                 state    logging database     schema   name
 undofile_objectid    Undofile             Online   -                             undofile.dat
-
-NDBT_ProgramExit: 0 - OK
 
 ALTER LOGFILE GROUP lg_1
 ADD UNDOFILE 'undofile1.dat'
@@ -47,8 +43,6 @@ INITIAL_SIZE 2M
 ENGINE NDB;
 id    type                 state    logging database     schema   name
 datafile_objectid    Datafile             Online   -                             datafile.dat
-
-NDBT_ProgramExit: 0 - OK
 
 ALTER TABLESPACE ts_1
 ADD DATAFILE 'datafile2.dat'
