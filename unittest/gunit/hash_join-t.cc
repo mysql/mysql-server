@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -697,6 +697,49 @@ TEST(HashJoinTest, LeftHashJoinInt) {
 
   test_helper.right_qep_tab->table()->field[0]->val_int();
   EXPECT_TRUE(test_helper.right_qep_tab->table()->field[0]->is_null());
+
+  EXPECT_EQ(-1, hash_join_iterator.Read());
+
+  initializer.TearDown();
+}
+
+TEST(HashJoinTest, HashJoinResetNullFlagBeforeBuild) {
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+
+  // The iterator will execute something that is equivalent to the query
+  // "SELECT * FROM left_data p LEFT JOIN right_data b ON p.col = b.col;"
+  vector<int> left_data;
+  left_data.push_back(3);
+
+  vector<int> right_data;
+  right_data.push_back(3);
+
+  HashJoinTestHelper test_helper(&initializer, left_data, right_data);
+
+  // Explicitly set the NULL row flag for the right/build input. The hash join
+  // iterator should reset this flag before building the hash table.
+  test_helper.right_iterator->SetNullRowFlag(/*is_null_row=*/true);
+
+  HashJoinIterator hash_join_iterator(
+      initializer.thd(), std::move(test_helper.right_iterator),
+      test_helper.right_qep_tab->idx_map(),
+      std::move(test_helper.left_iterator), test_helper.left_qep_tab->idx_map(),
+      10 * 1024 * 1024 /* 10 MB */, {*test_helper.join_condition}, true,
+      JoinType::OUTER, test_helper.left_qep_tab->join(),
+      test_helper.extra_conditions);
+
+  ASSERT_FALSE(hash_join_iterator.Init());
+
+  // Verify that we do not get any NULL value back, even though we explicitly
+  // set the NULL row flag before Init was called; Init() should reset the NULL
+  // row flag before reading from the build table.
+  EXPECT_EQ(0, hash_join_iterator.Read());
+  EXPECT_EQ(3, test_helper.left_qep_tab->table()->field[0]->val_int());
+  EXPECT_FALSE(test_helper.left_qep_tab->table()->field[0]->is_null());
+
+  EXPECT_EQ(3, test_helper.right_qep_tab->table()->field[0]->val_int());
+  EXPECT_FALSE(test_helper.right_qep_tab->table()->field[0]->is_null());
 
   EXPECT_EQ(-1, hash_join_iterator.Read());
 

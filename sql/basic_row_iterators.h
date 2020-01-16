@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -340,7 +340,7 @@ class FakeSingleRowIterator final : public RowIterator {
     return {"Rows fetched before execution"};
   }
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool is_null_row) override { DBUG_ASSERT(!is_null_row); }
 
   void UnlockRow() override {}
 

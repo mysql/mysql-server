@@ -423,6 +423,12 @@ bool HashJoinIterator::BuildHashTable() {
 
   const bool reject_duplicate_keys = RejectDuplicateKeys();
   const bool store_rows_with_null_in_join_key = m_join_type == JoinType::OUTER;
+
+  // If Init() is called multiple times (e.g., if hash join is inside an
+  // dependent subquery), we must clear the NULL row flag, as it may have been
+  // set by the previous executing of this hash join.
+  m_build_input->SetNullRowFlag(/*is_null_row=*/false);
+
   PFSBatchMode batch_mode(m_build_input.get());
   for (;;) {  // Termination condition within loop.
     int res = m_build_input->Read();
