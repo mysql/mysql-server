@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,14 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token NO_SKIP_SCAN_HINT
 %token HASH_JOIN_HINT
 %token NO_HASH_JOIN_HINT
+%token INDEX_HINT
+%token NO_INDEX_HINT
+%token JOIN_INDEX_HINT
+%token NO_JOIN_INDEX_HINT
+%token GROUP_INDEX_HINT
+%token NO_GROUP_INDEX_HINT
+%token ORDER_INDEX_HINT
+%token NO_ORDER_INDEX_HINT
 
 /* Other tokens */
 
@@ -510,6 +518,22 @@ key_level_hint_type_on:
           {
             $$= SKIP_SCAN_HINT_ENUM;
           }
+        | INDEX_HINT
+          {
+            $$= INDEX_HINT_ENUM;
+          }
+        | JOIN_INDEX_HINT
+          {
+            $$= JOIN_INDEX_HINT_ENUM;
+          }
+        | GROUP_INDEX_HINT
+          {
+            $$= GROUP_INDEX_HINT_ENUM;
+          }
+        | ORDER_INDEX_HINT
+          {
+            $$= ORDER_INDEX_HINT_ENUM;
+          }
         ;
 
 key_level_hint_type_off:
@@ -528,6 +552,22 @@ key_level_hint_type_off:
         | NO_SKIP_SCAN_HINT
           {
             $$= SKIP_SCAN_HINT_ENUM;
+          }
+        | NO_INDEX_HINT
+          {
+            $$= INDEX_HINT_ENUM;
+          }
+        | NO_JOIN_INDEX_HINT
+          {
+            $$= JOIN_INDEX_HINT_ENUM;
+          }
+        | NO_GROUP_INDEX_HINT
+          {
+            $$= GROUP_INDEX_HINT_ENUM;
+          }
+        | NO_ORDER_INDEX_HINT
+          {
+            $$= ORDER_INDEX_HINT_ENUM;
           }
         ;
 

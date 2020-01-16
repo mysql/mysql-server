@@ -103,7 +103,7 @@ COUNT(DISTINCT a,b)
 2
 EXPLAIN SELECT COUNT(DISTINCT a,b) FROM t IGNORE INDEX (k);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	ALL	k	NULL	NULL	NULL	#	100.00	NULL
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t`.`a`,`test`.`t`.`b`) AS `COUNT(DISTINCT a,b)` from `test`.`t` IGNORE INDEX (`k`)
 SELECT COUNT(DISTINCT a,b) FROM t IGNORE INDEX (k);

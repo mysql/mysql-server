@@ -839,8 +839,6 @@ create view v1 as
 with qn as (select a from t1),
 qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -1952,8 +1950,6 @@ create view v1 as
 with qn as (select a from t1),
 qn2 as (select b from t1)
 select /*+ merge(qn) no_merge(qn2) */ qn.a,qn2.b from qn, qn2;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 explain select * from v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL

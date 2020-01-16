@@ -5109,7 +5109,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
         queries too.
       */
       if (is_covering || select_limit != HA_POS_ERROR ||
-          (ref_key < 0 && (group || table->force_index))) {
+          (ref_key < 0 && (group || table->force_index_order))) {
         rec_per_key_t rec_per_key;
         KEY *keyinfo = table->key_info + nr;
         if (select_limit == HA_POS_ERROR) select_limit = table_records;
@@ -5190,11 +5190,11 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
           read_time of current chosen access method. In addition, if the
           current chosen access method is index scan or table scan, always
           switch to the index that gives order when it is covering or when
-          force index or group by is present.
+          force index order or group by is present.
         */
         if (((cur_access_method == JT_ALL ||
               cur_access_method == JT_INDEX_SCAN) &&
-             (is_covering || group || table->force_index)) ||
+             (is_covering || group || table->force_index_order)) ||
             index_scan_time < read_time) {
           ha_rows quick_records = table_records;
           const ha_rows refkey_select_limit =

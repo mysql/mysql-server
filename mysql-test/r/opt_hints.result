@@ -1539,7 +1539,7 @@ Warning	3128	Unresolved name ` quoted name тест`@`select#1` for BKA hint
 SELECT /*+ BKA(` quoted name тест`@`select#1`) */ 1 FROM t1;
 1
 Warnings:
-Warning	3127	Query block name `select#1` is not found for BKA hint
+Warning	3128	Unresolved name ` quoted name тест`@`select#1` for BKA hint
 DROP TABLE ` quoted name тест`;
 SET SQL_MODE = 'ANSI_QUOTES';
 CREATE TABLE " quoted name тест" (i INT);
@@ -1550,7 +1550,7 @@ Warning	3128	Unresolved name " quoted name тест"@"select#1" for BKA hint
 SELECT /*+ BKA(" quoted name тест"@"select#1") */ 1 FROM t1;
 1
 Warnings:
-Warning	3127	Query block name "select#1" is not found for BKA hint
+Warning	3128	Unresolved name " quoted name тест"@"select#1" for BKA hint
 CREATE TABLE `test1``test2``` (i INT);
 SELECT /*+ BKA(`test1``test2```) */ 1;
 1

@@ -1001,7 +1001,13 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
     if (table == nullptr) continue;
     table->pos_in_table_list = tr;
     tr->reset();
-    if (tr->process_index_hints(thd, table)) return true;
+
+    if (!tr->opt_hints_table ||
+        // Ignore old index hint processing if new style hints are specified.
+        !tr->opt_hints_table->update_index_hint_maps(thd, tr->table)) {
+      if (tr->process_index_hints(thd, table)) return true;
+    }
+
     if (table->part_info)  // Count number of partitioned tables
       partitioned_table_count++;
   }

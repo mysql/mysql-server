@@ -1586,7 +1586,7 @@ Created_tmp_tables	0
 flush status;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY,ab	NULL	NULL	NULL	128	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` IGNORE INDEX (`ab`) IGNORE INDEX (PRIMARY) group by `test`.`t1`.`a`
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;

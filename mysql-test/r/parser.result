@@ -1997,11 +1997,7 @@ DROP TABLE t1;
 #
 # Warning on hints in CREATE or ALTER VIEW:
 CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
-Warnings:
-Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
 SELECT * FROM v1;
 1
 1

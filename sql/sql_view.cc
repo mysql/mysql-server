@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1596,6 +1596,12 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->select_lex);
+  //  Set hints specified in created view to allow printing them in view body.
+  if (view_lex->opt_hints_global && !old_lex->opt_hints_global &&
+      (old_lex->sql_command == SQLCOM_CREATE_VIEW ||
+       old_lex->sql_command == SQLCOM_SHOW_CREATE)) {
+    old_lex->opt_hints_global = view_lex->opt_hints_global;
+  }
 
   view_ref->set_derived_unit(view_lex->unit);
 

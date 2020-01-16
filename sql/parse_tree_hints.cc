@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,23 +70,24 @@ static Opt_hints_global *get_global_hints(Parse_context *pc) {
   for query block given by parse context,
   create Opt_hints_qb object if not exist.
 
-  @param pc   pointer to Parse_context object
+  @param pc      pointer to Parse_context object
+  @param select  pointer to SELECT_LEX object
 
   @return  pointer to Opt_hints_qb object,
            NULL if failed to create the object
 */
 
-static Opt_hints_qb *get_qb_hints(Parse_context *pc) {
-  if (pc->select->opt_hints_qb) return pc->select->opt_hints_qb;
+static Opt_hints_qb *get_qb_hints(Parse_context *pc, SELECT_LEX *select) {
+  if (select->opt_hints_qb) return select->opt_hints_qb;
 
   Opt_hints_global *global_hints = get_global_hints(pc);
   if (global_hints == nullptr) return nullptr;
 
   Opt_hints_qb *qb = new (pc->thd->mem_root)
-      Opt_hints_qb(global_hints, pc->thd->mem_root, pc->select->select_number);
+      Opt_hints_qb(global_hints, pc->thd->mem_root, select->select_number);
   if (qb) {
     global_hints->register_child(qb);
-    pc->select->opt_hints_qb = qb;
+    select->opt_hints_qb = qb;
     qb->set_resolved();
   }
   return qb;
@@ -113,10 +114,27 @@ static Opt_hints_qb *find_qb_hints(Parse_context *pc,
       static_cast<Opt_hints_qb *>(pc->thd->lex->opt_hints_global->find_by_name(
           qb_name, system_charset_info));
 
-  if (qb == nullptr) {
+  //  Find query block using system name. Used for proper parsing of view body.
+  if (!qb) {
+    LEX *lex = pc->thd->lex;
+    for (SELECT_LEX *select = lex->all_selects_list; select != nullptr;
+         select = select->next_select_in_list()) {
+      LEX_CSTRING sys_name;  // System QB name
+      char buff[32];         // Buffer to hold sys name
+      sys_name.str = buff;
+      sys_name.length = snprintf(buff, sizeof(buff), "%s%x", "select#",
+                                 select->select_number);
+
+      if (!cmp_lex_string(&sys_name, qb_name, system_charset_info)) {
+        qb = get_qb_hints(pc, select);
+        break;
+      }
+    }
+  }
+
+  if (qb == nullptr)
     hint->print_warn(pc->thd, ER_WARN_UNKNOWN_QB_NAME, qb_name, nullptr,
                      nullptr, nullptr);
-  }
 
   return qb;
 }
@@ -315,10 +333,15 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
 bool PT_hint_list::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
-  if (!get_qb_hints(pc)) return true;
+  if (!get_qb_hints(pc, pc->select)) return true;
 
   for (PT_hint **h = hints.begin(), **end = hints.end(); h < end; h++) {
-    if (*h != nullptr && (*h)->contextualize(pc)) return true;
+    if (*h != nullptr) {
+      if (pc->thd->lex->sql_command == SQLCOM_CREATE_VIEW &&
+          !(*h)->supports_view())
+        continue;
+      if ((*h)->contextualize(pc)) return true;
+    }
   }
   return false;
 }
@@ -363,7 +386,7 @@ bool PT_table_level_hint::contextualize(Parse_context *pc) {
 }
 
 void PT_key_level_hint::append_args(const THD *thd, String *str) const {
-  if (type() == INDEX_MERGE_HINT_ENUM || type() == SKIP_SCAN_HINT_ENUM) {
+  if (is_compound_hint(type())) {
     for (uint i = 0; i < key_list.size(); i++) {
       const LEX_CSTRING *key_name = &key_list.at(i);
       str->append(STRING_WITH_LEN(" "));
@@ -387,7 +410,9 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
   bool is_conflicting = false;
   if (key_list.empty())  // Table level hint
   {
-    if (tab->set_switch(switch_on(), type(), false)) {
+    if ((is_compound_hint(type()) &&
+         tab->get_compound_key_hint(type())->is_hint_conflicting(tab, NULL)) ||
+        tab->set_switch(switch_on(), type(), false)) {
       print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
                  &table_name.table, nullptr, this);
       return false;
@@ -400,6 +425,7 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
     return false;
   }
 
+  Mem_root_array<Opt_hints_key *> key_hints(pc->thd->mem_root);
   for (size_t i = 0; i < key_list.size(); i++) {
     LEX_CSTRING *key_name = &key_list.at(i);
     Opt_hints_key *key =
@@ -411,23 +437,33 @@ bool PT_key_level_hint::contextualize(Parse_context *pc) {
       tab->register_child(key);
     }
 
-    if (key->set_switch(switch_on(), type(), true)) {
-      is_conflicting = true;
-      if (tab->is_compound_key_hint(type())) {
-        print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
-                   &table_name.opt_query_block, &table_name.table, nullptr,
-                   this);
-        break;
-      } else
-        print_warn(pc->thd, ER_WARN_CONFLICTING_HINT,
-                   &table_name.opt_query_block, &table_name.table, key_name,
-                   this);
+    bool is_specified = tab->is_specified(type()) || key->is_specified(type());
+    if (is_specified && !is_compound_hint(type())) {
+      print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
+                 &table_name.table, key_name, this);
+      continue;
     }
+
+    if (is_specified ||
+        (is_compound_hint(type()) &&
+         tab->get_compound_key_hint(type())->is_hint_conflicting(tab, key))) {
+      is_conflicting = true;
+      print_warn(pc->thd, ER_WARN_CONFLICTING_HINT, &table_name.opt_query_block,
+                 &table_name.table, NULL, this);
+      break;
+    }
+    key_hints.push_back(key);
   }
 
-  if (tab->is_compound_key_hint(type()) && !is_conflicting) {
-    tab->get_compound_key_hint(type())->set_pt_hint(this);
-    (void)tab->set_switch(switch_on(), type(), false);
+  if (!is_conflicting) {
+    for (size_t i = 0; i < key_hints.size(); i++) {
+      Opt_hints_key *key = key_hints.at(i);
+      key->set_switch(switch_on(), type(), true);
+    }
+    if (is_compound_hint(type())) {
+      tab->get_compound_key_hint(type())->set_pt_hint(this);
+      (void)tab->set_switch(switch_on(), type(), false);
+    }
   }
 
   return false;

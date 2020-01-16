@@ -2672,7 +2672,17 @@ static void print_table_array(const THD *thd, String *str,
       str->append(op);
     }
     curr->print(thd, str, query_type);  // Print table
-
+    /*
+      Print table hint info after the table name. Used only
+      for explaining views. There is no functionality, just
+      additional info for user.
+    */
+    if (thd->lex->is_explain() && curr->opt_hints_table &&
+        curr->belong_to_view) {
+      str->append(STRING_WITH_LEN(" /*+ "));
+      curr->opt_hints_table->print(thd, str, query_type);
+      str->append(STRING_WITH_LEN("*/ "));
+    }
     // Print join condition
     if (cond) {
       str->append(STRING_WITH_LEN(" on("));
@@ -3026,7 +3036,9 @@ void SELECT_LEX::print_hints(const THD *thd, String *str,
     String hint_str(buff, sizeof(buff), system_charset_info);
     hint_str.length(0);
 
-    if (select_number == 1) {
+    if (select_number == 1 ||
+        // First select number is 2 for SHOW CREATE VIEW
+        (select_number == 2 && parent_lex->sql_command == SQLCOM_SHOW_CREATE)) {
       if (opt_hints_qb && !(query_type & QT_IGNORE_QB_NAME))
         opt_hints_qb->append_qb_hint(thd, &hint_str);
       if (!(query_type & QT_ONLY_QB_NAME))

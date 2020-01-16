@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -169,6 +169,14 @@ void Hint_scanner::add_hint_token_digest() {
           case NO_SKIP_SCAN_HINT:
           case HASH_JOIN_HINT:
           case NO_HASH_JOIN_HINT:
+          case INDEX_HINT:
+          case NO_INDEX_HINT:
+          case JOIN_INDEX_HINT:
+          case NO_JOIN_INDEX_HINT:
+          case GROUP_INDEX_HINT:
+          case NO_GROUP_INDEX_HINT:
+          case ORDER_INDEX_HINT:
+          case NO_ORDER_INDEX_HINT:
             break;
           default:
             DBUG_ASSERT(false);

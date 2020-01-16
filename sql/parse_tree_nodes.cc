@@ -1066,16 +1066,7 @@ bool PT_query_specification::contextualize(Parse_context *pc) {
   if (contextualize_safe(pc, opt_window_clause)) return true;
   pc->select->parsing_place = CTX_NONE;
 
-  if (opt_hints != nullptr) {
-    if (pc->thd->lex->sql_command ==
-        SQLCOM_CREATE_VIEW) {  // Currently this also affects ALTER VIEW.
-      push_warning_printf(
-          pc->thd, Sql_condition::SL_WARNING, ER_WARN_UNSUPPORTED_HINT,
-          ER_THD(pc->thd, ER_WARN_UNSUPPORTED_HINT), "CREATE or ALTER VIEW");
-    } else if (opt_hints->contextualize(pc))
-      return true;
-  }
-  return false;
+  return (opt_hints != nullptr ? opt_hints->contextualize(pc) : false);
 }
 
 bool PT_table_value_constructor::contextualize(Parse_context *pc) {

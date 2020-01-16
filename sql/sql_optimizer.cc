@@ -5686,13 +5686,13 @@ static bool check_skip_records_in_range_qualification(JOIN_TAB *tab, THD *thd) {
   SELECT_LEX *select = thd->lex->current_select();
   TABLE *table = tab->table();
   return ((table->force_index &&
-           table->pos_in_table_list->index_hints->elements == 1) &&  // F1.a
-          select->parent_lex->is_single_level_stmt() &&              // F1.b
-          !select->has_ft_funcs() &&                                 // F1.c
-          (!select->is_grouped() && !select->is_distinct()) &&       // F1.d
-          !select->is_ordered() &&                                   // F1.e
-          select->join_list->size() == 1 &&                          // F2
-          !thd->lex->is_explain());                                  // F3
+           table->keys_in_use_for_query.bits_set() == 1) &&     // F1.a
+          select->parent_lex->is_single_level_stmt() &&         // F1.b
+          !select->has_ft_funcs() &&                            // F1.c
+          (!select->is_grouped() && !select->is_distinct()) &&  // F1.d
+          !select->is_ordered() &&                              // F1.e
+          select->join_list->size() == 1 &&                     // F2
+          !thd->lex->is_explain());                             // F3
 }
 
 /*****************************************************************************
@@ -7813,8 +7813,8 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
 
   if (indexed_fields.elements == 0) return;
 
-  Key_map possible_keys;
-  possible_keys.set_all();
+  Key_map possible_keys = join_tab->table()->keys_in_use_for_query;
+  possible_keys.merge(join_tab->table()->keys_in_use_for_group_by);
 
   /* Intersect the keys of all group fields. */
   while ((cur_item = indexed_fields_it++)) {
