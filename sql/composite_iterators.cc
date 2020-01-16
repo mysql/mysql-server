@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1976,7 +1976,14 @@ int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
 }
 
 vector<string> BufferingWindowingIterator::DebugString() const {
-  string buf = "Window aggregate with buffering: ";
+  string buf;
+  if (m_window->optimizable_row_aggregates() ||
+      m_window->optimizable_range_aggregates() ||
+      m_window->static_aggregates()) {
+    buf = "Window aggregate with buffering: ";
+  } else {
+    buf = "Window multi-pass aggregate with buffering: ";
+  }
   bool first = true;
   for (const Func_ptr &func : *(m_temp_table_param->items_to_copy)) {
     if (func.func()->m_is_window_function) {
