@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,8 @@ usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.6.1
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1
+usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.1
 
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 usr/share/man/man1/mysqlrouter.1

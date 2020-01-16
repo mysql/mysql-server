@@ -115,7 +115,7 @@ BuildRequires:  zlib-devel
 BuildRequires: /usr/bin/pathfix.py
 %endif
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.so.*
+%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -1136,6 +1136,8 @@ rm -r $(readlink var) var
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
+%{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_realm.so.*
 %{_libdir}/mysqlrouter/private/libprotobuf-lite.so.3.6.1
 %dir %{_libdir}/mysqlrouter
 %dir %{_libdir}/mysqlrouter/private

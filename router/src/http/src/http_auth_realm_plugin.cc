@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,12 +59,6 @@ using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
-
-std::error_code HttpAuthRealm::authenticate(const std::string &username,
-                                            const std::string &password) const {
-  return HttpAuthBackendComponent::get_instance().authenticate(
-      backend(), username, password);
-}
 
 namespace {
 class PluginConfig : public mysqlrouter::BasePluginConfig {

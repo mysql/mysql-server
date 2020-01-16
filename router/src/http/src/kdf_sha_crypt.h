@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 
 #include "digest.h"
 #include "mcf_error.h"
+#include "mysqlrouter/http_auth_backend_lib_export.h"
 
 /**
  * SHA based crypt() key derivation function.
@@ -39,7 +40,7 @@
  *
  * @see  https://www.akkadia.org/drepper/SHA-crypt.txt
  */
-class ShaCrypt {
+class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCrypt {
  public:
   enum class Type { Sha256, Sha512 };
   static std::string salt();
@@ -99,7 +100,7 @@ class ShaCryptMcfType {
 /**
  * MCF reader/writer for ShaCrypt
  */
-class ShaCryptMcfAdaptor {
+class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
  public:
   using mcf_type = ShaCryptMcfType;
   using kdf_type = ShaCrypt;

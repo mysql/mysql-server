@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,15 +28,16 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <system_error>
 
-#include "mysqlrouter/http_auth_realm_export.h"
+#include "mysqlrouter/http_auth_realm_lib_export.h"
 
 class HttpAuthRealm;
 
 /**
  * public API of HttpAuthRealm plugin.
  */
-class HTTP_AUTH_REALM_EXPORT HttpAuthRealmComponent {
+class HTTP_AUTH_REALM_LIB_EXPORT HttpAuthRealmComponent {
  public:
   using value_type = std::map<std::string, std::shared_ptr<HttpAuthRealm>>;
 

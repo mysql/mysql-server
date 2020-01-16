@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,6 @@
 #include <tuple>
 
 #include <gtest/gtest.h>
-
-// give the constexpr' of ShaCrypt storage to keep googletest happy
-// which wants to take a address of them
-//
-// if someone else needs to take an address of them, these should be moved
-// to sha_crypt.cc directly
-constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
-constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
 
 class ShaCryptTest
     : public ::testing::Test,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,34 +21,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-#ifndef MYSQLROUTER_MCF_ERROR_INCLUDED
-#define MYSQLROUTER_MCF_ERROR_INCLUDED
+#include "http_auth_realm.h"
 
-#include <string>
-#include <system_error>
+#include "mysqlrouter/http_auth_backend_component.h"
 
-#include "mysqlrouter/http_auth_backend_lib_export.h"
-
-enum class McfErrc {
-  // no 0!
-  kParseError = 1,
-  kUserNotFound = 2,
-  kPasswordNotMatched = 3,
-  kUnknownScheme = 4,
-};
-
-namespace std {
-template <>
-struct is_error_code_enum<McfErrc> : true_type {};
-
-std::error_code HTTP_AUTH_BACKEND_LIB_EXPORT make_error_code(McfErrc);
-}  // namespace std
-
-struct HTTP_AUTH_BACKEND_LIB_EXPORT McfErrCategory : std::error_category {
-  const char *name() const noexcept override;
-  std::string message(int ev) const override;
-};
-
-const McfErrCategory theMcfErrCategory{};
-
-#endif
+std::error_code HttpAuthRealm::authenticate(const std::string &username,
+                                            const std::string &password) const {
+  return HttpAuthBackendComponent::get_instance().authenticate(
+      backend(), username, password);
+}
