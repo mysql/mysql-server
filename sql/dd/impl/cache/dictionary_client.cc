@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1772,6 +1772,12 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   // Object not found.
   if (!tab_obj) return false;
 
+  DBUG_EXECUTE_IF("before_acquire_schema_by_private_id", {
+    if (!strcmp(tab_obj->name().c_str(), "t1")) {
+      DEBUG_SYNC(m_thd, "wait_before_acquire_schema_by_private_id");
+    }
+  });
+
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
   if (acquire_uncached(tab_obj->schema_id(), &sch_obj)) {
@@ -1780,10 +1786,8 @@ bool Dictionary_client::get_table_name_by_se_private_id(
     return true;
   }
 
-  if (!sch_obj) {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name->c_str());
-    return true;
-  }
+  // Schema not found.
+  if (!sch_obj) return false;
 
   // Now, we have both objects, and can assign the names.
   *schema_name = sch_obj->name();
@@ -1814,6 +1818,12 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   // Object not found.
   if (!tab_obj) return false;
 
+  DBUG_EXECUTE_IF("before_acquire_schema_by_private_id", {
+    if (!strcmp(tab_obj->name().c_str(), "t1")) {
+      DEBUG_SYNC(m_thd, "wait_before_acquire_schema_by_private_id");
+    }
+  });
+
   // Acquire the schema to get the schema name.
   if (acquire_uncached(tab_obj->schema_id(), &sch_obj)) {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
@@ -1821,10 +1831,8 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
     return true;
   }
 
-  if (!sch_obj) {
-    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name->c_str());
-    return true;
-  }
+  // Schema not found.
+  if (!sch_obj) return false;
 
   // Now, we have both objects, and can assign the names.
   *schema_name = sch_obj->name();
