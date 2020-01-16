@@ -1946,6 +1946,7 @@ void warn_about_deprecated_binary(THD *thd)
 	ts_option_encryption
 
 %type <explain_format_type> opt_explain_format_type
+%type <explain_format_type> opt_explain_analyze_type
 
 %type <load_set_element> load_data_set_elem
 
@@ -13191,7 +13192,7 @@ describe_stmt:
         ;
 
 explain_stmt:
-          describe_command opt_explain_format_type explainable_stmt
+          describe_command opt_explain_analyze_type explainable_stmt
           {
             $$= NEW_PTN PT_explain($2, $3);
           }
@@ -13217,7 +13218,7 @@ describe_command:
 opt_explain_format_type:
           /* empty */
           {
-            $$= Explain_format_type::TRADITIONAL;
+            $$= Explain_format_type::DEFAULT;
           }
         | FORMAT_SYM EQ ident_or_text
           {
@@ -13233,9 +13234,32 @@ opt_explain_format_type:
               MYSQL_YYABORT;
             }
           }
-        | ANALYZE_SYM
+
+opt_explain_analyze_type:
+          ANALYZE_SYM opt_explain_format_type
           {
-            $$= Explain_format_type::TREE_WITH_EXECUTE;
+            switch ($2)
+            {
+              case Explain_format_type::DEFAULT:
+              case Explain_format_type::TREE:
+                $$= Explain_format_type::TREE_WITH_EXECUTE;
+                break;
+              case Explain_format_type::JSON:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                         "FORMAT=JSON with EXPLAIN ANALYZE");
+                MYSQL_YYABORT;
+              default:
+                my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                         "FORMAT=TRADITIONAL with EXPLAIN ANALYZE");
+                MYSQL_YYABORT;
+            }
+          }
+        | opt_explain_format_type
+          {
+            if ($1 == Explain_format_type::DEFAULT)
+              $$= Explain_format_type::TRADITIONAL;
+            else
+              $$= $1;
           }
         ;
 

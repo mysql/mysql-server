@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -229,7 +229,15 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type { TRADITIONAL, JSON, TREE, TREE_WITH_EXECUTE };
+enum class Explain_format_type {
+  // DEFAULT will be changed during parsing to TRADITIONAL
+  // for regular EXPLAIN, or TREE for EXPLAIN ANALYZE.
+  DEFAULT,
+  TRADITIONAL,
+  JSON,
+  TREE,
+  TREE_WITH_EXECUTE
+};
 
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED

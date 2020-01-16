@@ -2607,6 +2607,9 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
       lex->is_explain_analyze = true;
       break;
+    default:
+      DBUG_ASSERT(false);
+      lex->explain_format = new (thd->mem_root) Explain_format_traditional;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM
 
