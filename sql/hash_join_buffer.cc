@@ -260,7 +260,7 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
       if (!column.field->is_null()) {
         // Store the data in packed format. The packed format will also
         // include the length of the data if needed.
-        dptr = column.field->pack(dptr, column.field->ptr);
+        dptr = column.field->pack(dptr);
       }
     }
   }
@@ -304,7 +304,7 @@ const uchar *LoadIntoTableBuffers(const TableCollection &tables,
 
     for (const Column &column : tbl.columns) {
       if (!column.field->is_null()) {
-        ptr = column.field->unpack(column.field->ptr, ptr);
+        ptr = column.field->unpack(ptr);
       }
     }
   }

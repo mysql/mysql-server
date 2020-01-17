@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -653,7 +653,7 @@ bool Sql_cmd_create_server::execute(THD *thd) {
 
     /* read index until record is that specified in server_name */
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
 
     if (!error) {
@@ -721,7 +721,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
         m_server_options->m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         ~(longlong)0, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -783,7 +783,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
         m_server_name.str, m_server_name.length, system_charset_info);
 
     error = table->file->ha_index_read_idx_map(
-        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->ptr,
+        table->record[0], 0, table->field[SERVERS_FIELD_NAME]->field_ptr(),
         HA_WHOLE_KEY, HA_READ_KEY_EXACT);
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1765,7 +1765,8 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
 
   if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res) {
     /*
@@ -1800,7 +1801,8 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table->field[0]->store((longlong)tzid, true);
   if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res) {
     DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
@@ -1828,7 +1830,8 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table->field[0]->store((longlong)tzid, true);
   if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res) {
     ttid = (uint)table->field[1]->val_int();
@@ -1875,7 +1878,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
     tmp_tz_info.typecnt = ttid + 1;
 
     res = table->file->ha_index_next_same(table->record[0],
-                                          table->field[0]->ptr, 4);
+                                          table->field[0]->field_ptr(), 4);
   }
 
   if (res != HA_ERR_END_OF_FILE) {
@@ -1895,7 +1898,8 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   table->field[0]->store((longlong)tzid, true);
   if (table->file->ha_index_init(0, true)) goto end;
 
-  res = table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
+  res = table->file->ha_index_read_map(table->record[0],
+                                       table->field[0]->field_ptr(),
                                        (key_part_map)1, HA_READ_KEY_EXACT);
   while (!res) {
     ttime = (my_time_t)table->field[1]->val_int();
@@ -1920,7 +1924,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
          (ulong)ttime, ttid));
 
     res = table->file->ha_index_next_same(table->record[0],
-                                          table->field[0]->ptr, 4);
+                                          table->field[0]->field_ptr(), 4);
   }
 
   /*

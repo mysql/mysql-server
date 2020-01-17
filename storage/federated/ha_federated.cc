@@ -944,7 +944,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
 
         if ((*field)->flags & BLOB_FLAG) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
-          size_t length = blob_field->get_length(blob_field->ptr);
+          size_t length = blob_field->get_length();
           // BLOB data is not stored inside record. It only contains a
           // pointer to it. Copy the BLOB data into a separate memory
           // area so that it is not overwritten by subsequent calls to
@@ -952,7 +952,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           if (length > 0) {
             unsigned char *new_blob = new (&m_blob_root) unsigned char[length];
             if (new_blob == nullptr) return HA_ERR_OUT_OF_MEM;
-            memcpy(new_blob, blob_field->get_ptr(), length);
+            memcpy(new_blob, blob_field->get_blob_data(), length);
             blob_field->set_ptr(length, new_blob);
           }
         }

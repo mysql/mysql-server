@@ -2979,7 +2979,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
        only if there are no default values for the field.
     */
     if (!has_default_values)
-      memset(new_field->ptr, 0, new_field->pack_length());
+      memset(new_field->field_ptr(), 0, new_field->pack_length());
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
@@ -7586,21 +7586,19 @@ bool TABLE::add_binary_diff(const Field *field, size_t offset, size_t length) {
   return false;
 }
 
-const char *Binary_diff::new_data(Field *field) const {
+const char *Binary_diff::new_data(const Field *field) const {
   /*
     Currently, partial update is only supported for JSON columns, so it's
     safe to assume that the Field is in fact a Field_json.
   */
-  auto fld = down_cast<Field_json *>(field);
+  auto fld = down_cast<const Field_json *>(field);
   return fld->get_binary() + m_offset;
 }
 
-const char *Binary_diff::old_data(Field *field) const {
+const char *Binary_diff::old_data(const Field *field) const {
   ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
-  field->move_field_offset(ptrdiff);
-  const char *data = new_data(field);
-  field->move_field_offset(-ptrdiff);
-  return data;
+  auto fld = down_cast<const Field_json *>(field);
+  return fld->get_binary(ptrdiff) + m_offset;
 }
 
 void TABLE::add_logical_diff(const Field_json *field,

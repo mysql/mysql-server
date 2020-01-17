@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,9 +624,9 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     }
     field->set_notnull();
     if (Packed_addon_fields)
-      start_of_record = field->unpack(field->ptr, start_of_record);
+      start_of_record = field->unpack(start_of_record);
     else
-      field->unpack(field->ptr, buff + addonf->offset);
+      field->unpack(buff + addonf->offset);
   }
 }
 

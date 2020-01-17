@@ -2713,9 +2713,6 @@ longlong Item_field::val_date_temporal() {
 
 my_decimal *Item_field::val_decimal(my_decimal *decimal_value) {
   null_value = field->is_null();
-  DBUG_PRINT("enter", ("Item_field::val_decimal field: %p ptr: %p null: %d",
-                       field, field->ptr, null_value));
-
   if (null_value) return nullptr;
   return field->val_decimal(decimal_value);
 }

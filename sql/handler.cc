@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -8051,10 +8051,10 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
       const uint alloc_len = blob_len_ptr_array[num].length;
       length = length > alloc_len ? alloc_len : length;
 
-      memcpy(blob_len_ptr_array[num].ptr, (*vfield)->get_ptr(), length);
-      (down_cast<Field_blob *>(*vfield))
-          ->store_in_allocated_space(
-              pointer_cast<char *>(blob_len_ptr_array[num].ptr), length);
+      Field_blob *blob_field = down_cast<Field_blob *>(*vfield);
+      memcpy(blob_len_ptr_array[num].ptr, blob_field->get_blob_data(), length);
+      blob_field->store_in_allocated_space(
+          pointer_cast<char *>(blob_len_ptr_array[num].ptr), length);
       num++;
       DBUG_ASSERT(num <= MAX_FIELDS);
     }
@@ -8653,12 +8653,12 @@ std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table) {
     fields_orig_buf = buf_used_by_mysql;
   } else {
     Field *first_field = mysql_table->field[0];
-    if (first_field->ptr >= buf0 &&
-        first_field->ptr < buf0 + mysql_row_length) {
+    if (first_field->field_ptr() >= buf0 &&
+        first_field->field_ptr() < buf0 + mysql_row_length) {
       fields_orig_buf = buf0;
     } else {
-      DBUG_ASSERT(first_field->ptr >= buf1);
-      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+      DBUG_ASSERT(first_field->field_ptr() >= buf1);
+      DBUG_ASSERT(first_field->field_ptr() < buf1 + mysql_row_length);
       fields_orig_buf = buf1;
     }
   }
@@ -8717,8 +8717,8 @@ std::string row_to_string(const uchar *mysql_row, TABLE *mysql_table) {
     Field *field = mysql_table->field[i];
 
     DBUG_ASSERT(field->field_index == i);
-    DBUG_ASSERT(field->ptr >= mysql_row);
-    DBUG_ASSERT(field->ptr < mysql_row + mysql_row_length);
+    DBUG_ASSERT(field->field_ptr() >= mysql_row);
+    DBUG_ASSERT(field->field_ptr() < mysql_row + mysql_row_length);
 
     std::string val;
 
@@ -8755,7 +8755,8 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
   uint key_len_so_far = 0;
   for (uint i = 0; i < mysql_index.user_defined_key_parts; i++) {
     const KEY_PART_INFO &key_part = mysql_index.key_part[i];
-    Field *field = key_part.field;
+    // Clone the field so we avoid modifying the real field.
+    Field *field = key_part.field->clone(*THR_MALLOC);
 
     // Check if this field should be included
     if (!bitmap_is_set(mysql_index.table->read_set, field->field_index)) {
@@ -8766,38 +8767,31 @@ std::string indexed_cells_to_string(const uchar *indexed_cells,
     }
     DBUG_ASSERT(key_len_so_far < indexed_cells_len);
 
-    uchar *orig_ptr = field->ptr;
     bool is_null = false;
-    field->ptr = const_cast<uchar *>(indexed_cells + key_len_so_far);
+    field->set_field_ptr(const_cast<uchar *>(indexed_cells + key_len_so_far));
 
     if (field->is_nullable()) {
-      if (field->ptr[0] != '\0') {
+      if (field->field_ptr()[0] != '\0') {
         is_null = true;
       } else {
-        field->ptr++;
+        field->set_field_ptr(field->field_ptr() + 1);
       }
     }
-
-    uint32 orig_length_bytes;
 
     String val;
     if (!is_null) {
       switch (field->type()) {
-        case MYSQL_TYPE_VARCHAR:
-          orig_length_bytes =
-              reinterpret_cast<Field_varstring *>(field)->length_bytes;
-          reinterpret_cast<Field_varstring *>(field)->length_bytes = 2;
+        case MYSQL_TYPE_VARCHAR: {
+          Field_varstring *string_field = down_cast<Field_varstring *>(field);
+          string_field->length_bytes = 2;
           field->val_str(&val);
-          reinterpret_cast<Field_varstring *>(field)->length_bytes =
-              orig_length_bytes;
           break;
+        }
         default:
           field->val_str(&val);
           break;
       }
     }
-
-    field->ptr = orig_ptr;
 
     r += std::string(i > 0 ? ", `" : "`") + field->field_name +
          "`=" + (is_null ? "NULL" : std::string(val.ptr(), val.length()));

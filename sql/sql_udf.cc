@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -748,8 +748,8 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
   table->use_all_columns();
   table->field[0]->store(udf->name.str, udf->name.length, &my_charset_bin);
   if (!table->file->ha_index_read_idx_map(table->record[0], 0,
-                                          table->field[0]->ptr, HA_WHOLE_KEY,
-                                          HA_READ_KEY_EXACT)) {
+                                          table->field[0]->field_ptr(),
+                                          HA_WHOLE_KEY, HA_READ_KEY_EXACT)) {
     int delete_err;
     if ((delete_err = table->file->ha_delete_row(table->record[0])))
       table->file->print_error(delete_err, MYF(0));

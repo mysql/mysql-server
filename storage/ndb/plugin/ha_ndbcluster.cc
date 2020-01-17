@@ -2264,7 +2264,7 @@ static void ndb_set_record_specification(
   DBUG_TRACE;
   DBUG_ASSERT(ndb_column);
   spec->column = ndb_column;
-  spec->offset = Uint32(table->field[field_no]->ptr - table->record[0]);
+  spec->offset = Uint32(table->field[field_no]->offset(table->record[0]));
   if (table->field[field_no]->is_nullable()) {
     spec->nullbit_byte_offset = Uint32(table->field[field_no]->null_offset());
     spec->nullbit_bit_in_byte =
@@ -4708,9 +4708,11 @@ int ha_ndbcluster::write_row(uchar *record) {
   if (m_share == ndb_apply_status_share && table->in_use->slave_thread) {
     uint32 row_server_id, master_server_id = ndb_mi_get_master_server_id();
     uint64 row_epoch;
-    memcpy(&row_server_id, table->field[0]->ptr + (record - table->record[0]),
+    memcpy(&row_server_id,
+           table->field[0]->field_ptr() + (record - table->record[0]),
            sizeof(row_server_id));
-    memcpy(&row_epoch, table->field[1]->ptr + (record - table->record[0]),
+    memcpy(&row_epoch,
+           table->field[1]->field_ptr() + (record - table->record[0]),
            sizeof(row_epoch));
     int rc = g_ndb_slave_state.atApplyStatusWrite(
         master_server_id, row_server_id, row_epoch,
@@ -6014,7 +6016,8 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
         */
         const uint32 actual_length = field_used_length(field, src_offset);
         field->set_notnull(dst_offset);
-        memcpy(field->ptr + dst_offset, field->ptr + src_offset, actual_length);
+        memcpy(field->field_ptr() + dst_offset, field->field_ptr() + src_offset,
+               actual_length);
       } else  // MYSQL_TYPE_BIT
       {
         Field_bit *field_bit = down_cast<Field_bit *>(field);
@@ -6119,7 +6122,7 @@ static void get_default_value(void *def_val, Field *field) {
         if (!field->is_null()) {
           /* Only copy actually used bytes of varstrings. */
           uint32 actual_length = field_used_length(field);
-          uchar *src_ptr = field->ptr;
+          uchar *src_ptr = field->field_ptr();
           field->set_notnull();
           memcpy(def_val, src_ptr, actual_length);
         }
@@ -14415,7 +14418,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array) {
     DBUG_ASSERT(!field->is_real_null());
     if (field->real_type() == MYSQL_TYPE_VARCHAR)
       len += ((Field_varstring *)field)->length_bytes;
-    key_data[i].ptr = field->ptr;
+    key_data[i].ptr = field->field_ptr();
     key_data[i++].len = len;
   } while (*(++field_array));
   key_data[i].ptr = 0;

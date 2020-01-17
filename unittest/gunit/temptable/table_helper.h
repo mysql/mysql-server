@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -277,7 +277,7 @@ inline uint Table_helper::set_field_pointers(uchar *record) {
       }
     }
 
-    field->ptr = buf_ptr;
+    field->set_field_ptr(buf_ptr);
     buf_ptr += field->pack_length();
   }
 

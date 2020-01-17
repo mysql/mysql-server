@@ -7155,7 +7155,7 @@ int ha_innobase::close() {
 @param[in]	field	MySQL field object
 @return offset */
 static inline uint get_field_offset(const TABLE *table, const Field *field) {
-  return (static_cast<uint>((field->ptr - table->record[0])));
+  return field->offset(table->record[0]);
 }
 
 /** compare two character string according to their charset. */

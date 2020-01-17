@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2671,7 +2671,7 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
                                        uchar **restore_ptr) {
   Field *field;
   while ((field = *(ptr++))) {
-    *restore_ptr = field->ptr;
+    *restore_ptr = field->field_ptr();
     restore_ptr++;
     if (!field->is_null()) {
       const CHARSET_INFO *cs = field->charset();
@@ -2687,16 +2687,16 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
        */
       if (field->type() == MYSQL_TYPE_VARCHAR) {
         uint len_bytes = ((Field_varstring *)field)->length_bytes;
-        my_strnxfrm(cs, field_buf + len_bytes, max_len, field->ptr + len_bytes,
+        my_strnxfrm(cs, field_buf + len_bytes, max_len, field->data_ptr(),
                     data_len);
         if (len_bytes == 1)
           *field_buf = (uchar)data_len;
         else
           int2store(field_buf, data_len);
       } else {
-        my_strnxfrm(cs, field_buf, max_len, field->ptr, max_len);
+        my_strnxfrm(cs, field_buf, max_len, field->field_ptr(), max_len);
       }
-      field->ptr = field_buf;
+      field->set_field_ptr(field_buf);
     }
     field_bufs++;
   }
@@ -2716,7 +2716,7 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
 static void restore_part_field_pointers(Field **ptr, uchar **restore_ptr) {
   Field *field;
   while ((field = *(ptr++))) {
-    field->ptr = *restore_ptr;
+    field->set_field_ptr(*restore_ptr);
     restore_ptr++;
   }
   return;

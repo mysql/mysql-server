@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -60,7 +60,7 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
   const unsigned char *mysql_row = nullptr;
 
   if (number_of_columns > 0) {
-    auto const field_ptr = mysql_table->field[0]->ptr;
+    auto const field_ptr = mysql_table->field[0]->field_ptr();
     auto const mysql_row_length = mysql_table->s->rec_buff_length;
 
     mysql_row = mysql_table->record[0];

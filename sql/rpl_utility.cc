@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1116,7 +1116,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
           break;
         }
         default:
-          crc = checksum_crc32(crc, f->ptr, f->data_length());
+          crc = checksum_crc32(crc, f->field_ptr(), f->data_length());
           break;
       }
 #ifndef DBUG_OFF

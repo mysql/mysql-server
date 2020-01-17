@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
     }
     DBUG_PRINT("info", ("stored in full format"));
   }
-  *pack_ptr = field->pack(*pack_ptr, field->ptr + rec_offset,
+  *pack_ptr = field->pack(*pack_ptr, field->field_ptr() + rec_offset,
                           field->max_data_length(), true);
 }
 
@@ -219,7 +219,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
         table->disable_logical_diffs_for_current_row(field);
     }
 
-    *pack_ptr = field->unpack(field->ptr, *pack_ptr, metadata, true);
+    *pack_ptr = field->unpack(field->field_ptr(), *pack_ptr, metadata, true);
   }
 
   return false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -43,7 +43,7 @@ Column::Column(const unsigned char *mysql_row,
    * `m_mysql_row` which is neither record[0] nor record[1]. */
 
 #if !defined(DBUG_OFF)
-  unsigned char *field_ptr = mysql_field.ptr;
+  const unsigned char *field_ptr = mysql_field.field_ptr();
   const size_t mysql_row_length = mysql_table.s->rec_buff_length;
 
   DBUG_ASSERT(field_ptr >= mysql_row);
@@ -63,7 +63,8 @@ Column::Column(const unsigned char *mysql_row,
     m_length_bytes_size = blob_field.pack_length_no_ptr();
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
 
-    const unsigned char *data_ptr = mysql_field.ptr + m_length_bytes_size;
+    const unsigned char *data_ptr =
+        mysql_field.field_ptr() + m_length_bytes_size;
 
     data_offset = static_cast<size_t>(data_ptr - mysql_row);
   } else if (mysql_field.type() == MYSQL_TYPE_VARCHAR) {
@@ -74,11 +75,12 @@ Column::Column(const unsigned char *mysql_row,
 
     m_length_bytes_size = varstring_field.length_bytes;
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
-    data_offset = static_cast<size_t>(mysql_field.get_ptr() - mysql_row);
+    data_offset = static_cast<size_t>(
+        mysql_field.field_ptr() + mysql_field.get_length_bytes() - mysql_row);
   } else {
     m_length_bytes_size = 0;
     m_length = mysql_field.data_length();
-    data_offset = static_cast<size_t>(mysql_field.get_ptr() - mysql_row);
+    data_offset = static_cast<size_t>(mysql_field.field_ptr() - mysql_row);
   }
   DBUG_ASSERT(data_offset <=
               std::numeric_limits<decltype(m_user_data_offset)>::max());

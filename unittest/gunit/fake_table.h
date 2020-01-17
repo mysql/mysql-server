@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,7 +240,7 @@ class Fake_TABLE : public TABLE {
       field[i] = new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
       field[i]->table = this;
       const ptrdiff_t field_offset = i * MAX_FIELD_WIDTH;
-      field[i]->ptr = record[0] + field_offset + 1;
+      field[i]->set_field_ptr(record[0] + field_offset + 1);
       if (are_nullable) field[i]->set_null_ptr(record[0] + field_offset, 1);
     }
     int i = 0;
@@ -280,7 +280,7 @@ class Fake_TABLE : public TABLE {
     new_field->field_index = pos;
     bitmap_set_bit(read_set, pos);
     const ptrdiff_t field_offset = pos * MAX_FIELD_WIDTH;
-    new_field->ptr = record[0] + field_offset + 1;
+    new_field->set_field_ptr(record[0] + field_offset + 1);
     if (new_field->get_null_ptr() != nullptr)
       new_field->set_null_ptr(record[0] + field_offset, 1);
   }

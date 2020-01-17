@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1221,7 +1221,7 @@ bool Aggregator_distinct::add() {
       '0' values are also stored in the tree. This doesn't matter
       for SUM(DISTINCT), but is important for AVG(DISTINCT)
     */
-    return tree->unique_add(table->field[0]->ptr);
+    return tree->unique_add(table->field[0]->field_ptr());
   }
 }
 
@@ -2000,7 +2000,7 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val) {
 
 bool Aggregator_distinct::unique_walk_function(void *element) {
   DBUG_TRACE;
-  memcpy(table->field[0]->ptr, element, tree_key_length);
+  memcpy(table->field[0]->field_ptr(), element, tree_key_length);
   item_sum->add();
   return false;
 }
@@ -2093,7 +2093,7 @@ longlong Item_sum_count::val_int() {
       if (dynamic_cast<Item_field *>(args[0])) {
         Item_field *f = down_cast<Item_field *>(args[0]);
         DBUG_PRINT(("enter"), ("Item_sum_count::val_int field: %p ptr: %p",
-                               f->field, f->field->ptr));
+                               f->field, f->field->field_ptr()));
       }
     });
 
@@ -2599,7 +2599,7 @@ my_decimal *Item_sum_variance::val_decimal(my_decimal *dec_buf) {
 
 void Item_sum_variance::reset_field() {
   double nr;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   nr = args[0]->val_real(); /* sets null_value as side-effect */
 
@@ -2619,7 +2619,7 @@ void Item_sum_variance::reset_field() {
 
 void Item_sum_variance::update_field() {
   ulonglong field_count;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   double nr = args[0]->val_real(); /* sets null_value as side-effect */
 
@@ -3111,7 +3111,6 @@ Item *Item_sum_and::copy_or_same(THD *thd) {
 
 void Item_sum_num::reset_field() {
   double nr = args[0]->val_real();
-  uchar *res = result_field->ptr;
 
   if (maybe_null) {
     if (args[0]->null_value) {
@@ -3120,7 +3119,7 @@ void Item_sum_num::reset_field() {
     } else
       result_field->set_notnull();
   }
-  float8store(res, nr);
+  float8store(result_field->field_ptr(), nr);
 }
 
 void Item_sum_hybrid::reset_field() {
@@ -3212,7 +3211,7 @@ void Item_sum_sum::reset_field() {
   } else {
     DBUG_ASSERT(hybrid_type == REAL_RESULT);
     double nr = args[0]->val_real();  // Nulls also return 0
-    float8store(result_field->ptr, nr);
+    float8store(result_field->field_ptr(), nr);
   }
   if (args[0]->null_value)
     result_field->set_null();
@@ -3221,16 +3220,15 @@ void Item_sum_sum::reset_field() {
 }
 
 void Item_sum_count::reset_field() {
-  uchar *res = result_field->ptr;
   longlong nr = 0;
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
 
   if (!args[0]->maybe_null || !args[0]->is_null()) nr = 1;
-  int8store(res, nr);
+  int8store(result_field->field_ptr(), nr);
 }
 
 void Item_sum_avg::reset_field() {
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
   if (hybrid_type == DECIMAL_RESULT) {
     longlong tmp;
@@ -3308,7 +3306,7 @@ void Item_sum_sum::update_field() {
       }
     }
   } else {
-    uchar *res = result_field->ptr;
+    uchar *res = result_field->field_ptr();
 
     double old_nr = float8get(res);
     double nr = args[0]->val_real();
@@ -3322,7 +3320,7 @@ void Item_sum_sum::update_field() {
 
 void Item_sum_count::update_field() {
   longlong nr;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   nr = sint8korr(res);
   if (!args[0]->maybe_null || !args[0]->is_null()) nr++;
@@ -3332,7 +3330,7 @@ void Item_sum_count::update_field() {
 void Item_sum_avg::update_field() {
   DBUG_TRACE;
   longlong field_count;
-  uchar *res = result_field->ptr;
+  uchar *res = result_field->field_ptr();
 
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
 
@@ -3511,8 +3509,8 @@ double Item_avg_field::val_real() {
 
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  double nr = float8get(field->ptr);
-  res = (field->ptr + sizeof(double));
+  double nr = float8get(field->field_ptr());
+  res = (field->field_ptr() + sizeof(double));
   count = sint8korr(res);
 
   if ((null_value = !count)) return 0.0;
@@ -3522,12 +3520,12 @@ double Item_avg_field::val_real() {
 my_decimal *Item_avg_field::val_decimal(my_decimal *dec_buf) {
   // fix_fields() never calls for this Item
   if (hybrid_type == REAL_RESULT) return val_decimal_from_real(dec_buf);
-  longlong count = sint8korr(field->ptr + dec_bin_size);
+  longlong count = sint8korr(field->field_ptr() + dec_bin_size);
   if ((null_value = !count)) return nullptr;
 
   my_decimal dec_count, dec_field;
-  binary2my_decimal(E_DEC_FATAL_ERROR, field->ptr, &dec_field, f_precision,
-                    f_scale);
+  binary2my_decimal(E_DEC_FATAL_ERROR, field->field_ptr(), &dec_field,
+                    f_precision, f_scale);
   int2my_decimal(E_DEC_FATAL_ERROR, count, false, &dec_count);
   my_decimal_div(E_DEC_FATAL_ERROR, dec_buf, &dec_field, &dec_count,
                  prec_increment);
@@ -3563,7 +3561,7 @@ Item_sum_bit_field::Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
 
 longlong Item_sum_bit_field::val_int() {
   if (hybrid_type == INT_RESULT)
-    return uint8korr(field->ptr);
+    return uint8korr(field->field_ptr());
   else {
     String *res;
     if (!(res = val_str(&str_value))) return 0;
@@ -3578,7 +3576,7 @@ longlong Item_sum_bit_field::val_int() {
 
 double Item_sum_bit_field::val_real() {
   if (hybrid_type == INT_RESULT) {
-    ulonglong result = uint8korr(field->ptr);
+    ulonglong result = uint8korr(field->field_ptr());
     return result;
   } else {
     String *res;
@@ -3681,8 +3679,8 @@ double Item_variance_field::val_real() {
   // fix_fields() never calls for this Item
   if (hybrid_type == DECIMAL_RESULT) return val_real_from_decimal();
 
-  double recurrence_s = float8get(field->ptr + sizeof(double));
-  ulonglong count = sint8korr(field->ptr + sizeof(double) * 2);
+  double recurrence_s = float8get(field->field_ptr() + sizeof(double));
+  ulonglong count = uint8korr(field->field_ptr() + sizeof(double) * 2);
 
   if ((null_value = (count <= sample))) return 0.0;
   return variance_fp_recurrence_result(recurrence_s, 0.0, count, sample, false);

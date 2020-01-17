@@ -2786,15 +2786,15 @@ class Ndb_schema_event_handler {
 
       // Read length of the varbinary which is stored in the field
       const uint varbinary_length = length_bytes == 1
-                                        ? static_cast<uint>(*field->ptr)
-                                        : uint2korr(field->ptr);
+                                        ? static_cast<uint>(*field->field_ptr())
+                                        : uint2korr(field->field_ptr());
       DBUG_PRINT("info", ("varbinary length: %u", varbinary_length));
       // Check that varbinary length is not greater than fields max length
       // (this would indicate that corrupted data has been written to table)
       ndbcluster::ndbrequire(varbinary_length <= field->field_length);
 
       const char *varbinary_start =
-          reinterpret_cast<const char *>(field->ptr + length_bytes);
+          reinterpret_cast<const char *>(field->field_ptr() + length_bytes);
       return sql_strmake(varbinary_start, varbinary_length);
     }
 
@@ -2849,7 +2849,7 @@ class Ndb_schema_event_handler {
       (void)bitmap_init(&slock, slock_buf, field->field_length * 8);
 
       // Copy data into bitmap buffer
-      memcpy(slock_buf, field->ptr, field->field_length);
+      memcpy(slock_buf, field->field_ptr(), field->field_length);
     }
 
     // Unpack Ndb_schema_op from event_data pointer
@@ -6580,9 +6580,10 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
         Field *f = table->field[map.get_field_for_column(j)];
         if (is_ndb_compatible_type(f)) {
           DBUG_PRINT("info", ("%s compatible", col_name));
-          attr0.rec = op->getValue(col_name, (char *)f->ptr);
-          attr1.rec = op->getPreValue(
-              col_name, (f->ptr - table->record[0]) + (char *)table->record[1]);
+          attr0.rec = op->getValue(col_name, (char *)f->field_ptr());
+          attr1.rec =
+              op->getPreValue(col_name, (f->field_ptr() - table->record[0]) +
+                                            (char *)table->record[1]);
         } else if (!(f->flags & BLOB_FLAG)) {
           DBUG_PRINT("info", ("%s non compatible", col_name));
           attr0.rec = op->getValue(col_name);
@@ -6919,13 +6920,13 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
           field_bit->Field_bit::move_field_offset(-row_offset);
           DBUG_PRINT("info",
                      ("[%u] SET", (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const uchar *)field->ptr, field->pack_length());
+          DBUG_DUMP("info", field->field_ptr(), field->pack_length());
         } else {
           DBUG_ASSERT(
               !strcmp((*value).rec->getColumn()->getName(), field->field_name));
           DBUG_PRINT("info",
                      ("[%u] SET", (*value).rec->getColumn()->getColumnNo()));
-          DBUG_DUMP("info", (const uchar *)field->ptr, field->pack_length());
+          DBUG_DUMP("info", field->field_ptr(), field->pack_length());
         }
       } else {
         NdbBlob *ndb_blob = (*value).blob;

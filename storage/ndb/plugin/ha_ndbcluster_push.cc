@@ -273,7 +273,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
     for (uint i = 0; i < outer_fields; i++) {
       Field *field = m_referred_fields[i];
       DBUG_ASSERT(!field->is_real_null());  // Checked by ::check_if_pushable()
-      uchar *raw = field->ptr;
+      uchar *raw = field->field_ptr();
 
 #ifdef WORDS_BIGENDIAN
       if (field->table->s->db_low_byte_first &&
@@ -282,7 +282,7 @@ NdbQuery *ndb_pushed_join::make_query_instance(
         raw = static_cast<uchar *>(my_alloca(field_length));
 
         // Byte order is swapped to get the correct endian format.
-        const uchar *last = field->ptr + field_length;
+        const uchar *last = field->field_ptr() + field_length;
         for (uint pos = 0; pos < field_length; pos++) raw[pos] = *(--last);
       }
 #else
@@ -2071,8 +2071,8 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
         DBUG_ASSERT(!field->is_real_null());
         const uchar *const ptr =
             (field->real_type() == MYSQL_TYPE_VARCHAR)
-                ? field->ptr + ((Field_varstring *)field)->length_bytes
-                : field->ptr;
+                ? field->field_ptr() + ((Field_varstring *)field)->length_bytes
+                : field->field_ptr();
 
         op_key[map[i]] = m_builder->constValue(ptr, field->data_length());
       } else {

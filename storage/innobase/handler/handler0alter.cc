@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1891,7 +1891,7 @@ static void innobase_col_to_mysql(
     Field *field)          /*!< in/out: MySQL field */
 {
   uchar *ptr;
-  uchar *dest = field->ptr;
+  uchar *dest = field->field_ptr();
   ulint flen = field->pack_length();
 
   switch (col->mtype) {
@@ -3007,7 +3007,7 @@ static void innobase_build_col_map_add(mem_heap_t *heap, dfield_t *dfield,
 
   byte *buf = static_cast<byte *>(mem_heap_alloc(heap, size));
 
-  const byte *mysql_data = field->ptr;
+  const byte *mysql_data = field->field_ptr();
 
   row_mysql_store_col_in_innobase_format(dfield, buf, true, mysql_data, size,
                                          comp);

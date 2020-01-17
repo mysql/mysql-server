@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2344,7 +2344,7 @@ bool partition_info::fix_column_value_functions(THD *thd, part_elem_value *val,
           goto end;
         }
         col_val->column_value.field_image = val_ptr;
-        memcpy(val_ptr, field->ptr, len);
+        memcpy(val_ptr, field->field_ptr(), len);
       }
     }
     col_val->fixed = 2;

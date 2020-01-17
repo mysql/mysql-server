@@ -17902,7 +17902,8 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
                   break;
                 }
                 default:
-                  row_crc = checksum_crc32(row_crc, f->ptr, f->pack_length());
+                  row_crc =
+                      checksum_crc32(row_crc, f->field_ptr(), f->pack_length());
                   break;
               }
             }

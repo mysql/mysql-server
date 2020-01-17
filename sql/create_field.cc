@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       buffer pointer.
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      old_field->ptr != nullptr && orig_field != nullptr) {
+      old_field->field_ptr() != nullptr && orig_field != nullptr) {
     bool default_now = false;
     if (real_type_with_now_as_default(sql_type)) {
       // The SQL type of the new field allows a function default:

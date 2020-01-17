@@ -357,7 +357,7 @@ unsigned int ha_archive::pack_row_v1(uchar *record) {
     Field_blob *field = down_cast<Field_blob *>(table->field[*blob]);
     const uint32 length = field->get_length();
     if (length) {
-      memcpy(pos, field->get_ptr(), length);
+      memcpy(pos, field->get_blob_data(), length);
       pos += length;
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -883,8 +883,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
-          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
-                                         &tmp1, &tmp2);
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->field_ptr(),
+                                         len, &tmp1, &tmp2);
 
           // NOTE: This truncates to 32-bit on Windows, to keep on-disk
           // stability.
@@ -914,8 +914,8 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           uint64 tmp1 = nr1;
           uint64 tmp2 = nr2;
 
-          my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr, len,
-                                            &tmp1, &tmp2);
+          my_charset_latin1.coll->hash_sort(
+              &my_charset_latin1, field->field_ptr(), len, &tmp1, &tmp2);
 
           // NOTE: This truncates to 32-bit on Windows, to keep on-disk
           // stability.

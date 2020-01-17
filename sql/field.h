@@ -738,6 +738,7 @@ class Field {
     return auto_flags & ON_UPDATE_NOW;
   }
 
+ protected:
   /// Holds the position to the field in record
   uchar *ptr;
 
@@ -1514,6 +1515,10 @@ class Field {
     return result;
   }
 
+  uchar *pack(uchar *to) const {
+    return pack(to, ptr, UINT_MAX, table->s->db_low_byte_first);
+  }
+
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                               bool low_byte_first);
   /**
@@ -1523,6 +1528,10 @@ class Field {
     DBUG_TRACE;
     const uchar *result = unpack(to, from, 0U, table->s->db_low_byte_first);
     return result;
+  }
+
+  const uchar *unpack(const uchar *from) {
+    return unpack(ptr, from, 0U, table->s->db_low_byte_first);
   }
 
   /**
@@ -1711,8 +1720,32 @@ class Field {
     return 0ULL;
   }
 
-  /** Return a pointer to the actual data in memory. */
-  virtual const uchar *get_ptr() const { return ptr; }
+  /**
+    Return a const pointer to the actual data in the record buffer.
+
+    For most fields, this is the same as field_ptr(), but BLOBs and VARCHARs
+    it is not. Ideally this function should not be used as it makes it hard
+    to change the internal representation of Field.
+  */
+  virtual const uchar *data_ptr() const { return ptr; }
+
+  /**
+    Return a const pointer to where the field is stored in the record buffer.
+
+    Ideally this function should not be used as it makes it hard
+    to change the internal representation of Field.
+  */
+  const uchar *field_ptr() const { return ptr; }
+
+  /**
+    Return a pointer to where the field is stored in the record buffer.
+
+    Ideally this function should not be used as it makes it hard
+    to change the internal representation of Field.
+  */
+  uchar *field_ptr() { return ptr; }
+
+  void set_field_ptr(uchar *ptr_arg) { ptr = ptr_arg; }
 
   /**
     Checks whether a string field is part of write_set.
@@ -2304,16 +2337,6 @@ class Field_medium final : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_INT24);
     return new (mem_root) Field_medium(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return Field::pack(to, from, max_length, low_byte_first);
-  }
-
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override {
-    return Field::unpack(to, from, param_data, low_byte_first);
-  }
-
   ulonglong get_max_int_value() const final override {
     return unsigned_flag ? 0xFFFFFFULL : 0x7FFFFFULL;
   }
@@ -3620,7 +3643,7 @@ class Field_varstring : public Field_longstr {
   }
   uint is_equal(const Create_field *new_field) const final override;
   void hash(ulong *nr, ulong *nr2) const final override;
-  const uchar *get_ptr() const final override { return ptr + length_bytes; }
+  const uchar *data_ptr() const final override { return ptr + length_bytes; }
   bool is_text_key_type() const final override {
     return binary() ? false : true;
   }
@@ -3811,14 +3834,14 @@ class Field_blob : public Field_longstr {
                     bool low_byte_first) const;
   uint32 get_length(const uchar *ptr_arg) const;
   /** Get a const pointer to the BLOB data of this field. */
-  const uchar *get_ptr() const final override {
-    return get_blob_data(ptr + packlength);
-  }
+  const uchar *get_blob_data() const { return get_blob_data(ptr + packlength); }
   /** Get a non-const pointer to the BLOB data of this field. */
   uchar *get_blob_data(ptrdiff_t row_offset = 0) {
     // row_offset is only used by NDB
     return get_blob_data(ptr + packlength + row_offset);
   }
+  /** Get a const pointer to the BLOB data of this field. */
+  const uchar *data_ptr() const final override { return get_blob_data(); }
 
  protected:
   /**

@@ -663,11 +663,12 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
     inspect all the columns in the read set and take the one with the
     highest end pointer.
   */
-  uchar *prefix_end = table->record[0];  // beginning of record
+  const uchar *prefix_end = table->record[0];  // beginning of record
   for (auto f = table->field, end = table->field + table->s->fields; f < end;
        ++f) {
     if (bitmap_is_set(table->read_set, (*f)->field_index))
-      prefix_end = std::max(prefix_end, (*f)->ptr + (*f)->pack_length());
+      prefix_end = std::max<const uchar *>(
+          prefix_end, (*f)->field_ptr() + (*f)->pack_length());
   }
 
   /*
@@ -688,7 +689,7 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
         If a key column comes after all the columns in the read set,
         extend the prefix to include the key column.
       */
-      prefix_end = std::max(prefix_end, f->ptr + f->pack_length());
+      prefix_end = std::max(prefix_end, f->field_ptr() + f->pack_length());
     }
   }
 
@@ -3259,7 +3260,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
     }
   }
 
-  uchar *ptr = sjtbl->tmp_table->visible_field_ptr()[0]->ptr;
+  uchar *ptr = sjtbl->tmp_table->visible_field_ptr()[0]->field_ptr();
   // Put the rowids tuple into table->record[0]:
   // 1. Store the length
   if (((Field_varstring *)(sjtbl->tmp_table->visible_field_ptr()[0]))
@@ -4486,9 +4487,9 @@ static bool cmp_field_value(Field *field, ptrdiff_t diff) {
 
     // Fetch the JSON value on the right side of the comparison.
     Json_wrapper right_wrapper;
-    json_field->ptr += diff;
+    json_field->move_field_offset(diff);
     bool err = json_field->val_json(&right_wrapper);
-    json_field->ptr -= diff;
+    json_field->move_field_offset(-diff);
     if (err) return true; /* purecov: inspected */
 
     return (left_wrapper.compare(right_wrapper) != 0);
@@ -4498,7 +4499,7 @@ static bool cmp_field_value(Field *field, ptrdiff_t diff) {
   if (!field->is_text_key_type() && value1_length != value2_length)  // 2
     return true;
 
-  if (field->cmp_max(field->ptr, field->ptr + diff,  // 3
+  if (field->cmp_max(field->field_ptr(), field->field_ptr() + diff,  // 3
                      std::max(value1_length, value2_length)))
     return true;
 
@@ -4551,7 +4552,6 @@ static bool table_rec_cmp(TABLE *table) {
 */
 
 ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
-  const uchar *pos, *end;
   uint64 seed1 = 0, seed2 = 4;
   ulonglong crc = *hash_val;
 
@@ -4565,9 +4565,6 @@ ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
     goto finish;
   }
 
-  pos = field->get_ptr();
-  end = pos + field->data_length();
-
   if (field->type() == MYSQL_TYPE_JSON) {
     const Field_json *json_field = down_cast<const Field_json *>(field);
 
@@ -4575,12 +4572,15 @@ ulonglong unique_hash(const Field *field, ulonglong *hash_val) {
   } else if (field->key_type() == HA_KEYTYPE_TEXT ||
              field->key_type() == HA_KEYTYPE_VARTEXT1 ||
              field->key_type() == HA_KEYTYPE_VARTEXT2) {
-    field->charset()->coll->hash_sort(field->charset(), (const uchar *)pos,
+    field->charset()->coll->hash_sort(field->charset(), field->data_ptr(),
                                       field->data_length(), &seed1, &seed2);
     crc ^= seed1;
-  } else
+  } else {
+    const uchar *pos = field->data_ptr();
+    const uchar *end = pos + field->data_length();
     while (pos != end)
       crc = ((crc << 8) + (*pos++)) + (crc >> (8 * sizeof(ha_checksum) - 8));
+  }
 finish:
   *hash_val = crc;
   return crc;
@@ -4649,17 +4649,17 @@ bool check_unique_constraint(TABLE *table) {
   else
     hash = unique_hash_fields(table);
   table->hash_field->store(hash, true);
-  int res =
-      table->file->ha_index_read_map(table->record[1], table->hash_field->ptr,
-                                     HA_WHOLE_KEY, HA_READ_KEY_EXACT);
+  int res = table->file->ha_index_read_map(table->record[1],
+                                           table->hash_field->field_ptr(),
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   while (!res) {
     // Check whether records are the same.
     if (!(table->group
               ? group_rec_cmp(table->group, table->record[0], table->record[1])
               : table_rec_cmp(table)))
       return false;  // skip it
-    res = table->file->ha_index_next_same(table->record[1],
-                                          table->hash_field->ptr, sizeof(hash));
+    res = table->file->ha_index_next_same(
+        table->record[1], table->hash_field->field_ptr(), sizeof(hash));
   }
   return true;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2202,7 +2202,7 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
       TABLE *tbl = table;
       do {
         tbl->file->position(tbl->record[0]);
-        memcpy((char *)tmp_table->visible_field_ptr()[field_num]->ptr,
+        memcpy((char *)tmp_table->visible_field_ptr()[field_num]->field_ptr(),
                (char *)tbl->file->ref, tbl->file->ref_length);
         /*
          For outer joins a rowid field may have no NOT_NULL_FLAG,
@@ -2412,7 +2412,8 @@ bool Query_result_update::do_updates(THD *thd) {
       do {
         if ((local_error = tbl->file->ha_rnd_pos(
                  tbl->record[0],
-                 (uchar *)tmp_table->visible_field_ptr()[field_num]->ptr))) {
+                 (uchar *)tmp_table->visible_field_ptr()[field_num]
+                     ->field_ptr()))) {
           if (table->file->is_fatal_error(local_error))
             error_flags |= ME_FATALERROR;
 

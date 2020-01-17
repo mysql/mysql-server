@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,8 @@ inline static bool is_subtype_of(Field::geometry_type sub,
 
 static void do_field_eq(Copy_field *, const Field *from_field,
                         Field *to_field) {
-  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+  memcpy(to_field->field_ptr(), from_field->field_ptr(),
+         from_field->pack_length());
 }
 
 static void set_to_is_null(Field *to_field, bool is_null) {
@@ -100,10 +101,11 @@ static void set_to_is_null(Field *to_field, bool is_null) {
 static void do_field_to_null_str(Copy_field *, const Field *from_field,
                                  Field *to_field) {
   if (from_field->is_null()) {
-    memset(to_field->ptr, 0, from_field->pack_length());
+    memset(to_field->field_ptr(), 0, from_field->pack_length());
     set_to_is_null(to_field, true);
   } else {
-    memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+    memcpy(to_field->field_ptr(), from_field->field_ptr(),
+           from_field->pack_length());
     set_to_is_null(to_field, false);
   }
 }
@@ -299,7 +301,7 @@ static void do_copy_blob(Copy_field *, const Field *from_field,
   const Field_blob *from_blob = down_cast<const Field_blob *>(from_field);
   Field_blob *to_blob = down_cast<Field_blob *>(to_field);
   uint32 from_length = from_blob->get_length();
-  to_blob->set_ptr(from_length, from_blob->get_ptr());
+  to_blob->set_ptr(from_length, from_blob->get_blob_data());
   if (to_blob->get_length() < from_length) {
     if (to_field->table->in_use->is_strict_mode()) {
       to_field->set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
@@ -407,15 +409,16 @@ static void do_field_time(Copy_field *, const Field *from_field,
 static void do_cut_string(Copy_field *, const Field *from_field,
                           Field *to_field) {
   const CHARSET_INFO *cs = from_field->charset();
-  memcpy(to_field->ptr, from_field->ptr, to_field->pack_length());
+  memcpy(to_field->field_ptr(), from_field->field_ptr(),
+         to_field->pack_length());
 
   /* Check if we loosed any important characters */
-  if (cs->cset->scan(
-          cs,
-          pointer_cast<const char *>(from_field->ptr + to_field->pack_length()),
-          pointer_cast<const char *>(from_field->ptr +
-                                     from_field->pack_length()),
-          MY_SEQ_SPACES) <
+  if (cs->cset->scan(cs,
+                     pointer_cast<const char *>(from_field->field_ptr() +
+                                                to_field->pack_length()),
+                     pointer_cast<const char *>(from_field->field_ptr() +
+                                                from_field->pack_length()),
+                     MY_SEQ_SPACES) <
       from_field->pack_length() - to_field->pack_length()) {
     to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
@@ -430,27 +433,28 @@ static void do_cut_string_complex(Copy_field *, const Field *from_field,
                                   Field *to_field) {  // Shorter string field
   int well_formed_error;
   const CHARSET_INFO *cs = from_field->charset();
-  const uchar *from_end = from_field->ptr + from_field->pack_length();
+  const uchar *from_end = from_field->field_ptr() + from_field->pack_length();
   size_t copy_length = cs->cset->well_formed_len(
-      cs, pointer_cast<const char *>(from_field->ptr),
+      cs, pointer_cast<const char *>(from_field->field_ptr()),
       pointer_cast<const char *>(from_end),
       to_field->pack_length() / cs->mbmaxlen, &well_formed_error);
   if (to_field->pack_length() < copy_length) {
     copy_length = to_field->pack_length();
   }
-  memcpy(to_field->ptr, from_field->ptr, copy_length);
+  memcpy(to_field->field_ptr(), from_field->field_ptr(), copy_length);
 
   /* Check if we lost any important characters */
   if (well_formed_error ||
-      cs->cset->scan(cs,
-                     pointer_cast<const char *>(from_field->ptr) + copy_length,
-                     pointer_cast<const char *>(from_end), MY_SEQ_SPACES) <
-          (from_field->pack_length() - copy_length)) {
+      cs->cset->scan(
+          cs, pointer_cast<const char *>(from_field->field_ptr()) + copy_length,
+          pointer_cast<const char *>(from_end),
+          MY_SEQ_SPACES) < (from_field->pack_length() - copy_length)) {
     to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
 
   if (copy_length < to_field->pack_length()) {
-    cs->cset->fill(cs, pointer_cast<char *>(to_field->ptr) + copy_length,
+    cs->cset->fill(cs,
+                   pointer_cast<char *>(to_field->field_ptr()) + copy_length,
                    to_field->pack_length() - copy_length, ' ');
   }
 }
@@ -458,18 +462,22 @@ static void do_cut_string_complex(Copy_field *, const Field *from_field,
 static void do_expand_binary(Copy_field *, const Field *from_field,
                              Field *to_field) {
   const CHARSET_INFO *cs = from_field->charset();
-  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+  memcpy(to_field->field_ptr(), from_field->field_ptr(),
+         from_field->pack_length());
   cs->cset->fill(
-      cs, pointer_cast<char *>(to_field->ptr) + from_field->pack_length(),
+      cs,
+      pointer_cast<char *>(to_field->field_ptr()) + from_field->pack_length(),
       to_field->pack_length() - from_field->pack_length(), '\0');
 }
 
 static void do_expand_string(Copy_field *, const Field *from_field,
                              Field *to_field) {
   const CHARSET_INFO *cs = from_field->charset();
-  memcpy(to_field->ptr, from_field->ptr, from_field->pack_length());
+  memcpy(to_field->field_ptr(), from_field->field_ptr(),
+         from_field->pack_length());
   cs->cset->fill(
-      cs, pointer_cast<char *>(to_field->ptr) + from_field->pack_length(),
+      cs,
+      pointer_cast<char *>(to_field->field_ptr()) + from_field->pack_length(),
       to_field->pack_length() - from_field->pack_length(), ' ');
 }
 
@@ -492,9 +500,9 @@ static size_t get_varstring_copy_length(Field_varstring *to,
 
   size_t bytes_to_copy;
   if (from->length_bytes == 1)
-    bytes_to_copy = *from->ptr;
+    bytes_to_copy = *from->field_ptr();
   else
-    bytes_to_copy = uint2korr(from->ptr);
+    bytes_to_copy = uint2korr(from->field_ptr());
 
   if (from->pack_length() - from->length_bytes <= to_byte_length) {
     /*
@@ -506,8 +514,7 @@ static size_t get_varstring_copy_length(Field_varstring *to,
 
   if (is_multibyte_charset) {
     int well_formed_error;
-    const char *from_beg =
-        reinterpret_cast<char *>(from->ptr + from->length_bytes);
+    const char *from_beg = reinterpret_cast<const char *>(from->data_ptr());
     const uint to_char_length = (to_byte_length) / cs->mbmaxlen;
     const size_t from_byte_length = bytes_to_copy;
     bytes_to_copy =
@@ -549,13 +556,14 @@ static void copy_field_varstring(Field_varstring *const to,
 
   const size_t bytes_to_copy = get_varstring_copy_length(to, from);
   if (length_bytes == 1)
-    *to->ptr = static_cast<uchar>(bytes_to_copy);
+    *to->field_ptr() = static_cast<uchar>(bytes_to_copy);
   else
-    int2store(to->ptr, bytes_to_copy);
+    int2store(to->field_ptr(), bytes_to_copy);
 
   // memcpy should not be used for overlaping memory blocks
-  DBUG_ASSERT(to->ptr != from->ptr);
-  memcpy(to->ptr + length_bytes, from->ptr + length_bytes, bytes_to_copy);
+  DBUG_ASSERT(to->field_ptr() != from->field_ptr());
+  memcpy(to->field_ptr() + length_bytes, from->field_ptr() + length_bytes,
+         bytes_to_copy);
 }
 
 static void do_varstring(Copy_field *, const Field *from_field,
@@ -856,7 +864,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
            to_type != MYSQL_TYPE_TIMESTAMP))) &&
         (from->real_type() != MYSQL_TYPE_VARCHAR)) {  // Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'
-      memmove(to->ptr, from->ptr, to->pack_length());
+      memmove(to->field_ptr(), from->field_ptr(), to->pack_length());
       return TYPE_OK;
     }
   }

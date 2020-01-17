@@ -7062,7 +7062,7 @@ type_conversion_status Field_blob::store(const Field *from) {
 double Field_blob::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
-  const char *blob = pointer_cast<const char *>(get_ptr());
+  const char *blob = pointer_cast<const char *>(get_blob_data());
   if (blob == nullptr) return 0.0;
 
   int not_used;
@@ -7073,7 +7073,7 @@ double Field_blob::val_real() const {
 longlong Field_blob::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
-  const char *blob = pointer_cast<const char *>(get_ptr());
+  const char *blob = pointer_cast<const char *>(get_blob_data());
   if (blob == nullptr) return 0;
 
   int not_used;
@@ -7083,7 +7083,7 @@ longlong Field_blob::val_int() const {
 String *Field_blob::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
-  const char *blob = pointer_cast<const char *>(get_ptr());
+  const char *blob = pointer_cast<const char *>(get_blob_data());
   if (blob == nullptr)
     val_ptr->set("", 0, charset());  // A bit safer than ->length(0)
   else
@@ -7094,7 +7094,7 @@ String *Field_blob::val_str(String *, String *val_ptr) const {
 my_decimal *Field_blob::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   size_t length;
-  const char *blob = pointer_cast<const char *>(get_ptr());
+  const char *blob = pointer_cast<const char *>(get_blob_data());
   if (!blob) {
     blob = "";
     length = 0;
@@ -7136,7 +7136,7 @@ int Field_blob::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
 size_t Field_blob::get_key_image(uchar *buff, size_t length,
                                  imagetype type_arg) const {
   uint32 blob_length = get_length();
-  const uchar *const blob = get_ptr();
+  const uchar *const blob = get_blob_data();
 
   if (type_arg == itMBR) {
     const uint image_length = SIZEOF_STORED_DOUBLE * 4;
@@ -7192,7 +7192,7 @@ void Field_blob::set_key_image(const uchar *buff, size_t length) {
 
 int Field_blob::key_cmp(const uchar *key_ptr, uint max_key_length) const {
   uint32 blob_length = get_length(ptr);
-  const uchar *blob1 = get_ptr();
+  const uchar *blob1 = get_blob_data();
   const CHARSET_INFO *cs = charset();
   uint local_char_length = max_key_length / cs->mbmaxlen;
   local_char_length =
@@ -7233,7 +7233,7 @@ size_t Field_blob::make_sort_key(uchar *to, size_t length) const {
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-  const uchar *blob = blob_length > 0 ? get_ptr() : EMPTY_BLOB;
+  const uchar *blob = blob_length > 0 ? get_blob_data() : EMPTY_BLOB;
 
   return field_charset->coll->strnxfrm(field_charset, to, length, length, blob,
                                        blob_length, flags);
@@ -7270,7 +7270,8 @@ void Field_blob::sql_type(String &res) const {
 
 bool Field_blob::copy() {
   const uint32 length = get_length();
-  if (value.copy(pointer_cast<const char *>(get_ptr()), length, charset())) {
+  if (value.copy(pointer_cast<const char *>(get_blob_data()), length,
+                 charset())) {
     Field_blob::reset();
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), length);
     return true;
@@ -7342,7 +7343,7 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
   Field_blob::store(pointer_cast<const char *>(from) + master_packlength,
                     length, field_charset);
   DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
-  DBUG_DUMP("value", get_ptr(), length /* the blob value length */);
+  DBUG_DUMP("value", get_blob_data(), length /* the blob value length */);
   return from + master_packlength + length;
 }
 
@@ -9500,7 +9501,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
     value.set("", 0, value.charset());
   } else {
     char *blob_value =
-        static_cast<char *>(memdup_root(mem_root, get_ptr(), ulen));
+        static_cast<char *>(memdup_root(mem_root, get_blob_data(), ulen));
     if (blob_value == nullptr) return true;
 
     // Set 'value' with the duplicated data

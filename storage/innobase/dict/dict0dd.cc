@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1773,7 +1773,7 @@ void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
 
     ulint size = field->pack_length();
     uint64_t buf;
-    const byte *mysql_data = field->ptr;
+    const byte *mysql_data = field->field_ptr();
 
     row_mysql_store_col_in_innobase_format(
         &dfield, reinterpret_cast<byte *>(&buf), true, mysql_data, size,

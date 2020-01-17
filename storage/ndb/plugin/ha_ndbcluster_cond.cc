@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,7 +166,7 @@ class Ndb_item {
 
   uint32 pack_length() const { return get_field()->pack_length(); }
 
-  const uchar *get_val() const { return get_field()->ptr; }
+  const uchar *get_val() const { return get_field()->field_ptr(); }
 
   const CHARSET_INFO *get_field_charset() const {
     const Field *field = get_field();
