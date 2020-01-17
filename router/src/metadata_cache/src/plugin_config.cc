@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,10 @@ std::string MetadataCachePluginConfig::get_default(
   static const std::map<std::string, std::string> defaults{
       {"address", metadata_cache::kDefaultMetadataAddress},
       {"ttl", ms_to_seconds_string(metadata_cache::kDefaultMetadataTTL)},
+      {"auth_cache_ttl",
+       ms_to_seconds_string(metadata_cache::kDefaultAuthCacheTTL)},
+      {"auth_cache_refresh_interval",
+       ms_to_seconds_string(metadata_cache::kDefaultAuthCacheRefreshInterval)},
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
       {"router_id", "0"},

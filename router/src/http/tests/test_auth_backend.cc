@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,11 +37,11 @@ struct HttpAuthBackendParam {
   std::error_code auth_ec;
 };
 
-class HttpAuthBackendTest
+class HttpPasswdAuthBackendTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<HttpAuthBackendParam> {};
 
-TEST_P(HttpAuthBackendTest, ensure) {
+TEST_P(HttpPasswdAuthBackendTest, ensure) {
   HttpAuthBackendHtpasswd m;
 
   std::istringstream ss(GetParam().mcf_line);
@@ -60,7 +60,7 @@ const char kMcfSha512_myName_test[]{
     "\n"};
 
 INSTANTIATE_TEST_CASE_P(
-    Spec, HttpAuthBackendTest,
+    Spec, HttpPasswdAuthBackendTest,
     ::testing::Values(
         HttpAuthBackendParam{
             "valid_user", kMcfSha512_myName_test, {}, "myName", "test", {}},

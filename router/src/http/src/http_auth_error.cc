@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,8 @@ std::string HttpAuthErrCategory::message(int ev) const {
       return "realm not found";
     case HttpAuthErrc::kBackendNotFound:
       return "backend not found";
+    case HttpAuthErrc::kAuthorizationNotSupported:
+      return "authorization not supported";
     default:
       return "(unrecognized error)";
   }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,15 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
     instances_change_listener_ = nullptr;
   }
 
+  MOCK_METHOD0(enable_fetch_auth_metadata, void());
+  MOCK_METHOD0(force_cache_update, void());
+  MOCK_CONST_METHOD0(check_auth_metadata_timers, void());
+
+  MOCK_CONST_METHOD1(
+      get_rest_user_auth_data,
+      std::pair<bool, std::pair<std::string, rapidjson::Document>>(
+          const std::string &));
+
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover, bool(const std::string &, int));
@@ -81,6 +90,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       const std::vector<mysql_harness::TCPAddress> & /*metadata_servers*/,
       const mysqlrouter::UserCredentials & /*user_credentials*/,
       std::chrono::milliseconds /*ttl*/,
+      std::chrono::milliseconds /*auth_cache_ttl*/,
+      std::chrono::milliseconds /*auth_cache_refresh_interval*/,
       const mysqlrouter::SSLOptions & /*ssl_options*/,
       const std::string & /*cluster_name*/, int /*connect_timeout*/,
       int /*read_timeout*/,

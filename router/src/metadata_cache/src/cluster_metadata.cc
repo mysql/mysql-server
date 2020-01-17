@@ -301,3 +301,41 @@ bool ClusterMetadata::update_router_last_check_in(
   transaction.commit();
   return true;
 }
+
+ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
+    const std::string &cluster_name) {
+  ClusterMetadata::auth_credentials_t auth_credentials;
+  sqlstring query =
+      "SELECT user, authentication_string, privileges, authentication_method "
+      "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
+      "cluster_id=(SELECT cluster_id FROM "
+      "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=?)";
+  query << cluster_name << sqlstring::end;
+
+  auto result_processor =
+      [&auth_credentials](const MySQLSession::Row &row) -> bool {
+    JsonDocument privileges;
+    if (row[2] != nullptr) privileges.Parse<0>(get_string(row[2]).c_str());
+
+    const auto username = get_string(row[0]);
+    if (privileges.HasParseError()) {
+      log_warning(
+          "Skipping user '%s': invalid privilege format '%s', authentication "
+          "will not be possible",
+          username.c_str(), get_string(row[2]).c_str());
+    } else if (get_string(row[3]) != "modular_crypt_format") {
+      log_warning(
+          "Skipping user '%s': authentication method '%s' is not supported for "
+          "metadata_cache authentication",
+          username.c_str(), get_string(row[3]).c_str());
+    } else {
+      auth_credentials[username] =
+          std::make_pair(get_string(row[1]), std::move(privileges));
+    }
+    return true;
+  };
+
+  if (metadata_connection_)
+    metadata_connection_->query(query, result_processor);
+  return auth_credentials;
+}

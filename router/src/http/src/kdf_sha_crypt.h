@@ -33,16 +33,15 @@
 #include "mysqlrouter/http_auth_backend_lib_export.h"
 
 /**
- * SHA based crypt() key derivation function.
- *
- * - sha256_crypt
- * - sha512_crypt
- *
+ * sha256_crypt and sha512_crypt are SHA based crypt() key derivation functions.
  * @see  https://www.akkadia.org/drepper/SHA-crypt.txt
+ *
+ * caching_sha2_password is key derivation function taken from an internal
+ * MySQL authentication mechanism
  */
 class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCrypt {
  public:
-  enum class Type { Sha256, Sha512 };
+  enum class Type { Sha256, Sha512, CachingSha2Password };
   static std::string salt();
   static std::string derive(Type digest, unsigned long rounds,
                             const std::string &salt,
@@ -67,6 +66,8 @@ class ShaCryptMcfType {
         return std::make_pair(true, kTypeSha256);
       case Type::Sha512:
         return std::make_pair(true, kTypeSha512);
+      case Type::CachingSha2Password:
+        return std::make_pair(true, kTypeCachingSha2Password);
     }
 
     return std::make_pair(false, std::string{});
@@ -77,6 +78,8 @@ class ShaCryptMcfType {
       return std::make_pair(true, Type::Sha256);
     } else if (name == kTypeSha512) {
       return std::make_pair(true, Type::Sha512);
+    } else if (name == kTypeCachingSha2Password) {
+      return std::make_pair(true, Type::CachingSha2Password);
     }
 
     return std::make_pair(false, Type{});
@@ -87,6 +90,8 @@ class ShaCryptMcfType {
       return true;
     } else if (name == kTypeSha512) {
       return true;
+    } else if (name == kTypeCachingSha2Password) {
+      return true;
     }
 
     return false;
@@ -95,6 +100,7 @@ class ShaCryptMcfType {
  private:
   static constexpr char kTypeSha256[] = "5";
   static constexpr char kTypeSha512[] = "6";
+  static constexpr char kTypeCachingSha2Password[] = "A";
 };
 
 /**
@@ -129,8 +135,8 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
   ShaCryptMcfAdaptor(Type digest, unsigned long rounds, const std::string &salt,
                      const std::string &checksum)
       : digest_{digest}, rounds_{rounds}, salt_{salt}, checksum_{checksum} {
-    // limit salt
-    if (salt_.size() > kMaxSaltLength) {
+    // limit salt, for caching_sha2_password salt has a fixed length of 20
+    if (digest != Type::CachingSha2Password && salt_.size() > kMaxSaltLength) {
       salt_.resize(kMaxSaltLength);
     }
 
@@ -144,6 +150,7 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
    *
    * - 5 for SHA256
    * - 6 for SHA512
+   * - A for caching_sha2_password
    */
   std::string mcf_digest_name() const {
     auto r = mcf_type::name(digest());
@@ -241,6 +248,13 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
   unsigned long rounds_;
   std::string salt_;
   std::string checksum_;
+};
+
+class CachingSha2Adaptor : public ShaCryptMcfAdaptor {
+ public:
+  static ShaCryptMcfAdaptor from_mcf(const std::string &crypt_data);
+
+  static constexpr unsigned long kCachingSha2SaltLength = 20;
 };
 
 #endif

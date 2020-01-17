@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,9 @@ const std::string kDefaultMetadataUser = "admin";      // admin
 const std::string kDefaultMetadataPassword = "";       //
 const int kDefaultMetadataPort = 32275;                // 32275
 const std::chrono::milliseconds kDefaultMetadataTTL = std::chrono::seconds(1);
+const std::chrono::milliseconds kDefaultAuthCacheTTL = std::chrono::seconds(2);
+const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
+    std::chrono::milliseconds(-1);
 const std::string kDefaultMetadataReplicaset = "replicaset-1";
 
 const mysql_harness::TCPAddress bootstrap_server(kDefaultMetadataHost,
@@ -75,6 +78,7 @@ class MetadataCachePluginTest : public ::testing::Test {
         mysqlrouter::ClusterType::GR_V1, kRouterId, replication_group_id,
         metadata_server_vector,
         {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
+        kDefaultAuthCacheTTL, kDefaultAuthCacheRefreshInterval,
         mysqlrouter::SSLOptions(), kDefaultMetadataReplicaset, 1, 1);
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;

@@ -39,7 +39,8 @@ var defaults = {
   router_id: 1,
   // let the test that uses it set it explicitly, going with some default would mean failures
   // each time the version is bumped up (which we don't even control)
-  router_version: ""
+  router_version: "",
+  rest_user_credentials: []
 };
 
 function ensure_type(options, field, expected_type) {
@@ -970,6 +971,44 @@ exports.get = function get(stmt_key, options) {
     {
       "stmt": "SET @@SESSION.group_replication_consistency='EVENTUAL'",
       "ok": {}
+    },
+
+    router_select_rest_accounts_credentials:
+    {
+      "stmt": "SELECT user, authentication_string, privileges, " +
+              "authentication_method FROM " +
+              "mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE " +
+              "cluster_id=(SELECT cluster_id FROM " +
+              "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name='"
+              + options.innodb_cluster_name + "')",
+      "result": {
+        "columns": [
+          {
+            "type": "STRING",
+            "name": "user"
+          },
+          {
+            "type": "STRING",
+            "name": "authentication_string"
+          },
+          {
+            "type": "STRING",
+            "name": "privileges"
+          },
+          {
+            "type": "STRING",
+            "name": "authentication_method"
+          }
+        ],
+        "rows": options["rest_user_credentials"].map(function(currentValue) {
+              return [
+                currentValue[0],
+                currentValue[1],
+                currentValue[2] === "" ? null : currentValue[2],
+                currentValue[3],
+              ]
+        })
+      }
     },
   };
 

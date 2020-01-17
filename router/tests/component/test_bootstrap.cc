@@ -291,6 +291,8 @@ router_id=1)";
   const char *expected_config_gr_part2 =
       R"(metadata_cluster=mycluster
 ttl=0.5
+auth_cache_ttl=-1
+auth_cache_refresh_interval=2
 use_gr_notifications=0
 
 [routing:mycluster_rw]
@@ -331,6 +333,8 @@ router_id=1)";
   const char *expected_config_ar_part2 =
       R"(metadata_cluster=mycluster
 ttl=0.5
+auth_cache_ttl=-1
+auth_cache_refresh_interval=2
 
 [routing:mycluster_rw]
 bind_address=0.0.0.0

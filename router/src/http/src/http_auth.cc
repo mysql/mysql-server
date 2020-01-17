@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <string>
 
 #include "http_auth_backend.h"
+#include "http_auth_error.h"
 #include "http_auth_method_basic.h"
 #include "matcher.h"
 #include "mysqlrouter/http_server_component.h"
@@ -207,15 +208,17 @@ bool HttpAuth::require_auth(HttpRequest &req,
       return true;
     }
 
-    // we could log 'ec' with log_debug()
-    if (/* auto ec = */ realm->authenticate(auth_data.username,
-                                            auth_data.password)) {
+    ec = realm->authenticate(auth_data.username, auth_data.password);
+    if (ec) {
       out_hdrs.add(
           kWwwAuthenticate,
           HttpAuthChallenge(realm->method(), "", {{"realm", realm->name()}})
               .str()
               .c_str());
-      req.send_reply(HttpStatusCode::Unauthorized);
+      if (ec == std::make_error_code(HttpAuthErrc::kAuthorizationNotSupported))
+        req.send_reply(HttpStatusCode::Forbidden);
+      else
+        req.send_reply(HttpStatusCode::Unauthorized);
       return true;
     }
   } else {

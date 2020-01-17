@@ -93,6 +93,10 @@ static const std::chrono::milliseconds kDefaultMetadataTTL =
     std::chrono::milliseconds(500);
 static const std::chrono::milliseconds kDefaultMetadataTTLGRNotificationsON =
     std::chrono::milliseconds(60 * 1000);
+static const std::chrono::milliseconds kDefaultAuthCacheTTL =
+    std::chrono::seconds(-1);
+static const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
+    std::chrono::milliseconds(2000);
 static constexpr uint32_t kMaxRouterId =
     999999;  // max router id is 6 digits due to username size constraints
 static constexpr unsigned kNumRandomChars = 12;
@@ -1939,6 +1943,12 @@ void ConfigGenerator::create_config(
               << "user=" << username << "\n"
               << "metadata_cluster=" << metadata_cluster << "\n"
               << "ttl=" << mysqlrouter::ms_to_seconds_string(ttl) << "\n"
+              << "auth_cache_ttl="
+              << mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL) << "\n"
+              << "auth_cache_refresh_interval="
+              << mysqlrouter::ms_to_seconds_string(
+                     kDefaultAuthCacheRefreshInterval)
+              << "\n"
               << use_gr_notifications;
 
   // SSL options

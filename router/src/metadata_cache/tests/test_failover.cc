@@ -63,10 +63,13 @@ class FailoverTest : public ::testing::Test {
   }
 
   void init_cache() {
-    cache.reset(new GRMetadataCache(
-        kRouterId, "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76",
-        {mysql_harness::TCPAddress("localhost", 32275)}, cmeta,
-        std::chrono::seconds(10), mysqlrouter::SSLOptions(), "cluster-1"));
+    cache.reset(
+        new GRMetadataCache(kRouterId, "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76",
+                            {mysql_harness::TCPAddress("localhost", 32275)},
+                            cmeta, std::chrono::seconds(10),
+                            std::chrono::seconds(-1), std::chrono::seconds(20),
+
+                            mysqlrouter::SSLOptions(), "cluster-1"));
   }
 
   // make queries on metadata schema return a 3 members replicaset

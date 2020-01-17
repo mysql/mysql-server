@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -62,6 +62,9 @@ class METADATA_API MetadataCache
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data
+   * @param auth_cache_ttl TTL of the rest users authentication data
+   * @param auth_cache_refresh_interval Refresh rate of the rest users
+   *        authentiction data
    * @param ssl_options SSL related options for connection
    * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
@@ -72,6 +75,8 @@ class METADATA_API MetadataCache
       const unsigned router_id, const std::string &cluster_specific_type_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
+      const std::chrono::milliseconds auth_cache_ttl,
+      const std::chrono::milliseconds auth_cache_refresh_interval,
       const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
@@ -175,6 +180,15 @@ class METADATA_API MetadataCache
 
   std::vector<mysql_harness::TCPAddress> metadata_servers();
 
+  void enable_fetch_auth_metadata() { auth_metadata_fetch_enabled_ = true; }
+
+  void force_cache_update() { on_refresh_requested(); }
+
+  void check_auth_metadata_timers() const;
+
+  std::pair<bool, MetaData::auth_credentials_t::mapped_type>
+  get_rest_user_auth_data(const std::string &user);
+
  protected:
   /** @brief Refreshes the cache
    *
@@ -192,6 +206,9 @@ class METADATA_API MetadataCache
 
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
+
+  // Update rest users authentication data
+  bool update_auth_cache();
 
   // Stores the list replicasets and their server instances.
   // Keyed by replicaset name
@@ -211,11 +228,24 @@ class METADATA_API MetadataCache
   // The time to live of the metadata cache.
   std::chrono::milliseconds ttl_;
 
+  // Time to live of the auth credentials cache.
+  std::chrono::milliseconds auth_cache_ttl_;
+
+  // Auth credentials cache refresh interval
+  std::chrono::milliseconds auth_cache_refresh_interval_;
+
   // SSL options for MySQL connections
   mysqlrouter::SSLOptions ssl_options_;
 
   // id of the Router in the cluster metadata
   unsigned router_id_;
+
+  // Authentication data for the rest users
+  MetaData::auth_credentials_t rest_auth_data_;
+
+  // Authentication data should be fetched only when metadata_cache is used as
+  // an authentication backend
+  bool auth_metadata_fetch_enabled_{false};
 
   // Stores the pointer to the transport layer implementation. The transport
   // layer communicates with the servers storing the metadata and fetches the
@@ -264,12 +294,13 @@ class METADATA_API MetadataCache
   std::chrono::system_clock::time_point last_refresh_succeeded_;
   uint64_t refresh_failed_{0};
   uint64_t refresh_succeeded_{0};
+  std::chrono::system_clock::time_point last_credentials_update_;
 
   std::string last_metadata_server_host_;
   uint16_t last_metadata_server_port_;
 
-  bool version_udpated_{false};
-  unsigned last_check_in_udpated_{0};
+  bool version_updated_{false};
+  unsigned last_check_in_updated_{0};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

@@ -121,6 +121,9 @@ class METADATA_API ClusterMetadata : public MetaData {
       const metadata_cache::ManagedInstance &rw_instance,
       const unsigned router_id) override;
 
+  auth_credentials_t fetch_auth_credentials(
+      const std::string &cluster_name) override;
+
  protected:
   /** Connects a MYSQL connection to the given instance
    */

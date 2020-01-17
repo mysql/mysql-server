@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1465,6 +1465,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1536,6 +1538,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1610,6 +1614,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1687,6 +1693,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1766,6 +1774,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"
@@ -1854,6 +1864,8 @@ TEST_F(ConfigGeneratorTest, create_config) {
            "user=cluster_user\n"
            "metadata_cluster=mycluster\n"
            "ttl=0.5\n"
+           "auth_cache_ttl=-1\n"
+           "auth_cache_refresh_interval=2\n"
            "use_gr_notifications=0\n"
            "\n"
            "[routing:mycluster_myreplicaset_rw]\n"

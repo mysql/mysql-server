@@ -103,8 +103,9 @@ SET_PATH_TO_SSL(http_auth_backend_lib ${CMAKE_BINARY_DIR}/library_output_directo
 ADD_HARNESS_PLUGIN(http_auth_backend
   SOURCES
   http_auth_backend_plugin.cc
+  http_auth_backend_metadata_cache.cc
   REQUIRES
-  http_common;http_auth_backend_lib;router_lib
+  http_common;http_auth_backend_lib;router_lib;metadata_cache
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 GENERATE_EXPORT_HEADER(http_auth_backend
@@ -226,6 +227,7 @@ MYSQL_ADD_EXECUTABLE(mysqlrouter_passwd
   harness-library
   router_lib
   http_auth_backend_lib
+  metadata_cache
   )
 ADD_INSTALL_RPATH(mysqlrouter_passwd "${ROUTER_INSTALL_RPATH}")
 

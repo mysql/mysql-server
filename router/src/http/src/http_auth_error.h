@@ -33,6 +33,7 @@ enum class HttpAuthErrc {
   // no 0!
   kBackendNotFound = 1,
   kRealmNotFound = 2,
+  kAuthorizationNotSupported = 3,
 };
 
 namespace std {

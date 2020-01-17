@@ -35,6 +35,7 @@ enum class McfErrc {
   kUserNotFound = 2,
   kPasswordNotMatched = 3,
   kUnknownScheme = 4,
+  kMetadataNotInitialized = 5,
 };
 
 namespace std {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -372,6 +372,20 @@ void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
 mysqlrouter::ClusterType GRClusterMetadata::get_cluster_type() {
   if (!metadata_backend_) return ClusterType::GR_V1;
   return metadata_backend_->get_cluster_type();
+}
+
+GRClusterMetadata::auth_credentials_t GRClusterMetadata::fetch_auth_credentials(
+    const std::string &cluster_name) {
+  if (!metadata_backend_) return {};
+  switch (metadata_backend_->get_cluster_type()) {
+    case mysqlrouter::ClusterType::GR_V1:
+      log_warning(
+          "metadata_cache authentication backend is not supported for metadata "
+          "version 1.0");
+      return {};
+    default:
+      return ClusterMetadata::fetch_auth_credentials(cluster_name);
+  }
 }
 
 GRClusterMetadata::ReplicaSetsByName

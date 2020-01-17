@@ -29,6 +29,10 @@
 #include <string>
 #include <system_error>
 
+#include "my_rapidjson_size_t.h"
+
+#include <rapidjson/document.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 

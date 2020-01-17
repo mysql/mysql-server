@@ -196,7 +196,15 @@ INSTANTIATE_TEST_CASE_P(
             ShaCryptMcfAdaptor::kDefaultRounds,  // rounds
             "rounds=foobar",                     // salt
             "checksum",                          // checksum
-            nullptr)));
+            nullptr),
+        std::make_tuple(  // caching_sha2_password
+            "$A$005$"
+            "ON\030/\024GC\"\a\022{\027\060\063Us\023\016(^"
+            "I1HNepudlvZupwO.NNkzkFX89oMxwzo3kz3iXjOU56A",
+            5000,                                              // rounds
+            "ON\030/\024GC\"\a\022{\027\060\063Us\023\016(^",  // salt
+            "I1HNepudlvZupwO.NNkzkFX89oMxwzo3kz3iXjOU56A",     // checksum
+            "root")));
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);
