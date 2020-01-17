@@ -9,7 +9,7 @@ CREATE DATABASE db1;
 CREATE TABLE db1.t1 (f1 INT) ENGINE='InnoDB';
 SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1';
 TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE	INSTANT_COLS
-1062	db1/t1	33	4	4	Dynamic	0	Single	0
+#	db1/t1	33	4	#	Dynamic	0	Single	0
 # Evict db1.t1 from innodb cache by restarting the server.
 # restart
 # Wait after acquiring table object, but before schema object is acquired.
@@ -34,7 +34,7 @@ CREATE TABLE db1.t1 (a INT NOT NULL, b INT NOT NULL)
 PARTITION BY KEY (a) PARTITIONS 1;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1#p#p0';
 TABLE_ID	NAME	FLAG	N_COLS	SPACE	ROW_FORMAT	ZIP_PAGE_SIZE	SPACE_TYPE	INSTANT_COLS
-1063	db1/t1#p#p0	33	5	5	Dynamic	0	Single	0
+#	db1/t1#p#p0	33	5	#	Dynamic	0	Single	0
 # Evict db1.t1 from innodb cache by restarting the server.
 # restart
 # Wait after acquiring table object, but before schema object is acquired.

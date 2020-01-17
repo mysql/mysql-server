@@ -9,6 +9,7 @@
 
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (f1 INT) ENGINE='InnoDB';
+--replace_column 1 # 5 #
 SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1';
 
 
@@ -46,6 +47,7 @@ disconnect con1;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT NOT NULL, b INT NOT NULL)
 PARTITION BY KEY (a) PARTITIONS 1;
+--replace_column 1 # 5 #
 SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE name like 'db1/t1#p#p0';
 
 
