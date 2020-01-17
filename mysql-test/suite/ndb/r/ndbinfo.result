@@ -923,6 +923,7 @@ SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 Warnings:
 Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
+Note	1	'NDBINFO' has been started in offline mode since the 'NDBCLUSTER' engine is disabled or @@global.ndbinfo_offline is turned on - no rows can be returned
 
 DROP VIEW view_on_table_which_does_not_exist_in_ndb;
 DROP TABLE ndb$does_not_exist_in_ndb;
