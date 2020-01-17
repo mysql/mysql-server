@@ -2241,9 +2241,9 @@ void SELECT_LEX_UNIT::exclude_tree(THD *thd) {
     if (sl->link_prev && (*sl->link_prev = sl->link_next))
       sl->link_next->link_prev = sl->link_prev;
 
-    // unlink underlay levels
+    // Exclude subtrees of all the inner query expressions of this query block
     for (SELECT_LEX_UNIT *u = sl->first_inner_unit(); u; u = u->next_unit()) {
-      u->exclude_level();
+      u->exclude_tree(thd);
     }
 
     /*
