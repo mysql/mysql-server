@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -415,7 +415,7 @@ a transaction can no longer be treated as read-only and becomes read-write.
 @return the transaction's immutable id */
 UNIV_INLINE
 uint64_t trx_immutable_id(const trx_t *trx) {
-  return reinterpret_cast<uint64_t>(trx);
+  return (uint64_t{reinterpret_cast<uintptr_t>(trx)});
 }
 
 /**
@@ -571,7 +571,7 @@ struct trx_lock_t {
   deadlock detection, as it is performed only among transactions which are
   waiting.
 
-  This field is changed from non-null to null, when holding trx_mutex_own(this)
+  This field is changed from null to non-null, when holding trx_mutex_own(this)
   and lock_sys mutex.
   The field is changed from non-null to different non-null value, while holding
   lock_sys mutex.
@@ -617,9 +617,6 @@ struct trx_lock_t {
   Protected by trx->mutex. */
   uint32_t wait_lock_type;
 
-  ib_uint64_t deadlock_mark; /*!< A mark field that is initialized
-                             to and checked against lock_mark_counter
-                             by lock_deadlock_recursive(). */
   bool was_chosen_as_deadlock_victim;
   /*!< when the transaction decides to
   wait for a lock, it sets this to false;
@@ -681,12 +678,20 @@ struct trx_lock_t {
 
   /** Used to indicate that every lock of this transaction placed on a record
   which is being purged should be inherited to the gap.
-  Readers should hold a latch on the lock they'd like to learn about wether or
+  Readers should hold a latch on the lock they'd like to learn about whether or
   not it should be inherited.
   Writers who want to set it to true, should hold a latch on the lock-sys queue
   they intend to add a lock to.
   Writers may set it to false at any time. */
   std::atomic<bool> inherit_all;
+
+  /** Weight of the waiting transaction used for scheduling.
+  The higher the weight the more we are willing to grant a lock to this
+  transaction.
+  Values are updated and read without any synchronization beyond that provided
+  by atomics, as slightly stale values do not hurt correctness, just the
+  performance. */
+  std::atomic<trx_schedule_weight_t> schedule_weight;
 
 #ifdef UNIV_DEBUG
   /** When a transaction is forced to rollback due to a deadlock
@@ -1029,12 +1034,6 @@ struct trx_t {
 
   time_t start_time; /*!< time the state last time became
                      TRX_STATE_ACTIVE */
-
-  /** Weight/Age of the transaction in the record lock wait queue. */
-  int32_t age;
-
-  /** For tracking if Weight/age has been updated. */
-  uint64_t age_updated;
 
   lsn_t commit_lsn; /*!< lsn at the time of the commit */
 

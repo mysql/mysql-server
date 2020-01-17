@@ -104,7 +104,7 @@ constexpr auto I_S_PAGE_TYPE_BITS = 6;
 
 /** I_S.innodb_* views version postfix. Everytime the define of any InnoDB I_S
 table is changed, this value has to be increased accordingly */
-constexpr uint8_t i_s_innodb_plugin_version_postfix = 1;
+constexpr uint8_t i_s_innodb_plugin_version_postfix = 2;
 
 /** I_S.innodb_* views version. It would be X.Y and X should be the server major
  * version while Y is the InnoDB I_S views version, starting from 1 */
@@ -341,9 +341,9 @@ the change can be propagated to server */
 static ST_FIELD_INFO innodb_trx_fields_info[] = {
 #define IDX_TRX_ID 0
     {STRUCT_FLD(field_name, "trx_id"),
-     STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
-     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
-     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
 #define IDX_TRX_STATE 1
@@ -500,6 +500,13 @@ static ST_FIELD_INFO innodb_trx_fields_info[] = {
      STRUCT_FLD(value, 0), STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
+#define IDX_TRX_SCHEDULE_WEIGHT 24
+    {STRUCT_FLD(field_name, "trx_schedule_weight"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED | MY_I_S_MAYBE_NULL),
+     STRUCT_FLD(old_name, ""), STRUCT_FLD(open_method, 0)},
+
     END_OF_ST_FIELD_INFO};
 
 /** Read data from cache buffer and fill the INFORMATION_SCHEMA.innodb_trx
@@ -524,13 +531,11 @@ static int fill_innodb_trx_from_cache(
 
   for (i = 0; i < rows_num; i++) {
     i_s_trx_row_t *row;
-    char trx_id[TRX_ID_MAX_LEN + 1];
 
     row = (i_s_trx_row_t *)trx_i_s_cache_get_nth_row(cache, I_S_INNODB_TRX, i);
 
     /* trx_id */
-    snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, row->trx_id);
-    OK(field_store_string(fields[IDX_TRX_ID], trx_id));
+    OK(fields[IDX_TRX_ID]->store(row->trx_id, true));
 
     /* trx_state */
     OK(field_store_string(fields[IDX_TRX_STATE], row->trx_state));
@@ -624,6 +629,15 @@ static int fill_innodb_trx_from_cache(
     /* trx_is_autocommit_non_locking */
     OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
         (longlong)row->trx_is_autocommit_non_locking, true));
+
+    /* trx_schedule_weight */
+    if (row->trx_schedule_weight.first) {
+      OK(fields[IDX_TRX_SCHEDULE_WEIGHT]->store(row->trx_schedule_weight.second,
+                                                true));
+      fields[IDX_TRX_SCHEDULE_WEIGHT]->set_notnull();
+    } else {
+      fields[IDX_TRX_SCHEDULE_WEIGHT]->set_null();
+    }
 
     OK(schema_table_store_record(thd, table));
   }
@@ -2099,8 +2113,7 @@ to change i_s_innodb_plugin_version_postfix accordingly, so that
 the change can be propagated to server */
 static ST_FIELD_INFO i_s_stopword_fields_info[] = {
 #define STOPWORD_VALUE 0
-    {STRUCT_FLD(field_name, "value"),
-     STRUCT_FLD(field_length, TRX_ID_MAX_LEN + 1),
+    {STRUCT_FLD(field_name, "value"), STRUCT_FLD(field_length, 18),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},

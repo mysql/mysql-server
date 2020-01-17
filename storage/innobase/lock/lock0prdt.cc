@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -162,10 +162,17 @@ bool lock_prdt_has_to_wait(
         (lock2->type_mode & LOCK_PRDT_PAGE && type_mode & LOCK_PRDT_PAGE));
 
   ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
+  const bool is_hp = trx_is_high_priority(trx);
 
   if (trx != lock2->trx &&
       !lock_mode_compatible(static_cast<lock_mode>(LOCK_MODE_MASK & type_mode),
                             lock_get_mode(lock2))) {
+    /* If our trx is High Priority and the existing lock is WAITING and not
+        high priority, then we can ignore it. */
+    if (is_hp && lock2->is_waiting() && !trx_is_high_priority(lock2->trx)) {
+      return (false);
+    }
+
     /* If it is a page lock, then return true (conflict) */
     if (type_mode & LOCK_PRDT_PAGE) {
       ut_ad(lock2->type_mode & LOCK_PRDT_PAGE);
@@ -412,7 +419,7 @@ static lock_t *lock_prdt_add_to_queue(
   RecLock rec_lock(index, block, PRDT_HEAPNO, type_mode);
 
   trx_mutex_enter(trx);
-  auto *created_lock = (rec_lock.create(trx, true, prdt));
+  auto *created_lock = (rec_lock.create(trx, prdt));
   trx_mutex_exit(trx);
 
   return (created_lock);
@@ -717,7 +724,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
     RecLock rec_lock(index, block, PRDT_HEAPNO, prdt_mode);
 
     trx_mutex_enter(trx);
-    lock = rec_lock.create(trx, true);
+    lock = rec_lock.create(trx);
     trx_mutex_exit(trx);
 
     status = LOCK_REC_SUCCESS_CREATED;
@@ -817,7 +824,7 @@ dberr_t lock_place_prdt_page_lock(
     RecLock rec_lock(index, rec_id, mode);
 
     trx_mutex_enter(trx);
-    rec_lock.create(trx, true);
+    rec_lock.create(trx);
     trx_mutex_exit(trx);
 
 #ifdef PRDT_DIAG

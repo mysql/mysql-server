@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,11 +78,8 @@ static const ulint TABLE_LOCK_CACHE = 8;
 /** Size in bytes, of the table lock instance */
 static const ulint TABLE_LOCK_SIZE = sizeof(ib_lock_t);
 
-/** Switch to CATS if the number of threads waiting is above this threshold. */
-static const int LOCK_CATS_THRESHOLD = 32;
-
-using Locks = std::vector<std::pair<lock_t *, size_t>,
-                          mem_heap_allocator<std::pair<lock_t *, size_t>>>;
+template <typename T>
+using Locks = std::vector<T, mem_heap_allocator<T>>;
 
 /** Used by lock_get_mode_str to build a lock mode description */
 static const std::map<uint, const char *> lock_constant_names{
@@ -475,9 +472,16 @@ request is really for a 'gap' type lock */
   ut_ad(trx && lock2);
   ut_ad(lock_get_type_low(lock2) == LOCK_REC);
 
+  const bool is_hp = trx_is_high_priority(trx);
   if (trx != lock2->trx &&
       !lock_mode_compatible(static_cast<lock_mode>(LOCK_MODE_MASK & type_mode),
                             lock_get_mode(lock2))) {
+    /* If our trx is High Priority and the existing lock is WAITING and not
+        high priority, then we can ignore it. */
+    if (is_hp && lock2->is_waiting() && !trx_is_high_priority(lock2->trx)) {
+      return (false);
+    }
+
     /* We have somewhat complex rules when gap type record locks
     cause waits */
 
@@ -546,9 +550,8 @@ bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
         return (lock_prdt_has_to_wait(lock1->trx, lock1->type_mode,
                                       lock_get_prdt_from_lock(lock1), lock2));
       } else {
-        return (lock_rec_has_to_wait(
-            lock1->trx, lock1->type_mode, lock2,
-            lock_rec_get_nth_bit(lock1, PAGE_HEAP_NO_SUPREMUM)));
+        return (lock_rec_has_to_wait(lock1->trx, lock1->type_mode, lock2,
+                                     lock1->includes_supremum()));
       }
     }
 
@@ -927,20 +930,6 @@ ulint lock_number_of_tables_locked(const trx_t *trx) {
 /*============== RECORD LOCK CREATION AND QUEUE MANAGEMENT =============*/
 
 /**
-Check of the lock is on m_rec_id.
-@param[in] lock			Lock to compare with
-@return true if the record lock is on m_rec_id*/
-bool RecLock::is_on_row(const lock_t *lock) const {
-  ut_ad(lock_get_type_low(lock) == LOCK_REC);
-
-  const lock_rec_t &other = lock->rec_lock;
-
-  return (other.space == m_rec_id.m_space_id &&
-          other.page_no == m_rec_id.m_page_no &&
-          lock_rec_get_nth_bit(lock, m_rec_id.m_heap_no));
-}
-
-/**
 Do some checks and prepare for creating a new record lock */
 void RecLock::prepare() const {
   ut_ad(lock_mutex_own());
@@ -1039,70 +1028,29 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
   return (lock);
 }
 
-/** Predicate to check if we should use FCFS or CATS for a particular lock of
-particular transaction under current server load.
-
-Currently we support CATS algorithm only for LOCK_REC locks which are not
-LOCK_PRDT_PAGE nor LOCK_PREDICATE. In particular, methods such as
-lock_update_trx_age, lock_update_age, lock_grant_cats all assume that the locks
-they operate on are in lock_sys->rec_hash, so it would require some refactoring
-to make them work for LOCK_TABLE, LOCK_PRDT_PAGE or LOCK_PREDICATE, and the
-benefit is probably not worth the cost here.
-
-Also, the theory described in the paper about CATS assumes a very simple locking
-model in which objects can either be S-locked or X-locked, which simplifies
-greatly the issue of deciding which lock request is blocked by which. In
-reality, our LOCK_REC locks have a very rich structure including gap locks,
-locks simultaneously on records and gaps, etc. which means that the "wait for"
-relation is neither symmetric (for example insert intention locks have to wait
-for gap locks, but not the other way around), nor transitive (for example an
-insert-intention lock, has to wait for a gap+record lock, which has to wait for
-a record-only lock, but the insert-intention lock does not have to wait for the
-record-only lock).
-Our current implementation of CATS simply uses a conservative simplification,
-that if two lock requests are for the same <space_id, page_id, heap_no> and one
-of them is granted and the other is waiting, then we can (for the purpose of
-computing "weight" a.k.a. "age") pretend that the latter is waiting for the
-former. This seems a bit rough, but works well enough in practice. This
-approach, could perhaps be ported for LOCK_TABLE locks without loosing to much
-precision, as well. However, for LOCK_PRDT_PAGE and LOCK_PREDICATE, which are
-always set for the same INFIMUM heap_no, similar simplification could lead to a
-conclusion that each waiting predicate lock is blocked by each granted predicate
-lock, which might be too cumbersome. It is also not clear how to make it more
-fine-grained, as predicate locks have quite rich structure themselves (in
-essence it is about relations of geometrical shapes, mostly rectangles), and
-testing each pair for conflict is on the one hand a bit complex, and on the
-other hand does not lead to a clear cut separation into independent queues, but
-rather a complicated graph of relations. Note, that I strategically avoided if I
-mean LOCK_PRDT_PAGE or LOCK_PREDICATE. This is because the two interact with
-each other which makes it all even more complicated to refactor/implement, as
-the current CATS implementation for LOCK_REC simply iterates over a single
-bucket of a single hash map, but for predicate locks we might need to scan both
-lock_sys->prdt_page_hash and lock_sys->prdt_hash.
-
-@param[in]	lock		Lock to check
-@return true if FCFS algorithm should be used */
-static bool lock_use_fcfs(const lock_t *lock) {
-  ut_ad(lock_mutex_own());
-  /* We read n_waiting without holding lock_wait_mutex_enter/exit, so we use
-  atomic read, to avoid torn read. Because `lock_use_fcfs` is just a heuristic
-  which can tolerate a slightly desynchronized (w.r.t. other variables)
-  information called quite often during trx->age updating, we use relaxed
-  memory ordering */
-  return (thd_is_replication_slave_thread(lock->trx->mysql_thd) ||
-          lock_sys->n_waiting.load(std::memory_order_relaxed) <
-              LOCK_CATS_THRESHOLD ||
-          !lock->is_record_lock() || lock->is_predicate());
-}
-
-/** Insert lock record to the head of the queue.
+/** Insert lock record to the tail of the queue where the WAITING locks reside.
 @param[in,out]	lock_hash	Hash table containing the locks
 @param[in,out]	lock		Record lock instance to insert
 @param[in]	rec_id	        Record being locked */
-static void lock_rec_insert_cats(hash_table_t *lock_hash, lock_t *lock,
-                                 const RecID &rec_id) {
+static void lock_rec_insert_to_waiting(hash_table_t *lock_hash, lock_t *lock,
+                                       const RecID &rec_id) {
+  ut_ad(lock->is_waiting());
   ut_ad(rec_id.matches(lock));
   ut_ad(lock_mutex_own());
+
+  const ulint fold = rec_id.fold();
+  HASH_INSERT(lock_t, hash, lock_hash, fold, lock);
+}
+
+/** Insert lock record to the head of the queue where the GRANTED locks reside.
+@param[in,out]	lock_hash	Hash table containing the locks
+@param[in,out]	lock		Record lock instance to insert
+@param[in]	rec_id	        Record being locked */
+static void lock_rec_insert_to_granted(hash_table_t *lock_hash, lock_t *lock,
+                                       const RecID &rec_id) {
+  ut_ad(rec_id.matches(lock));
+  ut_ad(lock_mutex_own());
+  ut_ad(!lock->is_waiting());
 
   /* Move the target lock to the head of the list. */
   auto cell =
@@ -1116,155 +1064,21 @@ static void lock_rec_insert_cats(hash_table_t *lock_hash, lock_t *lock,
   lock->hash = next;
 }
 
-/** Recursively update the trx_t::age for all transactions in the
-lock waits for graph.
-@param[in,out]	trx		Transaction to update
-@param[in]	age		delta to add or subtract */
-static void lock_update_trx_age(trx_t *trx, int32_t age) {
-  ut_ad(lock_mutex_own());
-
-  if (age == 0 || trx->age_updated == lock_sys->mark_age_updated) {
-    return;
-  }
-
-  ut_ad(trx->age_updated < lock_sys->mark_age_updated);
-
-  /* In an incorrect implementation the `trx->age` could grow exponentially due
-  to double-counting trx's own weight when a cycle is formed in the
-  wait-for graph. A correct implementation should keep the `trx->age` value
-  close to its theoretical meaning of "number of other trxs waiting for me"
-  which is no more than N in the test scenario. The threshold in the assertion
-  below (`trx->age<100`) was chosen as a number which satisfies N < 100 < 2^N,
-  where N is the number of transactions involved in this test case (N=10).
-  There is also another test case which creates N=100 transactions each of which
-  in a correct implementation should not affect the trx->age, yet in an
-  incorrect implementation each caused a constant increment (~4) - to detect
-  that the assertion threshold needs to be between 0 and 100*constant.
-  There are many other ways in which current implementation of CATS can cause
-  the trx->age to grow arbitrary large or negative, as it is incapable of
-  properly accounting for multiple paths in wait-for-graph connecting the same
-  pair of transactions. Therefore, instead of naive:
-     trx->age += age;
-  we use a temporary workaround to avoid over- and under-flows.
-  The RHS in the += assignment will be equal to one of three possible values,
-  which make the end result equal to MAX_REASONABLE_AGE, 0 or trx->age+age, and
-  the third option is used if and only if it is inside the valid range of
-  <0,MAX_REASONABLE_AGE>. */
-
-  const int32_t MAX_REASONABLE_AGE =
-      std::min<int32_t>(srv_max_n_threads, 100000);
-  trx->age += std::min(MAX_REASONABLE_AGE - trx->age, std::max(-trx->age, age));
-
-  DBUG_EXECUTE_IF("lock_update_trx_age_check_age_limit", ut_a(trx->age < 100););
-  ut_ad(0 <= trx->age);
-  ut_ad(trx->age <= MAX_REASONABLE_AGE);
-
-  trx->age_updated = lock_sys->mark_age_updated;
-
-  if (trx->state != TRX_STATE_ACTIVE || trx->lock.wait_lock == nullptr) {
-    return;
-  }
-
-  const auto wait_lock = trx->lock.wait_lock;
-
-  /* could be table level lock like autoinc or predicate lock */
-  if (lock_use_fcfs(wait_lock)) {
-    return;
-  }
-
-  auto heap_no = lock_rec_find_set_bit(wait_lock);
-  auto space = wait_lock->rec_lock.space;
-  auto page_no = wait_lock->rec_lock.page_no;
-
-  RecID rec_id(space, page_no, heap_no);
-
-  ut_ad(!wait_lock->is_predicate());
-
-  Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
-    if (!lock->is_waiting() && trx != lock->trx && !lock_use_fcfs(lock) &&
-        lock->trx->age_updated < lock_sys->mark_age_updated) {
-      lock_update_trx_age(lock->trx, age);
-    }
-
-    return (true);
-  });
-}
-
-/** Update the age of the transactions in the queue, when a new
-record lock is created.
-@param[in,out]	new_lock	The lock that was just created
-@param[in]	heap_no		The heap number of the lock in the page */
-static void lock_update_age(lock_t *new_lock, ulint heap_no) {
-  ut_ad(lock_mutex_own());
-
-  if (lock_use_fcfs(new_lock) || new_lock->trx->state != TRX_STATE_ACTIVE) {
-    return;
-  }
-
-  using Trxs = std::unordered_set<trx_t *>;
-
-  Trxs trxs;
-  int32_t age = 0;
-  auto space = new_lock->rec_lock.space;
-  auto page_no = new_lock->rec_lock.page_no;
-
-  ut_ad(!new_lock->is_predicate());
-
-  RecID rec_id{space, page_no, heap_no};
-  const auto wait = lock_get_wait(new_lock);
-
-  Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
-    const auto trx = lock->trx;
-
-    if (new_lock->trx != trx) {
-      if (wait) {
-        if (!lock->is_waiting() && !lock_use_fcfs(lock) &&
-            trx->state == TRX_STATE_ACTIVE) {
-          trxs.insert(trx);
-        }
-
-      } else if (lock->is_waiting()) {
-        age += trx->age + 1;
-      }
-    }
-
-    return (true);
-  });
-
-  ++lock_sys->mark_age_updated;
-
-  if (wait) {
-    for (auto trx : trxs) {
-      lock_update_trx_age(trx, new_lock->trx->age + 1);
-    }
-
-  } else if (age > 0) {
-    DEBUG_SYNC_C("lock_update_age_will_check_state_again");
-
-    lock_update_trx_age(new_lock->trx, age);
-  }
-}
-
-/** Add the lock to the record lock hash and the transaction's lock list
-@param[in,out] lock	Newly created record lock to add to the rec hash
-@param[in] add_to_hash	If the lock should be added to the hash table */
-void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
+void RecLock::lock_add(lock_t *lock) {
+  ut_ad((lock->type_mode | LOCK_REC) == (m_mode | LOCK_REC));
   ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(lock->trx));
 
   bool wait = m_mode & LOCK_WAIT;
 
-  if (add_to_hash) {
-    hash_table_t *lock_hash = lock_hash_get(m_mode);
+  hash_table_t *lock_hash = lock_hash_get(m_mode);
 
-    ++lock->index->table->n_rec_locks;
+  ++lock->index->table->n_rec_locks;
 
-    if (!lock_use_fcfs(lock) && !wait) {
-      lock_rec_insert_cats(lock_hash, lock, m_rec_id);
-    } else {
-      ulint key = m_rec_id.fold();
-      HASH_INSERT(lock_t, hash, lock_hash, key, lock);
-    }
+  if (!wait) {
+    lock_rec_insert_to_granted(lock_hash, lock, m_rec_id);
+  } else {
+    lock_rec_insert_to_waiting(lock_hash, lock, m_rec_id);
   }
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -1280,17 +1094,14 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
 
   if (wait) {
     lock_set_lock_and_trx_wait(lock);
-  } else {
-    lock_update_age(lock, lock_rec_find_set_bit(lock));
   }
 }
 
 /** Create a new lock.
 @param[in,out] trx		Transaction requesting the lock
-@param[in] add_to_hash		add the lock to hash table
 @param[in] prdt			Predicate lock (optional)
 @return a new lock instance */
-lock_t *RecLock::create(trx_t *trx, bool add_to_hash, const lock_prdt_t *prdt) {
+lock_t *RecLock::create(trx_t *trx, const lock_prdt_t *prdt) {
   ut_ad(lock_mutex_own());
 
   /* Ensure that another transaction doesn't access the trx
@@ -1327,7 +1138,7 @@ lock_t *RecLock::create(trx_t *trx, bool add_to_hash, const lock_prdt_t *prdt) {
     lock_prdt_set_prdt(lock, prdt);
   }
 
-  lock_add(lock, add_to_hash);
+  lock_add(lock);
 
   return (lock);
 }
@@ -1378,7 +1189,7 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
 
 /** Creates a new edge in wait-for graph, from waiter to blocker
 @param[in]  waiter    The transaction that has to wait for blocker
-@param[in]  blocker   The transaction wich causes waiter to wait */
+@param[in]  blocker   The transaction which causes waiter to wait */
 static void lock_create_wait_for_edge(trx_t *waiter, trx_t *blocker) {
   ut_ad(trx_mutex_own(waiter));
   ut_ad(waiter->lock.wait_lock != nullptr);
@@ -1434,16 +1245,9 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 
   prepare();
 
-  bool high_priority = trx_is_high_priority(m_trx);
-
   /* Don't queue the lock to hash table, if high priority transaction. */
-  lock_t *lock = create(m_trx, !high_priority, prdt);
+  lock_t *lock = create(m_trx, prdt);
 
-  /* Attempt to jump over the low priority waiting locks. */
-  if (high_priority && jump_queue(lock, wait_for)) {
-    /* Lock is granted */
-    return (DB_SUCCESS_LOCKED_REC);
-  }
   lock_create_wait_for_edge(m_trx, wait_for->trx);
 
   ut_ad(lock_get_wait(lock));
@@ -1452,14 +1256,57 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 
   MONITOR_INC(MONITOR_LOCKREC_WAIT);
 
-  lock_update_age(lock, m_rec_id.m_heap_no);
-
   /* m_trx->mysql_thd is NULL if it's an internal trx. So current_thd
    is used */
 
   thd_report_row_lock_wait(current_thd, wait_for->trx->mysql_thd);
 
   return (DB_LOCK_WAIT);
+}
+/** Moves a granted lock to the front of the queue for a given record by
+removing it adding it to the front. As a single lock can correspond to multiple
+rows (and thus: queues) this function moves it to the front of whole bucket.
+@param	[in]	lock	a granted lock to be moved
+@param	[in]	rec_id	record id which specifies particular queue and bucket */
+static void lock_rec_move_granted_to_front(lock_t *lock, const RecID &rec_id) {
+  ut_ad(lock_mutex_own());
+  ut_ad(!lock->is_waiting());
+  ut_ad(rec_id.matches(lock));
+
+  const auto hash_table = lock->hash_table();
+  HASH_DELETE(lock_t, hash, hash_table, rec_id.fold(), lock);
+  lock_rec_insert_to_granted(hash_table, lock, rec_id);
+}
+
+/** Looks for a suitable type record lock struct by the same trx on the same
+page. This can be used to save space when a new record lock should be set on a
+page: no new struct is needed, if a suitable old is found.
+@param[in]  type_mode                 lock type_mode field
+@param[in]  heap_no                   heap number of the record we plan to use.
+                                      The lock struct we search for needs to
+                                      have a bitmap at least as large.
+@param[in]  lock                      lock_rec_get_first_on_page()
+@param[in]  trx                       transaction
+@param[out] found_waiter_before_lock  true iff there is a waiting lock before
+                                      the returned lock
+@return lock or nullptr if there is no lock we could reuse*/
+UNIV_INLINE
+lock_t *lock_rec_find_similar_on_page(uint32_t type_mode, size_t heap_no,
+                                      lock_t *lock, const trx_t *trx,
+                                      bool &found_waiter_before_lock) {
+  ut_ad(lock_mutex_own());
+  found_waiter_before_lock = false;
+  for (/* No op */; lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
+    if (lock->trx == trx && lock->type_mode == type_mode &&
+        heap_no < lock_rec_get_n_bits(lock)) {
+      return (lock);
+    }
+    if (lock->is_waiting()) {
+      found_waiter_before_lock = true;
+    }
+  }
+  found_waiter_before_lock = false;
+  return (nullptr);
 }
 
 /** Adds a record lock request in the record queue. The request is normally
@@ -1526,13 +1373,31 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
       /* Look for a similar record lock on the same page:
       if one is found we can just set the bit */
 
-      lock_t *lock =
-          lock_rec_find_similar_on_page(type_mode, heap_no, first_lock, trx);
+      bool found_waiter_before_lock = false;
+      lock_t *lock = lock_rec_find_similar_on_page(
+          type_mode, heap_no, first_lock, trx, found_waiter_before_lock);
 
       if (lock != nullptr) {
-        lock_rec_set_nth_bit(lock, heap_no);
-        lock_update_age(lock, heap_no);
+        /* Some B-tree reorganization functions, when moving locks from one
+        place to another, can leave a lock_t struct with an empty bitmap. They
+        also clear a LOCK_WAIT flag. This means it's possible that `lock` was
+        a waiting lock in the past, and if we want to reuse it, we have to move
+        it to the front of the queue where granted locks reside.
+        We only NEED to do that if there are any waiting locks in front of it.
+        We CAN move the lock to front ONLY IF it wasn't part of any queue.
+        In other words, moving to front is not safe if it has non-empty bitmap.
+        Moving a lock to the front of its queue can create endless loop in the
+        caller if it is iterating over the queue.
+        Fortunately, the only situation in which a GRANTED lock can be after a
+        WAITING lock in the bucket is if it was WAITING in the past and the only
+        bit for the heap_no was cleared, so it no longer belongs to any queue.*/
+        ut_ad(!found_waiter_before_lock ||
+              (ULINT_UNDEFINED == lock_rec_find_set_bit(lock)));
 
+        lock_rec_set_nth_bit(lock, heap_no);
+        if (found_waiter_before_lock) {
+          lock_rec_move_granted_to_front(lock, RecID{lock, heap_no});
+        }
         return;
       }
     }
@@ -1543,7 +1408,7 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
   if (!we_own_trx_mutex) {
     trx_mutex_enter(trx);
   }
-  rec_lock.create(trx, true);
+  rec_lock.create(trx);
   if (!we_own_trx_mutex) {
     trx_mutex_exit(trx);
   }
@@ -1600,7 +1465,7 @@ lock_rec_req_status lock_rec_lock_fast(
       RecLock rec_lock(index, block, heap_no, mode);
 
       trx_mutex_enter(trx);
-      rec_lock.create(trx, true);
+      rec_lock.create(trx);
       trx_mutex_exit(trx);
 
       status = LOCK_REC_SUCCESS_CREATED;
@@ -1619,7 +1484,6 @@ lock_rec_req_status lock_rec_lock_fast(
       if (!lock_rec_get_nth_bit(lock, heap_no)) {
         lock_rec_set_nth_bit(lock, heap_no);
         status = LOCK_REC_SUCCESS_CREATED;
-        lock_update_age(lock, heap_no);
       }
     }
 
@@ -1906,108 +1770,6 @@ static void lock_grant(lock_t *lock) /*!< in/out: waiting lock request */
   trx_mutex_exit(lock->trx);
 }
 
-/**
-Jump the queue for the record over all low priority transactions and
-add the lock. If all current granted locks are compatible, grant the
-lock. Otherwise, mark all granted transaction for asynchronous
-rollback and add to hit list.
-@param[in, out]	lock		Lock being requested
-@param[in]	conflict_lock	First conflicting lock from the head
-@return true if the lock is granted */
-bool RecLock::jump_queue(lock_t *lock, const lock_t *conflict_lock) {
-  ut_ad(m_trx == lock->trx);
-  ut_ad(trx_mutex_own(m_trx));
-  ut_ad(conflict_lock->trx != m_trx);
-  ut_ad(trx_is_high_priority(m_trx));
-  ut_ad(m_rec_id.m_heap_no != UINT32_UNDEFINED);
-
-  /* Find out the position to add the lock. If there are other high
-  priority transactions in waiting state then we should add it after
-  the last high priority transaction. Otherwise, we can add it after
-  the last granted lock jumping over the wait queue. */
-  bool grant_lock = lock_add_priority(lock, conflict_lock);
-
-  if (grant_lock) {
-    ut_ad(conflict_lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT);
-    ut_ad(conflict_lock->trx->lock.wait_lock == conflict_lock);
-
-#ifdef UNIV_DEBUG
-    ib::info(ER_IB_MSG_638)
-        << "Granting High Priority Transaction (ID): " << lock->trx->id
-        << " the lock jumping over"
-        << " waiting Transaction (ID): " << conflict_lock->trx->id;
-#endif /* UNIV_DEBUG */
-
-    lock_reset_lock_and_trx_wait(lock);
-    return (true);
-  }
-
-  return (false);
-}
-
-bool RecLock::lock_add_priority(lock_t *lock, const lock_t *conflict_lock) {
-  /* If the first conflicting lock is waiting for the current row,
-  then all other granted locks are compatible and the lock can be
-  directly granted if no other high priority transactions are
-  waiting. We need to recheck with all granted transaction as there
-  could be granted GAP or Intention locks down the queue. */
-  bool grant_lock = (conflict_lock->is_waiting());
-  lock_t *lock_head = nullptr;
-  lock_t *grant_position = nullptr;
-  lock_t *add_position = nullptr;
-
-  /* Different lock (such as predicate lock) are on different hash */
-  hash_table_t *lock_hash = lock_hash_get(m_mode);
-
-  HASH_SEARCH(hash, lock_hash, m_rec_id.fold(), lock_t *, lock_head,
-              ut_ad(lock_head->is_record_lock()), true);
-
-  ut_ad(lock_head);
-
-  for (lock_t *next = lock_head; next != nullptr; next = next->hash) {
-    /* check only for locks on the current row */
-    if (!is_on_row(next)) {
-      continue;
-    }
-
-    if (next->is_waiting()) {
-      /* grant lock position is the granted lock just before
-      the first wait lock in the queue. */
-      if (grant_position == nullptr) {
-        grant_position = add_position;
-      }
-
-      if (trx_is_high_priority(next->trx)) {
-        grant_lock = false;
-        add_position = next;
-      }
-    } else {
-      add_position = next;
-      /* Cannot grant lock if there is any conflicting
-      granted lock. */
-      if (grant_lock && lock_has_to_wait(lock, next)) {
-        grant_lock = false;
-      }
-    }
-  }
-
-  /* If the lock is to be granted it is safe to add before the first
-  waiting lock in the queue. */
-  if (grant_lock) {
-    ut_ad(!lock_has_to_wait(lock, grant_position));
-    add_position = grant_position;
-  }
-
-  ut_ad(add_position != nullptr);
-
-  /* Add the lock to lock hash table. */
-  lock->hash = add_position->hash;
-  add_position->hash = lock;
-  ++lock->index->table->n_rec_locks;
-
-  return (grant_lock);
-}
-
 void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
   trx_mutex_enter(hp_trx);
   const trx_id_t hp_trx_id = hp_trx->id;
@@ -2068,7 +1830,7 @@ void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
 #endif /* UNIV_DEBUG */
           trx->lock.was_chosen_as_deadlock_victim = true;
 
-          lock_cancel_waiting_and_release(trx->lock.wait_lock, true);
+          lock_cancel_waiting_and_release(trx->lock.wait_lock);
 
           trx_mutex_exit(trx);
           return true;
@@ -2132,40 +1894,35 @@ static void lock_update_wait_for_edge(const lock_t *waiting_lock,
 @return The conflicting lock which is the reason wait_lock has to wait
 or nullptr if it can be granted now */
 template <typename Container>
-static const lock_t *lock_rec_has_to_wait_cats(
+static const lock_t *lock_rec_has_to_wait_for_granted(
     const typename Container::value_type &wait_lock, const Container &granted,
-    size_t new_granted_index)
+    const size_t new_granted_index)
 
 {
   ut_ad(lock_mutex_own());
-  ut_ad(wait_lock.first->is_record_lock());
+  ut_ad(wait_lock->is_record_lock());
 
   ut_ad(new_granted_index <= granted.size());
 
-  for (size_t i = 0; i < new_granted_index; ++i) {
-    const auto granted_lock = granted[i].first;
-
-    ut_ad(i <= granted[i].second - 1 &&
-          (i == 0 || granted[i - 1].second - granted[i].second));
-
-    ut_ad(wait_lock.second != granted[i].second);
-
-    if (wait_lock.second < granted[i].second) {
-      break;
-
-    } else if (lock_has_to_wait(wait_lock.first, granted_lock)) {
+  /* We iterate over granted locks in reverse order.
+  Conceptually this corresponds to chronological order.
+  This way, we pick as blocking_trx the oldest reason for waiting we haven't
+  yet analyzed in deadlock checker. Our hope is that eventually (perhaps after
+  several such updates) we will set blocking_trx to the real cause of the
+  deadlock, which is the next node on the deadlock cycle. */
+  for (size_t i = new_granted_index; i--;) {
+    const auto granted_lock = granted[i];
+    if (lock_has_to_wait(wait_lock, granted_lock)) {
       return (granted_lock);
     }
   }
 
   for (size_t i = new_granted_index; i < granted.size(); ++i) {
-    const auto granted_lock = granted[i].first;
-
-    ut_ad(granted[i].second == 0);
+    const auto granted_lock = granted[i];
     ut_ad(granted_lock->trx->error_state != DB_DEADLOCK);
     ut_ad(!granted_lock->trx->lock.was_chosen_as_deadlock_victim);
 
-    if (lock_has_to_wait(wait_lock.first, granted_lock)) {
+    if (lock_has_to_wait(wait_lock, granted_lock)) {
       return (granted_lock);
     }
   }
@@ -2173,182 +1930,139 @@ static const lock_t *lock_rec_has_to_wait_cats(
   return (nullptr);
 }
 
-/** Lock priority comparator. */
-struct CATS_Lock_priority {
-  /** Check if LHS has higher priority than RHS.
-  @param[in]	lhs	Lock to compare priority
-  @param[in]	rhs	Lock to compare priority
-  1. If neither of them is a wait lock, the LHS one has higher priority.
-  2. If only one of them is a wait lock, it has lower priority.
-  3. If both are high priority transactions, the one with a lower seq
-     number has higher priority.
-  4. High priority transaction has higher priority.
-  5. Otherwise, the one with an older transaction has higher priority.
-  The first two cases can not happen because we only sort waiting locks.
-  @returns true if lhs has higher priority, false otherwise. */
-  bool operator()(const Locks::value_type &lhs,
-                  const Locks::value_type &rhs) const {
-    ut_ad(lhs.first->is_record_lock());
-    ut_ad(rhs.first->is_record_lock());
-    ut_ad(lhs.first->is_waiting());
-    ut_ad(rhs.first->is_waiting());
+/** Grant a lock to waiting transactions. This function scans the queue of locks
+in which in_lock resides (or resided) paying attention only to locks on
+heap_no-th bit. For each waiting lock which was blocked by in_lock->trx it
+checks if it can be granted now. It iterates on waiting locks in order favoring
+high-priority transactions and then transactions of high
+trx->lock.schedule_weight.
+@param[in]    in_lock   Lock which was released, or
+                        partially released by modifying its type/mode
+                        (see lock_trx_release_read_locks) or
+                        reseting heap_no-th bit in the bitmap
+                        (see lock_rec_release)
+@param[in]    heap_no   Heap number within the page on which the
+lock was (or still is) held */
+static void lock_rec_grant_by_heap_no(lock_t *in_lock, ulint heap_no) {
+  const auto hash_table = in_lock->hash_table();
 
-    if (trx_is_high_priority(lhs.first->trx) &&
-        trx_is_high_priority(rhs.first->trx)) {
-      return (lhs.second < rhs.second);
-
-    } else if (trx_is_high_priority(lhs.first->trx)) {
-      return (true);
-
-    } else if (trx_is_high_priority(rhs.first->trx)) {
-      return (false);
-    }
-
-    return (lhs.first->trx->age > rhs.first->trx->age);
-  }
-};
-
-/** Grant a lock to waiting transactions.
-@param[in,out]		hash		Record lock hash table
-@param[in]		in_lock		Lock to check
-@param[in]		heap_no		Heap number within the page on which
-                                        the lock was held */
-static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
-                            ulint heap_no) {
   ut_ad(lock_mutex_own());
   ut_ad(in_lock->is_record_lock());
 
+  using LockDescriptorEx = std::pair<trx_schedule_weight_t, lock_t *>;
   /* Preallocate for 4 lists with 32 locks. */
   std::unique_ptr<mem_heap_t, decltype(&mem_heap_free)> heap(
-      mem_heap_create(sizeof(Locks::value_type) * 32 * 4), mem_heap_free);
+      mem_heap_create((sizeof(lock_t *) * 3 + sizeof(LockDescriptorEx)) * 32),
+      mem_heap_free);
 
   RecID rec_id{in_lock, heap_no};
-  Locks waiting{Locks::allocator_type{heap.get()}};
-  Locks granted{Locks::allocator_type{heap.get()}};
+  Locks<lock_t *> low_priority_light{heap.get()};
+  Locks<lock_t *> waiting{heap.get()};
+  Locks<lock_t *> granted{heap.get()};
+  Locks<LockDescriptorEx> low_priority_heavier{heap.get()};
 
-  ulint seq = 0;
   const auto in_trx = in_lock->trx;
+#ifdef UNIV_DEBUG
+  bool seen_waiting_lock = false;
+#endif
+  Lock_iter::for_each(
+      rec_id,
+      [&](lock_t *lock) {
+        /* Split the relevant locks in the queue into:
+        - granted = granted locks
+        - waiting = waiting locks of high priority transactions
+        - low_priority_heavier = waiting locks of low priority, but heavy weight
+        - low_priority_light = waiting locks of low priority and light weight
+        */
+        if (!lock->is_waiting()) {
+          /* Granted locks should be before waiting locks. */
+          ut_ad(!seen_waiting_lock);
+          granted.push_back(lock);
+          return (true);
+        }
+        ut_d(seen_waiting_lock = true);
+        const auto trx = lock->trx;
+        if (trx->error_state == DB_DEADLOCK ||
+            trx->lock.was_chosen_as_deadlock_victim) {
+          return (true);
+        }
+        /* We read blocking_trx while holding this lock_sys queue latched, and
+        each write to blocking_trx is done while holding the latch. So, even
+        though we use memory_order_relaxed we will see modifications performed
+        before we acquired the latch. */
+        const auto blocking_trx =
+            trx->lock.blocking_trx.load(std::memory_order_relaxed);
+        /* No one should be WAITING without good reason! */
+        ut_ad(blocking_trx);
+        /* We will only consider granting the `lock`, if we are the reason it
+        was waiting. */
+        if (blocking_trx != in_trx) {
+          return (true);
+        }
+        if (trx_is_high_priority(trx)) {
+          waiting.push_back(lock);
+          return (true);
+        }
+        /* The values of schedule_weight are read with memory_order_relaxed as
+        we do not care neither about having the most recent value, nor about any
+        relative order between this load and other operations.
+        As std::sort requires the order to be consistent during execution we
+        have to take a snapshot of all schedule_weight atomics, so they don't
+        change during call to stable_sort in a way which causes the algorithm to
+        crash. */
+        const auto schedule_weight =
+            trx->lock.schedule_weight.load(std::memory_order_relaxed);
+        if (schedule_weight <= 1) {
+          low_priority_light.push_back(lock);
+          return (true);
+        }
+        low_priority_heavier.push_back(LockDescriptorEx{schedule_weight, lock});
 
-  ut_ad(!in_lock->is_predicate());
+        return (true);
+      },
+      hash_table);
 
-  Lock_iter::for_each(rec_id, [&](lock_t *lock) {
-    /* Split the locks in the queue into waiting and
-    granted queues, additionally set the ordinal value
-    of the waiting locks in the original/current wait queue. */
-
-    ++seq;
-
-    if (!lock->is_waiting()) {
-      granted.push_back(std::make_pair(lock, seq));
-
-    } else {
-      waiting.push_back(std::make_pair(lock, seq));
-    }
-
-    return (true);
-  });
-
-  if (waiting.empty() && granted.empty()) {
+  if (waiting.empty() && low_priority_light.empty() &&
+      low_priority_heavier.empty()) {
     /* Nothing to grant. */
     return;
   }
-
-  /* Reorder the record lock wait queue on the CATS priority. */
-  std::stable_sort(waiting.begin(), waiting.end(), CATS_Lock_priority());
-
-  int32_t sub_age = 0;
-  int32_t add_age = 0;
-
-  Locks new_granted{Locks::allocator_type{heap.get()}};
-  Locks granted_all{granted, Locks::allocator_type{heap.get()}};
+  /* We want high schedule weight to be in front, and break ties by position */
+  std::stable_sort(low_priority_heavier.begin(), low_priority_heavier.end(),
+                   [](const LockDescriptorEx &a, const LockDescriptorEx &b) {
+                     return (a.first > b.first);
+                   });
+  for (const auto &descriptor : low_priority_heavier) {
+    waiting.push_back(descriptor.second);
+  }
+  waiting.insert(waiting.end(), low_priority_light.begin(),
+                 low_priority_light.end());
 
   /* New granted locks will be added from this index. */
-  auto new_granted_index = granted.size();
+  const auto new_granted_index = granted.size();
 
-#ifdef UNIV_DEBUG
-  /* We rely on the sequence (ordinal) number during lock
-  grant in lock_rec_has_to_wait(). */
+  granted.reserve(granted.size() + waiting.size());
 
-  for (size_t i = 0; i < granted_all.size(); ++i) {
-    auto curr = granted_all[i].second;
-    auto prev = (i == 0) ? 0 : granted_all[i - 1].second;
-
-    ut_ad(i <= granted_all[i].second - 1 && (i == 0 || prev < curr));
-  }
-#endif /* UNIV_DEBUG */
-
-  granted_all.reserve(granted_all.capacity() + waiting.size());
-
-  for (const auto &wait_lock : waiting) {
+  for (lock_t *wait_lock : waiting) {
     /* Check if the transactions in the waiting queue have
     to wait for locks granted above. If they don't have to
     wait then grant them the locks and add them to the granted
     queue. */
 
-    auto lock = wait_lock.first;
-    const auto trx = lock->trx;
-    const auto age = trx->age + 1;
-
     /* We don't expect to be a waiting trx, and we can't grant to ourselves as
     that would require entering trx->mutex while holding in_trx->mutex. */
-    ut_ad(trx != in_trx);
+    ut_ad(wait_lock->trx != in_trx);
+
     const lock_t *blocking_lock =
-        lock_rec_has_to_wait_cats(wait_lock, granted_all, new_granted_index);
+        lock_rec_has_to_wait_for_granted(wait_lock, granted, new_granted_index);
     if (blocking_lock == nullptr) {
-      lock_grant(lock);
+      lock_grant(wait_lock);
 
-      HASH_DELETE(lock_t, hash, hash, rec_id.fold(), lock);
+      lock_rec_move_granted_to_front(wait_lock, rec_id);
 
-      lock_rec_insert_cats(hash, lock, rec_id);
-
-      new_granted.push_back(wait_lock);
-      granted_all.push_back(std::make_pair(lock, 0));
-
-      sub_age -= age;
-
+      granted.push_back(wait_lock);
     } else {
-      lock_update_wait_for_edge(lock, blocking_lock);
-      add_age += age;
-    }
-  }
-
-  ut_ad(!granted_all.empty());
-
-  ++lock_sys->mark_age_updated;
-
-  if (in_lock->is_waiting()) {
-    sub_age -= in_trx->age + 1;
-  }
-
-  for (const auto &elem : granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto new_granted_lock : new_granted) {
-      if (lock->trx == new_granted_lock.first->trx) {
-        age_compensate += trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, sub_age + age_compensate);
-    }
-  }
-
-  for (const auto &elem : new_granted) {
-    auto lock = elem.first;
-    const auto trx = lock->trx;
-    int32_t age_compensate = 0;
-
-    for (const auto wait_lock : waiting) {
-      if (wait_lock.first->is_waiting() && lock->trx == wait_lock.first->trx) {
-        age_compensate -= trx->age + 1;
-      }
-    }
-
-    if (lock->trx != in_trx) {
-      lock_update_trx_age(trx, add_age + age_compensate);
+      lock_update_wait_for_edge(wait_lock, blocking_lock);
     }
   }
 }
@@ -2385,32 +2099,50 @@ static void lock_grant_or_update_wait_for_edge_if_waiting(
   }
 }
 
-/** Grant lock to waiting requests that no longer conflicts
+/** Grant lock to waiting requests that no longer conflicts.
+The in_lock might be modified before call to this function by clearing some flag
+(see for example lock_trx_release_read_locks). It also might already be removed
+from the hash bucket (a.k.a. waiting queue) or still reside in it. However the
+content of bitmap should not be changed prior to calling this function, as the
+bitmap will be inspected to see which heap_no at all were blocked by this
+in_lock, and only locks waiting for those heap_no's will be checked.
 @param[in,out]	in_lock		record lock object: grant all non-conflicting
-                                locks waiting behind this lock object
-@param[in]	use_fcfs	true -> use first come first served strategy */
-static void lock_rec_grant(lock_t *in_lock, bool use_fcfs) {
+                          locks waiting behind this lock object */
+static void lock_rec_grant(lock_t *in_lock) {
   auto space = in_lock->space_id();
   auto page_no = in_lock->page_no();
   auto lock_hash = in_lock->hash_table();
 
-  if (use_fcfs || lock_use_fcfs(in_lock)) {
-    /* Check if waiting locks in the queue can now be granted:
-    grant locks if there are no conflicting locks ahead. Stop at
-    the first X lock that is waiting or has been granted. */
-
-    for (auto lock = lock_rec_get_first_on_page_addr(lock_hash, space, page_no);
-         lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
-      lock_grant_or_update_wait_for_edge_if_waiting(lock, in_lock->trx);
-    }
-
-  } else {
-    for (ulint heap_no = 0; heap_no < lock_rec_get_n_bits(in_lock); ++heap_no) {
-      if (lock_rec_get_nth_bit(in_lock, heap_no)) {
-        lock_grant_cats(lock_hash, in_lock, heap_no);
-      }
+  /* In some scenarios, in particular in replication appliers, it is often the
+  case, that there are no WAITING locks, and in such situation iterating over
+  all bits, and calling lock_rec_grant_by_heap_no() slows down the execution
+  noticeably. (I guess that checking bits is not the costly part, but rather the
+  allocation of vectors inside lock_rec_grant_by_heap_no). Therefore we first
+  check if there is any lock which is waiting at all.
+  Note: This condition could be further narrowed to check if the `lock` is
+  waiting for the `in_lock` and/or `lock->trx` is blocked by the `in_lock->trx`,
+  and we could optimize lock_rec_grant_by_heap_no() to allocate vectors only if
+  there are at least two waiters to arbitrate among, but in practice the current
+  simple heuristic is good enough. */
+  bool found_waiter = false;
+  for (auto lock = lock_rec_get_first_on_page_addr(lock_hash, space, page_no);
+       lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
+    if (lock->is_waiting()) {
+      found_waiter = true;
+      break;
     }
   }
+  if (found_waiter) {
+    mon_type_t grant_attempts = 0;
+    for (ulint heap_no = 0; heap_no < lock_rec_get_n_bits(in_lock); ++heap_no) {
+      if (lock_rec_get_nth_bit(in_lock, heap_no)) {
+        lock_rec_grant_by_heap_no(in_lock, heap_no);
+        ++grant_attempts;
+      }
+    }
+    MONITOR_INC_VALUE(MONITOR_RECLOCK_GRANT_ATTEMPTS, grant_attempts);
+  }
+  MONITOR_INC(MONITOR_RECLOCK_RELEASE_ATTEMPTS);
 }
 
 /** Removes a record lock request, waiting or granted, from the queue and
@@ -2420,11 +2152,10 @@ to a lock. NOTE: all record locks contained in in_lock are removed.
                                 are contained in this lock object are removed;
                                 transactions waiting behind will get their
                                 lock requests granted, if they are now
-                                qualified to it
-@param[in]	use_fcfs	true -> use first come first served strategy */
-static void lock_rec_dequeue_from_page(lock_t *in_lock, bool use_fcfs) {
+                                qualified to it */
+static void lock_rec_dequeue_from_page(lock_t *in_lock) {
   lock_rec_discard(in_lock);
-  lock_rec_grant(in_lock, use_fcfs);
+  lock_rec_grant(in_lock);
 }
 
 /** Removes a record lock request, waiting or granted, from the queue.
@@ -4082,29 +3813,17 @@ run_again:
 /*=========================== LOCK RELEASE ==============================*/
 
 /** Grant a lock to waiting transactions.
-@param[in]	first_lock	Lock to traverse from
 @param[in]	lock		Lock that was unlocked
 @param[in]	heap_no		Heap no within the page for the lock. */
-static void lock_rec_unlock_grant(lock_t *first_lock, lock_t *lock,
-                                  ulint heap_no) {
+static void lock_rec_release(lock_t *lock, ulint heap_no) {
   ut_ad(lock_mutex_own());
   ut_ad(!lock_get_wait(lock));
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
-  ut_ad(!lock->is_predicate());
   ut_ad(lock_rec_get_nth_bit(lock, heap_no));
   lock_rec_reset_nth_bit(lock, heap_no);
 
-  if (lock_use_fcfs(lock)) {
-    const trx_t *trx = lock->trx;
-    /* Check if we can now grant waiting lock requests */
-
-    for (lock = first_lock; lock != nullptr;
-         lock = lock_rec_get_next(heap_no, lock)) {
-      lock_grant_or_update_wait_for_edge_if_waiting(lock, trx);
-    }
-  } else {
-    lock_grant_cats(lock_sys->rec_hash, lock, heap_no);
-  }
+  lock_rec_grant_by_heap_no(lock, heap_no);
+  MONITOR_INC(MONITOR_RECLOCK_GRANT_ATTEMPTS);
 }
 
 /** Removes a granted record lock of a transaction from the queue and grants
@@ -4150,7 +3869,7 @@ void lock_rec_unlock(
                 lock_rec_get_rec_not_gap(lock2)));
       }
 #endif
-      lock_rec_unlock_grant(first_lock, lock, heap_no);
+      lock_rec_release(lock, heap_no);
 
       lock_mutex_exit();
       trx_mutex_exit(trx);
@@ -4176,14 +3895,27 @@ void lock_rec_unlock(
   }
 }
 
-/** Remove GAP lock from a next key record lock
+/** Unlock the GAP Lock part of a Next Key Lock and grant it to waiters (if any)
 @param[in,out]	lock	lock object */
-static void lock_remove_gap_lock(lock_t *lock) {
-  /* Remove lock on supremum */
-  lock_rec_reset_nth_bit(lock, PAGE_HEAP_NO_SUPREMUM);
+static void lock_release_gap_lock(lock_t *lock) {
+  /* 1. Remove GAP lock for all records */
+  lock->unlock_gap_lock();
 
-  /* Remove GAP lock for other records */
-  lock->remove_gap_lock();
+  /* 2. Grant locks for all records */
+  lock_rec_grant(lock);
+
+  /* 3. Release explicitly all locks on supremum record. This is required
+  because supremum record lock is always considered a GAP Lock, but the lock
+  mode can be set to Next Key Lock for sharing lock objects with other records.
+
+  We could not release all locks on supremum record in step [1] & [2] because
+  currently lock_rec_grant accepts `lock` object as input which is also part of
+  the lock queue. If we unlock supremum record (reset the BIT) in step-1, then
+  step-2 would fail to grant locks because SUPREMUM record would be missing from
+  input `lock` record bit set. */
+  if (lock->includes_supremum()) {
+    lock_rec_release(lock, PAGE_HEAP_NO_SUPREMUM);
+  }
 }
 
 /** Used to release a lock during PREPARE. The lock is only
@@ -4197,21 +3929,15 @@ static void lock_release_read_lock(lock_t *lock, bool only_gap) {
     /* DO NOTHING */
   } else if (lock->is_gap()) {
     /* Release any GAP only lock. */
-    lock_rec_dequeue_from_page(lock, false);
+    lock_rec_dequeue_from_page(lock);
   } else if (lock->is_record_not_gap() && only_gap) {
     /* Don't release any non-GAP lock if not asked.*/
   } else if (lock->mode() == LOCK_S && !only_gap) {
     /* Release Shared Next Key Lock(SH + GAP) if asked for */
-    lock_rec_dequeue_from_page(lock, false);
+    lock_rec_dequeue_from_page(lock);
   } else {
     /* Release GAP lock from Next Key lock */
-    lock_remove_gap_lock(lock);
-
-    /* Grant locks. Current CATS implementation does not grant locks for records
-    for which the bit is already cleared in the bitmap, and lock_remove_gap_lock
-    might have reset the PAGE_HEAP_NO_SUPREMUM-th bit. So, to ensure that trxs
-    waiting for lock on supremum are properly woken up we need to use FCFS. */
-    lock_rec_grant(lock, true);
+    lock_release_gap_lock(lock);
   }
 }
 
@@ -4299,7 +4025,7 @@ static void lock_release(trx_t *trx) {
   for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks); lock != nullptr;
        lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
     if (lock_get_type_low(lock) == LOCK_REC) {
-      lock_rec_dequeue_from_page(lock, false);
+      lock_rec_dequeue_from_page(lock);
     } else {
       lock_table_dequeue(lock);
     }
@@ -6115,7 +5841,7 @@ trx_id_t lock_get_trx_id(const lock_t *lock) {
 }
 
 uint64_t lock_get_immutable_id(const lock_t *lock) {
-  return (reinterpret_cast<uint64_t>(lock));
+  return (uint64_t{reinterpret_cast<uintptr_t>(lock)});
 }
 
 /** Get the performance schema event (thread_id, event_id)
@@ -6317,15 +6043,14 @@ page_no_t lock_rec_get_page_no(const lock_t *lock) /*!< in: lock */
 
 /** Cancels a waiting lock request and releases possible other transactions
 waiting behind it.
-@param[in,out]	lock		Waiting lock request
-@param[in]	use_fcfs	true -> use first come first served strategy */
-void lock_cancel_waiting_and_release(lock_t *lock, bool use_fcfs) {
+@param[in,out]	lock		Waiting lock request */
+void lock_cancel_waiting_and_release(lock_t *lock) {
   ut_ad(lock_mutex_own());
   /* We will access lock->trx->lock.autoinc_locks which requires trx->mutex */
   ut_ad(trx_mutex_own(lock->trx));
 
   if (lock_get_type_low(lock) == LOCK_REC) {
-    lock_rec_dequeue_from_page(lock, use_fcfs);
+    lock_rec_dequeue_from_page(lock);
   } else {
     ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 
@@ -6478,7 +6203,7 @@ dberr_t lock_trx_handle_wait(trx_t *trx) /*!< in/out: trx lock state */
   if (trx->lock.was_chosen_as_deadlock_victim) {
     err = DB_DEADLOCK;
   } else if (trx->lock.wait_lock != nullptr) {
-    lock_cancel_waiting_and_release(trx->lock.wait_lock, false);
+    lock_cancel_waiting_and_release(trx->lock.wait_lock);
     err = DB_LOCK_WAIT;
   } else {
     /* The lock was probably granted before we got here. */

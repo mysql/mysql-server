@@ -12,6 +12,8 @@ lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled
 lock_rec_lock_requests	disabled
+lock_rec_release_attempts	disabled
+lock_rec_grant_attempts	disabled
 lock_rec_lock_created	disabled
 lock_rec_lock_removed	disabled
 lock_rec_locks	disabled
@@ -23,6 +25,7 @@ lock_row_lock_time	disabled
 lock_row_lock_time_max	disabled
 lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
+lock_schedule_refreshes	disabled
 buffer_pool_size	disabled
 buffer_pool_reads	disabled
 buffer_pool_read_requests	disabled
@@ -341,6 +344,8 @@ lock_timeouts	disabled
 lock_rec_lock_waits	disabled
 lock_table_lock_waits	disabled
 lock_rec_lock_requests	disabled
+lock_rec_release_attempts	disabled
+lock_rec_grant_attempts	disabled
 lock_rec_lock_created	disabled
 lock_rec_lock_removed	disabled
 lock_rec_locks	disabled
@@ -352,6 +357,7 @@ lock_row_lock_time	disabled
 lock_row_lock_time_max	disabled
 lock_row_lock_waits	disabled
 lock_row_lock_time_avg	disabled
+lock_schedule_refreshes	disabled
 log_full_block_writes	disabled
 log_partial_block_writes	disabled
 innodb_rwlock_s_spin_waits	disabled

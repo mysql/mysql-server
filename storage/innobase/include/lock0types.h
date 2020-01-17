@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,4 +86,5 @@ inline const char *lock_mode_string(enum lock_mode mode) {
 
 typedef UT_LIST_BASE_NODE_T(lock_t) trx_lock_list_t;
 
+typedef uint32_t trx_schedule_weight_t;
 #endif /* lock0types_h */

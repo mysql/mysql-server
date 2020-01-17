@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,6 +48,197 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "gis0rtree.h"
 #endif /* UNIV_HOTBACKUP */
 #include "lock0prdt.h"
+
+/**
+@page PAGE_INNODB_LOCK_SYS Innodb Lock-sys
+
+
+@section sect_lock_sys_introduction Introduction
+
+The Lock-sys orchestrates access to tables and rows. Each table, and each row,
+can be thought of as a resource, and a transaction may request access right for
+a resource. As two transactions operating on a single resource can lead to
+problems if the two operations conflict with each other, each lock request also
+specifies the way the transaction intends to use it, by providing a `mode`. For
+example a LOCK_X mode, means that transaction needs exclusive access
+(presumably, it will modify the resource), and LOCK_S mode means that a
+transaction can share the resource with other transaction which also use LOCK_S
+mode. There are many different possible modes beside these two, and the logic of
+checking if given two modes are in conflict is a responsibility of the Lock-sys.
+A lock request, is called "a lock" for short.
+A lock can be WAITING or GRANTED.
+
+So, a lock, conceptually is a tuple identifying:
+- requesting transaction
+- resource (a particular row, a particular table)
+- mode (LOCK_X, LOCK_S,...)
+- state (WAITING or GRANTED)
+
+@remark
+In current implementation the "resource" and "mode" are not cleanly separated as
+for example LOCK_GAP and LOCK_REC_NOT_GAP are often called "modes" even though
+their semantic is to specify which "sub-resource" (the gap before the row, or
+the row itself) the transaction needs to access.
+
+@remark
+The Lock-sys identifies records by their page_no (the identifier of the page
+which contains the record) and the heap_no (the position in page's internal
+array of allocated records), as opposed to table, index and primary key. This
+becomes important in case of B-tree merges, splits, or reallocation of variable-
+length records, all of which need to notify the Lock-sys to reflect the change.
+
+Conceptually, the Lock-sys maintains a separate queue for each resource, thus
+one can analyze and reason about its operations in the scope of a single queue.
+
+@remark
+In practice, locks for gaps and rows are treated as belonging to the same queue.
+Moreover, to save space locks of a transaction which refer to several rows on
+the same page might be stored in a single data structure, and thus the physical
+queue corresponds to a whole page, and not to a single row.
+Also, each predicate lock (from GIS) is tied to a page, not a record.
+Finally, the lock queue is implemented by reusing chain links in the hash table,
+which means that pages with equal hash are held together in a single linked
+list for their hash bucket.
+Therefore care must be taken to filter the subset of locks which refer to a
+given resource when accessing these data structures.
+
+The life cycle of a lock is usually as follows:
+
+-# The transaction requests the lock, which can either be immediately GRANTED,
+   or, in case of a conflict with an existing lock, goes to the WAITING state.
+-# In case the lock is WAITING the thread (voluntarily) goes to sleep.
+-# A WAITING lock either becomes GRANTED (once the conflicting transactions
+   finished and it is our turn) or (in case of a rollback) it gets canceled.
+-# Once the transaction is finishing (due to commit or rollback) it releases all
+   of its locks.
+
+@remark For performance reasons, in Read Committed and weaker Isolation Levels
+there is also a Step in between 3 and 4 in which we release some of the read
+locks on gaps, which is done to minimize risk of deadlocks during replication.
+
+When a lock is released (due to cancellation in Step 3, or clean up in Step 4),
+the Lock-sys inspects the corresponding lock queue to see if one or more of the
+WAITING locks in it can now be granted. If so, some locks become GRANTED and the
+Lock-sys signals their threads to wake up.
+
+
+@section sect_lock_sys_scheduling The scheduling algorithm
+
+We use a variant of the algorithm described in paper "Contention-Aware Lock
+Scheduling for Transactional Databases" by Boyu Tian, Jiamin Huang, Barzan
+Mozafari and Grant Schoenebeck.
+The algorithm, "CATS" for short, analyzes the Wait-for graph, and assigns a
+weight to each WAITING transaction, equal to the number of transactions which
+it (transitively) blocks. The idea being that favoring heavy transactions will
+help to make more progress by helping more transactions to become eventually
+runnable.
+
+The actual implementation of this theoretical idea is currently as follows.
+
+-# Locks can be thought of being in 2 logical groups (Granted & Waiting)
+   maintained in the same queue.
+
+  -# Granted locks are added at the HEAD of the queue.
+  -# Waiting locks are added at the TAIL of the queue.
+  .
+  The queue looks like:
+  ```
+                                           |
+Grows <---- [HEAD] [G7 -- G3 -- G2 -- G1] -|- [W4 -- W5 -- W6] [TAIL] ---> Grows
+                         Grant Group       |         Wait Group
+
+        G - Granted W - waiting,
+        suffix number is the chronological order of requests.
+  ```
+  @remark
+    - In the Wait Group the locks are in chronological order. We will not assert
+      this invariant as there is no significance of the order (and hence the
+      position) as the locks are re-ordered based on CATS weight while making a
+      choice for grant, and CATS weights change constantly to reflect current
+      shape of the Wait-for graph.
+    - In the Grant Group the locks are in reverse chronological order. We will
+      assert this invariant. CATS algorithm doesn't need it, but deadlock
+      detection does, as explained further below.
+-# When a new lock request comes, we check for conflict with all (GRANTED and
+   WAITING) locks already in the queue.
+    -# If there is a conflicting lock already in the queue, then the new lock
+       request is put into WAITING state and appended at the TAIL. The
+       transaction which requested the conflicting lock found is said to be the
+       Blocking Transaction for the incoming transaction. As each transaction
+       can have at most one WAITING lock, it also can have at most one Blocking
+       Transaction, and thus we store the information about Blocking Transaction
+       (if any) in the transaction object itself (as opposed to: separately for
+       each lock request).
+    -# If there is no conflict, the request can be GRANTED, and lock is
+       prepended at the HEAD.
+
+-# When we release a lock, locks which conflict with it need to be checked again
+if they can now be granted. Note that if there are multiple locks which could be
+granted, the order in which we decide to grant has an impact on who will have to
+wait: granting a lock to one transaction, can prevent another waiting
+transaction from being granted if their request conflict with each other.
+At the minimum, the Lock-sys must guarantee that a newly GRANTED lock,
+does not conflict with any other GRANTED lock.
+Therefore, we will specify the order in which the Lock-sys checks the WAITING
+locks one by one, and assume that such check involves checking if there is any
+conflict with already GRANTED locks - if so, the lock remains WAITING, we update
+the Blocking Transaction of the lock to be the newly identified conflicting
+transaction, and we check a next lock from the sorted list, otherwise, we grant
+it (and thus it is checked against in subsequent checks).
+The Lock-sys uses CATS weight for ordering: it favors transactions with highest
+CATS weight.
+Moreover, only the locks which point to the transaction currently releasing the
+lock as their Blocking Transaction participate as candidates for granting a
+lock.
+
+@remark
+For each WAITING lock the Blocking Transaction always points to a transaction
+which has a conflicting lock request, so if the Blocking Transaction is not the
+one which releases the lock right now, then we know that there is still at least
+one conflicting transaction. However, there is a subtle issue here: when we
+request a lock in point 2. we check for conflicts with both GRANTED and WAITING
+locks, while in point 3. we only check for conflicts with GRANTED locks. So, the
+Blocking Transaction might be a WAITING one identified in point 2., so we
+might be tempted to ignore it in point 3. Such "bypassing of waiters" is
+intentionally prevented to avoid starvation of a WAITING LOCK_X, by a steady
+stream of LOCK_S requests. Respecting the rule that a Blocking Transaction has
+to finish before a lock can be granted implies that at least one of WAITING
+LOCK_Xs will be granted before a LOCK_S can be granted.
+
+@remark
+High Priority transactions in Wait Group are unconditionally kept ahead while
+sorting the wait queue. The HP is a concept related to Group Replication, and
+currently has nothing to do with CATS weight.
+
+@subsection subsect_lock_sys_blocking How do we choose the Blocking Transaction?
+
+It is done differently for new lock requests in point 2. and differently for
+old lock requests in point 3.
+
+For new lock requests, we simply scan the whole queue in its natural order,
+and the first conflicting lock is chosen. In particular, a WAITING transaction
+can be chosen, if it is conflicting, and there are no GRATNED conflicting locks.
+
+For old lock requests we scan only the Grant Group, and we do so in the
+chronological order, starting from the oldest lock requests [G1,G2,G3,G7] that
+is from the middle of the queue towards HEAD. In particular we also check
+against the locks which recently become GRANTED as they were processed before us
+in the sorting order, and we do so in a chronological order as well.
+
+@remark
+The idea here is that if we chose G1 as the Blocking Transaction and if there
+existed a dead lock with another conflicting transaction G3, the deadlock
+detection would not be postponed indefinitely while new GRANTED locks are
+added as they are going to be added to HEAD only.
+In other words: each of the conflicting locks in the Grant Group will eventually
+be set as the Blocking Transaction at some point in time, and thus it will
+become visible for the deadlock detection.
+If, by contrast, we were always picking the first one in the natural order, it
+might happen that we never get to assign G3 as the Blocking Transaction
+because new conflicting locks appear in front of the queue (and are released).
+That might lead to the deadlock with G3 never being noticed.
+
+*/
 
 // Forward declaration
 class ReadView;
@@ -769,17 +960,6 @@ struct lock_sys_t {
                                        protected by
                                        lock_sys->wait_mutex */
 
-  /** Number of slots in use. Writes are protected by lock_sys->wait_mutex, but
-  we read this without any latch in the lock_use_fcfs() heuristic. Also, we use
-  relaxed memory ordering for both writes and reads, because this is just a
-  counter field which does not "acquire" or "release" anything, and
-  lock_use_fcfs is just a heuristic anyway, so even if it reads a value not
-  synchronized with other fields/variables it is not a big deal. OTOH this field
-  is accessed pretty often during trx->age updating, so we try to minimize the
-  chance of performance issues. One can say that the only reason it is atomic
-  is to avoid torn reads in lock_use_fcfs(). */
-  std::atomic<int> n_waiting{0};
-
   ibool rollback_complete;
   /*!< TRUE if rollback of all
   recovered transactions is
@@ -792,9 +972,6 @@ struct lock_sys_t {
                             created in the lock wait monitor
                             thread. A value of 0 means the
                             thread is not active */
-
-  /** Marker value before trx_t::age. */
-  uint64_t mark_age_updated;
 
 #ifdef UNIV_DEBUG
   /** Lock timestamp counter */

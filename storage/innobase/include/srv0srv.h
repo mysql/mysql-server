@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1179,6 +1179,10 @@ struct srv_slot_t {
   /** Stores the current value of lock_wait_table_reservations, when
   lock_wait_table_reserve_slot is called.
   This can be used as a version number to avoid ABA problems.
+  The difference lock_wait_table_reservations - reservation_no tells us how many
+  other threads got suspended while our thr was sleeping.
+  This can be used to determine if the wait was unfairly long, and it is time to
+  boost trx->lock.schedule_weight.
   Protected by lock->wait_mutex. */
   uint64_t reservation_no;
 

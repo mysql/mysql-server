@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -453,6 +453,12 @@ static ibool fill_trx_row(
   }
 
   row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
+  if (trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+    row->trx_schedule_weight.second = trx->lock.schedule_weight.load();
+    row->trx_schedule_weight.first = true;
+  } else {
+    row->trx_schedule_weight.first = false;
+  }
 
   if (trx->mysql_thd == nullptr) {
     /* For internal transactions e.g., purge and transactions

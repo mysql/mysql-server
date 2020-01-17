@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -131,8 +131,16 @@ trx_id_t trx_get_id_for_print(const trx_t *trx) {
 
   ut_ad(trx->id <= max_trx_id);
 
-  return (trx->id != 0 ? trx->id
-                       : reinterpret_cast<trx_id_t>(trx) | (max_trx_id + 1));
+  /* on some 32bit architectures casting trx_t* (4 bytes) directly to
+  trx_id_t (8 bytes unsigned) does sign extension and the resulting value
+  has highest 32 bits set to 1, so the number is unnecessarily huge.
+  Also there is no guarantee that we will obtain the same integer each time.
+  Casting to uintptr_t first, and then extending to 64 bits keeps the highest
+  bits clean. */
+
+  return (trx->id != 0
+              ? trx->id
+              : trx_id_t{reinterpret_cast<uintptr_t>(trx)} | (max_trx_id + 1));
 }
 
 /** Determine if a transaction is a dictionary operation.

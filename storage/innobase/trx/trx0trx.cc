@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1340,8 +1340,9 @@ static void trx_start_low(
     trx->start_time = ut_time();
   }
 
-  trx->age = 0;
-  trx->age_updated = 0;
+  /* This value will only be read by a thread inspecting lock sys queue after
+  the thread which enqueues this trx releases the queue's latch. */
+  trx->lock.schedule_weight.store(0, std::memory_order_relaxed);
 
   ut_a(trx->error_state == DB_SUCCESS);
 
@@ -2697,7 +2698,6 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
   }
   trx_sys_mutex_exit();
   /*--------------------------------------*/
-  DEBUG_SYNC_C("trx_prepare_has_changed_state");
 
   /* Reset after successfully adding GTID to in memory table. */
   trx->persists_gtid = false;
@@ -2759,8 +2759,6 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
   trx_start_if_not_started_xa(trx, false);
 
   TrxInInnoDB trx_in_innodb(trx, true);
-
-  DEBUG_SYNC_C("trx_prepare_for_mysql_has_entered_innodb");
 
   if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
     return (DB_FORCED_ABORT);

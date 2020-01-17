@@ -83,9 +83,6 @@ DELIMITER ;//
 
 
 
---let force_CATS=0
-while($force_CATS <= 1)
-{
   CREATE TABLE t1 (id INT NOT NULL PRIMARY KEY, val VARCHAR(200));
   INSERT INTO t1 (id,val) VALUES (1, "a"),     (3, "c"), (4, "d");
 
@@ -141,13 +138,6 @@ while($force_CATS <= 1)
     SET DEBUG_SYNC = 'now WAIT_FOR con3_will_wait';
     CALL show_locks();
 
-  if($force_CATS == 1)
-  {
-    --echo # We enable CATS algorithm, to force placing GRANTED locks at the
-    --echo # front of queue
-    --source suite/innodb/include/force_cats.inc
-  }
-
   --echo # 6. con1 resizes the row with id=3 ("c"->"cccccccccccccccc") causing
   --echo #    locks to be moved
   --connection con1
@@ -175,11 +165,7 @@ while($force_CATS <= 1)
     --reap
     ROLLBACK;
 
-  if($force_CATS == 1)
-  {
-    --echo # Turn of CATS
-    --source suite/innodb/include/discourage_cats.inc
-  }
+
 
   --connection default
   --disconnect con1
@@ -188,8 +174,7 @@ while($force_CATS <= 1)
 
   DROP TABLE t1;
 
-  --inc $force_CATS
-}
+
 
 DROP PROCEDURE show_locks;
 DROP TABLE t0;

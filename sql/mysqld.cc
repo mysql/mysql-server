@@ -381,6 +381,7 @@ The documentation is based on the source files such as:
   See #ha_innobase or read details about InnoDB internals:
   - @subpage PAGE_INNODB_PFS
   - @subpage PAGE_INNODB_REDO_LOG
+  - @subpage PAGE_INNODB_LOCK_SYS
   - @subpage PAGE_INNODB_UTILS
 
   @section storage_temptable Temp table

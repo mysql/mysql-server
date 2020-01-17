@@ -10,7 +10,7 @@ locked_table_partition	varchar(64)	X		X
 locked_table_subpartition	varchar(64)	X		X	
 locked_index	varchar(64)	X		X	
 locked_type	varchar(32)	X		X	
-waiting_trx_id	varchar(18)	X		X	
+waiting_trx_id	bigint unsigned	X		X	
 waiting_trx_started	datetime	X		X	
 waiting_trx_age	time	X		X	
 waiting_trx_rows_locked	bigint unsigned	X		X	
@@ -19,7 +19,7 @@ waiting_pid	bigint unsigned	X		X
 waiting_query	longtext	X		X	
 waiting_lock_id	varchar(128)	X		X	
 waiting_lock_mode	varchar(32)	X		X	
-blocking_trx_id	varchar(18)	X		X	
+blocking_trx_id	bigint unsigned	X		X	
 blocking_pid	bigint unsigned	X		X	
 blocking_query	longtext	X		X	
 blocking_lock_id	varchar(128)	X		X	
@@ -43,7 +43,7 @@ locked_table_partition	varchar(64)	X		X
 locked_table_subpartition	varchar(64)	X		X	
 locked_index	varchar(64)	X		X	
 locked_type	varchar(32)	X		X	
-waiting_trx_id	varchar(18)	X		X	
+waiting_trx_id	bigint unsigned	X		X	
 waiting_trx_started	datetime	X		X	
 waiting_trx_age	time	X		X	
 waiting_trx_rows_locked	bigint unsigned	X		X	
@@ -52,7 +52,7 @@ waiting_pid	bigint unsigned	X		X
 waiting_query	varchar(1024)	X		X	
 waiting_lock_id	varchar(128)	X		X	
 waiting_lock_mode	varchar(32)	X		X	
-blocking_trx_id	varchar(18)	X		X	
+blocking_trx_id	bigint unsigned	X		X	
 blocking_pid	bigint unsigned	X		X	
 blocking_query	varchar(1024)	X		X	
 blocking_lock_id	varchar(128)	X		X	

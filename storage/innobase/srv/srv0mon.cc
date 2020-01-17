@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -148,6 +148,14 @@ static monitor_info_t innodb_counter_info[] = {
     {"lock_rec_lock_requests", "lock", "Number of record locks requested",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_NUM_RECLOCK_REQ},
 
+    {"lock_rec_release_attempts", "lock",
+     "Number of times we attempted to release record locks", MONITOR_DEFAULT_ON,
+     MONITOR_DEFAULT_START, MONITOR_RECLOCK_RELEASE_ATTEMPTS},
+
+    {"lock_rec_grant_attempts", "lock",
+     "Number of times we attempted to grant locks for a record",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START, MONITOR_RECLOCK_GRANT_ATTEMPTS},
+
     {"lock_rec_lock_created", "lock", "Number of record locks created",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_RECLOCK_CREATED},
 
@@ -199,6 +207,11 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT |
                                  MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOCK_AVG_WAIT_TIME},
+
+    {"lock_schedule_refreshes", "lock",
+     "Number of times the wait-for graph was analyzed to update schedule "
+     "weights of transactions",
+     MONITOR_DEFAULT_ON, MONITOR_DEFAULT_START, MONITOR_SCHEDULE_REFRESHES},
 
     /* ========== Counters for Buffer Manager and I/O ========== */
     {"module_buffer", "buffer", "Buffer Manager Module", MONITOR_MODULE,
