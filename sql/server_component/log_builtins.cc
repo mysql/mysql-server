@@ -347,6 +347,7 @@ static const log_item_wellknown_key log_item_wellknown_keys[] = {
     {STRING_WITH_LEN("msg"), LOG_CSTRING, LOG_ITEM_LOG_MESSAGE},
     {STRING_WITH_LEN("msg_id"), LOG_INTEGER, LOG_ITEM_LOG_LOOKUP},
     {STRING_WITH_LEN("time"), LOG_CSTRING, LOG_ITEM_LOG_TIMESTAMP},
+    {STRING_WITH_LEN("ts"), LOG_INTEGER, LOG_ITEM_LOG_TS},
     {STRING_WITH_LEN("buffered"), LOG_INTEGER, LOG_ITEM_LOG_BUFFERED},
     {STRING_WITH_LEN("and_n_more"), LOG_INTEGER, LOG_ITEM_LOG_SUPPRESSED},
     /*
@@ -1226,7 +1227,7 @@ const char *log_label_from_prio(int prio) {
 static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
-  size_t msg_len = 0, ts_len = 0, label_len = 0, subsys_len = 0;
+  size_t msg_len = 0, iso_len = 0, label_len = 0, subsys_len = 0;
   enum loglevel prio = ERROR_LEVEL;
   unsigned int errcode = 0;
   log_item_type item_type = LOG_ITEM_END;
@@ -1268,7 +1269,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
           break;
         case LOG_ITEM_LOG_TIMESTAMP:
           iso_timestamp = ll->item[c].data.data_string.str;
-          ts_len = ll->item[c].data.data_string.length;
+          iso_len = ll->item[c].data.data_string.length;
           break;
         case LOG_ITEM_SRV_THREAD:
           thread_id = (my_thread_id)ll->item[c].data.data_integer;
@@ -1329,7 +1330,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         make_iso8601_timestamp(buff_local_time, my_micro_time(),
                                opt_log_timestamps);
         iso_timestamp = buff_local_time;
-        ts_len = strlen(buff_local_time);
+        iso_len = strlen(buff_local_time);
       }
 
       /*
@@ -1351,7 +1352,7 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         may be non-numerical: [ <alpha> | <digit> | '_' | '.' | '-' ]
       */
       len = snprintf(buff_line, sizeof(buff_line),
-                     "%.*s %u [%.*s] [MY-%06u] [%.*s] %.*s", (int)ts_len,
+                     "%.*s %u [%.*s] [MY-%06u] [%.*s] %.*s", (int)iso_len,
                      iso_timestamp, thread_id, (int)label_len, label, errcode,
                      (int)subsys_len, subsys, (int)msg_len, msg);
 
@@ -1882,6 +1883,17 @@ int log_line_submit(log_line *ll) {
       d = log_line_item_set(ll, LOG_ITEM_LOG_TIMESTAMP);
       d->data_string.str = local_time_buff;
       d->data_string.length = strlen(d->data_string.str);
+    }
+
+    /* auto-add a ts item if needed */
+    if (!(ll->seen & LOG_ITEM_LOG_TS) && !log_line_full(ll)) {
+      log_item_data *d;
+      ulonglong now = my_milli_time();
+
+      DBUG_EXECUTE_IF("log_error_normalize", { now = 0; });
+
+      d = log_line_item_set(ll, LOG_ITEM_LOG_TS);
+      d->data_integer = now;
     }
 
     /* auto-add a strerror item if relevant and available */

@@ -147,12 +147,13 @@ typedef enum enum_log_item_type {
   LOG_ITEM_LOG_MESSAGE = 1 << 19,    /**< the message, format string */
   LOG_ITEM_LOG_LOOKUP = 1 << 20,     /**< insert message by error-code */
   LOG_ITEM_LOG_TIMESTAMP = 1 << 21,  /**< ISO8601 timestamp */
-  LOG_ITEM_LOG_BUFFERED = 1 << 22,   /**< integer timestamp if/when buffered */
-  LOG_ITEM_LOG_SUPPRESSED = 1 << 23, /**< "and ... more" throttled */
-  LOG_ITEM_GEN_FLOAT = 1 << 24,      /**< float not otherwise specified */
-  LOG_ITEM_GEN_INTEGER = 1 << 25,    /**< integer not otherwise specified */
-  LOG_ITEM_GEN_LEX_STRING = 1 << 26, /**< lex string not otherwise specified */
-  LOG_ITEM_GEN_CSTRING = 1 << 27     /**< C-string not otherwise specified */
+  LOG_ITEM_LOG_TS = 1 << 22,         /**< millisecs since epoch */
+  LOG_ITEM_LOG_BUFFERED = 1 << 23,   /**< integer timestamp if/when buffered */
+  LOG_ITEM_LOG_SUPPRESSED = 1 << 24, /**< "and ... more" throttled */
+  LOG_ITEM_GEN_FLOAT = 1 << 25,      /**< float not otherwise specified */
+  LOG_ITEM_GEN_INTEGER = 1 << 26,    /**< integer not otherwise specified */
+  LOG_ITEM_GEN_LEX_STRING = 1 << 27, /**< lex string not otherwise specified */
+  LOG_ITEM_GEN_CSTRING = 1 << 28     /**< C-string not otherwise specified */
 } log_item_type;
 
 /* some suggested keys for generic items */
