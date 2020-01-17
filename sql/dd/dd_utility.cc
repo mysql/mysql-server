@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 
 #include "m_ctype.h"
 #include "mysql/components/services/log_builtins.h"  // LogErr
-#include "mysqld_error.h"
-#include "sql/handler.h"
+#include "mysqld_error.h"                            // ER_...
+#include "sql/handler.h"                             // handlerton
 
 namespace dd {
 

@@ -679,6 +679,14 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
   return 0;
 }
 
+extern bool ndbinfo_define_dd_tables(List<const Plugin_table> *);
+
+static bool ndbinfo_dict_init(dict_init_mode_t, uint,
+                              List<const Plugin_table> *table_list,
+                              List<const Plugin_tablespace> *) {
+  return ndbinfo_define_dd_tables(table_list);
+}
+
 static int ndbinfo_init(void *plugin) {
   DBUG_TRACE;
 
@@ -686,6 +694,7 @@ static int ndbinfo_init(void *plugin) {
   hton->create = create_handler;
   hton->flags = HTON_TEMPORARY_NOT_SUPPORTED | HTON_ALTER_NOT_SUPPORTED;
   hton->find_files = ndbinfo_find_files;
+  hton->dict_init = ndbinfo_dict_init;
 
   {
     // Install dummy callbacks to avoid writing <tablename>_<id>.SDI files

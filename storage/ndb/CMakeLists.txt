@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ha_ndb_index_stat.cc
   plugin/ha_ndb_ddl_fk.cc
   plugin/ha_ndbinfo.cc
+  plugin/ha_ndbinfo_sql.cc
   plugin/ndb_local_connection.cc
   plugin/ndb_share.cc
   plugin/ndb_thd.cc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -783,9 +783,10 @@ The documentation is based on the source files such as:
 #include "../components/mysql_server/log_builtins_imp.h"
 #include "../components/mysql_server/server_component.h"
 #include "sql/auth/dynamic_privileges_impl.h"
-#include "sql/dd/dd.h"                       // dd::shutdown
-#include "sql/dd/dd_kill_immunizer.h"        // dd::DD_kill_immunizer
-#include "sql/dd/dictionary.h"               // dd::get_dictionary
+#include "sql/dd/dd.h"                   // dd::shutdown
+#include "sql/dd/dd_kill_immunizer.h"    // dd::DD_kill_immunizer
+#include "sql/dd/dictionary.h"           // dd::get_dictionary
+#include "sql/dd/ndbinfo_schema/init.h"  // dd::ndbinfo::init_schema_and_tables()
 #include "sql/dd/performance_schema/init.h"  // performance_schema::init
 #include "sql/dd/upgrade/server.h"      // dd::upgrade::upgrade_system_schemas
 #include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
@@ -5756,6 +5757,12 @@ static int init_server_components() {
   if (ha_init()) {
     LogErr(ERROR_LEVEL, ER_CANT_INIT_DBS);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  /* Initialize ndbinfo tables in DD */
+  if (dd::ndbinfo::init_schema_and_tables(opt_upgrade_mode)) {
+    LogErr(ERROR_LEVEL, ER_NDBINFO_UPGRADING_SCHEMA_FAIL);
+    unireg_abort(1);
   }
 
   if (opt_initialize) log_output_options = LOG_FILE;

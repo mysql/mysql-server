@@ -10788,6 +10788,15 @@ ER_IB_MSG_GTID_FLUSH_AT_SHUTDOWN
 ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL
   eng "Failed to delete 5.7 stat tablespace: %s during upgrade"
 
+ER_NDBINFO_UPGRADING_SCHEMA
+  eng "Installing ndbinfo schema version %s"
+
+ER_NDBINFO_NOT_UPGRADING_SCHEMA
+  eng "Installed ndbinfo schema is current. Not upgrading."
+
+ER_NDBINFO_UPGRADING_SCHEMA_FAIL
+  eng "Failed to upgrade ndbinfo schema."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

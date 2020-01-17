@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,6 +255,20 @@ uint Dictionary_impl::get_actual_P_S_version(THD *thd) {
   DBUG_ASSERT(!error);
   DBUG_ASSERT(exists);
   return version;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Dictionary_impl::get_actual_ndbinfo_schema_version(THD *thd, uint *ver) {
+  bool exists = false;
+  tables::DD_properties::instance().get(thd, "NDBINFO_VERSION", ver, &exists);
+  return exists;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::set_ndbinfo_schema_version(THD *thd, uint version) {
+  return tables::DD_properties::instance().set(thd, "NDBINFO_VERSION", version);
 }
 
 ///////////////////////////////////////////////////////////////////////////

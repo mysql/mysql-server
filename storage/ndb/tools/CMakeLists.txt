@@ -162,18 +162,6 @@ MYSQL_ADD_EXECUTABLE(ndb_config
   ENABLE_EXPORTS
   LINK_LIBRARIES ndbclient_static
   )
-# Build ndbinfo_sql and run it to create ndbinfo.sql
-MYSQL_ADD_EXECUTABLE(ndbinfo_sql
-  ndbinfo_sql.cpp
-  SKIP_INSTALL
-  ENABLE_EXPORTS
-  LINK_LIBRARIES ndbclient_static
-  )
-
-ADD_CUSTOM_COMMAND(TARGET ndbinfo_sql POST_BUILD
-  COMMAND $<TARGET_FILE:ndbinfo_sql>
-  > ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
-  )
 
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,33 +29,6 @@ MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.cc SKIP_INSTALL)
 # Add compiler information, for easier debugging of output from mysql_config.
 SET(COMPILER_ID_AND_VERSION
   "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-
-IF(NOT WITHOUT_SERVER)
-  # Check that mysql_system_tables.sql is up-to-date
-  IF(WITH_NDBCLUSTER)
-    SET(MYSQL_SYSTEM_TABLES_PATCHES
-        ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
-    SET(MYSQL_SYSTEM_TABLES_DEPENDS
-        ndbinfo_sql)
-  ENDIF()
-ENDIF()
-
-IF(DEFINED MYSQL_SYSTEM_TABLES_PATCHES)
-  MYSQL_ADD_EXECUTABLE(patch_file patch_file.cc SKIP_INSTALL)
-  ADD_CUSTOM_TARGET(Check_mysql_system_tables_sql
-    ALL
-    patch_file ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-               ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
-               ${MYSQL_SYSTEM_TABLES_PATCHES}
-    COMMAND ${CMAKE_COMMAND} -E compare_files
-        ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-        ${CMAKE_CURRENT_BINARY_DIR}/mysql_system_tables.sql.patched
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-        ${MYSQL_SYSTEM_TABLES_DEPENDS}
-  )
-ENDIF()
 
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
 IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
