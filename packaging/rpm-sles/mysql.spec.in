@@ -119,6 +119,8 @@ BuildRequires:  perl(JSON)
 BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  cyrus-sasl-gssapi
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  libnuma-devel

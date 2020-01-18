@@ -84,6 +84,7 @@ BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  ncurses-devel

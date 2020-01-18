@@ -516,6 +516,7 @@ INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
+INCLUDE(kerberos)
 INCLUDE(rpc)
 INCLUDE(readline)
 INCLUDE(protobuf)
@@ -1227,6 +1228,8 @@ MYSQL_CHECK_LZ4()
 MYSQL_CHECK_ICU()
 # Add SASL library
 MYSQL_CHECK_SASL()
+# Add Kerberos library
+MYSQL_CHECK_KERBEROS()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()

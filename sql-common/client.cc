@@ -4743,8 +4743,17 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
   /* This needs to be changed as it's not useful with big packets */
   if (mysql->user[0])
     strmake(end, mysql->user, USERNAME_LENGTH);
-  else
-    read_user_name(end);
+  else {
+#if defined(KERBEROS_LIB_CONFIGURED)
+    if (strcmp(mpvio->plugin->name, "authentication_ldap_sasl_client") == 0) {
+      if (!read_kerberos_user_name(end)) {
+        set_mysql_error(mysql, CR_KERBEROS_USER_NOT_FOUND, unknown_sqlstate);
+        return true;
+      }
+    } else
+#endif
+      read_user_name(end);
+  }
 
   /* We have to handle different version of handshake here */
   DBUG_PRINT("info", ("user: %s", end));

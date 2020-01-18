@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ extern char *mysql_unix_port;
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |  \
    CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF)
 
+bool read_kerberos_user_name(char *name);
 void read_user_name(char *name);
 bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 

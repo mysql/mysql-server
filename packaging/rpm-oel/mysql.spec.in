@@ -152,6 +152,10 @@ BuildRequires:  perl(Time::localtime)
 BuildRequires:  time
 BuildRequires:  libaio-devel
 %if 0%{?commercial}
+BuildRequires:  cyrus-sasl-gssapi
+%{?el7:BuildRequires: cyrus-sasl-scram}
+%{?el8:BuildRequires: cyrus-sasl-scram}
+BuildRequires:  krb5-devel
 BuildRequires:  libcurl-devel
 %endif
 BuildRequires:  ncurses-devel

@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,9 @@ IF(NOT WIN32)
   ELSE()
     CROAK_AND_RETURN("Required LBER library is missing.")
   ENDIF()
+  IF(KERBEROS_FOUND)
+    SET(CMAKE_EXTRA_INCLUDE_FILES krb5.h)
+  ENDIF()
   IF(SASL_LIBRARY_PATH STREQUAL "")
     SET(SASL_LIBRARY_PATH /usr/lib64/libsasl2.so)
   ENDIF ()
@@ -122,11 +125,24 @@ ELSE()
 ENDIF()
 
 MESSAGE(STATUS "SASL_LIBRARY      = ${SASL_LIBRARY}")
-MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
-                 auth_ldap_sasl_client.cc log_client.cc
-                 LINK_LIBRARIES ${SASL_LIBRARY}
-                 CLIENT_ONLY MODULE_ONLY
-                 MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+
+IF (KERBEROS_FOUND)
+  MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
+  MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+                   auth_ldap_kerberos.cc auth_ldap_sasl_mechanism.cc
+                   auth_ldap_sasl_client.cc log_client.cc
+                   LINK_LIBRARIES ${KERBEROS_LIBRARY_PATH} ${SASL_LIBRARY}
+                   CLIENT_ONLY MODULE_ONLY
+                   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+ELSE()
+  MESSAGE(STATUS "Without Kerberos")
+  MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+                   auth_ldap_sasl_mechanism.cc
+                   auth_ldap_sasl_client.cc log_client.cc
+                   LINK_LIBRARIES ${SASL_LIBRARY}
+                   CLIENT_ONLY MODULE_ONLY
+                   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+ENDIF()
 
 IF(WIN32)
   GET_FILENAME_COMPONENT(SASL_DLL_NAME ${SASL_LIBRARY_DLL} NAME)

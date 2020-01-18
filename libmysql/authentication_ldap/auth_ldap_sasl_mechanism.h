@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,30 +20,43 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef CLIENT_SETTINGS_INCLUDED
-#define CLIENT_SETTINGS_INCLUDED
-#else
-#error You have already included an client_settings.h and it should not be included twice
-#endif /* CLIENT_SETTINGS_INCLUDED */
+#ifndef AUTH_LDAP_SASL_MECHANISM_H_
+#define AUTH_LDAP_SASL_MECHANISM_H_
 
-#include "sql_common.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <memory>
+#if defined(KERBEROS_LIB_CONFIGURED)
+#include "auth_ldap_kerberos.h"
+#endif
+#include "log_client.h"
 
-/*
- Note: CLIENT_CAPABILITIES is also defined in libmysql/client_settings.h.
- When adding capabilities here, consider if they should be also added to
- the libmysql version.
-*/
-#define CLIENT_CAPABILITIES                                        \
-  (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_TRANSACTIONS | \
-   CLIENT_PROTOCOL_41 | CLIENT_RESERVED2 | CLIENT_PLUGIN_AUTH |    \
-   CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |  \
-   CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF)
+const char SASL_GSSAPI[] = "GSSAPI";
 
-#define read_user_name(A) \
-  {}
+class Sasl_mechanism {
+ public:
+  Sasl_mechanism();
+  virtual ~Sasl_mechanism();
+  bool virtual pre_authentication();
+  void virtual get_ldap_host(std::string &host);
+  void set_user_info(std::string user, std::string password);
 
-#define read_kerberos_user_name(A) ({ false; })
-#define mysql_server_init(a, b, c) mysql_client_plugin_init()
-#define mysql_server_end() mysql_client_plugin_deinit()
+ protected:
+  std::string m_user;
+  std::string m_password;
+};
 
-void slave_io_thread_detach_vio();
+#if defined(KERBEROS_LIB_CONFIGURED)
+class Sasl_mechanism_kerberos : public Sasl_mechanism {
+ public:
+  Sasl_mechanism_kerberos();
+  ~Sasl_mechanism_kerberos() override;
+  bool virtual pre_authentication() override;
+  void virtual get_ldap_host(std::string &host) override;
+
+ private:
+  std::unique_ptr<auth_ldap_client_kerberos_context::Kerberos> m_kerberos;
+};
+#endif
+#endif  // AUTH_LDAP_SASL_MECHANISM_H_

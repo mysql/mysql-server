@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -187,6 +187,13 @@ SET(CLIENT_SOURCES
   ../sql/auth/sha2_password_common.cc
 )
 
+IF (KERBEROS_FOUND)
+  LIST(APPEND CLIENT_SOURCES
+    authentication_ldap/log_client.cc
+    authentication_ldap/auth_ldap_kerberos.cc
+  )
+ENDIF()
+
 IF (WIN32 AND OPENSSL_APPLINK_C)
   ADD_COMPILE_DEFINITIONS(
     ../sql-common/client_authentication.cc
@@ -228,6 +235,10 @@ IF(WITH_ZSTD STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZSTD_LIBRARY})
 ELSE()
   LIST(APPEND LIBS_TO_LINK ${ZSTD_LIBRARY})
+ENDIF()
+
+IF (KERBEROS_FOUND)
+  LIST(APPEND LIBS_TO_LINK ${KERBEROS_LIBRARY_PATH})
 ENDIF()
 
 LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})

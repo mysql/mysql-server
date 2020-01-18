@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,9 @@
 #include "client_settings.h"
 #include "mysql_trace.h"
 #include "sql_common.h"
+#ifdef KERBEROS_LIB_CONFIGURED
+#include "authentication_ldap/auth_ldap_kerberos.h"
+#endif
 
 /*
   Temporary replacement for COM_SHUTDOWN. This will be removed once
@@ -325,6 +328,19 @@ bool STDCALL mysql_change_user(MYSQL *mysql, const char *user,
 #if defined(HAVE_GETPWUID) && defined(NO_GETPWUID_DECL)
 struct passwd *getpwuid(uid_t);
 char *getlogin(void);
+#endif
+
+#if defined(KERBEROS_LIB_CONFIGURED)
+bool read_kerberos_user_name(char *name) {
+  bool ret_kerberos = false;
+  auth_ldap_client_kerberos_context::Kerberos kerberos("", "");
+  ret_kerberos = kerberos.get_user_name(name);
+  if (ret_kerberos && (strcmp(name, "") != 0)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 #endif
 
 #if !defined(_WIN32)
