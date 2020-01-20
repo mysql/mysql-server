@@ -108,18 +108,18 @@ void Global_view_notification::do_execute() {
 }
 
 Local_view_notification::Local_view_notification(
-    xcom_local_view_functor *functor, synode_no message_id,
+    xcom_local_view_functor *functor, synode_no config_id,
     Gcs_xcom_nodes *xcom_nodes, synode_no max_synode)
 
     : m_functor(functor),
-      m_message_id(message_id),
+      m_config_id(config_id),
       m_xcom_nodes(xcom_nodes),
       m_max_synode(max_synode) {}
 
 Local_view_notification::~Local_view_notification() {}
 
 void Local_view_notification::do_execute() {
-  (*m_functor)(m_message_id, m_xcom_nodes, m_max_synode);
+  (*m_functor)(m_config_id, m_xcom_nodes, m_max_synode);
 }
 
 Expel_notification::Expel_notification(xcom_expel_functor *functor)

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,8 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
   ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
-  src/bindings/xcom/gcs_xcom_synode.cc)
+  src/bindings/xcom/gcs_xcom_synode.cc
+  src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
 
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)

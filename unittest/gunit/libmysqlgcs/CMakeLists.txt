@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,7 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_control_interface
   xcom/gcs_xcom_view_identifier
   xcom/gcs_message_stage_fragmentation
+  xcom/gcs_xcom_expels_in_progress
   )
 
 ###
