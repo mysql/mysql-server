@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,6 @@ SET(xplugin_SRC
   src/query_formatter.cc
   src/query_string_builder.cc
   src/expr_generator.cc
-  src/json_generator.cc
   src/crud_cmd_handler.cc
   src/buffering_command_delegate.cc
   src/callback_command_delegate.cc
@@ -133,6 +132,7 @@ SET(xplugin_SRC
   src/index_field.cc
   src/index_array_field.cc
   src/capabilities/capability_compression.cc
+  src/meta_schema_validator.cc
 
   ${ngs_SRC}
 )

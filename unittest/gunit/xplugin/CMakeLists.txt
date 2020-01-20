@@ -91,10 +91,10 @@ SET(XPL_TEST_SRC
   xpl/index_field_t.cc
   xpl/insert_statement_builder_t.cc
   xpl/json_utils_t.cc
-  xpl/json_generator_t.cc
   xpl/listener_tcp_t.cc
   xpl/listener_unix_socket_t.cc
   xpl/message_builder_t.cc
+  xpl/meta_schema_validator_t.cc
   xpl/prepared_statement_builder_t.cc
   xpl/prepare_param_handler_t.cc
   xpl/protocol_decoder_t.cc

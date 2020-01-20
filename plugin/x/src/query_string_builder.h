@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,7 @@ class Query_string_builder {
                                                    size_t length);
   Query_string_builder &quote_identifier(const char *s, size_t length);
   Query_string_builder &quote_string(const char *s, size_t length);
+  Query_string_builder &quote_json_string(const char *s, size_t length);
 
   Query_string_builder &quote_identifier_if_needed(const std::string &s) {
     return quote_identifier_if_needed(s.data(), s.length());
@@ -83,8 +84,13 @@ class Query_string_builder {
     return quote_string(s.data(), s.length());
   }
 
+  Query_string_builder &quote_json_string(const std::string &s) {
+    return quote_json_string(s.data(), s.length());
+  }
+
   Query_string_builder &escape_identifier(const char *s, size_t length);
   Query_string_builder &escape_string(const char *s, size_t length);
+  Query_string_builder &escape_json_string(const char *s, size_t length);
 
   Query_string_builder &dot() { return put(".", 1); }
 
