@@ -340,7 +340,9 @@ class FakeSingleRowIterator final : public RowIterator {
     return {"Rows fetched before execution"};
   }
 
-  void SetNullRowFlag(bool is_null_row) override { DBUG_ASSERT(!is_null_row); }
+  void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
+    DBUG_ASSERT(!is_null_row);
+  }
 
   void UnlockRow() override {}
 
