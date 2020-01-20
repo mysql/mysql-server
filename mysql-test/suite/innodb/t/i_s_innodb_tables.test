@@ -1,3 +1,5 @@
+--source include/have_debug_sync.inc
+
 --echo #
 --echo # Bug#30591967  BACKUP FAILS WITH "CANNOT STORE RESULT" ERROR
 --echo # WHEN DDL EXECUTED IN PARALLEL
