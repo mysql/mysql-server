@@ -1436,6 +1436,12 @@ struct TABLE {
     Set during resolving; every field that gets resolved, sets its own bit
     in the read set. In some cases, we switch the read set around during
     various phases; note that it is a pointer.
+
+    In addition, for binary logging purposes, the bitmaps are set according
+    to the settings of @@binlog_row_image. Therefore, for logging purposes,
+    some additional fields, to those specified by the optimizer, may be
+    flagged in the read and write sets.
+    @c TABLE::mark_columns_per_binlog_row_image for additional details.
    */
   MY_BITMAP *read_set{nullptr};
 
