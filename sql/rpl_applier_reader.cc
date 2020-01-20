@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class Rpl_applier_reader::Stage_controller {
   }
 
   void enter_stage() {
-    DBUG_ASSERT(m_state = LOCKED);
+    DBUG_ASSERT(m_state == LOCKED);
     m_thd->ENTER_COND(m_cond, m_mutex, &m_new_stage, &m_old_stage);
     m_state = IN_STAGE;
   }
