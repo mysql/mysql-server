@@ -195,7 +195,10 @@ IF (KERBEROS_FOUND)
   # Kerberos is deprecated in macOS.
   IF(APPLE)
     ADD_COMPILE_FLAGS(authentication_ldap/auth_ldap_kerberos.cc
-                      COMPILE_FLAGS "-Wno-deprecated-declarations")
+      COMPILE_FLAGS "-Wno-deprecated-declarations")
+  ENDIF()
+  IF(FREEBSD)
+    INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
   ENDIF()
 ENDIF()
 
