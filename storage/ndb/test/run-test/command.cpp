@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <AtrtClient.hpp>
 #include "atrt.hpp"
+#include "process_management.hpp"
 
 MYSQL* find_atrtdb_client(atrt_config& config) {
   atrt_cluster* cluster = 0;
@@ -167,7 +168,8 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   return true;
 }
 
-static bool do_start_process(atrt_config& config, SqlResultSet& command,
+static bool do_start_process(ProcessManagement& processManagement,
+                             atrt_config& config, SqlResultSet& command,
                              AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   if (process_id > config.m_processes.size()) {
@@ -184,11 +186,12 @@ static bool do_start_process(atrt_config& config, SqlResultSet& command,
   proc.m_atrt_stopped = false;
 
   g_logger.info("starting process - %s", proc.m_name.c_str());
-  bool status = start_process(proc, false);
+  bool status = processManagement.startProcess(proc, false);
   return status;
 }
 
-static bool do_stop_process(atrt_config& config, SqlResultSet& command,
+static bool do_stop_process(ProcessManagement& processManagement,
+                            atrt_config& config, SqlResultSet& command,
                             AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
 
@@ -202,12 +205,12 @@ static bool do_stop_process(atrt_config& config, SqlResultSet& command,
   proc.m_atrt_stopped = true;
 
   g_logger.info("stopping process - %s", proc.m_name.c_str());
-  if (!stop_process(proc)) {
+  if (!processManagement.stopProcess(proc)) {
     return false;
   }
 
   g_logger.info("waiting for process to stop...");
-  if (!wait_for_process_to_stop(config, proc)) {
+  if (!processManagement.waitForProcessToStop(proc)) {
     g_logger.critical("Failed to stop process");
     return false;
   }
@@ -215,9 +218,10 @@ static bool do_stop_process(atrt_config& config, SqlResultSet& command,
   return true;
 }
 
-static bool do_change_version(atrt_config& config, SqlResultSet& command,
+static bool do_change_version(ProcessManagement& processManagement,
+                              atrt_config& config, SqlResultSet& command,
                               AtrtClient& atrtdb) {
-  if (!do_stop_process(config, command, atrtdb)) {
+  if (!do_stop_process(processManagement, config, command, atrtdb)) {
     return false;
   }
 
@@ -225,14 +229,15 @@ static bool do_change_version(atrt_config& config, SqlResultSet& command,
     return false;
   }
 
-  if (!do_start_process(config, command, atrtdb)) {
+  if (!do_start_process(processManagement, config, command, atrtdb)) {
     return false;
   }
 
   return true;
 }
 
-static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
+static bool do_reset_proc(ProcessManagement& processManagement,
+                          atrt_config& config, SqlResultSet& command,
                           AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
   g_logger.info("Reset process: %d", process_id);
@@ -245,9 +250,9 @@ static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
   atrt_process& proc = *config.m_processes[process_id];
 
   g_logger.info("stopping process...");
-  if (!stop_process(proc)) return false;
+  if (!processManagement.stopProcess(proc)) return false;
 
-  if (!wait_for_process_to_stop(config, proc)) return false;
+  if (!processManagement.waitForProcessToStop(proc)) return false;
 
   if (proc.m_save.m_saved) {
     ndbout << "before: " << proc << endl;
@@ -264,7 +269,7 @@ static bool do_reset_proc(atrt_config& config, SqlResultSet& command,
   return true;
 }
 
-bool do_command(atrt_config& config) {
+bool do_command(ProcessManagement& processManagement, atrt_config& config) {
 #ifdef _WIN32
   return true;
 #endif
@@ -293,19 +298,27 @@ bool do_command(atrt_config& config) {
 
   switch (cmd) {
     case AtrtClient::ATCT_CHANGE_VERSION:
-      if (!do_change_version(config, command, atrtdb)) return false;
+      if (!do_change_version(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_RESET_PROC:
-      if (!do_reset_proc(config, command, atrtdb)) return false;
+      if (!do_reset_proc(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_START_PROCESS:
-      if (!do_start_process(config, command, atrtdb)) return false;
+      if (!do_start_process(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_STOP_PROCESS:
-      if (!do_stop_process(config, command, atrtdb)) return false;
+      if (!do_stop_process(processManagement, config, command, atrtdb)) {
+        return false;
+      }
       break;
 
     case AtrtClient::ATCT_SWITCH_CONFIG:
