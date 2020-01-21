@@ -37,6 +37,4 @@ get_current_stage_progress_v1_t get_current_stage_progress;
 end_stage_v1_t end_stage;
 END_SERVICE_DEFINITION(psi_stage_v1)
 
-#define REQUIRES_PSI_STAGE_SERVICE REQUIRES_SERVICE(psi_stage_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_STAGE_SERVICE_H */

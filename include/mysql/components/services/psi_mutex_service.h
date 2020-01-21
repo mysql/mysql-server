@@ -41,6 +41,4 @@ end_mutex_wait_v1_t end_mutex_wait;
 unlock_mutex_v1_t unlock_mutex;
 END_SERVICE_DEFINITION(psi_mutex_v1)
 
-#define REQUIRES_PSI_MUTEX_SERVICE REQUIRES_SERVICE(psi_mutex_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_MUTEX_SERVICE_H */

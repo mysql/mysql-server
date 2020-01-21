@@ -74,6 +74,4 @@ start_file_rename_wait_v1_t start_file_rename_wait;
 end_file_rename_wait_v1_t end_file_rename_wait;
 END_SERVICE_DEFINITION(psi_file_v2)
 
-#define REQUIRES_PSI_FILE_SERVICE REQUIRES_SERVICE(psi_file_v2)
-
 #endif /* COMPONENTS_SERVICES_PSI_FILE_SERVICE_H */

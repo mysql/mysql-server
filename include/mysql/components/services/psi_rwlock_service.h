@@ -77,6 +77,4 @@ end_rwlock_wrwait_v1_t end_rwlock_wrwait;
 unlock_rwlock_v2_t unlock_rwlock;
 END_SERVICE_DEFINITION(psi_rwlock_v2)
 
-#define REQUIRES_PSI_RWLOCK_SERVICE REQUIRES_SERVICE(psi_rwlock_v2)
-
 #endif /* COMPONENTS_SERVICES_PSI_RWLOCK_SERVICE_H */

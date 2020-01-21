@@ -33,6 +33,4 @@ start_idle_wait_v1_t start_idle_wait;
 end_idle_wait_v1_t end_idle_wait;
 END_SERVICE_DEFINITION(psi_idle_v1)
 
-#define REQUIRES_PSI_IDLE_SERVICE REQUIRES_SERVICE(psi_idle_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_IDLE_SERVICE_H */
