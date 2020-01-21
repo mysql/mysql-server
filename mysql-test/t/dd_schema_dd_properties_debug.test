@@ -9,7 +9,7 @@
 --source include/have_case_sensitive_file_system.inc
 
 --let $file = $MYSQL_TMP_DIR/dd_properties.txt
---let $filter = MYSQLD_VERSION|DD_VERSION|LCTN|IS_VERSION|PS_VERSION|SDI_VERSION|MINOR_DOWNGRADE_THRESHOLD
+--let $filter = MYSQLD_VERSION|DD_VERSION|NDBINFO_VERSION|LCTN|IS_VERSION|PS_VERSION|SDI_VERSION|MINOR_DOWNGRADE_THRESHOLD
 --source include/dd_schema_dd_properties.inc
 --cat_file $file
 --remove_file $file
