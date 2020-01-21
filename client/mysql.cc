@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1497,6 +1497,13 @@ void mysql_end(int sig) {
     This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
     to the server if a query is currently executing. On Windows, 'Ctrl - Break'
     is treated alike.
+
+  FIXME: POSIX allows only a very limited set of interactions from signal
+  handlers, as the main thread could have nearly any state at the time of the
+  signal and is suspended until the signal handler returns. In particular,
+  only variables of type sig_atomic_t can be set and tested, and most C library
+  functions (including malloc()) are banned. Thus, calling kill_query() here
+  is forbidden and should not be done.
 */
 
 void handle_ctrlc_signal(int) {
@@ -3616,7 +3623,6 @@ static void print_table_data(MYSQL_RES *result) {
   }
 
   while ((cur = mysql_fetch_row(result))) {
-    if (interrupted_query) break;
     ulong *lengths = mysql_fetch_lengths(result);
     (void)tee_fputs("| ", PAGER);
     mysql_field_seek(result, 0);
@@ -3668,6 +3674,10 @@ static void print_table_data(MYSQL_RES *result) {
       tee_fputs(" |", PAGER);
     }
     (void)tee_fputs("\n", PAGER);
+
+    // Check interrupted_query last; this ensures that we get at least one row.
+    // This is useful for aborted EXPLAIN ANALYZE queries.
+    if (interrupted_query) break;
   }
   tee_puts(separator.ptr(), PAGER);
   my_safe_afree((bool *)num_flag, sz, MAX_ALLOCA_SIZE);
