@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2693,13 +2693,10 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   // Release last call's result buffer.
   m_bg_resbuf_mgr.free_result_buffer();
 
-  // Clean up the result first, since caller may give us one with non-NULL
-  // buffer, we don't need it here.
-  str_value_arg->set(NullS, 0, &my_charset_bin);
-
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value)))
-    goto exit;
+    return nullptr;
+
   if (!(g1 = Geometry::construct(&buffer1, res1)) ||
       !(g2 = Geometry::construct(&buffer2, res2))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -2712,9 +2709,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
              g2->get_srid());
     return error_str();
   }
-
-  str_value_arg->set_charset(&my_charset_bin);
-  str_value_arg->length(0);
 
   if (g1->get_srid() != 0) {
     THD *thd = current_thd;
@@ -2740,6 +2734,9 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     }
   }
 
+  // Use a local String here, since a BG_result_buf_mgr owns the buffer.
+  String str_value;
+
   /*
     Catch all exceptions to make sure no exception can be thrown out of
     current function. Put all and any code that calls Boost.Geometry functions,
@@ -2749,10 +2746,10 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   try {
     if (g1->get_type() != Geometry::wkb_geometrycollection &&
         g2->get_type() != Geometry::wkb_geometrycollection)
-      gres = bg_geo_set_op<bgcs::cartesian>(g1, g2, str_value_arg);
+      gres = bg_geo_set_op<bgcs::cartesian>(g1, g2, &str_value);
     else
       gres = geometry_collection_set_operation<bgcs::cartesian>(g1, g2,
-                                                                str_value_arg);
+                                                                &str_value);
 
   } catch (...) {
     had_except1 = true;
@@ -2776,8 +2773,8 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
     */
-    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-      m_bg_resbuf_mgr.set_result_buffer(str_value_arg->ptr());
+    if (!str_value.is_alloced() && gres != g1 && gres != g2)
+      m_bg_resbuf_mgr.set_result_buffer(str_value.ptr());
     m_bg_resbuf_mgr.free_intermediate_result_buffers();
   } catch (...) {
     had_except2 = true;
@@ -2792,16 +2789,16 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     return error_str();
   }
 
-  DBUG_ASSERT(gres != nullptr && !null_value && str_value_arg->length() > 0);
+  DBUG_ASSERT(gres != nullptr && !null_value && str_value.length() > 0);
 
   /*
     There are 4 ways to create the result geometry object and allocate
     memory for the result String object:
     1. Created in BGOPCALL and allocated by BG code using gis_wkb_alloc
        functions; The geometry result object's memory is took over by
-       str_value_arg, thus not allocated by str_value_arg.
+       str_value, thus not allocated by str_value.
     2. Created as a new geometry object and allocated by
-       str_value_arg's String member functions.
+       str_value's String member functions.
     3. One of g1 or g2 used as result and g1/g2's String object is used as
        final result without duplicating their byte strings. Also, g1 and/or
        g2 may be used as intermediate result and their byte strings are
@@ -2815,18 +2812,18 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     Among above 4 ways, #1, #2 and #4 write the byte string only once without
     any data copying, #3 doesn't write any byte strings.
 
-    And here we always have a GEOMETRY byte string in str_value_arg, although
+    And here we always have a GEOMETRY byte string in str_value, although
     in some cases gres->has_geom_header_space() is false.
    */
-  if (!str_value_arg->is_alloced() && gres != g1 && gres != g2) {
+  if (!str_value.is_alloced() && gres != g1 && gres != g2) {
     DBUG_ASSERT(gres->has_geom_header_space() || gres->is_bg_adapter());
   } else {
     DBUG_ASSERT(gres->has_geom_header_space() || (gres == g1 || gres == g2));
     if (gres == g1) {
-      str_value_arg = res1;
+      str_value.copy(*res1);
       result_is_args = true;
     } else if (gres == g2) {
-      str_value_arg = res2;
+      str_value.copy(*res2);
       result_is_args = true;
     }
   }
@@ -2836,17 +2833,20 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     So if returning one of the arguments as result directly, make sure the
     simplification is done in a separate buffer.
   */
-  if (simplify_multi_geometry(str_value_arg,
+  if (simplify_multi_geometry(&str_value,
                               (result_is_args ? &m_result_buffer : nullptr)) &&
       result_is_args)
-    str_value_arg = &m_result_buffer;
+    str_value.copy(m_result_buffer);
 
-exit:
   if (gres != g1 && gres != g2 && gres != nullptr) delete gres;
   // Result and argument SRIDs must be the same.
   DBUG_ASSERT(null_value ||
-              uint4korr(str_value_arg->ptr()) == uint4korr(res1->ptr()));
-  return null_value ? nullptr : str_value_arg;
+              uint4korr(str_value.ptr()) == uint4korr(res1->ptr()));
+
+  if (null_value) return nullptr;
+
+  str_value_arg->copy(str_value);
+  return str_value_arg;
 }
 
 inline bool is_areal(const Geometry *g) {

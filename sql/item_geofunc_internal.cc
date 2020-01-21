@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -520,9 +520,11 @@ bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
      */
     resbuf_mgr->add_buffer(resptr);
     /*
-      Pass resptr as const pointer so that the memory space won't be reused
-      by res object. Reuse is forbidden because the memory comes from BG
-      operations and will be freed upon next same val_str call.
+      The memory for the result is owned by a BG_result_buf_mgr,
+      so use String::set(char*, size_t, const CHARSET_INFO)
+      which points the internall buffer to the input argument,
+      and sets m_is_alloced = false, signifying the String object
+      does not own the buffer.
     */
     res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
 

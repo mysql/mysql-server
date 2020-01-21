@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3589,9 +3589,6 @@ String *Item_func_centroid::val_str(String *str) {
     return error_str();
   }
 
-  str->length(0);
-  str->set_charset(&my_charset_bin);
-
   if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
       geom->normalize_ring_order() == nullptr) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -3600,8 +3597,13 @@ String *Item_func_centroid::val_str(String *str) {
 
   if (verify_cartesian_srs(geom, func_name())) return error_str();
 
-  null_value = bg_centroid<bgcs::cartesian>(geom, str);
+  // Use a local String here, since a BG_result_buf_mgr owns the buffer.
+  String tmp_value;
+  null_value = bg_centroid<bgcs::cartesian>(geom, &tmp_value);
   if (null_value) return error_str();
+
+  // Then copy the result to the output result argument.
+  str->copy(tmp_value);
   return str;
 }
 
