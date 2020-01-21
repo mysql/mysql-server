@@ -292,6 +292,8 @@ INSERT INTO t2 VALUES
 INSERT INTO t3 VALUES
 ('test1','11:13:14'), ('test1','12:13:14'), ('test1','10:13:14');
 
+ANALYZE TABLE t1, t2, t3;
+
 let query1=
 SELECT *
 FROM t1 LEFT JOIN t2
