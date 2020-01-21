@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,8 +31,12 @@ namespace monitoring {
 /** Compression_stats --------------------------------------------------- */
 
 /* Constructors and destructors. */
-const Compression_stats::Compression_stats_trx_row
-    Compression_stats::ZERO_TRX_ROW{"", 0, 0, 0};
+const Compression_stats::Compression_stats_trx_row &
+Compression_stats::ZERO_TRX_ROW() {
+  static const Compression_stats::Compression_stats_trx_row instance = {"", 0,
+                                                                        0, 0};
+  return instance;
+}
 
 Compression_stats::Compression_stats(
     log_type log, binary_log::transaction::compression::type t)
@@ -207,8 +211,8 @@ void Compression_stats::reset() {
 
   last = current;
 
-  *first = ZERO_TRX_ROW;
-  *last = ZERO_TRX_ROW;
+  *first = ZERO_TRX_ROW();
+  *last = ZERO_TRX_ROW();
   m_counter_transactions = 0;
   m_counter_compressed_bytes = 0;
   m_counter_uncompressed_bytes = 0;
