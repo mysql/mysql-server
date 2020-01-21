@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <string.h>
 #include <sys/types.h>
 
-#include "../../components/mysql_server/mysql_string_service.h"
-#include "../../components/mysql_server/server_component.h"
+#include <mysql/components/minimal_chassis.h>
 #include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -32,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/mysql_string.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
+#include "mysql_string_service_imp.h"
 #include "sql_string.h"
 
 PSI_memory_key key_memory_string_service_iterator;
@@ -41,14 +41,6 @@ PSI_memory_key key_memory_string_service_iterator;
   So, that by default this service is available to all the components
   register to the server.
 */
-
-/**
-  Its a dummy initialization function. And it will be called from
-  mysql_component_infrastructure_init(). Else linker, is cutting out (as
-  library optimization) the string service code because libsql code is not
-  calling any functions of it.
-*/
-void mysql_string_services_init() { return; }
 
 struct my_h_string_imp {};
 

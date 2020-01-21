@@ -566,6 +566,7 @@ The documentation is based on the source files such as:
 #include "myisam.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
+#include "mysql/components/services/mysql_runtime_error_service.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
@@ -780,9 +781,11 @@ The documentation is based on the source files such as:
 #include "srv_session.h"
 #endif
 
-#include "../components/mysql_server/log_builtins_filter_imp.h"  // verbosity
-#include "../components/mysql_server/log_builtins_imp.h"
-#include "../components/mysql_server/server_component.h"
+#include <mysql/components/minimal_chassis.h>
+#include <mysql/components/services/dynamic_loader_scheme_file.h>
+#include <mysql/components/services/mysql_psi_system_service.h>
+#include <mysql/components/services/mysql_rwlock_service.h>
+#include <mysql/components/services/ongoing_transaction_query_service.h>
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/dd/dd.h"                   // dd::shutdown
 #include "sql/dd/dd_kill_immunizer.h"    // dd::DD_kill_immunizer
@@ -791,6 +794,10 @@ The documentation is based on the source files such as:
 #include "sql/dd/performance_schema/init.h"  // performance_schema::init
 #include "sql/dd/upgrade/server.h"      // dd::upgrade::upgrade_system_schemas
 #include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
+#include "sql/server_component/component_sys_var_service_imp.h"
+#include "sql/server_component/log_builtins_filter_imp.h"
+#include "sql/server_component/log_builtins_imp.h"
+#include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
 using std::max;
@@ -1727,6 +1734,23 @@ static void server_components_initialized() {
   mysql_mutex_unlock(&LOCK_server_started);
 }
 
+SERVICE_TYPE(mysql_runtime_error) * error_service;
+SERVICE_TYPE(mysql_psi_system_v1) * system_service;
+SERVICE_TYPE(mysql_rwlock_v1) * rwlock_service;
+SERVICE_TYPE_NO_CONST(registry) * srv_registry;
+SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
+using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
+using runtime_error_type_t = SERVICE_TYPE_NO_CONST(mysql_runtime_error);
+using psi_system_type_t = SERVICE_TYPE_NO_CONST(mysql_psi_system_v1);
+using rwlock_type_t = SERVICE_TYPE_NO_CONST(mysql_rwlock_v1);
+using loader_scheme_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader_scheme_file);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_rwlock_v1);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_psi_system_v1);
+extern bool initialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
+                                       *registry);
+extern bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
+                                         registry);
+
 /**
   Initializes component infrastructure by bootstrapping core component
   subsystem.
@@ -1736,45 +1760,63 @@ static void server_components_initialized() {
   @retval true failure
 */
 static bool component_infrastructure_init() {
-  if (mysql_services_bootstrap(nullptr)) {
+  if (initialize_minimal_chassis(&srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
   }
-  if (pfs_init_services(&imp_mysql_server_registry_registration)) {
-    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
-    return true;
-  }
+  /* Here minimal_chassis dynamic_loader_scheme_file service has
+     to be acquired */
+  srv_registry->acquire(
+      "dynamic_loader_scheme_file.mysql_minimal_chassis",
+      reinterpret_cast<my_h_service *>(
+          const_cast<loader_scheme_type_t **>(&scheme_file_srv)));
+
+  srv_registry->acquire("dynamic_loader",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<loader_type_t **>(&dynamic_loader_srv)));
+
+  my_service<SERVICE_TYPE(registry_registration)> registrator(
+      "registry_registration", srv_registry);
+
+  // Sets default file scheme loader for MySQL server.
+  registrator->set_default(
+      "dynamic_loader_scheme_file.mysql_server_path_filter");
+
+  // Sets default rw_lock for MySQL server.
+  registrator->set_default("mysql_rwlock_v1.mysql_server");
+  srv_registry->acquire("mysql_rwlock_v1.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<rwlock_type_t **>(&rwlock_service)));
+  mysql_service_mysql_rwlock_v1 =
+      reinterpret_cast<SERVICE_TYPE(mysql_rwlock_v1) *>(rwlock_service);
+
+  // Sets default psi_system event service for MySQL server.
+  registrator->set_default("mysql_psi_system_v1.mysql_server");
+  srv_registry->acquire("mysql_psi_system_v1.mysql_server",
+                        reinterpret_cast<my_h_service *>(
+                            const_cast<psi_system_type_t **>(&system_service)));
+  /* This service variable is needed for mysql_unload_plugin */
+  mysql_service_mysql_psi_system_v1 =
+      reinterpret_cast<SERVICE_TYPE(mysql_psi_system_v1) *>(system_service);
+
+  // Sets default mysql_runtime_error for MySQL server.
+  registrator->set_default("mysql_runtime_error.mysql_server");
+  srv_registry->acquire(
+      "mysql_runtime_error.mysql_server",
+      reinterpret_cast<my_h_service *>(
+          const_cast<runtime_error_type_t **>(&error_service)));
+  /* This service variable is needed where ever mysql_error_service_printf()
+     service api is used */
+  mysql_service_mysql_runtime_error =
+      reinterpret_cast<SERVICE_TYPE(mysql_runtime_error) *>(error_service);
+
   return false;
 }
 
-extern void mysql_connection_attributes_iterator_imp_init(void);
-
 /**
   This function is used to initialize the mysql_server component services.
-  Most of the init functions are dummy functions, to solve the linker issues.
 */
-static void server_component_init() {
-  mysql_comp_sys_var_services_init();
-  /*
-    Below are dummy initialization functions. Else linker, is cutting out (as
-    library optimization) all the below services code. This is because of
-    libsql code is not calling any functions of them.
-  */
-  mysql_string_services_init();
-  mysql_comp_status_var_services_init();
-  mysql_comp_system_variable_source_init();
-  mysql_backup_lock_service_init();
-  clone_protocol_service_init();
-  page_track_service_init();
-  mysql_security_context_init();
-  mysql_server_ongoing_transactions_query_init();
-  host_application_signal_imp_init();
-  mysql_audit_api_service_init();
-  mysql_current_thread_reader_imp_init();
-  mysql_keyring_iterator_service_init();
-  mysql_comp_udf_extension_init();
-  mysql_connection_attributes_iterator_imp_init();
-}
+static void server_component_init() { mysql_comp_sys_var_services_init(); }
 
 /**
   Initializes MySQL Server component infrastructure part by initialize of
@@ -1813,13 +1855,19 @@ static bool mysql_component_infrastructure_init() {
 */
 static bool component_infrastructure_deinit() {
   persistent_dynamic_loader_deinit();
-  shutdown_dynamic_loader();
 
-  if (pfs_deinit_services(&imp_mysql_server_registry_registration)) {
-    LogErr(ERROR_LEVEL, ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
-    return true;
-  }
-  if (mysql_services_shutdown()) {
+  srv_registry->release(reinterpret_cast<my_h_service>(
+      const_cast<loader_scheme_type_t *>(scheme_file_srv)));
+  srv_registry->release(reinterpret_cast<my_h_service>(
+      const_cast<loader_type_t *>(dynamic_loader_srv)));
+  srv_registry->release(reinterpret_cast<my_h_service>(
+      const_cast<runtime_error_type_t *>(error_service)));
+  srv_registry->release(reinterpret_cast<my_h_service>(
+      const_cast<psi_system_type_t *>(system_service)));
+  srv_registry->release(reinterpret_cast<my_h_service>(
+      const_cast<rwlock_type_t *>(rwlock_service)));
+
+  if (deinitialize_minimal_chassis(srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
     return true;
   }

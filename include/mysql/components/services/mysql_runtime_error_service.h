@@ -63,6 +63,11 @@ inline void mysql_error_service_printf(int error_id, int flags, ...) {
   va_end(args);
 }
 
+typedef int myf; /* Type of MyFlags in my_funcs */
+
+/* Macros for converting *constants* to the right type */
+#define MYF(v) (myf)(v)
+
 #ifndef MYSQL_SERVER
 #define my_error mysql_error_service_printf
 #endif

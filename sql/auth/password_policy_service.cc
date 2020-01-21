@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,13 @@
 #include "mysql/plugin_validate_password.h" /* validate_password plugin */
 #include "mysqld_error.h"                   /* To get ER_NOT_VALID_PASSWORD */
 #include "sql/current_thd.h"
+#include "sql/mysqld.h" /* srv_registry */
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql_string.h"
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/validate_password.h>
-#include "components/mysql_server/server_component.h"
 
 /**
   Static name of the built in plugin used by mysql_password_policy_service_st
@@ -80,13 +80,13 @@ int my_validate_password_policy(const char *password,
     String tmp_str(password, password_len, &my_charset_utf8_bin);
     password_str = tmp_str;
   }
-  if (!imp_mysql_server_registry.acquire("validate_password", &h_pv_svc)) {
+  if (!srv_registry->acquire("validate_password", &h_pv_svc)) {
     ret = reinterpret_cast<SERVICE_TYPE(validate_password) *>(h_pv_svc);
     if (ret->validate((void *)current_thd, (my_h_string)&password_str)) {
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
       res = 1;
     }
-    imp_mysql_server_registry.release(h_pv_svc);
+    srv_registry->release(h_pv_svc);
   } else {
     plugin = my_plugin_lock_by_name(nullptr, validate_password_plugin,
                                     MYSQL_VALIDATE_PASSWORD_PLUGIN);
@@ -137,12 +137,12 @@ int my_calculate_password_strength(const char *password,
   String password_str;
 
   if (password) password_str.set(password, password_len, &my_charset_utf8_bin);
-  if (!imp_mysql_server_registry.acquire("validate_password", &h_pv_svc)) {
+  if (!srv_registry->acquire("validate_password", &h_pv_svc)) {
     ret = reinterpret_cast<SERVICE_TYPE(validate_password) *>(h_pv_svc);
     if (!ret->get_strength((void *)current_thd, (my_h_string)&password_str,
                            &strength))
       res = strength;
-    imp_mysql_server_registry.release(h_pv_svc);
+    srv_registry->release(h_pv_svc);
   } else {
     plugin_ref plugin = my_plugin_lock_by_name(
         nullptr, validate_password_plugin, MYSQL_VALIDATE_PASSWORD_PLUGIN);

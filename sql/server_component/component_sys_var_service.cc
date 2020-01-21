@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <utility>
 
+#include <mysql/components/minimal_chassis.h>
 #include <mysql/components/services/log_builtins.h>
-#include "components/mysql_server/component_sys_var_service.h"
-#include "components/mysql_server/server_component.h"
+#include "component_sys_var_service_imp.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"

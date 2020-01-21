@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,6 @@
 #include <map>
 #include <utility>
 
-#include "../components/mysql_server/log_builtins_filter_imp.h"  // verbosity
-#include "../components/mysql_server/log_builtins_imp.h"
 #include "ft_global.h"
 #include "libbinlogevents/include/binlog_event.h"
 #include "m_string.h"
@@ -121,6 +119,8 @@
 #include "sql/rpl_rli.h"                // Relay_log_info
 #include "sql/rpl_slave.h"              // SLAVE_THD_TYPE
 #include "sql/rpl_write_set_handler.h"  // transaction_write_set_hashing_algorithms
+#include "sql/server_component/log_builtins_filter_imp.h"  // until we have pluggable variables
+#include "sql/server_component/log_builtins_imp.h"
 #include "sql/session_tracker.h"
 #include "sql/sp_head.h"          // SP_PSI_STATEMENT_INFO_COUNT
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
