@@ -609,6 +609,11 @@ INSERT INTO t2 VALUES
 ('test1','2016-12-13'),('test1','2016-12-14'),('test1','2016-12-15');
 INSERT INTO t3 VALUES
 ('test1','11:13:14'), ('test1','12:13:14'), ('test1','10:13:14');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN SELECT *
 FROM t1 LEFT JOIN t2
 ON t2.a = 'test1' AND t2.b = '20161213'
