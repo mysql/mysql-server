@@ -81,6 +81,7 @@
 #include "sql/opt_hints.h"  // hint_key_state()
 #include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"
+#include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
@@ -110,8 +111,6 @@
 #include "sql_string.h"
 #include "template_utils.h"
 #include "thr_lock.h"
-
-class Opt_trace_context;
 
 using std::max;
 using std::min;
@@ -840,7 +839,7 @@ static double accumulate_statement_cost(const LEX *lex) {
   @retval true   if the statement should be retried in a secondary engine
   @retval false  if the statement should not be retried
 */
-static bool retry_with_secondary_engine(const THD *thd) {
+static bool retry_with_secondary_engine(THD *thd) {
   // Only retry if the current statement is being tentatively
   // optimized for the primary engine.
   if (thd->secondary_engine_optimization() !=
@@ -849,12 +848,6 @@ static bool retry_with_secondary_engine(const THD *thd) {
 
   Sql_cmd *const sql_cmd = thd->lex->m_sql_cmd;
   DBUG_ASSERT(!sql_cmd->using_secondary_storage_engine());
-
-  // Only attempt to use the secondary engine if the estimated cost of the query
-  // is higher than the specified cost threshold.
-  if (thd->m_current_query_cost <=
-      thd->variables.secondary_engine_cost_threshold)
-    return false;
 
   // Don't retry if it's already determined that the statement should not be
   // executed by a secondary engine.
@@ -870,6 +863,23 @@ static bool retry_with_secondary_engine(const THD *thd) {
   // Don't retry if there is a property of the environment that prevents use of
   // secondary engines.
   if (!thd->secondary_storage_engine_eligible()) return false;
+
+  // Only attempt to use the secondary engine if the estimated cost of the query
+  // is higher than the specified cost threshold.
+  if (thd->m_current_query_cost <=
+      thd->variables.secondary_engine_cost_threshold) {
+    Opt_trace_context *const trace = &thd->opt_trace;
+    if (trace->is_started()) {
+      Opt_trace_object wrapper(trace);
+      Opt_trace_object oto(trace, "secondary_engine_not_used");
+      oto.add_alnum("reason",
+                    "The estimated query cost does not exceed "
+                    "secondary_engine_cost_threshold.");
+      oto.add("cost", thd->m_current_query_cost);
+      oto.add("threshold", thd->variables.secondary_engine_cost_threshold);
+    }
+    return false;
+  }
 
   return true;
 }
