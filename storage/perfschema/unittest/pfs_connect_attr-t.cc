@@ -24,6 +24,7 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include <mysql/components/my_service.h>
 #include "my_inttypes.h"
 #include "my_thread.h"
 #include "storage/perfschema/pfs_global.h"

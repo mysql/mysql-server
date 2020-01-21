@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -919,6 +919,7 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
+REQUIRES_SERVICE_PLACEHOLDER(mysql_rwlock_v1);
 
 /* A list of dependencies.
    The dynamic_loader fetches the references for the below services at the

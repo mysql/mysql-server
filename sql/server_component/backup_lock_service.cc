@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 class THD;
 // release_backup_lock
-
-void mysql_backup_lock_service_init() { return; }
 
 DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
                    (MYSQL_THD opaque_thd,

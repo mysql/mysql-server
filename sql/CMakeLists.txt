@@ -106,6 +106,7 @@ ADD_CUSTOM_COMMAND(
 )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_SUBDIRECTORY(server_component)
 
 SET(DD_SOURCES
   dd/collection.cc
@@ -313,25 +314,6 @@ SET(SQL_GIS_SOURCES
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   options_parser.cc
-)
-
-SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
-  server_component/backup_lock_service.cc
-  server_component/clone_protocol_service.cc
-  server_component/mysql_string_service.cc
-  server_component/persistent_dynamic_loader.cc
-  server_component/component_sys_var_service.cc
-  server_component/component_status_var_service.cc
-  server_component/ongoing_transaction_query_service.cc
-  server_component/system_variable_source_imp.cc
-  server_component/security_context_imp.cc
-  server_component/host_application_signal_imp.cc
-  server_component/audit_api_message_service_imp.cc
-  server_component/page_track_service.cc
-  server_component/mysql_current_thread_reader_imp.cc
-  server_component/keyring_iterator_service_imp.cc
-  server_component/udf_metadata_imp.cc
-  server_component/mysql_connection_attributes_iterator_imp.cc
 )
 
 SET(SQL_SHARED_SOURCES
@@ -577,7 +559,6 @@ SET(SQL_SHARED_SOURCES
   uniques.cc
   xa.cc
   ssl_acceptor_context.cc
-  ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
@@ -794,13 +775,14 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
+
 ADD_LIBRARY(sql_main STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  component_mysql_server mysys strings vio
+  mysql_server_component_services mysys strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
@@ -955,7 +937,7 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
-  )
+  ) 
 
 # We depend on protobuf because of the mysqlx plugin.
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
@@ -1041,7 +1023,7 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_dd mysys
-  binlogevents_static ${ICU_LIBRARIES})
+  minchassis binlogevents_static ${ICU_LIBRARIES})
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")

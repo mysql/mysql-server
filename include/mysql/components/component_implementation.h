@@ -151,6 +151,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
     Atomic variable is_intialized represents the state of the component.
     Please check the details about the variable from validate_password_imp.cc
     file.
+  -# Using registry acquire/release services inside component's init/deint
+    functions is not supported. All the required services for the component
+    has to be specified under BEGIN_COMPONENT_REQUIRES section only.
   .
 
   @file include/mysql/components/component_implementation.h
@@ -213,6 +216,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   { NULL, NULL }                 \
   }
 
+/**
+  A macro to specify requirements of the component. Creates a structure with
+  a list for requirements and pointers to their placeholders.
+
+  @param name Name of component.
+*/
+#define BEGIN_COMPONENT_REQUIRES_WITHOUT_REGISTRY(name) \
+  static struct mysql_service_placeholder_ref_t __##name##_requires[] = {
 /**
   A macro to specify requirements of the component. Creates a placeholder for
   the Registry service and structure with a list for requirements and
@@ -287,17 +298,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Also, plug-in needs to be declared as extern "C" because MSVC
   unlike other compilers, uses C++ mangling for variables not only
   for functions. */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) /* Microsoft */
 #ifdef __cplusplus
 #define DLL_EXPORT extern "C" __declspec(dllexport)
+#define DLL_IMPORT extern "C" __declspec(dllimport)
 #else
 #define DLL_EXPORT __declspec(dllexport)
+#define DLL_IMPORT __declspec(dllimport)
 #endif
-#else /*_MSC_VER */
+#else /* non _MSC_VER */
 #ifdef __cplusplus
-#define DLL_EXPORT extern "C"
+#define DLL_EXPORT extern "C" __attribute__((visibility("default")))
+#define DLL_IMPORT
 #else
-#define DLL_EXPORT
+#define DLL_EXPORT __attribute__((visibility("default")))
+#define DLL_IMPORT
 #endif
 #endif
 
@@ -326,5 +341,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Defines a reference to the specified Component data info structure.
 */
 #define COMPONENT_REF(name) mysql_component_##name
+
+/**
+  This is the component module entry function, used to get the component's
+  structure to register the required services.
+*/
+#define COMPONENT_ENTRY_FUNC "list_components"
 
 #endif /* COMPONENT_IMPLEMENTATION_H */

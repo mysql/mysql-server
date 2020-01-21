@@ -36,6 +36,8 @@
 #include "my_thread.h"
 #include "my_thread_local.h"
 
+#include <mysql/components/service_implementation.h>
+
 struct PFS_thread;
 class PFS_table_context;
 

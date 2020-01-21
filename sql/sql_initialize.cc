@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "components/mysql_server/log_builtins_filter_imp.h"  // verbosity
 #include "m_ctype.h"
 #include "my_dbug.h"
 #include "my_dir.h"
@@ -44,6 +43,7 @@
 #include "scripts/sql_commands_system_users.h"
 #include "scripts/sys_schema/sql_commands.h"
 #include "sql/mysqld.h"
+#include "sql/server_component/log_builtins_filter_imp.h"  // verbosity
 #include "sql/sql_bootstrap.h"
 
 static const char *initialization_cmds[] = {"USE mysql;\n", nullptr};

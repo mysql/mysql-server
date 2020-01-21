@@ -26,7 +26,7 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(mysql_rwlock_v1);
+extern REQUIRES_SERVICE_PLACEHOLDER(mysql_rwlock_v1);
 
 #define mysql_rwlock_register(P1, P2, P3) \
   mysql_service_mysql_rwlock_v1->register_info(P1, P2, P3)

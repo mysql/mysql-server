@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,8 @@
 #include <sql/current_thd.h>
 #include <sql/mysqld_thd_manager.h>
 #include <sql/sql_lex.h>
-#include "components/mysql_server/mysql_ongoing_transaction_query.h"
+#include "mysql_ongoing_transaction_query_imp.h"
 #include "sql/sql_class.h"  // THD
-
-void mysql_server_ongoing_transactions_query_init() { return; }
 
 class Get_running_transactions : public Do_THD_Impl {
  public:

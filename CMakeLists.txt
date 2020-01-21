@@ -1375,6 +1375,7 @@ IF(NOT WITHOUT_SERVER AND WITH_UNIT_TESTS)
   ADD_LIBRARY(server_unittest_library STATIC ${DUMMY_SOURCE_FILE})
   TARGET_LINK_LIBRARIES(server_unittest_library perfschema)
   TARGET_LINK_LIBRARIES(server_unittest_library sql_main)
+  TARGET_LINK_LIBRARIES(server_unittest_library minchassis)
   TARGET_LINK_LIBRARIES(server_unittest_library ${ICU_LIBRARIES})
 ENDIF()
 
