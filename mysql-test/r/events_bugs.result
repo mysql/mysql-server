@@ -40,11 +40,11 @@ Warnings:
 Note	1588	Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was dropped immediately after creation.
 show events;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-create event e_55 on schedule at 20200101000000 starts 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 do drop table t' at line 1
-create event e_55 on schedule at 20200101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 ends 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ends 10000101000000 do drop table t' at line 1
-create event e_55 on schedule at 20200101000000 starts 10000101000000 ends 10000101000000 do drop table t;
+create event e_55 on schedule at 20380101000000 starts 10000101000000 ends 10000101000000 do drop table t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'starts 10000101000000 ends 10000101000000 do drop table t' at line 1
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '10000101000000'
@@ -422,16 +422,16 @@ SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 events_test	e1	root@localhost	+02:00	ONE TIME	2000-01-02 00:00:00	NULL	NULL	NULL	NULL	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SET TIME_ZONE= '-03:00';
-ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2030-01-03 00:00:00'
+ALTER EVENT e1 ON SCHEDULE EVERY 1 DAY ENDS '2038-01-03 00:00:00'
   ON COMPLETION PRESERVE DISABLE;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SET TIME_ZONE= '+04:00';
 ALTER EVENT e1 DO SELECT 2;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2030-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+events_test	e1	root@localhost	-03:00	RECURRING	NULL	1	DAY	2005-12-31 20:58:59	2038-01-03 00:00:00	DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT e1;
 SET TIME_ZONE='+05:00';
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
@@ -664,7 +664,7 @@ SET GLOBAL READ_ONLY = 1;
 # Connection: u1_con (mysqltest_u1@localhost/events_test).
 #
 
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
@@ -677,7 +677,7 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 # Connection: root_con (root@localhost/events_test).
 #
 
-CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
+CREATE EVENT e1 ON SCHEDULE AT '2038-01-01 00:00:00' DO SET @a = 1;
 
 ALTER EVENT e1 COMMENT 'comment';
 
