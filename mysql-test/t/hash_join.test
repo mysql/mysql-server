@@ -2213,3 +2213,32 @@ EXPLAIN FORMAT=tree SELECT c FROM
 NATURAL RIGHT JOIN t;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30741679 ASSERTION `FALSE' IN EXTRACT_VALUE_FOR_HASH_JOIN
+--echo # Bug#30769883 HIT ASSERT IN
+--echo #              ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN()
+--echo #
+CREATE TABLE t1 (
+  a INTEGER,
+  b INTEGER
+);
+
+INSERT INTO t1 VALUES (1, 1);
+ANALYZE TABLE t1;
+
+# See that conditions having a non-scalar subquery is attached as extra
+# conditions, and not as join conditions.
+let $query = SELECT * FROM t1 as table1
+  WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+# Conditions having a scalar subquery (subquery with one column) should be used
+# as a proper join condition.
+let $query = SELECT * FROM t1 as table1
+  WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;

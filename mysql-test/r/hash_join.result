@@ -3709,3 +3709,45 @@ EXPLAIN
                                 -> Table scan on a  (cost=0.37 rows=1)
 
 DROP TABLE t;
+#
+# Bug#30741679 ASSERTION `FALSE' IN EXTRACT_VALUE_FOR_HASH_JOIN
+# Bug#30769883 HIT ASSERT IN
+#              ITEM_FUNC_EQ::APPEND_JOIN_KEY_FOR_HASH_JOIN()
+#
+CREATE TABLE t1 (
+a INTEGER,
+b INTEGER
+);
+INSERT INTO t1 VALUES (1, 1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM t1 as table1
+WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+EXPLAIN
+-> Hash semijoin (no condition), extra conditions: ((select #2) = (t1.a,t1.b))  (cost=0.70 rows=1)
+    -> Table scan on table1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 as table1
+WHERE (SELECT a, b FROM t1 WHERE table1.a <> 6) IN (SELECT a, b FROM t1);
+a	b
+1	1
+EXPLAIN FORMAT=tree SELECT * FROM t1 as table1
+WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+EXPLAIN
+-> Hash semijoin ((select #2) = (t1.a))  (cost=0.70 rows=1)
+    -> Table scan on table1  (cost=0.35 rows=1)
+    -> Hash
+        -> Table scan on t1  (cost=0.35 rows=1)
+
+Warnings:
+Note	1276	Field or reference 'test.table1.a' of SELECT #2 was resolved in SELECT #1
+SELECT * FROM t1 as table1
+WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
+a	b
+1	1
+DROP TABLE t1;

@@ -48,6 +48,7 @@
 #include "my_macros.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
@@ -7106,6 +7107,22 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
                                         size_t max_char_length,
                                         bool store_full_sort_key,
                                         String *join_key_buffer) {
+  if (comparator->get_compare_type() == ROW_RESULT) {
+    // If the comparand returns a row via a subquery or a row value expression,
+    // the comparator will be set up with child comparators (one for each column
+    // in the row value). For hash join, we currently allow row values with only
+    // one column.
+    assert(comparator->get_child_comparator_count() == 1);
+    comparator = comparator->get_child_comparators();
+  }
+
+  if (comparand->type() == Item::ROW_ITEM) {
+    // In case of row value, get hold of the first column in the row. Note that
+    // this is not needed for subqueries; val_* will execute and return the
+    // value for scalar subqueries.
+    comparand = comparand->element_index(0);
+  }
+
   if (comparator->use_custom_value_extractors()) {
     // The Arg_comparator has decided that the values should be extracted using
     // the function pointer given by "get_value_[a|b]_func", so let us do the

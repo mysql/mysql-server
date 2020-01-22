@@ -1912,12 +1912,23 @@ static unique_ptr_destroy_only<RowIterator> CreateHashJoinIterator(
         if (func_item->contains_only_equi_join_condition() &&
             !ItemRefersToOneSideOnly(func_item, left_table_map,
                                      right_table_map)) {
-          // Make a hash join condition for this equality comparison.
-          // This may entail allocating type cast nodes; see the comments
-          // on HashJoinCondition for more details.
-          hash_join_conditions.emplace_back(
-              down_cast<Item_func_eq *>(func_item), thd->mem_root);
-          continue;
+          Item_func_eq *join_condition = down_cast<Item_func_eq *>(func_item);
+          // Join conditions with items that returns row values (subqueries or
+          // row value expression) are set up with multiple child comparators,
+          // one for each column in the row. As long as the row contains only
+          // one column, use it as a join condition. If it has more than one
+          // column, attach it as an extra condition. Note that join conditions
+          // that does not return row values are not set up with any child
+          // comparators, meaning that get_child_comparator_count() will return
+          // 0.
+          if (join_condition->get_comparator()->get_child_comparator_count() <
+              2) {
+            // Make a hash join condition for this equality comparison.
+            // This may entail allocating type cast nodes; see the comments
+            // on HashJoinCondition for more details.
+            hash_join_conditions.emplace_back(join_condition, thd->mem_root);
+            continue;
+          }
         }
       }
       // It was not.

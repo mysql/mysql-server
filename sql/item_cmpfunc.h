@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -241,6 +241,10 @@ class Arg_comparator {
   }
 
   Item_result get_compare_type() const { return m_compare_type; }
+
+  uint get_child_comparator_count() const { return comparator_count; }
+
+  Arg_comparator *get_child_comparators() const { return comparators; }
 
   /// @returns true if the class has decided that values should be extracted
   ///   from the Items using function pointers set up by this class.
@@ -647,6 +651,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     cmp.cleanup();
   }
   bool cast_incompatible_args(uchar *) override;
+  const Arg_comparator *get_comparator() const { return &cmp; }
   friend class Arg_comparator;
 };
 
