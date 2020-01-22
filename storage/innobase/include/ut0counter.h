@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -293,7 +293,7 @@ inline Type dec(Shards<COUNT> &shards, size_t id) {
 @param[in] id                   Shard key.
 @return current value. */
 template <size_t COUNT>
-inline Type get(const Shards<COUNT> &shards, size_t id) {
+inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
   return (shards[id % shards.size()].m_n.load(Memory_order));
 }
 
@@ -302,7 +302,7 @@ inline Type get(const Shards<COUNT> &shards, size_t id) {
 @param[in] f                    Callback function
 @return total value. */
 template <size_t COUNT>
-inline void for_each(const Shards<COUNT> &shards, Function &&f) {
+inline void for_each(const Shards<COUNT> &shards, Function &&f) noexcept {
   for (const auto &shard : shards) {
     f(shard.m_n);
   }
@@ -312,7 +312,7 @@ inline void for_each(const Shards<COUNT> &shards, Function &&f) {
 @param[in] shards               Shards to sum.
 @return total value. */
 template <size_t COUNT>
-inline Type total(const Shards<COUNT> &shards) {
+inline Type total(const Shards<COUNT> &shards) noexcept {
   Type n = 0;
 
   for_each(shards, [&](const Type count) { n += count; });
@@ -323,12 +323,33 @@ inline Type total(const Shards<COUNT> &shards) {
 /** Clear the counter - reset to 0.
 @param[in,out] shards          Shards to clear. */
 template <size_t COUNT>
-inline void clear(Shards<COUNT> &shards) {
+inline void clear(Shards<COUNT> &shards) noexcept {
   for (auto &shard : shards) {
     shard.m_n.store(0, Memory_order);
   }
 }
 
+/** Copy the counters, overwrite destination.
+@param[in,out] dst              Destination shard
+@param[in]     src              Source shard. */
+template <size_t COUNT>
+inline void copy(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
+  size_t i{0};
+  for_each(src, [&](const Type count) {
+    dst[i++].m_n.store(count, std::memory_order_relaxed);
+  });
+}
+
+/** Accumulate the counters, add source to destination.
+@param[in,out] dst              Destination shard
+@param[in]     src              Source shard. */
+template <size_t COUNT>
+inline void add(Shards<COUNT> &dst, const Shards<COUNT> &src) noexcept {
+  size_t i{0};
+  for_each(src, [&](const Type count) {
+    dst[i++].m_n.fetch_add(count, std::memory_order_relaxed);
+  });
+}
 }  // namespace Counter
 
 #endif /* ut0counter_h */

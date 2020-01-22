@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1521,7 +1521,8 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_data_written = srv_stats.data_written;
 
-  export_vars.innodb_buffer_pool_read_requests = stat.n_page_gets;
+  export_vars.innodb_buffer_pool_read_requests =
+      Counter::total(stat.m_n_page_gets);
 
   export_vars.innodb_buffer_pool_write_requests =
       srv_stats.buf_pool_write_requests;

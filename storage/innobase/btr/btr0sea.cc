@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1038,7 +1038,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   {
     buf_pool_t *buf_pool = buf_pool_from_bpage(&block->page);
 
-    ++buf_pool->stat.n_page_gets;
+    Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
 
   return (TRUE);
