@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -480,16 +480,13 @@ void buf_get_total_stat(
 {
   ulint i;
 
-  memset(tot_stat, 0, sizeof(*tot_stat));
+  tot_stat->reset();
 
   for (i = 0; i < srv_buf_pool_instances; i++) {
-    buf_pool_stat_t *buf_stat;
-    buf_pool_t *buf_pool;
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
+    buf_pool_stat_t *buf_stat = &buf_pool->stat;
 
-    buf_pool = buf_pool_from_array(i);
-
-    buf_stat = &buf_pool->stat;
-    tot_stat->n_page_gets += buf_stat->n_page_gets;
+    Counter::add(tot_stat->m_n_page_gets, buf_stat->m_n_page_gets);
     tot_stat->n_pages_read += buf_stat->n_pages_read;
     tot_stat->n_pages_written += buf_stat->n_pages_written;
     tot_stat->n_pages_created += buf_stat->n_pages_created;
@@ -1211,6 +1208,8 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
   os_thread_id_t thread_id;
 
   thread_id = os_thread_get_curr_id();
+
+  buf_pool->stat.reset();
 
   if (pthread_setaffinity_np(thread_id, sizeof(cpuset), &cpuset) == -1) {
     ib::error() << "sched_setaffinity() failed!";
@@ -3069,7 +3068,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
   ibool must_read;
   buf_pool_t *buf_pool = buf_pool_get(page_id);
 
-  buf_pool->stat.n_page_gets++;
+  Counter::inc(buf_pool->stat.m_n_page_gets, page_id.page_no());
 
   for (;;) {
   lookup:
@@ -4007,7 +4006,7 @@ template <typename T>
 buf_block_t *Buf_fetch<T>::single_page() {
   buf_block_t *block;
 
-  m_buf_pool->stat.n_page_gets++;
+  Counter::inc(m_buf_pool->stat.m_n_page_gets, m_page_id.page_no());
 
   for (;;) {
     if (static_cast<T *>(this)->get(block) == DB_NOT_FOUND) {
@@ -4307,7 +4306,7 @@ bool buf_page_optimistic_get(ulint rw_latch, buf_block_t *block,
 
   {
     auto buf_pool = buf_pool_from_block(block);
-    buf_pool->stat.n_page_gets++;
+    Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
   }
 
   return (true);
@@ -4400,7 +4399,7 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
   ut_a((hint == Cache_hint::KEEP_OLD) || ibuf_count_get(block->page.id) == 0);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
-  ++buf_pool->stat.n_page_gets;
+  Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
 
   return (true);
 }
@@ -4479,7 +4478,7 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 
   buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
 
-  buf_pool->stat.n_page_gets++;
+  Counter::inc(buf_pool->stat.m_n_page_gets, block->page.id.page_no());
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
   ut_a(ibuf_count_get(block->page.id) == 0);
@@ -5380,7 +5379,8 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
 @param[in,out]	buf_pool	buffer pool instance */
 static void buf_refresh_io_stats(buf_pool_t *buf_pool) {
   buf_pool->last_printout_time = ut_time_monotonic();
-  buf_pool->old_stat = buf_pool->stat;
+
+  buf_pool_stat_t::copy(buf_pool->old_stat, buf_pool->stat);
 }
 
 /** Invalidates file pages in one buffer pool instance
@@ -5431,7 +5431,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   mutex_exit(&buf_pool->LRU_list_mutex);
 
-  memset(&buf_pool->stat, 0x00, sizeof(buf_pool->stat));
+  buf_pool->stat.reset();
   buf_refresh_io_stats(buf_pool);
 }
 
@@ -6009,7 +6009,7 @@ void buf_stats_get_pool_info(
 
   pool_info->n_pages_written = buf_pool->stat.n_pages_written;
 
-  pool_info->n_page_gets = buf_pool->stat.n_page_gets;
+  pool_info->n_page_gets = Counter::total(buf_pool->stat.m_n_page_gets);
 
   pool_info->n_ra_pages_read_rnd = buf_pool->stat.n_ra_pages_read_rnd;
   pool_info->n_ra_pages_read = buf_pool->stat.n_ra_pages_read;
@@ -6038,7 +6038,8 @@ void buf_stats_get_pool_info(
       time_elapsed;
 
   pool_info->n_page_get_delta =
-      buf_pool->stat.n_page_gets - buf_pool->old_stat.n_page_gets;
+      Counter::total(buf_pool->stat.m_n_page_gets) -
+      Counter::total(buf_pool->old_stat.m_n_page_gets);
 
   if (pool_info->n_page_get_delta) {
     pool_info->page_read_delta =

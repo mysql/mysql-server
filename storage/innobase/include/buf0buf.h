@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1662,37 +1662,84 @@ struct buf_buddy_free_t {
 
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_t {
-  ulint n_page_gets;            /*!< number of page gets performed;
-                                also successful searches through
-                                the adaptive hash index are
-                                counted as page gets; this field
-                                is NOT protected by the buffer
-                                pool mutex */
-  ulint n_pages_read;           /*!< number of read operations. Accessed
-                                atomically. */
-  ulint n_pages_written;        /*!< number of write operations. Accessed
-                                atomically. */
-  ulint n_pages_created;        /*!< number of pages created
-                                in the pool with no read. Accessed
-                                atomically. */
-  ulint n_ra_pages_read_rnd;    /*!< number of pages read in
-                            as part of random read ahead. Not protected. */
-  ulint n_ra_pages_read;        /*!< number of pages read in
-                                as part of read ahead. Not protected. */
-  ulint n_ra_pages_evicted;     /*!< number of read ahead
-                             pages that are evicted without
-                             being accessed. Protected by LRU_list_mutex. */
-  ulint n_pages_made_young;     /*!< number of pages made young, in
-                            calls to buf_LRU_make_block_young(). Protected
-                            by LRU_list_mutex. */
-  ulint n_pages_not_made_young; /*!< number of pages not made
-                        young because the first access
-                        was not long enough ago, in
-                        buf_page_peek_if_too_old(). Not protected. */
-  ulint LRU_bytes;              /*!< LRU size in bytes. Protected by
-                                LRU_list_mutex. */
-  ulint flush_list_bytes;       /*!< flush_list size in bytes.
-                               Protected by flush_list_mutex */
+  using Shards = Counter::Shards<64>;
+
+  /** Number of page gets performed; also successful searches through the
+  adaptive hash index are counted as page gets; this field is NOT protected
+  by the buffer pool mutex */
+  Shards m_n_page_gets;
+
+  /** Number of read operations. Accessed atomically. */
+  uint64_t n_pages_read;
+
+  /** Number of write operations. Accessed atomically. */
+  uint64_t n_pages_written;
+
+  /**  number of pages created in the pool with no read. Accessed atomically. */
+  uint64_t n_pages_created;
+
+  /** Number of pages read in as part of random read ahead. Not protected. */
+  uint64_t n_ra_pages_read_rnd;
+
+  /** Number of pages read in as part of read ahead. Not protected. */
+  uint64_t n_ra_pages_read;
+
+  /** Number of read ahead pages that are evicted without being accessed.
+  Protected by LRU_list_mutex. */
+  uint64_t n_ra_pages_evicted;
+
+  /** Number of pages made young, in calls to buf_LRU_make_block_young().
+  Protected by LRU_list_mutex. */
+  uint64_t n_pages_made_young;
+
+  /** Number of pages not made young because the first access was not long
+  enough ago, in buf_page_peek_if_too_old(). Not protected. */
+  uint64_t n_pages_not_made_young;
+
+  /** LRU size in bytes. Protected by LRU_list_mutex. */
+  uint64_t LRU_bytes;
+
+  /** Flush_list size in bytes.  Protected by flush_list_mutex */
+  uint64_t flush_list_bytes;
+
+  static void copy(buf_pool_stat_t &dst, const buf_pool_stat_t &src) noexcept {
+    Counter::copy(dst.m_n_page_gets, src.m_n_page_gets);
+
+    dst.n_pages_read = src.n_pages_read;
+
+    dst.n_pages_written = src.n_pages_written;
+
+    dst.n_pages_created = src.n_pages_created;
+
+    dst.n_ra_pages_read_rnd = src.n_ra_pages_read_rnd;
+
+    dst.n_ra_pages_read = src.n_ra_pages_read;
+
+    dst.n_ra_pages_evicted = src.n_ra_pages_evicted;
+
+    dst.n_pages_made_young = src.n_pages_made_young;
+
+    dst.n_pages_not_made_young = src.n_pages_not_made_young;
+
+    dst.LRU_bytes = src.LRU_bytes;
+
+    dst.flush_list_bytes = src.flush_list_bytes;
+  }
+
+  void reset() {
+    Counter::clear(m_n_page_gets);
+
+    n_pages_read = 0;
+    n_pages_written = 0;
+    n_pages_created = 0;
+    n_ra_pages_read_rnd = 0;
+    n_ra_pages_read = 0;
+    n_ra_pages_evicted = 0;
+    n_pages_made_young = 0;
+    n_pages_not_made_young = 0;
+    LRU_bytes = 0;
+    flush_list_bytes = 0;
+  }
 };
 
 /** Statistics of buddy blocks of a given size. */

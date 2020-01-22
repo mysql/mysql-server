@@ -1653,7 +1653,7 @@ void srv_mon_process_existing_counter(
     read requests */
     case MONITOR_OVLD_BUF_POOL_READ_REQUESTS:
       buf_get_total_stat(&stat);
-      value = stat.n_page_gets;
+      value = Counter::total(stat.m_n_page_gets);
       break;
 
     /* innodb_buffer_pool_write_requests, the number of
