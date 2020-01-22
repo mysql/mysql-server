@@ -1950,7 +1950,7 @@ join t1 as t2 on t2.a = t1.c
 group by t1.b
 order by t1.b, cnt;
 EXPLAIN
--> Sort: <temporary>.b, <temporary>.cnt
+-> Sort: t1.b, cnt
     -> Stream results
         -> Group aggregate: count(distinct t2.b)
             -> Nested loop inner join  (cost=4011.20 rows=16)
