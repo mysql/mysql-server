@@ -1184,7 +1184,7 @@ TRACE
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "f2"
+                "expression": "`t1`.`f2`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
@@ -5385,7 +5385,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "filesort_information": [
               {
                 "direction": "asc",
-                "field": "col_int_key"
+                "expression": "`alias1`.`col_int_key`"
               }
             ] /* filesort_information */,
             "filesort_priority_queue_optimization": {
