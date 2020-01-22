@@ -652,7 +652,6 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
     Item_bool_func::cleanup();
     cmp.cleanup();
   }
-  bool cast_incompatible_args(uchar *) override;
   const Arg_comparator *get_comparator() const { return &cmp; }
   Item *replace_scalar_subquery(uchar *) override;
   friend class Arg_comparator;
@@ -679,6 +678,7 @@ class Item_func_comparison : public Item_bool_func2 {
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
 
+  bool cast_incompatible_args(uchar *) override;
   bool contains_only_equi_join_condition() const override;
 };
 
@@ -706,7 +706,6 @@ class Item_func_xor final : public Item_bool_func2 {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 class Item_func_not : public Item_bool_func {
@@ -1449,7 +1448,6 @@ class Item_func_nullif final : public Item_bool_func2 {
     inherit from Item_func instead of Item_bool_func2
   */
   bool is_bool_func() const override { return false; }
-  bool cast_incompatible_args(uchar *) override { return false; }
 };
 
 /* Functions to handle the optimized IN */
@@ -2249,7 +2247,6 @@ class Item_func_like final : public Item_bool_func2 {
   bool resolve_type(THD *) override;
   void cleanup() override;
   Item *replace_scalar_subquery(uchar *) override;
-  bool cast_incompatible_args(uchar *) override { return false; }
   void update_used_tables() override;
   /**
     @retval true non default escape char specified

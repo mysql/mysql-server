@@ -2460,7 +2460,14 @@ bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
   my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
   if (current_thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
 
-  if ((null_value = args[0]->get_date(ltime, flags))) return true;
+  if (get_arg0_date(ltime, flags)) {
+    ltime->time_type = MYSQL_TIMESTAMP_DATETIME;
+    if (args[0]->null_value || m_explicit_cast) return true;
+    // The implicit CAST to DATETIME returns 0-date on invalid argument
+    null_value = false;
+    set_zero_time(ltime, ltime->time_type);
+    return false;
+  }
   DBUG_ASSERT(ltime->time_type != MYSQL_TIMESTAMP_TIME);
   ltime->time_type = MYSQL_TIMESTAMP_DATETIME;  // In case it was DATE
   int warnings = 0;
@@ -2503,10 +2510,21 @@ void Item_typecast_date::print(const THD *thd, String *str,
 
 bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
                                   my_time_flags_t fuzzy_date) {
-  bool res = get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN);
-  ltime->hour = ltime->minute = ltime->second = ltime->second_part = 0;
+  if (get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN)) {
+    if (args[0]->null_value || m_explicit_cast) return true;
+    // The implicit cast to DATE returns 0-date instead of NULL
+    null_value = false;
+    set_zero_time(ltime, ltime->time_type);
+    return false;
+  }
+
+  ltime->hour = 0;
+  ltime->minute = 0;
+  ltime->second = 0;
+  ltime->second_part = 0;
   ltime->time_type = MYSQL_TIMESTAMP_DATE;
-  return res;
+
+  return false;
 }
 
 /**
