@@ -1399,8 +1399,13 @@ class Item_extract final : public Item_int_func {
 };
 
 class Item_typecast_date final : public Item_date_func {
+  bool m_explicit_cast{true};
+
  public:
-  Item_typecast_date(Item *a) : Item_date_func(a) { maybe_null = true; }
+  Item_typecast_date(Item *a, bool explicit_cast)
+      : Item_date_func(a), m_explicit_cast(explicit_cast) {
+    maybe_null = true;
+  }
   Item_typecast_date(const POS &pos, Item *a) : Item_date_func(pos, a) {
     maybe_null = true;
   }
@@ -1415,6 +1420,7 @@ class Item_typecast_date final : public Item_date_func {
 
 class Item_typecast_time final : public Item_time_func {
   bool detect_precision_from_arg;
+  bool m_explicit_cast{true};
 
  public:
   Item_typecast_time(Item *a) : Item_time_func(a) {
@@ -1445,9 +1451,11 @@ class Item_typecast_time final : public Item_time_func {
 
 class Item_typecast_datetime final : public Item_datetime_func {
   bool detect_precision_from_arg;
+  bool m_explicit_cast{true};
 
  public:
-  Item_typecast_datetime(Item *a) : Item_datetime_func(a) {
+  Item_typecast_datetime(Item *a, bool explicit_cast)
+      : Item_datetime_func(a), m_explicit_cast(explicit_cast) {
     detect_precision_from_arg = true;
   }
   Item_typecast_datetime(const POS &pos, Item *a) : Item_datetime_func(pos, a) {

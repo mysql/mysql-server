@@ -386,7 +386,7 @@ if(@bug28261 = f1, '', @bug28261:= f1)
 2002-02-02
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1292	Incorrect date value: '' for column 'f1' at row 1
+Warning	1292	Incorrect datetime value: ''
 select if(@bug28261 = f1, '', @bug28261:= f1) from t1;
 if(@bug28261 = f1, '', @bug28261:= f1)
 2001-01-01

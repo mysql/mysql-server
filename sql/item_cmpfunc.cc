@@ -708,10 +708,6 @@ Item *Item_bool_func2::replace_scalar_subquery(uchar *) {
   return this;
 }
 
-bool Item_bool_func2::cast_incompatible_args(uchar *) {
-  return cmp.inject_cast_nodes();
-}
-
 void Arg_comparator::cleanup() {
   if (comparators != nullptr) {
     /*
@@ -1229,30 +1225,36 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
 }
 
 /**
- * Wraps the item into a CAST node to DATETIME
- * @param item - the item to be wrapped
- * @returns true if error (OOM), false otherwise.
+   Wraps the item into a CAST function to the type provided as argument
+   @param item - the item to be wrapped
+   @param type - the type to wrap the item to
+   @returns true if error (OOM), false otherwise.
  */
-inline bool wrap_in_cast_to_datetime(Item **item) {
+inline bool wrap_in_cast(Item **item, enum_field_types type) {
   THD *thd = current_thd;
   Item *cast;
-  if (!(cast = new Item_typecast_datetime(*item))) return true;
-
-  cast->fix_fields(thd, item);
-  thd->change_item_tree(item, cast);
-
-  return false;
-}
-
-/**
- * Wraps the item into a CAST node to DOUBLE
- * @param item - the item to be wrapped
- * @returns true if error (OOM), false otherwise.
- */
-inline bool wrap_in_cast_to_double(Item **item) {
-  THD *thd = current_thd;
-  Item *cast;
-  if (!(cast = new Item_typecast_real(*item))) return true;
+  switch (type) {
+    case MYSQL_TYPE_DATETIME: {
+      if (!(cast = new Item_typecast_datetime(*item, false))) return true;
+      break;
+    }
+    case MYSQL_TYPE_DATE: {
+      if (!(cast = new Item_typecast_date(*item, false))) return true;
+      break;
+    }
+    case MYSQL_TYPE_TIME: {
+      if (!(cast = new Item_typecast_time(*item))) return true;
+      break;
+    }
+    case MYSQL_TYPE_DOUBLE: {
+      if (!(cast = new Item_typecast_real(*item))) return true;
+      break;
+    }
+    default: {
+      DBUG_ASSERT(false);
+      return true;
+    }
+  }
 
   cast->fix_fields(thd, item);
   thd->change_item_tree(item, cast);
@@ -1283,13 +1285,25 @@ bool Arg_comparator::inject_cast_nodes() {
     Item *aa = (*left)->real_item();
     Item *bb = (*right)->real_item();
 
-    // Check if one of the arguments is temporal and the other one is numeric
-    if (!((aa->is_temporal() && (bb->result_type() == INT_RESULT ||
-                                 bb->result_type() == REAL_RESULT ||
-                                 bb->result_type() == DECIMAL_RESULT)) ||
-          (bb->is_temporal() && (aa->result_type() == INT_RESULT ||
-                                 aa->result_type() == REAL_RESULT ||
-                                 aa->result_type() == DECIMAL_RESULT))))
+    // No cast nodes are injected if both arguments are numeric
+    // (that includes YEAR data type)
+    if (!((aa->result_type() == STRING_RESULT &&
+           (bb->result_type() == INT_RESULT ||
+            bb->result_type() == REAL_RESULT ||
+            bb->result_type() == DECIMAL_RESULT)) ||
+          (bb->result_type() == STRING_RESULT &&
+           (aa->result_type() == INT_RESULT ||
+            aa->result_type() == REAL_RESULT ||
+            aa->result_type() == DECIMAL_RESULT))))
+      return false;
+
+    // No CAST nodes are injected in comparisons with YEAR
+    if ((aa->data_type() == MYSQL_TYPE_YEAR &&
+         (bb->data_type() == MYSQL_TYPE_TIME ||
+          bb->data_type() == MYSQL_TYPE_TIME2)) ||
+        (bb->data_type() == MYSQL_TYPE_YEAR &&
+         (aa->data_type() == MYSQL_TYPE_TIME ||
+          aa->data_type() == MYSQL_TYPE_TIME2)))
       return false;
 
     // Check that both arguments are fields or functions
@@ -1298,17 +1312,17 @@ bool Arg_comparator::inject_cast_nodes() {
       return false;
 
     // If any of the arguments is not floating point number, wrap it in a CAST
-    if (aa->result_type() != REAL_RESULT && wrap_in_cast_to_double(left))
+    if (aa->result_type() != REAL_RESULT &&
+        wrap_in_cast(left, MYSQL_TYPE_DOUBLE))
       return true; /* purecov: inspected */
-    if (bb->result_type() != REAL_RESULT && wrap_in_cast_to_double(right))
+    if (bb->result_type() != REAL_RESULT &&
+        wrap_in_cast(right, MYSQL_TYPE_DOUBLE))
       return true; /* purecov: inspected */
   } else if (func == &Arg_comparator::compare_datetime) {
     Item *aa = (*left)->real_item();
     Item *bb = (*right)->real_item();
-    // Check that both arguments are of temporal types, but not of type YEAR
-    if (!(aa->is_temporal() || aa->result_type() != STRING_RESULT) ||
-        !(bb->is_temporal() || bb->result_type() != STRING_RESULT) ||
-        aa->data_type() == MYSQL_TYPE_YEAR ||
+    // Check that none of the arguments are of type YEAR
+    if (aa->data_type() == MYSQL_TYPE_YEAR ||
         bb->data_type() == MYSQL_TYPE_YEAR)
       return false;
 
@@ -1319,12 +1333,38 @@ bool Arg_comparator::inject_cast_nodes() {
         aa->data_type() == bb->data_type())
       return false;
 
-    // If any of the arguments is not DATETIME, wrap it in a CAST
-    if (!aa->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(left))
-      return true; /* purecov: inspected */
-    if (!bb->is_temporal_with_date_and_time() &&
-        wrap_in_cast_to_datetime(right))
-      return true; /* purecov: inspected */
+    bool left_is_datetime = aa->is_temporal_with_date_and_time();
+    bool left_is_date = aa->is_temporal_with_date();
+    bool left_is_time = aa->is_temporal_with_time();
+
+    bool right_is_datetime = bb->is_temporal_with_date_and_time();
+    bool right_is_date = bb->is_temporal_with_date();
+    bool right_is_time = bb->is_temporal_with_time();
+
+    // When one of the arguments is_temporal_with_date_and_time() or one
+    // argument is DATE and the other one is TIME
+    if (left_is_datetime || right_is_datetime ||
+        (left_is_date && right_is_time) || (left_is_time && right_is_date)) {
+      if (!left_is_datetime && !right_is_datetime) {
+        // one is DATE, the other one is TIME so wrap both in CAST to DATETIME
+        return wrap_in_cast(left, MYSQL_TYPE_DATETIME) ||
+               wrap_in_cast(right, MYSQL_TYPE_DATETIME);
+      }
+      // one is DATETIME the other one is not
+      return left_is_datetime ? wrap_in_cast(right, MYSQL_TYPE_DATETIME)
+                              : wrap_in_cast(left, MYSQL_TYPE_DATETIME);
+    }
+
+    // One of the arguments is DATE, wrap the other in CAST to DATE
+    if (left_is_date || right_is_date) {
+      return left_is_date ? wrap_in_cast(right, MYSQL_TYPE_DATE)
+                          : wrap_in_cast(left, MYSQL_TYPE_DATE);
+    }
+
+    DBUG_ASSERT(left_is_time || right_is_time);
+    // one of the arguments is TIME, wrap the other one in CAST to TIME
+    return left_is_time ? wrap_in_cast(right, MYSQL_TYPE_TIME)
+                        : wrap_in_cast(left, MYSQL_TYPE_TIME);
   }
 
   return false;
@@ -6244,6 +6284,10 @@ bool Item_func_comparison::is_null() {
   // find out if it is NULL. Fall back to the implementation in Item_func, which
   // calls update_null_value() to evaluate the operator.
   return Item_func::is_null();
+}
+
+bool Item_func_comparison::cast_incompatible_args(uchar *) {
+  return cmp.inject_cast_nodes();
 }
 
 Item_equal::Item_equal(Item_field *f1, Item_field *f2)
