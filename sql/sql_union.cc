@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1255,6 +1255,8 @@ bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
   if (full) {
     m_root_iterator.reset();
   }
+
+  m_query_blocks_to_materialize.clear();
 
   bool error = false;
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select())
