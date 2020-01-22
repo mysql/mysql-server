@@ -33,8 +33,8 @@ namespace monitoring {
 /* Constructors and destructors. */
 const Compression_stats::Compression_stats_trx_row &
 Compression_stats::ZERO_TRX_ROW() {
-  static const Compression_stats::Compression_stats_trx_row instance = {"", 0,
-                                                                        0, 0};
+  static const Compression_stats::Compression_stats_trx_row instance =
+      std::make_tuple("", 0, 0, 0);
   return instance;
 }
 
