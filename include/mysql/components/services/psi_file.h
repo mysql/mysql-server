@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_file_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_file_v2);
+#define REQUIRES_PSI_FILE_SERVICE REQUIRES_SERVICE(psi_file_v2)
+#define REQUIRES_PSI_FILE_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_file_v2)
+
+extern REQUIRES_PSI_FILE_SERVICE_PLACEHOLDER;
 
 #define PSI_FILE_CALL(M) mysql_service_psi_file_v2->M
 

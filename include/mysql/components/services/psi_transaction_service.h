@@ -50,6 +50,4 @@ inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
 end_transaction_v1_t end_transaction;
 END_SERVICE_DEFINITION(psi_transaction_v1)
 
-#define REQUIRES_PSI_TRANSACTION_SERVICE REQUIRES_SERVICE(psi_transaction_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_TRANSACTION_SERVICE_H */

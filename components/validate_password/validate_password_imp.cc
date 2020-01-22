@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql/components/library_mysys/my_memory.h"
 #include "mysql/components/services/mysql_rwlock.h"
+#include "mysql/components/services/psi_memory.h"
 #include "mysqld_error.h"
 
 #define PSI_NOT_INSTRUMENTED 0
@@ -919,7 +920,8 @@ REQUIRES_SERVICE_PLACEHOLDER(component_sys_variable_unregister);
 REQUIRES_SERVICE_PLACEHOLDER(status_variable_registration);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_thd_security_context);
 REQUIRES_SERVICE_PLACEHOLDER(mysql_security_context_options);
-REQUIRES_SERVICE_PLACEHOLDER(mysql_rwlock_v1);
+REQUIRES_PSI_MEMORY_SERVICE_PLACEHOLDER;
+REQUIRES_MYSQL_RWLOCK_SERVICE_PLACEHOLDER;
 
 /* A list of dependencies.
    The dynamic_loader fetches the references for the below services at the

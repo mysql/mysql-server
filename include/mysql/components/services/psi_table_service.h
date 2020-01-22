@@ -53,6 +53,4 @@ end_table_lock_wait_v1_t end_table_lock_wait;
 unlock_table_v1_t unlock_table;
 END_SERVICE_DEFINITION(psi_table_v1)
 
-#define REQUIRES_PSI_TABLE_SERVICE REQUIRES_SERVICE(psi_table_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_TABLE_SERVICE_H */

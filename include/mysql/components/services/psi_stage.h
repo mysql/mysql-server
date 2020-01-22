@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_stage_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_stage_v1);
+#define REQUIRES_PSI_STAGE_SERVICE REQUIRES_SERVICE(psi_stage_v1)
+#define REQUIRES_PSI_STAGE_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_stage_v1)
+
+extern REQUIRES_PSI_STAGE_SERVICE_PLACEHOLDER;
 
 #define PSI_STAGE_CALL(M) mysql_service_psi_stage_v1->M
 

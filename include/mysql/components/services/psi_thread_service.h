@@ -112,6 +112,4 @@ notify_session_disconnect_v1_t notify_session_disconnect;
 notify_session_change_user_v1_t notify_session_change_user;
 END_SERVICE_DEFINITION(psi_thread_v3)
 
-#define REQUIRES_PSI_THREAD_SERVICE REQUIRES_SERVICE(psi_thread_v3)
-
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_SERVICE_H */

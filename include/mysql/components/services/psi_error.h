@@ -26,7 +26,11 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_error_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_error_v1);
+#define REQUIRES_PSI_ERROR_SERVICE REQUIRES_SERVICE(psi_error_v1)
+#define REQUIRES_PSI_ERROR_SERVICE_PLACEHOLDER \
+  REQUIRES_SERVICE_PLACEHOLDER(psi_error_v1)
+
+extern REQUIRES_PSI_ERROR_SERVICE_PLACEHOLDER;
 
 #define PSI_ERROR_CALL(M) mysql_service_psi_error_v1->M
 

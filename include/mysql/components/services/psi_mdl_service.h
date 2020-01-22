@@ -34,6 +34,4 @@ start_metadata_wait_v1_t start_metadata_wait;
 end_metadata_wait_v1_t end_metadata_wait;
 END_SERVICE_DEFINITION(psi_mdl_v1)
 
-#define REQUIRES_PSI_MDL_SERVICE REQUIRES_SERVICE(psi_mdl_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_MDL_SERVICE_H */

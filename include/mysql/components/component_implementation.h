@@ -237,10 +237,39 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
       REQUIRES_SERVICE(registry),
 
 /**
-  Creates a definition for placeholder, in which the specified required service
-  will be provided upon component load. The placeholder will be named
-  mysql_service_{service name}. Use the "extern" keyword before macro invocation
-  to define a reference to the one real placeholder defined in component source.
+  Create a service placeholder, based on the service name.
+
+  A service placeholder is a pointer to the service.
+  It is named mysql_service_{service name}.
+
+  This pointer is initialized by the framework upon loading a component,
+  based on the component dependencies declared by @ref REQUIRES_SERVICE.
+
+  When defining a service 'foo', in the header file for the service,
+  a service placeholder is declared as follows:
+
+  @verbatim
+  extern REQUIRES_SERVICE_PLACEHOLDER(foo);
+  @endverbatim
+
+  When implementing a component 'bar', which requires the service 'foo',
+  the definition of the component 'bar' should contain the following:
+
+  @verbatim
+  REQUIRES_SERVICE_PLACEHOLDER(foo);
+
+  BEGIN_COMPONENT_REQUIRES(bar)
+    REQUIRES_SERVICE(foo),
+    ...
+  END_COMPONENT_REQUIRES();
+  @endverbatim
+
+  The code in the implementation of service 'bar' can use
+  the service placeholder pointer to invoke apis in service foo:
+
+  @verbatim
+  mysql_service_foo->some_api();
+  @endverbatim
 
   @param service A referenced Service name.
 */

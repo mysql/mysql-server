@@ -45,6 +45,4 @@ set_socket_info_v1_t set_socket_info;
 set_socket_thread_owner_v1_t set_socket_thread_owner;
 END_SERVICE_DEFINITION(psi_socket_v1)
 
-#define REQUIRES_PSI_SOCKET_SERVICE REQUIRES_SERVICE(psi_socket_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_SOCKET_SERVICE_H */

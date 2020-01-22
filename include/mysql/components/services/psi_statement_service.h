@@ -190,6 +190,4 @@ end_sp_v1_t end_sp;
 drop_sp_v1_t drop_sp;
 END_SERVICE_DEFINITION(psi_statement_v2)
 
-#define REQUIRES_PSI_STATEMENT_SERVICE REQUIRES_SERVICE(psi_statement_v2)
-
 #endif /* COMPONENTS_SERVICES_PSI_STATEMENT_SERVICE_H */

@@ -43,6 +43,4 @@ start_cond_wait_v1_t start_cond_wait;
 end_cond_wait_v1_t end_cond_wait;
 END_SERVICE_DEFINITION(psi_cond_v1)
 
-#define REQUIRES_PSI_COND_SERVICE REQUIRES_SERVICE(psi_cond_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_COND_SERVICE_H */

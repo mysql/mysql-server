@@ -39,6 +39,4 @@ memory_claim_v1_t memory_claim;
 memory_free_v1_t memory_free;
 END_SERVICE_DEFINITION(psi_memory_v1)
 
-#define REQUIRES_PSI_MEMORY_SERVICE REQUIRES_SERVICE(psi_memory_v1)
-
 #endif /* COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H */
