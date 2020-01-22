@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -448,9 +448,16 @@ bool Group_check::is_fd_on_source(Item *item) {
     for (; last_fd < fd.size(); ++last_fd)
       map_of_new_fds |= fd.at(last_fd)->used_tables();
 
+    /*
+      When we built map_of_new_fds we may have used columns from merged views.
+      Such column is properly local to 'select', and in general it
+      wraps an expression of columns of merged tables (local tables) and of
+      other objects (e.g. outer references, if this view is rather a derived
+      table containing an outer reference). Only local tables are of interest:
+    */
+    map_of_new_fds &= ~PSEUDO_TABLE_BITS;
     if (map_of_new_fds != 0)  // something new, check again
     {
-      DBUG_ASSERT((map_of_new_fds & PSEUDO_TABLE_BITS) == 0);
       if (is_in_fd(item)) return true;
       // Recheck keys only in tables with something new:
       tested_map_for_keys &= ~map_of_new_fds;

@@ -1617,3 +1617,34 @@ NULL
 1
 2
 DROP TABLE t;
+#
+# Bug#30753524 DBUG_ASSERT((MAP_OF_NEW_FDS & PSEUDO_TABLE_BITS) == 0)
+#
+CREATE TABLE t (a INT,b INT);
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+(
+SELECT it2.a
+FROM
+(
+SELECT ot.b FROM t AS it1
+) AS dt
+JOIN t AS it2 ON dt.b=it2.b
+GROUP BY it2.b
+)
+;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.it2.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+(
+SELECT dt.b
+FROM
+(
+SELECT ot.b FROM t AS it1
+) AS dt
+JOIN t AS it2 ON dt.b=it2.b
+GROUP BY it2.b
+)
+;
+1
+DROP TABLE t;

@@ -1246,3 +1246,35 @@ SELECT ABS(i) AS a FROM t GROUP BY abs(i) WITH ROLLUP ORDER BY a + 1;
 SELECT ABS(i) AS a FROM t GROUP BY a                  ORDER BY a + 1;
 SELECT ABS(i) AS a FROM t GROUP BY a      WITH ROLLUP ORDER BY a + 1;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#30753524 DBUG_ASSERT((MAP_OF_NEW_FDS & PSEUDO_TABLE_BITS) == 0)
+--echo #
+
+CREATE TABLE t (a INT,b INT);
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT it2.a
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
+SELECT 1 FROM t AS ot
+WHERE 1 <=
+ (
+   SELECT dt.b
+   FROM
+   (
+     SELECT ot.b FROM t AS it1
+   ) AS dt
+   JOIN t AS it2 ON dt.b=it2.b
+   GROUP BY it2.b
+ )
+;
+DROP TABLE t;
