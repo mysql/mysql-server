@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -877,6 +877,7 @@ void THD::cleanup_connection(void) {
   debug_sync_end_thread(this);
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   killed = NOT_KILLED;
+  running_explain_analyze = false;
   cleanup_done = false;
   init();
   stmt_map.reset();
@@ -1809,8 +1810,14 @@ void THD::send_kill_message() const {
       - INSERT/UPDATE IGNORE should fail: if KILL arrives during
       JOIN::optimize(), statement cannot possibly run as its caller expected
       => "OK" would be misleading the caller.
+
+      EXPLAIN ANALYZE still succeeds (but with a warning in the output),
+      assuming it's come as far as the execution stage, so that the user
+      can look at the execution plan and statistics so far.
     */
-    my_error(err, MYF(ME_FATALERROR));
+    if (!running_explain_analyze) {
+      my_error(err, MYF(ME_FATALERROR));
+    }
   }
 }
 

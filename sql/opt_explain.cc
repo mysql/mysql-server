@@ -2131,6 +2131,10 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
         new Item_string(explain.data(), explain.size(), system_charset_info);
     if (field_list.push_back(item)) return true;
 
+    if (query_thd->killed) {
+      ethd->raise_warning(ER_QUERY_INTERRUPTED);
+    }
+
     if (result.send_data(ethd, field_list)) {
       return true;
     }
@@ -2225,7 +2229,9 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
       // Run the query, but with the result suppressed.
       Query_result_null null_result;
       unit->set_query_result(&null_result);
+      explain_thd->running_explain_analyze = true;
       unit->execute(explain_thd);
+      explain_thd->running_explain_analyze = false;
       unit->set_executed();
       if (query_thd->is_error()) return true;
     }

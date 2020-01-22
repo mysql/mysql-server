@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2328,6 +2328,13 @@ class THD : public MDL_context_owner,
     KILLED_NO_VALUE /* means neither of the states */
   };
   std::atomic<killed_state> killed;
+
+  /**
+    Whether we are currently in the execution phase of an EXPLAIN ANALYZE query.
+    If so, send_kill_message() won't actually set an error; we will add a
+    warning near the end of the execution instead.
+   */
+  bool running_explain_analyze = false;
 
   /**
     When operation on DD tables is in progress then THD is set to kill immune
