@@ -14,6 +14,8 @@
 --source include/no_valgrind_without_big.inc
 # Test requires master-info-repository = TABLE
 --source include/not_master_info_file.inc
+--source include/set_privilege_checks_user_as_system_user.inc
+--let $rpl_privilege_checks_user_grant_option = 1
 --source include/master-slave.inc
 --source extra/rpl_tests/rpl_change_master.test
 --source include/rpl_end.inc

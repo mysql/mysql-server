@@ -114,6 +114,8 @@ RESET SLAVE ALL;
 
 UNINSTALL PLUGIN clone;
 
+--source include/rpl_clear_priv_checks_user_configuration.inc
+
 --source include/clean_monitoring_process.inc
 
 SET SESSION sql_log_bin=0;

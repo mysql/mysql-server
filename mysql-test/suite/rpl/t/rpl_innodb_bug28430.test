@@ -2,6 +2,7 @@
 --source include/no_valgrind_without_big.inc
 
 --source include/have_binlog_format_mixed_or_row.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 
 # Set the default connection to 'master'

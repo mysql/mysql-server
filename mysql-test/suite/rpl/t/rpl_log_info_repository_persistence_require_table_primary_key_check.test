@@ -16,7 +16,8 @@
 #
 # ==== Implementation ====
 #
-# 0. Create a test auxiliary include file to avoid step repetition.
+# 0. Check if a privilege checks user exists and adapt the test if so.
+#    Create a test auxiliary include file to avoid step repetition.
 #
 # 1. Basic operations with REQUIRE_TABLE_PRIMARY_KEY_CHECK
 #
@@ -77,9 +78,26 @@
 --source include/master-slave.inc
 
 --echo
---echo # 0. Create a test auxiliary include file to avoid step repetition.
+--echo # 0. Check if a privilege checks user exists and adapt the test if so.
+--echo #    Create a test auxiliary include file to avoid step repetition.
 
 --source include/rpl_connection_slave.inc
+
+# The privilege checks user is only used as a grep starting point.
+# Determine the hostname of the privilege checks user of the replication channel.
+# If privilege checks user does not exist, it will be set to 'root'@'localhost'.
+
+--let $_privilege_checks_user= query_get_value(select * from performance_schema.replication_applier_configuration,PRIVILEGE_CHECKS_USER,1)
+if ( $_privilege_checks_user != NULL)
+{
+  --let $_privilege_checks_user_at_index= `SELECT LOCATE('@', "$_privilege_checks_user")`
+  --let $_privilege_checks_user_host= `SELECT SUBSTRING("$_privilege_checks_user", $_privilege_checks_user_at_index + 1)`
+  --let $_privilege_checks_user_host = `SELECT LTRIM(RTRIM($_privilege_checks_user_host))`
+}
+if ( $_privilege_checks_user == NULL)
+{
+  --let $_privilege_checks_user_host= localhost
+}
 
 --write_file $MYSQL_TMP_DIR/check_require_table_primary_key_check_in_file_repo.inc END_OF_PROCEDURE
 
@@ -107,7 +125,7 @@
 
   --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
   --let $assert_file = $MYSQLD_DATADIR/$rl_info_filename
-  --let $assert_only_after = localhost
+  --let $assert_only_after = $_privilege_checks_user_host
   --let $assert_select = $require_table_primary_key_check_file_value
   --let $assert_count = 1
   --source include/assert_grep.inc
@@ -125,8 +143,16 @@ END_OF_PROCEDURE
 
 STOP SLAVE;
 
-# The privilege checks user is only used as a grep starting point
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+--disable_query_log
+if ( $_privilege_checks_user == NULL)
+{
+  CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+}
+if ( $_privilege_checks_user != NULL)
+{
+  CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+}
+--enable_query_log
 
 START SLAVE;
 

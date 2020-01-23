@@ -25,10 +25,13 @@
 
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
+--source include/skip_config_privilege_checks_user.inc
 --let $rpl_privilege_checks_user = 2:'u1'@'localhost'
+# Since $rpl_privilege_checks_user is instantiated the replication applier has
+# no privileges on the test database
+--let $RPL_PRIV_DB = test
 --let $rpl_skip_start_slave=1
 --source include/master-slave.inc
---source include/rpl_use_privilege_db.inc
 
 --echo #
 --echo # TC1. Execute INSERT with and without the necessary
@@ -49,7 +52,6 @@ INSERT INTO t VALUES(10);
 --let $opt_partial_revokes = `SELECT @@partial_revokes`
 SET GLOBAL partial_revokes = ON;
 
---source include/rpl_use_privilege_db.inc
 CALL mtr.add_suppression(".*command denied to user.");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE TABLE t(c INT);

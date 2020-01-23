@@ -16,6 +16,7 @@
 # explicitly specified in the ALTER USER statement. It also verifies that
 # REPLACE clause is never replicated to the binlog
 
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 --source include/have_debug.inc
 

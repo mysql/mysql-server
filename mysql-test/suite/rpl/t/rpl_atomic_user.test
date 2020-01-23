@@ -13,6 +13,7 @@
 #                   WL#9045 Make user management DDLs atomic         #
 #                                                                    #
 ######################################################################
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 CALL mtr.add_suppression('Following users were specified in CREATE USER');

@@ -58,8 +58,8 @@ if ($grant_to == '')
 }
 --let $rpl_privilege_checks_user = 2:$applier_user
 --let $rpl_skip_start_slave=1
+--source include/skip_config_privilege_checks_user.inc
 --source include/master-slave.inc
---source include/rpl_use_privilege_db.inc
 
 --echo #
 --echo # TC1. Execute Begin_load_query and Execute_load with and without the
@@ -76,7 +76,6 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
 --source include/save_master_pos.inc
 
 --source include/rpl_connection_slave.inc
---source include/rpl_use_privilege_db.inc
 CALL mtr.add_suppression("The PRIVILEGE_CHECKS_USER for channel '' would need FILE");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE TABLE t1(word CHAR(20) NOT NULL);

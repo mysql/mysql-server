@@ -16,6 +16,7 @@
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave= 1
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 # Cleanup the slave information

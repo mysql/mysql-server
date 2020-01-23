@@ -26,6 +26,8 @@
 # Added few replication cases related to WL#9591
 
 --source include/not_group_replication_plugin.inc
+--source include/set_privilege_checks_user_as_system_user.inc
+--let $rpl_privilege_checks_user_grant_option = 1
 --source include/master-slave.inc
 
 --echo ==== Create new replication user ====

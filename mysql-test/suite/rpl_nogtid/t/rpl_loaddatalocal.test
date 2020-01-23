@@ -7,6 +7,7 @@
 # - the loaded file's first line was not written entirely to the
 # master's binlog (1st char was absent)
 --source include/not_group_replication_plugin.inc
+source include/set_privilege_checks_user_as_system_user.inc;
 source include/master-slave.inc;
 
 create table t1(a int);

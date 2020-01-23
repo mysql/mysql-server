@@ -1,6 +1,7 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 --source include/not_group_replication_plugin.inc
+--source include/not_have_privilege_checks_user.inc
 #
 # WL#5563 Prototype for Parallel Slave with db name partitioning.
 #

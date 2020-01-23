@@ -324,18 +324,6 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
-  if ($rpl_privilege_checks_user)
-  {
-    # Default database `test` has a special configurations that allow for
-    # operations to be executed even if the user in session doesn't have
-    # privileges. So, whenever we're running applier thread with privileges, we
-    # need to use a different database.
-    --let $RPL_PRIV_DB = rpl_priv
-    SET @@sql_log_bin = 0;
-    --eval CREATE DATABASE $RPL_PRIV_DB
-    SET @@sql_log_bin = 1;
-    --eval USE $RPL_PRIV_DB
-  }
   if ($rpl_gtid_utils)
   {
     --source include/gtid_utils.inc

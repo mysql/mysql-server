@@ -116,10 +116,8 @@
 #
 #   $rpl_require_row_format
 #     Include `REQUIRE_ROW_FORMAT` option in the `CHANGE MASTER TO ...`
-#     statement to be executed. If `$rpl_privilege_checks_user` is specified,
-#     the `REQUIRE_ROW_FORMAT` will be, automatically, set to 1, overriding the
-#     value passed, if any.For example, to specify that server_1 should have the
-#     flag enabled and server_5 shouldn't, do:
+#     statement to be executed. For example, to specify that server_1 should
+#     have the flag enabled and server_5 shouldn't, do:
 #
 #       --let $rpl_require_row_format= 1:1,5:0
 #
@@ -257,6 +255,11 @@ if ($rpl_debug)
 {
   --echo new \$rpl_connection_list = '$rpl_connection_list'
   --echo new \$rpl_connection_count = '$rpl_connection_count'
+}
+
+
+if ($rpl_privilege_checks_user == ''){
+  --let $rpl_privilege_checks_user = $PRIVILEGE_CHECKS_USER
 }
 
 --let $_rpl_change_topology_privilege_checks_all_index= `SELECT LOCATE('*:', "$rpl_privilege_checks_user")`

@@ -101,6 +101,31 @@ while ($_rpl_server)
   --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
   RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 
+  if ($rpl_privilege_checks_user == ''){
+    --let $rpl_privilege_checks_user = $PRIVILEGE_CHECKS_USER
+  }
+
+  if ($rpl_privilege_checks_user != '')
+  {
+    --let $rpl_server_number= $_rpl_server
+    --source include/rpl_get_instance_priv_checks_user.inc
+    if ($rpl_instance_privilege_checks_user != '' )
+    {
+
+      # If PRIVILEGE_CHECKS_USER is not NULL configure the account
+      if (`SELECT "$rpl_instance_privilege_checks_user" != "NULL"`)
+      {
+        --source include/rpl_priv_checks_user_configuration.inc
+      }
+
+      if (!$skip_recovery_configuration)
+      {
+        --eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_recovery"
+      }
+       --eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $rpl_instance_privilege_checks_user FOR CHANNEL "group_replication_applier"
+    }
+  }
+
   --enable_query_log
 
   --dec $_rpl_server

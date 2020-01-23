@@ -21,6 +21,7 @@
 
 # Setup a two server Group.
 --source include/have_debug.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_gtid_utils= 1
 --source include/group_replication.inc

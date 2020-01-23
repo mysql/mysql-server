@@ -2,6 +2,7 @@
 # Bug#12982188 MTS: SBR ABORTS WITH ERROR 1742 ON LOAD DATA WITH TRIGGER MYISAM TO INNODB
 #
 
+--source include/set_privilege_checks_user_as_system_user.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 --source include/force_myisam_default.inc

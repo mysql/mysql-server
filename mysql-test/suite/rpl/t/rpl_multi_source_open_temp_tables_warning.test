@@ -26,6 +26,8 @@
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
 
+--source include/not_have_privilege_checks_user.inc
+
 --let $rpl_multi_source= 1
 --let $rpl_topology= 1->2, 3->2, 4->2
 --source include/rpl_init.inc

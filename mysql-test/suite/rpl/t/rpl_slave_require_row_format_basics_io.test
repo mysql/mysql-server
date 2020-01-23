@@ -51,6 +51,7 @@
 #  WL #12968 : Configure replication applier to require row-based replication
 
 -- source include/have_binlog_format_statement.inc
+--source include/set_privilege_checks_user_as_system_user.inc
 -- source include/master-slave.inc
 
 --echo #

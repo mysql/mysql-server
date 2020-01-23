@@ -45,6 +45,7 @@
 --echo # --------------------------------------------------------------
 --echo #
 
+--source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
 # 1) Create a table and insert a record on the master.

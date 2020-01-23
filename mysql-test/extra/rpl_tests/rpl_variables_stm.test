@@ -52,6 +52,7 @@
 # safely in statement mode are replicated correctly in mixed or row
 # mode.
 
+--source include/set_privilege_checks_user_as_system_user.inc
 source include/master-slave.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
 

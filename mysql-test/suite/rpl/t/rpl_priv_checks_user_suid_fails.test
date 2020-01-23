@@ -29,6 +29,7 @@
 #              USER ACCOUNT
 #
 --source include/have_binlog_format_row.inc
+--source include/skip_config_privilege_checks_user.inc
 
 --let $applier_user = 'u1'@'localhost'
 --let $system_user = 'u2'@'localhost'
@@ -38,9 +39,11 @@
 #    `SET_USER_ID`.
 #
 --let $rpl_privilege_checks_user = *:$applier_user
+# Since $rpl_privilege_checks_user is instantiated the replication applier has
+# no privileges on the test database
+--let $RPL_PRIV_DB = test
 --let $rpl_privilege_checks_user_additional_grants = SET_USER_ID, CREATE ROUTINE, CREATE USER, ALTER ROUTINE
 --source include/master-slave.inc
---source include/rpl_use_privilege_db.inc
 
 CALL mtr.add_suppression(".*Access denied. you need .at least one of. the SYSTEM_USER.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");

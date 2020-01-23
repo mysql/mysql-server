@@ -4,13 +4,13 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 
-# 0. Create a test auxiliary include file to avoid step repetition.
+# 0. Check if a privilege checks user exists and adapt the test if so.
+#    Create a test auxiliary include file to avoid step repetition.
 [connection slave]
 
 # 1.1. Set REQUIRE_TABLE_PRIMARY_KEY_CHECK to ON
 #      Check the performance_schema table and file repository are correct
 STOP SLAVE;
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 START SLAVE;
 include/assert.inc [Check that mysql.slave_relay_log_info does not have any entry]
 include/assert.inc [REQUIRE_TABLE_PRIMARY_KEY_CHECK for default channel "" in performance_schema.replication_applier_configuration is ON]
