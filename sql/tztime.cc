@@ -1135,7 +1135,7 @@ class Time_zone_utc : public Time_zone {
                         spring time-gap) and is not touched otherwise.
 
   RETURN VALUE
-    0
+    Corresponding my_time_t value, or 0 in case of error.
 */
 my_time_t Time_zone_utc::TIME_to_gmt_sec(
     const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
