@@ -192,6 +192,11 @@ IF (KERBEROS_FOUND)
     authentication_ldap/log_client.cc
     authentication_ldap/auth_ldap_kerberos.cc
   )
+  # Kerberos is deprecated in macOS.
+  IF(APPLE)
+    ADD_COMPILE_FLAGS(authentication_ldap/auth_ldap_kerberos.cc
+                      COMPILE_FLAGS "-Wno-deprecated-declarations")
+  ENDIF()
 ENDIF()
 
 IF (WIN32 AND OPENSSL_APPLINK_C)
