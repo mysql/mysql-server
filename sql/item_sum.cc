@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1103,7 +1103,7 @@ bool Aggregator_distinct::setup(THD *thd) {
 
     arg = item_sum->get_arg(0);
     if (arg->const_item()) {
-      (void)arg->val_int();
+      if (arg->update_null_value()) return true;
       if (arg->null_value) {
         const_distinct = CONST_NULL;
         return false;
