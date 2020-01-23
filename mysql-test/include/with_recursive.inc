@@ -899,6 +899,9 @@ drop table nodes, arcs;
 --echo # key to force hash field, to see if it switches to InnoDB.
 
 --echo # Not too long key (500 bytes in latin1)
+
+flush status;
+
 --sorted_result
 with recursive cte as
  (
@@ -932,6 +935,8 @@ select sum(n) from cte;
 --echo # In query planning, the recursive reference's row count is
 --echo # said to be the estimated row count of all non-recursive query
 --echo # blocks
+
+flush status;
 
 create table t1(a int);
 --echo # 15 rows:

@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -6419,7 +6419,7 @@ static void do_connect(struct st_command *command) {
     while (*end && !my_isspace(charset_info, *end)) end++;
 
     size_t con_option_len = end - con_options;
-    char cur_con_option[10];
+    char cur_con_option[10] = {};
     strmake(cur_con_option, con_options, con_option_len);
 
     if (!std::strcmp(cur_con_option, "SSL"))
