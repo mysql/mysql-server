@@ -4798,7 +4798,13 @@ void JOIN::set_prefix_tables() {
       prev_tables_map = current_tables_map;
 
       if (!(sjm_inner_tables & ~current_tables_map)) {
-        // At the end of a semi-join materialization nest, restore previous map
+        /*
+          At the end of a semi-join materialization nest,
+          add non-deterministic expressions to the last table of the nest:
+        */
+        tab->add_prefix_tables(RAND_TABLE_BIT);
+
+        // Restore the previous map:
         current_tables_map = saved_tables_map;
         prev_tables_map =
             last_non_sjm_tab ? last_non_sjm_tab->prefix_tables() : (table_map)0;
@@ -4811,7 +4817,7 @@ void JOIN::set_prefix_tables() {
     }
   }
   /*
-    Random expressions must be added to the last table's condition.
+    Non-deterministic expressions must be added to the last table's condition.
     It solves problem with queries like SELECT * FROM t1 WHERE rand() > 0.5
   */
   if (last_non_sjm_tab != nullptr)
