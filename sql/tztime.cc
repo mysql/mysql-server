@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1134,20 +1134,12 @@ class Time_zone_utc : public Time_zone {
                         value passed doesn't really exist (i.e. falls into
                         spring time-gap) and is not touched otherwise.
 
-  DESCRIPTION
-    Since Time_zone_utc is used only internally for my_time_t -> TIME
-    conversions, this function of Time_zone interface is not implemented for
-    this class and should not be called.
-
   RETURN VALUE
-    0
+    Corresponding my_time_t value, or 0 in case of error.
 */
 my_time_t Time_zone_utc::TIME_to_gmt_sec(
-    const MYSQL_TIME *t MY_ATTRIBUTE((unused)),
-    bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
-  /* Should be never called */
-  DBUG_ASSERT(0);
-  return 0;
+    const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+  return sec_since_epoch(*mt);
 }
 
 /*
