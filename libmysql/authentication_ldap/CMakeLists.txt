@@ -128,6 +128,10 @@ MESSAGE(STATUS "SASL_LIBRARY      = ${SASL_LIBRARY}")
 
 IF (KERBEROS_FOUND)
   MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
+  # Kerberos is deprecated in macOS.
+  IF(APPLE)
+    ADD_COMPILE_FLAGS(auth_ldap_kerberos.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
+  ENDIF()
   MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
                    auth_ldap_kerberos.cc auth_ldap_sasl_mechanism.cc
                    auth_ldap_sasl_client.cc log_client.cc
