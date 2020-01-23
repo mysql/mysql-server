@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,6 +93,15 @@ class Histogram_sampler {
 
   /** Signal that the buffering of the row is complete. */
   void signal_end_of_buffering();
+
+  /** Set the error state.
+  @param[in] err                Error state to set to. */
+  void set_error_state(dberr_t err) { m_err = err; }
+
+  /** @return true if in error state. */
+  bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_err != DB_SUCCESS);
+  }
 
   /** Convert the row in InnoDB format to MySQL format and store in the buffer
   for server to use. */
