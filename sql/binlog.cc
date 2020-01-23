@@ -10695,6 +10695,8 @@ Rows_log_event *THD::binlog_prepare_pending_rows_event(
     const unsigned char *extra_row_info, uint32 source_part_id) {
   DBUG_TRACE;
 
+  DBUG_EXECUTE_IF("simulate_null_pending_rows_event", { return nullptr; });
+
   /* Fetch the type code for the RowsEventT template parameter */
   int const general_type_code = RowsEventT::TYPE_CODE;
 
@@ -11061,10 +11063,11 @@ int THD::binlog_update_row(TABLE *table, bool is_trans,
           table, server_id, before_size + after_size, is_trans, extra_row_info,
           source_part_id);
 
+  if (unlikely(ev == nullptr)) return HA_ERR_OUT_OF_MEM;
+
   if (part_info) {
     ev->m_extra_row_info.set_source_partition_id(source_part_id);
   }
-  if (unlikely(ev == nullptr)) return HA_ERR_OUT_OF_MEM;
 
   error = ev->add_row_data(before_row, before_size) ||
           ev->add_row_data(after_row, after_size);
