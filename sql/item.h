@@ -597,7 +597,7 @@ class Bool3 {
   value m_val;
   /*
     No operator to convert Bool3 to bool (or int) - intentionally: how
-    would you map UNKNOWN3 to true/false?
+    would you map unknown3 to true/false?
     It is because we want to block such conversions that Bool3 is a class
     instead of a plain enum.
   */

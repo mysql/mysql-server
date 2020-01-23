@@ -9704,7 +9704,7 @@ void convert_and_print(const String *from_str, String *to_str,
 
    @retval true3 yes
    @retval false3 no
-   @retval UNKNOWN3 it's a non-direct-view Item_ref, we don't know if it
+   @retval unknown3 it's a non-direct-view Item_ref, we don't know if it
    contains a column => caller please analyze "*ref"
 */
 Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
