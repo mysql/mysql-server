@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <debug_sync.h>
 #include <gstream.h>
 #include <spatial.h>
+#include <sql_class.h>
 #include <sql_const.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -4860,4 +4861,30 @@ bool row_prebuilt_t::can_prefetch_records() const {
          !templ_contains_blob && !templ_contains_fixed_point &&
          !clust_index_was_generated && !used_in_HANDLER && !innodb_api &&
          template_type != ROW_MYSQL_DUMMY_TEMPLATE && !in_fts_query;
+}
+
+bool row_prebuilt_t::skip_concurrency_ticket() const {
+  /* Since there are no locks on instrinsic tables, we should skip
+  this for intrinsic temporary tables. */
+
+  /* When InnoDB uses DD APIs, it leaves InnoDB and re-inters InnoDB again.
+  The reads, updates as part of DDLs should be exempt for concurrency
+  tickets. */
+  if (table->is_intrinsic() || table->is_dd_table) {
+    return (true);
+  }
+
+  /* Skip concurrency ticket while implicitly updating GTID table. This is to
+  avoid deadlock otherwise possible with low innodb_thread_concurrency.
+  Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket -> wait for GTID flush
+  GTID Background: Write to GTID table -> wait for innodb ticket. */
+  auto thd = trx->mysql_thd;
+  if (thd == nullptr) {
+    thd = current_thd;
+  }
+
+  if (thd != nullptr &&  thd->is_operating_gtid_table_implicitly) {
+    return (true);
+  }
+  return (false);
 }

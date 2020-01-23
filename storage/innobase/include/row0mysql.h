@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -908,6 +908,9 @@ struct row_prebuilt_t {
     dtuple_set_n_fields(search_tuple, 0);
     dtuple_set_n_fields(m_stop_tuple, 0);
   }
+
+  /** @return true iff the operation can skip concurrency ticket. */
+  bool skip_concurrency_ticket() const;
 
   /** It is unsafe to copy this struct, and moving it would be non-trivial,
   because we want to keep in sync with row_is_reading_range_guard_t. Therefore

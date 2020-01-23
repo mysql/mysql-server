@@ -1583,13 +1583,8 @@ allowed, else the thread is put into sleep.
 @param[in,out]	prebuilt	row prebuilt handler */
 static inline void innobase_srv_conc_enter_innodb(row_prebuilt_t *prebuilt) {
   /* We rely on server to do external_lock(F_UNLCK) to reset the
-  srv_conc.n_active counter. Since there are no locks on instrinsic
-  tables, we should skip this for intrinsic temporary tables. */
-
-  /* When InnoDB uses DD APIs, it leaves InnoDB and re-inters InnoDB
-  again. The reads, updates as part of DDLs should be exempt for concurrency
-  tickets. */
-  if (prebuilt->table->is_intrinsic() || prebuilt->table->is_dd_table) {
+  srv_conc.n_active counter. */
+  if (prebuilt->skip_concurrency_ticket()) {
     return;
   }
 
@@ -1617,13 +1612,8 @@ any spare tickets.
 @param[in,out]	prebuilt	row prebuilt handler */
 static inline void innobase_srv_conc_exit_innodb(row_prebuilt_t *prebuilt) {
   /* We rely on server to do external_lock(F_UNLCK) to reset the
-  srv_conc.n_active counter. Since there are no locks on instrinsic
-  tables, we should skip this for intrinsic temporary tables. */
-
-  /* When InnoDB uses DD APIs, it leaves InnoDB and re-inters InnoDB
-  again. The reads, updates as part of DDLs should be exempt for concurrency
-  tickets. */
-  if (prebuilt->table->is_intrinsic() || prebuilt->table->is_dd_table) {
+  srv_conc.n_active counter. */
+  if (prebuilt->skip_concurrency_ticket()) {
     return;
   }
 

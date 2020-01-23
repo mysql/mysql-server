@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -3999,6 +3999,10 @@ dirty_dict_tables list if necessary.
 void dict_table_mark_dirty(dict_table_t *table) {
   ut_ad(!table->is_temporary());
 
+  /* We should not adding dynamic metadata so late in shutdown phase and
+  this data would only be retrieved during recovery. */
+  ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
+
   mutex_enter(&dict_persist->mutex);
 
   switch (table->dirty_status.load()) {
@@ -4143,8 +4147,14 @@ void dict_persist_to_dd_table_buffer() {
     ut_ad(next == nullptr || next->magic_n == DICT_TABLE_MAGIC_N);
 
     if (table->dirty_status.load() == METADATA_DIRTY) {
-      dict_table_persist_to_dd_table_buffer_low(table);
-      persisted = true;
+      /* We should not attempt to write to data pages while shutting down
+      page cleaners. */
+      if (srv_shutdown_state.load() >= SRV_SHUTDOWN_FLUSH_PHASE) {
+        ut_ad(false);
+      } else {
+        dict_table_persist_to_dd_table_buffer_low(table);
+        persisted = true;
+      }
     }
 
     table = next;
