@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,11 +86,7 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
 
     auto err = m_parallel_reader.get_error_state();
 
-    if (err == DB_SUCCESS) {
-      m_err = DB_END_OF_INDEX;
-    } else {
-      m_err = err;
-    }
+    set_error_state(err == DB_SUCCESS ? DB_END_OF_INDEX : err);
 
     signal_end_of_buffering();
 
@@ -204,7 +200,7 @@ dberr_t Histogram_sampler::buffer_next() {
 
   wait_for_end_of_buffering();
 
-  if (m_err != DB_SUCCESS) {
+  if (is_error_set()) {
     /* End of records to be buffered. */
     m_parallel_reader.join();
   }
@@ -213,7 +209,7 @@ dberr_t Histogram_sampler::buffer_next() {
 }
 
 void Histogram_sampler::buffer_end() {
-  m_err = DB_END_SAMPLE_READ;
+  set_error_state(DB_END_SAMPLE_READ);
 
   signal_start_of_buffering();
 
@@ -237,7 +233,7 @@ dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
   /* Return as the sampler has been requested to end sampling. */
   if (m_err == DB_END_SAMPLE_READ) {
     signal_end_of_buffering();
-    return (DB_END_SAMPLE_READ);
+    return (m_err);
   }
 
   if (row_sel_store_mysql_rec(m_buf, prebuilt, rec, nullptr, true, index,
@@ -258,7 +254,8 @@ dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
 
 dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
                                                 row_prebuilt_t *prebuilt) {
-  DBUG_EXECUTE_IF("parallel_reader_histogram_induce_error", m_err = DB_ERROR;
+  DBUG_EXECUTE_IF("parallel_reader_histogram_induce_error",
+                  set_error_state(DB_ERROR);
                   return DB_ERROR;);
 
   ut_ad(!page_is_leaf(ctx->m_block->frame));
@@ -296,6 +293,7 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
   rec_offs_init(offsets_);
 
   mem_heap_t *heap{};
+  dberr_t err{DB_SUCCESS};
 
   for (;;) {
     if (page_cur_is_after_last(&cur)) {
@@ -304,9 +302,13 @@ dberr_t Histogram_sampler::process_non_leaf_rec(const Parallel_reader::Ctx *ctx,
 
     offsets = rec_get_offsets(cur.rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    m_err = sample_rec(ctx->m_thread_id, cur.rec, offsets, index, prebuilt);
+    err = sample_rec(ctx->m_thread_id, cur.rec, offsets, index, prebuilt);
 
-    if (m_err != DB_SUCCESS) {
+    if (err != DB_SUCCESS) {
+      set_error_state(err);
+    }
+
+    if (is_error_set()) {
       break;
     }
 
