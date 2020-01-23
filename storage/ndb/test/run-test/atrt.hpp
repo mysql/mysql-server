@@ -183,7 +183,6 @@ bool exists_file(const char* path);
 bool connect_hosts(atrt_config&);
 const char* get_test_status(int result);
 int atrt_exit(int return_code);
-const char* get_process_type_name(int types);
 void update_atrt_result_code(const TestResult& test_result,
                              AtrtExitCodes* return_code);
 

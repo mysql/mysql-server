@@ -38,38 +38,44 @@ class ProcessManagement {
   ProcessManagement(atrt_config &g_config, const char *g_setup_progname) :
   config(g_config) {
     setup_progname = g_setup_progname;
+    clusterProcessesStatus = ProcessesStatus::STOPPED;
   }
+
+  bool startAllProcesses();
+  bool stopAllProcesses();
+  bool startClientProcesses();
+  bool stopClientProcesses();
+  bool startProcess(atrt_process &proc, bool run_setup = true);
+  bool stopProcess(atrt_process &proc);
+  bool waitForProcessToStop(atrt_process &proc, int retries = 60,
+                            int wait_between_retries_s = 5);
+  int updateProcessesStatus();
+
+
+ private:
+  const char *setup_progname;
 
   bool startClusters();
   bool shutdownProcesses(int types);
-
-  bool startProcesses(int types);
-  bool startProcess(atrt_process &proc, bool run_setup = true);
-
-  bool stopProcess(atrt_process &proc);
-
-  bool checkClusterStatus(int types);
-  int checkNdbOrServersFailures();
-  bool updateStatus(int types, bool fail_on_missing = true);
-
-  bool waitForProcessToStop(atrt_process &proc, int retries = 60,
-                            int wait_between_retries_s = 5);
-
-  bool setupHostsFilesystem();
-
- private:
   bool start(unsigned proc_mask);
+  bool startProcesses(int types);
   bool stopProcesses(int types);
+  bool stopSingleProcess(atrt_process &proc);
   bool connectNdbMgm();
   bool connectNdbMgm(atrt_process &proc);
+  bool checkClusterStatus(int types);
   bool waitNdb(int goal);
+  int checkNdbOrServersFailures();
+  bool updateStatus(int types, bool fail_on_missing = true);
   bool waitForProcessesToStop(int types = atrt_process::AP_ALL,
                               int retries = 60,
                               int wait_between_retries_s = 5);
+  bool setupHostsFilesystem();
 
   static int remap(int i);
+  const char* getProcessTypeName(int types);
 
   atrt_config &config;
-  const char *setup_progname;
+  enum class ProcessesStatus { RUNNING, STOPPED, ERROR } clusterProcessesStatus;
 };
 #endif  // PROCESS_MANAGEMENT_HPP_

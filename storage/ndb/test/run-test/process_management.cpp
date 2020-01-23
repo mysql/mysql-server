@@ -25,6 +25,67 @@
 #include <NdbSleep.h>
 #include "process_management.hpp"
 
+bool ProcessManagement::startAllProcesses() {
+  if (clusterProcessesStatus == ProcessesStatus::RUNNING) {
+    return true;
+  }
+
+  if (clusterProcessesStatus == ProcessesStatus::ERROR) {
+    if (!stopAllProcesses()) {
+      g_logger.warning("Failure to stop processes while in error state");
+      return false;
+    }
+  }
+  assert(clusterProcessesStatus == ProcessesStatus::STOPPED);
+
+  if (!setupHostsFilesystem()) {
+    g_logger.warning("Failed to setup hosts filesystem");
+    return false;
+  }
+  if (!startClusters()) {
+    if (!stopAllProcesses()) {
+      g_logger.warning("Failure to stop processes");
+    }
+    return false;
+  }
+  clusterProcessesStatus = ProcessesStatus::RUNNING;
+  return true;
+}
+
+bool ProcessManagement::stopAllProcesses() {
+  if (clusterProcessesStatus == ProcessesStatus::STOPPED) {
+    return true;
+  }
+
+  if (!shutdownProcesses(atrt_process::AP_ALL)) {
+    clusterProcessesStatus = ProcessesStatus::ERROR;
+    return false;
+  }
+
+  clusterProcessesStatus = ProcessesStatus::STOPPED;
+  return true;
+}
+
+bool ProcessManagement::startClientProcesses() {
+  return startProcesses(ProcessManagement::P_CLIENTS);
+}
+
+bool ProcessManagement::stopClientProcesses() {
+  if (!shutdownProcesses(P_CLIENTS)) {
+    clusterProcessesStatus = ProcessesStatus::ERROR;
+    return false;
+  }
+  return true;
+}
+
+int ProcessManagement::updateProcessesStatus() {
+  if (!updateStatus(atrt_process::AP_ALL)) {
+    g_logger.warning("Failed to update status for all processes");
+    return ERR_CRITICAL;
+  }
+  return checkNdbOrServersFailures();
+}
+
 bool ProcessManagement::startClusters() {
   if (!start(P_NDB | P_SERVERS)) {
     g_logger.critical("Failed to start server processes");
@@ -45,7 +106,7 @@ bool ProcessManagement::startClusters() {
 }
 
 bool ProcessManagement::shutdownProcesses(int types) {
-  const char *p_type = get_process_type_name(types);
+  const char *p_type = getProcessTypeName(types);
 
   g_logger.info("Stopping %s processes", p_type);
 
@@ -549,4 +610,17 @@ int ProcessManagement::remap(int i) {
   if (i == NDB_MGM_NODE_STATUS_NO_CONTACT) return NDB_MGM_NODE_STATUS_UNKNOWN;
   if (i == NDB_MGM_NODE_STATUS_UNKNOWN) return NDB_MGM_NODE_STATUS_NO_CONTACT;
   return i;
+}
+
+const char* ProcessManagement::getProcessTypeName(int types) {
+  switch (types) {
+    case ProcessManagement::P_CLIENTS:
+      return "client";
+    case ProcessManagement::P_NDB:
+      return "ndb";
+    case ProcessManagement::P_SERVERS:
+      return "server";
+    default:
+      return "all";
+  }
 }

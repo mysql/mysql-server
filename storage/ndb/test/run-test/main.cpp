@@ -117,7 +117,9 @@ static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
 TestResult run_test_case(ProcessManagement& processManagement,
-                         const atrt_testcase& testcase);
+                         const atrt_testcase& testcase,
+                         bool is_last_testcase,
+                         bool next_testcase_forces_restart);
 bool do_command(ProcessManagement& processManagement,
                 atrt_config& config);
 bool setup_test_case(ProcessManagement& processManagement,
@@ -364,40 +366,28 @@ int main(int argc, char **argv) {
   }
 
   /**
-   * Start the cluster
-   */
-  g_logger.info("Starting server processes...");
-
-
-  if (!processManagement.startClusters()) {
-    if (!processManagement.shutdownProcesses(atrt_process::AP_ALL)) {
-      g_logger.warning("Failure to shutdown processes");
-    }
-
-    int result = 0;
-    if (!gather_result(g_config, &result)) {
-      g_logger.warning("Failure to gather results");
-    }
-
-    return atrt_exit(ATRT_FAILURE);
-  }
-
-  g_logger.info("All servers start completed");
-
-  /**
    * Run all tests
    */
 
   g_logger.debug("Entering main loop");
   FailureMode current_failure_mode = FailureMode::Continue;
-  for (auto testcase : testcases) {
+  unsigned int last_testcase_idx = testcases.size() - 1;
+  for (unsigned int i = 0; i <= last_testcase_idx; i++) {
+    atrt_testcase testcase = testcases[i];
     g_logger.info("#%d - %s", testcase.test_no, testcase.m_name.c_str());
 
     TestResult test_result;
     if (current_failure_mode == FailureMode::Skip) {
       test_result = {0, 0, ERR_TEST_SKIPPED};
     } else {
-      test_result = run_test_case(processManagement, testcase);
+      bool is_last_testcase = last_testcase_idx == i;
+      bool next_testcase_forces_restart = false;
+      if (!is_last_testcase) {
+        next_testcase_forces_restart = testcases[i+1].m_force_cluster_restart;
+      }
+      test_result = run_test_case(processManagement, testcase,
+                                  is_last_testcase,
+                                  next_testcase_forces_restart);
       if (test_result.result != ErrorCodes::ERR_OK) {
         current_failure_mode = testcase.m_behaviour_on_failure;
       }
@@ -423,14 +413,6 @@ int main(int argc, char **argv) {
       g_logger.info("Aborting the test suite execution!");
       break;
     }
-  }
-
-  /**
-   * Stopping all the processes after all the tests are run
-   */
-  if (!processManagement.shutdownProcesses(atrt_process::AP_ALL)) {
-    g_logger.critical("Failed to stop all processes");
-    return_code = ATRT_FAILURE;
   }
 
   if (g_report_file != 0) {
@@ -742,19 +724,6 @@ bool is_client_running(atrt_config &config) {
   return false;
 }
 
-const char* get_process_type_name(int types) {
-  switch (types) {
-    case ProcessManagement::P_CLIENTS:
-      return "client";
-    case ProcessManagement::P_NDB:
-      return "ndb";
-    case ProcessManagement::P_SERVERS:
-      return "server";
-    default:
-      return "all";
-  }
-}
-
 const char *get_test_status(int result) {
   switch (result) {
     case ErrorCodes::ERR_OK:
@@ -798,7 +767,9 @@ bool read_test_cases(FILE *file, std::vector<atrt_testcase> *testcases) {
 }
 
 TestResult run_test_case(ProcessManagement &processManagement,
-                         const atrt_testcase &testcase) {
+                         const atrt_testcase &testcase,
+                         bool is_last_testcase,
+                         bool next_testcase_forces_restart) {
   TestResult test_result = {0, 0, 0};
   for (; test_result.testruns <= testcase.m_max_retries;
        test_result.testruns++) {
@@ -812,27 +783,13 @@ TestResult run_test_case(ProcessManagement &processManagement,
                     testcase.m_max_retries);
     }
 
-    if (testcase.m_force_cluster_restart || test_result.result != ERR_OK) {
-      if (!processManagement.shutdownProcesses(~0)) {
-        g_logger.critical("Failed to stop all processes");
-        test_result.result = ERR_CRITICAL;
-        continue;  // attempt test retry
-      }
-
-      if (!processManagement.setupHostsFilesystem()) {
-        test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      g_logger.info("(Re)starting server processes...");
-      if (!processManagement.startClusters()) {
+    if (!processManagement.startAllProcesses()) {
         g_logger.critical("Cluster could not be started");
         test_result.result = ERR_CRITICAL;
         continue;
-      }
-
-      g_logger.info("All servers start completed");
     }
+
+    g_logger.info("All servers are running and ready");
 
     {
       // Assign processes to programs
@@ -842,7 +799,7 @@ TestResult run_test_case(ProcessManagement &processManagement,
         continue;
       }
 
-      if (!processManagement.startProcesses(ProcessManagement::P_CLIENTS)) {
+      if (!processManagement.startClientProcesses()) {
         g_logger.critical("Failed to start client processes");
         test_result.result = ERR_CRITICAL;
         continue;
@@ -851,14 +808,9 @@ TestResult run_test_case(ProcessManagement &processManagement,
       const time_t start = time(0);
       time_t now = start;
       do {
-        if (!processManagement.updateStatus(atrt_process::AP_ALL)) {
-          g_logger.critical("Failed to get updated status for all processes");
-          test_result.result = ERR_CRITICAL;
-          break;
-        }
-
-        test_result.result = processManagement.checkNdbOrServersFailures();
+        test_result.result = processManagement.updateProcessesStatus();
         if (test_result.result) {
+          g_logger.critical("Failed to get updated status for all processes");
           break;
         }
 
@@ -883,10 +835,22 @@ TestResult run_test_case(ProcessManagement &processManagement,
       } while (true);
 
       test_result.elapsed = time(0) - start;
-      if (!processManagement.shutdownProcesses(ProcessManagement::P_CLIENTS)) {
+
+      if (!processManagement.stopClientProcesses()) {
         g_logger.critical("Failed to stop client processes");
         test_result.result = ERR_CRITICAL;
-        continue;  // retry test due to failure
+      }
+
+      bool stop_cluster = is_last_testcase ||
+                          next_testcase_forces_restart ||
+                          reset_config(processManagement, g_config) ||
+                          (test_result.result != ERR_OK &&
+                          testcase.m_behaviour_on_failure == FailureMode::Restart);
+      if (stop_cluster) {
+        if (!processManagement.stopAllProcesses()) {
+          g_logger.critical("Failed to stop all processes");
+          test_result.result = ERR_CRITICAL;
+        }
       }
     }
   }
@@ -908,30 +872,6 @@ TestResult run_test_case(ProcessManagement &processManagement,
     }
   } else {
     remove_dir("result", true);
-  }
-
-  bool stop_cluster = reset_config(processManagement, g_config) ||
-                      (test_result.result != ERR_OK &&
-                       testcase.m_behaviour_on_failure == FailureMode::Restart);
-  if (stop_cluster) {
-    if (!processManagement.shutdownProcesses(~0)) {
-      g_logger.critical("Failed to stop all processes");
-      test_result.result = ERR_CRITICAL;
-    }
-
-    if (!processManagement.setupHostsFilesystem()) {
-      test_result.result = ERR_CRITICAL;
-    }
-
-    g_logger.info("Restarting cluster processes...");
-    if (!processManagement.startClusters()) {
-      g_logger.critical("Cluster could not be started");
-      test_result.result = ERR_CRITICAL;
-    }
-  }
-
-  if (!processManagement.checkClusterStatus(atrt_process::AP_ALL)) {
-    test_result.result = ERR_CRITICAL;
   }
 
   return test_result;
