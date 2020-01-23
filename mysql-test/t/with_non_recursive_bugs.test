@@ -1007,3 +1007,29 @@ INSERT INTO t2
 SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#30796015 INCONSISTENT BEHAVIOUR FOR DELETE ON CTE
+--echo #
+
+# Verify that in SELECT/DELETE/UPDATE/INSERT, the CTE
+# hides a base table of the same name
+create table t1(a int);
+insert into t1 values(2),(3);
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) delete from t1;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) delete t1.* from t1, t1 as t2;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) update t1 set a=2;
+--error ER_NON_UPDATABLE_TABLE
+with t1 as (select * from t1 where a=3) update t1, t1 as t2 set t1.a=2;
+with t1 as (select 36 as col from t1 where a=3) select * from t1;
+insert into t1 with t1 as (select 36 as col from t1) select * from t1;
+select * from t1;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 with t1 as (select 72 as col from t1) select * from t1;
+create table t2 with t1 as (select 72 as col from t1) select * from t1;
+select * from t1;
+select * from t2;
+drop table t1,t2;
