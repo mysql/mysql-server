@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1296,6 +1296,8 @@ void Window::cleanup(THD *thd) {
   if (m_needs_frame_buffering && m_frame_buffer != nullptr) {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
     free_tmp_table(thd, m_frame_buffer);
+    destroy(m_frame_buffer_param);
+    m_frame_buffer_param = nullptr;
   }
 
   for (auto it : {&m_order_by_items, &m_partition_items}) {
