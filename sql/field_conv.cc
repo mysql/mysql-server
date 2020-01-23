@@ -101,7 +101,7 @@ static void set_to_is_null(Field *to_field, bool is_null) {
 static void do_field_to_null_str(Copy_field *, const Field *from_field,
                                  Field *to_field) {
   if (from_field->is_null()) {
-    memset(to_field->field_ptr(), 0, from_field->pack_length());
+    to_field->reset();
     set_to_is_null(to_field, true);
   } else {
     memcpy(to_field->field_ptr(), from_field->field_ptr(),

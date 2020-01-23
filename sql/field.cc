@@ -2142,7 +2142,6 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table) const {
   tmp->auto_flags = Field::NONE;
   tmp->flags &= (NOT_NULL_FLAG | BLOB_FLAG | UNSIGNED_FLAG | ZEROFILL_FLAG |
                  BINARY_FLAG | ENUM_FLAG | SET_FLAG | NOT_SECONDARY_FLAG);
-  tmp->reset_fields();
   return tmp;
 }
 
@@ -2182,11 +2181,6 @@ void Field_null::sql_type(String &res) const {
   Functions for the Field_decimal class
   This is an number stored as a pre-space (or pre-zero) string
 ****************************************************************************/
-
-type_conversion_status Field_decimal::reset() {
-  Field_decimal::store(STRING_WITH_LEN("0"), &my_charset_bin);
-  return TYPE_OK;
-}
 
 void Field_decimal::overflow(bool negative) {
   uint len = field_length;
@@ -2782,7 +2776,7 @@ Field *Field_new_decimal::create_from_item(const Item *item) {
 }
 
 type_conversion_status Field_new_decimal::reset() {
-  store_value(&decimal_zero);
+  (void)my_decimal2binary(0, &decimal_zero, ptr, precision, dec);
   return TYPE_OK;
 }
 
@@ -5134,11 +5128,6 @@ my_time_flags_t Field_timestampf::date_flags(const THD *thd) const {
   return date_flags;
 }
 
-type_conversion_status Field_timestampf::reset() {
-  memset(ptr, 0, pack_length());
-  return TYPE_OK;
-}
-
 void Field_timestampf::store_timestamp_internal(const struct timeval *tm) {
   my_timestamp_to_binary(tm, ptr, dec);
 }
@@ -6958,7 +6947,7 @@ type_conversion_status Field_blob::store_to_mem(const char *from, size_t length,
   }
   char *tmp;
   if (!(tmp = table->blob_storage->store(from, length))) {
-    memset(ptr, 0, Field_blob::pack_length());
+    reset();
     return TYPE_ERR_OOM;
   }
   store_ptr_and_length(tmp, length);
@@ -7018,7 +7007,7 @@ type_conversion_status Field_blob::store_internal(const char *from,
 
 oom_error:
   /* Fatal OOM error */
-  memset(ptr, 0, Field_blob::pack_length());
+  reset();
   return TYPE_ERR_OOM;
 }
 
@@ -7224,8 +7213,6 @@ int Field_blob::do_save_field_metadata(uchar *metadata_ptr) const {
   return 1;
 }
 
-uint32 Field_blob::sort_length() const { return 0xFFFFFFFFu; }
-
 size_t Field_blob::make_sort_key(uchar *to, size_t length) const {
   static const uchar EMPTY_BLOB[1] = {0};
   uint32 blob_length = get_length();
@@ -7429,7 +7416,7 @@ type_conversion_status Field_geom::store_decimal(const my_decimal *) {
 type_conversion_status Field_geom::store(const char *from, size_t length,
                                          const CHARSET_INFO *cs) {
   if (length < SRID_SIZE + WKB_HEADER_SIZE + sizeof(uint32)) {
-    memset(ptr, 0, Field_blob::pack_length());
+    Field_blob::reset();
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
     return TYPE_ERR_BAD_VALUE;
   }
@@ -7453,7 +7440,7 @@ type_conversion_status Field_geom::store_internal(const char *from,
       !Geometry::is_well_formed(from, length,                          // 5
                                 geometry_type_to_wkb_type(geom_type),
                                 Geometry::wkb_ndr)) {
-    memset(ptr, 0, Field_blob::pack_length());
+    Field_blob::reset();
     my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
     return TYPE_ERR_BAD_VALUE;
   }
@@ -7465,7 +7452,7 @@ type_conversion_status Field_geom::store_internal(const char *from,
   if (get_srid().has_value()) {
     gis::srid_t geometry_srid = uint4korr(from);
     if (geometry_srid != get_srid().value()) {
-      memset(ptr, 0, Field_blob::pack_length());
+      Field_blob::reset();
       my_error(ER_WRONG_SRID_FOR_COLUMN, MYF(0), field_name, geometry_srid,
                get_srid().value());
       return TYPE_ERR_BAD_VALUE;

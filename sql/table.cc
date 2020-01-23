@@ -2978,8 +2978,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
        Initialize Field::pack_length() number of bytes for new_field->ptr
        only if there are no default values for the field.
     */
-    if (!has_default_values)
-      memset(new_field->field_ptr(), 0, new_field->pack_length());
+    if (!has_default_values) new_field->reset();
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&

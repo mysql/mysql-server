@@ -1672,7 +1672,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     field->table = table;
     field->auto_flags = Field::NONE;
     field->flags = (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
-    field->reset_fields();
     field->init(table);
     field->orig_table = nullptr;
     *(reg_field++) = field;

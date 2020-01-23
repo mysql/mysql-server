@@ -759,8 +759,7 @@ unsigned int ha_archive::pack_row(uchar *record, azio_stream *writer) {
   ptr = record_buffer->buffer + table->s->null_bytes + ARCHIVE_ROW_HEADER_SIZE;
 
   for (Field **field = table->field; *field; field++) {
-    if (!((*field)->is_null()))
-      ptr = (*field)->pack(ptr, record + (*field)->offset(record));
+    if (!((*field)->is_null())) ptr = (*field)->pack(ptr);
   }
 
   int4store(record_buffer->buffer,
@@ -1021,7 +1020,8 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record) {
   ptr += table->s->null_bytes;
   for (Field **field = table->field; *field; field++) {
     if (!((*field)->is_null_in_record(record))) {
-      ptr = (*field)->unpack(record + (*field)->offset(table->record[0]), ptr);
+      ptr = (*field)->unpack(record + (*field)->offset(table->record[0]), ptr,
+                             0, table->s->db_low_byte_first);
     }
   }
   return 0;
