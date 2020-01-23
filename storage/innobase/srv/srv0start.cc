@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -3311,15 +3311,9 @@ static void srv_shutdown_page_cleaners() {
 
   srv_shutdown_state.store(SRV_SHUTDOWN_FLUSH_PHASE);
 
-  /* We force DD to flush table buffers, so they have opportunity
-  to modify pages according to the postponed modifications. */
-  dict_persist_to_dd_table_buffer();
-
   /* At this point only page_cleaner should be active. We wait
   here to let it complete the flushing of the buffer pools
   before proceeding further. */
-
-  srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
 
   for (uint32_t count = 0; buf_flush_page_cleaner_is_active(); ++count) {
     if (count >= SHUTDOWN_SLEEP_ROUNDS) {
@@ -3509,6 +3503,9 @@ void srv_shutdown() {
   /* The CLEANUP state was set during pre_dd_shutdown phase. */
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_CLEANUP);
 
+  /* Write dynamic metadata to DD buffer table. */
+  dict_persist_to_dd_table_buffer();
+
   /* 0. Stop background threads except:
     - page-cleaners - we are shutting down page cleaners in step 1
     - redo-log-threads - these need to be shutdown after page cleaners,
@@ -3517,6 +3514,13 @@ void srv_shutdown() {
   srv_shutdown_background_threads();
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
+
+  /* Check again and write dynamic metadata to DD buffer table. Ideally we
+  would not have dynamic metadata written so late in shutdown phase but
+  currently we have certain operations done in master thread which could
+  generate metadata. It is safe to check and write it here before we flush
+  buffer pool to disk. */
+  dict_persist_to_dd_table_buffer();
 
   /* The steps 1-4 is the real InnoDB shutdown.
   All before was to stop activity which could produce new changes.

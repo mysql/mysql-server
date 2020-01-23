@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -689,6 +689,14 @@ dberr_t Clone_Snapshot::add_node(fil_node_t *node) {
 }
 
 int Clone_Snapshot::add_page(ib_uint32_t space_id, ib_uint32_t page_num) {
+  /* Skip pages belonging to tablespace not included for clone. This could
+  be some left over pages from drop or truncate in buffer pool which
+  would eventually get removed. */
+  auto count = m_data_file_map.count(space_id);
+  if (count == 0) {
+    return (0);
+  }
+
   Clone_Page cur_page;
 
   cur_page.m_space_id = space_id;
