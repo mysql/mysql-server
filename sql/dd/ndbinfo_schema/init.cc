@@ -102,7 +102,7 @@ static bool initialize_ndbinfo(THD *thd) {
   // Fetch the ndbinfo handler.
   plugin_ref plugin = ha_resolve_by_name_raw(thd, LEX_CSTRING{"ndbinfo", 7});
 
-  // If the plugin was not found, the server is running without ndbcluster
+  // If the plugin was not found, the server is running without ndbinfo
   if (plugin == nullptr) {
     return false;
   }
@@ -114,17 +114,24 @@ static bool initialize_ndbinfo(THD *thd) {
     return true;
   }
 
-  // Check whether upgrade is required, and report this to the server log.
+  // Also check that ndbcluster itself is enabled
+  if (!ha_storage_engine_is_enabled(
+          ha_resolve_by_legacy_type(thd, DB_TYPE_NDBCLUSTER))) {
+    return false;
+  }
+
+  // If no upgrade is needed, just write the "not upgrading" log message
   if (!forced_upgrade) {
     if (check_ndbinfo_schema_has_correct_version(thd)) {
       LogErr(INFORMATION_LEVEL, ER_NDBINFO_NOT_UPGRADING_SCHEMA);
       return false;
     }
   }
+
   // Abort if the data dictionary is in read-only mode
   if (dd::check_if_server_ddse_readonly(thd, "ndbinfo")) return true;
 
-  // Upgrade of ndbinfo schema begins here
+  // Upgrade of ndbinfo schema begins here. Write the "upgrading" log message.
   LogErr(INFORMATION_LEVEL, ER_NDBINFO_UPGRADING_SCHEMA, MYSQL_SERVER_VERSION);
 
   // Call into hton->dict_init() to fetch all ndbinfo tables and views
@@ -137,9 +144,6 @@ static bool initialize_ndbinfo(THD *thd) {
   // Create and use the ndbinfo schema
   if (create_schema(thd, "ndbinfo")) return true;
   if (dd::execute_query(thd, dd::String_type("USE ndbinfo"))) return true;
-
-  // Creating views will require the cost module to be initialized
-  init_optimizer_cost_module(false);
 
   // Create each table or view defined in the list
   bool failed = false;
@@ -156,12 +160,7 @@ static bool initialize_ndbinfo(THD *thd) {
   }
 
   // Commit the DD transaction
-  failed = dd::end_transaction(thd, failed);
-
-  // Shut down the temporary cost module
-  delete_optimizer_cost_module();
-
-  return failed;
+  return dd::end_transaction(thd, failed);
 }
 
 /* Public interface */
@@ -171,8 +170,17 @@ namespace ndbinfo {
 
 bool init_schema_and_tables(long upgrade_mode) {
   forced_upgrade = (upgrade_mode == UPGRADE_FORCE);
-  return ::bootstrap::run_bootstrap_thread(
+
+  // Creating views will require the cost module to be initialized
+  init_optimizer_cost_module(false);
+
+  bool r = ::bootstrap::run_bootstrap_thread(
       nullptr, nullptr, &initialize_ndbinfo, SYSTEM_THREAD_DD_RESTART);
+
+  // Shut down the temporary cost module
+  delete_optimizer_cost_module();
+
+  return r;
 }
 
 }  // namespace ndbinfo

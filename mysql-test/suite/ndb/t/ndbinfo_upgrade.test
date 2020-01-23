@@ -30,7 +30,7 @@ SELECT COUNT(*) FROM nodes;
 # Check for the ER_NDBINFO_UPGRADING_SCHEMA message in the server log.
 #
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
---let $assert_only_after=^CURRENT_TEST: ndb.ndbinfo_upgrade\$
+--let $assert_only_after=^CURRENT_TEST: ndb.ndbinfo_upgrade\$|Shutdown complete
 --let $assert_text=Require ER_NDBINFO_UPGRADING_SCHEMA message in server log
 --let $assert_select=Installing ndbinfo schema version
 --let $assert_count=1
