@@ -19992,8 +19992,11 @@ static MY_ATTRIBUTE(
         mutex_exit(&block->mutex);
         all_evicted = false;
       } else {
-        /* buf_LRU_free_page, releases LRU_list_mutex */
+        /* buf_LRU_free_page() released LRU_list_mutex.
+        have to restart the unzip_LRU scan. */
         mutex_enter(&buf_pool->LRU_list_mutex);
+        block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+        continue;
       }
       block = prev_block;
     }
