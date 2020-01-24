@@ -2769,13 +2769,12 @@ bool Item_field::eq(const Item *item, bool) const {
     (In cases where we would choose wrong we would have to generate a
     ER_NON_UNIQ_ERROR).
   */
-  return (
-      !my_strcasecmp(table_alias_charset, item_field->field_name, field_name) &&
-      (!item_field->table_name || !table_name ||
-       (!my_strcasecmp(table_alias_charset, item_field->table_name,
-                       table_name) &&
-        (!item_field->db_name || !db_name ||
-         (item_field->db_name && !strcmp(item_field->db_name, db_name))))));
+  return (item_field->item_name.eq_safe(field_name) &&
+          (!item_field->table_name || !table_name ||
+           (!my_strcasecmp(table_alias_charset, item_field->table_name,
+                           table_name) &&
+            (!item_field->db_name || !db_name ||
+             (item_field->db_name && !strcmp(item_field->db_name, db_name))))));
 }
 
 table_map Item_field::used_tables() const {
