@@ -720,14 +720,15 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
                          thd_strdup(thd, table_sql.c_str()),
                          thd_strdup(thd, table_options.c_str()), nullptr));
   }
-
   delete[] tables;
 
-  const char *prev_name = "";
-  for (size_t i = 0; i < num_lookups; i++) {
-    lookup l = lookups[i];
-    DBUG_ASSERT(strcmp(prev_name, l.lookup_table_name) < 0);
-    prev_name = l.lookup_table_name;
+  lookup l;
+  view v;
+
+  for (size_t i = 0; i < num_lookups; i++) {  // create hard-coded tables
+    DBUG_ASSERT(i == 0 || /* assert that list is alphabetized */
+                strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
+    l = lookups[i];
 
     /* Create lookup table */
     plugin_tables->push_back(
@@ -735,12 +736,9 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
                          "ENGINE=NDBINFO CHARACTER SET latin1", nullptr));
   }
 
-  prev_name = "";
-  for (size_t i = 0; i < num_views; i++) {
-    view v = views[i];
-
-    DBUG_ASSERT(strcmp(prev_name, v.view_name) < 0);
-    prev_name = v.view_name;
+  for (size_t i = 0; i < num_views; i++) {  // create views
+    DBUG_ASSERT(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
+    v = views[i];
 
     /* Create the view */
     plugin_tables->push_back(
