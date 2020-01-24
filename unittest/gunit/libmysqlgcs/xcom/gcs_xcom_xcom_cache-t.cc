@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -259,7 +259,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   /*
     Cache refuses to decrease before it reaches 500K slots
   */
-  ASSERT_EQ(check_decrease(), 1);
+  ASSERT_EQ(check_decrease(), CACHE_TOO_SMALL);
 
   target_occupation = 3000000;  // 3M
   cache_bulk(target_occupation);
@@ -268,7 +268,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   /*
     Fails because there are no empty hash tables in the stack
   */
-  ASSERT_EQ(check_decrease(), 2);
+  ASSERT_EQ(check_decrease(), CACHE_HASH_NOTEMPTY);
 
   size_t count = 0;
   while (above_cache_limit()) {
@@ -283,7 +283,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
   ASSERT_EQ(count, 1046875);
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);  // init occupation - count
   ASSERT_EQ(get_xcom_cache_length(), 3050000);      // Length did not change
-  ASSERT_EQ(check_decrease(), 0);
+  ASSERT_EQ(check_decrease(), CACHE_SHRINK_OK);
   ASSERT_EQ(get_xcom_cache_length(), 3000000);
   while (!check_decrease()) {
   }
@@ -293,7 +293,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
     decrease will stop once cache_length hits the lowest 50k decrement
     that is lower than 3892564, which is 2750000
   */
-  ASSERT_EQ(check_decrease(), 3);
+  ASSERT_EQ(check_decrease(), CACHE_HIGH_OCCUPATION);
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);
   ASSERT_EQ(get_xcom_cache_length(), 2750000);
 
@@ -306,15 +306,15 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecrease) {
    * 1953125 / 0.9 = 2170139 ; 2170139 + 50000 = 2220139
    *
    */
-  ASSERT_EQ(check_decrease(), 4);
+  ASSERT_EQ(check_decrease(), CACHE_RESULT_LOW);
   ASSERT_EQ(get_xcom_cache_length(), 2200000);
   set_min_length_threshold(1);  // Force previous test to pass
-  ASSERT_EQ(check_decrease(), 0);
+  ASSERT_EQ(check_decrease(), CACHE_SHRINK_OK);
   set_max_cache_size(2000000000);
   /*
     Verify that decrease fails because cache_size is still far from the limit.
   */
-  ASSERT_EQ(check_decrease(), 5);
+  ASSERT_EQ(check_decrease(), CACHE_INCREASING);
   // Reset vars
   set_min_target_occupation(MIN_TARGET_OCCUPATION);
   set_min_length_threshold(MIN_LENGTH_THRESHOLD);
@@ -359,7 +359,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
 
   ASSERT_EQ(get_xcom_cache_occupation(), 1953125);
   ASSERT_EQ(get_xcom_cache_length(), 2750000);  // Redundant, but let's do it!
-  ASSERT_EQ(check_decrease(), 3);
+  ASSERT_EQ(check_decrease(), CACHE_HIGH_OCCUPATION);
 
   set_min_target_occupation(1.0);  // Force previous test to pass
   /*
@@ -372,7 +372,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   }
 
   ASSERT_EQ(get_xcom_cache_length(), 2200000);
-  ASSERT_EQ(check_decrease(), 4);
+  ASSERT_EQ(check_decrease(), CACHE_RESULT_LOW);
 
   /*
    * Increase the max cache size before "removing" the min length threshold
@@ -381,7 +381,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
 
   set_min_length_threshold(1);  // Force previous test to pass
   // Check that decrease still has no effect, but for a different reason
-  ASSERT_EQ(check_decrease(), 5);
+  ASSERT_EQ(check_decrease(), CACHE_INCREASING);
   // Restore max cache size
   set_max_cache_size(1000000000);
 
@@ -392,7 +392,7 @@ TEST_F(GcsXComXComCache, XComCacheTestLengthDecreaseWithTask) {
   // The decrease stops once the length gets to 2050000...
   ASSERT_EQ(get_xcom_cache_length(), 2050000);
   // ...because we have no more empty hash tables at the end of the stack
-  ASSERT_EQ(check_decrease(), 2);
+  ASSERT_EQ(check_decrease(), CACHE_HASH_NOTEMPTY);
   deinit_cache();
   ASSERT_EQ(get_xcom_cache_length(), 0);
   ASSERT_EQ(get_xcom_cache_occupation(), 0);

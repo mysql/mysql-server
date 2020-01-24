@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,19 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/checked_data.h"
-#include <stdlib.h>  // malloc
-#include <string.h>  // memcpy
+#include <stdlib.h> /* malloc */
+#include <string.h> /* memcpy */
 
-bool copy_checked_data(checked_data *const to, checked_data const *const from) {
-  bool copied = false;
+#include "xcom/checked_data.h"
+
+bool_t copy_checked_data(checked_data *const to,
+                         checked_data const *const from) {
+  bool_t copied = FALSE;
 
   to->data_len = 0;
-  to->data_val = malloc(from->data_len * sizeof(char));
+  to->data_val = (char *)malloc(from->data_len * sizeof(char));
   if (to->data_val != NULL) {
     to->data_len = from->data_len;
     memcpy(to->data_val, from->data_val, from->data_len);
-    copied = true;
+    copied = TRUE;
   }
 
   return copied;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "x_platform.h"
 
 static inline unsigned int get_32(unsigned char const *p) {
   return ((unsigned int)p[3] | (((unsigned int)p[2]) << 8) |

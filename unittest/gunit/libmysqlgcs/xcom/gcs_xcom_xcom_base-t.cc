@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,8 +232,8 @@ TEST_F(XcomBase, GetSynodeAppDataSuccessful) {
 
   unchecked_replace_pax_msg(&paxos->learner.msg, nullptr);
 
-  my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
-              reinterpret_cast<char *>(&result));
+  xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+           reinterpret_cast<char *>(&result));
 }
 
 TEST_F(XcomBase, GetSynodeAppDataTooManySynodes) {
@@ -778,7 +778,7 @@ TEST_F(XcomBase, HandleBootWithoutIdentity) {
   pax_msg *need_boot = pax_msg_new(synod, nullptr);
   // need_boot_op without an identity.
   init_need_boot_op(need_boot, nullptr);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -814,7 +814,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfExistingMember) {
   // need_boot_op with an identity.
   node_address *identity = ::new_node_address_uuid(1, names, uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_TRUE(should_handle_boot(config, need_boot));
+  ASSERT_TRUE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -855,7 +855,7 @@ TEST_F(XcomBase, HandleBootWithIdentityOfNonExistingMember) {
   blob unknown_uuids[] = {unknown_uuid};
   node_address *identity = ::new_node_address_uuid(1, names, unknown_uuids);
   init_need_boot_op(need_boot, identity);
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;
@@ -900,7 +900,7 @@ TEST_F(XcomBase, HandleBootWithMoreThanOneIdentity) {
     need_boot->a->body.c_t = xcom_boot_type;
     init_node_list(2, identity, &need_boot->a->body.app_u_u.nodes);
   }
-  ASSERT_FALSE(should_handle_boot(config, need_boot));
+  ASSERT_FALSE(should_handle_need_boot(config, need_boot));
 
   // Cleanup.
   need_boot->refcnt = 1;

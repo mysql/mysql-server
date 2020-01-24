@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,19 +43,19 @@
 
 #define BSD_COMP
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/node_no.h"
+#include "xcom/simset.h"
+#include "xcom/sock_probe.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_net.h"
+#include "xcom/task_os.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_memory.h"
+#include "xcom/xcom_profile.h"
+#include "xcom/xcom_transport.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define WORKING_BUFFER_SIZE 1024 * 1024
 
@@ -85,6 +85,7 @@ typedef enum SockaddrOp {
 static int init_sock_probe(sock_probe *s) {
   ULONG flags = GAA_FLAG_INCLUDE_PREFIX, family = AF_UNSPEC, out_buflen = 0;
   DWORD retval = 0;
+  PIP_ADAPTER_ADDRESSES curr_addresses;
 
   if (s == NULL) {
     return 1;
@@ -97,16 +98,15 @@ static int init_sock_probe(sock_probe *s) {
 
   retval = GetAdaptersAddresses(family, flags, NULL, s->addresses, &out_buflen);
 
-  /* LETS DEBUG SOME SHIT*/
-
-  PIP_ADAPTER_ADDRESSES curr_addresses = s->addresses;
+  curr_addresses = s->addresses;
   while (curr_addresses) {
-    G_DEBUG("Adapter Friendly name: %S", curr_addresses->FriendlyName);
-    G_DEBUG("Adapter status: %s",
-            curr_addresses->OperStatus == IfOperStatusUp ? "UP" : "DOWN");
+    PIP_ADAPTER_UNICAST_ADDRESS_LH curr_unicast_address;
 
-    PIP_ADAPTER_UNICAST_ADDRESS_LH curr_unicast_address =
-        curr_addresses->FirstUnicastAddress;
+    IFDBG(D_TRANSPORT, STRLIT("Adapter status: ");
+          if (curr_addresses->OperStatus == IfOperStatusUp) STRLIT("UP");
+          else STRLIT("DOWN"););
+
+    curr_unicast_address = curr_addresses->FirstUnicastAddress;
     while (curr_unicast_address) {
       if (curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET ||
           curr_unicast_address->Address.lpSockaddr->sa_family == AF_INET6) {
@@ -140,8 +140,8 @@ static bool_t is_if_running(sock_probe *s, int count) {
   if (s == NULL) {
     return 0;
   }
-  return 1;  // We will always report active because GetAdaptersAddresses
-             // always returns active interfaces.
+  return 1; /* We will always report active because GetAdaptersAddresses */
+            /* always returns active interfaces. */
 }
 
 struct interface_info {
@@ -196,34 +196,35 @@ static interface_info get_interface(sock_probe *s, int count) {
 static void get_sockaddr(sock_probe *s, int count, struct sockaddr **out,
                          SockaddrOp addr_operation) {
   int i = 0;
+  interface_info interface_info;
 
   if (s == NULL) {
     *out = NULL;
   }
 
-  interface_info interface_info = get_interface(s, count);
+  interface_info = get_interface(s, count);
   if (interface_info.network_interface == NULL) {
     *out = NULL;
     return;
   }
 
-  // Let see what the function caller wants...
+  /* Let see what the function caller wants... */
   switch (addr_operation) {
-    // Return the interface address sockaddr
+    /* Return the interface address sockaddr */
     case kSockaddrOpAddress:
       *out = interface_info.network_address->Address.lpSockaddr;
       break;
-    // Return the interface address netmask
+    /* Return the interface address netmask */
     case kSockaddrOpNetmask:
-      // Windows is the opposite of *Nix. While *Nix has a sockaddr that
-      // contains
-      // the netmask, and then you need to count the bits to see how many are
-      // set, in case of Windows, you already have the number of bits that
-      // are set in OnLinkPrefixLength field.
-      // The issue with that is that then you need to convert them to a network
-      // format. In case of IPv4, you have a method called
-      // ConvertLengthToIpv4Mask. In case of V6 you need to do it by hand
-      // setting the bits in the correct place of sin6_addr.s6_addr.
+      /* Windows is the opposite of Nix.
+         While Nix has a sockaddr that contains the netmask,
+         and then you need to count the bits to see how many are
+         set, in case of Windows, you already have the number of bits that
+         are set in OnLinkPrefixLength field.
+         The issue with that is that then you need to convert them to a network
+         format. In case of IPv4, you have a method called
+         ConvertLengthToIpv4Mask. In case of V6 you need to do it by hand
+         setting the bits in the correct place of sin6_addr.s6_addr. */
       if (interface_info.network_address->Address.lpSockaddr->sa_family ==
           AF_INET) {
         struct sockaddr_in *out_value =
@@ -233,9 +234,10 @@ static void get_sockaddr(sock_probe *s, int count, struct sockaddr **out,
             &out_value->sin_addr.s_addr);
         *out = (struct sockaddr *)out_value;
       } else {
+        long i, j;
         struct sockaddr_in6 *out_value =
             (struct sockaddr_in6 *)calloc(1, sizeof(struct sockaddr_in6));
-        for (long i = interface_info.network_address->OnLinkPrefixLength, j = 0;
+        for (i = interface_info.network_address->OnLinkPrefixLength, j = 0;
              i > 0; i -= 8, ++j) {
           out_value->sin6_addr.s6_addr[j] =
               i >= 8 ? 0xff : (ULONG)((0xffU << (8 - i)));

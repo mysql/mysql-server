@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
-
 #include <assert.h>
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+
+#include "xcom/xcom_cfg.h"
+
+#include "xcom/node_list.h"
+#include "xcom/xcom_profile.h"
 
 /* Reasonable initial cache limit */
 #define DEFAULT_CACHE_LIMIT 1000000000ULL

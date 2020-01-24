@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,21 +24,21 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "xcom/x_platform.h"
 
 #ifndef _WIN32
 #include <strings.h>
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_address.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/node_address.h"
+#include "xcom/node_list.h"
+#include "xcom/server_struct.h"
+#include "xcom/site_def.h"
+#include "xcom/task_debug.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_profile.h"
+#include "xcom/xcom_transport.h"
+#include "xdr_gen/xcom_vp.h"
 
 /**
    Debug a node list.
@@ -57,7 +57,7 @@ char *dbg_list(node_list const *nodes) {
 }
 /* purecov: end */
 
-/* {{{ Clone a node list */
+/* Clone a node list */
 
 node_list clone_node_list(node_list list) {
   node_list retval;
@@ -65,32 +65,25 @@ node_list clone_node_list(node_list list) {
   return retval;
 }
 
-/* }}} */
-
-/* OHKFIX Do something more intelligent than strcmp */
 int match_node(node_address *n1, node_address *n2, u_int with_uid) {
   char n1_ip[IP_MAX_SIZE], n2_ip[IP_MAX_SIZE];
   xcom_port n1_port, n2_port;
   int error_ipandport1, error_ipandport2;
+  int retval;
 
   if (n1 == 0 || n2 == 0) return 0;
 
   error_ipandport1 = get_ip_and_port(n1->address, n1_ip, &n1_port);
   error_ipandport2 = get_ip_and_port(n2->address, n2_ip, &n2_port);
 
-  int retval = (!error_ipandport1 && !error_ipandport2 &&
-                (n1_port == n2_port) && strcmp(n1->address, n2->address) == 0);
+  retval = (!error_ipandport1 && !error_ipandport2 && (n1_port == n2_port) &&
+            strcmp(n1->address, n2->address) == 0);
 
   if (with_uid) {
-    int retval_with_uid = (n1->uuid.data.data_len == n2->uuid.data.data_len);
-    if (retval_with_uid) {
-      u_int i = 0;
-      for (; i < n1->uuid.data.data_len && retval_with_uid; i++) {
-        retval_with_uid &=
-            !(n1->uuid.data.data_val[i] ^ n2->uuid.data.data_val[i]);
-      }
-    }
-    retval &= retval_with_uid;
+    retval =
+        retval && (n1->uuid.data.data_len == n2->uuid.data.data_len) &&
+        (memcmp((void *)n1->uuid.data.data_val, (void *)n2->uuid.data.data_val,
+                n1->uuid.data.data_len) == 0);
   }
 
   return retval;
@@ -136,6 +129,25 @@ static void init_proto_range(x_proto_range *r) {
   r->max_proto = my_xcom_version;
 }
 
+/* Clone a blob */
+blob clone_blob(blob const b) {
+  blob retval = b;
+  if (retval.data.data_len > 0) {
+    retval.data.data_val = (char *)calloc((size_t)1, (size_t)b.data.data_len);
+    memcpy(retval.data.data_val, b.data.data_val, (size_t)retval.data.data_len);
+  } else {
+    retval.data.data_val = 0;
+  }
+  return retval;
+}
+/* purecov: begin deadcode */
+blob *clone_blob_ptr(blob const *b) {
+  blob *retval = (blob *)calloc((size_t)1, sizeof(blob));
+  *retval = clone_blob(*b);
+  return retval;
+}
+/* purecov: end */
+
 /* Add nodes to node list, avoid duplicate entries */
 void add_node_list(u_int n, node_address *names, node_list *nodes) {
   /* Find new nodes */
@@ -147,29 +159,27 @@ void add_node_list(u_int n, node_address *names, node_list *nodes) {
       u_int i;
 
       /* Expand node list and add new nodes */
-      nodes->node_list_val =
-          realloc(nodes->node_list_val,
-                  (added + nodes->node_list_len) * sizeof(node_address));
+      nodes->node_list_val = (node_address *)realloc(
+          nodes->node_list_val,
+          (added + nodes->node_list_len) * sizeof(node_address));
       np = &nodes->node_list_val[nodes->node_list_len];
       for (i = 0; i < n; i++) {
-        /* 			DBGOUT(FN; STREXP(names[i])); */
+        /* 			IFDBG(D_NONE, FN; STREXP(names[i])); */
         if (!exists(&names[i], nodes, FALSE)) {
           np->address = strdup(names[i].address);
-          np->uuid.data.data_len = names[i].uuid.data.data_len;
-          if (np->uuid.data.data_len) {
-            np->uuid.data.data_val =
-                calloc((size_t)1, (size_t)np->uuid.data.data_len);
-            memcpy(np->uuid.data.data_val, names[i].uuid.data.data_val,
-                   (size_t)np->uuid.data.data_len);
-          } else {
-            np->uuid.data.data_val = 0;
-          }
+          np->uuid = clone_blob(names[i].uuid);
           np->proto = names[i].proto;
           np++;
           /* Update length here so next iteration will check for duplicates
-             against newly added node
-          */
+             against newly added node */
           nodes->node_list_len++;
+          ADD_DBG(D_BASE, add_event(EVENT_DUMP_PAD, string_arg("adding node"));
+                  add_event(EVENT_DUMP_PAD, uint_arg(nodes->node_list_len));
+                  add_event(EVENT_DUMP_PAD, string_arg("node_list"));
+                  add_event(EVENT_DUMP_PAD, void_arg(nodes));
+                  /* add_event(EVENT_DUMP_PAD,
+                     uint_arg(chksum_node_list(nodes))); */
+          );
         }
       }
     }
@@ -190,6 +200,13 @@ void remove_node_list(u_int n, node_address *names, node_list *nodes) {
       free(nodes->node_list_val[i].uuid.data.data_val);
       nodes->node_list_val[i].uuid.data.data_val = 0;
       new_len--;
+      ADD_DBG(
+          D_BASE, add_event(EVENT_DUMP_PAD, string_arg("removing node"));
+          add_event(EVENT_DUMP_PAD, uint_arg(i));
+          add_event(EVENT_DUMP_PAD, string_arg("node_list"));
+          add_event(EVENT_DUMP_PAD, void_arg(nodes));
+          /* add_event(EVENT_DUMP_PAD, uint_arg(chksum_node_list(nodes))); */
+      );
     } else {
       *np = nodes->node_list_val[i];
       np++;
@@ -198,7 +215,7 @@ void remove_node_list(u_int n, node_address *names, node_list *nodes) {
   nodes->node_list_len = new_len;
 }
 
-/* {{{ Initialize a node list from array of string pointers */
+/* Initialize a node list from array of string pointers */
 
 void init_node_list(u_int n, node_address *names, node_list *nodes) {
   nodes->node_list_len = 0;
@@ -206,9 +223,18 @@ void init_node_list(u_int n, node_address *names, node_list *nodes) {
   add_node_list(n, names, nodes);
 }
 
-node_list *empty_node_list() { return calloc((size_t)1, sizeof(node_list)); }
+/* purecov: begin deadcode */
+node_list null_node_list() {
+  node_list nl;
+  nl.node_list_len = 0;
+  nl.node_list_val = 0;
+  return nl;
+}
 
-/* }}} */
+node_list *empty_node_list() {
+  return (node_list *)calloc((size_t)1, sizeof(node_list));
+}
+/* purecov: end */
 
 node_address *init_single_node_address(node_address *na, char *name) {
   na->address = strdup(name);
@@ -226,19 +252,20 @@ node_address *init_node_address(node_address *na, u_int n, char *names[]) {
 }
 
 node_address *new_node_address(u_int n, char *names[]) {
-  node_address *na = calloc((size_t)n, sizeof(node_address));
+  node_address *na = (node_address *)calloc((size_t)n, sizeof(node_address));
   return init_node_address(na, n, names);
 }
 
 node_address *new_node_address_uuid(u_int n, char *names[], blob uuids[]) {
   u_int i = 0;
 
-  node_address *na = calloc((size_t)n, sizeof(node_address));
+  node_address *na = (node_address *)calloc((size_t)n, sizeof(node_address));
   init_node_address(na, n, names);
 
   for (; i < n; i++) {
     na[i].uuid.data.data_len = uuids[i].data.data_len;
-    na[i].uuid.data.data_val = calloc(uuids[i].data.data_len, sizeof(char));
+    na[i].uuid.data.data_val =
+        (char *)calloc(uuids[i].data.data_len, sizeof(char));
     na[i].uuid.data.data_val =
         strncpy(na[i].uuid.data.data_val, uuids[i].data.data_val,
                 uuids[i].data.data_len);
@@ -257,4 +284,23 @@ void delete_node_address(u_int n, node_address *na) {
   }
   free(na);
   na = 0;
+}
+
+/* Fowler-Noll-Vo type multiplicative hash */
+static uint32_t fnv_hash(unsigned char *buf, size_t length, uint32_t sum) {
+  size_t i = 0;
+  for (i = 0; i < length; i++) {
+    sum = sum * (uint32_t)0x01000193 ^ (uint32_t)buf[i];
+  }
+  return sum;
+}
+
+uint32_t chksum_node_list(node_list const *nodes) {
+  u_int i;
+  uint32_t sum = 0x811c9dc5;
+  for (i = 0; i < nodes->node_list_len; i++) {
+    sum = fnv_hash((unsigned char *)nodes->node_list_val[i].address,
+                   strlen(nodes->node_list_val[i].address), sum);
+  }
+  return sum;
 }

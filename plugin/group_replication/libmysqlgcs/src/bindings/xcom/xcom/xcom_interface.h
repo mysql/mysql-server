@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,21 @@
 #ifndef XCOM_INTERFACE_H
 #define XCOM_INTERFACE_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "xcom/site_struct.h"
+#include "xcom/xcom_cache.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+void deliver_view_msg(site_def const *site);
 void deliver_global_view_msg(site_def const *site, synode_no message_id);
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status);
+
+void deliver_config(app_data_ptr a);
+
+void deinit_xcom_interface();
 
 #ifdef __cplusplus
 }

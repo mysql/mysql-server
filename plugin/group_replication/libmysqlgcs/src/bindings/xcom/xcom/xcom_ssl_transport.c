@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,20 +29,19 @@
 #include <openssl/opensslv.h>
 #include <openssl/x509v3.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
 
 #include "openssl/engine.h"
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
+#include "xcom/task_debug.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_ssl_transport.h"
 
-static const char *ssl_mode_options[] = {
-    "DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",
-};
+static const char *ssl_mode_options[] = {"DISABLED", "PREFERRED", "REQUIRED",
+                                         "VERIFY_CA", "VERIFY_IDENTITY"};
 
 static const char *ssl_fips_mode_options[] = {"OFF", "ON", "STRICT"};
 
@@ -134,12 +133,9 @@ static unsigned char dh2048_p[] = {
     0x4D, 0xF0, 0x12, 0xD4, 0xA4, 0xEA, 0x17, 0x75, 0x66, 0x49, 0x6C, 0xCF,
     0x14, 0x28, 0xC6, 0x9A, 0x3C, 0x71, 0xFD, 0xB8, 0x3A, 0x6C, 0xE3, 0xA3,
     0xA6, 0x06, 0x5A, 0xA6, 0xF0, 0x7A, 0x00, 0x15, 0xA5, 0x5A, 0x64, 0x66,
-    0x00, 0x05, 0x85, 0xB7,
-};
+    0x00, 0x05, 0x85, 0xB7};
 
-static unsigned char dh2048_g[] = {
-    0x05,
-};
+static unsigned char dh2048_g[] = {0x05};
 
 static DH *get_dh2048(void) {
   DH *dh;
@@ -485,13 +481,6 @@ int xcom_use_ssl() {
   assert(ssl_mode >= SSL_DISABLED && ssl_mode < LAST_SSL_MODE);
   return ssl_mode != SSL_DISABLED;
 }
-
-/* purecov: begin deadcode */
-void xcom_set_default_passwd(char *pw) {
-  if (ssl_pw) free(ssl_pw);
-  ssl_pw = strdup(pw);
-}
-/* purecov: end */
 
 int xcom_get_ssl_mode(const char *mode) {
   int retval = INVALID_SSL_MODE;

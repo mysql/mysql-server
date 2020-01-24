@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,29 +20,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "xcom/site_def.h"
 
 #include <assert.h>
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/bitset.h"
+#include "xcom/node_list.h"
+#include "xcom/node_no.h"
+#include "xcom/node_set.h"
+#include "xcom/server_struct.h"
+#include "xcom/simset.h"
+#include "xcom/site_struct.h"
+#include "xcom/synode_no.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_detector.h"
+#include "xcom/xcom_memory.h"
+#include "xcom/xcom_profile.h"
+#include "xcom/xcom_transport.h"
+#include "xdr_gen/xcom_vp.h"
 
 typedef site_def *site_def_ptr;
 
@@ -58,25 +58,8 @@ init_xdr_array(site_def_ptr) free_xdr_array(site_def_ptr)
 
     /* FIFO of site definitions */
     static site_def_ptr_array site_defs;
-static site_def *incoming = 0;
+
 static inline node_no _get_maxnodes(site_def const *site);
-
-/* purecov: begin deadcode */
-/* Save incoming site def, but do not make it available yet */
-site_def *begin_site_def(site_def *s) {
-  assert(!incoming);
-  incoming = s;
-  assert(s->global_node_set.node_set_len == _get_maxnodes(s));
-  return incoming;
-}
-
-/* Push saved site def, making it active from synode start */
-site_def *end_site_def(synode_no start) {
-  assert(incoming);
-  incoming->start = start;
-  return push_site_def(incoming);
-}
-/* purecov: end */
 
 /* Return pointer to array of site defs */
 void get_all_site_defs(site_def ***s, uint32_t *n) {
@@ -88,7 +71,6 @@ void get_all_site_defs(site_def ***s, uint32_t *n) {
 void init_site_vars() {
   init_site_def_ptr_array(&site_defs);
   site_defs.count = 0;
-  incoming = 0;
 }
 
 /* Recursively free a complete site_def.  Only free the site_def, not
@@ -113,23 +95,24 @@ void free_site_defs() {
   }
   free_site_def_ptr_array(&site_defs);
   site_defs.count = 0;
-  free_site_def(incoming);
 }
 
 /* Add a new site definition to the list */
 site_def *push_site_def(site_def *s) {
   uint32_t i;
   set_site_def_ptr(&site_defs, 0, site_defs.count);
-  DBGOUT(FN; NDBG(site_defs.count, u); PTREXP(s); if (s) {
-    SYCEXP(s->start);
-    SYCEXP(s->boot_key);
-  });
+  IFDBG(
+      D_NONE, FN; NDBG(site_defs.count, u); PTREXP(s); if (s) {
+        SYCEXP(s->start);
+        SYCEXP(s->boot_key);
+      });
   for (i = site_defs.count; i > 0; i--) {
-    DBGOUT(NDBG(i - 1, d); PTREXP(site_defs.site_def_ptr_array_val[i - 1]);
-           if (site_defs.site_def_ptr_array_val[i - 1]) {
-             SYCEXP(site_defs.site_def_ptr_array_val[i - 1]->start);
-             SYCEXP(site_defs.site_def_ptr_array_val[i - 1]->boot_key);
-           });
+    IFDBG(
+        D_NONE, NDBG(i - 1, d); PTREXP(site_defs.site_def_ptr_array_val[i - 1]);
+        if (site_defs.site_def_ptr_array_val[i - 1]) {
+          SYCEXP(site_defs.site_def_ptr_array_val[i - 1]->start);
+          SYCEXP(site_defs.site_def_ptr_array_val[i - 1]->boot_key);
+        });
     site_defs.site_def_ptr_array_val[i] =
         site_defs.site_def_ptr_array_val[i - 1];
   }
@@ -267,7 +250,7 @@ void garbage_collect_site_defs(synode_no x) {
   u_int i;
   u_int s_max = site_defs.count;
 
-  DBGOUT(FN; NDBG(site_defs.count, u); SYCEXP(x););
+  IFDBG(D_NONE, FN; NDBG(site_defs.count, u); SYCEXP(x););
   for (i = 3; i < s_max; i++) {
     if (match_def(site_defs.site_def_ptr_array_val[i], x)) {
       break;
@@ -276,9 +259,9 @@ void garbage_collect_site_defs(synode_no x) {
   i++;
   for (; i < s_max; i++) {
     site_def *site = site_defs.site_def_ptr_array_val[i];
-    DBGOUT(NDBG(i, d); PTREXP(site_defs.site_def_ptr_array_val[i]););
+    IFDBG(D_NONE, NDBG(i, d); PTREXP(site_defs.site_def_ptr_array_val[i]););
     if (site) {
-      DBGOUT(SYCEXP(site->start); SYCEXP(site->boot_key););
+      IFDBG(D_NONE, SYCEXP(site->start); SYCEXP(site->boot_key););
       free_site_def(site);
       site_defs.site_def_ptr_array_val[i] = 0;
     }
@@ -300,7 +283,7 @@ site_def *new_site_def() {
   return retval;
 }
 
-/* {{{ Clone a site definition */
+/* Clone a site definition */
 
 site_def *clone_site_def(site_def const *site) {
   site_def *retval = new_site_def();
@@ -311,15 +294,14 @@ site_def *clone_site_def(site_def const *site) {
   retval->global_node_set = clone_node_set(site->global_node_set);
   retval->local_node_set = clone_node_set(site->local_node_set);
   assert(retval->global_node_set.node_set_len == _get_maxnodes(retval));
-  DBGOUT(FN; PTREXP(site); PTREXP(retval));
+  IFDBG(D_NONE, FN; PTREXP(site); PTREXP(retval));
   return retval;
 }
 
-/* }}} */
-
-/* {{{ Initialize a site definition from array of string pointers */
+/* Initialize a site definition from array of string pointers */
 
 void init_site_def(u_int n, node_address *names, site_def *site) {
+  const site_def *latest_config;
   site->start = null_synode;
   site->boot_key = null_synode;
   site->nodeno = VOID_NODE_NO;
@@ -337,15 +319,14 @@ void init_site_def(u_int n, node_address *names, site_def *site) {
   site->detector_updated = 0;
   site->x_proto = my_xcom_version;
   /* Inherit latest configuration's event horizon or fallback to default */
-  const site_def *latest_config = get_site_def();
+  latest_config = get_site_def();
   if (latest_config != NULL) {
     site->event_horizon = latest_config->event_horizon;
   } else {
     site->event_horizon = EVENT_HORIZON_MIN;
   }
+  assert(site->event_horizon);
 }
-
-/* }}} */
 
 /* Add nodes to site definition, avoid duplicates */
 void add_site_def(u_int n, node_address *names, site_def *site) {
@@ -366,53 +347,17 @@ void remove_site_def(u_int n, node_address *names, site_def *site) {
   realloc_node_set(&site->local_node_set, _get_maxnodes(site));
 }
 
-/* purecov: begin deadcode */
-/* Return boot_key of first site def */
-synode_no get_boot_key() {
-  assert(!_get_site_def() || _get_site_def()->global_node_set.node_set_len ==
-                                 _get_maxnodes(_get_site_def()));
-  if (get_site_def()) {
-    return get_site_def()->boot_key;
-  } else {
-    return null_synode;
-  }
-}
-
-/* Set boot_key of first site def */
-void set_boot_key(synode_no const x) {
-  assert(_get_site_def());
-  assert(_get_site_def()->global_node_set.node_set_len ==
-         _get_maxnodes(_get_site_def()));
-  if (site_defs.site_def_ptr_array_val[0]) {
-    site_defs.site_def_ptr_array_val[0]->boot_key = x;
-  }
-}
-/* purecov: end */
-
 /* Return group id of site */
 uint32_t get_group_id(site_def const *site) {
   if (site) {
     uint32_t group_id = site->start.group_id;
     assert(site->global_node_set.node_set_len == _get_maxnodes(site));
-    MAY_DBG(FN; NDBG((unsigned long)group_id, lu););
+    IFDBG(D_NONE, FN; NDBG((unsigned long)group_id, lu););
     return group_id;
   } else {
     return null_id;
   }
 }
-
-#if 0
-void	set_group_id(site_def *site, uint32_t id)
-{
-	MAY_DBG(FN; STRLIT("changing group id from ");
-	    NDBG(get_group_id(site), lx);
-	    STRLIT("to ");
-	    NDBG(id, lu);
-	    );
-	site->group_id = id;
-}
-
-#endif
 
 static inline node_no _get_maxnodes(site_def const *site) {
   if (site) {
@@ -423,10 +368,6 @@ static inline node_no _get_maxnodes(site_def const *site) {
 
 /* Return maxnodes of site */
 node_no get_maxnodes(site_def const *site) { return _get_maxnodes(site); }
-
-/* purecov: begin deadcode */
-node_no get_prev_maxnodes() { return _get_maxnodes(_get_prev_site_def()); }
-/* purecov: end */
 
 /* Return nodeno of site */
 static inline node_no _get_nodeno(site_def const *site) {
@@ -463,7 +404,8 @@ synode_no config_max_boot_key(gcs_snapshot const *gcs_snap) {
   /* Loop over all configs looking for max */
   for (i = (int)gcs_snap->cfg.configs_len - 1; i >= 0; i--) {
     config_ptr cp = gcs_snap->cfg.configs_val[i];
-    if (cp && synode_gt(cp->boot_key, max)) {
+    if (cp && cp->boot_key.group_id == gcs_snap->log_start.group_id &&
+        synode_gt(cp->boot_key, max)) {
       max = cp->boot_key;
     }
   }
@@ -473,45 +415,78 @@ synode_no config_max_boot_key(gcs_snapshot const *gcs_snap) {
 /* Import configs from snapshot */
 void import_config(gcs_snapshot *gcs_snap) {
   int i;
-  DBGOUT(FN; SYCEXP(gcs_snap->log_start));
+  IFDBG(D_NONE, FN; SYCEXP(gcs_snap->log_start); SYCEXP(gcs_snap->log_end));
   for (i = (int)gcs_snap->cfg.configs_len - 1; i >= 0; i--) {
     config_ptr cp = gcs_snap->cfg.configs_val[i];
     if (cp) {
-      site_def *site = new_site_def();
-      DBGOUT(FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
-      init_site_def(cp->nodes.node_list_len, cp->nodes.node_list_val, site);
-      site->start = cp->start;
-      site->boot_key = cp->boot_key;
-      site->event_horizon = cp->event_horizon;
-      site_install_action(site, app_type);
+      /* We now have a valid pointer to a config.
+         Unconditionally import if if we have no configs.
+         If we have a config, import it if either the boot_key or
+         start does not match the latest config we already have.
+         This avoids import of duplicate configs.
+         */
+      if (!get_site_def() ||
+          !synode_eq(cp->boot_key, get_site_def()->boot_key) ||
+          !synode_eq(cp->start, get_site_def()->start)) {
+        site_def *site = new_site_def();
+        IFDBG(D_NONE, FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
+        init_site_def(cp->nodes.node_list_len, cp->nodes.node_list_val, site);
+        site->start = cp->start;
+        site->boot_key = cp->boot_key;
+        assert(cp->event_horizon);
+        site->event_horizon = cp->event_horizon;
+        copy_node_set(&cp->global_node_set, &site->global_node_set);
+        site_install_action(site, app_type);
+      }
     }
   }
 }
 
 extern synode_no executed_msg;
 
+/* Return maximum config number, which is the config number of the last site */
+static synode_no get_conf_max() {
+  u_int i;
+  for (i = 0; i < site_defs.count; i++) {
+    site_def *site = site_defs.site_def_ptr_array_val[i];
+    if (site) {
+      return site->boot_key;
+    }
+  }
+  return null_synode;
+}
+
 /* Export configs to snapshot */
 gcs_snapshot *export_config() {
   u_int i;
-  gcs_snapshot *gcs_snap = calloc((size_t)1, sizeof(gcs_snapshot));
+  gcs_snapshot *gcs_snap =
+      (gcs_snapshot *)calloc((size_t)1, sizeof(gcs_snapshot));
   gcs_snap->cfg.configs_val =
-      calloc((size_t)site_defs.count, sizeof(config_ptr));
+      (config_ptr *)calloc((size_t)site_defs.count, sizeof(config_ptr));
   gcs_snap->cfg.configs_len = site_defs.count;
 
   for (i = 0; i < site_defs.count; i++) {
     site_def *site = site_defs.site_def_ptr_array_val[i];
     if (site) {
-      config_ptr cp = calloc((size_t)1, sizeof(config));
+      config_ptr cp = (config_ptr)calloc((size_t)1, sizeof(config));
       init_node_list(site->nodes.node_list_len, site->nodes.node_list_val,
                      &cp->nodes);
       cp->start = site->start;
       cp->boot_key = site->boot_key;
       cp->event_horizon = site->event_horizon;
-      DBGOUT(FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
+      assert(cp->event_horizon);
+      cp->global_node_set = clone_node_set(site->global_node_set);
+      IFDBG(D_BUG, FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
       gcs_snap->cfg.configs_val[i] = cp;
     }
   }
-  gcs_snap->log_start = get_delivered_msg();
+  /* log_start is the last message that has actually been delivered and
+  executed. During recovery, only messages > log_start will be delivered. */
+  gcs_snap->log_start = get_last_delivered_msg();
+  /* log_end is the first message that will not be delivered during recovery. */
+  gcs_snap->log_end = get_conf_max(); /* Set log_end based on configs */
+  set_log_end(gcs_snap); /* Possibly advance log_end based on max_synode */
+
   return gcs_snap;
 }
 
@@ -534,7 +509,7 @@ synode_no get_min_delivered_msg(site_def const *s) {
       }
     }
   }
-  DBGOUT(FN; SYCEXP(retval));
+  IFDBG(D_NONE, FN; SYCEXP(retval));
   return retval;
 }
 
@@ -542,6 +517,45 @@ synode_no get_min_delivered_msg(site_def const *s) {
 void update_delivered(site_def *s, node_no node, synode_no msgno) {
   if (node < s->nodes.node_list_len) {
     s->delivered_msg[node] = msgno;
-    DBGOUT(FN; SYCEXP(s->delivered_msg[node]); NDBG(node, u));
+    /* IFDBG(D_NONE, FN; SYCEXP(s->delivered_msg[node]); NDBG(node,u)); */
   }
 }
+
+/* The last shall be first and the first last.
+The FIRST config in the snaphost has the highest message number, and
+the LAST config has the lowest. */
+
+/* Return boot_key of highest numbered config in snapshot */
+synode_no get_highest_boot_key(gcs_snapshot *gcs_snap) {
+  int i;
+  synode_no retval = null_synode;
+  IFDBG(D_NONE, FN; SYCEXP(gcs_snap->log_start); SYCEXP(gcs_snap->log_end));
+  for (i = 0; i < (int)gcs_snap->cfg.configs_len; i++) {
+    config_ptr cp = gcs_snap->cfg.configs_val[i];
+    if (cp) {
+      IFDBG(D_NONE, FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
+      retval = cp->boot_key;
+      break;
+    }
+  }
+  assert(!synode_eq(retval, null_synode));
+  return retval;
+}
+
+/* Return boot_key of lowest numbered  config in snapshot */
+/* purecov: begin deadcode */
+synode_no get_lowest_boot_key(gcs_snapshot *gcs_snap) {
+  int i;
+  synode_no retval = null_synode;
+  IFDBG(D_NONE, FN; SYCEXP(gcs_snap->log_start); SYCEXP(gcs_snap->log_end));
+  for (i = (int)gcs_snap->cfg.configs_len - 1; i >= 0; i--) {
+    config_ptr cp = gcs_snap->cfg.configs_val[i];
+    if (cp) {
+      IFDBG(D_NONE, FN; SYCEXP(cp->start); SYCEXP(cp->boot_key));
+      retval = cp->boot_key;
+      break;
+    }
+  }
+  return retval;
+}
+/* purecov: end */

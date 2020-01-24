@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_address.h"
+#include "xcom/node_address.h"
 
 #include <rpc/rpc.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/task_debug.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_profile.h"
 
 /**
    Debug a node address.

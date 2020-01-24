@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,13 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/get_synode_app_data.h"
-#include <stdbool.h>  // bool
-#include <stdlib.h>   // calloc
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/checked_data.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"  // synode_eq
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"  // pm_finished
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"  // pax_machine, hash_get
+#include <stdlib.h> /* calloc */
+
+#include "xcom/checked_data.h"
+#include "xcom/get_synode_app_data.h"
+#include "xcom/synode_no.h"  /* synode_eq */
+#include "xcom/xcom_base.h"  /* pm_finished */
+#include "xcom/xcom_cache.h" /* pax_machine, hash_get */
 
 static xcom_get_synode_app_data_result can_satisfy_request(
     synode_no_array const *const synodes);
@@ -45,7 +45,7 @@ xcom_get_synode_app_data_result xcom_get_synode_app_data(
   xcom_get_synode_app_data_result error_code = XCOM_GET_SYNODE_APP_DATA_ERROR;
 
   /*
-   These should always be false, but rather than asserting, treat as failure if
+   These should always be FALSE, but rather than asserting, treat as failure if
    they are not.
    */
   if (reply->synode_app_data_array_len != 0) goto end;
@@ -71,13 +71,15 @@ static xcom_get_synode_app_data_result can_satisfy_request(
     synode_no_array const *const synodes) {
   xcom_get_synode_app_data_result error_code = XCOM_GET_SYNODE_APP_DATA_ERROR;
 
-  u_int const nr_synodes = synodes->synode_no_array_len;
+  {
+    u_int const nr_synodes = synodes->synode_no_array_len;
+    u_int index;
+    for (index = 0; index < nr_synodes; index++) {
+      synode_no const *const synode = &synodes->synode_no_array_val[index];
 
-  for (u_int index = 0; index < nr_synodes; index++) {
-    synode_no const *const synode = &synodes->synode_no_array_val[index];
-
-    error_code = have_decided_synode_app_data(synode);
-    if (error_code != XCOM_GET_SYNODE_APP_DATA_OK) goto end;
+      error_code = have_decided_synode_app_data(synode);
+      if (error_code != XCOM_GET_SYNODE_APP_DATA_OK) goto end;
+    }
   }
 
   error_code = XCOM_GET_SYNODE_APP_DATA_OK;
@@ -92,10 +94,10 @@ end:
 static xcom_get_synode_app_data_result have_decided_synode_app_data(
     synode_no const *const synode) {
   xcom_get_synode_app_data_result error_code = XCOM_GET_SYNODE_APP_DATA_ERROR;
-  bool is_decided = false;
+  bool_t is_decided = FALSE;
 
   pax_machine *paxos = hash_get(*synode);
-  bool const is_cached = (paxos != NULL);
+  bool_t const is_cached = (paxos != NULL);
   if (!is_cached) {
     error_code = XCOM_GET_SYNODE_APP_DATA_NOT_CACHED;
     goto end;
@@ -108,7 +110,7 @@ static xcom_get_synode_app_data_result have_decided_synode_app_data(
   }
 
   /*
-   These should always be false, but rather than asserting, treat as failure if
+   These should always be FALSE, but rather than asserting, treat as failure if
    they are not.
    */
   if (synode_eq(paxos->learner.msg->synode, *synode) != 1) goto end;
@@ -130,7 +132,7 @@ static xcom_get_synode_app_data_result prepare_reply(
   u_int const nr_synodes = synodes->synode_no_array_len;
 
   reply->synode_app_data_array_val =
-      calloc(nr_synodes, sizeof(synode_app_data));
+      (synode_app_data *)calloc(nr_synodes, sizeof(synode_app_data));
   if (reply->synode_app_data_array_val == NULL) {
     /* purecov: begin inspected */
     error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
@@ -152,8 +154,8 @@ static xcom_get_synode_app_data_result copy_all_synode_app_data_to_reply(
     synode_no_array const *const synodes, synode_app_data_array *const reply) {
   xcom_get_synode_app_data_result error_code = XCOM_GET_SYNODE_APP_DATA_ERROR;
   u_int const nr_synodes = synodes->synode_no_array_len;
-
-  for (u_int index = 0; index < nr_synodes; index++) {
+  u_int index;
+  for (index = 0; index < nr_synodes; index++) {
     synode_no const *const synode = &synodes->synode_no_array_val[index];
     synode_app_data *const reply_entry =
         &reply->synode_app_data_array_val[index];
@@ -185,13 +187,15 @@ static xcom_get_synode_app_data_result copy_synode_app_data_to_reply(
    We need to copy because by the time the reply is sent, the cache may have
    been modified.
   */
-  bool const copied = copy_checked_data(&reply->data, cached_data);
-  if (copied) {
-    error_code = XCOM_GET_SYNODE_APP_DATA_OK;
-  } else {
-    /* purecov: begin inspected */
-    error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
-    /* purecov: end */
+  {
+    bool_t const copied = copy_checked_data(&reply->data, cached_data);
+    if (copied) {
+      error_code = XCOM_GET_SYNODE_APP_DATA_OK;
+    } else {
+      /* purecov: begin inspected */
+      error_code = XCOM_GET_SYNODE_APP_DATA_NO_MEMORY;
+      /* purecov: end */
+    }
   }
 
   return error_code;

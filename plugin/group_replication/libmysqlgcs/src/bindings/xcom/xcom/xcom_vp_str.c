@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xdr_gen/xcom_vp.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* purecov: begin deadcode */
 const char *delivery_status_to_str(delivery_status x) {
@@ -41,8 +45,6 @@ const char *cons_type_to_str(cons_type x) {
       return "cons_majority";
     case cons_all:
       return "cons_all";
-    case cons_none:
-      return "cons_none";
     default:
       return "???";
   }
@@ -56,14 +58,8 @@ const char *cargo_type_to_str(cargo_type x) {
       return "xcom_boot_type";
     case xcom_set_group:
       return "xcom_set_group";
-    case xcom_recover:
-      return "xcom_recover";
     case app_type:
       return "app_type";
-    case query_type:
-      return "query_type";
-    case query_next_log:
-      return "query_next_log";
     case exit_type:
       return "exit_type";
     case reset_type:
@@ -188,19 +184,6 @@ const char *pax_msg_type_to_str(pax_msg_type x) {
   }
 }
 
-const char *start_t_to_str(start_t x) {
-  switch (x) {
-    case IDLE:
-      return "IDLE";
-    case BOOT:
-      return "BOOT";
-    case RECOVER:
-      return "RECOVER";
-    default:
-      return "???";
-  }
-}
-
 const char *client_reply_code_to_str(client_reply_code x) {
   switch (x) {
     case REQUEST_OK:
@@ -230,8 +213,16 @@ const char *xcom_proto_to_str(xcom_proto x) {
       return "x_1_4";
     case x_1_5:
       return "x_1_5";
+    case x_1_6:
+      return "x_1_6";
+    case x_1_7:
+      return "x_1_7";
     default:
       return "???";
   }
 }
 /* purecov: end */
+
+#ifdef __cplusplus
+}
+#endif

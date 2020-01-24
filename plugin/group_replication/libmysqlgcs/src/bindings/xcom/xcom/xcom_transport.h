@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef XCOM_TRANSPORT_H
 #define XCOM_TRANSPORT_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "xcom/xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +62,11 @@ extern "C" {
 #define CHECK_PTR(buf) &((buf)[3 * XDR_INT_SIZE])
 #endif
 #define MSG_PTR(buf) &((buf)[MSG_HDR_SIZE])
+
+extern xcom_proto const my_min_xcom_version; /* The minimum protocol version I
+                                                am able to understand */
+extern xcom_proto const
+    my_xcom_version; /* The maximum protocol version I am able to understand */
 
 /* Transport level message types */
 enum x_msg_type {
@@ -120,7 +125,9 @@ int send_to_all_site(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_others(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_someone(site_def const *s, pax_msg *p, const char *dbg);
 int send_to_self_site(site_def const *s, pax_msg *p);
+int send_to_all_except_self(site_def const *s, pax_msg *p, const char *dbg);
 
+void wakeup_sender();
 int sender_task(task_arg arg);
 int local_sender_task(task_arg arg);
 int shutdown_servers();
@@ -129,8 +136,8 @@ int srv_unref(server *s);
 int tcp_reaper_task(task_arg arg);
 int tcp_server(task_arg arg);
 uint32_t crc32c_hash(char *buf, char *end);
-int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
-              xdrproc_t xdrfunc, void *xdrdata, enum xdr_op op);
+int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
+              enum xdr_op op);
 void init_crc32c();
 void init_xcom_transport(xcom_port listen_port);
 void reset_srv_buf(srv_buf *sb);
@@ -140,7 +147,6 @@ int send_server_msg(site_def const *s, node_no i, pax_msg *p);
 double server_active(site_def const *s, node_no i);
 void update_servers(site_def *s, cargo_type operation);
 void garbage_collect_servers();
-int client_task(task_arg arg);
 int send_msg(server *s, node_no from, node_no to, uint32_t group_id,
              pax_msg *p);
 /**
@@ -182,6 +188,7 @@ int deserialize_msg(pax_msg *p, xcom_proto x_proto, char *buf, uint32_t buflen);
 xcom_proto common_xcom_version(site_def const *site);
 xcom_proto get_latest_common_proto();
 xcom_proto set_latest_common_proto(xcom_proto x_proto);
+extern linkage connect_wait;
 
 /**
  * @brief Returns the version from which nodes are able to speak IPv6

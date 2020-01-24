@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,17 +20,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef XCOM_H_CMAKE
-#define XCOM_H_CMAKE
+/*
+  Needed since rpcgen expands macros itself, we cannot put
+  this in the xcom_vp.x file directly.
+ */
 
-#include <config.h>
+#ifndef XCOM_VP_PLATFORM_H
+#define XCOM_VP_PLATFORM_H
 
-/*Definitions*/
-#cmakedefine HAVE_RPC_INLINE_T 1
-#cmakedefine HAVE_XDR_OPS_X_PUTINT32 1
-#cmakedefine HAVE_XDR_OPS_X_GETINT32 1
-#cmakedefine OLD_XDR 1
-#cmakedefine X_PUTLONG_NOT_USE_CONST 1
-
+/* Avoid warnings from the rpcgen */
+#if defined(__GNUC__) || defined(__GNUG__)
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6)
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wundef"
+#endif
 #endif
 
+#ifdef __APPLE__
+#if __APPLE__
+
+/* xdr_uint64_t and xdr_uint32_t are not defined on OSX */
+#define xdr_uint64_t xdr_u_int64_t
+#define xdr_uint32_t xdr_u_int32_t
+#endif
+#endif
+
+#endif

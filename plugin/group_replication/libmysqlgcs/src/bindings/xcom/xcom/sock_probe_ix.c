@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,19 +36,19 @@
 
 #define BSD_COMP
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/simset.h"
+#include "xcom/sock_probe.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_net.h"
+#include "xcom/task_os.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_memory.h"
+#include "xcom/xcom_profile.h"
+#include "xcom/xcom_transport.h"
+#include "xdr_gen/xcom_vp.h"
 
 struct sock_probe {
   int nbr_ifs; /* number of valid pointers in ifrp */
@@ -59,6 +59,7 @@ static int number_of_interfaces(sock_probe *s);
 
 static void get_sockaddr_address(sock_probe *s, int count,
                                  struct sockaddr **out);
+
 static void get_sockaddr_netmask(sock_probe *s, int count,
                                  struct sockaddr **out);
 
@@ -74,11 +75,11 @@ static char *get_if_name(sock_probe *s, int count);
 
 /* Initialize socket probe */
 static int init_sock_probe(sock_probe *s) {
+  struct ifaddrs *ifa_tmp;
+
   if (s == NULL) {
     goto err;
   }
-
-  struct ifaddrs *ifa_tmp;
 
   if (getifaddrs(&s->interfaces) == -1) {
     goto err;
@@ -115,14 +116,14 @@ static int number_of_interfaces(sock_probe *s) {
 }
 
 static struct ifaddrs *get_interface(sock_probe *s, int count) {
-  struct ifaddrs *net_if = s->interfaces;
+  struct ifaddrs *net_if = NULL;
+  int i = 0;
 
   if (s == NULL) {
     return NULL;
   }
 
-  int i = 0;
-
+  net_if = s->interfaces;
   idx_check_ret(count, number_of_interfaces(s), 0) {
     while (net_if != NULL) {
       if ((net_if->ifa_addr) && ((net_if->ifa_addr->sa_family == AF_INET) ||
@@ -141,12 +142,13 @@ static struct ifaddrs *get_interface(sock_probe *s, int count) {
 }
 
 static bool_t is_if_running(sock_probe *s, int count) {
+  struct ifaddrs *net_if = NULL;
+
   if (s == NULL) {
     return 0;
   }
 
-  struct ifaddrs *net_if = get_interface(s, count);
-
+  net_if = get_interface(s, count);
   return net_if != NULL && (net_if->ifa_flags & IFF_UP) &&
          (net_if->ifa_flags & IFF_RUNNING);
 }

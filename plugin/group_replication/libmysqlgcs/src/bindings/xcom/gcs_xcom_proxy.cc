@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ bool Gcs_xcom_proxy_impl::xcom_client_send_data(unsigned long long len,
 
 void Gcs_xcom_proxy_impl::xcom_init(xcom_port xcom_listen_port) {
   /* Init XCom */
-  ::xcom_fsm(xa_init, int_arg(0)); /* Basic xcom init */
+  ::xcom_fsm(x_fsm_init, int_arg(0)); /* Basic xcom init */
 
   ::xcom_taskmain2(xcom_listen_port);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -28,50 +29,51 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_msg_queue.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/node_connection.h"
+#include "xcom/node_list.h"
+#include "xcom/node_no.h"
+#include "xcom/retry.h"
+#include "xcom/server_struct.h"
+#include "xcom/simset.h"
+#include "xcom/site_def.h"
+#include "xcom/site_struct.h"
+#include "xcom/sock_probe.h"
+#include "xcom/synode_no.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_net.h"
+#include "xcom/task_os.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_detector.h"
+#include "xcom/xcom_memory.h"
+#include "xcom/xcom_msg_queue.h"
+#include "xcom/xcom_statistics.h"
+#include "xcom/xcom_transport.h"
+#include "xcom/xcom_vp_str.h"
+#include "xcom/xdr_utils.h"
+#include "xdr_gen/xcom_vp.h"
 
 #ifndef XCOM_WITHOUT_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
+#endif /* _WIN32 */
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
 #endif
 #ifndef XCOM_WITHOUT_OPENSSL
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
+#include "xcom/xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_6
+#define MY_XCOM_PROTO x_1_7
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -167,7 +169,7 @@ int flush_srv_buf(server *s, int64_t *ret) {
   if (s->con.fd >= 0) {
     if (ep->buflen) {
       int64_t sent;
-      /* DBGOUT(FN; PTREXP(stack); NDBG(ep->buflen, u)); */
+      IFDBG(D_TRANSPORT, FN; PTREXP(stack); NDBG(ep->buflen, u));
       /* LOCK_FD(s->con.fd, 'w'); */
       TASK_CALL(task_write(&s->con, s->out_buf.buf, ep->buflen, &sent));
       /* UNLOCK_FD(s->fd, 'w'); */
@@ -199,48 +201,49 @@ address that is reachable via IPv4 old nodes.
 */
 int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
                                   const site_def *current_site_def) {
-  if (incoming_proto >= MY_XCOM_PROTO) return 0;  // For sure it will speak V6
+  if (incoming_proto >= MY_XCOM_PROTO) return 0; /* For sure it will speak V6 */
 
-  // I must check if all nodes are IPv4-reachable.
-  // This means that:
-  // - They are configured with an IPv4 raw address
-  // - They have a name that is reachable via IPv4 name resolution
+  /* I must check if all nodes are IPv4-reachable.
+     This means that:
+     - They are configured with an IPv4 raw address
+     - They have a name that is reachable via IPv4 name resolution */
   if (current_site_def == NULL)
-    return 0;  // This means that we are the ones entering a group
+    return 0; /* This means that we are the ones entering a group */
 
-  int number_of_nodes = current_site_def->nodes.node_list_len;
-  node_address *na = current_site_def->nodes.node_list_val;
-  int node;
+  {
+    node_address *na = current_site_def->nodes.node_list_val;
+    u_int node;
 
-  // For each node in the current configuration
-  for (node = 0; node < number_of_nodes; node++) {
-    int has_ipv4_address = 0;
+    /* For each node in the current configuration */
+    for (node = 0; node < current_site_def->nodes.node_list_len; node++) {
+      int has_ipv4_address = 0;
+      struct addrinfo *node_addr = NULL;
+      struct addrinfo *node_addr_cycle = NULL;
+      char ip[IP_MAX_SIZE];
+      xcom_port port;
 
-    struct addrinfo *node_addr = NULL, *node_addr_cycle = NULL;
-
-    char ip[IP_MAX_SIZE];
-    xcom_port port;
-    if (get_ip_and_port(na[node].address, ip, &port)) {
-      G_DEBUG("Error parsing IP and Port. Returning an error");
-      return 1;
-    }
-
-    // Query the name server
-    checked_getaddrinfo(ip, NULL, NULL, &node_addr);
-
-    // Lets cycle through all returned addresses and check if at least one
-    // address is reachable via IPv4.
-    node_addr_cycle = node_addr;
-    while (!has_ipv4_address && node_addr_cycle) {
-      if (node_addr_cycle->ai_family == AF_INET) {
-        has_ipv4_address = 1;
+      if (get_ip_and_port(na[node].address, ip, &port)) {
+        G_DEBUG("Error parsing IP and Port. Returning an error");
+        return 1;
       }
-      node_addr_cycle = node_addr_cycle->ai_next;
+
+      /* Query the name server */
+      checked_getaddrinfo(ip, NULL, NULL, &node_addr);
+
+      /* Lets cycle through all returned addresses and check if at least one
+         address is reachable via IPv4. */
+      node_addr_cycle = node_addr;
+      while (!has_ipv4_address && node_addr_cycle) {
+        if (node_addr_cycle->ai_family == AF_INET) {
+          has_ipv4_address = 1;
+        }
+        node_addr_cycle = node_addr_cycle->ai_next;
+      }
+
+      if (node_addr) freeaddrinfo(node_addr);
+
+      if (!has_ipv4_address) return 1;
     }
-
-    if (node_addr) freeaddrinfo(node_addr);
-
-    if (!has_ipv4_address) return 1;
   }
 
   return 0;
@@ -255,17 +258,19 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
 
   TASK_BEGIN
   p->to = to;
-  MAY_DBG(FN; PTREXP(stack); PTREXP(s); PTREXP(p); NDBG(s->con.fd, d));
-  MAY_DBG(FN; STREXP(s->srv); NDBG(s->port, d); NDBG(task_now(), f);
-          COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
+  IFDBG(D_NONE, FN; PTREXP(stack); PTREXP(s); PTREXP(p); NDBG(s->con.fd, d));
+  IFDBG(D_NONE, FN; STREXP(s->srv); NDBG(s->port, d); NDBG(task_now(), f);
+        COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
   if (to == p->from) {
-    MAY_DBG(FN; COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
+    IFDBG(D_NONE, FN; COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
     dispatch_op(find_site_def(p->synode), p, NULL);
     TASK_RETURN(sizeof(*p));
   } else {
+    p->max_synode = get_max_synode();
     if (s->con.fd >= 0) {
       /* LOCK_FD(s->con.fd, 'w'); */
       serialize_msg(p, s->con.x_proto, &ep->buflen, &ep->buf);
+      IFDBG(D_TRANSPORT, FN; NDBG(ep->buflen, u));
       if (ep->buflen) {
         int64_t sent;
         /* Not enough space? Flush the buffer */
@@ -276,7 +281,7 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
           }
           /* Still not enough? Message must be huge, send without buffering */
           if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
-            DBGOUT(FN; STRLIT("task_write"));
+            IFDBG(D_TRANSPORT, FN; STRLIT("task_write "); NDBG(ep->buflen, u));
             TASK_CALL(task_write(&s->con, ep->buf, ep->buflen, &sent));
             if (s->con.fd < 0) {
               TASK_FAIL;
@@ -292,10 +297,11 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
         send_count[p->op]++;
         send_bytes[p->op] += ep->buflen;
         alive(s); /* Note activity */
-        /* DBGOUT(STRLIT("sent message "); STRLIT(pax_op_to_str(p->op)); */
-        /*        NDBG(p->from,d); NDBG(p->to,d); */
-        /*        SYCEXP(p->synode);  */
-        /*        BALCEXP(p->proposal)); */
+        /* IFDBG(D_NONE, STRLIT("sent message "); STRLIT(pax_op_to_str(p->op));
+         */
+        /* NDBG(p->from,d); NDBG(p->to,d); */
+        /* SYCEXP(p->synode);  */
+        /* BALCEXP(p->proposal)); */
         X_FREE(ep->buf);
         /* UNLOCK_FD(s->con.fd, 'w'); */
         if (sent <= 0) {
@@ -316,12 +322,12 @@ void write_protoversion(unsigned char *buf, xcom_proto proto_vers) {
   put_32(VERS_PTR(buf), proto_vers);
 }
 
-xcom_proto read_protoversion(unsigned char *p) { return get_32(p); }
+xcom_proto read_protoversion(unsigned char *p) { return (xcom_proto)get_32(p); }
 
 int check_protoversion(xcom_proto x_proto, xcom_proto negotiated) {
   if (x_proto != negotiated) {
-    DBGOUT(FN; STRLIT(" found XCOM protocol version "); NDBG(x_proto, d);
-           STRLIT(" need version "); NDBG(negotiated, d););
+    IFDBG(D_NONE, FN; STRLIT(" found XCOM protocol version "); NDBG(x_proto, d);
+          STRLIT(" need version "); NDBG(negotiated, d););
 
     return 0;
   }
@@ -361,13 +367,22 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
   TASK_END;
 }
 
-int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
-              xdrproc_t xdrfunc, void *xdrdata, enum xdr_op op) {
+/*
+ * xdrfunc() has different sigatures for __cplusplus
+ */
+#ifdef __APPLE__
+#define XDRFUNC(a, b) xdrfunc((a), (b), 0)
+#else
+#define XDRFUNC xdrfunc
+#endif
+
+int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
+              enum xdr_op op) {
   XDR xdr;
   int MY_ATTRIBUTE((unused)) s = 0;
 
   xdr.x_ops = NULL;
-  xdrmem_create(&xdr, buff, bufflen, op);
+  xdrmem_create(&xdr, (char *)buff, bufflen, op);
   /*
     Mac OSX changed the xdrproc_t prototype to take
     three parameters instead of two.
@@ -381,9 +396,7 @@ int apply_xdr(xcom_proto x_proto, void *buff, uint32_t bufflen,
     and cross-version compatible.
   */
   if (xdr.x_ops) {
-    xdr.x_public =
-        (caddr_t)&x_proto; /* Supply protocol version in user field of xdr */
-    s = xdrfunc(&xdr, xdrdata, 0);
+    s = XDRFUNC(&xdr, xdrdata);
   }
   xdr_destroy(&xdr);
   return s;
@@ -407,218 +420,22 @@ static void dump_header(char *buf) {
 
 void dbg_app_data(app_data_ptr a);
 
-#ifdef OLD_XDR
-#define const
-#endif
-
-/* ARGSUSED */
-static bool_t x_putlong(XDR *xdrs,
-#if defined(__APPLE__) && defined(__LP64__)
-                        const int *intp MY_ATTRIBUTE((unused))
-#elif defined(X_PUTLONG_NOT_USE_CONST)
-                        long *longp MY_ATTRIBUTE((unused))
-#else
-                        const long *longp MY_ATTRIBUTE((unused))
-#endif
-) {
-  xdrs->x_handy += BYTES_PER_XDR_UNIT;
-  return TRUE;
-}
-
-/* ARGSUSED */
-#ifdef OLD_XDR
-static bool_t x_putbytes(XDR *xdrs, char *bp MY_ATTRIBUTE((unused)), int len) {
-  xdrs->x_handy += len;
-  return TRUE;
-}
-#else
-static bool_t x_putbytes(XDR *xdrs, const char *bp MY_ATTRIBUTE((unused)),
-                         u_int len) {
-  xdrs->x_handy += len;
-  return TRUE;
-}
-
-#endif
-
-static u_int
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(HAVE_TIRPC)
-x_getpostn(XDR *xdrs)
-#else
-x_getpostn(const XDR *xdrs)
-#endif
-{
-#ifdef OLD_XDR
-  return (u_int)(xdrs->x_handy);
-#else
-  return xdrs->x_handy;
-#endif
-}
-
-/* ARGSUSED */
-static bool_t x_setpostn(XDR *xdrs MY_ATTRIBUTE((unused)),
-                         u_int len MY_ATTRIBUTE((unused))) {
-  /* This is not allowed */
-  return FALSE;
-}
-
-#ifdef HAVE_RPC_INLINE_T
-#define INLINE_T rpc_inline_t
-#else
-#define INLINE_T int32_t
-#endif
-
-#ifdef OLD_XDR
-static INLINE_T *x_inline(XDR *xdrs, int len) {
-  if (len == 0) return NULL;
-  if (xdrs->x_op != XDR_ENCODE) return NULL;
-  if (len < (int)(long int)xdrs->x_base) {
-    /* x_private was already allocated */
-    xdrs->x_handy += len;
-    return (INLINE_T *)xdrs->x_private;
-  } else {
-    /* Free the earlier space and allocate new area */
-    free(xdrs->x_private);
-    if ((xdrs->x_private = (caddr_t)malloc((size_t)len)) == NULL) {
-      xdrs->x_base = 0;
-      return NULL;
-    }
-    xdrs->x_base = (void *)(long)len;
-    xdrs->x_handy += len;
-    return (INLINE_T *)xdrs->x_private;
-  }
-}
-#else
-static INLINE_T *x_inline(XDR *xdrs, u_int len) {
-  if (len == 0) return NULL;
-  if (xdrs->x_op != XDR_ENCODE) return NULL;
-  if (len < (u_int)(long int)xdrs->x_base) {
-    /* x_private was already allocated */
-    xdrs->x_handy += len;
-    return (INLINE_T *)xdrs->x_private;
-  } else {
-    /* Free the earlier space and allocate new area */
-    free(xdrs->x_private);
-    if ((xdrs->x_private = (caddr_t)malloc(len)) == NULL) {
-      xdrs->x_base = 0;
-      return NULL;
-    }
-    xdrs->x_base = (void *)(long)len;
-    xdrs->x_handy += len;
-    return (INLINE_T *)xdrs->x_private;
-  }
-}
-#endif
-
-#undef INLINE_T
-/* purecov: begin deadcode */
-static int harmless(void) {
-  /* Always return FALSE/NULL, as the case may be */
-  return 0;
-}
-
-static void x_destroy(XDR *xdrs) {
-  xdrs->x_handy = 0;
-  xdrs->x_base = 0;
-  if (xdrs->x_private) {
-    free(xdrs->x_private);
-    xdrs->x_private = NULL;
-  }
-  return;
-}
-/* purecov: end */
-#ifdef HAVE_XDR_OPS_X_PUTINT32
-static bool_t
-#ifdef OLD_XDR
-x_putint32(XDR *xdrs, int32_t *int32p MY_ATTRIBUTE((unused)))
-#else
-x_putint32(XDR *xdrs, const int32_t *int32p MY_ATTRIBUTE((unused)))
-#endif
-{
-  xdrs->x_handy += BYTES_PER_XDR_UNIT;
-  return TRUE;
-}
-#endif
-
-static uint64_t xdr_proto_sizeof(xcom_proto x_proto, xdrproc_t func,
-                                 void *data) {
-  XDR x;
-  struct xdr_ops ops;
-  bool_t stat;
-/* to stop ANSI-C compiler from complaining */
-#if defined(__APPLE__) && defined(__LP64__)
-  typedef bool_t (*dummyfunc1)(XDR *, int *);
-#else
-  typedef bool_t (*dummyfunc1)(XDR *, long *);
-#endif
-#ifdef HAVE_XDR_OPS_X_GETINT32
-  typedef bool_t (*dummyfunc3)(XDR *, int32_t *);
-#endif
-#ifdef OLD_XDR
-  typedef bool_t (*dummyfunc2)(XDR *, caddr_t, int);
-#else
-  typedef bool_t (*dummyfunc2)(XDR *, caddr_t, u_int);
-#endif
-
-  memset(&ops, 0, sizeof(struct xdr_ops));
-  ops.x_putlong = x_putlong;
-  ops.x_putbytes = x_putbytes;
-  ops.x_inline = x_inline;
-  ops.x_getpostn = x_getpostn;
-  ops.x_setpostn = x_setpostn;
-  ops.x_destroy = x_destroy;
-
-#ifdef HAVE_XDR_OPS_X_PUTINT32
-  ops.x_putint32 = x_putint32;
-#endif
-  /* the other harmless ones */
-  ops.x_getlong = (dummyfunc1)harmless;
-  ops.x_getbytes = (dummyfunc2)harmless;
-#ifdef HAVE_XDR_OPS_X_GETINT32
-  ops.x_getint32 = (dummyfunc3)harmless;
-#endif
-  x.x_op = XDR_ENCODE;
-  x.x_ops = &ops;
-  x.x_handy = 0;
-  x.x_private = (caddr_t)NULL;
-  x.x_base = (caddr_t)0;
-  x.x_public = (caddr_t)&x_proto;
-
-  /*
-    Mac OSX changed the xdrproc_t prototype to take
-    three parameters instead of two.
-
-    The argument is that it has the potential to break
-    the ABI due to compiler optimizations.
-
-    The recommended value for the third parameter is
-    0 for those that are not making use of it (which
-    is the case). This will keep this code cross-platform
-    and cross-version compatible.
-  */
-  stat = func(&x, data, 0);
-  free(x.x_private);
-  // x_handy is int type for old XDR
-  return stat == TRUE ? (uint64_t)x.x_handy : 0;
-}
-
-#ifdef OLD_XDR
-#undef const
-#endif
-
 /* Return 0 if it fails to serialize the message, otherwise 1 is returned. */
 static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
                      xdrproc_t xdrfunc, char **out_buf) {
   unsigned char *buf = NULL;
   uint64_t msg_buflen = 0;
   uint64_t tot_buflen = 0;
-  unsigned int tag = 0;
+  unsigned int tag = 666;
   x_msg_type x_type = x_normal;
   int retval = 0;
 
   /* Find length of serialized message */
-  msg_buflen = xdr_proto_sizeof(x_proto, xdrfunc, p);
+  msg_buflen = xdr_sizeof(xdrfunc, p);
+  if (!msg_buflen) return 0;
+  assert(msg_buflen);
   tot_buflen = SERIALIZED_BUFLEN(msg_buflen);
-  MAY_DBG(FN; NDBG64(msg_buflen); NDBG64(tot_buflen));
+  IFDBG(D_TRANSPORT, FN; PTREXP(p); NDBG64(msg_buflen); NDBG64(tot_buflen));
   /*
     Paxos message size is limited in UINT32 range. It will return an
     error if the serialized message is bigger than UINT32_MAX bytes.
@@ -632,14 +449,14 @@ static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
     Allocate space for version number, length field, type, tag, and serialized
     message. Explicit type case suppress the warnings on 32bits.
   */
-  buf = calloc((size_t)1, (size_t)tot_buflen);
+  buf = (unsigned char *)calloc((size_t)1, (size_t)tot_buflen);
   if (buf) {
     /* Write protocol version */
     write_protoversion(buf, x_proto);
 
     /* Serialize message */
-    retval = apply_xdr(x_proto, MSG_PTR(buf), (uint32_t)msg_buflen, xdrfunc, p,
-                       XDR_ENCODE);
+    retval =
+        apply_xdr(MSG_PTR(buf), (uint32_t)msg_buflen, xdrfunc, p, XDR_ENCODE);
     if (retval) {
       /* Serialize header into buf */
       put_header_1_0(buf, (uint32_t)msg_buflen, x_type, tag);
@@ -648,7 +465,8 @@ static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
     *out_len = (uint32_t)tot_buflen;
     *out_buf = (char *)buf;
   }
-  MAY_DBG(FN; NDBG(*out_len, u); PTREXP(*out_buf); dump_header(*out_buf));
+  IFDBG(D_TRANSPORT, FN; NDBG(retval, d); NDBG(*out_len, u); PTREXP(*out_buf);
+        dump_header(*out_buf));
   return retval;
 }
 
@@ -658,23 +476,47 @@ static inline int old_proto_knows(xcom_proto x_proto MY_ATTRIBUTE((unused)),
   return 1;
 }
 
+/* must match enum x_proto */
+extern bool_t xdr_pax_msg_1_0(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_1(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_2(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_3(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
+extern bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
+
+static xdrproc_t pax_msg_func[] = {(xdrproc_t)0,
+                                   (xdrproc_t)xdr_pax_msg_1_0,
+                                   (xdrproc_t)xdr_pax_msg_1_1,
+                                   (xdrproc_t)xdr_pax_msg_1_2,
+                                   (xdrproc_t)xdr_pax_msg_1_3,
+                                   (xdrproc_t)xdr_pax_msg_1_4,
+                                   (xdrproc_t)xdr_pax_msg_1_5,
+                                   (xdrproc_t)xdr_pax_msg_1_6,
+                                   (xdrproc_t)xdr_pax_msg_1_7};
+
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen,
                   char **buf) {
   *buflen = 0;
   *buf = 0;
-
-  return old_proto_knows(x_proto, p->op) &&
-         serialize((void *)p, x_proto, buflen, (xdrproc_t)xdr_pax_msg, buf);
+  return (x_proto >= x_1_0 && x_proto <= MY_XCOM_PROTO) &&
+         old_proto_knows(x_proto, p->op) &&
+         serialize((void *)p, x_proto, buflen, pax_msg_func[x_proto], buf);
 }
 
 int deserialize_msg(pax_msg *p, xcom_proto x_proto, char *buf,
                     uint32_t buflen) {
-  int apply_ok = apply_xdr(x_proto, buf, buflen, (xdrproc_t)xdr_pax_msg,
-                           (void *)p, XDR_DECODE);
-  if (!apply_ok) {
-    my_xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
+  if (x_proto >= x_1_0 && x_proto <= MY_XCOM_PROTO) {
+    int apply_ok =
+        apply_xdr(buf, buflen, pax_msg_func[x_proto], (void *)p, XDR_DECODE);
+    if (!apply_ok) {
+      xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
+      memset(p, 0, sizeof(*p));
+    }
+    return apply_ok;
   }
-  return apply_ok;
+  return 0;
 }
 
 /* Better checksum */
@@ -694,19 +536,7 @@ void init_crc32c() {
 
 #define CRC32CSTART 0xFFFFFFFF
 
-/* purecov: begin deadcode */
-uint32_t crc32c_hash(char *buf, char *end) {
-  uint32_t c = CRC32CSTART;
-  unsigned char *p = (unsigned char *)buf;
-  unsigned char *e = (unsigned char *)end;
-  for (; p < e; p++) {
-    c = crc_table[(c ^ (*p)) & 0xFF] ^ (c >> 8);
-  }
-  return c ^ 0xFFFFFFFF;
-}
-/* purecov: end */
-
-/* {{{ Paxos servers (nodes) */
+/* Paxos servers (nodes) */
 
 /* Array of servers, only maxservers entries actually used */
 static server *all_servers[SERVER_MAX];
@@ -716,9 +546,9 @@ static int maxservers = 0;
 static server *mksrv(char *srv, xcom_port port) {
   server *s;
 
-  s = calloc((size_t)1, sizeof(*s));
+  s = (server *)calloc((size_t)1, sizeof(*s));
 
-  DBGOUT(FN; PTREXP(s); STREXP(srv));
+  IFDBG(D_NONE, FN; PTREXP(s); STREXP(srv));
   if (s == 0) {
     g_critical("out of memory");
     abort();
@@ -731,27 +561,22 @@ static server *mksrv(char *srv, xcom_port port) {
   reset_connection(&s->con);
   s->active = 0.0;
   s->detected = 0.0;
-  channel_init(&s->outgoing, type_hash("msg_link"));
-  DBGOUT(FN; STREXP(srv); NDBG(port, d));
+  channel_init(&s->outgoing, TYPE_HASH("msg_link"));
+  IFDBG(D_NONE, FN; STREXP(srv); NDBG(port, d));
   if (xcom_mynode_match(srv, port)) { /* Short-circuit local messages */
-    DBGOUT(FN; STRLIT("creating local sender"); STREXP(srv); NDBG(port, d));
+    IFDBG(D_NONE, FN; STRLIT("creating local sender"); STREXP(srv);
+          NDBG(port, d));
     s->sender = task_new(local_sender_task, void_arg(s), "local_sender_task",
                          XCOM_THREAD_DEBUG);
   } else {
     s->sender =
         task_new(sender_task, void_arg(s), "sender_task", XCOM_THREAD_DEBUG);
-    DBGOUT(FN; STRLIT("creating sender and reply_handler"); STREXP(srv);
-           NDBG(port, d));
+    IFDBG(D_NONE, FN; STRLIT("creating sender and reply_handler"); STREXP(srv);
+          NDBG(port, d));
     s->reply_handler = task_new(reply_handler_task, void_arg(s),
                                 "reply_handler_task", XCOM_THREAD_DEBUG);
   }
   reset_srv_buf(&s->out_buf);
-  /*
-   Keep the server from being freed if the acceptor_learner_task calls
-   srv_unref on the server before the {local_,}server_task and
-   reply_handler_task begin.
-  */
-  srv_ref(s);
   return s;
 }
 
@@ -760,9 +585,15 @@ static server *addsrv(char *srv, xcom_port port) {
   assert(all_servers[maxservers] == 0);
   assert(maxservers < SERVER_MAX);
   all_servers[maxservers] = s;
-  MAY_DBG(FN; PTREXP(all_servers[maxservers]);
-          STREXP(all_servers[maxservers]->srv);
-          NDBG(all_servers[maxservers]->port, d); NDBG(maxservers, d));
+  /*
+   Keep the server from being freed if the acceptor_learner_task calls
+   srv_unref on the server before the {local_,}server_task and
+   reply_handler_task begin.
+  */
+  srv_ref(s);
+  IFDBG(D_NONE, FN; PTREXP(all_servers[maxservers]);
+        STREXP(all_servers[maxservers]->srv);
+        NDBG(all_servers[maxservers]->port, d); NDBG(maxservers, d));
   maxservers++;
   return s;
 }
@@ -771,9 +602,13 @@ static void rmsrv(int i) {
   assert(all_servers[i]);
   assert(maxservers > 0);
   assert(i < maxservers);
-  MAY_DBG(FN; PTREXP(all_servers[i]); STREXP(all_servers[i]->srv);
-          NDBG(all_servers[i]->port, d); NDBG(i, d));
+  IFDBG(D_NONE, FN; PTREXP(all_servers[i]); STREXP(all_servers[i]->srv);
+        NDBG(all_servers[i]->port, d); NDBG(i, d));
   maxservers--;
+
+  /* Allow the server to be freed. This unref pairs with the ref from addsrv. */
+  srv_unref(all_servers[i]);
+
   all_servers[i] = all_servers[maxservers];
   all_servers[maxservers] = 0;
 }
@@ -818,7 +653,7 @@ static void sweep() {
     server *s = all_servers[i];
     assert(s);
     if (s->garbage) {
-      DBGOUT(FN; STREXP(s->srv));
+      IFDBG(D_NONE, FN; STREXP(s->srv));
       shut_srv(s);
       rmsrv(i);
     } else {
@@ -828,10 +663,11 @@ static void sweep() {
 }
 
 void garbage_collect_servers() {
-  DBGOUT(FN);
+  IFDBG(D_NONE, FN);
   init_collect();
   mark();
   sweep();
+  IFDBG(D_NONE, FN);
 }
 
 /* Free a server */
@@ -850,16 +686,13 @@ double server_active(site_def const *s, node_no i) {
 /* Shutdown server */
 static void shut_srv(server *s) {
   if (!s) return;
-  DBGOUT(FN; PTREXP(s); STREXP(s->srv));
+  IFDBG(D_NONE, FN; PTREXP(s); STREXP(s->srv));
 
   shutdown_connection(&s->con);
 
   /* Tasks will free the server object when they terminate */
   if (s->sender) task_terminate(s->sender);
   if (s->reply_handler) task_terminate(s->reply_handler);
-
-  // Allow the server to be freed. This unref pairs with the ref from mksrv.
-  srv_unref(s);
 }
 
 int srv_ref(server *s) {
@@ -878,8 +711,6 @@ int srv_unref(server *s) {
   return s->refcnt;
 }
 
-/* }}} */
-
 /* Listen for connections on socket and create a handler task */
 int tcp_server(task_arg arg) {
   DECL_ENV
@@ -891,7 +722,7 @@ int tcp_server(task_arg arg) {
   ep->fd = get_int_arg(arg);
   ep->refused = 0;
   unblock_fd(ep->fd);
-  DBGOUT(FN; NDBG(ep->fd, d););
+  IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
   G_MESSAGE("XCom protocol version: %d", my_xcom_version);
   G_MESSAGE(
       "XCom initialized and ready to accept incoming connections on port %d",
@@ -901,16 +732,17 @@ int tcp_server(task_arg arg) {
     /* Callback to check that the file descriptor is accepted. */
     if (xcom_socket_accept_callback &&
         !xcom_socket_accept_callback(ep->cfd, get_site_def())) {
-      shut_close_socket(&ep->cfd);
-      ep->cfd = -1;
+      /* purecov: begin inspected */
+      shut_close_socket(&ep->cfd); /* Will set cfd to -1 */
+      /* purecov: end */
     }
-    if (ep->cfd == -1) {
+    if (ep->cfd < 0) {
       G_DEBUG("accept failed");
       ep->refused = 1;
       TASK_DELAY(0.1);
     } else {
       ep->refused = 0;
-      DBGOUT(FN; NDBG(ep->cfd, d););
+      IFDBG(D_TRANSPORT, FN; NDBG(ep->cfd, d););
       task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
                XCOM_THREAD_DEBUG);
     }
@@ -918,6 +750,7 @@ int tcp_server(task_arg arg) {
   FINALLY
   assert(ep->fd >= 0);
   shut_close_socket(&ep->fd);
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
 
@@ -975,12 +808,13 @@ static int dial(server *s) {
   END_ENV;
 
   TASK_BEGIN
-  DBGOUT(FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u);
-         STRLIT(s->srv); NDBG(s->port, u));
+  IFDBG(D_NONE, FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u);
+        STRLIT(s->srv); NDBG(s->port, u));
+  reset_connection(&s->con);
   TASK_CALL(connect_tcp(s->srv, s->port, &s->con.fd));
-  /* DBGOUT(FN; NDBG(s->con.fd,d);); */
   if (s->con.fd < 0) {
-    DBGOUT(FN; STRLIT("could not dial "); STRLIT(s->srv); NDBG(s->port, u););
+    IFDBG(D_NONE, FN; STRLIT("could not dial "); STRLIT(s->srv);
+          NDBG(s->port, u););
   } else {
     if (NAGLE == 0) {
       set_nodelay(s->con.fd);
@@ -992,8 +826,6 @@ static int dial(server *s) {
       SSL_CONNECT(s->con, s->srv);
     }
 #endif
-    DBGOUT(FN; STRLIT("connected to "); STRLIT(s->srv); NDBG(s->con.fd, d);
-           NDBG(s->port, u));
     set_connected(&s->con, CON_FD);
     alive(s);
     update_detected(get_site_def_rw());
@@ -1009,14 +841,14 @@ int send_msg(server *s, node_no from, node_no to, uint32_t group_id,
   assert(s);
   {
     msg_link *link = msg_link_new(p, to);
-    alive(s); /* Note activity */
-    MAY_DBG(FN; PTREXP(&s->outgoing); COPY_AND_FREE_GOUT(dbg_msg_link(link)););
+    IFDBG(D_NONE, FN; PTREXP(&s->outgoing);
+          COPY_AND_FREE_GOUT(dbg_msg_link(link)););
     p->from = from;
     p->group_id = group_id;
     p->max_synode = get_max_synode();
     p->delivered_msg = get_delivered_msg();
-    MAY_DBG(FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d); NDBG(p->to, d);
-            NDBG(p->group_id, u));
+    IFDBG(D_NONE, FN; PTREXP(p); STREXP(s->srv); NDBG(p->from, d);
+          NDBG(p->to, d); NDBG(p->group_id, u));
     channel_put(&s->outgoing, &link->l);
   }
   return 0;
@@ -1035,16 +867,35 @@ int send_server_msg(site_def const *s, node_no to, pax_msg *p) {
   return _send_server_msg(s, to, p);
 }
 
-static inline int send_loop(site_def const *s, node_no max, pax_msg *p,
-                            const char *dbg MY_ATTRIBUTE((unused))) {
+/* Selector function to see if we should send message */
+typedef int (*node_set_selector)(site_def const *s, node_no node);
+
+static int all(site_def const *s, node_no node) {
+  (void)s;
+  (void)node;
+  return 1;
+}
+
+/* purecov: begin deadcode */
+static int not_self(site_def const *s, node_no node) {
+  return s->nodeno != node;
+}
+/* purecov: end */
+
+/* Send message to set of nodes determined by test_func */
+static inline int send_to_node_set(site_def const *s, node_no max, pax_msg *p,
+                                   node_set_selector test_func,
+                                   const char *dbg MY_ATTRIBUTE((unused))) {
   int retval = 0;
   assert(s);
   if (s) {
     node_no i = 0;
     for (i = 0; i < max; i++) {
-      MAY_DBG(FN; STRLIT(dbg); STRLIT(" "); NDBG(i, u); NDBG(max, u);
+      if (test_func(s, i)) {
+        IFDBG(D_NONE, FN; STRLIT(dbg); STRLIT(" "); NDBG(i, u); NDBG(max, u);
               PTREXP(p));
-      retval = _send_server_msg(s, i, p);
+        retval = _send_server_msg(s, i, p);
+      }
     }
   }
   return retval;
@@ -1053,9 +904,18 @@ static inline int send_loop(site_def const *s, node_no max, pax_msg *p,
 /* Send to all servers in site */
 int send_to_all_site(site_def const *s, pax_msg *p, const char *dbg) {
   int retval = 0;
-  retval = send_loop(s, get_maxnodes(s), p, dbg);
+  retval = send_to_node_set(s, get_maxnodes(s), p, all, dbg);
   return retval;
 }
+
+/* Send to all servers in site except self */
+/* purecov: begin deadcode */
+int send_to_all_except_self(site_def const *s, pax_msg *p, const char *dbg) {
+  int retval = 0;
+  retval = send_to_node_set(s, get_maxnodes(s), p, not_self, dbg);
+  return retval;
+}
+/* purecov: end */
 
 /* Send to self in site */
 int send_to_self_site(site_def const *s, pax_msg *p) {
@@ -1080,8 +940,8 @@ static inline int send_other_loop(site_def const *s, pax_msg *p,
 #endif
   for (i = 0; i < max; i++) {
     if (i != s->nodeno) {
-      MAY_DBG(FN; STRLIT(dbg); STRLIT(" "); NDBG(i, u); NDBG(max, u);
-              PTREXP(p));
+      IFDBG(D_NONE, FN; STRLIT(dbg); STRLIT(" "); NDBG(i, u); NDBG(max, u);
+            PTREXP(p));
       retval = _send_server_msg(s, i, p);
     }
   }
@@ -1108,14 +968,14 @@ int send_to_someone(site_def const *s, pax_msg *p,
   assert(s);
   max = get_maxnodes(s);
 #endif
-  /* DBGOUT(FN; NDBG(max,u); NDBG(s->maxnodes,u)); */
+  /* IFDBG(D_NONE, FN; NDBG(max,u); NDBG(s->maxnodes,u)); */
   assert(max > 0);
   prev = i % max;
   i = (i + 1) % max;
   while (i != prev) {
-    /* DBGOUT(FN; NDBG(i,u); NDBG(prev,u)); */
+    /* IFDBG(D_NONE, FN; NDBG(i,u); NDBG(prev,u)); */
     if (i != s->nodeno && !may_be_dead(s->detected, i, task_now())) {
-      MAY_DBG(FN; STRLIT(dbg); NDBG(i, u); NDBG(max, u); PTREXP(p));
+      IFDBG(D_NONE, FN; STRLIT(dbg); NDBG(i, u); NDBG(max, u); PTREXP(p));
       retval = _send_server_msg(s, i, p);
       break;
     }
@@ -1130,7 +990,7 @@ int send_to_acceptors(pax_msg *p, const char *dbg) {
   site_def const *s = find_site_def(p->synode);
   int retval = 0;
   int i;
-  retval = send_loop(s, MIN(MAXACCEPT, s->maxnodes), p, dbg);
+  retval = send_to_node_set(s, MIN(MAXACCEPT, s->maxnodes), p, all, dbg);
   return retval;
 }
 
@@ -1165,6 +1025,7 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
 
   int64_t nread = 0;
 
+  IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); PTREXP(s); NDBG(n, u));
   TASK_BEGIN
 
       (void)
@@ -1172,14 +1033,13 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
   ep->left = n;
   ep->bytes = (char *)p;
   while (ep->left > 0) {
-    MAY_DBG(FN; NDBG(rfd->fd, d); NDBG64(nread); NDBG(ep->left, u));
     TASK_CALL(task_read(rfd, ep->bytes,
                         ep->left >= INT_MAX ? INT_MAX : (int)ep->left, &nread));
-    MAY_DBG(FN; NDBG(rfd->fd, d); NDBG64(nread); NDBG(ep->left, u));
+    IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); NDBG64(nread); NDBG(ep->left, u));
     if (nread == 0) {
       TASK_RETURN(0);
     } else if (nread < 0) {
-      DBGOUT(FN; NDBG64(nread));
+      IFDBG(D_NONE, FN; NDBG64(nread));
       TASK_FAIL;
     } else {
       ep->bytes += nread;
@@ -1216,6 +1076,8 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
   END_ENV;
   uint32_t nget = 0;
 
+  IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); PTREXP(s); NDBG(n, u));
+
   TASK_BEGIN
 
       (void)
@@ -1230,6 +1092,7 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
 
   if (ep->left >= srv_buf_capacity(buf)) {
     /* Too big, do direct read of rest */
+    IFDBG(D_TRANSPORT, FN; STRLIT("Too big, do direct read of rest"));
     TASK_CALL(read_bytes(rfd, ep->bytes, ep->left, s, ret));
     if (*ret <= 0) {
       TASK_FAIL;
@@ -1244,11 +1107,11 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
 
       TASK_CALL(task_read(rfd, srv_buf_insert_ptr(buf),
                           (int)srv_buf_free_space(buf), &nread));
-      MAY_DBG(FN; NDBG(rfd->fd, d); NDBG64(nread););
+      IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); NDBG64(nread););
       if (nread == 0) {
         TASK_RETURN(0);
       } else if (nread < 0) {
-        DBGOUT(FN; NDBG64(nread));
+        IFDBG(D_NONE, FN; NDBG64(nread));
         TASK_FAIL;
       } else {
         /* Update buffer to reflect number of bytes read */
@@ -1268,12 +1131,14 @@ static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
 void get_header_1_0(unsigned char header_buf[], uint32_t *msgsize,
                     x_msg_type *x_type, unsigned int *tag) {
   *msgsize = get_32(LENGTH_PTR(header_buf));
-  *x_type = header_buf[X_TYPE];
+  *x_type = (x_msg_type)header_buf[X_TYPE];
   *tag = get_16(X_TAG_PTR(header_buf));
+  IFDBG(D_TRANSPORT, FN; NDBG(*msgsize, u); NDBG(*x_type, d); NDBG(*tag, u));
 }
 
 void put_header_1_0(unsigned char header_buf[], uint32_t msgsize,
                     x_msg_type x_type, unsigned int tag) {
+  IFDBG(D_TRANSPORT, FN; NDBG(msgsize, u); NDBG(x_type, d); NDBG(tag, u));
   put_32(LENGTH_PTR(header_buf), msgsize);
   header_buf[X_TYPE] = (unsigned char)x_type;
   put_16(X_TAG_PTR(header_buf), tag);
@@ -1298,11 +1163,12 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
+    IFDBG(D_TRANSPORT, FN; STRLIT("reading header"));
     TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
       G_INFO("Failure reading from fd=%d n=%" PRIu64, rfd->fd, ep->n);
-      DBGOUT(FN; NDBG64(ep->n));
+      IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); NDBG64(ep->n));
       TASK_FAIL;
     }
 
@@ -1312,12 +1178,16 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
     if (ep->x_type == x_version_req) {
       /* Negotiation request. See what we can offer */
       rfd->x_proto = negotiate_protocol(ep->x_version);
-      DBGOUT(STRLIT("incoming connection will use protcol version ");
-             NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto));
-             NDBG(rfd->fd, d));
-      ADD_EVENTS(
-          add_event(string_arg("incoming connection will use protcol version"));
-          add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
+      IFDBG(D_TRANSPORT,
+            STRLIT("incoming connection will use protcol version ");
+            NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto));
+            NDBG(rfd->fd, d));
+      ADD_DBG(
+          D_TRANSPORT,
+          add_event(EVENT_DUMP_PAD,
+                    string_arg("incoming connection will use protcol version"));
+          add_event(EVENT_DUMP_PAD,
+                    string_arg(xcom_proto_to_str(rfd->x_proto))););
       if (rfd->x_proto > my_xcom_version) TASK_FAIL;
       if (is_new_node_eligible_for_ipv6(ep->x_version, get_site_def())) {
         G_WARNING(
@@ -1333,13 +1203,15 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
       /* Mark connection with negotiated protocol version */
       if (rfd->snd_tag == ep->tag) {
         rfd->x_proto = ep->x_version;
-        DBGOUT(STRLIT("peer connection will use protcol version ");
-               NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto));
-               NDBG(rfd->fd, d));
+        IFDBG(D_TRANSPORT, STRLIT("peer connection will use protcol version ");
+              NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto));
+              NDBG(rfd->fd, d));
 
-        ADD_EVENTS(
-            add_event(string_arg("peer connection will use protcol version"));
-            add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
+        ADD_DBG(D_TRANSPORT,
+                add_event(
+                    0, string_arg("peer connection will use protcol version"));
+                add_event(EVENT_DUMP_PAD,
+                          string_arg(xcom_proto_to_str(rfd->x_proto))););
         if (rfd->x_proto > my_xcom_version || rfd->x_proto == x_unknown_proto)
           TASK_FAIL;
 
@@ -1358,24 +1230,25 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
   /* OK, we can grok this version */
 
   /* Allocate buffer space for message */
-  ep->bytes = calloc((size_t)1, (size_t)ep->msgsize);
+  ep->bytes = (char *)calloc((size_t)1, (size_t)ep->msgsize);
   if (!ep->bytes) {
     TASK_FAIL;
   }
 
   /* Read message */
   ep->n = 0;
+  IFDBG(D_TRANSPORT, FN; STRLIT("reading message"));
   TASK_CALL(read_bytes(rfd, ep->bytes, ep->msgsize, s, &ep->n));
 
   if (ep->n > 0) {
     /* Deserialize message */
     deserialize_ok = deserialize_msg(p, rfd->x_proto, ep->bytes, ep->msgsize);
-    MAY_DBG(FN; STRLIT(" deserialized message"));
+    IFDBG(D_NONE, FN; STRLIT(" deserialized message"));
   }
   /* Deallocate buffer */
   X_FREE(ep->bytes);
   if (ep->n <= 0 || !deserialize_ok) {
-    DBGOUT(FN; NDBG64(ep->n); NDBG(deserialize_ok, d));
+    IFDBG(D_NONE, FN; NDBG(rfd->fd, d); NDBG64(ep->n); NDBG(deserialize_ok, d));
     TASK_FAIL;
   }
   TASK_RETURN(ep->n);
@@ -1405,11 +1278,12 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
     ep->bytes = NULL;
     /* Read length field, protocol version, and checksum */
     ep->n = 0;
+    IFDBG(D_TRANSPORT, FN; STRLIT("reading header"));
     TASK_CALL(buffered_read_bytes(rfd, buf, (char *)ep->header_buf,
                                   MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
-      DBGOUT(FN; NDBG64(ep->n));
+      IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); NDBG64(ep->n));
       TASK_FAIL;
     }
 
@@ -1419,11 +1293,15 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
     if (ep->x_type == x_version_req) {
       /* Negotiation request. See what we can offer */
       rfd->x_proto = negotiate_protocol(ep->x_version);
-      DBGOUT(STRLIT("incoming connection will use protcol version ");
-             NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
-      ADD_EVENTS(
-          add_event(string_arg("incoming connection will use protcol version"));
-          add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
+      IFDBG(D_TRANSPORT,
+            STRLIT("incoming connection will use protcol version ");
+            NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
+      ADD_DBG(
+          D_TRANSPORT,
+          add_event(EVENT_DUMP_PAD,
+                    string_arg("incoming connection will use protcol version"));
+          add_event(EVENT_DUMP_PAD,
+                    string_arg(xcom_proto_to_str(rfd->x_proto))););
       if (rfd->x_proto > my_xcom_version) TASK_FAIL;
       if (is_new_node_eligible_for_ipv6(ep->x_version, get_site_def())) {
         G_WARNING(
@@ -1440,11 +1318,13 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
       /* Mark connection with negotiated protocol version */
       if (rfd->snd_tag == ep->tag) {
         rfd->x_proto = ep->x_version;
-        DBGOUT(STRLIT("peer connection will use protcol version ");
-               NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
-        ADD_EVENTS(
-            add_event(string_arg("peer connection will use protcol version"));
-            add_event(string_arg(xcom_proto_to_str(rfd->x_proto))););
+        IFDBG(D_TRANSPORT, STRLIT("peer connection will use protcol version ");
+              NDBG(rfd->x_proto, u); STRLIT(xcom_proto_to_str(rfd->x_proto)));
+        ADD_DBG(D_TRANSPORT,
+                add_event(
+                    0, string_arg("peer connection will use protcol version"));
+                add_event(EVENT_DUMP_PAD,
+                          string_arg(xcom_proto_to_str(rfd->x_proto))););
         if (rfd->x_proto > my_xcom_version || rfd->x_proto == x_unknown_proto)
           TASK_FAIL;
 
@@ -1463,23 +1343,24 @@ int buffered_read_msg(connection_descriptor *rfd, srv_buf *buf, pax_msg *p,
   /* OK, we can grok this version */
 
   /* Allocate buffer space for message */
-  ep->bytes = calloc((size_t)1, (size_t)ep->msgsize);
+  ep->bytes = (char *)calloc((size_t)1, (size_t)ep->msgsize);
   if (!ep->bytes) {
     TASK_FAIL;
   }
   /* Read message */
   ep->n = 0;
+  IFDBG(D_TRANSPORT, FN; STRLIT("reading message"));
   TASK_CALL(buffered_read_bytes(rfd, buf, ep->bytes, ep->msgsize, s, &ep->n));
 
   if (ep->n > 0) {
     /* Deserialize message */
     deserialize_ok = deserialize_msg(p, rfd->x_proto, ep->bytes, ep->msgsize);
-    MAY_DBG(FN; STRLIT(" deserialized message"));
+    IFDBG(D_NONE, FN; STRLIT(" deserialized message"));
   }
   /* Deallocate buffer */
   X_FREE(ep->bytes);
   if (ep->n <= 0 || !deserialize_ok) {
-    DBGOUT(FN; NDBG64(ep->n); NDBG(deserialize_ok, d));
+    IFDBG(D_NONE, FN; NDBG(rfd->fd, d); NDBG64(ep->n); NDBG(deserialize_ok, d));
     TASK_FAIL;
   }
   TASK_RETURN(ep->n);
@@ -1499,10 +1380,11 @@ int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
 
   /* Read length field, protocol version, and checksum */
   ep->n = 0;
+  IFDBG(D_TRANSPORT, FN; STRLIT("reading header"));
   TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, 0, &ep->n));
 
   if (ep->n != MSG_HDR_SIZE) {
-    DBGOUT(FN; NDBG64(ep->n));
+    IFDBG(D_NONE, FN; NDBG64(ep->n));
     TASK_FAIL;
   }
 
@@ -1513,14 +1395,8 @@ int recv_proto(connection_descriptor const *rfd, xcom_proto *x_proto,
   TASK_END;
 }
 
-/* }}} */
+/* Sender task */
 
-/* {{{ Sender task */
-/* purecov: begin deadcode */
-inline int tag_check(unsigned int tag1, unsigned int tag2) {
-  return (tag1 & 0xffff) == (tag2 & 0xffff);
-}
-/* purecov: end */
 static inline unsigned int incr_tag(unsigned int tag) {
   ++tag;
   return tag & 0xffff;
@@ -1528,9 +1404,15 @@ static inline unsigned int incr_tag(unsigned int tag) {
 
 static void start_protocol_negotiation(channel *outgoing) {
   msg_link *link = msg_link_new(0, VOID_NODE_NO);
-  MAY_DBG(FN; PTREXP(outgoing); COPY_AND_FREE_GOUT(dbg_msg_link(link)););
+  IFDBG(D_NONE, FN; PTREXP(outgoing); COPY_AND_FREE_GOUT(dbg_msg_link(link)););
   channel_put_front(outgoing, &link->l);
 }
+
+linkage connect_wait = {
+    0, &connect_wait,
+    &connect_wait}; /* sender_task sleeps here while waiting to connect */
+
+void wakeup_sender() { task_wakeup(&connect_wait); }
 
 #define TAG_START 313
 
@@ -1556,13 +1438,14 @@ int sender_task(task_arg arg) {
   ep->tag = TAG_START;
   srv_ref(ep->s);
 
-  for (;;) {
+  while (!xcom_shutdown) {
     /* Loop until connected */
-    while (!is_connected(&ep->s->con)) {
+    G_DEBUG("Connecting to %s:%d", ep->s->srv, ep->s->port);
+    for (;;) {
       TASK_CALL(dial(ep->s));
-      if (ep->s->con.fd < 0) {
-        TASK_DELAY(ep->dtime);
-      }
+      if (is_connected(&ep->s->con)) break;
+      TIMED_TASK_WAIT(&connect_wait, ep->dtime);
+      if (xcom_shutdown) TERMINATE;
       /* Delay cleanup of messages to avoid unnecessary loss when connecting */
       if (task_now() > ep->channel_empty_time + 2.0) {
         empty_msg_channel(&ep->s->outgoing);
@@ -1574,6 +1457,8 @@ int sender_task(task_arg arg) {
       }
     }
 
+    G_DEBUG("Connected to %s:%d on fd=%d", ep->s->srv, ep->s->port,
+            ep->s->con.fd);
     ep->dtime = INITIAL_CONNECT_WAIT;
     reset_srv_buf(&ep->s->out_buf);
 
@@ -1587,7 +1472,7 @@ int sender_task(task_arg arg) {
       if (0 && link_empty(&ep->s->outgoing.data)) {
         TASK_DELAY(0.1 * xcom_drand48());
       }
-      /*      FWD_ITER(&ep->s->outgoing.data, msg_link, DBGOUT(FN;
+      /* FWD_ITER(&ep->s->outgoing.data, msg_link, IFDBG(D_NONE, FN;
        * PTREXP(link_iter));); */
       if (link_empty(&ep->s->outgoing.data)) {
         TASK_CALL(flush_srv_buf(ep->s, &ret));
@@ -1595,33 +1480,39 @@ int sender_task(task_arg arg) {
       CHANNEL_GET(&ep->s->outgoing, &ep->link, msg_link);
       {
         int64_t ret_code;
-        DBGOUT(FN; PTREXP(stack); PTREXP(ep->link));
-        DBGOUT(FN; PTREXP(&ep->s->outgoing);
+        /* IFDBG(D_NONE, FN; PTREXP(stack); PTREXP(ep->link));
+        IFDBG(D_NONE, FN; PTREXP(&ep->s->outgoing);
                COPY_AND_FREE_GOUT(dbg_msg_link(ep->link)););
-        DBGOUT(FN; STRLIT(" extracted ");
-               COPY_AND_FREE_GOUT(dbg_linkage(&ep->link->l)););
+        IFDBG(D_NONE, FN; STRLIT(" extracted ");
+                        COPY_AND_FREE_GOUT(dbg_linkage(&ep->link->l));
+            ); */
 
         /* If ep->link->p is 0, it is a protocol (re)negotiation request */
-        DBGOUT(FN; NDBG(ep->s->con.x_proto, u);
-               STRLIT(xcom_proto_to_str(ep->s->con.x_proto));
-               NDBG(get_latest_common_proto(), u);
-               STRLIT(xcom_proto_to_str(get_latest_common_proto()));
-               NDBG(ep->s->con.fd, d));
+        /* IFDBG(D_NONE, FN;
+                NDBG(ep->s->con.x_proto,u);
+           STRLIT(xcom_proto_to_str(ep->s->con.x_proto));
+                NDBG(get_latest_common_proto(),u);
+           STRLIT(xcom_proto_to_str(get_latest_common_proto()));
+                NDBG(ep->s->con.fd,d)); */
         if (ep->link->p) {
-          ADD_EVENTS(add_event(string_arg("sending ep->link->p->synode"));
-                     add_synode_event(ep->link->p->synode);
-                     add_event(string_arg("to"));
-                     add_event(uint_arg(ep->link->p->to));
-                     add_event(string_arg(pax_op_to_str(ep->link->p->op))););
+          ADD_DBG(
+              D_TRANSPORT, add_event(EVENT_DUMP_PAD,
+                                     string_arg("sending ep->link->p->synode"));
+              add_synode_event(ep->link->p->synode);
+              add_event(EVENT_DUMP_PAD, string_arg("to"));
+              add_event(EVENT_DUMP_PAD, uint_arg(ep->link->to)); add_event(
+                  EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->link->p->op))););
           TASK_CALL(_send_msg(ep->s, ep->link->p, ep->link->to, &ret_code));
           if (ret_code < 0) {
             goto next;
           }
-          ADD_EVENTS(add_event(string_arg("sent ep->link->p->synode"));
-                     add_synode_event(ep->link->p->synode);
-                     add_event(string_arg("to"));
-                     add_event(uint_arg(ep->link->p->to));
-                     add_event(string_arg(pax_op_to_str(ep->link->p->op))););
+          ADD_DBG(
+              D_TRANSPORT,
+              add_event(EVENT_DUMP_PAD, string_arg("sent ep->link->p->synode"));
+              add_synode_event(ep->link->p->synode);
+              add_event(EVENT_DUMP_PAD, string_arg("to"));
+              add_event(EVENT_DUMP_PAD, uint_arg(ep->link->p->to)); add_event(
+                  EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->link->p->op))););
         } else {
           set_connected(&ep->s->con, CON_FD);
           /* Send protocol negotiation request */
@@ -1635,9 +1526,12 @@ int sender_task(task_arg arg) {
           } while (ret_code < 0);
           G_DEBUG("sent negotiation request for protocol %d fd %d",
                   my_xcom_version, ep->s->con.fd);
-          ADD_EVENTS(
-              add_event(string_arg("sent negotiation request for protocol"));
-              add_event(string_arg(xcom_proto_to_str(my_xcom_version))););
+          ADD_DBG(
+              D_TRANSPORT,
+              add_event(EVENT_DUMP_PAD,
+                        string_arg("sent negotiation request for protocol"));
+              add_event(EVENT_DUMP_PAD,
+                        string_arg(xcom_proto_to_str(my_xcom_version))););
 
           /* Wait until negotiation done.
              reply_handler_task will catch reply and change state */
@@ -1647,10 +1541,11 @@ int sender_task(task_arg arg) {
               goto next;
             }
           }
-          G_DEBUG("will use protocol %d fd %d", ep->s->con.x_proto,
-                  ep->s->con.fd);
-          ADD_EVENTS(add_event(string_arg("will use protocol")); add_event(
-                         string_arg(xcom_proto_to_str(ep->s->con.x_proto))););
+          ADD_DBG(
+              D_TRANSPORT,
+              add_event(EVENT_DUMP_PAD, string_arg("will use protocol"));
+              add_event(EVENT_DUMP_PAD,
+                        string_arg(xcom_proto_to_str(ep->s->con.x_proto))););
         }
       }
     next:
@@ -1663,6 +1558,7 @@ int sender_task(task_arg arg) {
   ep->s->sender = NULL;
   srv_unref(ep->s);
   if (ep->link) msg_link_delete(&ep->link);
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
 
@@ -1687,11 +1583,11 @@ int local_sender_task(task_arg arg) {
     assert(!ep->link);
     CHANNEL_GET(&ep->s->outgoing, &ep->link, msg_link);
     {
-      /* DBGOUT(FN; PTREXP(stack); PTREXP(ep->link)); */
-      MAY_DBG(FN; PTREXP(&ep->s->outgoing);
-              COPY_AND_FREE_GOUT(dbg_msg_link(ep->link)););
-      MAY_DBG(FN; STRLIT(" extracted ");
-              COPY_AND_FREE_GOUT(dbg_linkage(&ep->link->l)););
+      /* IFDBG(D_NONE, FN; PTREXP(stack); PTREXP(ep->link)); */
+      IFDBG(D_NONE, FN; PTREXP(&ep->s->outgoing);
+            COPY_AND_FREE_GOUT(dbg_msg_link(ep->link)););
+      IFDBG(D_NONE, FN; STRLIT(" extracted ");
+            COPY_AND_FREE_GOUT(dbg_linkage(&ep->link->l)););
       assert(ep->link->p);
       ep->link->p->to = ep->link->p->from;
       dispatch_op(find_site_def(ep->link->p->synode), ep->link->p, NULL);
@@ -1703,10 +1599,9 @@ int local_sender_task(task_arg arg) {
   ep->s->sender = NULL;
   srv_unref(ep->s);
   if (ep->link) msg_link_delete(&ep->link);
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
-
-/* }}} */
 
 static server *find_server(server *table[], int n, char *name, xcom_port port) {
   int i;
@@ -1726,36 +1621,42 @@ void update_servers(site_def *s, cargo_type operation) {
     u_int i = 0;
     n = s->nodes.node_list_len;
 
-    DBGOUT(FN; NDBG(get_maxnodes(s), u); NDBG(n, d); PTREXP(s));
+    IFDBG(D_NONE, FN; NDBG(get_maxnodes(s), u); NDBG(n, d); PTREXP(s));
 
     for (i = 0; i < n; i++) {
       char *addr = s->nodes.node_list_val[i].address;
-
       char *name = NULL;
-      name = (char *)malloc(IP_MAX_SIZE);
       xcom_port port = 0;
 
-      // In this specific place, addr mut have been validated elsewhere,
-      // specifically when the node is added.
+      name = (char *)malloc(IP_MAX_SIZE);
+
+      /* In this specific place, addr mut have been validated elsewhere,
+         specifically when the node is added. */
       if (get_ip_and_port(addr, name, &port)) {
         G_INFO("Error parsing ip:port for new server. Incorrect value is %s",
                addr ? addr : "unknown");
+        free(name);
         continue;
       }
 
-      server *sp = find_server(all_servers, maxservers, name, port);
+      {
+        server *sp = find_server(all_servers, maxservers, name, port);
 
-      if (sp) {
-        G_INFO("Re-using server node %d host %s", i, name);
-        s->servers[i] = sp;
-        free(name);
-        if (sp->invalid) sp->invalid = 0;
-      } else { /* No server? Create one */
-        G_INFO("Creating new server node %d host %s", i, name);
-        if (port > 0)
-          s->servers[i] = addsrv(name, port);
-        else
-          s->servers[i] = addsrv(name, xcom_listen_port);
+        if (sp) {
+          G_INFO("Re-using server node %d host %s", i, name);
+          s->servers[i] = sp;
+          free(name);
+          if (sp->invalid) sp->invalid = 0;
+        } else { /* No server? Create one */
+          G_INFO("Creating new server node %d host %s", i, name);
+          if (port > 0) {
+            s->servers[i] = addsrv(name, port);
+          } else {
+            /* purecov: begin deadcode */
+            s->servers[i] = addsrv(name, xcom_listen_port);
+            /* purecov: end */
+          }
+        }
       }
     }
     /* Zero the rest */
@@ -1792,13 +1693,15 @@ void invalidate_servers(const site_def *old_site_def,
       char name[IP_MAX_SIZE];
       xcom_port port = 0;
 
-      // Not processing any error here since it belongs to an already validated
-      // configuration.
+      /* Not processing any error here since it belongs to an already validated
+         configuration. */
       get_ip_and_port(addr, name, &port);
 
-      server *sp = find_server(all_servers, maxservers, name, port);
-      if (sp) {
-        sp->invalid = 1;
+      {
+        server *sp = find_server(all_servers, maxservers, name, port);
+        if (sp) {
+          sp->invalid = 1;
+        }
       }
     }
   }
@@ -1824,6 +1727,7 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
     TASK_DELAY(1.0);
   }
   FINALLY
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
 
@@ -1832,137 +1736,6 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
     if (ep->s->crash_on_error) abort(); \
     TERMINATE;                          \
   }
-
-/*
-One-shot task to send a message to any xcom node via the client interface.
-The sender need not be part of any group.
-Any tcp connection may be used, as long as the message is a pax_msg
-serialized with serialize_msg. Doing it this way is simply the most
-convenient way of sending something to a specific address/port without blocking
-the task system. Error handling is very rudimentary.
-*/
-/* purecov: begin deadcode */
-/* Try to connect to another node */
-static int client_dial(char *srv, xcom_port port, connection_descriptor *con) {
-  DECL_ENV
-  int dummy;
-  END_ENV;
-
-  TASK_BEGIN
-  DBGOUT(FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u); STRLIT(srv);
-         NDBG(port, d));
-  TASK_CALL(connect_tcp(srv, port, &con->fd));
-  /* DBGOUT(FN; NDBG(con->fd,d);); */
-  if (con->fd < 0) {
-    DBGOUT(FN; STRLIT("could not dial "); STRLIT(srv); NDBG(port, d););
-  } else {
-    if (NAGLE == 0) {
-      set_nodelay(con->fd);
-    }
-
-    unblock_fd(con->fd);
-#ifndef XCOM_WITHOUT_OPENSSL
-    if (xcom_use_ssl()) {
-      SSL_CONNECT((*con), srv);
-    }
-#endif
-    DBGOUT(FN; STRLIT("connected to "); STRLIT(srv); NDBG(con->fd, d);
-           NDBG(port, d));
-    set_connected(con, CON_FD);
-  }
-  FINALLY
-  TASK_END;
-}
-
-int client_task(task_arg arg) {
-  DECL_ENV
-  envelope *s;
-  u_int buflen;
-  char *buf;
-  connection_descriptor c_descriptor;
-  xcom_proto x_proto;
-  x_msg_type x_type;
-  unsigned int tag;
-  END_ENV;
-
-  TASK_BEGIN
-
-  ep->s = (envelope *)get_void_arg(arg);
-  ep->c_descriptor.fd = -1;
-#ifndef XCOM_WITHOUT_OPENSSL
-  ep->c_descriptor.ssl_fd = 0;
-#endif
-  ep->buf = 0;
-  ep->x_proto = my_xcom_version;
-
-  /* Loop until connected */
-  while (!is_connected(&ep->c_descriptor)) {
-    TASK_CALL(client_dial(ep->s->srv, ep->s->port, &ep->c_descriptor));
-    if (ep->c_descriptor.fd < 0) {
-      TASK_DELAY(1.000);
-    }
-  }
-
-#ifndef XCOM_WITHOUT_OPENSSL
-  if (xcom_use_ssl()) {
-    SSL_CONNECT(ep->c_descriptor, ep->s->srv);
-  }
-#endif
-  {
-    int64_t sent;
-    int64_t n;
-    /* Send protocol negotiation request */
-    DBGOUT(FN);
-    TASK_CALL(send_proto(&ep->c_descriptor, my_xcom_version, x_version_req,
-                         TAG_START, &sent));
-    if (sent < 0) {
-      TERMINATE_CLIENT(ep);
-    }
-
-    DBGOUT(FN);
-    /* Wait for answer and read protocol version */
-    TASK_CALL(
-        recv_proto(&ep->c_descriptor, &ep->x_proto, &ep->x_type, &ep->tag, &n));
-    if (n < 0) {
-      TERMINATE_CLIENT(ep);
-    }
-
-    DBGOUT(FN);
-    if (ep->tag == TAG_START && ep->x_type == x_version_reply) {
-      DBGOUT(STRLIT("client task will use protcol version ");
-             NDBG(ep->x_proto, u); STRLIT(xcom_proto_to_str(ep->x_proto)));
-      if (ep->x_proto == x_unknown_proto) {
-        TERMINATE_CLIENT(ep);
-      }
-
-      DBGOUT(FN);
-      ep->c_descriptor.x_proto = ep->x_proto;
-      /* Send message */
-      serialize_msg(ep->s->p, ep->c_descriptor.x_proto, &ep->buflen, &ep->buf);
-      if (ep->buflen) {
-        DBGOUT(FN);
-        TASK_CALL(task_write(&ep->c_descriptor, ep->buf, ep->buflen, &sent));
-        if (ep->buflen != sent) {
-          DBGOUT(FN; STRLIT("write failed "); STRLIT(ep->s->srv);
-                 NDBG(ep->s->port, d); NDBG(ep->buflen, d); NDBG64(sent));
-          TERMINATE_CLIENT(ep);
-        }
-      }
-    } else {
-      DBGOUT(FN);
-      TERMINATE_CLIENT(ep);
-    }
-  }
-
-  FINALLY
-  shutdown_connection(&ep->c_descriptor);
-  X_FREE(ep->buf);
-  free(ep->s->srv);
-  XCOM_XDR_FREE(xdr_pax_msg, ep->s->p);
-  free(ep->s);
-  TASK_END;
-}
-/* purecov: end */
 
 #ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con) {
@@ -1980,13 +1753,13 @@ void ssl_shutdown_con(connection_descriptor *con) {
 
 void close_connection(connection_descriptor *con) {
   shut_close_socket(&con->fd);
-  con->fd = -1;
   set_connected(con, CON_NULL);
 }
 
 void shutdown_connection(connection_descriptor *con) {
   /* printstack(1); */
-  ADD_EVENTS(add_event(string_arg("con->fd")); add_event(int_arg(con->fd)););
+  ADD_DBG(D_TRANSPORT, add_event(EVENT_DUMP_PAD, string_arg("con->fd"));
+          add_event(EVENT_DUMP_PAD, int_arg(con->fd)););
 #ifndef XCOM_WITHOUT_OPENSSL
   ssl_shutdown_con(con);
 #endif
@@ -2034,54 +1807,6 @@ xcom_proto negotiate_protocol(xcom_proto proto_vers) {
   }
 }
 
-/*
-   Encode and decode node_address with protocol version 0.
-   This version is frozen forever, so having a handcrafted (in reality mostly
-   copied)
-   xdr function here is OK.
-*/
-/* purecov: begin deadcode */
-bool_t xdr_node_address_with_1_0(XDR *xdrs, node_address *objp) {
-  if (!xdr_string(xdrs, &objp->address, ~(u_int)0)) return FALSE;
-  if (!xdr_blob(xdrs, &objp->uuid)) return FALSE;
-  if (xdrs->x_op == XDR_DECODE) {
-    objp->proto.min_proto = x_1_0; /* A node which speaks protocol version 0
-                                      only supports version 0 */
-    objp->proto.max_proto = x_1_0;
-  }
-  return TRUE;
-}
-/* purecov: end */
-
-/* Encode and decode a node_list while respecting protocol version */
-bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp) {
-  bool_t retval;
-  xcom_proto vx = *((xcom_proto *)xdrs->x_public);
-  /* Select protocol encode/decode based on the x_public field of the xdr struct
-   */
-  char *x = (char *)objp->node_list_val;
-  switch (vx) {
-    case x_1_0:
-      retval =
-          xdr_array(xdrs, &x, (u_int *)&objp->node_list_len, NSERVERS,
-                    sizeof(node_address), (xdrproc_t)xdr_node_address_with_1_0);
-      objp->node_list_val = (node_address *)x;
-      return retval;
-    case x_1_1:
-    case x_1_2:
-    case x_1_3:
-    case x_1_4:
-    case x_1_5:
-    case x_1_6:
-      retval = xdr_array(xdrs, &x, (u_int *)&objp->node_list_len, NSERVERS,
-                         sizeof(node_address), (xdrproc_t)xdr_node_address);
-      objp->node_list_val = (node_address *)x;
-      return retval;
-    default:
-      return FALSE;
-  }
-}
-
 /* Encode and decode a application data with added check that there is enough
  * data when decoding */
 bool_t xdr_checked_data(XDR *xdrs, checked_data *objp) {
@@ -2095,157 +1820,133 @@ bool_t xdr_checked_data(XDR *xdrs, checked_data *objp) {
                    0xffffffff);
 }
 
-bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp) {
-  xcom_proto vx = *((xcom_proto *)xdrs->x_public);
-  /* Select protocol encode/decode based on the x_public field of the xdr struct
-   */
-  switch (vx) {
-    case x_1_0:
-    case x_1_1:
-      if (!xdr_pax_msg_1_1(xdrs, (pax_msg_1_1 *)objp)) return FALSE;
-      if (xdrs->x_op == XDR_DECODE) {
-        /* Use our own minimum */
-        objp->delivered_msg = get_delivered_msg();
-        /* Won't be used, so use 0 to spot if it is */
-        objp->event_horizon = 0;
-        /* Won't be used, so set as empty */
-        objp->requested_synode_app_data.synode_app_data_array_len = 0;
-        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
-      }
-      return TRUE;
-    case x_1_2:
-    case x_1_3:
-      if (!xdr_pax_msg_1_2(xdrs, (pax_msg_1_2 *)objp)) return FALSE;
-      if (xdrs->x_op == XDR_DECODE) {
-        /* Won't be used, so use 0 to spot if it is */
-        objp->event_horizon = 0;
-        /* Won't be used, so set as empty */
-        objp->requested_synode_app_data.synode_app_data_array_len = 0;
-        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
-      }
-      return TRUE;
-    case x_1_4:
-    case x_1_5:
-      if (!xdr_pax_msg_1_4(xdrs, (pax_msg_1_4 *)objp)) return FALSE;
-      if (xdrs->x_op == XDR_DECODE) {
-        /* Won't be used, so set as empty */
-        objp->requested_synode_app_data.synode_app_data_array_len = 0;
-        objp->requested_synode_app_data.synode_app_data_array_val = NULL;
-      }
-      return TRUE;
-    case x_1_6:
-      return xdr_pax_msg_1_6(xdrs, objp);
-    default:
-      return FALSE;
-  }
-}
-
-bool_t xdr_config(XDR *xdrs, config *objp) {
-  xcom_proto vx = *((xcom_proto *)xdrs->x_public);
-  // Select protocol encode/decode based on the x_public field of the xdr struct
-  switch (vx) {
-    case x_1_0:
-    case x_1_1:
-    case x_1_2:
-    case x_1_3:
-      if (!xdr_config_1_2(xdrs, (config_1_2 *)objp)) return FALSE;
-      if (xdrs->x_op == XDR_DECODE) objp->event_horizon = EVENT_HORIZON_MIN;
-      return TRUE;
-    case x_1_4:
-    case x_1_5:
-    case x_1_6:
-      return xdr_config_1_4(xdrs, objp);
-    default:
-      return FALSE;
-  }
-}
-
 xcom_proto minimum_ipv6_version() { return x_1_5; }
 
-int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port) {
-  char *is_address_v6_begin = NULL, *is_address_v6_end = NULL;
+/*
+  Parse name, IPv4, or IPv6 address with optional :port.
+  If no port, *port is set to 0. Skips leading whitespace.
+*/
 
-  if (address == NULL || (strlen(address) == 0)) {
+struct parse_buf {
+  char const *address;
+  char const *in;
+  char *out;
+  char *end;
+};
+
+typedef struct parse_buf parse_buf;
+
+static int emit(parse_buf *p) {
+  if (p->out < p->end) {
+    if (!isspace(*(p->in))) *(p->out)++ = *(p->in);
+    return 1;
+  } else {
+    G_DEBUG(
+        "Address including terminating null char is "
+        "bigger than IP_MAX_SIZE which is "
+        "%d",
+        IP_MAX_SIZE);
+    return 0;
+  }
+}
+
+#define EMIT \
+  if (!emit(p)) return 0
+
+static int match_port(parse_buf *p, xcom_port *port) {
+  if (*(p->in) == 0) goto err;
+  {
+    char *end_ptr = NULL;
+    long int port_to_int = strtol(p->in, &end_ptr, 10);
+    if (end_ptr == 0 || strlen(end_ptr) != 0) {
+      goto err;
+    }
+    *port = (xcom_port)port_to_int;
     return 1;
   }
+err:
+  G_DEBUG("Malformed port number '%s'", p->in);
+  return 0;
+}
 
-  if (ip == NULL) {
-    return 1;
-  }
-
-  is_address_v6_begin = strchr(address, '[') + 1;
-  is_address_v6_end = strchr(address, ']');
-
-  // If 2 square brackets are  found it means that we are in presence of a
-  // possible IPv6 address
-  if (is_address_v6_begin != NULL && is_address_v6_end != NULL) {
-    int address_str_len = (is_address_v6_end - is_address_v6_begin);
-
-    if (address_str_len + 1 > IP_MAX_SIZE || address_str_len < 0) {
-      G_DEBUG(
-          "Malformed Address or Address is bigger than IP_MAX_SIZE which is %d",
-          IP_MAX_SIZE);
-      return 1;
+static int match_ipv6(parse_buf *p) {
+  int has_colon = 0;
+  p->in++;
+  while (*(p->in)) {
+    if (isspace(*(p->in))) {
+      G_DEBUG("Malformed IPv6 address '%s'", p->address);
+      return 0;
     }
-
-    memset(ip, '\0', address_str_len + 1);
-    strncpy(ip, is_address_v6_begin, address_str_len);
-
-    // Make sure that we are handing out a valid IP address and not a [trash]
-    // value
-    char *has_colons = NULL;
-    has_colons = strchr(ip, ':');
-    if (has_colons == NULL) {
-      G_WARNING("Malformed IPv6 Address");
-      return 1;
+    if (*(p->in) == ']') { /* End of IPv6 address */
+      return has_colon > 0;
     }
-
-  } else {  // Then it is a possible IPv4 address or a name
-    char *is_address_v4 = NULL;
-    is_address_v4 = strchr(address, ':');  // Try and find the first :
-
-    if (!is_address_v4) {
-      return 1;
-    } else {
-      // Guarantee that it is the only one colon
-      char *has_more_colons = NULL;
-      has_more_colons = strchr((is_address_v4 + 1), ':');
-      if (has_more_colons) {  // It was a malformed IP v6
-        return 1;
+    EMIT;
+    if (*(p->in) == ':') {
+      has_colon++;
+      if (has_colon > 7) {
+        G_DEBUG("Malformed IPv6 address '%s'", p->address);
+        return 0;
       }
     }
-
-    int address_str_len = (is_address_v4 - address);
-
-    if (address_str_len + 1 > IP_MAX_SIZE || address_str_len < 0) {
-      G_DEBUG(
-          "Malformed Address or Address is bigger than IP_MAX_SIZE which is %d",
-          IP_MAX_SIZE);
-      return 1;
-    }
-
-    memset(ip, '\0', address_str_len + 1);
-    strncpy(ip, address, address_str_len);
+    p->in++;
   }
-
-  // Extract port if we reached this point
-  char *port_str = strrchr(address, ':');
-
-  long int port_to_int = 0L;
-  if (port_str) {
-    char *end_ptr = NULL;
-    port_to_int = strtol(port_str + 1, &end_ptr, 10);
-
-    if (strlen(end_ptr) != 0) {
-      port_to_int = 0L;
-    }
-  }
-
-  if (port_to_int == 0L) {
-    return 1;
-  }
-
-  *port = port_to_int;
-
+  /* If we get here, there is no ] */
+  p->in--;
   return 0;
+}
+
+static int match_ipv4_or_name(parse_buf *p) {
+  while (*(p->in) && *(p->in) != ':') {
+    if (isspace(*(p->in))) {
+      G_DEBUG("Malformed IPv4 address or hostname '%s'", p->address);
+      return 0;
+    }
+    EMIT;
+    p->in++;
+  }
+  p->in--;
+  return 1;
+}
+
+static int match_address(parse_buf *p) {
+  if (*(p->in) == '[') /* Start of IPv6 address */
+    return match_ipv6(p);
+  else /* IPv4 address or name */
+    return match_ipv4_or_name(p);
+}
+
+/* Return 1 if address is well-formed, 0 if not */
+static int match_ip_and_port(char const *address, char ip[IP_MAX_SIZE],
+                             xcom_port *port) {
+  parse_buf p;
+
+  /* Sanity checks */
+  if (address == NULL || (strlen(address) == 0) || ip == NULL) {
+    return 0;
+  }
+
+  /* Zero the output buffer and port */
+  memset(ip, 0, IP_MAX_SIZE);
+  *port = 0;
+
+  p.in = p.address = address;
+  p.out = ip;
+  p.end = ip + IP_MAX_SIZE - 1;
+
+  /* Skip leading whitespace */
+  while (*(p.in) && isspace(*(p.in))) p.in++;
+
+  if (*(p.in) == 0) return 0; /* Nothing here */
+
+  if (!match_address(&p)) return 0;
+  p.in++;
+  if (*(p.in) == ':') { /* We have a port */
+    p.in++;
+    return match_port(&p, port);
+  }
+  return NO_PORT_IN_ADDRESS; /* No :port, but that may be OK */
+}
+
+int get_ip_and_port(char *address, char ip[IP_MAX_SIZE], xcom_port *port) {
+  return !match_ip_and_port(address, ip, port);
 }

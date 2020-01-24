@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_input_request.h"
+#include "xcom/xcom_input_request.h"
 #include <stdlib.h>
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "xcom/xcom_memory.h"
 
 typedef struct xcom_input_request {
   app_data_ptr a;
@@ -35,7 +35,7 @@ xcom_input_request_ptr xcom_input_request_new(
     app_data_ptr a, xcom_input_reply_function_ptr reply_function,
     void *reply_arg) {
   xcom_input_request_ptr request =
-      calloc((size_t)1, sizeof(xcom_input_request));
+      (xcom_input_request_ptr)calloc((size_t)1, sizeof(xcom_input_request));
   if (request != NULL) {
     request->a = a;
     request->reply_function = reply_function;
@@ -45,12 +45,13 @@ xcom_input_request_ptr xcom_input_request_new(
 }
 
 void xcom_input_request_free(xcom_input_request_ptr request) {
-  // We own the app_data we point to, so it's our job to free it.
+  /* We own the app_data we point to, so it's our job to free it. */
   if (request->a != NULL) {
-    // The app_data is supposed to be unlinked.
+    /* The app_data is supposed to be unlinked. */
     assert(request->a->next == NULL);
-    // Because the app_data_ptr is allocated on the heap and not on the stack.
-    my_xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&request->a);
+    /* Because the app_data_ptr is allocated on the heap and not on the stack.
+     */
+    xdr_free((xdrproc_t)xdr_app_data_ptr, (char *)&request->a);
   }
   free(request);
 }

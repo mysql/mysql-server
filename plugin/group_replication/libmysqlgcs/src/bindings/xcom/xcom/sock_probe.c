@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,29 +25,29 @@
 #endif
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/node_no.h"
+#include "xcom/server_struct.h"
+#include "xcom/simset.h"
+#include "xcom/site_struct.h"
+#include "xcom/task.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_detector.h"
+#include "xcom/xcom_profile.h"
+#include "xdr_gen/xcom_vp.h"
 
 #ifdef _WIN32
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_win32.c"
+#include "xcom/sock_probe_win32.c"
 #else
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe_ix.c"
+#include "xcom/sock_probe_ix.c"
 #endif
 
 /* compare two sockaddr */
 static bool_t sockaddr_default_eq(struct sockaddr *x, struct sockaddr *y) {
+  size_t size_to_compare;
   if (x->sa_family != y->sa_family) return 0;
 
-  size_t size_to_compare = x->sa_family == AF_INET
-                               ? sizeof(struct sockaddr_in)
-                               : sizeof(struct sockaddr_in6);
+  size_to_compare = x->sa_family == AF_INET ? sizeof(struct sockaddr_in)
+                                            : sizeof(struct sockaddr_in6);
 
   return 0 == memcmp(x, y, size_to_compare);
 }
@@ -59,6 +59,26 @@ void set_port_matcher(port_matcher x) { match_port = x; }
 
 port_matcher get_port_matcher() { return match_port; }
 
+static inline struct addrinfo *probe_get_addrinfo(char *name) {
+#ifdef XCOM_STANDALONE
+  return xcom_caching_getaddrinfo(name);
+#else
+  {
+    struct addrinfo *addr = 0;
+    checked_getaddrinfo(name, 0, 0, &addr);
+    return addr;
+  }
+#endif
+}
+
+static inline void probe_free_addrinfo(struct addrinfo *addr) {
+#ifdef XCOM_STANDALONE
+  (void)addr;
+#else
+  if (addr) freeaddrinfo(addr);
+#endif
+}
+
 node_no xcom_find_node_index(node_list *nodes) {
   node_no i;
   node_no retval = VOID_NODE_NO;
@@ -67,7 +87,7 @@ node_no xcom_find_node_index(node_list *nodes) {
   struct addrinfo *addr = 0;
   struct addrinfo *saved_addr = 0;
 
-  sock_probe *s = calloc((size_t)1, sizeof(sock_probe));
+  sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
 
   if (init_sock_probe(s) < 0) {
     free(s);
@@ -90,9 +110,8 @@ node_no xcom_find_node_index(node_list *nodes) {
 
       /* Get addresses of host */
 
-      checked_getaddrinfo(name, 0, 0, &addr);
-      saved_addr = addr;
-      MAY_DBG(FN; STREXP(name); PTREXP(addr));
+      saved_addr = addr = probe_get_addrinfo(name);
+      IFDBG(D_NONE, FN; STRLIT("name "); STRLIT(name); PTREXP(addr));
       /* getaddrinfo returns linked list of addrinfo */
       while (addr) {
         int j;
@@ -104,16 +123,18 @@ node_no xcom_find_node_index(node_list *nodes) {
           if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
               is_if_running(s, j)) {
             retval = i;
-            if (saved_addr) freeaddrinfo(saved_addr);
             goto end_loop;
           }
         }
         addr = addr->ai_next;
       }
+      probe_free_addrinfo(saved_addr);
+      saved_addr = 0;
     }
   }
 /* Free resources and return result */
 end_loop:
+  probe_free_addrinfo(saved_addr);
   close_sock_probe(s);
   return retval;
 }
@@ -126,15 +147,14 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
   if (match_port && !match_port(port)) return 0;
 
   {
-    sock_probe *s = calloc((size_t)1, sizeof(sock_probe));
+    sock_probe *s = (sock_probe *)calloc((size_t)1, sizeof(sock_probe));
     if (init_sock_probe(s) < 0) {
       free(s);
       return retval;
     }
 
-    checked_getaddrinfo(name, 0, 0, &addr);
-    saved_addr = addr;
-    MAY_DBG(FN; STREXP(name); PTREXP(addr));
+    saved_addr = addr = probe_get_addrinfo(name);
+    IFDBG(D_NONE, FN; STREXP(name); PTREXP(addr));
     /* getaddrinfo returns linked list of addrinfo */
     while (addr) {
       int j;
@@ -153,7 +173,7 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
     }
   /* Free resources and return result */
   end_loop:
-    if (saved_addr) freeaddrinfo(saved_addr);
+    probe_free_addrinfo(saved_addr);
     close_sock_probe(s);
   }
   return retval;

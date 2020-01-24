@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,17 +23,17 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/simset.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_statistics.h"
+#include "xcom/xcom_vp_str.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define M_F_SZ 19
 #define M_F_MIDDLE ((M_F_SZ + 1) / 2)
@@ -102,9 +102,13 @@ void add_to_filter(double t) {
   added = 1;
 }
 
+/* Initialize median filter with reasonable initial guess. The whole idea of
+ * trying to track the median value of the time needed to reach consensus and
+ * use this as a basis for a timeout may be a little fishy. Perhaps fixed
+ * timeouts would be good enough and make the system more stable. */
 void median_filter_init() {
   int i = 0;
-  for (i = 0; i < M_F_SZ; i++) add_to_filter(1.0);
+  for (i = 0; i < M_F_SZ; i++) add_to_filter(0.1);
 }
 
 double median_time() {
@@ -117,42 +121,3 @@ double median_time() {
     return cached = qselect(tmp, 0, M_F_MAX, M_F_MIDDLE);
   }
 }
-/* purecov: begin deadcode */
-int xcom_statistics(task_arg arg MY_ATTRIBUTE((unused))) {
-  pax_op i = 0;
-  DECL_ENV
-  double next;
-  END_ENV;
-
-  TASK_BEGIN
-  for (i = 0; i < LAST_OP; i++) {
-    send_count[i] = 0;
-    receive_count[i] = 0;
-    send_bytes[i] = 0;
-    receive_bytes[i] = 0;
-  }
-  ep->next = seconds() + STAT_INTERVAL;
-  TASK_DELAY_UNTIL(ep->next);
-  for (;;) {
-    G_DEBUG("%27s%12s%12s%12s%12s", " ", "send cnt", "receive cnt", "send b",
-            "receive b");
-    for (i = 0; i < LAST_OP; i++) {
-      if (send_count[i] || receive_count[i]) {
-        G_DEBUG("%27s%12lu%12lu%12lu%12lu", pax_op_to_str(i),
-                (unsigned long)send_count[i], (unsigned long)receive_count[i],
-                (unsigned long)send_bytes[i], (unsigned long)receive_bytes[i]);
-      }
-    }
-    for (i = 0; i < LAST_OP; i++) {
-      send_count[i] = 0;
-      receive_count[i] = 0;
-      send_bytes[i] = 0;
-      receive_bytes[i] = 0;
-    }
-    ep->next += STAT_INTERVAL;
-    TASK_DELAY_UNTIL(ep->next);
-  }
-  FINALLY
-  TASK_END;
-}
-/* purecov: end */

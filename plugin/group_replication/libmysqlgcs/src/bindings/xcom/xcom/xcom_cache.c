@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,31 +20,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "xcom/xcom_cache.h"
 
 #include <assert.h>
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/app_data.h"
+#include "xcom/bitset.h"
+#include "xcom/node_no.h"
+#include "xcom/pax_msg.h"
+#include "xcom/server_struct.h"
+#include "xcom/simset.h"
+#include "xcom/site_def.h"
+#include "xcom/site_struct.h"
+#include "xcom/synode_no.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_cfg.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_detector.h"
+#include "xcom/xcom_profile.h"
+#include "xcom/xcom_transport.h"
+#include "xcom/xcom_vp_str.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define DBG_CACHE_SIZE 0
 
@@ -52,7 +52,7 @@
  * deallocation by shrink_cache */
 #define MIN_CACHED 10
 
-/* {{{ Paxos machine cache */
+/* Paxos machine cache */
 
 struct lru_machine {
   linkage lru_link;
@@ -64,9 +64,10 @@ static synode_no last_removed_cache;
 synode_no cache_get_last_removed() { return last_removed_cache; }
 
 int was_removed_from_cache(synode_no x) {
-  ADD_EVENTS(add_event(string_arg("x ")); add_synode_event(x);
-             add_event(string_arg("last_removed_cache "));
-             add_synode_event(last_removed_cache););
+  ADD_DBG(D_CACHE, add_event(EVENT_DUMP_PAD, string_arg("x "));
+          add_synode_event(x);
+          add_event(EVENT_DUMP_PAD, string_arg("last_removed_cache "));
+          add_synode_event(last_removed_cache););
   /*
   What to do with requests from nodes that have a different group ID?
   Should we just ignore them, as we do with the current code,
@@ -81,12 +82,12 @@ static size_t size_decrement = INCREMENT / 10;
 
 #define BUCKETS length_increment
 
-typedef struct stack_machine {
+struct stack_machine {
   linkage stack_link;
   uint64_t start_msgno;
   uint occupation;
   linkage *pax_hash;
-} stack_machine;
+};
 
 static linkage hash_stack = {0, &hash_stack,
                              &hash_stack}; /* Head of the hash stack */
@@ -96,47 +97,22 @@ static linkage probation_lru = {
     0, &probation_lru, &probation_lru}; /* Head of LRU chain of cache misses */
 
 static void hash_init(stack_machine *hash_bucket) {
-  hash_bucket->pax_hash = malloc(sizeof(linkage) * BUCKETS);
-  for (size_t i = 0; i < BUCKETS; i++) {
-    link_init(&hash_bucket->pax_hash[i], type_hash("pax_machine"));
+  size_t i;
+  hash_bucket->pax_hash = (linkage *)malloc(sizeof(linkage) * BUCKETS);
+  for (i = 0; i < BUCKETS; i++) {
+    link_init(&hash_bucket->pax_hash[i], TYPE_HASH("pax_machine"));
   }
 }
 
 extern void hexdump(void *p, long length);
 
-#if 0
-#define FNVSTART 0x811c9dc5
-
-/* Fowler-Noll-Vo type multiplicative hash */
-static uint32_t fnv_hash(unsigned char *buf, size_t length, uint32_t sum)
-{
-  size_t i = 0;
-  for (i = 0; i < length; i++) {
-    sum = sum * (uint32_t)0x01000193 ^ (uint32_t)buf[i];
-  }
-  return sum;
-}
-
-static unsigned int	synode_hash(synode_no synode)
-{
-  /* Need to hash three fields separately, since struct may contain padding with
-     undefined values */
-  return fnv_hash((unsigned char *) & synode.node, sizeof(synode.node),
-                  fnv_hash((unsigned char *) & synode.group_id, sizeof(synode.group_id),
-                           fnv_hash((unsigned char *) & synode.msgno, sizeof(synode.msgno), FNVSTART)))
-
-    % BUCKETS;
-}
-#else
 static unsigned int synode_hash(synode_no synode) {
   /* Need to hash three fields separately, since struct may contain padding with
      undefined values */
   return (unsigned int)(4711 * synode.node + 5 * synode.group_id +
                         synode.msgno) %
-         BUCKETS;
+         (unsigned int)BUCKETS;
 }
-
-#endif
 
 static uint64_t highest_msgno = 0;
 static uint64_t cache_length = 0;
@@ -146,7 +122,7 @@ static void do_increment_step();
 
 static pax_machine *hash_in(pax_machine *pm) {
   synode_no synode = pm->synode;
-  MAY_DBG(FN; PTREXP(pm); SYCEXP(synode););
+  IFDBG(D_NONE, FN; PTREXP(pm); SYCEXP(synode););
 
   if (highest_msgno < synode.msgno) highest_msgno = synode.msgno;
 
@@ -167,7 +143,7 @@ static pax_machine *hash_in(pax_machine *pm) {
 }
 
 static pax_machine *hash_out(pax_machine *p) {
-  MAY_DBG(FN; PTREXP(p); SYCEXP(p->synode););
+  IFDBG(D_NONE, FN; PTREXP(p); SYCEXP(p->synode););
   if (!link_empty(&p->hash_link)) {
     occupation--;
     p->stack_link->occupation--;
@@ -180,37 +156,29 @@ pax_machine *hash_get(synode_no synode) {
   stack_machine *hash_table = NULL;
 
   /* if(cached_machine && synode_eq(synode, cached_machine->synode)) */
-  /*   return cached_machine; */
+  /* return cached_machine; */
 
-  FWD_ITER(&hash_stack, stack_machine, {
-    if (link_iter->start_msgno < synode.msgno || link_iter->start_msgno == 0) {
-      hash_table = link_iter;
-      break;
-    }
-  })
+  FWD_ITER(&hash_stack, stack_machine,
+           {
+             if (link_iter->start_msgno < synode.msgno ||
+                 link_iter->start_msgno == 0) {
+               hash_table = link_iter;
+               break;
+             }
+           })
 
-  linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
+  {
+    linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
 
-  FWD_ITER(bucket, pax_machine, {
-    if (synode_eq(link_iter->synode, synode)) {
-      /* cached_machine = link_iter; */
-      return link_iter;
-    }
-  });
+    FWD_ITER(bucket, pax_machine, {
+      if (synode_eq(link_iter->synode, synode)) {
+        /* cached_machine = link_iter; */
+        return link_iter;
+      }
+    });
+  }
   return NULL;
 }
-
-#if 0
-static int	is_noop(synode_no synode)
-{
-  if (is_cached(synode)) {
-    pax_machine * m = get_cache(synode);
-    return m->learner.msg && m->learner.msg->msg_type == no_op;
-  } else {
-    return 0;
-  }
-}
-#endif
 
 static int was_machine_executed(pax_machine *p) {
   int const not_yet_functional = synode_eq(null_synode, get_delivered_msg());
@@ -260,9 +228,9 @@ static lru_machine *lru_touch_hit(pax_machine *p) {
 
 /* Resets cache structures */
 static void reset_cache() {
-  link_init(&protected_lru, type_hash("lru_machine"));
-  link_init(&probation_lru, type_hash("lru_machine"));
-  link_init(&hash_stack, type_hash("stack_machine"));
+  link_init(&protected_lru, TYPE_HASH("lru_machine"));
+  link_init(&probation_lru, TYPE_HASH("lru_machine"));
+  link_init(&hash_stack, TYPE_HASH("stack_machine"));
   init_cache_size(); /* After cache has been intialized, size is 0 */
   last_removed_cache = null_synode;
   highest_msgno = 0;
@@ -278,9 +246,9 @@ static void expand_lru();
 */
 void init_cache() {
   reset_cache();
-  // Init LRU
+  /* Init LRU */
   expand_lru();
-  // Init first hash_table
+  /* Init first hash_table */
   add_stack_machine(0);
 }
 
@@ -324,34 +292,34 @@ void deinit_cache() {
 
 pax_machine *get_cache_no_touch(synode_no synode, bool_t force) {
   pax_machine *retval = hash_get(synode);
-  /* DBGOUT(FN; SYCEXP(synode); STREXP(task_name())); */
-  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  /* IFDBG(D_NONE, FN; SYCEXP(synode); STREXP(task_name())); */
+  IFDBG(D_NONE, FN; SYCEXP(synode); PTREXP(retval));
   if (!retval) {
     lru_machine *l =
         lru_get(force); /* Need to know when it is safe to re-use... */
     if (!l) return NULL;
-    MAY_DBG(FN; PTREXP(l); COPY_AND_FREE_GOUT(dbg_pax_machine(&l->pax)););
-    /*     assert(l->pax.synode > log_tail); */
+    IFDBG(D_NONE, FN; PTREXP(l); COPY_AND_FREE_GOUT(dbg_pax_machine(&l->pax)););
+    /* assert(l->pax.synode > log_tail); */
 
     retval = hash_out(&l->pax);          /* Remove from hash table */
     init_pax_machine(retval, l, synode); /* Initialize */
     hash_in(retval);                     /* Insert in hash table again */
   }
-  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  IFDBG(D_NONE, FN; SYCEXP(synode); PTREXP(retval));
   return retval;
 }
 
 pax_machine *force_get_cache(synode_no synode) {
   pax_machine *retval = get_cache_no_touch(synode, TRUE);
   lru_touch_hit(retval); /* Insert in protected_lru */
-  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  IFDBG(D_NONE, FN; SYCEXP(synode); PTREXP(retval));
   return retval;
 }
 
 pax_machine *get_cache(synode_no synode) {
   pax_machine *retval = get_cache_no_touch(synode, FALSE);
   if (retval) lru_touch_hit(retval); /* Insert in protected_lru */
-  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  IFDBG(D_NONE, FN; SYCEXP(synode); PTREXP(retval));
   return retval;
 }
 
@@ -415,21 +383,19 @@ size_t shrink_cache() {
 
 void xcom_cache_var_init() {}
 
-/* }}} */
-
-/* {{{ Paxos machine */
+/* Paxos machine */
 
 /* Initialize a Paxos instance */
 pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
                               synode_no synode) {
   sub_cache_size(p);
-  link_init(&p->hash_link, type_hash("pax_machine"));
+  link_init(&p->hash_link, TYPE_HASH("pax_machine"));
   p->lru = lru;
   p->stack_link = NULL;
   p->synode = synode;
   p->last_modified = 0.0;
-  link_init(&p->rv, type_hash("task_env"));
-  init_ballot(&p->proposer.bal, 0, 0);
+  link_init(&p->rv, TYPE_HASH("task_env"));
+  init_ballot(&p->proposer.bal, -1, 0);
   init_ballot(&p->proposer.sent_prop, 0, 0);
   init_ballot(&p->proposer.sent_learn, -1, 0);
   if (!p->proposer.prep_nodeset)
@@ -470,6 +436,7 @@ char *dbg_machine_nodeset(pax_machine *p, u_int nodes) {
   RET_GOUT;
 }
 
+#if TASK_DBUG_ON
 /* Debug a Paxos instance */
 char *dbg_pax_machine(pax_machine *p) {
   GET_NEW_GOUT;
@@ -496,6 +463,7 @@ char *dbg_pax_machine(pax_machine *p) {
   RET_GOUT;
 }
 /* purecov: end */
+#endif
 
 /*
   Return the size of a pax_msg. Counts only the pax_msg struct itself
@@ -532,8 +500,8 @@ void init_cache_size() { cache_size = 0; }
 
 /* Add to cache size */
 
-size_t add_cache_size(pax_machine *p) {
-  size_t x = pax_machine_size(p);
+uint64_t add_cache_size(pax_machine *p) {
+  uint64_t x = pax_machine_size(p);
   cache_size += x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
@@ -546,8 +514,8 @@ size_t add_cache_size(pax_machine *p) {
 }
 
 /* Subtract from cache size */
-size_t sub_cache_size(pax_machine *p) {
-  size_t x = pax_machine_size(p);
+uint64_t sub_cache_size(pax_machine *p) {
+  uint64_t x = pax_machine_size(p);
   cache_size -= x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
@@ -566,8 +534,8 @@ int above_cache_limit() {
 }
 
 /* If cfg object exits, set max cache size */
-size_t set_max_cache_size(uint64_t x) {
-  size_t ret = 0;
+uint64_t set_max_cache_size(uint64_t x) {
+  uint64_t ret = 0;
   if (the_app_xcom_cfg) {
     G_DEBUG("Changing max cache size to %llu. Previous value was %llu.",
             (unsigned long long)x,
@@ -579,9 +547,10 @@ size_t set_max_cache_size(uint64_t x) {
 }
 
 static void expand_lru() {
-  for (size_t i = 0; i < BUCKETS; i++) {
+  uint64_t i;
+  for (i = 0; i < BUCKETS; i++) {
     lru_machine *l = (lru_machine *)calloc(1, sizeof(lru_machine));
-    link_init(&l->lru_link, type_hash("lru_machine"));
+    link_init(&l->lru_link, TYPE_HASH("lru_machine"));
     link_into(&l->lru_link, &probation_lru);
     init_pax_machine(&l->pax, l, null_synode);
     cache_length++;
@@ -590,7 +559,7 @@ static void expand_lru() {
 
 static void add_stack_machine(uint64_t start_msgno) {
   stack_machine *hash_bucket = (stack_machine *)malloc(sizeof(stack_machine));
-  link_init(&hash_bucket->stack_link, type_hash("stack_machine"));
+  link_init(&hash_bucket->stack_link, TYPE_HASH("stack_machine"));
   hash_bucket->occupation = 0;
   hash_bucket->start_msgno = start_msgno;
   hash_init(hash_bucket);
@@ -614,27 +583,33 @@ static void do_decrement_step() {
   ((stack_machine *)link_last(&hash_stack))->start_msgno = 0;
 }
 
-// Use vars instead of defines for unit testing
+/* Use vars instead of defines for unit testing */
 static uint64_t dec_threshold_length = DEC_THRESHOLD_LENGTH;
 static float min_target_occupation = MIN_TARGET_OCCUPATION;
 static float dec_threshold_size = DEC_THRESHOLD_SIZE;
 static float min_length_threshold = MIN_LENGTH_THRESHOLD;
 
+/* Shrink the cache if appropriate, else return error code */
 uint16_t check_decrease() {
-  // Do not decrease before 500k length
-  if ((cache_length <= dec_threshold_length)) return 1;
-  // Oldest hash item is empty
-  if (((stack_machine *)link_last(&hash_stack))->occupation != 0) return 2;
-  // Low occupation
-  if (occupation >= cache_length * min_target_occupation) return 3;
-  // Resulting length high enough
-  if ((cache_length - BUCKETS) * min_length_threshold <= occupation) return 4;
-  // Skip if cache is (likely) still increasing.
-  if ((cache_size <= the_app_xcom_cfg->m_cache_limit * dec_threshold_size)) {
-    return 5;
+  /* Do not decrease before 500k length */
+  if ((cache_length <= dec_threshold_length)) return CACHE_TOO_SMALL;
+  /* Oldest hash item is empty */
+  if (((stack_machine *)link_last(&hash_stack))->occupation != 0)
+    return CACHE_HASH_NOTEMPTY;
+  /* Low occupation */
+  if ((float)occupation >= (float)cache_length * min_target_occupation)
+    return CACHE_HIGH_OCCUPATION;
+  /* Resulting length high enough */
+  if (((float)cache_length - (float)BUCKETS) * min_length_threshold <=
+      (float)occupation)
+    return CACHE_RESULT_LOW;
+  /* Skip if cache is (likely) still increasing. */
+  if (((float)cache_size <=
+       (float)the_app_xcom_cfg->m_cache_limit * dec_threshold_size)) {
+    return CACHE_INCREASING;
   }
   do_decrement_step();
-  return 0;
+  return CACHE_SHRINK_OK;
 }
 
 extern int xcom_shutdown;
@@ -658,10 +633,11 @@ int cache_manager_task(task_arg arg MY_ATTRIBUTE((unused))) {
     TASK_DELAY(0.1);
   }
   FINALLY
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
 
-// Unit testing
+/* Unit testing */
 /* purecov: begin deadcode */
 uint64_t get_xcom_cache_occupation() { return occupation; }
 uint64_t get_xcom_cache_length() { return cache_length; }

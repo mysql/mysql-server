@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
-#include "plugin/group_replication/libmysqlgcs/include/xcom/xcom.h"
+#include "xcom/xcom.h"
 #else
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -41,7 +41,9 @@ extern "C" {
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
+#ifndef _WIN32
 #include <inttypes.h>
+#endif
 
 #ifndef XCOM_STANDALONE
 typedef unsigned short xcom_port;

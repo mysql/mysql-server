@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,6 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"  // my_xdr_free
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
@@ -477,8 +476,8 @@ bool Gcs_xcom_communication::recover_packets(
 
     successful = true;
 
-    ::my_xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
-                  reinterpret_cast<char *>(&recovered_data));
+    ::xdr_free(reinterpret_cast<xdrproc_t>(xdr_synode_app_data_array),
+               reinterpret_cast<char *>(&recovered_data));
   }
 
   return successful;

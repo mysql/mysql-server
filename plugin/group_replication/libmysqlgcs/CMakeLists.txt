@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,28 +20,45 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET (XCOM_BASEDIR
-     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+SET(XCOM_BASEDIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/xcom/)
+
+SET(XCOM_INCLUDE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
+
+SET (XCOM_INCLUDE_DIR
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/bindings/xcom/)
 
 ### DEFINITIONS ###
 
-INCLUDE(configure.cmake)
+INCLUDE(cmake/configure.cmake)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_gcs.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
+CONFIGURE_FILE(cmake/mysql_gcs.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/mysql/gcs/mysql_gcs.h)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/xcom.h.cmake
-               ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+CONFIGURE_FILE(cmake/xcom.h.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom.h)
+
+CONFIGURE_FILE(cmake/xcom_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/task_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_debug.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/gcs_debug.h COPYONLY)
+
+CONFIGURE_FILE(cmake/gcs_profile.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/xcom/xcom_profile.h COPYONLY)
 
 ### RPC GEN ###
 
-INCLUDE(rpcgen.cmake)
+INCLUDE(cmake/rpcgen.cmake)
 
 ### INCLUDE FILES ###
 
 INCLUDE_DIRECTORIES(
   ${XCOM_WINDEPS_INCLUDE_DIRS}                   # win deps and sun rpc
-)
+  ${XCOM_INCLUDE_DIR}                            # xcom include files
+  ${CMAKE_CURRENT_BINARY_DIR}/include/        # generated xcom include files
+  )
 
 ### SOURCES ###
 
@@ -121,7 +138,7 @@ SET(GCS_SOURCES
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)
   ADD_COMPILE_FLAGS(src/bindings/xcom/xcom/xcom_transport.c
-                    COMPILE_FLAGS "-Wno-cast-function-type")
+    COMPILE_FLAGS "-Wno-cast-function-type")
 ENDIF()
 
 ### Configuration ###
@@ -129,8 +146,8 @@ ENDIF()
 # Used to inhibit false posives on CLang 3.8/8.0
 IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(${XCOM_SOURCES}
-                    COMPILE_FLAGS
-                    "-Wno-conditional-uninitialized")
+    COMPILE_FLAGS
+    "-Wno-conditional-uninitialized")
 ENDIF()
 
 # disabling warnings for generated code

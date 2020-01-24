@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,13 @@
 #ifndef GCS_DEBUG_H
 #define GCS_DEBUG_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "xcom/xcom_common.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "xcom/x_platform.h"
 
 #ifdef TASK_DBUG_ON
 #error "TASK_DBUG_ON already defined"
@@ -37,7 +37,7 @@ extern "C" {
 #define TASK_DBUG_ON 0
 #endif
 
-#define TX_FMT "{" SY_FMT_DEF " %lu}"
+#define TX_FMT "{" SY_FMT_DEF " %" PRIu32 "}"
 #define TX_MEM(x) SY_MEM((x).cfg), (x).pc
 
 #include <stdio.h>
@@ -49,7 +49,7 @@ double task_now();
 #error "DBGOUT defined"
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_logger.h"
+#include "xcom/xcom_logger.h"
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
@@ -62,25 +62,6 @@ double task_now();
 extern xcom_logger xcom_log;
 extern xcom_debugger xcom_debug;
 extern xcom_debugger_check xcom_debug_check;
-
-/**
-  Prints the logging messages to the console. It is invoked when no logger
-  callback was set by an upper layer.
-*/
-void xcom_default_log(const int64_t l, const char *msg);
-
-/**
-  Prints the logging messages to the console. It is invoked when no debugger
-  callback was set by an upper layer.
-*/
-void xcom_default_debug(const char *format, ...)
-    MY_ATTRIBUTE((format(printf, 1, 2)));
-
-/**
-  Check whether a set of debug and trace options are enabled. It is invoked
-  when no debugger callback was set by an upper layer.
-*/
-int xcom_default_debug_check(const int64_t options);
 
 /**
   Define the set of debug and trace options that are enabled if there
@@ -178,18 +159,83 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
 #define G_TRACE(...) G_DEBUG_LEVEL(XCOM_DEBUG_TRACE, __VA_ARGS__)
 #define IS_XCOM_DEBUG_WITH(level) xcom_debug_check(level)
 
-#if TASK_DBUG_ON
-#define DBGOHK(x)                               \
-  do {                                          \
-    if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) { \
-      GET_GOUT;                                 \
-      ADD_F_GOUT("%f ", task_now());            \
-      NEXP(get_nodeno(get_site_def()), u);      \
-      x;                                        \
-      PRINT_GOUT;                               \
-      FREE_GOUT;                                \
-    }                                           \
+#ifdef IDENTIFY
+#error "IDENTIFY already defined!"
+#else
+#define IDENTIFY
+#endif
+
+#ifdef DBG_IDENTIFY
+#error "DBG_IDENTIFY already defined!"
+#else
+#define DBG_IDENTIFY
+#endif
+
+#define BIT(n) (1L << n)
+
+enum xcom_dbg_type {
+  D_NONE = 0,
+  D_TASK = BIT(0),
+  D_BASE = BIT(1),
+  D_FSM = BIT(2),
+  D_TRANSPORT = BIT(3),
+  D_PROPOSE = BIT(4),
+  D_DISPATCH = BIT(5),
+  D_SEMA = BIT(6),
+  D_XDR = BIT(7),
+  D_STORE = BIT(8),
+  D_EXEC = BIT(9),
+  D_DETECT = BIT(10),
+  D_ALLOC = BIT(11),
+  D_FILEOP = BIT(12),
+  D_CACHE = BIT(13),
+  D_CONS = BIT(14),
+  D_BUG = ~0L
+};
+typedef enum xcom_dbg_type xcom_dbg_type;
+
+enum { DBG_STACK_SIZE = 256 };
+extern long xcom_debug_mask;
+extern long xcom_dbg_stack[DBG_STACK_SIZE];
+extern int xcom_dbg_stack_top;
+
+static inline int do_dbg(xcom_dbg_type x) { return (x & xcom_debug_mask) != 0; }
+static inline void set_dbg(xcom_dbg_type x) { xcom_debug_mask |= x; }
+static inline void unset_dbg(xcom_dbg_type x) { xcom_debug_mask &= ~x; }
+static inline long get_dbg() { return xcom_debug_mask; }
+
+static inline void push_dbg(long x) {
+  if (xcom_dbg_stack_top < DBG_STACK_SIZE) {
+    xcom_dbg_stack[xcom_dbg_stack_top] = xcom_debug_mask;
+    xcom_dbg_stack_top++;
+    xcom_debug_mask = x;
+  }
+}
+
+static inline void pop_dbg() {
+  if (xcom_dbg_stack_top > 0) {
+    xcom_dbg_stack_top--;
+    xcom_debug_mask = xcom_dbg_stack[xcom_dbg_stack_top];
+  }
+}
+
+#ifdef INFO
+#error "INFO already defined!"
+#else
+#define INFO(x)                              \
+  do {                                       \
+    if (IS_XCOM_DEBUG_WITH(XCOM_LOG_INFO)) { \
+      GET_GOUT;                              \
+      ADD_F_GOUT("%f ", task_now());         \
+      x;                                     \
+      PRINT_LOUT(XCOM_LOG_INFO);             \
+      FREE_GOUT;                             \
+    }                                        \
   } while (0)
+#endif
+
+#if TASK_DBUG_ON
+
 #define DBGOUT(x)                               \
   do {                                          \
     if (IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) { \
@@ -200,24 +246,76 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...)
       FREE_GOUT;                                \
     }                                           \
   } while (0)
-#define MAY_DBG(x) DBGOUT(x)
+#define NEW_DBG(x)           \
+  long dbg_save = get_dbg(); \
+  set_dbg(x)
+#define RESTORE_DBG set_dbg(dbg_save)
+
+#ifdef IFDBG
+#error "IFDBG already defined!"
 #else
-#define DBGOHK(x) \
-  do {            \
-  } while (0)
+#define IFDBG(mask, body)           \
+  {                                 \
+    if (do_dbg(mask)) DBGOUT(body); \
+  }
+#endif
+
+#ifdef DBGOUT_ASSERT
+#error "DBGOUT_ASSERT already defined"
+#else
+#define DBGOUT_ASSERT(expr, dbginfo) \
+  if (!(expr)) {                     \
+    GET_GOUT;                        \
+    FN;                              \
+    dbginfo;                         \
+    PRINT_LOUT(XCOM_LOG_ERROR);      \
+    FREE_GOUT;                       \
+    abort();                         \
+  }
+#endif
+
+#else
+
 #define DBGOUT(x) \
   do {            \
   } while (0)
-#define MAY_DBG(x) \
-  do {             \
-  } while (0)
+#define DBGOUT_ASSERT(expr, dbginfo)
+#define NEW_DBG(x)
+#define IFDBG(mask, body)
 #endif
 
+#include <sys/types.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+
+static inline int xpid() {
+  static int pid = 0;
+  if (!pid) pid = getpid();
+  return pid;
+}
+
+#ifdef _WIN32
+static inline char const *fixpath(char const *x) {
+  char const *s = strrchr(x, '\\');
+  return s ? s + 1 : x;
+}
+#else
+static inline char const *fixpath(char const *x) {
+  char const *s = strrchr(x, '/');
+  return s ? s + 1 : x;
+}
+#endif
+
+extern uint32_t get_my_xcom_id();
+
 #define XDBG #error
-#define FN            \
-  ADD_GOUT(__func__); \
-  ADD_F_GOUT(" " __FILE__ ":%d ", __LINE__)
+#define FN                                                          \
+  ADD_GOUT(__func__);                                               \
+  ADD_F_GOUT(" pid %d xcom_id %x %s:%d ", xpid(), get_my_xcom_id(), \
+             fixpath(__FILE__), __LINE__)
 #define PTREXP(x) ADD_F_GOUT(#x ": %p ", (void *)(x))
+#define CONSTPTREXP(x) PTREXP(x)
 #define PPUT(x) ADD_F_GOUT("0x%p ", (void *)(x))
 #define STREXP(x) ADD_F_GOUT(#x ": %s ", x)
 #define STRLIT(x) ADD_GOUT(x)

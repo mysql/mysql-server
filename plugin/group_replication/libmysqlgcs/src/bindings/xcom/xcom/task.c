@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,14 +38,14 @@
 #define _GNU_SOURCE
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_profile.h"
 
 #ifndef XCOM_WITHOUT_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
+#endif /* _WIN32 */
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -68,29 +68,32 @@
 #include <sys/types.h>
 #include <time.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
-#ifdef __sun
-#include <procfs.h>
-#endif
+#include "xcom/node_connection.h"
+#include "xdr_gen/xcom_vp.h"
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "xcom/simset.h"
+#include "xcom/site_def.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_net.h"
+#include "xcom/task_os.h"
+#include "xcom/xcom_base.h"
+#include "xcom/xcom_cfg.h"
 
 #ifndef _WIN32
 #include <poll.h>
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "xcom/retry.h"
+#include "xcom/xdr_utils.h"
 
-extern char *pax_op_to_str(int x);
+#ifdef _WIN32
+#define xcom_buf char
+#else
+#define xcom_buf void
+#endif
+
+extern const char *pax_op_to_str(int x);
 
 task_arg null_arg = {a_end, {0}};
 
@@ -114,7 +117,7 @@ init_xdr_array(pollfd) free_xdr_array(pollfd) set_xdr_array(pollfd)
         set_xdr_array(task_env_p) get_xdr_array(task_env_p)
 
             struct iotasks {
-  int nwait;
+  u_int nwait;
   pollfd_array fd;
   task_env_p_array tasks;
 };
@@ -366,10 +369,7 @@ static int is_heap(task_queue *q) {
   return 1;
 }
 
-static int task_queue_full(task_queue *q) {
-  /* assert(is_heap(q)); */
-  return q->curn >= MAXTASKS;
-}
+static int task_queue_full(task_queue *q) { return q->curn >= MAXTASKS; }
 
 #endif
 
@@ -405,12 +405,12 @@ static void task_queue_siftup(task_queue *q, int n) {
   /* Heap(1,n) */
 }
 
-/*   Put the task_env* at index l in its right place when Heap(l+1,n) */
+/* Put the task_env* at index l in its right place when Heap(l+1,n) */
 static void task_queue_siftdown(task_queue *q, int l, int n) {
   int i = l;
   int c;
   assert(n >= 0);
-  /* Heap(l+1,,n) */
+  /* Heap(l+1..n) */
   for (;;) {
     c = 2 * i;                               /* First child */
     if (c > n) break;                        /* Outside heap */
@@ -428,22 +428,22 @@ static void task_queue_siftdown(task_queue *q, int l, int n) {
 /* Remove any element from the heap */
 static task_env *task_queue_remove(task_queue *q, int i) {
   task_env *tmp = q->x[i]; /* Will return this */
+  /* The element at index 0 is never part of the queue */
+  if (0 == i) return 0;
   assert(q->curn);
-  /* assert(is_heap(q)); */
-  MAY_DBG(FN; STRLIT("task_queue_remove "); NDBG(i, d));
-  /* task_queue_debug(q); */
+  IFDBG(D_NONE, FN; STRLIT("task_queue_remove "); NDBG(i, d));
   TASK_MOVE(i, q->curn); /* Fill the hole */
   q->curn--;             /* Heap is now smaller */
-  /* Re-establish heap property */
-  if (q->curn) {
+                         /* Re-establish heap property */
+  /* Avoid special case of empty queue and that we just removed the last element
+   */
+  if (q->curn && i <= q->curn) {
     int p = i / 2;
     if (p && q->x[p]->time > q->x[i]->time)
       task_queue_siftup(q, i);
     else
       task_queue_siftdown(q, i, q->curn);
   }
-  /* task_queue_debug(q); */
-  /* assert(is_heap(q)); */
   tmp->heap_pos = 0;
   return task_unref(tmp);
 }
@@ -452,26 +452,22 @@ static task_env *task_queue_remove(task_queue *q, int i) {
 static void task_queue_insert(task_queue *q, task_env *t) {
   assert(t->heap_pos == 0);
   assert(q->curn < MAXTASKS);
-  /* assert(is_heap(q)); */
   q->curn++;
   q->x[q->curn] = t;
   FIX_POS(q->curn);
   /* Heap(1,n-1) */
   task_queue_siftup(q, q->curn);
   /* Heap(1,n) */
-  /* assert(is_heap(q)); */
 }
 
 static int task_queue_empty(task_queue *q) {
 #ifdef DEBUG_TASKS
-  MAY_DBG(FN; PTREXP(q));
+  IFDBG(D_NONE, FN; PTREXP(q));
 #endif
-  /* assert(is_heap(q)); */
   return q->curn < 1;
 }
 
 static task_env *task_queue_min(task_queue *q) {
-  /* assert(is_heap(q)); */
   assert(q->curn >= 1);
   return q->x[1];
 }
@@ -481,8 +477,6 @@ static task_env *task_queue_extractmin(task_queue *q) {
   task_env *tmp;
   assert(q);
   assert(q->curn >= 1);
-  /* assert(is_heap(q)); */
-  /* task_queue_debug(q); */
   tmp = q->x[1];
   TASK_MOVE(1, q->curn);
   q->x[q->curn] = 0;
@@ -490,8 +484,6 @@ static task_env *task_queue_extractmin(task_queue *q) {
   /* Heap(2,n) */
   if (q->curn) task_queue_siftdown(q, 1, q->curn);
   /* Heap(1,n) */
-  /* task_queue_debug(q); */
-  /* assert(is_heap(q)); */
   tmp->heap_pos = 0;
   return tmp;
 }
@@ -505,22 +497,12 @@ void *task_allocate(task_env *p, unsigned int bytes);
    Initialize task memory
 */
 static void task_init(task_env *t) {
-  link_init(&t->l, type_hash("task_env"));
-  link_init(&t->all, type_hash("task_env"));
+  link_init(&t->l, TYPE_HASH("task_env"));
+  link_init(&t->all, TYPE_HASH("task_env"));
   t->heap_pos = 0;
-  /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-  /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
-  assert(ash_nazg_gimbatul.type == type_hash("task_env"));
-  /* #ifdef __sun */
-  /*   mem_watch(&ash_nazg_gimbatul,sizeof(&ash_nazg_gimbatul), 0); */
-  /* #endif */
+  assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
   link_into(&t->all, &ash_nazg_gimbatul); /* Put it in the list of all tasks */
-  /* #ifdef __sun */
-  /*   mem_watch(&ash_nazg_gimbatul,sizeof(&ash_nazg_gimbatul), WA_WRITE); */
-  /* #endif */
-  assert(ash_nazg_gimbatul.type == type_hash("task_env"));
-  /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-  /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
+  assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
   t->terminate = RUN;
   t->refcnt = 0;
   t->taskret = 0;
@@ -538,23 +520,23 @@ static linkage free_tasks = {0, &free_tasks, &free_tasks};
 /* Basic operations on tasks */
 static task_env *activate(task_env *t) {
   if (t) {
-    MAY_DBG(FN; STRLIT("activating task "); PTREXP(t); STREXP(t->name);
-            NDBG(t->heap_pos, d); NDBG(t->time, f););
-    assert(ash_nazg_gimbatul.type == type_hash("task_env"));
+    IFDBG(D_NONE, FN; STRLIT("activating task "); PTREXP(t); STREXP(t->name);
+          NDBG(t->heap_pos, d); NDBG(t->time, f););
+    assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
     if (t->heap_pos) task_queue_remove(&task_time_q, t->heap_pos);
     link_into(&t->l, &tasks);
     t->time = 0.0;
     t->heap_pos = 0;
-    assert(ash_nazg_gimbatul.type == type_hash("task_env"));
+    assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
   }
   return t;
 }
 
 static task_env *deactivate(task_env *t) {
   if (t) {
-    assert(ash_nazg_gimbatul.type == type_hash("task_env"));
+    assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
     link_out(&t->l);
-    assert(ash_nazg_gimbatul.type == type_hash("task_env"));
+    assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
   }
   return t;
 }
@@ -596,20 +578,12 @@ static void task_wakeup_first(linkage *queue) {
 /* Channels */
 channel *channel_init(channel *c, unsigned int type) {
   link_init(&c->data, type);
-  link_init(&c->queue, type_hash("task_env"));
+  link_init(&c->queue, TYPE_HASH("task_env"));
   return c;
 }
-
-/* purecov: begin deadcode */
-channel *channel_new() {
-  channel *c = malloc(sizeof(channel));
-  channel_init(c, NULL_TYPE);
-  return c;
-}
-/* purecov: end */
 
 void channel_put(channel *c, linkage *data) {
-  MAY_DBG(FN; PTREXP(data); PTREXP(&c->data));
+  IFDBG(D_NONE, FN; PTREXP(data); PTREXP(&c->data));
   link_into(data, &c->data);
   task_wakeup_first(&c->queue);
 }
@@ -623,10 +597,10 @@ static int active_tasks = 0;
 task_env *task_new(task_func func, task_arg arg, const char *name, int debug) {
   task_env *t;
   if (link_empty(&free_tasks))
-    t = malloc(sizeof(task_env));
+    t = (task_env *)malloc(sizeof(task_env));
   else
     t = container_of(link_extract_first(&free_tasks), task_env, l);
-  DBGOUT(FN; PTREXP(t); STREXP(name));
+  IFDBG(D_NONE, FN; PTREXP(t); STREXP(name); NDBG(active_tasks, d););
   task_init(t);
   t->func = func;
   t->arg = arg;
@@ -642,11 +616,11 @@ task_env *task_new(task_func func, task_arg arg, const char *name, int debug) {
 
 /**Allocate bytes from pool, initialized to zero */
 void *task_allocate(task_env *p, unsigned int bytes) {
-  /*  TaskAlign to boundary  */
+  /* TaskAlign to boundary  */
   unsigned int alloc_units =
       (unsigned int)((bytes + sizeof(TaskAlign) - 1) / sizeof(TaskAlign));
   TaskAlign *ret;
-  /*  Check if there is space */
+  /* Check if there is space */
   TASK_DEBUG("task_allocate");
   if ((p->where + alloc_units) <= (p->stack_top)) {
     ret = p->where;
@@ -692,13 +666,14 @@ static int runnable_tasks() { return !link_empty(&tasks); }
 
 static int delayed_tasks() {
 #ifdef DEBUG_TASKS
-  MAY_DBG(FN; PTREXP(&task_time_q));
+  IFDBG(D_NONE, FN; PTREXP(&task_time_q));
 #endif
   return !task_queue_empty(&task_time_q);
 }
 
 static void task_delete(task_env *t) {
-  DBGOUT(FN; PTREXP(t); STREXP(t->name); NDBG(t->refcnt, d));
+  IFDBG(D_NONE, FN; PTREXP(t); STREXP(t->name); NDBG(t->refcnt, d);
+        NDBG(active_tasks, d););
   link_out(&t->all); /* Remove task from list of all tasks */
 #if 1
   free(deactivate(t)); /* Deactivate and free task */
@@ -734,9 +709,12 @@ task_env *task_deactivate(task_env *t) { return deactivate(t); }
 /* Set terminate flag and activate task */
 task_env *task_terminate(task_env *t) {
   if (t) {
-    DBGOUT(FN; PTREXP(t); STREXP(t->name); NDBG(t->refcnt, d));
+    IFDBG(D_NONE, FN; STRLIT("terminating "); PTREXP(t); STREXP(t->name);
+          NDBG(t->refcnt, d));
     t->terminate = KILL; /* Set terminate flag */
     activate(t);         /* and get it running */
+    IFDBG(D_NONE, FN; STRLIT("terminated "); PTREXP(t); STREXP(t->name);
+          NDBG(t->refcnt, d));
   }
   return t;
 }
@@ -751,8 +729,6 @@ void task_terminate_all() {
   /* Then wake all tasks waiting for IO */
   wake_all_io();
   /* At last, terminate everything */
-  /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-  /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
   FWD_ITER(&ash_nazg_gimbatul, task_env,
            task_terminate(container_of(link_iter, task_env, all)););
 }
@@ -768,20 +744,20 @@ static task_env *extract_first_delayed() {
 static iotasks iot;
 
 static void iotasks_init(iotasks *iot_to_init) {
-  DBGOUT(FN);
+  IFDBG(D_NONE, FN);
   iot_to_init->nwait = 0;
   init_pollfd_array(&iot_to_init->fd);
   init_task_env_p_array(&iot_to_init->tasks);
 }
 
 static void iotasks_deinit(iotasks *iot_to_deinit) {
-  DBGOUT(FN);
+  IFDBG(D_NONE, FN);
   iot_to_deinit->nwait = 0;
   free_pollfd_array(&iot_to_deinit->fd);
   free_task_env_p_array(&iot_to_deinit->tasks);
 }
 
-static void poll_wakeup(int i) {
+static void poll_wakeup(u_int i) {
   activate(task_unref(get_task_env_p(&iot.tasks, i)));
   set_task_env_p(&iot.tasks, NULL, i);
   iot.nwait--; /* Shrink array of pollfds */
@@ -794,28 +770,38 @@ static int poll_wait(int ms) {
   int wake = 0;
 
   /* Wait at most ms milliseconds */
-  MAY_DBG(FN; NDBG(ms, d));
+  IFDBG(D_NONE, FN; NDBG(ms, d));
   if (ms < 0 || ms > 1000) ms = 1000; /* Wait at most 1000 ms */
   SET_OS_ERR(0);
   while ((nfds.val = poll(iot.fd.pollfd_array_val, iot.nwait, ms)) == -1) {
+    /* purecov: begin inspected */
     nfds.funerr = to_errno(GET_OS_ERR);
-    if (nfds.funerr != SOCK_EINTR) {
+    if (!can_retry(nfds.funerr)) {
       task_dump_err(nfds.funerr);
-      MAY_DBG(FN; STRLIT("poll failed"));
-      abort();
+      INFO(FN; STRLIT("poll failed "); NUMEXP(nfds.val); NUMEXP(nfds.funerr);
+           NUMEXP(iot.nwait));
+      break;
+      /* abort(); */
     }
     SET_OS_ERR(0);
+    /* purecov: end */
   }
   /* Wake up ready tasks */
   {
-    int i = 0;
+    u_int i = 0;
     int interrupt = 0;
     while (i < iot.nwait) {
       interrupt = (get_task_env_p(&iot.tasks, i)->time != 0.0 &&
                    get_task_env_p(&iot.tasks, i)->time < task_now());
       if (interrupt || /* timeout ? */
           get_pollfd(&iot.fd, i).revents) {
-        /* if(iot.fd[i].revents & POLLERR) abort(); */
+        if (get_pollfd(&iot.fd, i).revents & POLLERR) {
+          INFO(FN; STRLIT("IO failed POLLERR "); NUMEXP(i);
+               NUMEXP(get_pollfd(&iot.fd, i).fd);
+               NUMEXP(get_pollfd(&iot.fd, i).events);
+               NUMEXP(get_pollfd(&iot.fd, i).revents); NUMEXP(i);
+               NUMEXP(iot.nwait););
+        }
         get_task_env_p(&iot.tasks, i)->interrupt = interrupt;
         poll_wakeup(i);
         wake = 1;
@@ -828,8 +814,8 @@ static int poll_wait(int ms) {
 }
 
 static void add_fd(task_env *t, int fd, int op) {
-  int events = 'r' == op ? POLLIN | POLLRDNORM : POLLOUT;
-  MAY_DBG(FN; PTREXP(t); NDBG(fd, d); NDBG(op, d));
+  short events = 'r' == op ? POLLIN | POLLRDNORM : POLLOUT;
+  IFDBG(D_NONE, FN; PTREXP(t); NDBG(fd, d); NDBG(op, d));
   assert(fd >= 0);
   t->waitfd = fd;
   deactivate(t);
@@ -845,7 +831,7 @@ static void add_fd(task_env *t, int fd, int op) {
   iot.nwait++;
 }
 
-void unpoll(int i) {
+static void unpoll(u_int i) {
   task_unref(get_task_env_p(&iot.tasks, i));
   set_task_env_p(&iot.tasks, NULL, i);
   {
@@ -858,7 +844,7 @@ void unpoll(int i) {
 }
 
 static void wake_all_io() {
-  int i;
+  u_int i;
   for (i = 0; i < iot.nwait; i++) {
     activate(get_task_env_p(&iot.tasks, i));
     unpoll(i);
@@ -867,8 +853,8 @@ static void wake_all_io() {
 }
 
 void remove_and_wakeup(int fd) {
-  int i = 0;
-  MAY_DBG(FN; NDBG(fd, d));
+  u_int i = 0;
+  IFDBG(D_NONE, FN; NDBG(fd, d));
   while (i < iot.nwait) {
     if (get_pollfd(&iot.fd, i).fd == fd) {
       poll_wakeup(i);
@@ -909,7 +895,7 @@ result con_read(connection_descriptor const *rfd, void *buf, int n) {
     ret.funerr = to_ssl_err(SSL_get_error(rfd->ssl_fd, ret.val));
   } else {
     SET_OS_ERR(0);
-    ret.val = (int)recv(rfd->fd, buf, (size_t)n, 0);
+    ret.val = (int)recv(rfd->fd, (xcom_buf *)buf, (size_t)n, 0);
     ret.funerr = to_errno(GET_OS_ERR);
   }
   return ret;
@@ -919,7 +905,7 @@ result con_read(connection_descriptor const *rfd, void *buf, int n) {
   result ret = {0, 0};
 
   SET_OS_ERR(0);
-  ret.val = recv(rfd->fd, buf, (size_t)n, 0);
+  ret.val = (int)recv(rfd->fd, (xcom_buf *)buf, (size_t)n, 0);
   ret.funerr = to_errno(GET_OS_ERR);
 
   return ret;
@@ -945,21 +931,27 @@ int task_read(connection_descriptor const *con, void *buf, int n,
   assert(n >= 0);
 
   TASK_BEGIN
-  MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf); NDBG(n, d));
+  IFDBG(D_NONE, FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf); NDBG(n, d));
 
   for (;;) {
     if (con->fd <= 0) TASK_FAIL;
     sock_ret = con_read(con, buf, n);
     *ret = sock_ret.val;
-    task_dump_err(sock_ret.funerr);
-    MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf); NDBG(n, d));
-    if (sock_ret.val >= 0 || (!can_retry_read(sock_ret.funerr))) break;
+    IFDBG(D_TRANSPORT, FN; NDBG(con->fd, d); NDBG(n, d); NDBG(sock_ret.val, d);
+          NDBG(sock_ret.funerr, d););
+    if (sock_ret.val >= 0) /* OK */
+      break;
+    /* If we get here, we have an error, see if we can retry, and fail if not */
+    if (!can_retry_read(sock_ret.funerr)) {
+      IFDBG(D_BUG, FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf);
+            NDBG(n, d));
+      TASK_FAIL;
+    }
     wait_io(stack, con->fd, 'r');
     TASK_YIELD;
-    MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf); NDBG(n, d));
+    IFDBG(D_NONE, FN; PTREXP(stack); NDBG(con->fd, d); PTREXP(buf); NDBG(n, d));
   }
 
-  assert(!can_retry_read(sock_ret.funerr));
   FINALLY
   receive_count++;
   if (*ret > 0) receive_bytes += (uint64_t)(*ret);
@@ -978,7 +970,7 @@ result con_write(connection_descriptor const *wfd, void *buf, int n) {
     ret.funerr = to_ssl_err(SSL_get_error(wfd->ssl_fd, ret.val));
   } else {
     SET_OS_ERR(0);
-    ret.val = (int)send(wfd->fd, buf, (size_t)n, 0);
+    ret.val = (int)send(wfd->fd, (xcom_buf *)buf, (size_t)n, 0);
     ret.funerr = to_errno(GET_OS_ERR);
   }
   return ret;
@@ -990,7 +982,7 @@ result con_write(connection_descriptor const *wfd, void *buf, int n) {
   assert(n > 0);
 
   SET_OS_ERR(0);
-  ret.val = send(wfd->fd, buf, (size_t)n, 0);
+  ret.val = (int)send(wfd->fd, (xcom_buf *)buf, (size_t)n, 0);
   ret.funerr = to_errno(GET_OS_ERR);
   return ret;
 }
@@ -1015,7 +1007,7 @@ int task_write(connection_descriptor const *con, void *_buf, uint32_t n,
   ep->total = 0;
   *ret = 0;
   while (ep->total < n) {
-    MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); NDBG(n - ep->total, u));
+    IFDBG(D_NONE, FN; PTREXP(stack); NDBG(con->fd, d); NDBG(n - ep->total, u));
     for (;;) {
       if (con->fd <= 0) TASK_FAIL;
       /*
@@ -1026,11 +1018,18 @@ int task_write(connection_descriptor const *con, void *_buf, uint32_t n,
       sock_ret =
           con_write(con, buf + ep->total,
                     n - ep->total >= INT_MAX ? INT_MAX : (int)(n - ep->total));
-      task_dump_err(sock_ret.funerr);
-      MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); NDBG(sock_ret.val, d));
-      if (sock_ret.val >= 0 || (!can_retry_write(sock_ret.funerr))) break;
+      if (sock_ret.val >= 0) /* OK */
+        break;
+      /* If we get here, we have an error, see if we can retry, and fail if not
+       */
+      if (!can_retry_write(sock_ret.funerr)) {
+        IFDBG(D_NONE, FN; PTREXP(stack); NDBG(con->fd, d);
+              NDBG(sock_ret.val, d));
+        TASK_FAIL;
+      }
       wait_io(stack, con->fd, 'w');
-      MAY_DBG(FN; PTREXP(stack); NDBG(con->fd, d); NDBG(n - ep->total, u));
+      IFDBG(D_NONE, FN; PTREXP(stack); NDBG(con->fd, d);
+            NDBG(n - ep->total, u));
       TASK_YIELD;
     }
     if (0 == sock_ret.val) { /* We have successfully written n bytes */
@@ -1111,7 +1110,7 @@ void task_loop() {
   task_env *t = 0;
   /* While there are tasks */
   for (;;) {
-    // check forced exit callback
+    /* check forced exit callback */
     if (get_should_exit()) {
       terminate_and_exit();
     }
@@ -1121,24 +1120,18 @@ void task_loop() {
     while (runnable_tasks()) {
       task_env *next = next_task(t);
       if (!is_task_head(t)) {
-        /* DBGOUT(FN; PTREXP(t); STRLIT(t->name ? t->name : "TASK WITH NO
+        /* IFDBG(D_NONE, FN; PTREXP(t); STRLIT(t->name ? t->name : "TASK WITH NO
          * NAME")); */
         stack = t;
         assert(stack);
         assert(t->terminate != TERMINATED);
-        if (stack->debug)
-          /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-          /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
-          assert(ash_nazg_gimbatul.type == type_hash("task_env"));
         {
-          /*           double when = seconds(); */
+          /* double when = seconds(); */
           int val = 0;
           assert(t->func);
           assert(stack == t);
           val = t->func(t->arg);
-          /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-          /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
-          assert(ash_nazg_gimbatul.type == type_hash("task_env"));
+          assert(ash_nazg_gimbatul.type == TYPE_HASH("task_env"));
           if (!val) { /* Is task finished? */
             deactivate(t);
             t->terminate = TERMINATED;
@@ -1154,8 +1147,8 @@ void task_loop() {
        Wait until something happens.
     */
 #ifdef DEBUG_TASKS
-    MAY_DBG(FN; STRLIT("waiting tasks time "); NDBG(seconds(), f);
-            NDBG(iot.nwait, d); NDBG(task_time_q.curn));
+    IFDBG(D_NONE, FN; STRLIT("waiting tasks time "); NDBG(seconds(), f);
+          NDBG(iot.nwait, d); NDBG(task_time_q.curn));
 #endif
     {
       double time = seconds();
@@ -1188,7 +1181,6 @@ void task_loop() {
         ADD_T_EV(task_now(), __FILE__, __LINE__, "poll_wait(-1)");
         poll_wait(-1); /* Wait and poll for IO */
         ADD_T_EV(seconds(), __FILE__, __LINE__, "poll_wait(-1) end");
-        /*       } */
       }
       idle_time += seconds() - time;
     }
@@ -1196,39 +1188,17 @@ void task_loop() {
   task_sys_deinit();
 }
 
-#if TASK_DBUG_ON
-static void print_sockaddr(struct sockaddr *a) {
-  u_int i;
-  GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
-  NDBG(a->sa_family, u);
-  NDBG(a->sa_family, d);
-  STRLIT(" data ");
-  for (i = 0; i < sizeof(a->sa_data); i++) {
-    NPUT((unsigned char)a->sa_data[i], d);
-  }
-  PRINT_GOUT;
-  FREE_GOUT;
-}
-#endif
-
 int connect_tcp(char *server, xcom_port port, int *ret) {
-  int v4_reachable = 0;
-
   DECL_ENV
   int fd;
-  struct sockaddr_storage sock_addr;
   struct addrinfo *addr, *from_ns;
-  socklen_t sock_size;
-  result sock;
   END_ENV;
   TASK_BEGIN;
 
-  DBGOUT(FN; STREXP(server); NDBG(port, d));
+  IFDBG(D_TRANSPORT, FN; STREXP(server); NDBG(port, d));
 
   ep->addr = NULL;
   ep->from_ns = NULL;
-  ep->sock_size = sizeof(struct sockaddr_storage);
 
   checked_getaddrinfo_port(server, port, NULL, &ep->from_ns);
 
@@ -1242,33 +1212,28 @@ int connect_tcp(char *server, xcom_port port, int *ret) {
   if ((ep->fd =
            xcom_checked_socket(ep->addr->ai_family, SOCK_STREAM, IPPROTO_TCP)
                .val) < 0) {
-    DBGOUT(FN; NDBG(ep->fd, d));
-    if (ep->from_ns) freeaddrinfo(ep->from_ns);
+    IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d));
     TASK_FAIL;
   }
   /* Make it non-blocking */
   unblock_fd(ep->fd);
 
-#if TASK_DBUG_ON
-  DBGOUT(FN; print_sockaddr(&ep->sock_addr));
-#endif
   /* Connect socket to address */
   {
+    result sock = {0, 0};
     SET_OS_ERR(0);
-    ep->sock.val = connect(ep->fd, ep->addr->ai_addr, ep->addr->ai_addrlen);
-    ep->sock.funerr = to_errno(GET_OS_ERR);
+    sock.val =
+        connect(ep->fd, ep->addr->ai_addr, (socklen_t)ep->addr->ai_addrlen);
+    sock.funerr = to_errno(GET_OS_ERR);
 
-    if (ep->sock.val < 0) {
-      if (hard_connect_err(ep->sock.funerr)) {
-        task_dump_err(ep->sock.funerr);
-        MAY_DBG(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
-#if TASK_DBUG_ON
-        DBGOUT(FN; print_sockaddr(&ep->sock_addr));
-#endif
-        DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
+    if (sock.val < 0) {
+      if (hard_connect_err(sock.funerr)) {
+        /* purecov: begin inspected */
+        task_dump_err(sock.funerr);
+        IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
         close_socket(&ep->fd);
-        if (ep->from_ns) freeaddrinfo(ep->from_ns);
         TASK_FAIL;
+        /* purecov: end */
       }
     }
   }
@@ -1278,56 +1243,65 @@ retry:
   timed_wait_io(stack, ep->fd, 'w', 10.0);
   TASK_YIELD;
   /* See if we timed out here. If we did, connect may or may not be active.
-         If closing fails with EINPROGRESS, we need to retry the select.
-         If close does not fail, we know that connect has indeed failed, and
-     we
-         exit from here and return -1 as socket fd */
+     If closing fails with EINPROGRESS, we need to retry the select.
+     If close does not fail, we know that connect has indeed failed, and
+     we exit from here and return -1 as socket fd */
   if (stack->interrupt) {
     result shut = {0, 0};
     stack->interrupt = 0;
 
     /* Try to close socket on timeout */
     shut = shut_close_socket(&ep->fd);
-    DBGOUT(FN; NDBG(ep->fd, d); NDBG(ep->sock_size, d));
+    IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
     task_dump_err(shut.funerr);
     if (from_errno(shut.funerr) == SOCK_EINPROGRESS)
       goto retry; /* Connect is still active */
-    if (ep->from_ns) freeaddrinfo(ep->from_ns);
-    TASK_FAIL; /* Connect has failed */
+    TASK_FAIL;    /* Connect has failed */
   }
 
   {
     int peer = 0;
+    result sock = {0, 0};
+    struct sockaddr_storage sock_addr;
+    socklen_t sock_size = sizeof(sock_addr);
+    memset((void *)&sock_addr, 0, sizeof(sock_addr));
+
     /* Sanity check before return */
     SET_OS_ERR(0);
-    ep->sock.val = peer =
-        getpeername(ep->fd, (struct sockaddr *)&ep->sock_addr, &ep->sock_size);
-    ep->sock.funerr = to_errno(GET_OS_ERR);
+    sock.val = peer =
+        xcom_getpeername(ep->fd, (struct sockaddr *)&sock_addr, &sock_size);
+    sock.funerr = to_errno(GET_OS_ERR);
     if (peer >= 0) {
-      if (ep->from_ns) freeaddrinfo(ep->from_ns);
       TASK_RETURN(ep->fd);
     } else {
       /* Something is wrong */
-      socklen_t errlen = sizeof(ep->sock.funerr);
+      socklen_t errlen = sizeof(sock.funerr);
 
-      getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (void *)&ep->sock.funerr,
-                 &errlen);
-      if (ep->sock.funerr == 0) {
-        ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
+      IFDBG(D_TRANSPORT, FN; CONSTPTREXP(&sock_addr);
+            STRLIT("Something is wrong "); NDBG(ep->fd, d); NDBG(sock.val, d);
+            NDBG(sock.funerr, d));
+      if (sock.funerr == 0) { /* Try to extract error code another way */
+        /* purecov: begin inspected */
+        getsockopt(ep->fd, SOL_SOCKET, SO_ERROR, (xcom_buf *)&sock.funerr,
+                   &errlen);
+        IFDBG(D_TRANSPORT, FN; CONSTPTREXP(&sock_addr);
+              STRLIT("Something is wrong "); NDBG(ep->fd, d); NDBG(sock.val, d);
+              NDBG(sock.funerr, d));
+        /* purecov: end */
+      }
+      if (sock.funerr == 0) { /* Still 0? Assign generic "connection refused */
+        /* purecov: begin inspected */
+        sock.funerr = to_errno(SOCK_ECONNREFUSED);
+        /* purecov: end */
       }
 
       shut_close_socket(&ep->fd);
-      if (ep->sock.funerr == 0) ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
-      if (ep->from_ns) freeaddrinfo(ep->from_ns);
       TASK_FAIL;
     }
-
-    shut_close_socket(&ep->fd);
-    if (ep->sock.funerr == 0) ep->sock.funerr = to_errno(SOCK_ECONNREFUSED);
-    TASK_FAIL;
   }
 
   FINALLY
+  if (ep->from_ns) freeaddrinfo(ep->from_ns);
   TASK_END;
 }
 
@@ -1337,9 +1311,10 @@ result set_nodelay(int fd) {
 
   do {
     SET_OS_ERR(0);
-    ret.val = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&n, sizeof n);
+    ret.val =
+        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (xcom_buf *)&n, sizeof n);
     ret.funerr = to_errno(GET_OS_ERR);
-    DBGOUT(FN; NDBG(from_errno(ret.funerr), d));
+    IFDBG(D_NONE, FN; NDBG(from_errno(ret.funerr), d));
   } while (ret.val < 0 && can_retry(ret.funerr));
   return ret;
 }
@@ -1356,8 +1331,9 @@ static result create_server_socket() {
   }
   {
     int reuse = 1;
+    int mode = 0;
     SET_OS_ERR(0);
-    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (void *)&reuse,
+    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (xcom_buf *)&reuse,
                    sizeof(reuse)) < 0) {
       fd.funerr = to_errno(GET_OS_ERR);
       G_MESSAGE(
@@ -1372,9 +1348,8 @@ static result create_server_socket() {
      we expose the XCom server socket as V6 only, and it will accept V4
      requests. V4 requests are then represented as IPV4-mapped addresses.
     */
-    int mode = 0;
     SET_OS_ERR(0);
-    if (setsockopt(fd.val, IPPROTO_IPV6, IPV6_V6ONLY, (void *)&mode,
+    if (setsockopt(fd.val, IPPROTO_IPV6, IPV6_V6ONLY, (xcom_buf *)&mode,
                    sizeof(mode)) < 0) {
       fd.funerr = to_errno(GET_OS_ERR);
       G_MESSAGE(
@@ -1401,8 +1376,9 @@ static result create_server_socket_v4() {
   {
     int reuse = 1;
     SET_OS_ERR(0);
-    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (void *)&reuse,
+    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (xcom_buf *)&reuse,
                    sizeof(reuse)) < 0) {
+      /* purecov: begin inspected */
       fd.funerr = to_errno(GET_OS_ERR);
       G_MESSAGE(
           "Unable to set socket options "
@@ -1410,6 +1386,7 @@ static result create_server_socket_v4() {
           fd.val, to_errno(GET_OS_ERR));
       close_socket(&fd.val);
       return fd;
+      /* purecov: end */
     }
   }
   return fd;
@@ -1433,7 +1410,7 @@ static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
   hints.ai_flags = AI_PASSIVE;
   hints.ai_protocol = IPPROTO_TCP;
   hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
+  hints.ai_socktype = SOCK_STREAM; /* TCP stream sockets */
   checked_getaddrinfo_port(NULL, port, &hints, &address_info);
 
   address_info_loop = address_info;
@@ -1445,7 +1422,7 @@ static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
       memcpy(*sock_addr, address_info_loop->ai_addr,
              address_info_loop->ai_addrlen);
 
-      *sock_len = address_info_loop->ai_addrlen;
+      *sock_len = (socklen_t)address_info_loop->ai_addrlen;
 
       break;
     }
@@ -1461,11 +1438,16 @@ result announce_tcp(xcom_port port) {
   socklen_t sock_addr_len;
   int server_socket_v6_ok = 0;
 
-  // Try and create a V6 server socket. It should succeed if the OS
-  // supports IPv6, and fail otherwise.
+  /* Try and create a V6 server socket. It should succeed if the OS */
+  /* supports IPv6, and fail otherwise. */
+#ifndef FORCE_IPV4
   fd = create_server_socket();
+#else
+  /* Force ipv4 for now */
+  fd.val = -1;
+#endif
   if (fd.val < 0) {
-    // If the OS does not support IPv6, we fall back to IPv4.
+    /* If the OS does not support IPv6, we fall back to IPv4. */
     fd = create_server_socket_v4();
     if (fd.val < 0) {
       return fd;
@@ -1476,8 +1458,8 @@ result announce_tcp(xcom_port port) {
   init_server_addr(&sock_addr, &sock_addr_len, port,
                    server_socket_v6_ok ? AF_INET6 : AF_INET);
   if (sock_addr == NULL || (bind(fd.val, sock_addr, sock_addr_len) < 0)) {
-    // If we fail to bind to the desired address, we fall back to an
-    // IPv4 socket.
+    /* If we fail to bind to the desired address, we fall back to an */
+    /* IPv4 socket. */
     fd = create_server_socket_v4();
     if (fd.val < 0) {
       return fd;
@@ -1556,9 +1538,6 @@ int accept_tcp(int fd, int *ret) {
       TASK_FAIL;
     }
   }
-#if TASK_DBUG_ON
-  DBGOUT(FN; print_sockaddr(&sock_addr));
-#endif
   TASK_RETURN(ep->connection);
   FINALLY
   TASK_END;
@@ -1575,34 +1554,35 @@ int accept_tcp(int fd, int *ret) {
   Needs to be assessed whether it should be removed altogether.
  */
 
-static int	statistics_task(task_arg arg)
-{
-	DECL_ENV
-	    double	next;
-	END_ENV;
-	TASK_BEGIN
-	(void) arg;
-	    idle_time = 0.0;
-	send_count = 0;
-	receive_count = 0;
-	send_bytes = 0;
-	receive_bytes = 0;
-	ep->next = seconds() + STAT_INTERVAL;
-	TASK_DELAY_UNTIL(ep->next);
-	for(;;) {
-		G_DEBUG("task system idle %f send/s %f receive/s %f send b/s %f receive b/s %f",
-		    (idle_time / STAT_INTERVAL) * 100.0, send_count / STAT_INTERVAL, receive_count / STAT_INTERVAL,
-		    send_bytes / STAT_INTERVAL, receive_bytes / STAT_INTERVAL);
-		idle_time = 0.0;
-		send_count = 0;
-		receive_count = 0;
-		send_bytes = 0;
-		receive_bytes = 0;
-		ep->next += STAT_INTERVAL;
-		TASK_DELAY_UNTIL(ep->next);
-	}
-	FINALLY
-	    TASK_END;
+static int statistics_task(task_arg arg) {
+  DECL_ENV
+  double next;
+  END_ENV;
+  TASK_BEGIN(void) arg;
+  idle_time = 0.0;
+  send_count = 0;
+  receive_count = 0;
+  send_bytes = 0;
+  receive_bytes = 0;
+  ep->next = seconds() + STAT_INTERVAL;
+  TASK_DELAY_UNTIL(ep->next);
+  for (;;) {
+    G_DEBUG(
+        "task system idle %f send/s %f receive/s %f send b/s %f receive b/s %f",
+        (idle_time / STAT_INTERVAL) * 100.0, send_count / STAT_INTERVAL,
+        receive_count / STAT_INTERVAL, send_bytes / STAT_INTERVAL,
+        receive_bytes / STAT_INTERVAL);
+    idle_time = 0.0;
+    send_count = 0;
+    receive_count = 0;
+    send_bytes = 0;
+    receive_bytes = 0;
+    ep->next += STAT_INTERVAL;
+    TASK_DELAY_UNTIL(ep->next);
+  }
+  FINALLY
+  IFDBG(D_BUG, FN; STRLIT(" shutdown "));
+  TASK_END;
 }
 #endif
 
@@ -1613,25 +1593,19 @@ static void init_task_vars() {
 
 void task_sys_init() {
   xcom_init_clock(&task_timer);
-  DBGOUT(FN; NDBG(FD_SETSIZE, d));
+  IFDBG(D_NONE, FN; NDBG(FD_SETSIZE, d));
   init_task_vars();
-  link_init(&tasks, type_hash("task_env"));
-  link_init(&free_tasks, type_hash("task_env"));
-  link_init(&ash_nazg_gimbatul, type_hash("task_env"));
-  /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
-  /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
+  link_init(&tasks, TYPE_HASH("task_env"));
+  link_init(&free_tasks, TYPE_HASH("task_env"));
+  link_init(&ash_nazg_gimbatul, TYPE_HASH("task_env"));
   iotasks_init(&iot);
   /* task_new(statistics_task, null_arg, "statistics_task", 1); */
 }
 
 static void task_sys_deinit() {
-  DBGOUT(FN);
+  IFDBG(D_NONE, FN);
   iotasks_deinit(&iot);
 }
-
-/* purecov: begin deadcode */
-int is_running(task_env *t) { return t && t->terminate == RUN; }
-/* purecov: end */
 
 void set_task(task_env **p, task_env *t) {
   if (t) task_ref(t);
@@ -1668,7 +1642,7 @@ static inline void event_insert(task_event s) {
   task_events.rear = addone(task_events.rear);
 }
 
-static const task_event null_event = {{0, {0}}, 0};
+static const task_event null_event = {{(arg_type)0, {0}}, 0};
 
 /* Extract first from queue  */
 static inline task_event event_extract() {
@@ -1687,146 +1661,150 @@ static inline task_event event_extract() {
 #endif
 
 /* purecov: begin deadcode */
+extern uint32_t get_my_xcom_id();
+
 void ev_print(task_event te) {
   enum { bufsize = 10000 };
   static char buf[bufsize];
   static size_t pos = 0;
 
-  if (te.pad) {
-    switch (te.arg.type) {
-      case a_int:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%d ", te.arg.val.i);
-        break;
-      case a_long:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%ld ", te.arg.val.l);
-        break;
-      case a_uint:
-        pos +=
-            (size_t)snprintf(&buf[pos], bufsize - pos, "%u ", te.arg.val.u_i);
-        break;
-      case a_ulong:
-        pos +=
-            (size_t)snprintf(&buf[pos], bufsize - pos, "%lu ", te.arg.val.u_l);
-        break;
-      case a_ulong_long:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%llu ",
-                                te.arg.val.u_ll);
-        break;
-      case a_float:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f ", te.arg.val.f);
-        break;
-      case a_double:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f ", te.arg.val.d);
-        break;
-      case a_void:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%p ", te.arg.val.v);
-        break;
-      case a_string:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%s ", te.arg.val.s);
-        break;
-      case a_end:
-        if (pos) G_TRACE(buf);
-        pos = 0;
-        break;
-      default:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "??? ");
-    }
-  } else {
-    switch (te.arg.type) {
-      case a_int:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%d", te.arg.val.i);
-        break;
-      case a_long:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%ld", te.arg.val.l);
-        break;
-      case a_uint:
+  switch (te.arg.type) {
+    case a_int:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%d", te.arg.val.i);
+      break;
+    case a_long:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%ld", te.arg.val.l);
+      break;
+    case a_uint:
+      if (te.flag & EVENT_DUMP_HEX)
+        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%x", te.arg.val.u_i);
+      else
         pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%u", te.arg.val.u_i);
-        break;
-      case a_ulong:
+      break;
+    case a_ulong:
+      if (te.flag & EVENT_DUMP_HEX)
+        pos +=
+            (size_t)snprintf(&buf[pos], bufsize - pos, "%lx", te.arg.val.u_l);
+      else
         pos +=
             (size_t)snprintf(&buf[pos], bufsize - pos, "%lu", te.arg.val.u_l);
-        break;
-      case a_ulong_long:
+      break;
+    case a_ulong_long:
+      if (te.flag & EVENT_DUMP_HEX)
+        pos +=
+            (size_t)snprintf(&buf[pos], bufsize - pos, "%llx", te.arg.val.u_ll);
+      else
         pos +=
             (size_t)snprintf(&buf[pos], bufsize - pos, "%llu", te.arg.val.u_ll);
-        break;
-      case a_float:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f", te.arg.val.f);
-        break;
-      case a_double:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f", te.arg.val.d);
-        break;
-      case a_void:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%p", te.arg.val.v);
-        break;
-      case a_string:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%s", te.arg.val.s);
-        break;
-      case a_end:
-        if (pos) G_TRACE(buf);
-        pos = 0;
-        break;
-      default:
-        pos += (size_t)snprintf(&buf[pos], bufsize - pos, "???");
-    }
+      break;
+    case a_float:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f", te.arg.val.f);
+      break;
+    case a_double:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%f", te.arg.val.d);
+      break;
+    case a_void:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%p", te.arg.val.v);
+      break;
+    case a_string:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "%s", te.arg.val.s);
+      break;
+    case a_end:
+      if (pos) G_TRACE("pid %d xcom_id %x %s", xpid(), get_my_xcom_id(), buf);
+      pos = 0;
+      break;
+    default:
+      pos += (size_t)snprintf(&buf[pos], bufsize - pos, "???");
+  }
+  if (te.flag & EVENT_DUMP_PAD && bufsize > pos) {
+    buf[pos++] = ' ';
   }
   buf[pos] = 0;
 }
 
-void add_event(task_arg te) {
+void add_event(int flag, task_arg te) {
   task_event t;
   t.arg = te;
-  t.pad = 1;
+  t.flag = flag;
   event_insert(t);
 }
 
-void add_unpad_event(task_arg te) {
-  task_event t;
-  t.arg = te;
-  t.pad = 0;
-  event_insert(t);
+#if defined(WIN32)
+static inline int pathsep(char const **x) {
+  int ret = ('\\' == **x);
+  (*x)++;
+  if (ret) {
+    ret = ('\\' == **x);
+    if (ret) {
+      (*x)++;
+    }
+  }
+  return ret;
+}
+#else
+static inline int pathsep(char const **x) {
+  int ret = ('/' == **x);
+  (*x)++;
+  return ret;
+}
+#endif
+
+/* Return last part of path by scanning from beginning */
+static char const *ev_filename(char const *path) {
+  char const *ret = path;
+  char const *p = path;
+  while (*p) {
+    if (pathsep(&p)) ret = p;
+  }
+  return ret;
 }
 
 void add_base_event(double when, char const *file, int state) {
   static double t = 0.0;
+  char const *fn = ev_filename(file);
 
-  add_event(double_arg(when));
-  add_event(double_arg(when - t));
+  add_event(EVENT_DUMP_PAD, double_arg(when));
+  add_event(EVENT_DUMP_PAD, double_arg(when - t));
   t = when;
-  add_unpad_event(string_arg(file));
-  add_unpad_event(string_arg(":"));
-  add_event(int_arg(state));
+  add_event(0, string_arg(fn));
+  add_event(0, string_arg(":"));
+  add_event(EVENT_DUMP_PAD, int_arg(state));
 }
 
 void add_task_event(double when, char const *file, int state,
                     char const *what) {
   add_base_event(when, file, state);
-  add_event(string_arg(what));
-  add_event(end_arg());
+  add_event(EVENT_DUMP_PAD, string_arg(what));
+  add_event(EVENT_DUMP_PAD, end_arg());
 }
 
 void add_wait_event(double when, char const *file, int state, char const *what,
                     int milli) {
   add_base_event(when, file, state);
-  add_event(string_arg(what));
+  add_event(EVENT_DUMP_PAD, string_arg(what));
 
-  add_event(string_arg("milli"));
-  add_event(int_arg(milli));
-  add_event(end_arg());
+  add_event(EVENT_DUMP_PAD, string_arg("milli"));
+  add_event(EVENT_DUMP_PAD, int_arg(milli));
+  add_event(EVENT_DUMP_PAD, end_arg());
 }
 
 void dump_task_events() {
-  G_DEBUG(
-      "before dump task_events.front %d task_events.rear %d task_events.n %d",
-      task_events.front, task_events.rear, task_events.n);
-  add_event(end_arg());
-  while (!event_empty()) {
-    ev_print(event_extract());
+  if (!event_empty()) {
+    G_DEBUG(
+        "before dump task_events.front %d task_events.rear %d task_events.n %d",
+        task_events.front, task_events.rear, task_events.n);
+    while (!event_empty()) {
+      ev_print(event_extract());
+    }
+    G_DEBUG(
+        "after dump task_events.front %d task_events.rear %d task_events.n %d",
+        task_events.front, task_events.rear, task_events.n);
   }
-  G_DEBUG(
-      "after dump task_events.front %d task_events.rear %d task_events.n %d",
-      task_events.front, task_events.rear, task_events.n);
 }
 
-#endif
+void reset_task_events() {
+  task_events.front = task_events.rear = task_events.n = 0;
+}
 /* purecov: end */
+
+#endif

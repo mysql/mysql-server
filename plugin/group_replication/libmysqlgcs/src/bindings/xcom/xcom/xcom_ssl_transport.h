@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 #define XCOM_SSL_TRANSPORT_H
 
 #ifndef XCOM_WITHOUT_OPENSSL
-#ifdef WIN32
-// In OpenSSL before 1.1.0, we need this first.
+#ifdef _WIN32
+/* In OpenSSL before 1.1.0, we need this first. */
 #include <winsock2.h>
-#endif  // WIN32
+#endif /* _WIN32 */
 
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -122,13 +122,6 @@ int xcom_get_ssl_mode(const char *mode);
   If a different value is provide, INVALID_SSL_MODE (-1) is returned.
 */
 int xcom_set_ssl_mode(int mode);
-
-/*
-  Set the password used by SSL to store keys. If nothing is set, "yassl123"
-  is used by default. The password provided as parameter is copied so the
-  value can be discarded by the caller after the call.
-*/
-void xcom_set_default_passwd(char *pw);
 
 /*
   Initialize the SSL.

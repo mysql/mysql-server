@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #define _GNU_SOURCE
 #endif
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/xcom_profile.h"
 #ifndef _WIN32
 #include <netdb.h>
 #include <sys/socket.h>
@@ -39,15 +39,19 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/simset.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/task_os.h"
+#include "xcom/x_platform.h"
+#include "xdr_gen/xcom_vp.h"
 
 #define STRING_PORT_SIZE 6
 #define NR_GETADDRINFO_ATTEMPTS 10
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Wrapper function which retries and checks errors from socket
@@ -80,11 +84,13 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   int errval = EAI_AGAIN;
 
   struct addrinfo _hints;
+  int attempt_nr;
+
   memset(&_hints, 0, sizeof(_hints));
   _hints.ai_family = AF_UNSPEC;
-  _hints.ai_socktype = SOCK_STREAM;  // TCP stream sockets
+  _hints.ai_socktype = SOCK_STREAM; /* TCP stream sockets */
   if (hints == NULL) hints = &_hints;
-  for (int attempt_nr = 0;
+  for (attempt_nr = 0;
        errval == EAI_AGAIN && attempt_nr < NR_GETADDRINFO_ATTEMPTS;
        attempt_nr++) {
     if (*res) {
@@ -102,13 +108,14 @@ int checked_getaddrinfo(const char *nodename, const char *servname,
   if (errval && errval != EAI_NONAME && errval != EAI_AGAIN) {
 #endif
 #if !defined(_WIN32)
-    DBGOUT(NUMEXP(errval); STREXP(gai_strerror(errval));
-           if (errval == EAI_SYSTEM) {
-             NUMEXP(errno);
-             STREXP(g_strerror(errno));
-           });
+    IFDBG(
+        D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval));
+        if (errval == EAI_SYSTEM) {
+          NUMEXP(errno);
+          STREXP(g_strerror(errno));
+        });
 #else
-    DBGOUT(NUMEXP(errval); STREXP(gai_strerror(errval)));
+    IFDBG(D_NONE, NUMEXP(errval); STREXP(gai_strerror(errval)));
 #endif
   }
   assert((errval == 0 && *res) || (errval != 0 && *res == NULL));
@@ -145,7 +152,7 @@ static infonode *insert_server(infonode **top, char const *server,
     return 0;
   else {
     if (*top == 0) { /* Insert here */
-      infonode *n = calloc((size_t)1, sizeof(infonode));
+      infonode *n = (infonode *)calloc((size_t)1, sizeof(infonode));
       n->server = strdup(server);
       n->addr = addr;
       *top = n;
@@ -203,6 +210,15 @@ void free_getaddrinfo_cache(infonode *top) {
   }
 }
 
+void deinit_network_cache() {
+  if (addrinfomap) {
+    /* purecov: begin deadcode */
+    free_getaddrinfo_cache(addrinfomap);
+    addrinfomap = NULL;
+    /* purecov: end */
+  }
+}
+
 #ifdef _WIN32
 
 /* Need to link with Ws2_32.lib */
@@ -243,10 +259,7 @@ int init_net() {
 
 int deinit_net() {
   WSACleanup();
-  if (addrinfomap) {
-    free_getaddrinfo_cache(addrinfomap);
-    addrinfomap = NULL;
-  }
+  deinit_network_cache();
   return 0;
 }
 
@@ -254,11 +267,11 @@ int deinit_net() {
 int init_net() { return 0; }
 
 int deinit_net() {
-  if (addrinfomap) {
-    free_getaddrinfo_cache(addrinfomap);
-    addrinfomap = NULL;
-  }
+  deinit_network_cache();
   return 0;
 }
+#endif
 
+#ifdef __cplusplus
+}
 #endif

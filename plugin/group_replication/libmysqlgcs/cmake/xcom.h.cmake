@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef XCOM_DEBUG_H
-#define XCOM_DEBUG_H
+#ifndef XCOM_H_CMAKE
+#define XCOM_H_CMAKE
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/err_dump.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/gcs_debug.h"
+#include <config.h>
+
+/*Definitions*/
+#cmakedefine HAVE_RPC_INLINE_T 1
+#cmakedefine HAVE_XDR_OPS_X_PUTINT32 1
+#cmakedefine HAVE_XDR_OPS_X_GETINT32 1
+#cmakedefine OLD_XDR 1
+#cmakedefine X_PUTLONG_NOT_USE_CONST 1
 
 #endif
+

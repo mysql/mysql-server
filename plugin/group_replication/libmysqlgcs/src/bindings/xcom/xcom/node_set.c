@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,19 +23,19 @@
 #include <rpc/rpc.h>
 #include <stdlib.h>
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "xcom/bitset.h"
+#include "xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "xcom/node_set.h"
+#include "xcom/simset.h"
+#include "xcom/task.h"
+#include "xcom/task_debug.h"
+#include "xcom/x_platform.h"
+#include "xcom/xcom_common.h"
+#include "xcom/xcom_memory.h"
+#include "xdr_gen/xcom_vp.h"
 
 /* purecov: begin deadcode */
 node_set bit_set_to_node_set(bit_set *set, u_int n) {
@@ -43,7 +43,7 @@ node_set bit_set_to_node_set(bit_set *set, u_int n) {
   alloc_node_set(&new_set, n);
   {
     u_int i;
-    MAY_DBG(FN; STRLIT("bit_set_to_node_set "); dbg_bitset(set, n););
+    IFDBG(D_NONE, FN; STRLIT("bit_set_to_node_set "); dbg_bitset(set, n););
     for (i = 0; i < n; i++) {
       new_set.node_set_val[i] = BIT_ISSET(i, set);
     }
@@ -51,22 +51,10 @@ node_set bit_set_to_node_set(bit_set *set, u_int n) {
   return new_set;
 }
 
-void dump_node_set(node_set set) {
-  u_int i;
-  GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
-  NDBG(set.node_set_len, u);
-  PTREXP(set.node_set_val);
-  for (i = 0; i < set.node_set_len; i++) {
-    NPUT(set.node_set_val[i], d);
-  }
-  PRINT_GOUT;
-  FREE_GOUT;
-}
 /* purecov: end */
 
 node_set *alloc_node_set(node_set *set, u_int n) {
-  set->node_set_val = calloc((size_t)n, sizeof(bool_t));
+  set->node_set_val = (int *)calloc((size_t)n, sizeof(bool_t));
   set->node_set_len = n;
   return set;
 }
@@ -76,7 +64,7 @@ node_set *realloc_node_set(node_set *set, u_int n) {
   bool_t *old_p = set->node_set_val;
   u_int i;
 
-  set->node_set_val = realloc(old_p, n * sizeof(bool_t));
+  set->node_set_val = (int *)realloc(old_p, n * sizeof(bool_t));
   set->node_set_len = n;
   for (i = old_n; i < n; i++) {
     set->node_set_val[i] = 0;
@@ -84,7 +72,7 @@ node_set *realloc_node_set(node_set *set, u_int n) {
   return set;
 }
 
-/* {{{ Copy node set. Reallocate if mismatch */
+/* Copy node set. Reallocate if mismatch */
 
 void copy_node_set(node_set const *from, node_set *to) {
   if (from->node_set_len > 0) {
@@ -98,9 +86,7 @@ void copy_node_set(node_set const *from, node_set *to) {
   }
 }
 
-/* }}} */
-
-/* {{{ Initialize node set. Free first if necessary */
+/* Initialize node set. Free first if necessary */
 
 node_set *init_node_set(node_set *set, u_int n) {
   if (set) {
@@ -110,7 +96,7 @@ node_set *init_node_set(node_set *set, u_int n) {
   return set;
 }
 
-/* {{{ Free node set contents */
+/* Free node set contents */
 
 void free_node_set(node_set *set) {
   if (set) {
@@ -119,9 +105,7 @@ void free_node_set(node_set *set) {
   }
 }
 
-/* }}} */
-
-/* {{{ Clone set. Used when sending messages */
+/* Clone set. Used when sending messages */
 
 node_set clone_node_set(node_set set) {
   node_set new_set;
@@ -131,8 +115,6 @@ node_set clone_node_set(node_set set) {
   return new_set;
 }
 
-/* }}} */
-
 /**
    Debug a node set.
  */
@@ -141,6 +123,7 @@ char *_dbg_node_set(node_set set, const char *name) {
   u_int i;
   GET_NEW_GOUT;
   STRLIT(name);
+  STRLIT(" ");
   NDBG(set.node_set_len, u);
   PTREXP(set.node_set_val);
   for (i = 0; i < set.node_set_len; i++) {
@@ -149,7 +132,7 @@ char *_dbg_node_set(node_set set, const char *name) {
   RET_GOUT;
 }
 /* purecov: end */
-/* {{{ Add all nodes */
+/* Add all nodes */
 
 node_set *set_node_set(node_set *set) {
   u_int i;
@@ -159,10 +142,8 @@ node_set *set_node_set(node_set *set) {
   return set;
 }
 
-/* }}} */
-
-/* {{{ Reset a node set */
 /* purecov: begin deadcode */
+/* Reset a node set */
 node_set *reset_node_set(node_set *set) {
   u_int i;
   for (i = 0; set && i < set->node_set_len; i++) {
@@ -170,25 +151,24 @@ node_set *reset_node_set(node_set *set) {
   }
   return set;
 }
-/* }}} */
 
 /**
    Debug a node set with G_MESSAGE.
  */
 void _g_dbg_node_set(node_set set, const char *name MY_ATTRIBUTE((unused))) {
   u_int n = 2 * set.node_set_len + 1;
-  char *s = calloc((size_t)n, (size_t)1);
+  char *s = (char *)calloc((size_t)n, (size_t)1);
   u_int i;
   for (i = 0; i < set.node_set_len; i++) {
     s[i * 2] = set.node_set_val[i] ? '1' : '0';
     s[i * 2 + 1] = ' ';
   }
   s[n - 1] = 0;
-  G_INFO("%s : Node set %s", name, s);
+  G_INFO("%s : Node set %s ", name, s);
   free(s);
 }
 
-/* {{{ Count number of nodes in set */
+/* Count number of nodes in set */
 
 u_int node_count(node_set set) {
   u_int count = 0;
@@ -199,9 +179,7 @@ u_int node_count(node_set set) {
   return count;
 }
 
-/* }}} */
-
-/* {{{ Return true if empty node set */
+/* Return true if empty node set */
 
 bool_t is_empty_node_set(node_set set) {
   u_int i;
@@ -211,9 +189,7 @@ bool_t is_empty_node_set(node_set set) {
   return TRUE;
 }
 
-/* }}} */
-
-/* {{{ Return true if full node set */
+/* Return true if full node set */
 
 bool_t is_full_node_set(node_set set) {
   u_int i;
@@ -223,9 +199,7 @@ bool_t is_full_node_set(node_set set) {
   return TRUE;
 }
 
-/* }}} */
-
-/* {{{ Return true if equal node sets */
+/* Return true if equal node sets */
 
 bool_t equal_node_set(node_set x, node_set y) {
   u_int i;
@@ -236,9 +210,8 @@ bool_t equal_node_set(node_set x, node_set y) {
   return TRUE;
 }
 /* purecov: end */
-/* }}} */
 
-/* {{{ Return true if node i is in set */
+/* Return true if node i is in set */
 
 bool_t is_set(node_set set, node_no i) {
   if (i < set.node_set_len) {
@@ -248,19 +221,15 @@ bool_t is_set(node_set set, node_no i) {
   }
 }
 
-/* }}} */
-
-/* {{{ Add node to set */
 /* purecov: begin deadcode */
+/* Add node to set */
 void add_node(node_set set, node_no node) {
   if (node < set.node_set_len) {
     set.node_set_val[node] = TRUE;
   }
 }
 
-/* }}} */
-
-/* {{{ Remove node from set */
+/* Remove node from set */
 
 void remove_node(node_set set, node_no node) {
   if (node < set.node_set_len) {
@@ -268,9 +237,7 @@ void remove_node(node_set set, node_no node) {
   }
 }
 
-/* }}} */
-
-/* {{{ AND operation, return result in x */
+/* AND operation, return result in x */
 
 void and_node_set(node_set *x, node_set const *y) {
   u_int i;
@@ -279,9 +246,7 @@ void and_node_set(node_set *x, node_set const *y) {
   }
 }
 
-/* }}} */
-
-/* {{{ OR operation, return result in x */
+/* OR operation, return result in x */
 void or_node_set(node_set *x, node_set const *y) {
   u_int i;
   for (i = 0; i < x->node_set_len && i < y->node_set_len; i++) {
@@ -289,9 +254,7 @@ void or_node_set(node_set *x, node_set const *y) {
   }
 }
 
-/* }}} */
-
-/* {{{ XOR operation, return result in x */
+/* XOR operation, return result in x */
 void xor_node_set(node_set *x, node_set const *y) {
   u_int i;
   for (i = 0; i < x->node_set_len && i < y->node_set_len; i++) {
@@ -300,9 +263,7 @@ void xor_node_set(node_set *x, node_set const *y) {
   }
 }
 
-/* }}} */
-
-/* {{{ NOT operation, return result in x */
+/* NOT operation, return result in x */
 void not_node_set(node_set *x, node_set const *y) {
   u_int i;
   for (i = 0; i < x->node_set_len && i < y->node_set_len; i++) {
@@ -310,4 +271,3 @@ void not_node_set(node_set *x, node_set const *y) {
   }
 }
 /* purecov: end */
-/* }}} */

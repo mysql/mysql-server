@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef XCOM_INPUT_REQUEST_H
 #define XCOM_INPUT_REQUEST_H
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
+#include "xcom/pax_msg.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,7 @@
 #ifndef GET_SYNODE_APP_DATA_H
 #define GET_SYNODE_APP_DATA_H
 
-#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"  // synode_no_array, synode_app_data_array
+#include "xdr_gen/xcom_vp.h"
 
 #ifdef __cplusplus
 extern "C" {

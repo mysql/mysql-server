@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "xcom/task_debug.h"
 
 #include <assert.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /* purecov: begin deadcode */
 static int mystrcat_core_sprintf(char *dest, int size, const char *format,
@@ -84,48 +85,3 @@ char *mystrcat_sprintf(char *dest, int *size, const char *format, ...) {
 
   return dest + ret;
 }
-
-/* purecov: begin deadcode */
-void xcom_default_log(const int64_t l, const char *msg) {
-  char buffer[STR_SIZE + 1];
-  char *buf = buffer;
-  int buffer_size = 0;
-  buffer[0] = 0;
-
-  buf = mystrcat(buf, &buffer_size, xcom_log_levels[l]);
-  buf = mystrcat(buf, &buffer_size, msg);
-  buf = mystrcat(buf, &buffer_size, NEWLINE);
-
-  if (l < XCOM_LOG_INFO) {
-    fputs(buffer, stderr);
-  } else {
-    fputs(buffer, stdout);
-  }
-}
-
-/**
-  Print the logging messages to the console. It is invoked when no debugger
-  callback was set by an upper layer.
-*/
-void xcom_default_debug(const char *format, ...) {
-  va_list args;
-  char buffer[STR_SIZE + 1];
-  int buffer_size = 0;
-  buffer[0] = 0;
-
-  va_start(args, format);
-  buffer_size = mystrcat_core_sprintf(buffer, buffer_size, format, args);
-  va_end(args);
-
-  mystrcat(buffer + buffer_size, &buffer_size, NEWLINE);
-
-  fputs(buffer, stdout);
-}
-
-/**
-  Check whether a debug option was enabled or not.
-*/
-int xcom_default_debug_check(const int64_t debug_options) {
-  return (xcom_debug_options & debug_options) != 0;
-}
-/* purecov: end */
