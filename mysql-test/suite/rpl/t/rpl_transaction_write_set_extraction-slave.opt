@@ -1,1 +1,1 @@
---transaction-write-set-extraction=MURMUR32
+--transaction-write-set-extraction=XXHASH64

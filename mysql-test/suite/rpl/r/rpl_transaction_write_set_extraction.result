@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-include/assert.inc [The value for transaction_write_set_extraction shoudl be MURMUR32]
+include/assert.inc [The value for transaction_write_set_extraction must be XXHASH64]
 CREATE TABLE t1 (a INT PRIMARY KEY);
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,PKE_assert_single_primary_key_generated_insert';
