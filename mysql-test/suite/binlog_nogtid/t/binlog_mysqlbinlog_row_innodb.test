@@ -9,6 +9,7 @@
 # See there for more informaton.
 #
 
+--source include/no_valgrind_without_big.inc
 --source include/no_ps_protocol.inc
 
 let $engine_type=InnoDB;
