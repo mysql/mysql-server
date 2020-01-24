@@ -2810,7 +2810,11 @@ void dict_index_copy_types(dtuple_t *tuple,           /*!< in/out: data tuple */
   ulint i;
 
   if (dict_index_is_ibuf(index)) {
-    dtuple_set_types_binary(tuple, n_fields);
+    /* For IBUF index set field types explicitly. */
+    for (ulint i = 0; i < n_fields; i++) {
+      dtype_t *dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
+      dtype_set(dfield_type, DATA_BINARY, 0, 0);
+    }
 
     return;
   }
