@@ -1103,7 +1103,7 @@ bool Aggregator_distinct::setup(THD *thd) {
 
     arg = item_sum->get_arg(0);
     if (arg->const_item()) {
-      (void)arg->val_int();
+      if (arg->update_null_value()) return true;
       if (arg->null_value) {
         const_distinct = CONST_NULL;
         return false;
