@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -30,6 +30,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef handler0alter_h
 #define handler0alter_h
+
+#define ERROR_STR_LENGTH 1024
 
 /** Copies an InnoDB record to table->record[0]. */
 void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */

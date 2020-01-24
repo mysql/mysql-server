@@ -570,7 +570,7 @@ after DDL
 @param[in,out]	thd	THD object
 @param[in,out]	table	InnoDB table object */
 static void innobase_discard_table(THD *thd, dict_table_t *table) {
-  char errstr[1024];
+  char errstr[ERROR_STR_LENGTH];
   if (dict_stats_drop_table(table->name.m_name, errstr, sizeof(errstr)) !=
       DB_SUCCESS) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_ALTER_INFO,
@@ -7086,7 +7086,7 @@ static void alter_stats_norebuild(Alter_inplace_info *ha_alter_info,
       continue;
     }
 
-    char errstr[1024];
+    char errstr[ERROR_STR_LENGTH];
 
     if (dict_stats_drop_index(ctx->new_table->name.m_name, key->name, errstr,
                               sizeof errstr) != DB_SUCCESS) {
@@ -7298,7 +7298,7 @@ bool ha_innobase::commit_inplace_alter_table_impl(
   /* Generate the temporary name for old table, and acquire mdl
   lock on it. */
   THD *thd = current_thd;
-  for (inplace_alter_handler_ctx **pctx = ctx_array; *pctx && !fail; pctx++) {
+  for (inplace_alter_handler_ctx **pctx = ctx_array; *pctx; pctx++) {
     ha_innobase_inplace_ctx *ctx =
         static_cast<ha_innobase_inplace_ctx *>(*pctx);
 
@@ -7350,8 +7350,7 @@ bool ha_innobase::commit_inplace_alter_table_impl(
     DICT_STATS_BG_YIELD(trx);
   }
 
-  /* Apply the changes to the data dictionary tables, for all
-  partitions. */
+  /* Apply the changes to the data dictionary tables, for all partitions.*/
 
   for (inplace_alter_handler_ctx **pctx = ctx_array; *pctx && !fail; pctx++) {
     ha_innobase_inplace_ctx *ctx =
@@ -7359,8 +7358,8 @@ bool ha_innobase::commit_inplace_alter_table_impl(
 
     DBUG_ASSERT(new_clustered == ctx->need_rebuild());
 
-    if (commit_get_autoinc(ha_alter_info, ctx, altered_table, table)) {
-      fail = true;
+    fail = commit_get_autoinc(ha_alter_info, ctx, altered_table, table);
+    if (fail) {
       my_error(ER_TABLESPACE_DISCARDED, MYF(0), table->s->table_name.str);
       goto rollback_trx;
     }
@@ -7637,7 +7636,7 @@ rollback_trx:
       old copy of the table (which was renamed to
       ctx->tmp_name). */
 
-      char errstr[1024];
+      char errstr[ERROR_STR_LENGTH];
 
       DBUG_ASSERT(0 == strcmp(ctx->old_table->name.m_name, ctx->tmp_name));
 
@@ -7662,8 +7661,12 @@ rollback_trx:
       ut_ad(m_prebuilt != ctx->prebuilt || ctx == ctx0);
       bool update_own_prebuilt = (m_prebuilt == ctx->prebuilt);
       trx_t *const user_trx = m_prebuilt->trx;
-      mem_heap_t *const temp_blob_heap = ctx->prebuilt->blob_heap;
       if (dict_table_is_partition(ctx->new_table)) {
+        /* Set blob_heap to NULL for partitioned tables to avoid
+        row_prebuilt_free() from freeing them. We do this to avoid double free
+        of blob_heap since all partitions point to the same blob_heap in
+        prebuilt. Blob heaps of all the partitions will be freed later in the
+        ha_innopart::clear_blob_heaps() */
         ctx->prebuilt->blob_heap = nullptr;
       }
 
@@ -7684,7 +7687,6 @@ rollback_trx:
       }
       user_trx->will_lock++;
       m_prebuilt->trx = user_trx;
-      m_prebuilt->blob_heap = temp_blob_heap;
     }
     DBUG_INJECT_CRASH("ib_commit_inplace_crash", crash_inject_count++);
   }
