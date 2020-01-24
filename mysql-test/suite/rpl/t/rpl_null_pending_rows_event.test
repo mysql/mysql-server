@@ -25,6 +25,7 @@
 # BUG#29848931 UPDATE ON PARTITIONED TABLE CRASHES THE SERVER WHEN PARTITION
 #              COUNT IS MORE
 #
+--source include/have_debug.inc
 
 --write_file $MYSQLTEST_VARDIR/tmp/execute_operation.inc PROCEDURE
   if ($error_number == '')
