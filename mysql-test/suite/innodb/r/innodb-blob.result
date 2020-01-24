@@ -129,3 +129,22 @@ a
 SELECT * FROM t2;
 a
 DROP TABLE t1,t2,t3;
+#
+# Bug #29866408	SERVER CRASHES WHEN ADDING LONGTEXT COLUMN
+#
+CREATE TABLE t1 (
+id int(11) COLLATE utf8mb4_unicode_ci NOT NULL,
+data longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+PRIMARY KEY (id),
+UNIQUE KEY unq_id (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO t1 VALUES (1,'');
+SET @old_mode=@@sql_mode;
+SET GLOBAL SQL_MODE="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE t1 ADD COLUMN d3 DATETIME NOT NULL;
+ALTER TABLE t1 ADD COLUMN d2 DATETIME NOT NULL;
+ALTER TABLE t1 ADD COLUMN d1 DATETIME NOT NULL;
+SET GLOBAL SQL_MODE=@old_mode;
+DROP TABLE t1;
