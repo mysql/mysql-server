@@ -449,8 +449,9 @@ class Sql_cmd_clone : public Sql_cmd {
 
   /** Re-write clone statement to hide password.
   @param[in,out] thd server session
+  @param[in,out] rlb the buffer to return the rewritten query in. empty if none.
   @return true iff query is re-written */
-  bool rewrite(THD *thd);
+  bool rewrite(THD *thd, String &rlb);
 
   /** @return true, if it is local clone command */
   bool is_local() const { return (m_is_local); }

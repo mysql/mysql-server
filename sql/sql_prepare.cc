@@ -336,8 +336,19 @@ static inline void rewrite_query_if_needed(THD *thd) {
       (opt_general_log && !(opt_general_log_raw || thd->slave_thread));
 
   if ((thd->sp_runtime_ctx == nullptr) &&
-      (general || opt_slow_log || opt_bin_log))
+      (general || opt_slow_log || opt_bin_log)) {
+    /*
+      thd->m_rewritten_query may already contain "PREPARE stmt FROM ..."
+      at this point, so we reset it here so mysql_rewrite_query()
+      won't complain.
+    */
+    thd->reset_rewritten_query();
+    /*
+      Now replace the "PREPARE ..." with the obfuscated version of the
+      actual query were prepare.
+    */
     mysql_rewrite_query(thd);
+  }
 }
 
 /**
@@ -358,10 +369,10 @@ static inline void log_execute_line(THD *thd) {
   */
   if (thd->sp_runtime_ctx != nullptr) return;
 
-  if (thd->rewritten_query.length())
+  if (thd->rewritten_query().length())
     query_logger.general_log_write(thd, COM_STMT_EXECUTE,
-                                   thd->rewritten_query.c_ptr_safe(),
-                                   thd->rewritten_query.length());
+                                   thd->rewritten_query().ptr(),
+                                   thd->rewritten_query().length());
   else
     query_logger.general_log_write(thd, COM_STMT_EXECUTE, thd->query().str,
                                    thd->query().length);
@@ -418,11 +429,11 @@ class Statement_backup {
   void save_rlb(THD *thd) {
     DBUG_TRACE;
 
-    if (thd->rewritten_query.length() > 0) {
+    if (thd->rewritten_query().length() > 0) {
       /* Duplicate the original rewritten query. */
-      m_rewritten_query.copy(thd->rewritten_query);
+      m_rewritten_query.copy(thd->rewritten_query());
       /* Swap the duplicate with the original. */
-      thd->rewritten_query.swap(m_rewritten_query);
+      thd->swap_rewritten_query(m_rewritten_query);
     }
 
     return;
@@ -437,7 +448,7 @@ class Statement_backup {
 
     if (m_rewritten_query.length() > 0) {
       /* Restore with swap() instead of '='. */
-      thd->rewritten_query.swap(m_rewritten_query);
+      thd->swap_rewritten_query(m_rewritten_query);
       /* Free the rewritten prepared statement. */
       m_rewritten_query.mem_free();
     }
@@ -2599,11 +2610,11 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
 
   rewrite_query_if_needed(thd);
 
-  if (thd->rewritten_query.length()) {
-    thd->set_query_for_display(thd->rewritten_query.c_ptr_safe(),
-                               thd->rewritten_query.length());
-    MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->rewritten_query.c_ptr_safe(),
-                      thd->rewritten_query.length());
+  if (thd->rewritten_query().length()) {
+    thd->set_query_for_display(thd->rewritten_query().ptr(),
+                               thd->rewritten_query().length());
+    MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->rewritten_query().ptr(),
+                      thd->rewritten_query().length());
   } else {
     thd->set_query_for_display(thd->query().str, thd->query().length);
     MYSQL_SET_PS_TEXT(m_prepared_stmt, thd->query().str, thd->query().length);
@@ -2647,10 +2658,10 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length) {
       the general log.
     */
     if (thd->sp_runtime_ctx == nullptr) {
-      if (thd->rewritten_query.length())
+      if (thd->rewritten_query().length())
         query_logger.general_log_write(thd, COM_STMT_PREPARE,
-                                       thd->rewritten_query.c_ptr_safe(),
-                                       thd->rewritten_query.length());
+                                       thd->rewritten_query().ptr(),
+                                       thd->rewritten_query().length());
       else
         query_logger.general_log_write(
             thd, COM_STMT_PREPARE, m_query_string.str, m_query_string.length);
@@ -3437,7 +3448,7 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable) {
     internal call from NDB etc.  Without this, a rewritten query
     would get "stuck" in SHOW PROCESSLIST.
   */
-  m_thd->rewritten_query.mem_free();
+  m_thd->reset_rewritten_query();
   m_thd->reset_query_for_display();
 
   return rc;
