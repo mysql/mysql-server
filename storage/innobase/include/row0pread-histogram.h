@@ -61,8 +61,8 @@ class Histogram_sampler {
   @return error code */
   dberr_t buffer_next();
 
-  /** End buffering in the middle of sampling.
-  @return error code */
+  /** End parallel read in case the reader thread is still active and wait for
+  its exit. This can happen if we're ending sampling prematurely. */
   void buffer_end();
 
   /** Set the buffer.
@@ -160,11 +160,6 @@ class Histogram_sampler {
 
   /** Sampling seed to be used for sampling */
   int m_sampling_seed{};
-
-  /** Bool variable which is set to true if sampling was completed. There
-  could be a case (in case of RAPID) that sampling might be abandoned in the
-  middle. This variable is used to identify this case. */
-  static bool m_sampling_done;
 
   /** BLOB heap per thread.
 
