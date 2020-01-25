@@ -37,8 +37,6 @@ Created 2019-04-20 by Darshan M N */
 std::uniform_real_distribution<double> Histogram_sampler::m_distribution(0,
                                                                          100);
 
-bool Histogram_sampler::m_sampling_done{false};
-
 Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
                                      double sampling_percentage,
                                      enum_sampling_method sampling_method)
@@ -71,14 +69,8 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
              "Total number of rows sampled : "
                  << m_n_sampled.load(std::memory_order_relaxed));
 
-    /* No more rows to buffer. So the next time we're asked to buffer set the
-    error status signalling the end of buffering. */
-
-    Histogram_sampler::m_sampling_done = true;
-
-    if (m_err != DB_SUCCESS) {
+    if (is_error_set()) {
       signal_end_of_buffering();
-
       return (m_err);
     }
 
@@ -95,10 +87,7 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
 }
 
 Histogram_sampler::~Histogram_sampler() {
-  /** Check if sampling is complete or we need to abort sampling. */
-  if (!Histogram_sampler::m_sampling_done) {
-    buffer_end();
-  }
+  buffer_end();
 
   for (auto &blob_heap : m_blob_heaps) {
     mem_heap_free(blob_heap);
@@ -106,7 +95,6 @@ Histogram_sampler::~Histogram_sampler() {
 
   os_event_destroy(m_start_buffer_event);
   os_event_destroy(m_end_buffer_event);
-  Histogram_sampler::m_sampling_done = false;
 }
 
 bool Histogram_sampler::init(trx_t *trx, dict_index_t *index,
@@ -192,7 +180,6 @@ bool Histogram_sampler::skip() {
 dberr_t Histogram_sampler::buffer_next() {
   /* Return if the tree is empty. */
   if (m_parallel_reader.is_tree_empty()) {
-    Histogram_sampler::m_sampling_done = true;
     return (DB_END_OF_INDEX);
   }
 
@@ -213,9 +200,6 @@ void Histogram_sampler::buffer_end() {
 
   signal_start_of_buffering();
 
-  wait_for_end_of_buffering();
-
-  /* Wait for the parallel reader to clean up its threads. */
   m_parallel_reader.join();
 
   return;
