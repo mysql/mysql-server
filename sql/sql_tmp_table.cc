@@ -2190,7 +2190,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   else
     trace_tmp.add_alnum("table", "intermediate_tmp_table");
   QEP_TAB *tab = table->reginfo.qep_tab;
-  if (tab) trace_tmp.add("in_plan_at_position", tab->idx());
+  if (tab != nullptr && tab->join() != nullptr)
+    trace_tmp.add("in_plan_at_position", tab->idx());
   trace_tmp.add("columns", s->fields)
       .add("row_length", s->reclength)
       .add("key_length", table->key_info ? table->key_info->key_length : 0)
