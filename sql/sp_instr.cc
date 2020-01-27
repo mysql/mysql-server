@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -912,7 +912,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     problem.
   */
   DBUG_ASSERT((thd->query_name_consts == 0) ||
-              (thd->rewritten_query().length() == 0));
+              (thd->rewritten_query.length() == 0));
 
   thd->set_query(query_backup);
   thd->query_name_consts = 0;

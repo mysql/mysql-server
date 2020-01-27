@@ -2218,7 +2218,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
       likely to change in the future, so we'll do it right from the
       start.
     */
-    if (thd->rewritten_query().length()) thd->reset_rewritten_query();
+    if (thd->rewritten_query.length()) thd->rewritten_query.mem_free();
 
     err_status = i->execute(thd, &ip);
 

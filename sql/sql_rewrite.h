@@ -98,10 +98,9 @@ void mysql_rewrite_query(THD *thd, Consumer_type type = Consumer_type::TEXTLOG,
                          Rewrite_params *params = nullptr);
 /**
   Provides the default interface to rewrite the ACL query.
-  If do_ps_instrument, it sets the thd->rewritten_query with
-  a rewritten query.
+  It sets the thd->rewritten_query with a rewritten query.
 */
-void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
+void mysql_rewrite_acl_query(THD *thd, Consumer_type type,
                              Rewrite_params *params = nullptr,
                              bool do_ps_instrument = true);
 
@@ -129,7 +128,7 @@ class I_rewriter {
   /* Return the current consumer type */
   Consumer_type consumer_type();
   /* Concrete classes must implement the logic to rewrite query here */
-  virtual bool rewrite(String &rlb) const = 0;
+  virtual bool rewrite() const = 0;
 
  protected:
   THD *const m_thd;
@@ -158,7 +157,7 @@ class Rewriter_user : public I_rewriter {
     Rewrites some of the user specific properties which are common to
     concrete classes.
   */
-  virtual bool rewrite(String &rlb) const;
+  virtual bool rewrite() const;
   /*
     Abstract method to be implemented by the concrete classes.
     The implementation methos should add the user authID, plugin info and
@@ -193,7 +192,7 @@ class Rewriter_create_user final : public Rewriter_user {
 
  public:
   Rewriter_create_user(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 
  private:
   void append_user_auth_info(LEX_USER *user, bool comma,
@@ -207,7 +206,7 @@ class Rewriter_alter_user final : public Rewriter_user {
 
  public:
   Rewriter_alter_user(THD *thd, Consumer_type type = Consumer_type::TEXTLOG);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 
  private:
   void append_user_auth_info(LEX_USER *user, bool comma,
@@ -222,7 +221,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
  public:
   Rewriter_show_create_user(THD *thd, Consumer_type type,
                             Rewrite_params *params);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 
  protected:
   /* Append the password hash to the output string */
@@ -239,7 +238,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
 class Rewriter_set : public I_rewriter {
  public:
   Rewriter_set(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 /*
   Rewrites the SET PASSWORD statement
@@ -249,7 +248,7 @@ class Rewriter_set_password final : public Rewriter_set {
 
  public:
   Rewriter_set_password(THD *thd, Consumer_type type, Rewrite_params *params);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 
  private:
   /* Name of the user whose password has to be changed */
@@ -260,7 +259,7 @@ class Rewriter_set_password final : public Rewriter_set {
 class Rewriter_grant final : public I_rewriter {
  public:
   Rewriter_grant(THD *thd, Consumer_type type, Rewrite_params *params);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 
  private:
   /* GRANT AS information */
@@ -271,14 +270,14 @@ class Rewriter_grant final : public I_rewriter {
 class Rewriter_change_master final : public I_rewriter {
  public:
   Rewriter_change_master(THD *thd, Consumer_type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 
 /** Rewrites the START SLAVE statement. */
 class Rewriter_slave_start final : public I_rewriter {
  public:
   Rewriter_slave_start(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 /** Base class for SERVER OPTIONS related statement */
 class Rewriter_server_option : public I_rewriter {
@@ -295,7 +294,7 @@ class Rewriter_create_server final : public Rewriter_server_option {
 
  public:
   Rewriter_create_server(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 /** Rewrites the ALTER SERVER statement. */
 class Rewriter_alter_server final : public Rewriter_server_option {
@@ -303,20 +302,20 @@ class Rewriter_alter_server final : public Rewriter_server_option {
 
  public:
   Rewriter_alter_server(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 
 /** Rewrites the PREPARE statement.*/
 class Rewriter_prepare final : public I_rewriter {
  public:
   Rewriter_prepare(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 
 /** Rewrites CLONE statement.*/
 class Rewriter_clone final : public I_rewriter {
  public:
   Rewriter_clone(THD *thd, Consumer_type type);
-  bool rewrite(String &rlb) const override;
+  bool rewrite() const override;
 };
 #endif /* SQL_REWRITE_INCLUDED */
