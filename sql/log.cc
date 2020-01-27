@@ -1637,9 +1637,9 @@ void log_slow_do(THD *thd, struct System_status_var *query_start_status) {
   THD_STAGE_INFO(thd, stage_logging_slow_query);
   thd->status_var.long_query_count++;
 
-  if (thd->rewritten_query().length())
-    query_logger.slow_log_write(thd, thd->rewritten_query().ptr(),
-                                thd->rewritten_query().length(),
+  if (thd->rewritten_query.length())
+    query_logger.slow_log_write(thd, thd->rewritten_query.c_ptr_safe(),
+                                thd->rewritten_query.length(),
                                 query_start_status);
   else
     query_logger.slow_log_write(thd, thd->query().str, thd->query().length,

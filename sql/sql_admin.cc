@@ -1908,45 +1908,46 @@ bool Sql_cmd_clone::execute_server(THD *thd) {
   return ret;
 }
 
-bool Sql_cmd_clone::rewrite(THD *thd, String &rlb) {
+bool Sql_cmd_clone::rewrite(THD *thd) {
   /* No password for local clone. */
   if (is_local()) {
     return false;
   }
 
-  rlb.append(STRING_WITH_LEN("CLONE INSTANCE FROM "));
+  String *rlb = &thd->rewritten_query;
+  rlb->append(STRING_WITH_LEN("CLONE INSTANCE FROM "));
 
   /* Append user name. */
   String user(m_user.str, m_user.length, system_charset_info);
-  append_query_string(thd, system_charset_info, &user, &rlb);
+  append_query_string(thd, system_charset_info, &user, rlb);
 
   /* Append host name. */
-  rlb.append(STRING_WITH_LEN("@"));
+  rlb->append(STRING_WITH_LEN("@"));
   String host(m_host.str, m_host.length, system_charset_info);
-  append_query_string(thd, system_charset_info, &host, &rlb);
+  append_query_string(thd, system_charset_info, &host, rlb);
 
   /* Append port number. */
-  rlb.append(STRING_WITH_LEN(":"));
+  rlb->append(STRING_WITH_LEN(":"));
   String num_buffer(42);
   num_buffer.set((longlong)m_port, &my_charset_bin);
-  rlb.append(num_buffer);
+  rlb->append(num_buffer);
 
   /* Append password clause. */
-  rlb.append(STRING_WITH_LEN(" IDENTIFIED BY <secret>"));
+  rlb->append(STRING_WITH_LEN(" IDENTIFIED BY <secret>"));
 
   /* Append data directory clause. */
   if (m_data_dir.str != nullptr) {
-    rlb.append(STRING_WITH_LEN(" DATA DIRECTORY = "));
+    rlb->append(STRING_WITH_LEN(" DATA DIRECTORY = "));
     String dir(m_data_dir.str, m_data_dir.length, system_charset_info);
-    append_query_string(thd, system_charset_info, &dir, &rlb);
+    append_query_string(thd, system_charset_info, &dir, rlb);
   }
 
   /* Append SSL information. */
   if (thd->lex->ssl_type == SSL_TYPE_NONE) {
-    rlb.append(STRING_WITH_LEN(" REQUIRE NO SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE NO SSL"));
 
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
-    rlb.append(STRING_WITH_LEN(" REQUIRE SSL"));
+    rlb->append(STRING_WITH_LEN(" REQUIRE SSL"));
   }
   return true;
 }

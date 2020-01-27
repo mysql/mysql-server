@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,20 +292,12 @@ static inline bool check_audit_mask(const unsigned long *lhs,
 */
 inline const CHARSET_INFO *thd_get_audit_query(THD *thd,
                                                MYSQL_LEX_CSTRING *query) {
-  /*
-    If we haven't tried to rewrite the query to obfuscate passwords
-    etc. yet, do so now.
-  */
-  if (thd->rewritten_query().length() == 0) mysql_rewrite_query(thd);
+  if (!thd->rewritten_query.length()) mysql_rewrite_query(thd);
 
-  /*
-    If there was something to rewrite, use the rewritten query;
-    otherwise, just use the original as submitted by the client.
-  */
-  if (thd->rewritten_query().length() > 0) {
-    query->str = thd->rewritten_query().ptr();
-    query->length = thd->rewritten_query().length();
-    return thd->rewritten_query().charset();
+  if (thd->rewritten_query.length()) {
+    query->str = thd->rewritten_query.ptr();
+    query->length = thd->rewritten_query.length();
+    return thd->rewritten_query.charset();
   } else {
     query->str = thd->query().str;
     query->length = thd->query().length;
