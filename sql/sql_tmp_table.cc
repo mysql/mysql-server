@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2192,7 +2192,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   else
     trace_tmp.add_alnum("table", "intermediate_tmp_table");
   QEP_TAB *tab = table->reginfo.qep_tab;
-  if (tab) trace_tmp.add("in_plan_at_position", tab->idx());
+  if (tab != nullptr && tab->join() != nullptr)
+    trace_tmp.add("in_plan_at_position", tab->idx());
   trace_tmp.add("columns", s->fields)
       .add("row_length", s->reclength)
       .add("key_length", table->key_info ? table->key_info->key_length : 0)
