@@ -1075,3 +1075,42 @@ UNION ALL SELECT SUM(c2.a) FROM cte c2;
 SELECT * FROM t2 tmp1, t2 tmp2 WHERE tmp1.a<>tmp2.a;
 a	a
 DROP TABLE t1,t2;
+#
+# Bug#30796015 INCONSISTENT BEHAVIOUR FOR DELETE ON CTE
+#
+create table t1(a int);
+insert into t1 values(2),(3);
+with t1 as (select * from t1 where a=3) delete from t1;
+ERROR HY000: The target table t1 of the DELETE is not updatable
+with t1 as (select * from t1 where a=3) delete t1.* from t1, t1 as t2;
+ERROR HY000: The target table t1 of the DELETE is not updatable
+with t1 as (select * from t1 where a=3) update t1 set a=2;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+with t1 as (select * from t1 where a=3) update t1, t1 as t2 set t1.a=2;
+ERROR HY000: The target table t1 of the UPDATE is not updatable
+with t1 as (select 36 as col from t1 where a=3) select * from t1;
+col
+36
+insert into t1 with t1 as (select 36 as col from t1) select * from t1;
+select * from t1;
+a
+2
+3
+36
+36
+create table t1 with t1 as (select 72 as col from t1) select * from t1;
+ERROR 42S01: Table 't1' already exists
+create table t2 with t1 as (select 72 as col from t1) select * from t1;
+select * from t1;
+a
+2
+3
+36
+36
+select * from t2;
+col
+72
+72
+72
+72
+drop table t1,t2;
