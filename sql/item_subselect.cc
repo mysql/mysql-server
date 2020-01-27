@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2835,6 +2835,16 @@ bool Item_subselect::clean_up_after_removal(uchar *arg)
 
   st_select_lex *root=
     static_cast<st_select_lex*>(static_cast<void*>(arg));
+
+  /*
+    Do not remove this subquery if it is a part of the select
+    list.
+  */
+  if (root != NULL &&
+      (root->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST) &&
+      root->is_in_select_list(this))
+    return false;
+
   st_select_lex *sl= unit->outer_select();
 
   /*

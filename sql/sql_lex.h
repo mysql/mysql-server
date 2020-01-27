@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1381,6 +1381,7 @@ private:
   /// Merge derived table into query block
 public:
   bool merge_derived(THD *thd, TABLE_LIST *derived_table);
+  bool is_in_select_list(Item *cand);
 private:
   bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
