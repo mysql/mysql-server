@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,8 +623,6 @@ static void skip_value(pax_msg *p) {
 /* purecov: begin deadcode */
 /* Print message and exit */
 static void pexitall(int i) {
-  int *r = (int *)calloc(1, sizeof(int));
-  *r = i;
   DBGOUT(FN; NDBG(i, d); STRLIT("time "); NDBG(task_now(), f););
   XCOM_FSM(xa_terminate, int_arg(i)); /* Tell xcom to stop */
 }
@@ -4174,8 +4172,6 @@ static client_reply_code xcom_get_event_horizon(
 static u_int allow_add_node(app_data_ptr a) {
   /* Get information on the current site definition */
   const site_def *new_site_def = get_site_def();
-  u_int const nr_nodes_in_config = new_site_def->nodes.node_list_len;
-  xcom_event_horizon const event_horizon = new_site_def->event_horizon;
   const site_def *valid_site_def = find_site_def(executed_msg);
 
   /* Get information on the nodes to be added */
