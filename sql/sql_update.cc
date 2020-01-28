@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -846,7 +846,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         int check_result = table_list->view_check_option(thd);
         if (check_result != VIEW_CHECK_OK) {
-          found_rows--;
           if (check_result == VIEW_CHECK_SKIP)
             continue;
           else if (check_result == VIEW_CHECK_ERROR) {
