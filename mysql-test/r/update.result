@@ -890,3 +890,29 @@ SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 DELETE FROM t1 WHERE a=2;
 DROP TABLE t1;
 SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+#
+# Bug#30158954: INCONSISTENT ROWS MATCHED VALUE FOR UPDATE
+#               WITH FAILED CONSTRAINT
+#
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 INT CHECK (f2 < 400));
+CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 INT);
+CREATE VIEW v2 AS SELECT * FROM t2 WHERE f2 < 400 WITH CHECK OPTION;
+INSERT INTO t1 VALUES (1, 10), (2, 20);
+INSERT INTO t2 VALUES (1, 10), (2, 20);
+UPDATE IGNORE t1 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+UPDATE IGNORE v2 SET f2 = 400;
+affected rows: 0
+info: Rows matched: 2  Changed: 0  Warnings: 2
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v2'
+Warning	1369	CHECK OPTION failed 'test.v2'
+UPDATE IGNORE t2 SET f2 = 400;
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+DROP VIEW v2;
+DROP TABLE t2, t1;

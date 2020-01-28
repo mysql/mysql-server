@@ -846,7 +846,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         int check_result = table_list->view_check_option(thd);
         if (check_result != VIEW_CHECK_OK) {
-          found_rows--;
           if (check_result == VIEW_CHECK_SKIP)
             continue;
           else if (check_result == VIEW_CHECK_ERROR) {
