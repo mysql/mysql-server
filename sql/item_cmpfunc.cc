@@ -3990,8 +3990,8 @@ bool in_row::find_item(Item *item) {
   if (used_count == 0) return false;
   tmp->store_value(item);
   if (item->is_null()) return false;
-  return std::binary_search(base_pointers.begin(), base_pointers.end(), tmp,
-                            Cmp_row());
+  return std::binary_search(base_pointers.begin(), base_pointers.end(),
+                            tmp.get(), Cmp_row());
 }
 
 bool in_row::compare_elems(uint pos1, uint pos2) const {
@@ -4077,7 +4077,7 @@ in_row::in_row(MEM_ROOT *mem_root, uint elements, cmp_item_row *cmp)
 void in_row::set(uint pos, Item *item) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %u  item: %p", pos, item));
-  base_pointers[pos]->store_value_by_template(tmp, item);
+  base_pointers[pos]->store_value_by_template(tmp.get(), item);
 }
 
 void in_longlong::val_item(Item *item, packed_longlong *result) {
