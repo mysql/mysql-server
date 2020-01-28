@@ -70,6 +70,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 UNINSTALL PLUGIN clone;
 set session sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
