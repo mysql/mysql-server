@@ -1,6 +1,7 @@
 ###############################################################################
-# This test verifies that if the missing transactions on a joining members are
-# above threshold the server will use clone as its recovery strategy
+# This test verifies that clone operations that don't replace the server data
+# can be executed on running group replication members.
+# If the member is stopped, the member can execute replacing clone operations
 #
 # 0. The test requires two servers: M1 and M2.
 # 1. Install the clone plugin on server 1
@@ -8,11 +9,16 @@
 # 3. Restart server 2 with a monitoring process (mysqld_safe) if needed
 # 4. Setup the server so group replication starts on boot
 #    Install the clone plugin
-# 5. Verify clone must not override joiner data.
-# 6. On a empty server2 start group replication
-#    Wait for it to restart and come back
-#    Check clone was completed
-# 7. Cleanup
+#    Start group replication on the server
+# 5. Clone operations that replace data are not allowed
+#    on user sessions on active group members.
+# 6. Local clone operations that use data dirs are allowed
+#    on user sessions on active group members.
+# 7. Remote clone operations that use data dirs are allowed
+#    on user sessions on active group members.
+# 8. If group replication is not running, clone operations that replace
+#    data are allowed on user sessions on previous group members.
+# 9. Cleanup
 #
 
 --source include/have_mysqld_monitoring_process.inc
@@ -20,11 +26,6 @@
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
-
-# Validate plugins
---let plugins = CLONE_PLUGIN,GROUP_REPLICATION
---source include/check_plugin_dir.inc
-
 
 --echo
 --echo ############################################################
@@ -45,7 +46,6 @@
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (2);
 
 --echo
 --echo #######################################################################
@@ -64,6 +64,7 @@ INSERT INTO t1 VALUES (2);
 --echo ############################################################
 --echo # 4. Setup the server so group replication starts on boot
 --echo #    Install the Clone plugin
+--echo #    Start group replication on the server
 
 --disable_query_log
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
@@ -76,49 +77,66 @@ SET PERSIST group_replication_start_on_boot= ON;
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
+--source include/start_group_replication.inc
+
 --echo
 --echo ############################################################
---echo # 5. Verify clone must not override joiner data.
---echo #    Joiner must fail to join the group.
+--echo # 5. Clone operations that replace data are not allowed
+--echo #    on user sessions on active group members.
 
---let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
-SET GLOBAL group_replication_clone_threshold= 1;
+--replace_result $server1_port SERVER1_PORT
+--eval SET GLOBAL clone_valid_donor_list='localhost:$server1_port'
+--replace_result $server1_port SERVER1_PORT
+--error ER_CLONE_DISALLOWED
+--eval CLONE INSTANCE FROM 'root'@localhost:$server1_port IDENTIFIED BY '';
 
---let $errand_transaction_uuid= aaabaaab-bbbb-aaaa-bbbb-aaabaaabaaab
+--echo
+--echo ############################################################
+--echo # 6. Local clone operations that use data dirs are allowed
+--echo #    on user sessions on active group members.
 
---eval SET GTID_NEXT= "$errand_transaction_uuid:1"
-CREATE TABLE t2 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
-SET GTID_NEXT= "AUTOMATIC";
+--let $CLONE_DATADIR = $MYSQL_TMP_DIR/data_new
 
---let $assert_text= The member shall contain a local transaction
---let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$errand_transaction_uuid:1";
+--replace_result $CLONE_DATADIR CLONE_DATADIR
+--eval CLONE LOCAL DATA DIRECTORY = '$CLONE_DATADIR'
+
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
 --source include/assert.inc
 
---error ER_GROUP_REPLICATION_CONFIGURATION
-START GROUP_REPLICATION;
+--force-rmdir $CLONE_DATADIR
 
-#For precaution, wait for server 2 to leave before joining again.
+--echo
+--echo ############################################################
+--echo # 7. Remote clone operations that use data dirs are allowed
+--echo #    on user sessions on active group members.
+
+--replace_result $server1_port SERVER1_PORT $CLONE_DATADIR CLONE_DATADIR
+--eval CLONE INSTANCE FROM 'root'@localhost:$server1_port IDENTIFIED BY '' DATA DIRECTORY = '$CLONE_DATADIR'
+
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+--force-rmdir $CLONE_DATADIR
+
+--echo
+--echo ############################################################
+--echo # 8. If group replication is not running, clone operations that replace
+--echo #  data are allowed on user sessions on previous group members.
+
+--source include/stop_group_replication.inc
+
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $group_replication_number_of_members= 1
---source include/gr_wait_for_number_of_members.inc
+INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-DROP TABLE t2;
-RESET MASTER;
-
---echo
---echo ############################################################
---echo # 6. On a empty server2 start group replication
---echo #    Wait for it to restart and come back
---echo #    Check clone was completed
-
-SET GLOBAL group_replication_clone_threshold= 1;
-
-START GROUP_REPLICATION;
+--replace_result $server1_port SERVER1_PORT
+--eval CLONE INSTANCE FROM 'root'@localhost:$server1_port IDENTIFIED BY '';
 
 --source include/wait_until_disconnected.inc
 
@@ -138,7 +156,7 @@ START GROUP_REPLICATION;
 
 --echo
 --echo ############################################################
---echo # 7. Cleanup
+--echo # 9. Cleanup
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
@@ -152,19 +170,14 @@ DROP TABLE test.t1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-UNINSTALL PLUGIN clone;
-
---eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
-
 RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
 
+UNINSTALL PLUGIN clone;
+
 set session sql_log_bin=0;
-call mtr.add_suppression(".*This member has more executed transactions *.*");
-call mtr.add_suppression(".*The member contains transactions not present *.*");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of*");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

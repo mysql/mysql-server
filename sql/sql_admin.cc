@@ -1755,8 +1755,8 @@ bool Sql_cmd_clone::execute(THD *thd) {
     return true;
   }
 
-  /* A user session cannot run clone on a group member. */
-  if (is_group_replication_running() &&
+  /* A user session cannot run clone that replaces data on a group member. */
+  if (is_replace && is_group_replication_running() &&
       strcmp(thd->security_context()->priv_user().str, "mysql.session")) {
     my_error(ER_CLONE_DISALLOWED, MYF(0), "Group Replication is running");
     return true;
