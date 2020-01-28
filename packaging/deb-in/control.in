@@ -264,8 +264,11 @@ Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
  mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
  libmysqlclient-dev, libjson-perl, mecab-ipadic-utf8,
  ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
-Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 5.7.14),
+Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0),
+ mysql-community-server-core ( << 8.0.20 ),
  mysql-@DEB_PRODUCTNAME@-client (<< 5.7.14)
+Replaces: mysql-@DEB_PRODUCTNAME@-server ( << 8.0),
+ mysql-community-server-core ( << 8.0.20 )
 Conflicts: mysql,
  mysql-testsuite-8.0, mysql-testsuite-5.7, mysql-@DEB_NOTPRODUCTNAME@-test,
  mariadb-test, mariadb-test-data
