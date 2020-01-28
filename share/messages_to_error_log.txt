@@ -8718,7 +8718,7 @@ ER_IB_MSG_1061
   eng "Cannot create %s"
 
 ER_IB_MSG_1062
-  eng "Setting log file %s size to %llu MB"
+  eng "Setting log file %s size to %lu MB. Progress : %lu%%"
 
 ER_IB_MSG_1063
   eng "Cannot set log file %s to size %llu MB"
@@ -10796,6 +10796,15 @@ ER_NDBINFO_NOT_UPGRADING_SCHEMA
 
 ER_NDBINFO_UPGRADING_SCHEMA_FAIL
   eng "Failed to upgrade ndbinfo schema."
+
+ER_IB_MSG_CREATE_LOG_FILE
+  eng "Creating log file %s"
+
+ER_IB_MSG_INNODB_START_INITIALIZE
+  eng "InnoDB initialization has started."
+
+ER_IB_MSG_INNODB_END_INITIALIZE
+  eng "InnoDB initialization has ended."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

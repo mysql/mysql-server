@@ -12079,6 +12079,8 @@ static bool innobase_ddse_dict_init(
     List<const Plugin_tablespace> *tablespaces) {
   DBUG_TRACE;
 
+  LogErr(SYSTEM_LEVEL, ER_IB_MSG_INNODB_START_INITIALIZE);
+
   DBUG_ASSERT(tables && tables->is_empty());
   DBUG_ASSERT(tablespaces && tablespaces->is_empty());
 
@@ -12213,6 +12215,8 @@ static bool innobase_ddse_dict_init(
   tables->push_back(innodb_table_stats);
   tables->push_back(innodb_index_stats);
   tables->push_back(innodb_ddl_log);
+
+  LogErr(SYSTEM_LEVEL, ER_IB_MSG_INNODB_END_INITIALIZE);
 
   return false;
 }

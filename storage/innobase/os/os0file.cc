@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -5433,11 +5433,10 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
   /* Write buffer full of zeros */
   memset(buf, 0, buf_size);
 
-  if (size >= (os_offset_t)100 << 20) {
-    ib::info(ER_IB_MSG_826) << "Progress in MB:";
-  }
-
   os_offset_t current_size = offset;
+
+  /* Count to check and print progress of file write for file_size > 100 MB. */
+  ulint percentage_count = 10;
 
   while (current_size < size) {
     ulint n_bytes;
@@ -5468,12 +5467,6 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
       return (false);
     }
 
-    /* Print about progress for each 100 MB written */
-    if ((current_size + n_bytes) / (100 << 20) != current_size / (100 << 20)) {
-      fprintf(stderr, " %lu00",
-              (ulong)((current_size + n_bytes) / (100 << 20)));
-    }
-
     /* Flush after each os_fsync_threhold bytes */
     if (flush && os_fsync_threshold != 0) {
       if ((current_size + n_bytes) / os_fsync_threshold !=
@@ -5492,11 +5485,18 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
       }
     }
 
-    current_size += n_bytes;
-  }
+    /* Print percentage of progress if the size is more than 100MB */
+    if ((size >> 20) > 100) {
+      float progress_percentage =
+          ((float)(current_size + n_bytes) / (float)size) * 100;
 
-  if (size >= (os_offset_t)100 << 20) {
-    fprintf(stderr, "\n");
+      if (progress_percentage >= percentage_count) {
+        ib::info(ER_IB_MSG_1062, name, size >> 20, percentage_count);
+        percentage_count += 10;
+      }
+    }
+
+    current_size += n_bytes;
   }
 
   ut_free(buf2);
