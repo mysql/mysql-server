@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1709,14 +1709,12 @@ class cmp_item_scalar : public cmp_item {
 
 class cmp_item_string final : public cmp_item_scalar {
  private:
-  String *value_res;
-  char value_buff[STRING_BUFFER_USUAL_SIZE];
-  String value;
+  const String *value_res;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> value;
   const CHARSET_INFO *cmp_charset;
 
  public:
-  cmp_item_string(const CHARSET_INFO *cs)
-      : value(value_buff, sizeof(value_buff), cs), cmp_charset(cs) {}
+  cmp_item_string(const CHARSET_INFO *cs) : value(cs), cmp_charset(cs) {}
 
   virtual int compare(const cmp_item *ci) const {
     const cmp_item_string *l_cmp = down_cast<const cmp_item_string *>(ci);
@@ -1734,8 +1732,7 @@ class cmp_item_string final : public cmp_item_scalar {
   }
 
   virtual int cmp(Item *arg) {
-    char buff[STRING_BUFFER_USUAL_SIZE];
-    String tmp(buff, sizeof(buff), cmp_charset);
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp(cmp_charset);
     String *res = arg->val_str(&tmp);
     if (m_null_value || arg->null_value) return UNKNOWN;
     if (value_res && res)
@@ -2086,7 +2083,7 @@ class cmp_item_row : public cmp_item {
 };
 
 class in_row final : public in_vector {
-  cmp_item_row *tmp;
+  unique_ptr_destroy_only<cmp_item_row> tmp;
   Mem_root_array<cmp_item_row> base_objects;
   // Sort pointers, rather than objects.
   Mem_root_array<cmp_item_row *> base_pointers;
