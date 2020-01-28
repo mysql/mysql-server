@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,13 @@ void Gcs_xcom_engine::initialize(
 
 void Gcs_xcom_engine::finalize(xcom_finalize_functor *functor) {
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::finalize invoked!");
-  push(new Finalize_notification(this, functor));
+  auto *notification = new Finalize_notification(this, functor);
+  bool scheduled = push(notification);
+  if (!scheduled) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Tried to enqueue a finalize but the member is about to stop.")
+    delete notification;
+  }
   m_engine_thread.join(nullptr);
   assert(m_notification_queue.empty());
   assert(!m_schedule);

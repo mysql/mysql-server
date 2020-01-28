@@ -120,7 +120,8 @@ node_no xcom_find_node_index(node_list *nodes) {
         for (j = 0; j < number_of_interfaces(s); j++) {
           struct sockaddr *tmp_sockaddr = NULL;
           get_sockaddr_address(s, j, &tmp_sockaddr);
-          if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+          if (tmp_sockaddr != NULL &&
+              sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
               is_if_running(s, j)) {
             retval = i;
             goto end_loop;
@@ -163,7 +164,8 @@ node_no xcom_mynode_match(char *name, xcom_port port) {
       for (j = 0; j < number_of_interfaces(s); j++) {
         struct sockaddr *tmp_sockaddr = NULL;
         get_sockaddr_address(s, j, &tmp_sockaddr);
-        if (sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
+        if (tmp_sockaddr != NULL &&
+            sockaddr_default_eq(addr->ai_addr, tmp_sockaddr) &&
             is_if_running(s, j)) {
           retval = 1;
           goto end_loop;

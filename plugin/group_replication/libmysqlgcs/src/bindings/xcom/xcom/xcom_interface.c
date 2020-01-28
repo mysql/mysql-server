@@ -106,6 +106,14 @@ void set_xcom_debugger_check(xcom_debugger_check x) { xcom_debug_check = x; }
 
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status) {
+  if (app_status == delivery_ok) {
+    g_critical(
+        "A fatal error ocurred that prevents XCom from delivering a message "
+        "that achieved consensus. XCom cannot proceed without compromising "
+        "correctness. XCom will now crash.");
+    assert(pma && "pma must not be a null pointer");
+  }
+
   site_def const *site = 0;
   int full_doit = xcom_full_receive_data != 0;
   int doit = (xcom_receive_data != 0 && app_status == delivery_ok);
@@ -127,19 +135,20 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
         /* purecov: end */
       } else {
         if (doit) {
+          u_int copy_len = 0;
           char *copy = (char *)malloc(app->body.app_u_u.data.data_len);
-          if (copy == NULL && app->body.app_u_u.data.data_len != 0) {
+          if (copy == NULL) {
             /* purecov: begin inspected */
-            app->body.app_u_u.data.data_len = 0;
             G_ERROR("Unable to allocate memory for the received message.");
             /* purecov: end */
-          } else
+          } else {
             memcpy(copy, app->body.app_u_u.data.data_val,
                    app->body.app_u_u.data.data_len);
+            copy_len = app->body.app_u_u.data.data_len;
+          }
           ADD_DBG(D_EXEC, add_synode_event(pma->synode););
 
-          xcom_receive_data(pma->synode, detector_node_set(site),
-                            app->body.app_u_u.data.data_len,
+          xcom_receive_data(pma->synode, detector_node_set(site), copy_len,
                             cache_get_last_removed(), copy);
         } else {
           /* purecov: begin deadcode */

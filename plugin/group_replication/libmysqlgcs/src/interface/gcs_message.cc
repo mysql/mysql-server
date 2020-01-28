@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,6 @@ bool Gcs_message_data::encode(uchar **buffer, uint64_t *buffer_len) const {
   slider += WIRE_HEADER_LEN_SIZE;
 
   memcpy(slider, &payload_len_enc, WIRE_PAYLOAD_LEN_SIZE);
-  slider += WIRE_PAYLOAD_LEN_SIZE;
 
   *buffer = m_buffer;
   *buffer_len = m_buffer_len;
@@ -283,7 +282,6 @@ bool Gcs_message_data::decode(const uchar *data, uint64_t data_len) {
 
   if (static_cast<uint64_t>((slider + m_payload_len) - m_buffer) > data_len)
     return true;
-  slider += m_payload_len;
 
   MYSQL_GCS_LOG_TRACE(
       "Decoded message: (header)= %llu and (payload)= %llu",

@@ -1433,9 +1433,9 @@ static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
 }
 
 result announce_tcp(xcom_port port) {
-  result fd;
+  result fd = {0, 0};
   struct sockaddr *sock_addr = NULL;
-  socklen_t sock_addr_len;
+  socklen_t sock_addr_len = 0;
   int server_socket_v6_ok = 0;
 
   /* Try and create a V6 server socket. It should succeed if the OS */

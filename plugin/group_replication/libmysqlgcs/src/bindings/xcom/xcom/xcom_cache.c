@@ -158,16 +158,14 @@ pax_machine *hash_get(synode_no synode) {
   /* if(cached_machine && synode_eq(synode, cached_machine->synode)) */
   /* return cached_machine; */
 
-  FWD_ITER(&hash_stack, stack_machine,
-           {
-             if (link_iter->start_msgno < synode.msgno ||
-                 link_iter->start_msgno == 0) {
-               hash_table = link_iter;
-               break;
-             }
-           })
+  FWD_ITER(&hash_stack, stack_machine, {
+    if (link_iter->start_msgno < synode.msgno || link_iter->start_msgno == 0) {
+      hash_table = link_iter;
+      break;
+    }
+  })
 
-  {
+  if (hash_table != NULL) {
     linkage *bucket = &hash_table->pax_hash[synode_hash(synode)];
 
     FWD_ITER(bucket, pax_machine, {

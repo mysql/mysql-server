@@ -263,10 +263,12 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
   IFDBG(D_DETECT, FN;);
   while (!xcom_shutdown) {
     {
+#if TASK_DBUG_ON
       site_def *p_site = (site_def *)get_proposer_site();
+      if (!p_site) p_site = (site_def *)get_site_def();
+#endif
       site_def *x_site = (site_def *)get_executor_site();
 
-      if (!p_site) p_site = (site_def *)get_site_def();
       IFDBG(D_DETECT, FN; SYCEXP(executed_msg); SYCEXP(max_synode));
       IFDBG(D_DETECT, FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
       IFDBG(D_DETECT, FN; PTREXP(x_site); NDBG(get_nodeno(x_site), u));

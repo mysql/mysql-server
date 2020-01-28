@@ -609,7 +609,6 @@ enum_gcs_error Gcs_xcom_state_exchange::broadcast_state(
   }
 
   member_state.encode_snapshot(slider, &exchangeable_snapshot_len);
-  slider += exchangeable_snapshot_len;
 
   /*
     There is another copy here but we cannot avoid this right now
