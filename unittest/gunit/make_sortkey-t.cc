@@ -176,7 +176,7 @@ TEST_F(MakeSortKeyTest, AddonFields) {
   float unpacked_val;
   field.unpack(reinterpret_cast<uchar *>(&unpacked_val),
                m_to.array() + m_sort_fields[0].length + addon_field.offset,
-               /*param_data=*/0, /*low_byte_first=*/false);
+               /*param_data=*/0);
   EXPECT_EQ(unpacked_val, val);
 
   // Test truncation. (The actual contents don't matter in this case.)

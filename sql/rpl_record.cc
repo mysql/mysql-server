@@ -219,7 +219,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
         table->disable_logical_diffs_for_current_row(field);
     }
 
-    *pack_ptr = field->unpack(field->field_ptr(), *pack_ptr, metadata, true);
+    *pack_ptr = field->unpack(field->field_ptr(), *pack_ptr, metadata);
   }
 
   return false;

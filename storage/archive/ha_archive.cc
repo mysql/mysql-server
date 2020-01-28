@@ -1020,8 +1020,8 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record) {
   ptr += table->s->null_bytes;
   for (Field **field = table->field; *field; field++) {
     if (!((*field)->is_null_in_record(record))) {
-      ptr = (*field)->unpack(record + (*field)->offset(table->record[0]), ptr,
-                             0, table->s->db_low_byte_first);
+      ptr =
+          (*field)->unpack(record + (*field)->offset(table->record[0]), ptr, 0);
     }
   }
   return 0;

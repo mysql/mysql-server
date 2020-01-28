@@ -1463,8 +1463,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (addonf->null_bit && field->is_null()) {
           nulls[addonf->null_offset] |= addonf->null_bit;
         } else {
-          to = field->pack(to, field->field_ptr(), to_end - to,
-                           field->table->s->db_low_byte_first);
+          to = field->pack(to, field->field_ptr(), to_end - to);
           if (to >= to_end) return UINT_MAX;
         }
       }
@@ -1479,8 +1478,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
           nulls[addonf->null_offset] |= addonf->null_bit;
         } else {
           uchar *ptr MY_ATTRIBUTE((unused)) =
-              field->pack(to, field->field_ptr(), to_end - to,
-                          field->table->s->db_low_byte_first);
+              field->pack(to, field->field_ptr(), to_end - to);
           DBUG_ASSERT(ptr <= to + addonf->max_length);
         }
         to += addonf->max_length;

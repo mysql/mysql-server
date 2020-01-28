@@ -1536,35 +1536,18 @@ class Field {
       been written with a full buffer, ie., the same as packing and then
       truncating the output, but not all Field classes follow this.)
 
-    @param low_byte_first
-      @c true if integers should be stored little-endian, @c false if
-      native format should be used. Note that for little-endian machines,
-      the value of this flag is moot, since the native format is little-endian.
-
-      This value is dependent on how the packed data is going to be used:
-      for local use, e.g., temporary store on disk or in memory, use the native
-      format since that is faster. For data that is going to be transferred to
-      other machines (e.g., when writing data to the binary log), data should
-      always be stored in little-endian format.
-
     @return The byte after the last byte in “to” written to. If the return
       value is equal to (to + max_length), it could either be that the value
       fit exactly, or that the buffer was too small; you cannot distinguish
       between the two cases based on the return value alone.
    */
-  virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
-                      bool low_byte_first) const;
+  virtual uchar *pack(uchar *to, const uchar *from, size_t max_length) const;
 
-  uchar *pack(uchar *to) const {
-    return pack(to, ptr, UINT_MAX, table->s->db_low_byte_first);
-  }
+  uchar *pack(uchar *to) const { return pack(to, ptr, UINT_MAX); }
 
-  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                              bool low_byte_first);
+  virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data);
 
-  const uchar *unpack(const uchar *from) {
-    return unpack(ptr, from, 0U, table->s->db_low_byte_first);
-  }
+  const uchar *unpack(const uchar *from) { return unpack(ptr, from, 0U); }
 
   /**
     This function does the same thing as pack(), except for the difference
@@ -1584,7 +1567,7 @@ class Field {
    */
   virtual uchar *pack_with_metadata_bytes(uchar *to, const uchar *from,
                                           uint max_length) const {
-    return pack(to, from, max_length, /*low_byte_first=*/true);
+    return pack(to, from, max_length);
   }
 
   /**
@@ -1875,29 +1858,21 @@ class Field {
   }
 
  protected:
-  uchar *pack_int16(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+  uchar *pack_int16(uchar *to, const uchar *from, size_t max_length) const;
 
-  const uchar *unpack_int16(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+  const uchar *unpack_int16(uchar *to, const uchar *from) const;
 
-  uchar *pack_int24(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+  uchar *pack_int24(uchar *to, const uchar *from, size_t max_length) const;
 
-  const uchar *unpack_int24(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+  const uchar *unpack_int24(uchar *to, const uchar *from) const;
 
-  uchar *pack_int32(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+  uchar *pack_int32(uchar *to, const uchar *from, size_t max_length) const;
 
-  const uchar *unpack_int32(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+  const uchar *unpack_int32(uchar *to, const uchar *from) const;
 
-  uchar *pack_int64(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+  uchar *pack_int64(uchar *to, const uchar *from, size_t max_length) const;
 
-  const uchar *unpack_int64(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+  const uchar *unpack_int64(uchar *to, const uchar *from) const;
 };
 
 /**
@@ -2125,10 +2100,8 @@ class Field_real : public Field_num {
   bool get_time(MYSQL_TIME *ltime) const final override;
   Truncate_result truncate(double *nr, double max_length);
   uint32 max_display_length() const final override { return field_length; }
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) override;
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const override;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const override;
 };
 
 class Field_decimal final : public Field_real {
@@ -2159,13 +2132,11 @@ class Field_decimal final : public Field_real {
     DBUG_ASSERT(type() == MYSQL_TYPE_DECIMAL);
     return new (mem_root) Field_decimal(*this);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override {
-    return Field::unpack(to, from, param_data, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final {
+    return Field::unpack(to, from, param_data);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return Field::pack(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return Field::pack(to, from, max_length);
   }
 };
 
@@ -2239,8 +2210,7 @@ class Field_new_decimal : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_NEWDECIMAL);
     return new (mem_root) Field_new_decimal(*this);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final;
   static Field *create_from_item(const Item *item);
   bool send_to_protocol(Protocol *protocol) const final override;
   void set_keep_precision(bool arg) { m_keep_precision = arg; }
@@ -2280,12 +2250,13 @@ class Field_tiny : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_TINY);
     return new (mem_root) Field_tiny(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length, bool) const final {
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
     if (max_length > 0) *to = *from;
     return to + 1;
   }
 
-  const uchar *unpack(uchar *to, const uchar *from, uint, bool) final override {
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
     *to = *from;
     return from + 1;
   }
@@ -2331,14 +2302,13 @@ class Field_short final : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_SHORT);
     return new (mem_root) Field_short(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return pack_int16(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return pack_int16(to, from, max_length);
   }
 
-  const uchar *unpack(uchar *to, const uchar *from, uint,
-                      bool low_byte_first) final override {
-    return unpack_int16(to, from, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    return unpack_int16(to, from);
   }
 
   ulonglong get_max_int_value() const final override {
@@ -2423,13 +2393,12 @@ class Field_long : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONG);
     return new (mem_root) Field_long(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return pack_int32(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return pack_int32(to, from, max_length);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint,
-                      bool low_byte_first) final override {
-    return unpack_int32(to, from, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    return unpack_int32(to, from);
   }
 
   ulonglong get_max_int_value() const final override {
@@ -2474,13 +2443,12 @@ class Field_longlong : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONGLONG);
     return new (mem_root) Field_longlong(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return pack_int64(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return pack_int64(to, from, max_length);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint,
-                      bool low_byte_first) final override {
-    return unpack_int64(to, from, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    return unpack_int64(to, from);
   }
 
   ulonglong get_max_int_value() const final override {
@@ -3039,13 +3007,12 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     return new (mem_root) Field_timestamp(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return pack_int32(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return pack_int32(to, from, max_length);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint,
-                      bool low_byte_first) final override {
-    return unpack_int32(to, from, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    return unpack_int32(to, from);
   }
   /* Validate the value stored in a field */
   type_conversion_status validate_stored_val(THD *thd) final override;
@@ -3414,13 +3381,12 @@ class Field_datetime : public Field_temporal_with_date_and_time {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
     return new (mem_root) Field_datetime(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
-    return pack_int64(to, from, max_length, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    return pack_int64(to, from, max_length);
   }
-  const uchar *unpack(uchar *to, const uchar *from, uint,
-                      bool low_byte_first) final override {
-    return unpack_int64(to, from, low_byte_first);
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    return unpack_int64(to, from);
   }
 };
 
@@ -3537,10 +3503,8 @@ class Field_string : public Field_longstr {
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   void sql_type(String &str) const final override;
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final;
   uint pack_length_from_metadata(uint field_metadata) const final override {
     DBUG_PRINT("debug", ("field_metadata: 0x%04x", field_metadata));
     if (field_metadata == 0) return row_pack_length();
@@ -3610,10 +3574,8 @@ class Field_varstring : public Field_longstr {
                        imagetype type) const final override;
   void set_key_image(const uchar *buff, size_t length) final override;
   void sql_type(String &str) const final override;
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool) const final override;
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool) final override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final;
   int cmp_binary(const uchar *a, const uchar *b,
                  uint32 max_length = ~0L) const final override;
   int key_cmp(const uchar *, const uchar *) const final override;
@@ -3827,8 +3789,7 @@ class Field_blob : public Field_longstr {
     return get_length(row_offset);
   }
   uint32 get_length(ptrdiff_t row_offset = 0) const;
-  uint32 get_length(const uchar *ptr, uint packlength,
-                    bool low_byte_first) const;
+  uint32 get_length(const uchar *ptr, uint packlength) const;
   uint32 get_length(const uchar *ptr_arg) const;
   /** Get a const pointer to the BLOB data of this field. */
   const uchar *get_blob_data() const { return get_blob_data(ptr + packlength); }
@@ -3873,12 +3834,10 @@ class Field_blob : public Field_longstr {
     DBUG_ASSERT(type() == MYSQL_TYPE_BLOB);
     return new (mem_root) Field_blob(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final;
   uchar *pack_with_metadata_bytes(uchar *to, const uchar *from,
                                   uint max_length) const final;
-  const uchar *unpack(uchar *, const uchar *from, uint param_data,
-                      bool low_byte_first) final override;
+  const uchar *unpack(uchar *, const uchar *from, uint param_data) final;
   uint max_packed_col_length() const final override;
   void mem_free() final override {
     // Free all allocated space
@@ -4464,10 +4423,8 @@ class Field_enum : public Field_str {
     DBUG_ASSERT(real_type() == MYSQL_TYPE_ENUM);
     return new (mem_root) Field_enum(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final;
 
  private:
   int do_save_field_metadata(uchar *first_byte) const final override;
@@ -4596,10 +4553,8 @@ class Field_bit : public Field {
   bool compatible_field_size(uint metadata, Relay_log_info *, uint16 mflags,
                              int *order_var) const final override;
   void sql_type(String &str) const override;
-  uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool) const final override;
-  const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool) final override;
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final;
+  const uchar *unpack(uchar *to, const uchar *from, uint param_data) final;
   void set_default() final override;
 
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
