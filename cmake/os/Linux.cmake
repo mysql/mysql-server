@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,10 @@ INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
 
 SET(LINUX 1)
+
+# OS display name (version_compile_os etc).
+# Used by the test suite to ignore bugs on some platforms.
+SET(SYSTEM_TYPE "Linux")
 
 IF(EXISTS "/etc/SuSE-release")
   SET(LINUX_SUSE 1)
