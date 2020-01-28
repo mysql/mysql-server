@@ -4828,8 +4828,10 @@ bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
   if (!wr.coerce_date(ltime, func_name(), CE_IGNORE)) return false;
 
   if (handle_json_value_conversion_error(m_on_error, "DATE", this) ||
-      null_value)
+      null_value) {
+    set_zero_time(ltime, MYSQL_TIMESTAMP_DATE);
     return true;
+  }
 
   *ltime = *m_default_error->temporal_default;
   return false;
@@ -4852,8 +4854,10 @@ bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
   if (!wr.coerce_time(ltime, func_name(), CE_IGNORE)) return false;
 
   if (handle_json_value_conversion_error(m_on_error, "TIME", this) ||
-      null_value)
+      null_value) {
+    set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
     return true;
+  }
 
   *ltime = *m_default_error->temporal_default;
   return false;
@@ -4877,8 +4881,10 @@ bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
     return false;
 
   if (handle_json_value_conversion_error(m_on_error, "DATETIME", this) ||
-      null_value)
+      null_value) {
+    set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME);
     return true;
+  }
 
   *ltime = *m_default_error->temporal_default;
   return false;

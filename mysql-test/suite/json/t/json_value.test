@@ -702,27 +702,26 @@ SELECT JSON_VALUE('"9223372036854775807"', '$' RETURNING SIGNED) AS max_val,
        JSON_VALUE('"9223372036854775808"', '$' RETURNING SIGNED) AS plus_one,
        JSON_VALUE('"-9223372036854775808"', '$' RETURNING SIGNED) AS min_val,
        JSON_VALUE('"-9223372036854775809"', '$' RETURNING SIGNED) AS minus_one;
-# TODO test both string and int default in the next queries.
 SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
                               DEFAULT '9223372036854775807' ON EMPTY) AS a,
        JSON_VALUE('{}', '$.x' RETURNING SIGNED
-                              DEFAULT '9223372036854775807' ON EMPTY) AS b,
+                              DEFAULT 9223372036854775807 ON EMPTY) AS b,
        JSON_VALUE('{}', '$.x' RETURNING SIGNED
                               DEFAULT '-9223372036854775808' ON EMPTY) AS c,
        JSON_VALUE('{}', '$.x' RETURNING SIGNED
-                              DEFAULT '-9223372036854775808' ON EMPTY) AS d;
+                              DEFAULT -9223372036854775808 ON EMPTY) AS d;
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
                               DEFAULT '9223372036854775808' ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
-                              DEFAULT '9223372036854775808' ON EMPTY);
+                              DEFAULT 9223372036854775808 ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
                               DEFAULT '-9223372036854775809' ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING SIGNED
-                              DEFAULT '-9223372036854775809' ON EMPTY);
+                              DEFAULT -9223372036854775809 ON EMPTY);
 
 --echo # UNSIGNED ranges.
 SELECT JSON_VALUE('18446744073709551615', '$' RETURNING UNSIGNED) AS max_val,
@@ -733,27 +732,26 @@ SELECT JSON_VALUE('"18446744073709551615"', '$' RETURNING UNSIGNED) AS max_val,
        JSON_VALUE('"18446744073709551616"', '$' RETURNING UNSIGNED) AS plus_one,
        JSON_VALUE('"0"', '$' RETURNING UNSIGNED) AS min_val,
        JSON_VALUE('"-1"', '$' RETURNING UNSIGNED) AS minus_one;
-# TODO test both string and int default.
 SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
                               DEFAULT '18446744073709551615' ON EMPTY) AS a,
        JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
-                              DEFAULT '18446744073709551615' ON EMPTY) AS b,
+                              DEFAULT 18446744073709551615 ON EMPTY) AS b,
        JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
                               DEFAULT '0' ON EMPTY) AS c,
        JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
-                              DEFAULT '0' ON EMPTY) AS d;
+                              DEFAULT 0 ON EMPTY) AS d;
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
                               DEFAULT '18446744073709551616' ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
-                              DEFAULT '18446744073709551616' ON EMPTY);
+                              DEFAULT 18446744073709551616 ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
                               DEFAULT '-1' ON EMPTY);
 --error ER_DATA_OUT_OF_RANGE
 SELECT JSON_VALUE('{}', '$.x' RETURNING UNSIGNED
-                              DEFAULT '-1' ON EMPTY);
+                              DEFAULT -1 ON EMPTY);
 
 --echo # Check that the nullability of JSON_VALUE is correct.
 
