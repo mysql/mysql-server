@@ -302,7 +302,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   auto size = srv_log_file_size >> 20;
 
-  ib::info(ER_IB_MSG_1062, name, size);
+  ib::info(ER_IB_MSG_CREATE_LOG_FILE, name);
 
 #ifdef UNIV_DEBUG_DEDICATED
   if (srv_dedicated_server && strstr(name, "ib_logfile101") == 0) {
