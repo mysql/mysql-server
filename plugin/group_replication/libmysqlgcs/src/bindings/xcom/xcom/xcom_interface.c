@@ -76,10 +76,12 @@ void set_xcom_debugger_check(xcom_debugger_check x) { xcom_debug_check = x; }
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status) {
   if (app_status == delivery_ok) {
-    g_critical(
-        "A fatal error ocurred that prevents XCom from delivering a message "
-        "that achieved consensus. XCom cannot proceed without compromising "
-        "correctness. XCom will now crash.");
+    if (!pma) {
+      g_critical(
+          "A fatal error ocurred that prevents XCom from delivering a message "
+          "that achieved consensus. XCom cannot proceed without compromising "
+          "correctness. XCom will now crash.");
+    }
     assert(pma && "pma must not be a null pointer");
   }
 
