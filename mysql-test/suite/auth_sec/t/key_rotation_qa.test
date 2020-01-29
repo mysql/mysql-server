@@ -20,7 +20,6 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't generate new master key 
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace `test/.*` because it could not be opened.");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Can't read encryption key from file");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table .* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Could not flush keys to keyring's backup");

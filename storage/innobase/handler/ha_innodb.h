@@ -789,7 +789,7 @@ class create_table_info_t {
   create_table_info_t(THD *thd, TABLE *form, HA_CREATE_INFO *create_info,
                       char *table_name, char *remote_path, char *tablespace,
                       bool file_per_table, bool skip_strict, uint32_t old_flags,
-                      uint32_t old_flags2)
+                      uint32_t old_flags2, bool is_partition)
       : m_thd(thd),
         m_trx(thd_to_trx(thd)),
         m_form(form),
@@ -800,7 +800,8 @@ class create_table_info_t {
         m_innodb_file_per_table(file_per_table),
         m_flags(old_flags),
         m_flags2(old_flags2),
-        m_skip_strict(skip_strict) {}
+        m_skip_strict(skip_strict),
+        m_partition(is_partition) {}
 
   /** Initialize the object. */
   int initialize();
@@ -833,8 +834,22 @@ class create_table_info_t {
   @return NULL if valid, string name of bad option if not. */
   const char *create_options_are_invalid();
 
+ private:
+  /** Put a warning or error message to the error log for the
+  DATA DIRECTORY option.
+  @param[in]  dirpath  The directory path that is invalid
+  @param[in]  msg1     The reason that data directory is wrong.
+  @param[in]  msg2     A second message meant for the error log.
+  @param[in]  ignore   If true, append a message about ignoring
+                       the data directory location.
+  @return true if valid, false if not. */
+  void log_error_invalid_location(Fil_path &dirpath, std::string &msg1,
+                                  std::string &msg2, bool ignore);
+
+ public:
   /** Validate DATA DIRECTORY option. */
-  bool create_option_data_directory_is_valid();
+  bool create_option_data_directory_is_valid(bool ignore = false);
+
   /** Validate TABLESPACE option. */
   bool create_option_tablespace_is_valid();
 
@@ -961,6 +976,9 @@ class create_table_info_t {
 
   /** Skip strict check */
   bool m_skip_strict;
+
+  /** True if this table is a partition */
+  bool m_partition;
 };
 
 /** Class of basic DDL implementation, for CREATE/DROP/RENAME TABLE */

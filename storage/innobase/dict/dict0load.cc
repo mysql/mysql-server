@@ -1288,6 +1288,12 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
     opened. */
     char *filepath = dict_get_first_path(space_id);
 
+    /* Check that this ibd is in a known location. If not, allow this
+    but make some noise. */
+    if (!fil_path_is_known(filepath)) {
+      ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, filepath, space_name);
+    }
+
     /* Check that the .ibd file exists. */
     dberr_t err =
         fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
@@ -1537,6 +1543,12 @@ space_id_t dict_check_sys_tables(bool validate) {
                                   dict_path);
         filepath = mem_strdup(dict_path.c_str());
       }
+    }
+
+    /* Check that this ibd is in a known location. If not, allow this
+    but make some noise. */
+    if (!fil_path_is_known(filepath)) {
+      ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, filepath, space_name);
     }
 
     /* Check that the .ibd file exists. */

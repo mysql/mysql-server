@@ -9,7 +9,7 @@ SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
 set session innodb_strict_mode=0;
 set global innodb_file_per_table=off;
 SET @@global.innodb_stats_on_metadata=ON;
- 
+
 create table t0(a int primary key) engine=innodb row_format=compressed;
 create table t00(a int primary key) engine=innodb
 key_block_size=4 row_format=compressed;

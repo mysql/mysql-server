@@ -1,1 +1,2 @@
 $DDL_REWRITER_OPT
+--innodb-directories=$MYSQLTEST_VARDIR/tmp

@@ -279,6 +279,9 @@ Fil_path MySQL_datadir_path;
 /** Reference to the server undo directory. */
 Fil_path MySQL_undo_path;
 
+/** The undo path is different from any other known directory. */
+bool MySQL_undo_path_is_unique;
+
 /** Common InnoDB file extentions */
 const char *dot_ext[] = {"", ".ibd", ".cfg", ".cfp", ".ibt", ".ibu", ".dblwr"};
 
@@ -422,7 +425,7 @@ class Tablespace_files {
   /** Remove the entry for the space ID.
   @param[in]	space_id	Tablespace ID mapping to remove
   @return true if erase successful */
-  bool erase(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(space_id != TRX_SYS_SPACE);
 
     if (dict_sys_t::is_reserved(space_id) &&
@@ -511,9 +514,9 @@ class Tablespace_dirs {
   /** Erase a space ID to filename mapping.
   @param[in]	space_id	Tablespace ID to erase
   @return true if successful */
-  bool erase(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
     for (auto &dir : m_dirs) {
-      if (dir.erase(space_id)) {
+      if (dir.erase_path(space_id)) {
         return (true);
       }
     }
@@ -545,8 +548,8 @@ class Tablespace_dirs {
     const Fil_path descendant{path};
 
     for (const auto &dir : m_dirs) {
-      if (dir.root().is_ancestor(descendant) ||
-          dir.root().is_same_as(descendant)) {
+      if (dir.root().is_same_as(descendant) ||
+          dir.root().is_ancestor(descendant)) {
         return (true);
       }
     }
@@ -1312,8 +1315,8 @@ class Fil_system {
   /** Erase a tablespace ID and its mapping from the scanned files.
   @param[in]	space_id	Tablespace ID to erase
   @return true if successful */
-  bool erase(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_dirs.erase(space_id));
+  bool erase_path(space_id_t space_id) MY_ATTRIBUTE((warn_unused_result)) {
+    return (m_dirs.erase_path(space_id));
   }
 
   /** Add file to old file list. The list is used during 5.7 upgrade failure
@@ -3994,44 +3997,93 @@ dberr_t Fil_shard::space_check_pending_operations(space_id_t space_id,
   return (DB_SUCCESS);
 }
 
+std::string Fil_path::get_existing_path(const std::string &path,
+                                        std::string &ghost) {
+  std::string existing_path{path};
+
+  while (get_file_type(existing_path) == OS_FILE_TYPE_MISSING) {
+    /* Some part of this path does not exist.
+    If the last char is a separator, strip it off. */
+    trim_separator(existing_path);
+
+    auto sep = existing_path.find_last_of(SEPARATOR);
+    if (sep == std::string::npos) {
+      /* If no separator is found, it must be relative to the current dir. */
+      if (existing_path == ".") {
+        /* This probably cannot happen, but break here to ensure that the
+        loop always has a way out. */
+        break;
+      }
+      ghost.assign(path);
+      existing_path.assign(".");
+      existing_path.push_back(OS_SEPARATOR);
+    } else {
+      ghost.assign(path.substr(sep + 1, path.length()));
+      existing_path.resize(sep + 1);
+    }
+  }
+  return (existing_path);
+}
+
 std::string Fil_path::get_real_path(const std::string &path, bool force) {
   if (path.empty()) {
     return (std::string(""));
   }
 
   char abspath[OS_FILE_MAX_PATH];
+  std::string real_path;
+
   int ret = my_realpath(abspath, path.c_str(), MYF(0));
 
-  if (ret == -1) {
-    /* It is common for this to fail on non-Windows platforms if the
-    path does not yet exist. If so, do not report this failure. */
-    if (!force) {
-      if (get_file_type(path) != OS_FILE_TYPE_MISSING) {
+  if (ret == 0) {
+    real_path.assign(abspath);
+  } else {
+    /* This often happens on non-Windows platforms when the path does not
+    fully exist yet. Try my_realpath() again with the existing portion
+    of the path.*/
+    std::string ghost;
+    std::string dir = get_existing_path(path, ghost);
+
+    ret = my_realpath(abspath, dir.c_str(), MYF(0));
+
+    if (ret == 0) {
+      /* Concatenate the absolute path with the non-existing sub-path.
+      NOTE: If this path existed, my_realpath() would put a separator
+      at the end if it is a directory.  But since the ghost portion
+      does not yet exist, we don't know if it is a dir or a file, so
+      we cannot attach a trailing separator for a directory.  So we
+      trim them off in Fil_path::is_same_as() and is_ancestor(). */
+      real_path.assign(abspath);
+      ut_ad(get_file_type(real_path) == OS_FILE_TYPE_DIR);
+      append_separator(real_path);
+
+      real_path.append(ghost);
+
+    } else {
+      if (!force) {
+        /* my_realpath() failed for some reason other than the path does not
+        exist. Return null and make a note of it.  Another attempt will be
+        made later when Fil_path::abs_path() is called with force=true. */
         ib::info(ER_IB_MSG_289)
             << "my_realpath('" << path << "') failed for path type "
             << get_file_type_string(path);
+        return (std::string(""));
       }
-      return (std::string(""));
-    }
 
-    /* Use the given path and make it comparable. */
-    ut_a(path.length() < sizeof(abspath));
-    memcpy(abspath, path.c_str(), path.length());
-    abspath[path.length()] = 0;
+      /* Use the given path and make it comparable. */
+      real_path.assign(path);
+    }
   }
 
   if (lower_case_file_system) {
-    my_casedn_str(&my_charset_filename, abspath);
+    Fil_path::to_lower(real_path);
   }
-
-  std::string real_path(abspath);
 
   /* On Windows, my_realpath() puts a '\' at the end of any directory
   path, on non-Windows it does not. */
 
-  if (!is_separator(real_path.back()) &&
-      get_file_type(real_path) == OS_FILE_TYPE_DIR) {
-    real_path.push_back(OS_SEPARATOR);
+  if (get_file_type(real_path) == OS_FILE_TYPE_DIR) {
+    append_separator(real_path);
   }
 
   return (real_path);
@@ -4633,9 +4685,7 @@ char *Fil_path::make(const std::string &path_in, const std::string &name_in,
   }
 
   if (!name.empty()) {
-    if (!filepath.empty() && !is_separator(filepath.back())) {
-      filepath.push_back(OS_SEPARATOR);
-    }
+    append_separator(filepath);
 
     filepath.append(name);
   }
@@ -5790,7 +5840,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   ut_a(err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META);
   if (err == DB_INVALID_ENCRYPTION_META) {
-    bool success = fil_system->erase(space_id);
+    bool success = fil_system->erase_path(space_id);
     ut_a(success);
     return (FIL_LOAD_NOT_FOUND);
   }
@@ -9104,6 +9154,61 @@ Fil_path::Fil_path(const char *path, size_t len, bool normalize_path)
 Fil_path::Fil_path() : m_path(), m_abs_path() { /* No op */
 }
 
+bool Fil_path::is_same_as(const Fil_path &other) const {
+  if (path().empty() || other.path().empty()) {
+    return (false);
+  }
+
+  std::string first = abs_path();
+  trim_separator(first);
+
+  std::string second = other.abs_path();
+  trim_separator(second);
+
+  return (first == second);
+}
+
+bool Fil_path::is_same_as(const std::string &other) const {
+  if (path().empty() || other.empty()) {
+    return (false);
+  }
+
+  Fil_path other_path(other);
+
+  return (is_same_as(other_path));
+}
+
+bool Fil_path::is_ancestor(const Fil_path &other) const {
+  if (path().empty() || other.path().empty()) {
+    return (false);
+  }
+
+  std::string ancestor = abs_path();
+  std::string descendant = other.abs_path();
+
+  /* We do not know if the descendant is a dir or a file.
+  But the ancestor in this routine is always a directory.
+  If it does not yet exist, it may not have a trailing separator.
+  If there is no trailing separator, add it. */
+  append_separator(ancestor);
+
+  if (descendant.length() <= ancestor.length()) {
+    return (false);
+  }
+
+  return (std::equal(ancestor.begin(), ancestor.end(), descendant.begin()));
+}
+
+bool Fil_path::is_ancestor(const std::string &other) const {
+  if (path().empty() || other.empty()) {
+    return (false);
+  }
+
+  Fil_path descendant(other);
+
+  return (is_ancestor(descendant));
+}
+
 bool Fil_path::is_hidden(std::string path) {
   std::string basename(path);
   while (!basename.empty()) {
@@ -9732,33 +9837,25 @@ bool fil_tablespace_open_for_recovery(space_id_t space_id) {
   return (fil_system->open_for_recovery(space_id));
 }
 
-/** Lookup the tablespace ID and return the path to the file. The filename
-is ignored when testing for equality. Only the path up to the file name is
-considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
-@param[in]	dd_object_id	Server DD tablespace ID
-@param[in]	space_id	Tablespace ID to lookup
-@param[in]	space_name	Tablespace name
-@param[in]	old_path	Path in the data dictionary
-@param[out]	new_path	New path if scanned path not equal to path
-@return status of the match. */
 Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
                                      space_id_t space_id,
-                                     const char *space_name,
+                                     const char *space_name, ulint fsp_flags,
                                      std::string old_path,
                                      std::string *new_path) {
   ut_ad((fsp_is_ibd_tablespace(space_id) &&
          Fil_path::has_suffix(IBD, old_path)) ||
         fsp_is_undo_tablespace(space_id));
 
+  /* Watch out for implicit undo tablespaces that are created during startup.
+  They will not be in the list of scanned files.  But the DD might need to be
+  updated if the undo directory is different now from when the database was
+  initialized.  The DD will be updated if we put it in fil_system->moved. */
   if (fsp_is_undo_tablespace(space_id)) {
     undo::spaces->s_lock();
     space_id_t space_num = undo::id2num(space_id);
     undo::Tablespace *undo_space = undo::spaces->find(space_num);
+
     if (undo_space != nullptr && undo_space->is_new()) {
-      /* This undo tablespace was created during startup so it will not be
-      in the list of scanned files. But the DD might need to be updated if
-      the undo directory is different now from when the database was
-      initialized. */
       *new_path = undo_space->file_name();
       Fil_state state = ((old_path.compare(*new_path) == 0) ? Fil_state::MATCHES
                                                             : Fil_state::MOVED);
@@ -9770,23 +9867,28 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
 
   /* Single threaded code, no need to acquire mutex. */
   const auto &end = recv_sys->deleted.end();
-  const auto result = fil_system->get_scanned_files(space_id);
   const auto &it = recv_sys->deleted.find(space_id);
+  const auto result = fil_system->get_scanned_files(space_id);
 
   if (result.second == nullptr) {
-    /* If the DD has the path but --innodb-directories doesn't,
-    we need to check if the DD path is valid before we tag the
-    file as missing. */
+    /* The file was not scanned but the DD has the tablespace. Either;
+    1. This file is missing
+    2. The file could not be opened because of encryption or something else,
+    3. The path is not included in --innodb-directories.
+    We need to check if the DD path is valid before we tag the file
+    as missing. */
 
     if (Fil_path::get_file_type(old_path) == OS_FILE_TYPE_FILE) {
-      ib::info(ER_IB_MSG_352) << old_path << " found outside of"
-                              << " --innodb-directories setting";
-
+      /* This file from the DD exists where the DD thinks it is. It will be
+      opened later.  Make some noise if the location is unknown. */
+      if (!fil_path_is_known(old_path)) {
+        ib::warn(ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED, old_path.c_str(),
+                 space_name);
+      }
       return (Fil_state::MATCHES);
     }
 
-    /* If it wasn't deleted during redo apply, we tag it
-    as missing. */
+    /* If it wasn't deleted during redo apply, we tag it as missing. */
 
     if (it == end && recv_recovery_is_on()) {
       recv_sys->missing_ids.insert(space_id);
@@ -9795,13 +9897,14 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
     return (Fil_state::MISSING);
   }
 
-  /* Check that it wasn't deleted. */
+  /* Check if it was deleted according to the redo log. */
   if (it != end) {
     return (Fil_state::DELETED);
   }
 
   /* A file with this space_id was found during scanning.
-  Validate its location and see if it was moved.
+  Validate its location and check if it was moved from where
+  the DD thinks it is.
 
   Don't compare the full filename, there can be a mismatch if
   there was a DDL in progress and we will end up renaming the path
@@ -9830,11 +9933,7 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
   new_dir = Fil_path::get_real_path(new_dir);
 
   /* Do not use a datafile that is in the wrong place. */
-  if (!Fil_path::is_valid_location(space_name, new_dir)) {
-    ib::info(ER_IB_MSG_353)
-        << "Cannot use scanned file " << new_dir << " for tablespace "
-        << space_name << " because it is not in a valid location.";
-
+  if (!Fil_path::is_valid_location(space_name, space_id, fsp_flags, new_dir)) {
     return (Fil_state::MISSING);
   }
 
@@ -10311,7 +10410,7 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
   fil_space_free(page_id.space(), false);
 
-  bool success = fil_system->erase(page_id.space());
+  bool success = fil_system->erase_path(page_id.space());
   ut_a(success);
 #endif /* UNIV_HOTBACKUP */
 
@@ -10447,6 +10546,9 @@ void Tablespace_dirs::warn_ignore(std::string ignore_path, const char *reason) {
 
 void Tablespace_dirs::add_path(const std::string &path_in, bool is_undo_dir) {
   /* Ignore an invalid path. */
+  if (path_in == "") {
+    return;
+  }
   if (path_in == "/") {
     warn_ignore(path_in,
                 "the root directory '/' is not allowed to be scanned.");
@@ -10459,9 +10561,7 @@ void Tablespace_dirs::add_path(const std::string &path_in, bool is_undo_dir) {
 
   /* Assume this path is a directory and put a trailing slash on it. */
   std::string dir_in(path_in);
-  if (!Fil_path::is_separator(dir_in.back())) {
-    dir_in.push_back(Fil_path::OS_SEPARATOR);
-  }
+  Fil_path::append_separator(dir_in);
 
   Fil_path found_path(dir_in, true);
 
@@ -11203,10 +11303,11 @@ void fil_set_scan_dirs(const std::string &directories) {
 @return DB_SUCCESS if all goes well */
 dberr_t fil_scan_for_tablespaces() { return (fil_system->scan()); }
 
-/** Check if a path is known to InnoDB.
-@param[in]	path		Path to check
+/** Check if a path is known to InnoDB meaning that it is in or under
+one of the four path settings scanned at startup for file discovery.
+@param[in]  path    Path to check
 @return true if path is known to InnoDB */
-bool fil_check_path(const std::string &path) {
+bool fil_path_is_known(const std::string &path) {
   return (fil_system->check_path(path));
 }
 
@@ -11237,92 +11338,105 @@ void fil_space_update_name(fil_space_t *space, const char *name) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Check if the filepath provided is in a valid placement.
-1) File-per-table must be in a dir named for the schema.
-2) File-per-table must not be in the datadir.
-3) General tablespace must not be under the datadir.
-@param[in]	space_name	tablespace name
-@param[in]	path		filepath to validate
-@retval true if the filepath is a valid datafile location */
-bool Fil_path::is_valid_location(const char *space_name,
-                                 const std::string &path) {
+bool Fil_path::is_valid_location(const char *space_name, space_id_t space_id,
+                                 uint32_t fsp_flags, const std::string &path) {
   ut_ad(!path.empty());
   ut_ad(space_name != nullptr);
 
-  std::string name{space_name};
+  /* All files sent to this routine have been found by scanning known
+  locations. */
+  ib_file_suffix type = (fsp_is_undo_tablespace(space_id) ? IBU : IBD);
 
-  /* The path is a realpath to a file. Make sure it is not an
-  undo tablespace filename. Undo datafiles can be located anywhere. */
-  if (Fil_path::is_undo_tablespace_name(path)) {
-    return (true);
+  if (type == IBD) {
+    size_t dirname_len = dirname_length(path.c_str());
+    Fil_path dirpath(path.c_str(), dirname_len, true);
+
+    bool is_shared = fsp_is_shared_tablespace(fsp_flags);
+    bool under_datadir = MySQL_datadir_path.is_ancestor(dirpath);
+
+    if (is_shared) {
+      if (under_datadir) {
+        ib::error(ER_IB_MSG_GENERAL_TABLESPACE_UNDER_DATADIR, path.c_str());
+        return (false);
+      }
+    } else {
+      /* file-per-table */
+      bool in_datadir =
+          (under_datadir ? false : MySQL_datadir_path.is_same_as(dirpath));
+
+      if (in_datadir) {
+        ib::error(ER_IB_MSG_IMPLICIT_TABLESPACE_IN_DATADIR, path.c_str());
+        return (false);
+      }
+
+      /* Make sure that the last directory of an implicit tablespace is a
+      filesystem charset version of the schema name. */
+      if (!is_valid_location_within_db(space_name, path)) {
+        ib::error(ER_IB_MSG_INVALID_LOCATION_WRONG_DB, path.c_str(),
+                  space_name);
+        return (false);
+      }
+    }
   }
 
-  /* Strip off the filename to reduce the path to a directory. */
+  return (true);
+}
+
+bool Fil_path::is_valid_location_within_db(const char *space_name,
+                                           const std::string &path) {
+  /* Strip off the basename to reduce the path to a directory. */
   std::string dirpath{path};
   auto pos = dirpath.find_last_of(SEPARATOR);
-
   dirpath.resize(pos);
+
+  /* Only implicit tablespaces are sent to this routine.
+  They are always prefixed by `schema/`. */
+  ut_ad(pos != std::string::npos);
 
   /* Get the subdir that the file is in. */
   pos = dirpath.find_last_of(SEPARATOR);
-
-  std::string subdir = (pos == std::string::npos)
+  std::string db_dir = (pos == std::string::npos)
                            ? dirpath
                            : dirpath.substr(pos + 1, dirpath.length());
+
+  /* Convert to lowercase if necessary. */
   if (innobase_get_lower_case_table_names() == 2) {
-    Fil_path::convert_to_lower_case(subdir);
+    Fil_path::convert_to_lower_case(db_dir);
   }
 
+  /* Make sure the db_dir matches the schema name.
+  db_dir is in filesystem charset and space_name is usually in the
+  system charset.
+
+  The problem here is that the system charset version of a schema or
+  table name may contain a '/' and the tablespace name we were sent
+  is a combination of the two with '/' as a delimiter.
+  For example `my/schema` + `my/table` == `my/schema/my/table`
+
+  Search the space_name string backwards until we find the db name that
+  matches the schema name from the path. */
+
+  std::string name(space_name);
   pos = name.find_last_of(SEPARATOR);
-
-  if (pos == std::string::npos) {
-    /* This is a general or system tablespace. */
-
-    if (MySQL_datadir_path.is_ancestor(dirpath)) {
-      ib::error(ER_IB_MSG_388) << "A general tablespace cannot"
-                               << " be located under the datadir."
-                               << " Cannot open file '" << path << "'.";
-      return (false);
+  while (pos < std::string::npos) {
+    name.resize(pos);
+    std::string temp = name;
+    if (temp == db_dir) {
+      return (true);
     }
 
-  } else {
-    /* This is a file-per-table datafile.
-    Reduce the name to just the db name. */
-
-    if (MySQL_datadir_path.is_same_as(dirpath)) {
-      ib::error(ER_IB_MSG_389) << "A file-per-table tablespace cannot"
-                               << " be located in the datadir."
-                               << " Cannot open file" << path << "'.";
-      return (false);
+    /* Convert to filename charset and compare again. */
+    Fil_path::convert_to_filename_charset(temp);
+    if (temp == db_dir) {
+      return (true);
     }
 
-    /* In case of space_name in system charset, there is a possibility
-    that the space_name contains more than one SEPARATOR character.
-    We cannot rely on finding the last SEPARATOR only once.
-    Search the space_name string backwards until we find the
-    db name that matches with the directory name in dirpath. */
+    /* Still no match, iterate through the next SEPARATOR. */
+    pos = name.find_last_of(SEPARATOR);
 
-    while (pos < std::string::npos) {
-      name.resize(pos);
-      std::string temp = name;
-
-      if (temp == subdir) {
-        break;
-      }
-
-      /* Convert to filename charset and compare again. */
-      Fil_path::convert_to_filename_charset(temp);
-      if (temp == subdir) {
-        break;
-      }
-
-      /* Still no match, iterate through the next SEPARATOR. */
-      pos = name.find_last_of(SEPARATOR);
-
-      /* If end of string is hit, there is no match. */
-      if (pos == std::string::npos) {
-        return (false);
-      }
+    /* If end of string is hit, there is no match. */
+    if (pos == std::string::npos) {
+      return (false);
     }
   }
 

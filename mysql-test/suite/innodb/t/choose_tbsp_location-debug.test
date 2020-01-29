@@ -7,7 +7,6 @@
 # the DBUG_EXECUTE_IF() macro needs a debug server.
 --source include/have_debug.inc
 
-
 --disable_query_log
 # These values can change during the test
 LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;

@@ -23,5 +23,7 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\].* The directory '.*' does not exist");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location must be in a known directory. The known directories are");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create tablespace .* in directory .* because it is not a valid location. The DATAFILE location cannot be under the datadir");
 --enable_query_log
 

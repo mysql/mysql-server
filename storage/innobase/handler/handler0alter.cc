@@ -5297,13 +5297,13 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   create_table_info_t info(m_user_thd, altered_table,
                            ha_alter_info->create_info, nullptr, nullptr,
                            indexed_table->tablespace ? tablespace : nullptr,
-                           is_file_per_table, false, 0, 0);
+                           is_file_per_table, false, 0, 0, false);
 
   info.set_tablespace_type(is_file_per_table);
 
   if (ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) {
     const char *invalid_opt = info.create_options_are_invalid();
-    if (invalid_opt) {
+    if (invalid_opt != nullptr) {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), table_type(), invalid_opt);
       goto err_exit_no_heap;
     }

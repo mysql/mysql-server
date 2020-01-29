@@ -2436,7 +2436,8 @@ int ha_innopart::create(const char *name, TABLE *form,
   }
 
   create_table_info_t info(thd, form, create_info, table_name, remote_path,
-                           tablespace_name, srv_file_per_table, false, 0, 0);
+                           tablespace_name, srv_file_per_table, false, 0, 0,
+                           true);
 
   ut_ad(create_info != nullptr);
   ut_ad(m_part_info == form->part_info);

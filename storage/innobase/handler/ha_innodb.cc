@@ -3148,7 +3148,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     }
 
     space_id_t space_id;
-    uint32_t flags = 0;
+    uint32_t fsp_flags = 0;
     const auto &p = dd_tablespace->se_private_data();
     const char *space_name = dd_tablespace->name().c_str();
     const auto se_key_value = dd_space_key_strings;
@@ -3162,7 +3162,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       break;
     }
 
-    if (p.get(se_key_value[DD_SPACE_FLAGS], &flags)) {
+    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
       /* Failed to fetch the tablespace flags. */
       ++m_n_errors;
       break;
@@ -3239,8 +3239,9 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
-    state = fil_tablespace_path_equals(dd_tablespace->id(), space_id,
-                                       space_name, dd_path, &new_path);
+    state =
+        fil_tablespace_path_equals(dd_tablespace->id(), space_id, space_name,
+                                   fsp_flags, dd_path, &new_path);
 
     if (state == Fil_state::MATCHES) {
       new_path.assign(dd_path);
@@ -3255,7 +3256,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     if (state == Fil_state::MATCHES || state == Fil_state::MOVED) {
       /* We need to update space name and table name for partitioned tables
       if letter case is different. */
-      if (fil_update_partition_name(space_id, flags, true, space_str,
+      if (fil_update_partition_name(space_id, fsp_flags, true, space_str,
                                     new_path)) {
         file_name_changed = true;
         state = Fil_state::MOVED;
@@ -3280,6 +3281,10 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                                 << " file '" << dd_path << "'"
                                 << " is missing!";
 
+        if (fsp_is_undo_tablespace(space_id)) {
+          /* This deserves a special error message. */
+          ib::error(ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE, space_name, filename);
+        }
         continue;
 
       case Fil_state::DELETED:
@@ -3327,22 +3332,48 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         if (*moved_count == MOVED_FILES_PRINT_THRESHOLD) {
           ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
         }
+        break;
 
       case Fil_state::RENAMED:
         break;
     }
 
-    /* Undo spaces are already open, but if this is an IBD space,
-    check if it is not open yet. */
-    auto existing_space = fil_space_get(space_id);
-    if (fsp_is_undo_tablespace(space_id) || existing_space != nullptr) {
+    /* If this space is already open, we can move on to the next. */
+    if (nullptr != fil_space_get(space_id)) {
       continue;
     }
 
-    /* It's safe to pass space_name in tablename charset because
-    filename is already in filename charset. */
-    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, flags,
-                               space_name, nullptr, filename, false, false);
+    if (fsp_is_undo_tablespace(space_id)) {
+      /* The undo space may be open with a alternate space_id */
+      space_id_t space_num = undo::id2num(space_id);
+      if (nullptr != undo::spaces->find(space_num)) {
+        continue;
+      }
+
+      /* If an undo tablespace from the DD is in an unknown location,
+      it will not yet be open. */
+      undo::Tablespace undo_space(space_id);
+      undo_space.set_space_name(space_name);
+      undo_space.set_file_name(filename);
+
+      mutex_enter(&undo::ddl_mutex);
+      undo::spaces->x_lock();
+      undo::use_space_id(space_id);
+      dberr_t err = srv_undo_tablespace_open(undo_space);
+      undo::spaces->x_unlock();
+      mutex_exit(&undo::ddl_mutex);
+      if (err != DB_SUCCESS) {
+        ib::error(ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE, space_name, filename);
+      }
+      continue;
+    }
+
+    /* The IBD filename from the DD has not yet been opened. Try to open it.
+    It's safe to pass space_name in tablename charset because filename is
+    already in filename charset. */
+    dberr_t err =
+        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
+                     space_name, nullptr, filename, false, false);
 
     switch (err) {
       case DB_SUCCESS:
@@ -4257,7 +4288,7 @@ static int innodb_init_params() {
   Fil_path::normalize(srv_data_home);
 
   /* Validate the undo directory. */
-  if (srv_undo_dir == nullptr) {
+  if (srv_undo_dir == nullptr || srv_undo_dir[0] == 0) {
     srv_undo_dir = default_path;
   } else {
     Fil_path::normalize(srv_undo_dir);
@@ -4302,9 +4333,9 @@ static int innodb_init_params() {
 
     if (MySQL_datadir_path.is_ancestor(
             Fil_path::get_real_path(temp_dir.path()))) {
-      ib::error() << "Invalid innodb_temp_tablespaces dir: "
+      ib::error() << "Invalid innodb_temp_tablespaces_dir="
                   << ibt::srv_temp_dir;
-      ib::error() << " Path should not be a location within datadir";
+      ib::error() << " This path should not be a subdirectory of the datadir.";
       return HA_ERR_INITIALIZATION;
     }
   }
@@ -11456,9 +11487,37 @@ inline int create_clustered_index_when_no_primary(
   return (convert_error_code_to_mysql(error, flags, nullptr));
 }
 
-/** Validate DATA DIRECTORY option.
-@return true if valid, false if not. */
-bool create_table_info_t::create_option_data_directory_is_valid() {
+void create_table_info_t::log_error_invalid_location(Fil_path &dirpath,
+                                                     std::string &msg1,
+                                                     std::string &msg2,
+                                                     bool ignore) {
+  std::string client_msg(msg1);
+  std::string log_msg(msg1);
+  log_msg.append(msg2);
+
+  if (ignore) {
+    THD *thd = current_thd;
+
+    constexpr char ignored_msg[] =
+        " The DATA DIRECTORY location will be ignored and the"
+        " file will be put into the default datadir location.";
+
+    client_msg.append(ignored_msg);
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_FILE_NAME,
+                        "%s", client_msg.c_str());
+
+    log_msg.append(ignored_msg);
+    ib::warn(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name,
+             dirpath.abs_path().c_str(), log_msg.c_str());
+  } else {
+    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), client_msg.c_str());
+
+    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLE, m_table_name,
+              dirpath.abs_path().c_str(), log_msg.c_str());
+  }
+}
+
+bool create_table_info_t::create_option_data_directory_is_valid(bool ignore) {
   bool is_valid = true;
 
   ut_ad(m_create_info->data_file_name != nullptr &&
@@ -11489,23 +11548,57 @@ bool create_table_info_t::create_option_data_directory_is_valid() {
   }
 
 #ifndef UNIV_HOTBACKUP
-  /* Do not allow a datafile outside the known directories. */
-  char *file_path =
-      Fil_path::make(m_create_info->data_file_name, m_table_name, IBD, true);
+  /* Validate the directory location. */
+  bool suffixed_table_name = !m_partition;
+  char *filepath = Fil_path::make(m_create_info->data_file_name, m_table_name,
+                                  IBD, suffixed_table_name);
+  size_t dirname_len = dirname_length(filepath);
+  Fil_path dirpath(filepath, dirname_len, true);
 
-  if (!Fil_path::is_valid_location(m_table_name, file_path)) {
-    push_warning(m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
-                 "InnoDB: DATA DIRECTORY is not in a valid location."
-                 " It is not found in innodb_directories.");
+  /* Do not allow the file to be created in a unique undo directory. */
+  if (MySQL_undo_path_is_unique && (MySQL_undo_path.is_same_as(dirpath) ||
+                                    MySQL_undo_path.is_ancestor(dirpath))) {
+    std::string msg1(
+        "The DATA DIRECTORY location cannot be the undo directory.");
+    std::string msg2("");
 
-    ib::error(ER_IB_MSG_565)
-        << "Cannot create table " << m_table_name << " in directory "
-        << file_path << " because it is not in a valid location.";
+    log_error_invalid_location(dirpath, msg1, msg2, ignore);
 
     is_valid = false;
   }
 
-  ut_free(file_path);
+  /* Do not allow a file-per-table tablespace in the datadir.
+  In order to be located in the datadir, one must use a schama name
+  identical to the datadir directory and the datadir parent must be
+  used as the DATA DIRECTORY.*/
+  bool in_datadir = MySQL_datadir_path.is_same_as(dirpath);
+  if (in_datadir) {
+    std::string msg1("The DATA DIRECTORY location cannot be the datadir.");
+    std::string msg2(" The datadir is: ");
+    msg2.append(MySQL_datadir_path.abs_path().c_str());
+
+    log_error_invalid_location(dirpath, msg1, msg2, ignore);
+
+    is_valid = false;
+  }
+
+  /* Do not allow a datafile outside the known directories. */
+  bool under_datadir = MySQL_datadir_path.is_ancestor(dirpath);
+  bool in_known_location =
+      (in_datadir || under_datadir) ? true : fil_path_is_known(dirpath.path());
+
+  if (!in_known_location) {
+    std::string msg1(
+        "The DATA DIRECTORY location must be in a known directory.");
+    std::string msg2(" The known directories are: ");
+    msg2.append(fil_get_dirs().c_str());
+
+    log_error_invalid_location(dirpath, msg1, msg2, ignore);
+
+    is_valid = false;
+  }
+
+  ut_free(filepath);
 #endif /* UNIV_HOTBACKUP */
 
   return (is_valid);
@@ -12288,7 +12381,7 @@ int create_table_info_t::parse_table_name(const char *name) {
   value would have already been rejected. */
   if (m_create_info->data_file_name != nullptr &&
       *m_create_info->data_file_name != '\0' && m_table_name != nullptr) {
-    if (!create_option_data_directory_is_valid()) {
+    if (!create_option_data_directory_is_valid(true)) {
       push_warning_printf(m_thd, Sql_condition::SL_WARNING, WARN_OPTION_IGNORED,
                           ER_DEFAULT(WARN_OPTION_IGNORED), "DATA DIRECTORY");
       m_flags &= ~DICT_TF_MASK_DATA_DIR;
@@ -13299,7 +13392,7 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
 
   create_table_info_t info(thd, form, create_info, norm_name, remote_path,
                            tablespace, file_per_table, skip_strict, old_flags,
-                           old_flags2);
+                           old_flags2, false);
 
   /* Initialize the object. */
   int error = info.initialize();
@@ -13590,9 +13683,9 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
     }
   }
 
-  /* The duplicate key scenario was possible only for old DD since InnoDB would
-  update it internally. With new DD, the rename conflict should be checked by
-  server before diving into SE */
+  /* The duplicate key scenario was possible only for old DD since InnoDB
+  would update it internally. With new DD, the rename conflict should be
+  checked by server before diving into SE */
   ut_ad(error != DB_DUPLICATE_KEY);
 
   return (convert_error_code_to_mysql(error, 0, nullptr));
@@ -14231,9 +14324,9 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
-@param[in,out]	table_def	dd::Table describing table to be created.
-Can be adjusted by SE, the changes will be saved into data-dictionary at
-statement commit time.
+@param[in,out]	table_def	dd::Table describing table to be
+created. Can be adjusted by SE, the changes will be saved into data-dictionary
+at statement commit time.
 @return error number */
 int ha_innobase::create(const char *name, TABLE *form,
                         HA_CREATE_INFO *create_info, dd::Table *table_def) {
@@ -14591,7 +14684,7 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
 
   /* The filepath must end with a valid suffix and contain a basename of at
   least 1 character before the suffix. */
-  ulint dirname_len = dirname_length(filepath);
+  size_t dirname_len = dirname_length(filepath);
   const char *basename = filepath + dirname_len;
   auto basename_len = strlen(basename);
 
@@ -14627,9 +14720,10 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     error = HA_ERR_WRONG_FILE_NAME;
   }
 
-  Fil_path dirpath(datafile_name.c_str(), dirname_len, true);
+  Fil_path dirpath((dirname_len == 0 ? "." : datafile_name.c_str()),
+                   (dirname_len == 0 ? 1 : dirname_len), true);
 
-  if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
+  if (!dirpath.is_directory_and_exists()) {
     ib::error(ER_IB_MSG_DIR_DOES_NOT_EXIST, dirpath.path().c_str());
     my_printf_error(ER_WRONG_FILE_NAME, "The directory does not exist.",
                     MYF(0));
@@ -14637,25 +14731,54 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     error = HA_ERR_WRONG_FILE_NAME;
   }
 
-  /* CREATE TABLESPACE...ADD DATAFILE must be under a path that InnoDB
-  knows about. */
-  if (dirpath.len() > 0 && !fil_check_path(dirpath.path())) {
-    std::string paths = fil_get_dirs();
+  /* Do not allow the file to be created in a unique undo directory. */
+  if (type == IBD && MySQL_undo_path_is_unique &&
+      (MySQL_undo_path.is_same_as(dirpath) ||
+       MySQL_undo_path.is_ancestor(dirpath))) {
+    std::string msg("The DATAFILE location cannot be the undo directory.");
 
-    my_printf_error(ER_WRONG_FILE_NAME,
-                    "CREATE %sTABLESPACE data file must be in one of"
-                    " these directories '%s'.",
-                    MYF(0), (type == IBU ? "UNDO " : ""), paths.c_str());
+    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
+
+    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
+              alter_info->tablespace_name, filepath.path().c_str(),
+              msg.c_str());
 
     error = HA_ERR_WRONG_FILE_NAME;
   }
 
-  /* General tablespaces can be inside but not under the datadir.*/
+  /* General tablespaces can be inside but not under the datadir
+  since those directories contain datafiles for specific schemas.*/
   if (type == IBD && MySQL_datadir_path.is_ancestor(dirpath)) {
-    my_printf_error(ER_WRONG_FILE_NAME,
-                    "CREATE TABLESPACE data file cannot be under the"
-                    " datadir.",
-                    MYF(0));
+    std::string msg("The DATAFILE location cannot be under the datadir.");
+
+    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
+
+    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
+              alter_info->tablespace_name, filepath.path().c_str(),
+              msg.c_str());
+
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
+  /* Validate the tablespace location. */
+  bool in_datadir = MySQL_datadir_path.is_ancestor(dirpath) ||
+                    MySQL_datadir_path.is_same_as(dirpath);
+  bool in_known_location =
+      in_datadir ? true : fil_path_is_known(dirpath.path());
+
+  /* All undo and general tablespaces must be in known directories */
+  if (!in_known_location) {
+    std::string msg("The ");
+    msg += (type == IBU ? "UNDO " : "");
+    msg += "DATAFILE location must be in a known directory.";
+
+    my_printf_error(ER_WRONG_FILE_NAME, "%s", MYF(0), msg.c_str());
+
+    msg.append(" The known directories are: ");
+    msg.append(fil_get_dirs().c_str());
+    ib::error(ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE,
+              alter_info->tablespace_name, filepath.path().c_str(),
+              msg.c_str());
 
     error = HA_ERR_WRONG_FILE_NAME;
   }
@@ -16136,9 +16259,9 @@ static ulonglong innobase_peek_autoinc(dict_table_t *innodb_table,
 }
 
 /** Calculate delete length statistic.
-@param[in]	ib_table	table object
-@param[in,out]	stats		stats structure to hold calculated values
-@param[in,out]	thd		user thread handle (for issuing warnings) */
+@param[in]      ib_table  table object
+@param[in,out]  stats     stats structure to hold calculated values
+@param[in,out]  thd       user thread handle (for issuing warnings) */
 static void calculate_delete_length_stat(const dict_table_t *ib_table,
                                          ha_statistics *stats, THD *thd) {
   uintmax_t avail_space;
@@ -16166,14 +16289,12 @@ static void calculate_delete_length_stat(const dict_table_t *ib_table,
 }
 
 /** Calculate stats based on index size.
-@param[in]	ib_table			table object
-@param[in]	n_rows				number of rows
-@param[in]	stat_clustered_index_size	clustered index size
-@param[in]	stat_sum_of_other_index_sizes	sum of non-clustered indexes
-                                                size
-@param[in,out]	stats				the stats structure to hold
-                                                calculated values
-*/
+@param[in]  ib_table                       table object
+@param[in]  n_rows                         number of rows
+@param[in]  stat_clustered_index_size      clustered index size
+@param[in]  stat_sum_of_other_index_sizes  sum of non-clustered index sizes
+@param[in,out]  stats                      the stats structure to hold
+                                           calculated values */
 static void calculate_index_size_stats(const dict_table_t *ib_table,
                                        ib_uint64_t n_rows,
                                        ulint stat_clustered_index_size,
@@ -16585,14 +16706,14 @@ static ib_uint64_t innodb_get_auto_increment_for_uncached(
 }
 
 /** Retrieves table statistics only for uncache table only.
-@param[in]	db_name			database name
-@param[in]	tbl_name		table name
-@param[in]	norm_name		tablespace name
-@param[in]	se_private_id		InnoDB table id
-@param[in]	ts_se_private_data	tablespace se private data
-@param[in]	tbl_se_private_data	table se private data
-@param[in]	stat_flags		flags used to retrieve specific stats
-@param[in,out]	stats		structure to save the retrieved statistics
+@param[in]  db_name              database name
+@param[in]  tbl_name             table name
+@param[in]  norm_name            tablespace name
+@param[in]  se_private_id        InnoDB table id
+@param[in]  ts_se_private_data   tablespace se private data
+@param[in]  tbl_se_private_data  table se private data
+@param[in]  stat_flags           flags used to retrieve specific stats
+@param[in,out]  stats            structure to save the retrieved statistics
 @return true if the stats information filled successfully
 @return false if tablespace is missing or table doesn't have persistent
 stats. */
@@ -22601,7 +22722,7 @@ void ha_innobase::mv_key_capacity(uint *num_keys, size_t *keys_length) const {
   the actual number of multiple values per field are not known until
   the record itself gets inserted. So it's impossible to estimate the
   accurate max number of multiple values. Meanwhile, since other fields
-  are not known in advance, so it's also impossbile to estimate the
+  are not known in advance, so it's also impossible to estimate the
   accurate total key length.
 
   Therefore, only the best effort can be done in this function.
@@ -22627,12 +22748,12 @@ void ha_innobase::mv_key_capacity(uint *num_keys, size_t *keys_length) const {
   if (pk != MAX_KEY) {
     free_space -= table->s->key_info[pk].key_length;
   } else {
-    /* Deduct default innodb's PK length */
+    /* Deduct default InnoDB's PK length */
     free_space -= DATA_ROW_ID_LEN;
   }
 
-  /* Maybe the space for any normal virutal columns etc. should be
-  considred here, however, no details can be know at this time point,
+  /* Maybe the space for any normal virtual columns etc. should be
+  considered here, however, no details can be know at this time point,
   so just ignore them all */
 
   /* Find out the minimum key length so to get the maximum number

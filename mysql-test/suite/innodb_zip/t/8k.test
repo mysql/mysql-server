@@ -40,7 +40,7 @@ SELECT	t.name table_name, t.n_cols, t.flag table_flags,
 		INFORMATION_SCHEMA.INNODB_INDEXES i
 	WHERE	t.table_id = i.table_id
 	AND	t.name LIKE 'mysql%'
-        AND     t.name NOT LIKE 'mysql/ndb_binlog_index' 
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
 	ORDER BY t.name, i.index_id;
 
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;

@@ -3,6 +3,10 @@ SET default_storage_engine=InnoDB;
 # TABLESPACE related tests.
 #
 #
+# Restart with innodb-directories set to MYSQL_TMP_DIR.
+#
+# restart: --innodb-directories=MYSQL_TMP_DIR
+#
 # CREATE TABLE ... DATA DIRECTORY
 # Innodb does not support INDEX DIRECTORY.
 #
@@ -706,6 +710,18 @@ abc/def/xyz/123#p#p1#sp#s3	Single
 SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
 COUNT(*)
 16
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+FILE_NAME	TABLESPACE_NAME
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#p#p0@002fpart#sp#s0.ibd	abc/def/xyz/123#p#p0/part#sp#s0
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#p#p0@002fpart#sp#s1@002fsubpart.ibd	abc/def/xyz/123#p#p0/part#sp#s1/subpart
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#p#p1#sp#s2.ibd	abc/def/xyz/123#p#p1#sp#s2
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123#p#p1#sp#s3.ibd	abc/def/xyz/123#p#p1#sp#s3
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+name	space_type
+abc/def/xyz/123#p#p0/part#sp#s0	Single
+abc/def/xyz/123#p#p0/part#sp#s1/subpart	Single
+abc/def/xyz/123#p#p1#sp#s2	Single
+abc/def/xyz/123#p#p1#sp#s3	Single
 #
 # Restart server without --innodb_directories option
 #

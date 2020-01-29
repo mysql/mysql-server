@@ -557,8 +557,7 @@ static void trx_validate_state_before_free(trx_t *trx) {
 
   if (trx->n_mysql_tables_in_use != 0 || trx->mysql_n_tables_locked != 0) {
     ib::error(ER_IB_MSG_1203)
-        << "MySQL is freeing a thd though"
-           " trx->n_mysql_tables_in_use is "
+        << "MySQL is freeing a thd though trx->n_mysql_tables_in_use is "
         << trx->n_mysql_tables_in_use << " and trx->mysql_n_tables_locked is "
         << trx->mysql_n_tables_locked << ".";
 

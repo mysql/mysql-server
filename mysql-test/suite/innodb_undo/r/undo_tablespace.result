@@ -159,7 +159,7 @@ ERROR HY000: The directory does not exist.
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The directory does not exist.
-Error	3121	CREATE UNDO TABLESPACE data file must be in one of these directories './'.
+Error	3121	The UNDO DATAFILE location must be in a known directory.
 Error	1528	Failed to create UNDO TABLESPACE undo_99
 Error	3121	Incorrect File Name '/dir_does_not_exist/undo_99.ibu'.
 CREATE UNDO TABLESPACE undo_99 ADD DATAFILE '../undo_99.ibu';
@@ -167,7 +167,7 @@ ERROR HY000: The ADD DATAFILE filepath for an UNDO TABLESPACE cannot be a relati
 SHOW WARNINGS;
 Level	Code	Message
 Error	3121	The ADD DATAFILE filepath for an UNDO TABLESPACE cannot be a relative path.
-Error	3121	CREATE UNDO TABLESPACE data file must be in one of these directories './'.
+Error	3121	The UNDO DATAFILE location must be in a known directory.
 Error	1528	Failed to create UNDO TABLESPACE undo_99
 Error	3121	Incorrect File Name '../undo_99.ibu'.
 #

@@ -1,1 +1,4 @@
---log-output=table,file --slow-query-log --log-queries-not-using-indexes
+--log-output=table,file
+--slow-query-log
+--log-queries-not-using-indexes
+--innodb_directories=$MYSQLTEST_VARDIR/tmp

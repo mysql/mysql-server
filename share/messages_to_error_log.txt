@@ -6587,10 +6587,10 @@ ER_IB_MSG_350
 OBSOLETE_ER_IB_MSG_351
   eng "%s"
 
-ER_IB_MSG_352
-  eng "%s"
+ER_IB_MSG_UNPROTECTED_LOCATION_ALLOWED
+  eng "The datafile '%s' for tablespace %s is in an unprotected location. This file cannot be recovered after a crash until this location is added to innodb_directories."
 
-ER_IB_MSG_353
+OBSOLETE_ER_IB_MSG_353
   eng "%s"
 
 ER_IB_MSG_354
@@ -6695,11 +6695,11 @@ ER_IB_MSG_386
 ER_IB_MSG_387
   eng "%s"
 
-ER_IB_MSG_388
-  eng "%s"
+ER_IB_MSG_GENERAL_TABLESPACE_UNDER_DATADIR
+  eng "A general tablespace cannot be located under the datadir. Cannot open file '%s'."
 
-ER_IB_MSG_389
-  eng "%s"
+ER_IB_MSG_IMPLICIT_TABLESPACE_IN_DATADIR
+  eng "A file-per-table tablespace cannot be located in the datadir. Cannot open file '%s'."
 
 ER_IB_MSG_390
   eng "%s"
@@ -7226,8 +7226,8 @@ ER_IB_MSG_563
 ER_IB_MSG_564
   eng "%s"
 
-ER_IB_MSG_565
-  eng "%s"
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLE
+  eng "Cannot create a tablespace for table %s in directory %s because it is not a valid location. %s"
 
 ER_IB_MSG_566
   eng "%s"
@@ -8783,7 +8783,7 @@ ER_IB_MSG_1082
 ER_IB_MSG_1083
   eng "Error reading encryption for %s"
 
-ER_IB_MSG_1084
+ER_IB_MSG_CANNOT_OPEN_57_UNDO
   eng "Unable to open undo tablespace number %lu"
 
 ER_IB_MSG_1085
@@ -10835,6 +10835,15 @@ ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
 
 ER_GRP_RPL_IS_STARTING
   eng "Plugin 'group_replication' is starting."
+
+ER_IB_MSG_INVALID_LOCATION_FOR_TABLESPACE
+  eng "Cannot create tablespace %s in directory %s because it is not a valid location. %s";
+
+ER_IB_MSG_INVALID_LOCATION_WRONG_DB
+  eng "Scanned file '%s' for tablespace %s cannot be opened because it is not in a sub-directory named for the schema.");
+
+ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE
+  eng "Cannot find undo tablespace %s with filename '%s' as indicated by the Data Dictionary. Did you move or delete this tablespace? Any undo logs in it cannot be used."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

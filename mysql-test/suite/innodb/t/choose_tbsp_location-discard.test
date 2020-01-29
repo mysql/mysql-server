@@ -205,6 +205,7 @@ SELECT * FROM t5980;
 --echo # This test makes sure that you can still execute the FLUSH TABLES command
 --echo # after restarting the server and the tablespace can still be found.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
 --echo ### files in MYSQLD_DATADIR/test
@@ -220,6 +221,7 @@ UNLOCK TABLES;
 --echo # Restart the server again.  This test makes sure that you can
 --echo # still DISCARD a remote table after restarting the server.
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
@@ -271,6 +273,7 @@ SELECT * FROM t5980;
 --echo #
 --echo # Restart the engine while the tablespace is in the discarded state
 --echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
 --error ER_TABLESPACE_DISCARDED
@@ -291,6 +294,7 @@ CHECK TABLE t5980;
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo # Restarting ...
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/restart_mysqld.inc
 SET GLOBAL innodb_file_per_table=ON;
 --error ER_TABLESPACE_DISCARDED
@@ -388,6 +392,7 @@ SHOW CREATE TABLE t5980d;
 --source include/shutdown_mysqld.inc
 --remove_file $MYSQLD_DATADIR/test/t5980c.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 FLUSH TABLES t5980a, t5980b FOR EXPORT;
@@ -546,6 +551,7 @@ SHOW CREATE TABLE t5980bb;
 --echo # Restart the server to check if the discarded flag is persistent
 --echo #
 --source include/shutdown_mysqld.inc
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 --echo #

@@ -18,8 +18,8 @@ FROM	INFORMATION_SCHEMA.INNODB_TABLES  t,
 INFORMATION_SCHEMA.INNODB_INDEXES i
 WHERE	t.table_id = i.table_id
 AND	t.name LIKE 'mysql%'
-        AND     t.name NOT LIKE 'mysql/ndb_binlog_index' 
-ORDER BY t.name, i.index_id;
+        AND     t.name NOT LIKE 'mysql/ndb_binlog_index'
+	ORDER BY t.name, i.index_id;
 table_name	n_cols	table_flags	index_name	root_page	type	n_fields	merge_threshold
 CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
 CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;

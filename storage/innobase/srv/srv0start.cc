@@ -598,6 +598,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
     ut_a(!srv_read_only_mode);
 
     /* We created the data file and now write it full of zeros */
+    undo_space.set_new();
 
     ib::info(ER_IB_MSG_1071, file_name);
 
@@ -870,9 +871,9 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
 }
 
 /** Open an undo tablespace.
-@param[in]	undo_space	Undo tablespace
+@param[in]  undo_space  Undo tablespace
 @return DB_SUCCESS or error code */
-static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
+dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   DBUG_EXECUTE_IF("ib_undo_tablespace_open_fail",
                   return (DB_CANNOT_OPEN_FILE););
 
@@ -1095,7 +1096,7 @@ static dberr_t srv_undo_tablespaces_open() {
 
       err = srv_undo_tablespace_open_by_id(space_id);
       if (err != DB_SUCCESS) {
-        ib::error(ER_IB_MSG_1084, ulong{space_id});
+        ib::error(ER_IB_MSG_CANNOT_OPEN_57_UNDO, ulong{space_id});
         return (err);
       }
     }
@@ -2015,9 +2016,16 @@ dberr_t srv_start(bool create_new_db) {
     fil_set_scan_dirs(Fil_path::remove_quotes(srv_innodb_directories));
   }
 
+  /* Note whether the undo path is different (not the same or under)
+  from all other known directories. If so, this will allow us to keep
+  IBD files out of this unique undo location.*/
+  MySQL_undo_path_is_unique = !fil_path_is_known(MySQL_undo_path.path());
+
   /* For the purpose of file discovery at startup, we need to scan
-  --innodb-undo-directory also. */
-  fil_set_scan_dir(Fil_path::remove_quotes(MySQL_undo_path), true);
+  --innodb-undo-directory also if it is different from the locations above. */
+  if (MySQL_undo_path_is_unique) {
+    fil_set_scan_dir(Fil_path::remove_quotes(MySQL_undo_path));
+  }
 
   ib::info(ER_IB_MSG_378) << "Directories to scan '" << fil_get_dirs() << "'";
 

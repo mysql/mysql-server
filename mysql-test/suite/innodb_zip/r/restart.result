@@ -3,6 +3,10 @@ SET default_storage_engine=InnoDB;
 # A series of tests to make sure tables are opened after restart.
 # Bug#13357607 Compressed file-per-table tablespaces fail to open
 #
+#
+# Restart with innodb-directories set to MYSQL_TMP_DIR/alt_dir.
+#
+# restart:--innodb-directories=MYSQL_TMP_DIR/alt_dir
 CREATE DATABASE move_test;
 USE move_test;
 set global innodb_file_per_table=on;
@@ -133,7 +137,8 @@ SELECT count(*) FROM t5_restart;
 count(*)
 16
 #
-# Create and insert records into a partitioned table that uses-echo # a remote DATA DIRECTORY for each partition.
+# Create and insert records into a partitioned table that uses
+# a remote DATA DIRECTORY for each partition.
 CREATE TABLE t6_restart(
 c1 INT AUTO_INCREMENT KEY, c2 CHAR(10), c3 VARCHAR(100), c4 DATE, c5 TEXT)
 ROW_FORMAT=COMPRESSED  KEY_BLOCK_SIZE=2  ENGINE=InnoDB

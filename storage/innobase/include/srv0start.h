@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,10 +66,6 @@ struct dict_table_t;
 only one buffer pool instance is used. */
 #define BUF_POOL_SIZE_THRESHOLD (1024 * 1024 * 1024)
 
-/** Parse temporary tablespace configuration.
- @return true if ok, false on parse error */
-bool srv_parse_temp_data_file_paths_and_sizes(
-    char *str); /*!< in/out: the data file path string */
 /** Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
  and srv_parse_log_group_home_dirs(). */
 void srv_free_paths_and_sizes(void);
@@ -80,6 +76,11 @@ void srv_free_paths_and_sizes(void);
 char *srv_add_path_separator_if_needed(
     char *str); /*!< in: null-terminated character string */
 #ifndef UNIV_HOTBACKUP
+
+/** Open an undo tablespace.
+@param[in]  undo_space  Undo tablespace
+@return DB_SUCCESS or error code */
+dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space);
 
 /** Upgrade undo tablespaces by deleting the old undo tablespaces
 referenced by the TRX_SYS page.

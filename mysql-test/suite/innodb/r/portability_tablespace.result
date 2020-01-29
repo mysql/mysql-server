@@ -22,10 +22,10 @@ CREATE TABLESPACE ts2 ADD DATAFILE '../data/ts2.ibd' Engine=InnoDB;
 DROP TABLESPACE ts2;
 # Try to create a tablespace in an unknown location.
 CREATE TABLESPACE ts2 ADD DATAFILE '../ts2.ibd' Engine=InnoDB;
-ERROR HY000: CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+ERROR HY000: The DATAFILE location must be in a known directory.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	3121	The DATAFILE location must be in a known directory.
 Error	1528	Failed to create TABLESPACE ts2
 Error	3121	Incorrect File Name '../ts2.ibd'.
 CREATE INDEX ix1 ON tab3(ename) USING BTREE;
