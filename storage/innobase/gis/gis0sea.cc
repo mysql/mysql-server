@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0mon.h"
 #include "sync0sync.h"
 #include "trx0trx.h"
+#include "univ.i"
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */
 static bool rtr_cur_restore_position(
@@ -1371,7 +1372,8 @@ static void rtr_non_leaf_insert_stack_push(
                           mbr_inc);
 }
 
-/** Copy a buf_block_t strcuture, except "block->lock" and "block->mutex".
+/** Copy a buf_block_t strcuture, except "block->lock", "block->mutex" and
+"block->debug_latch."
 @param[in,out]	matches	copy to match->block
 @param[in]	block	block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
@@ -1404,8 +1406,17 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   matches->block.index = block->index;
   matches->block.made_dirty_with_no_latch = block->made_dirty_with_no_latch;
 
-  ut_d(new (&matches->block.debug_latch) rw_lock_t);
-  ut_d(matches->block.debug_latch = block->debug_latch);
+#ifndef UNIV_HOTBACKUP
+#ifdef UNIV_DEBUG
+  /* The buf_block_t copy does not contain a valid debug_latch object, mark it
+  as invalid so that we can detect any uses in our valgrind tests. Copy
+  semantics for locks are not well defined, so the previous code which simply
+  defined the default copy assignment operator was not correct. This was changed
+  because an std::atomic<bool> member was added and rw_lock_t became explicitly
+  non copyable. */
+  UNIV_MEM_INVALID(&matches->block.debug_latch, sizeof(rw_lock_t));
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Generate a shadow copy of the page block header to save the
