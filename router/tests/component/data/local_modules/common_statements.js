@@ -858,7 +858,7 @@ exports.get = function get(stmt_key, options) {
             "name": "cluster_type"
           }
          ],
-         "rows": [[options.cluster_type]]
+         "rows": options.cluster_type === "" ? [] : [[options.cluster_type]]
       }
     },
 
