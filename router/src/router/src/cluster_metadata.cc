@@ -831,7 +831,7 @@ static ClusterType get_cluster_type(MySQLSession *mysql) {
     }
   }
 
-  throw std::logic_error(
+  throw std::runtime_error(
       "No result returned for v2_this_instance metadata query");
 }
 

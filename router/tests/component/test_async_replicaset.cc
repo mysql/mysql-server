@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -157,53 +157,6 @@ class AsyncReplicasetTest : public RouterComponentTest {
     return router;
   }
 
-  int get_int_field_value(const std::string &json_string,
-                          const std::string &field_name) {
-    rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
-    if (!json_doc.HasMember(field_name.c_str())) {
-      // that can mean this has not been set yet
-      return 0;
-    }
-
-    if (!json_doc[field_name.c_str()].IsInt()) {
-      // that can mean this has not been set yet
-      return 0;
-    }
-
-    return json_doc[field_name.c_str()].GetInt();
-  }
-
-  int get_transaction_count(const std::string &json_string) {
-    return get_int_field_value(json_string, "transaction_count");
-  }
-
-  bool wait_for_transaction_count(const uint16_t http_port,
-                                  const int expected_queries_count,
-                                  std::chrono::milliseconds timeout = 5s) {
-    const std::chrono::milliseconds kStep = 20ms;
-    do {
-      std::string server_globals =
-          MockServerRestClient(http_port).get_globals_as_json_string();
-      if (get_transaction_count(server_globals) >= expected_queries_count)
-        return true;
-      std::this_thread::sleep_for(kStep);
-      timeout -= kStep;
-    } while (timeout > 0ms);
-
-    return false;
-  }
-
-  bool wait_for_transaction_count_increase(
-      const uint16_t http_port, std::chrono::milliseconds timeout = 5s) {
-    std::string server_globals =
-        MockServerRestClient(http_port).get_globals_as_json_string();
-    int expected_queries_count = get_transaction_count(server_globals) + 3;
-
-    return wait_for_transaction_count(http_port, expected_queries_count,
-                                      timeout);
-  }
-
   void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
                          const std::vector<uint16_t> &gr_node_ports,
                          unsigned primary_id = 0, unsigned view_id = 0,
@@ -218,7 +171,7 @@ class AsyncReplicasetTest : public RouterComponentTest {
     json_doc.AddMember("md_query_count", 0, allocator);
 
     if (empty_result_from_cluster_type_query) {
-      json_doc.AddMember("empty_result_from_cluster_type_query", 1, allocator);
+      json_doc.AddMember("cluster_type", "", allocator);
     }
 
     const auto json_str = json_to_string(json_doc);
@@ -300,7 +253,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should not change, there is "
@@ -373,7 +326,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain only 2 "
@@ -395,7 +348,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should now contain all 3 members "
@@ -475,7 +428,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain all 3 members");
@@ -502,7 +455,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should now contain only 2 members "
@@ -578,7 +531,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should first contain all 3 members");
@@ -592,7 +545,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                     view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, not change, the PRIMARYs view of the "
@@ -660,7 +613,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
                                routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain all 3 members");
@@ -737,7 +690,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain both members");
@@ -763,7 +716,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// RW connection should have survived, RO one should have been closed");
@@ -833,7 +786,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain both members");
@@ -859,7 +812,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// RO connection should have survived, RW one should have been closed");
@@ -877,7 +830,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// We should be able to connect to the PRIMARY again ");
   MySQLSession client3;
@@ -946,7 +899,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -963,7 +916,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[2], 2));
 
   SCOPED_TRACE("// Check that the state file caught up with all those changes");
   check_state_file(state_file, cluster_id, new_cluster_members, view_id + 1);
@@ -1023,7 +976,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1047,7 +1000,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check that the state file does not contain the second SECONDARY "
@@ -1124,7 +1077,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1152,7 +1105,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, new_cluster_members, view_id + 1);
@@ -1221,7 +1174,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1247,7 +1200,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped "
@@ -1316,7 +1269,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1342,7 +1295,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
                     /*primary_id=*/1, view_id + 1);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id + 1);
@@ -1410,7 +1363,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1438,7 +1391,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[1], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, {cluster_nodes_ports[1]},
@@ -1508,7 +1461,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1527,7 +1480,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                     /*primary_id=*/0, view_id + 1);
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Check that the state file is as expected");
   check_state_file(state_file, cluster_id, {cluster_nodes_ports[0]},
@@ -1600,7 +1553,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
                                   routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1694,7 +1647,7 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
                                     state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
       "// Check our state file content, it should contain the initial members");
@@ -1784,7 +1737,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
                                routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// No connection should be possible");
   MySQLSession client_rw;
@@ -1867,7 +1820,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
                                routing_section, state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
   MySQLSession client1, client2;
@@ -1893,7 +1846,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   }
 
   SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0]));
+  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 3));
 
   SCOPED_TRACE("// Both connections should get dropped");
   ASSERT_ANY_THROW(client1.query_one("select @@port"))

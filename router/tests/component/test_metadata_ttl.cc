@@ -35,6 +35,7 @@
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "router_config.h"
 #include "tcp_port_pool.h"
 
@@ -92,16 +93,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     if (!mode.empty()) result += std::string("mode=" + mode + "\n");
 
     return result;
-  }
-
-  int get_int_field_value(const std::string &json_string,
-                          const std::string &field_name) {
-    rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
-    EXPECT_TRUE(json_doc.HasMember(field_name.c_str()));
-    EXPECT_TRUE(json_doc[field_name.c_str()].IsInt());
-
-    return json_doc[field_name.c_str()].GetInt();
   }
 
   auto get_array_field_value(const std::string &json_string,
@@ -449,7 +440,7 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
                                metadata_cache_section, routing_section,
                                EXIT_SUCCESS, true);
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
   SCOPED_TRACE("// instruct the mocks to return nodes in reverse order");
   std::vector<uint16_t> node_classic_ports_reverse(node_classic_ports.rbegin(),
@@ -458,7 +449,8 @@ TEST_P(MetadataChacheTTLTestInstanceListUnordered, InstancesListUnordered) {
     set_mock_metadata(node_http_ports[i], kGroupID, node_classic_ports_reverse,
                       1);
   }
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
   SCOPED_TRACE("// check it is not treated as a change");
   const std::string needle = "Potential changes detected in cluster";
@@ -894,6 +886,117 @@ INSTANTIATE_TEST_CASE_P(
         MetadataTTLTestParams("metadata_dynamic_nodes_version_update_v2_ar.js",
                               "metadata_upgrade_in_progress_ar_v2",
                               ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
+/**
+ * @test
+ * Verify that when the cluster node returns empty dataset from the
+ * v2_this_instance view, the router fails over to the other known nodes to try
+ * to read the metadata (BUG#30733189)
+ */
+class NodeRemovedTest
+    : public MetadataChacheTTLTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(NodeRemovedTest, NodeRemoved) {
+  TempDirectory temp_test_dir;
+  TempDirectory conf_dir("conf");
+  const size_t NUM_NODES = 2;
+  std::vector<uint16_t> node_ports, node_http_ports;
+  std::vector<ProcessWrapper *> cluster_nodes;
+
+  SCOPED_TRACE("// launch cluster with 2 nodes");
+  const std::string json_metadata =
+      get_data_dir().join(GetParam().tracefile).str();
+
+  for (size_t i = 0; i < NUM_NODES; ++i) {
+    node_ports.push_back(port_pool_.get_next_available());
+    node_http_ports.push_back(port_pool_.get_next_available());
+
+    cluster_nodes.push_back(&launch_mysql_server_mock(
+        json_metadata, node_ports[i], EXIT_SUCCESS, false, node_http_ports[i]));
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], node_ports[i]));
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+    set_mock_metadata(node_http_ports[i], "", node_ports);
+  }
+
+  for (size_t i = 0; i < NUM_NODES; ++i) {
+    ASSERT_NO_FATAL_FAILURE(check_port_ready(*cluster_nodes[i], node_ports[i]));
+    ASSERT_TRUE(
+        MockServerRestClient(node_http_ports[i]).wait_for_rest_endpoint_ready())
+        << cluster_nodes[i]->get_full_output();
+    set_mock_metadata(node_http_ports[i], "", node_ports);
+  }
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const auto router_port = port_pool_.get_next_available();
+
+  const std::string metadata_cache_section = get_metadata_cache_section(
+      node_ports, GetParam().cluster_type, GetParam().ttl);
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+  auto &router =
+      launch_router(temp_test_dir.name(), conf_dir.name(),
+                    metadata_cache_section, routing_section, EXIT_SUCCESS,
+                    /*wait_for_md_refresh_started=*/true);
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
+
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  SCOPED_TRACE(
+      "// Make a connection to the primary, it should be the first node");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""))
+        << router.get_full_logfile();
+
+    auto result{client.query_one("select @@port")};
+    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+              node_ports[0]);
+  }
+
+  SCOPED_TRACE(
+      "// Mimic the removal of the first node, this_instance view on this node "
+      "should return empty dataset");
+  auto globals = mock_GR_metadata_as_json("", node_ports);
+  JsonAllocator allocator;
+  globals.AddMember("cluster_type", "", allocator);
+  const auto globals_str = json_to_string(globals);
+  MockServerRestClient(node_http_ports[0]).set_globals(globals_str);
+
+  SCOPED_TRACE(
+      "// Tell the second node that it is a new Primary and the only member of "
+      "the cluster");
+  set_mock_metadata(node_http_ports[1], "", {node_ports[1]});
+
+  SCOPED_TRACE(
+      "// Connect to the router primary port, the connection should be ok and "
+      "we should be connected to the new primary now");
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2))
+      << router.get_full_logfile();
+  SCOPED_TRACE("// let us make some user connection via the router port");
+  {
+    MySQLSession client;
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
+                                           "password", "", ""))
+        << router.get_full_logfile();
+
+    auto result{client.query_one("select @@port")};
+    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
+              node_ports[1]);
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    NodeRemoved, NodeRemovedTest,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "node_removed_gr_v2",
+                                            ClusterType::GR_V2, "0.1"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "node_removed_ar_v2",
+                                            ClusterType::RS_V2, "0.1")),
     get_test_description);
 
 int main(int argc, char *argv[]) {
