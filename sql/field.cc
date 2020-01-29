@@ -1797,43 +1797,6 @@ type_conversion_status Field::store(const char *to, size_t length,
   return res;
 }
 
-/**
-   Pack the field into a format suitable for storage and transfer.
-
-   To implement packing functionality, only the virtual function
-   should be overridden. The other functions are just convenience
-   functions and hence should not be overridden.
-
-   The value of <code>low_byte_first</code> is dependent on how the
-   packed data is going to be used: for local use, e.g., temporary
-   store on disk or in memory, use the native format since that is
-   faster. For data that is going to be transfered to other machines
-   (e.g., when writing data to the binary log), data should always be
-   stored in little-endian format.
-
-   @note The default method for packing fields just copy the raw bytes
-   of the record into the destination, but never more than
-   <code>max_length</code> characters.
-
-   @param to
-   Pointer to memory area where representation of field should be put.
-
-   @param from
-   Pointer to memory area where record representation of field is
-   stored.
-
-   @param max_length
-   Maximum length of the field, as given in the column definition. For
-   example, for <code>CHAR(1000)</code>, the <code>max_length</code>
-   is 1000. This information is sometimes needed to decide how to pack
-   the data.
-
-   @param low_byte_first
-   @c true if integers should be stored little-endian, @c false if
-   native format should be used. Note that for little-endian machines,
-   the value of this flag is a moot point since the native format is
-   little-endian.
-*/
 uchar *Field::pack(uchar *to, const uchar *from, uint max_length,
                    bool low_byte_first MY_ATTRIBUTE((unused))) const {
   uint32 length = std::min(pack_length(), max_length);
@@ -7307,6 +7270,27 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length,
   }
 
   return to + packlength + store_length;
+}
+
+uchar *Field_blob::pack_with_metadata_bytes(uchar *to, const uchar *from,
+                                            uint max_length) const {
+  uint32 length = get_length(from);  // Length of from string
+
+  /*
+    Store max length, which will occupy packlength bytes. If the max
+    length given is smaller than the actual length of the blob, we
+    just store the initial bytes of the blob.
+   */
+  store_blob_length(to, packlength, min(length, max_length),
+                    /*low_byte_first=*/true);
+
+  /*
+    Store the actual blob data, which will occupy 'length' bytes.
+   */
+  if (length > 0) {
+    memcpy(to + packlength, get_blob_data(from + packlength), length);
+  }
+  return to + packlength + length;
 }
 
 /**
