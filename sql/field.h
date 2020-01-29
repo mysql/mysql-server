@@ -1497,6 +1497,52 @@ class Field {
   */
   virtual bool send_to_protocol(Protocol *protocol) const;
 
+  /**
+    Pack the field into a format suitable for storage and transfer.
+
+    To implement packing functionality, only the virtual function
+    should be overridden. The other functions are just convenience
+    functions and hence should not be overridden.
+
+    The actual format is opaque and will vary between types of Field
+    (it is meant to be unpacked by unpack(), but be aware that it is
+    used among others in the replication log, so you cannot change it
+    without incurring a format break.
+
+    @note The default implementation just copies the raw bytes
+      of the record into the destination, but never more than
+      <code>max_length</code> characters.
+
+    @param to
+      Pointer to memory area where representation of field should be put.
+
+    @param from
+      Pointer to memory area where record representation of field is
+      stored, typically field->field_ptr().
+
+    @param max_length
+      Available space in “to”, in bytes. pack() will not write more bytes than
+      this; if the field is too short, the contents _are not unpackable by
+      unpack()_. (It is nominally supposed to be a prefix of what would have
+      been written with a full buffer, ie., the same as packing and then
+      truncating the output, but not all Field classes follow this.)
+
+    @param low_byte_first
+      @c true if integers should be stored little-endian, @c false if
+      native format should be used. Note that for little-endian machines,
+      the value of this flag is moot, since the native format is little-endian.
+
+      This value is dependent on how the packed data is going to be used:
+      for local use, e.g., temporary store on disk or in memory, use the native
+      format since that is faster. For data that is going to be transferred to
+      other machines (e.g., when writing data to the binary log), data should
+      always be stored in little-endian format.
+
+    @return The byte after the last byte in “to” written to. If the return
+      value is equal to (to + max_length), it could either be that the value
+      fit exactly, or that the buffer was too small; you cannot distinguish
+      between the two cases based on the return value alone.
+   */
   virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first) const;
 
@@ -1509,6 +1555,27 @@ class Field {
 
   const uchar *unpack(const uchar *from) {
     return unpack(ptr, from, 0U, table->s->db_low_byte_first);
+  }
+
+  /**
+    This function does the same thing as pack(), except for the difference
+    that max_length does not mean the number of bytes in the output, but the
+    maximum field length from the input (which must be exactly
+    field->max_field_length()). The difference is currently only relevant for
+    Field_blob, but can be summed up as follows:
+
+     - If the actual field length is longer than "max_length", by way of
+       software bug or otherwise, the function may behave as if it were shorter,
+       and write something that is still readable by unpack().
+     - There is no bounds checking; the caller must verify that there is
+       sufficient space in "to". Even in the case of truncation, "to" must
+       be long enough to hold the untruncated field, as the return pointer
+       would otherwise be invalid, causing undefined behavior as per the C++
+       standard.
+   */
+  virtual uchar *pack_with_metadata_bytes(uchar *to, const uchar *from,
+                                          uint max_length) const {
+    return pack(to, from, max_length, /*low_byte_first=*/true);
   }
 
   /**
@@ -3798,6 +3865,8 @@ class Field_blob : public Field_longstr {
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
               bool low_byte_first) const final override;
+  uchar *pack_with_metadata_bytes(uchar *to, const uchar *from,
+                                  uint max_length) const final;
   const uchar *unpack(uchar *, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
   uint max_packed_col_length() const final override;

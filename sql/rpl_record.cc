@@ -131,8 +131,8 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
     }
     DBUG_PRINT("info", ("stored in full format"));
   }
-  *pack_ptr = field->pack(*pack_ptr, field->field_ptr() + rec_offset,
-                          field->max_data_length(), true);
+  *pack_ptr = field->pack_with_metadata_bytes(
+      *pack_ptr, field->field_ptr() + rec_offset, field->max_data_length());
 }
 
 /**
