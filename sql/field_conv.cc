@@ -482,59 +482,6 @@ static void do_expand_string(Copy_field *, const Field *from_field,
 }
 
 /**
-  Find how many bytes should be copied between Field_varstring fields
-  so that only the bytes in use in the 'from' field are copied.
-  Handles single and multi-byte charsets. Adds warning if not all
-  bytes in 'from' will fit into 'to'.
-
-  @param to   Variable length field we're copying to
-  @param from Variable length field we're copying from
-
-  @return Number of bytes that should be copied from 'from' to 'to'.
-*/
-static size_t get_varstring_copy_length(Field_varstring *to,
-                                        const Field_varstring *from) {
-  const CHARSET_INFO *const cs = from->charset();
-  const bool is_multibyte_charset = (cs->mbmaxlen != 1);
-  const uint to_byte_length = to->row_pack_length();
-
-  size_t bytes_to_copy;
-  if (from->length_bytes == 1)
-    bytes_to_copy = *from->field_ptr();
-  else
-    bytes_to_copy = uint2korr(from->field_ptr());
-
-  if (from->pack_length() - from->length_bytes <= to_byte_length) {
-    /*
-      There's room for everything in the destination buffer;
-      no need to truncate.
-    */
-    return bytes_to_copy;
-  }
-
-  if (is_multibyte_charset) {
-    int well_formed_error;
-    const char *from_beg = reinterpret_cast<const char *>(from->data_ptr());
-    const uint to_char_length = (to_byte_length) / cs->mbmaxlen;
-    const size_t from_byte_length = bytes_to_copy;
-    bytes_to_copy =
-        cs->cset->well_formed_len(cs, from_beg, from_beg + from_byte_length,
-                                  to_char_length, &well_formed_error);
-    if (bytes_to_copy < from_byte_length) {
-      if (from->table->in_use->check_for_truncated_fields)
-        to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    }
-  } else {
-    if (bytes_to_copy > (to_byte_length)) {
-      bytes_to_copy = to_byte_length;
-      if (from->table->in_use->check_for_truncated_fields)
-        to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    }
-  }
-  return bytes_to_copy;
-}
-
-/**
   A variable length string field consists of:
    (a) 1 or 2 length bytes, depending on the VARCHAR column definition
    (b) as many relevant character bytes, as defined in the length byte(s)
@@ -550,20 +497,38 @@ static size_t get_varstring_copy_length(Field_varstring *to,
 */
 static void copy_field_varstring(Field_varstring *const to,
                                  const Field_varstring *const from) {
-  const uint length_bytes = from->length_bytes;
-  DBUG_ASSERT(length_bytes == to->length_bytes);
-  DBUG_ASSERT(length_bytes == 1 || length_bytes == 2);
+  DBUG_ASSERT(from->get_length_bytes() == to->get_length_bytes());
 
-  const size_t bytes_to_copy = get_varstring_copy_length(to, from);
-  if (length_bytes == 1)
-    *to->field_ptr() = static_cast<uchar>(bytes_to_copy);
-  else
-    int2store(to->field_ptr(), bytes_to_copy);
+  size_t bytes_to_copy;
+  const CHARSET_INFO *const from_cs = from->charset();
+  if (from->row_pack_length() <= to->row_pack_length()) {
+    /*
+      There's room for everything in the destination buffer;
+      no need to truncate.
+    */
+    bytes_to_copy = from->data_length();
+  } else if (from_cs->mbmaxlen != 1) {
+    int well_formed_error;
+    const char *from_beg = pointer_cast<const char *>(from->data_ptr());
+    const uint to_char_length = to->row_pack_length() / from_cs->mbmaxlen;
+    bytes_to_copy = from_cs->cset->well_formed_len(
+        from_cs, from_beg, from_beg + from->data_length(), to_char_length,
+        &well_formed_error);
+    if (bytes_to_copy < from->data_length()) {
+      if (from->table->in_use->check_for_truncated_fields)
+        to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+    }
+  } else {
+    bytes_to_copy = from->data_length();
+    if (bytes_to_copy > to->row_pack_length()) {
+      bytes_to_copy = to->row_pack_length();
+      if (from->table->in_use->check_for_truncated_fields)
+        to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+    }
+  }
 
-  // memcpy should not be used for overlaping memory blocks
-  DBUG_ASSERT(to->field_ptr() != from->field_ptr());
-  memcpy(to->field_ptr() + length_bytes, from->field_ptr() + length_bytes,
-         bytes_to_copy);
+  to->store(pointer_cast<const char *>(from->data_ptr()), bytes_to_copy,
+            from_cs);
 }
 
 static void do_varstring(Copy_field *, const Field *from_field,
@@ -778,8 +743,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
       } else if (m_to_field->charset() != m_from_field->charset())
         return do_field_string;
       else if (m_to_field->real_type() == MYSQL_TYPE_VARCHAR) {
-        if (down_cast<Field_varstring *>(m_to_field)->length_bytes !=
-            down_cast<Field_varstring *>(m_from_field)->length_bytes)
+        if (m_to_field->get_length_bytes() != m_from_field->get_length_bytes())
           return do_field_string;
         else
           return do_varstring;
@@ -840,7 +804,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
         from->real_type() == MYSQL_TYPE_VARCHAR) {
       Field_varstring *to_vc = down_cast<Field_varstring *>(to);
       const Field_varstring *from_vc = down_cast<const Field_varstring *>(from);
-      if (to_vc->length_bytes == from_vc->length_bytes) {
+      if (to_vc->get_length_bytes() == from_vc->get_length_bytes()) {
         copy_field_varstring(to_vc, from_vc);
         return TYPE_OK;
       }

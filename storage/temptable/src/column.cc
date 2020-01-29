@@ -70,10 +70,10 @@ Column::Column(const unsigned char *mysql_row,
   } else if (mysql_field.type() == MYSQL_TYPE_VARCHAR) {
     auto &varstring_field = static_cast<const Field_varstring &>(mysql_field);
 
-    DBUG_ASSERT(varstring_field.length_bytes <=
+    DBUG_ASSERT(varstring_field.get_length_bytes() <=
                 std::numeric_limits<decltype(m_length_bytes_size)>::max());
 
-    m_length_bytes_size = varstring_field.length_bytes;
+    m_length_bytes_size = varstring_field.get_length_bytes();
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
     data_offset = static_cast<size_t>(
         mysql_field.field_ptr() + mysql_field.get_length_bytes() - mysql_row);

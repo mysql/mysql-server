@@ -2686,7 +2686,7 @@ static void copy_to_part_field_buffers(Field **ptr, uchar **field_bufs,
          the strnxfrm method to normalise the string.
        */
       if (field->type() == MYSQL_TYPE_VARCHAR) {
-        uint len_bytes = ((Field_varstring *)field)->length_bytes;
+        uint len_bytes = field->get_length_bytes();
         my_strnxfrm(cs, field_buf + len_bytes, max_len, field->data_ptr(),
                     data_len);
         if (len_bytes == 1)

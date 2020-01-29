@@ -1996,8 +1996,7 @@ class Field_num : public Field {
   bool get_time(MYSQL_TIME *ltime) const override;
   uint is_equal(const Create_field *new_field) const override;
   uint row_pack_length() const final override { return pack_length(); }
-  uint32 pack_length_from_metadata(
-      uint field_metadata MY_ATTRIBUTE((unused))) const override {
+  uint32 pack_length_from_metadata(uint) const override {
     return pack_length();
   }
   type_conversion_status check_int(const CHARSET_INFO *cs, const char *str,
@@ -2269,9 +2268,7 @@ class Field_tiny : public Field_num {
     return to + 1;
   }
 
-  const uchar *unpack(
-      uchar *to, const uchar *from, uint param_data MY_ATTRIBUTE((unused)),
-      bool low_byte_first MY_ATTRIBUTE((unused))) final override {
+  const uchar *unpack(uchar *to, const uchar *from, uint, bool) final override {
     *to = *from;
     return from + 1;
   }
@@ -2322,8 +2319,7 @@ class Field_short final : public Field_num {
     return pack_int16(to, from, max_length, low_byte_first);
   }
 
-  const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused)),
+  const uchar *unpack(uchar *to, const uchar *from, uint,
                       bool low_byte_first) final override {
     return unpack_int16(to, from, low_byte_first);
   }
@@ -2414,8 +2410,7 @@ class Field_long : public Field_num {
               bool low_byte_first) const final override {
     return pack_int32(to, from, max_length, low_byte_first);
   }
-  const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused)),
+  const uchar *unpack(uchar *to, const uchar *from, uint,
                       bool low_byte_first) final override {
     return unpack_int32(to, from, low_byte_first);
   }
@@ -2466,8 +2461,7 @@ class Field_longlong : public Field_num {
               bool low_byte_first) const final override {
     return pack_int64(to, from, max_length, low_byte_first);
   }
-  const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused)),
+  const uchar *unpack(uchar *to, const uchar *from, uint,
                       bool low_byte_first) final override {
     return unpack_int64(to, from, low_byte_first);
   }
@@ -3032,8 +3026,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
               bool low_byte_first) const final override {
     return pack_int32(to, from, max_length, low_byte_first);
   }
-  const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused)),
+  const uchar *unpack(uchar *to, const uchar *from, uint,
                       bool low_byte_first) final override {
     return unpack_int32(to, from, low_byte_first);
   }
@@ -3408,8 +3401,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
               bool low_byte_first) const final override {
     return pack_int64(to, from, max_length, low_byte_first);
   }
-  const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused)),
+  const uchar *unpack(uchar *to, const uchar *from, uint,
                       bool low_byte_first) final override {
     return unpack_int64(to, from, low_byte_first);
   }
@@ -3565,8 +3557,6 @@ class Field_string : public Field_longstr {
 
 class Field_varstring : public Field_longstr {
  public:
-  /* Store number of bytes used to store length (1 or 2) */
-  uint32 length_bytes;
   Field_varstring(uchar *ptr_arg, uint32 len_arg, uint length_bytes_arg,
                   uchar *null_ptr_arg, uchar null_bit_arg, uchar auto_flags_arg,
                   const char *field_name_arg, TABLE_SHARE *share,
@@ -3604,9 +3594,9 @@ class Field_varstring : public Field_longstr {
   void set_key_image(const uchar *buff, size_t length) final override;
   void sql_type(String &str) const final override;
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+              bool) const final override;
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
-                      bool low_byte_first) final override;
+                      bool) final override;
   int cmp_binary(const uchar *a, const uchar *b,
                  uint32 max_length = ~0L) const final override;
   int key_cmp(const uchar *, const uchar *) const final override;
@@ -3637,6 +3627,9 @@ class Field_varstring : public Field_longstr {
   virtual uint32 get_length_bytes() const override { return length_bytes; }
 
  private:
+  /* Store number of bytes used to store length (1 or 2) */
+  uint32 length_bytes;
+
   int do_save_field_metadata(uchar *first_byte) const final override;
 };
 

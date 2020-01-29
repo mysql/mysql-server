@@ -8830,13 +8830,11 @@ static dberr_t calc_row_difference(
           the real payload data length is stored in
           1 or 2 bytes */
 
-          o_ptr = row_mysql_read_true_varchar(
-              &o_len, o_ptr,
-              (ulint)(down_cast<Field_varstring *>(field)->length_bytes));
+          o_ptr = row_mysql_read_true_varchar(&o_len, o_ptr,
+                                              (ulint)field->get_length_bytes());
 
-          n_ptr = row_mysql_read_true_varchar(
-              &n_len, n_ptr,
-              (ulint)(down_cast<Field_varstring *>(field)->length_bytes));
+          n_ptr = row_mysql_read_true_varchar(&n_len, n_ptr,
+                                              (ulint)field->get_length_bytes());
         }
 
         break;
@@ -11326,8 +11324,7 @@ inline int create_index(
           field->type() != MYSQL_TYPE_VARCHAR) ||
          (field->type() == MYSQL_TYPE_VARCHAR &&
           key_part->length <
-              field->pack_length() -
-                  down_cast<Field_varstring *>(field)->length_bytes))) {
+              field->pack_length() - field->get_length_bytes()))) {
       switch (col_type) {
         default:
           prefix_len = key_part->length;

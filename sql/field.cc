@@ -1553,8 +1553,7 @@ out_of_range:
   Field_real (common parent for Field_decimal, Field_float, Field_double),
   Field_new_decimal, Field_year.
 */
-type_conversion_status Field_num::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_num::store_time(MYSQL_TIME *ltime, uint8) {
   longlong nr = propagate_datetime_overflow(
       current_thd, [&](int *w) { return TIME_to_ulonglong_round(*ltime, w); });
   return store(ltime->neg ? -nr : nr, false);
@@ -2585,8 +2584,7 @@ longlong Field_decimal::val_int() const {
                      field_length, 10, NULL, &not_used);
 }
 
-String *Field_decimal::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
-                               String *val_ptr) const {
+String *Field_decimal::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const uchar *str;
   size_t tmp_length;
@@ -2906,8 +2904,7 @@ type_conversion_status Field_new_decimal::store_decimal(
   return store_value(decimal_value);
 }
 
-type_conversion_status Field_new_decimal::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_new_decimal::store_time(MYSQL_TIME *ltime, uint8) {
   my_decimal decimal_value;
   return store_value(date2my_decimal(ltime, &decimal_value));
 }
@@ -2938,8 +2935,7 @@ my_decimal *Field_new_decimal::val_decimal(my_decimal *decimal_value) const {
   return decimal_value;
 }
 
-String *Field_new_decimal::val_str(
-    String *val_buffer, String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_new_decimal::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   my_decimal decimal_value;
   uint fixed_precision = zerofill ? precision : 0;
@@ -3197,8 +3193,7 @@ longlong Field_tiny::val_int() const {
   return (longlong)tmp;
 }
 
-String *Field_tiny::val_str(String *val_buffer,
-                            String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_tiny::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
   uint length;
@@ -3365,8 +3360,7 @@ longlong Field_short::val_int() const {
   return unsigned_flag ? (longlong)(unsigned short)j : (longlong)j;
 }
 
-String *Field_short::val_str(String *val_buffer,
-                             String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_short::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
   uint length;
@@ -3537,8 +3531,7 @@ longlong Field_medium::val_int() const {
   return (longlong)j;
 }
 
-String *Field_medium::val_str(String *val_buffer,
-                              String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_medium::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
   uint length;
@@ -3713,8 +3706,7 @@ longlong Field_long::val_int() const {
   return unsigned_flag ? (longlong)(uint32)j : (longlong)j;
 }
 
-String *Field_long::val_str(String *val_buffer,
-                            String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_long::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
   size_t length;
@@ -3897,8 +3889,7 @@ longlong Field_longlong::val_int() const {
     return longlongget(ptr);
 }
 
-String *Field_longlong::val_str(String *val_buffer,
-                                String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_longlong::val_str(String *val_buffer, String *) const {
   const CHARSET_INFO *cs = &my_charset_numeric;
   uint length;
   uint mlength = max(field_length + 1, 22 * cs->mbmaxlen);
@@ -3988,8 +3979,7 @@ const uchar *Field_real::unpack(uchar *to, const uchar *from, uint param_data,
     return Field::unpack(to, from, param_data, low_byte_first);
 }
 
-type_conversion_status Field_real::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_real::store_time(MYSQL_TIME *ltime, uint8) {
   double nr = TIME_to_double(*ltime);
   return store(ltime->neg ? -nr : nr);
 }
@@ -4051,8 +4041,7 @@ longlong Field_float::val_int() const {
   return (longlong)rint(j);
 }
 
-String *Field_float::val_str(String *val_buffer,
-                             String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_float::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   float nr;
@@ -4312,8 +4301,7 @@ bool Field_real::get_time(MYSQL_TIME *ltime) const {
   return my_double_to_time_with_warn(val_real(), ltime);
 }
 
-String *Field_double::val_str(String *val_buffer,
-                              String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_double::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ASSERT(!zerofill || field_length <= MAX_FIELD_CHARLENGTH);
   double nr;
@@ -4723,8 +4711,8 @@ type_conversion_status Field_temporal_with_date::convert_number_to_TIME(
   return TYPE_OK;
 }
 
-type_conversion_status Field_temporal_with_date::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
+                                                            uint8) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error;
   int warnings = 0;
@@ -5192,8 +5180,7 @@ type_conversion_status Field_time_common::convert_number_to_TIME(
   return error ? time_warning_to_type_conversion_status(*warnings) : TYPE_OK;
 }
 
-type_conversion_status Field_time_common::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_time_common::store_time(MYSQL_TIME *ltime, uint8) {
   /* Check if seconds or minutes are out of range */
   if (ltime->second >= 60 || ltime->minute >= 60) {
     if (set_warnings(ErrConvString(ltime, decimals()),
@@ -5214,8 +5201,7 @@ type_conversion_status Field_time_common::store_internal_adjust_frac(
   return store_internal(ltime, warnings);
 }
 
-String *Field_time_common::val_str(
-    String *val_buffer, String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_time_common::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   MYSQL_TIME ltime;
   val_buffer->alloc(MAX_DATE_STRING_REP_LENGTH);
@@ -5471,8 +5457,7 @@ type_conversion_status Field_year::store(double nr) {
   return Field_year::store((longlong)nr, false);
 }
 
-type_conversion_status Field_year::store_time(
-    MYSQL_TIME *ltime, uint8 dec_arg MY_ATTRIBUTE((unused))) {
+type_conversion_status Field_year::store_time(MYSQL_TIME *ltime, uint8) {
   if (ltime->time_type != MYSQL_TIMESTAMP_DATETIME &&
       ltime->time_type != MYSQL_TIMESTAMP_DATE) {
     /* Convert time to datetime, then store year of the result */
@@ -5614,8 +5599,7 @@ longlong Field_newdate::val_time_temporal() const {
   return 0;
 }
 
-String *Field_newdate::val_str(String *val_buffer,
-                               String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_newdate::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   val_buffer->alloc(field_length);
   val_buffer->length(field_length);
@@ -5658,8 +5642,7 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-size_t Field_newdate::make_sort_key(
-    uchar *to, size_t length MY_ATTRIBUTE((unused))) const {
+size_t Field_newdate::make_sort_key(uchar *to, size_t length) const {
   memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
@@ -5783,8 +5766,7 @@ longlong Field_datetime::val_int() const {
   to avoid convertion from number to MYSQL_TIME.
   Using my_datetime_number_to_str() instead of my_datetime_to_str().
 */
-String *Field_datetime::val_str(String *val_buffer,
-                                String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_datetime::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   val_buffer->alloc(field_length + 1);
   val_buffer->set_charset(&my_charset_numeric);
@@ -6156,8 +6138,7 @@ longlong Field_string::val_int() const {
   return result;
 }
 
-String *Field_string::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
-                              String *val_ptr) const {
+String *Field_string::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   /* See the comment for Field_long::store(long long) */
   DBUG_ASSERT(table->in_use == current_thd);
@@ -6345,7 +6326,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length,
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *Field_string::unpack(uchar *to, const uchar *from, uint param_data,
-                                  bool low_byte_first MY_ATTRIBUTE((unused))) {
+                                  bool) {
   uint from_length, length;
 
   /*
@@ -6504,7 +6485,7 @@ double Field_varstring::val_real() const {
   double result;
   const CHARSET_INFO *cs = charset();
 
-  uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+  uint length = data_length();
   result = my_strntod(cs, (char *)ptr + length_bytes, length, &end, &error);
 
   if ((error || (length != (uint)(end - (char *)ptr + length_bytes) &&
@@ -6523,7 +6504,7 @@ longlong Field_varstring::val_int() const {
   const char *end;
   const CHARSET_INFO *cs = charset();
 
-  uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+  uint length = data_length();
   longlong result =
       my_strntoll(cs, (char *)ptr + length_bytes, length, 10, &end, &error);
 
@@ -6537,18 +6518,17 @@ longlong Field_varstring::val_int() const {
   return result;
 }
 
-String *Field_varstring::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
-                                 String *val_ptr) const {
+String *Field_varstring::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
-  val_ptr->set((const char *)ptr + length_bytes, length, field_charset);
+  val_ptr->set(pointer_cast<const char *>(data_ptr()), data_length(),
+               field_charset);
   return val_ptr;
 }
 
 my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = charset();
-  uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+  uint length = data_length();
   int error = str2my_decimal(E_DEC_FATAL_ERROR, (char *)ptr + length_bytes,
                              length, cs, decimal_value);
 
@@ -6586,7 +6566,7 @@ int Field_varstring::cmp_max(const uchar *a_ptr, const uchar *b_ptr,
 */
 
 int Field_varstring::key_cmp(const uchar *key_ptr, uint max_key_length) const {
-  uint length = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+  uint length = data_length();
   uint local_char_length = max_key_length / field_charset->mbmaxlen;
 
   local_char_length =
@@ -6613,15 +6593,13 @@ int Field_varstring::key_cmp(const uchar *a, const uchar *b) const {
 }
 
 size_t Field_varstring::make_sort_key(uchar *to, size_t length) const {
-  size_t input_bytes = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
-
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
   DBUG_ASSERT(char_length_cache == char_length());
   return field_charset->coll->strnxfrm(field_charset, to, length,
                                        char_length_cache, ptr + length_bytes,
-                                       input_bytes, flags);
+                                       data_length(), flags);
 }
 
 enum ha_base_keytype Field_varstring::key_type() const {
@@ -6685,13 +6663,11 @@ uchar *Field_varstring::pack(uchar *to, const uchar *from, uint max_length,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Length bytes from the master's field data
-   @param   low_byte_first Unused.
 
    @return  New pointer into memory based on from + length of the data
 */
-const uchar *Field_varstring::unpack(
-    uchar *to, const uchar *from, uint param_data,
-    bool low_byte_first MY_ATTRIBUTE((unused))) {
+const uchar *Field_varstring::unpack(uchar *to, const uchar *from,
+                                     uint param_data, bool) {
   uint length;
   uint l_bytes = (param_data && (param_data < field_length))
                      ? (param_data <= 255) ? 1 : 2
@@ -6716,8 +6692,7 @@ size_t Field_varstring::get_key_image(uchar *buff, size_t length,
     If NULL, data bytes may have been left random by the storage engine, so
     don't try to read them.
   */
-  uint f_length =
-      is_null() ? 0 : (length_bytes == 1 ? (uint)*ptr : uint2korr(ptr));
+  uint f_length = is_null() ? 0 : data_length();
   uint local_char_length = length / field_charset->mbmaxlen;
   uchar *pos = ptr + length_bytes;
   local_char_length =
@@ -6795,7 +6770,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2) const {
   if (is_null()) {
     *nr ^= (*nr << 1) | 1;
   } else {
-    uint len = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
+    uint len = data_length();
     const CHARSET_INFO *cs = charset();
     uint64 tmp1 = *nr;
     uint64 tmp2 = *nr2;
@@ -7693,8 +7668,7 @@ double Field_json::val_real() const {
   return wr.coerce_real(field_name);
 }
 
-String *Field_json::val_str(String *buf1,
-                            String *buf2 MY_ATTRIBUTE((unused))) const {
+String *Field_json::val_str(String *buf1, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   /*
@@ -8103,8 +8077,7 @@ int Field_enum::do_save_field_metadata(uchar *metadata_ptr) const {
   return 2;
 }
 
-String *Field_enum::val_str(String *val_buffer MY_ATTRIBUTE((unused)),
-                            String *val_ptr) const {
+String *Field_enum::val_str(String *, String *val_ptr) const {
   uint tmp = (uint)Field_enum::val_int();
   if (!tmp || tmp > typelib->count)
     val_ptr->set("", 0, field_charset);
@@ -8245,8 +8218,7 @@ type_conversion_status Field_set::store(longlong nr, bool) {
   return error;
 }
 
-String *Field_set::val_str(String *val_buffer,
-                           String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_set::val_str(String *val_buffer, String *) const {
   ulonglong tmp = (ulonglong)Field_enum::val_int();
   uint bitnr = 0;
 
@@ -8666,8 +8638,7 @@ longlong Field_bit::val_int() const {
   }
 }
 
-String *Field_bit::val_str(String *val_buffer,
-                           String *val_ptr MY_ATTRIBUTE((unused))) const {
+String *Field_bit::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   char buff[sizeof(longlong)];
   uint length = min<uint>(pack_length(), sizeof(longlong));
@@ -8802,8 +8773,7 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata) const {
 
    @return @c true
 */
-bool Field_bit::compatible_field_size(uint field_metadata,
-                                      Relay_log_info *MY_ATTRIBUTE((unused)),
+bool Field_bit::compatible_field_size(uint field_metadata, Relay_log_info *,
                                       uint16 mflags, int *order_var) const {
   DBUG_TRACE;
   DBUG_ASSERT((field_metadata >> 16) == 0);
@@ -8836,7 +8806,7 @@ void Field_bit::sql_type(String &res) const {
 }
 
 uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
-                       bool low_byte_first MY_ATTRIBUTE((unused))) const {
+                       bool) const {
   if (max_length == 0) {
     return to + 1;
   }
@@ -8882,7 +8852,7 @@ uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
    @return  New pointer into memory based on from + length of the data
 */
 const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
-                               bool MY_ATTRIBUTE((unused))) {
+                               bool) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("to: %p, from: %p, param_data: 0x%x", to, from, param_data));

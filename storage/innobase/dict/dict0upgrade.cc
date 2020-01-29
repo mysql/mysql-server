@@ -278,9 +278,9 @@ static bool dd_upgrade_match_single_col(const Field *field,
   ulint long_true_varchar = 0;
 
   if (field->type() == MYSQL_TYPE_VARCHAR) {
-    col_len -= ((Field_varstring *)field)->length_bytes;
+    col_len -= field->get_length_bytes();
 
-    if (((Field_varstring *)field)->length_bytes == 2) {
+    if (field->get_length_bytes() == 2) {
       long_true_varchar = DATA_LONG_TRUE_VARCHAR;
     }
   }
@@ -523,8 +523,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
         (key_part->length < field->pack_length() &&
          field->type() != MYSQL_TYPE_VARCHAR) ||
         (field->type() == MYSQL_TYPE_VARCHAR &&
-         key_part->length <
-             field->pack_length() - ((Field_varstring *)field)->length_bytes)) {
+         key_part->length < field->pack_length() - field->get_length_bytes())) {
       switch (col_type) {
         default:
           prefix_len = key_part->length;

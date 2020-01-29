@@ -3274,8 +3274,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   uchar *ptr = sjtbl->tmp_table->visible_field_ptr()[0]->field_ptr();
   // Put the rowids tuple into table->record[0]:
   // 1. Store the length
-  if (((Field_varstring *)(sjtbl->tmp_table->visible_field_ptr()[0]))
-          ->length_bytes == 1) {
+  if (sjtbl->tmp_table->visible_field_ptr()[0]->get_length_bytes() == 1) {
     *ptr = (uchar)(sjtbl->rowid_len + sjtbl->null_bytes);
     ptr++;
   } else {
