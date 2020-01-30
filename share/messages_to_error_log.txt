@@ -10338,12 +10338,12 @@ ER_PLUGIN_NO_INSTALL_DUP
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
-ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+OBSOLETE_ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
   eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
 
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
 # code.
-ER_WARN_DEPRECATED_FOUND_ROWS
+OBSOLETE_ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
 ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT

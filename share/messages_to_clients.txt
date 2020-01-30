@@ -9304,6 +9304,16 @@ ER_MISSING_JSON_VALUE 22035
 ER_MULTIPLE_JSON_VALUES 22034
   eng "More than one value was found by '%.192s' on the specified path."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+  eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_FOUND_ROWS
+  eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
