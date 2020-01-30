@@ -24,4 +24,4 @@ perl mysql-test-run.pl --timer --force   --comment=eits-tests-innodb-engine --va
 perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcached  --suite=memcached --no-skip
 
 # Group Replication
-perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication --vardir=var-group_replication --suite=group_replication
+perl mysql-test-run.pl --timer --force --parallel=6 --comment=group_replication_ssl_mode_required --vardir=var-group_replication_ssl_mode_required --suite=group_replication --mysqld=--loose-group_replication_ssl_mode=REQUIRED
