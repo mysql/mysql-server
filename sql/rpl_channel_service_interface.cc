@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,23 @@ static void set_mi_settings(Master_info *mi,
           ? opt_mts_checkpoint_group
           : channel_info->channel_mts_checkpoint_group;
 
-  mi->set_mi_description_event(new Format_description_log_event());
+  Format_description_log_event *fde = new Format_description_log_event();
+  /*
+    Group replication applier channel shall not use checksum on its relay log
+    files.
+  */
+  if (channel_map.is_group_replication_channel_name(mi->get_channel(), true)) {
+    fde->footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    /*
+      When the receiver thread connects to the master, it gets its current
+      binlog checksum algorithm, but as GR applier channel has no receiver
+      thread (and also does not connect to a master), we will set the variable
+      here to BINLOG_CHECKSUM_ALG_OFF as events queued after certification have
+      no checksum information.
+    */
+    mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  }
+  mi->set_mi_description_event(fde);
 
   mysql_mutex_unlock(&mi->data_lock);
   mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());

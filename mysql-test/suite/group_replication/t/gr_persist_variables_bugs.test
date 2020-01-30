@@ -2,7 +2,7 @@
 # This test is to verify Bug #27522405
 #
 # Test:
-# 0. The test requires one server. Set binlog_checksum to NONE.
+# 0. The test requires one server. Persist binlog_checksum.
 # 1. SET PERSIST GR specific variables.
 # 2. Restart server, it must bootstrap the group
 # 3. Clean up.
@@ -15,11 +15,11 @@
 
 --echo
 --echo ############################################################
---echo # 0. Set binlog_checksum to NONE.
+--echo # 0. Persist binlog_checksum.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
-SET PERSIST binlog_checksum=NONE;
+SET PERSIST binlog_checksum= @@global.binlog_checksum;
 
 --echo
 --echo ############################################################

@@ -24,11 +24,6 @@ SELECT MEMBER_STATE FROM performance_schema.replication_group_members;
 --echo # Curently there are 9 prerequisite variables.
 --echo #
 
-# binlog_checksum
---let $assert_text= GR compatible value of binlog_checksum is None
---let $assert_cond= "[SELECT @@GLOBAL.binlog_checksum]" = "None"
---source include/assert.inc
-
 # binlog_format
 --let $assert_text= GR compatible value of binlog_format is ROW
 --let $assert_cond= "[SELECT @@GLOBAL.binlog_format]" = "ROW"

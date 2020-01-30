@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -698,8 +698,12 @@ int Recovery_state_transfer::state_transfer(
 
   channel_observation_manager->unregister_channel_observer(
       recovery_channel_observer);
+
   // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
-  terminate_recovery_slave_threads(!error);
+  bool purge_relay_logs = !error;
+  DBUG_EXECUTE_IF("gr_recovery_skip_purge_logs", { purge_relay_logs = false; });
+  terminate_recovery_slave_threads(purge_relay_logs);
+
   connected_to_donor = false;
 
   return error;

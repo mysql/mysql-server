@@ -1252,7 +1252,13 @@ bool Log_event::need_checksum() {
         */
         get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
         /* FD is always checksummed */
-        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) &&
+        get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
+        /*
+           View_change_log_event is queued into relay log by the
+           local member, which may have a different checksum algorithm
+           than the one of the event source.
+        */
+        get_type_code() == binary_log::VIEW_CHANGE_EVENT) &&
        common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF));
 
   DBUG_ASSERT(common_footer->checksum_alg !=
@@ -13510,7 +13516,20 @@ int View_change_log_event::do_apply_event(Relay_log_info const *rli) {
     return 0;
   }
 
+  /*
+    The view change is going to be written directly into the binary log and
+    its "data_written" field may change depending on local binlog-checksum
+    settings.
+
+    As MTS keep track of the size of the events on its queue relying on events
+    header data_written field, we must ensure that it should not change on the
+    event instance in memory (by backing it up before writing into binary log
+    and restoring it after it was written).
+  */
+  size_t original_ev_data_written = common_header->data_written;
   int error = mysql_bin_log.write_event(this);
+  if (original_ev_data_written)
+    common_header->data_written = original_ev_data_written;
   if (error)
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                 ER_THD(thd, ER_SLAVE_FATAL_ERROR),

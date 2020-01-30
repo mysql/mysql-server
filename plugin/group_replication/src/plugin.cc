@@ -2231,7 +2231,6 @@ SERVICE_TYPE(registry) * get_plugin_registry() { return lv.reg_srv; }
 
   It currently verifies:
   - Binlog enabled
-  - Binlog checksum mode
   - Binlog format
   - Gtid mode
   - LOG_SLAVE_UPDATES
@@ -2252,12 +2251,6 @@ static int check_if_server_properly_configured() {
 
   if (!startup_pre_reqs.binlog_enabled) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_DISABLED);
-    return 1;
-  }
-
-  if (startup_pre_reqs.binlog_checksum_options !=
-      binary_log::BINLOG_CHECKSUM_ALG_OFF) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
     return 1;
   }
 

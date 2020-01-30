@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,12 +116,6 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
    */
   if ((out += (param->trans_ctx_info.binlog_format != BINLOG_FORMAT_ROW))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_BINLOG_FORMAT);
-    return 0;
-  }
-
-  if ((out += (param->trans_ctx_info.binlog_checksum_options !=
-               binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
     return 0;
   }
 

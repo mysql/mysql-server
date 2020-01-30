@@ -238,6 +238,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     );
     Sid_map *sid_map = new Sid_map(sid_lock);
     gtid_set = new Gtid_set(sid_map, sid_lock);
+
+    /*
+      Group replication applier channel shall not use checksum on its relay
+      log files.
+    */
+    if (channel_map.is_group_replication_channel_name(param_channel, true)) {
+      relay_log.relay_log_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+    }
   }
   gtid_monitoring_info = new Gtid_monitoring_info();
   do_server_version_split(::server_version, slave_version_split);
