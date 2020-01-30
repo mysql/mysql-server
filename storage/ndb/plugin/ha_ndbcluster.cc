@@ -1430,8 +1430,7 @@ bool ha_ndbcluster::get_error_message(int error, String *buf) {
 */
 static uint32 field_used_length(const Field *field, ptrdiff_t row_offset = 0) {
   if (field->type() == MYSQL_TYPE_VARCHAR) {
-    const Field_varstring *f = down_cast<const Field_varstring *>(field);
-    return f->length_bytes + f->data_length(row_offset);
+    return field->get_length_bytes() + field->data_length(row_offset);
   }
   return field->pack_length();
 }
@@ -3495,8 +3494,7 @@ const NdbOperation *ha_ndbcluster::pk_unique_index_read_key(
 
 static bool is_shrinked_varchar(const Field *field) {
   if (field->real_type() == MYSQL_TYPE_VARCHAR) {
-    if (down_cast<const Field_varstring *>(field)->length_bytes == 1)
-      return true;
+    if (field->get_length_bytes() == 1) return true;
   }
 
   return false;
@@ -6514,7 +6512,7 @@ void ha_ndbcluster::position(const uchar *record) {
       Field *field = key_part->field;
       if (field->type() == MYSQL_TYPE_VARCHAR) {
         size_t var_length;
-        if (((Field_varstring *)field)->length_bytes == 1) {
+        if (field->get_length_bytes() == 1) {
           /**
            * Keys always use 2 bytes length
            */
@@ -8113,15 +8111,14 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       break;
     case MYSQL_TYPE_VAR_STRING:  // ?
     case MYSQL_TYPE_VARCHAR: {
-      Field_varstring *f = (Field_varstring *)field;
-      if (f->length_bytes == 1) {
+      if (field->get_length_bytes() == 1) {
         if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
           col.setType(NDBCOL::Varbinary);
         else {
           col.setType(NDBCOL::Varchar);
           col.setCharset(cs);
         }
-      } else if (f->length_bytes == 2) {
+      } else if (field->get_length_bytes() == 2) {
         if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
           col.setType(NDBCOL::Longvarbinary);
         else {
@@ -14417,7 +14414,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array) {
     uint len = field->data_length();
     DBUG_ASSERT(!field->is_real_null());
     if (field->real_type() == MYSQL_TYPE_VARCHAR)
-      len += ((Field_varstring *)field)->length_bytes;
+      len += field->get_length_bytes();
     key_data[i].ptr = field->field_ptr();
     key_data[i++].len = len;
   } while (*(++field_array));

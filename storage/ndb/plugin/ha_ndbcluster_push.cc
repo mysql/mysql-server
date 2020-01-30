@@ -2071,7 +2071,7 @@ int ndb_pushed_builder_ctx::build_key(const AQP::Table_access *table,
         DBUG_ASSERT(!field->is_real_null());
         const uchar *const ptr =
             (field->real_type() == MYSQL_TYPE_VARCHAR)
-                ? field->field_ptr() + ((Field_varstring *)field)->length_bytes
+                ? field->field_ptr() + field->get_length_bytes()
                 : field->field_ptr();
 
         op_key[map[i]] = m_builder->constValue(ptr, field->data_length());
