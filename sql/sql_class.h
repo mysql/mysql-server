@@ -2167,11 +2167,16 @@ class THD : public MDL_context_owner,
     return system_thread == SYSTEM_THREAD_SERVER_INITIALIZE;
   }
 
+  // Check if this THD is executing statements passed through a init file.
+  bool is_init_file_system_thread() const {
+    return system_thread == SYSTEM_THREAD_INIT_FILE;
+  }
+
   // Check if this THD belongs to a bootstrap system thread. Note that
   // this thread type may execute statements submitted by the user.
   bool is_bootstrap_system_thread() const {
     return is_dd_system_thread() || is_initialize_system_thread() ||
-           system_thread == SYSTEM_THREAD_INIT_FILE;
+           is_init_file_system_thread();
   }
 
   // Check if this THD belongs to a server upgrade thread. Server upgrade
