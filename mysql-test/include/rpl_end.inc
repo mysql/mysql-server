@@ -161,9 +161,6 @@ if (!$rpl_group_replication)
   --let $_rpl_server= $rpl_server_count
   while ($_rpl_server)
   {
-    --let $rpl_connection_name= server_$_rpl_server
-    --source include/rpl_connection.inc
-
     if ($rpl_privilege_checks_user != '')
     {
       --let $rpl_server_number= $_rpl_server
@@ -171,6 +168,9 @@ if (!$rpl_group_replication)
       if ($rpl_instance_privilege_checks_user != NULL)
       {
         --disable_query_log
+        --let $rpl_connection_name= server_$_rpl_server
+        --source include/rpl_connection.inc
+
         if (!$rpl_multi_source)
         {
           CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL;
