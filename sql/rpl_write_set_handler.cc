@@ -198,7 +198,7 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
                                                      HASH_STRING_SEPARATOR "21" HASH_STRING_SEPARATOR "12"
                                                      HASH_STRING_SEPARATOR "1");
                   DBUG_ASSERT(hash_list.size() == 2);
-                  DBUG_ASSERT(hash_list[0] == 1691122509389864327);
+                  DBUG_ASSERT(hash_list[0] == 1691122509389864327ULL);
                   DBUG_ASSERT(hash_list[1] == 13655149628280894901ULL););
 
   DBUG_EXECUTE_IF("PKE_assert_multi_primary_key_generated_insert_collation",
