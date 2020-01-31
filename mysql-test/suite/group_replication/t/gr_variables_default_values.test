@@ -316,8 +316,8 @@ SET @@SESSION.group_replication_consistency= default;
 --source include/assert.inc
 
 # group_replication_member_expel_timeout
---let $assert_text= Default group_replication_member_expel_timeout is 0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 0
+--let $assert_text= Default group_replication_member_expel_timeout is 5
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_expel_timeout]" = 5
 --source include/assert.inc
 
 # group_replication_consistency

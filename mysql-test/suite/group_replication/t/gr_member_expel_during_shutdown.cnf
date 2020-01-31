@@ -1,5 +1,8 @@
 !include ../my.cnf
 
+[mysqld]
+group_replication_member_expel_timeout= 0
+
 [mysqld.1]
 
 [mysqld.2]

@@ -62,6 +62,6 @@ SET GLOBAL group_replication_member_expel_timeout= 10000;
 --source include/assert.inc
 
 # Reset parameter value to default
-SET GLOBAL group_replication_member_expel_timeout= 0;
+SET GLOBAL group_replication_member_expel_timeout= default;
 
 --source include/group_replication_end.inc

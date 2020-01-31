@@ -22,5 +22,5 @@ SET GLOBAL group_replication_member_expel_timeout= 10000;
 ERROR 42000: Variable 'group_replication_member_expel_timeout' can't be set to the value of '10000'
 SET GLOBAL group_replication_member_expel_timeout= 30;
 include/assert.inc [The value of member_expel_timeout should be 30]
-SET GLOBAL group_replication_member_expel_timeout= 0;
+SET GLOBAL group_replication_member_expel_timeout= default;
 include/group_replication_end.inc
