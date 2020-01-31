@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2128,6 +2128,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         }
 
         continue;
+      }
+
+      if (multi_val_added != 0) {
+        /* This signalizes that a partial row was added to the buffer due to
+        reaching its size limit. We need to increment the file size by this
+        amount */
+        file->n_rec += multi_val_added;
       }
 
       if (err == DB_COMPUTE_VALUE_FAILED) {
