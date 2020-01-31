@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -437,7 +437,9 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
     {&key_GR_THD_recovery, "THD_recovery", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_THD_autorejoin, "THD_autorejoin", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+     PSI_DOCUMENT_ME},
+    {&key_GR_THD_message_service_handler, "THD_message_service_handler",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_cert_stable_gtid_set, "RWLOCK_certifier_stable_gtid_set",

@@ -140,5 +140,18 @@ include/start_and_bootstrap_group_replication.inc
 include/assert.inc ['There should be no extra psi keys added after starting the GR']
 
 ############################################################
-# 4. Test end.
+# 4. Verify that performance_schema.threads list the usual
+#    threads after member is ONLINE.
+SELECT NAME, TYPE, INSTRUMENTED FROM performance_schema.threads WHERE NAME LIKE '%group_rpl%' ORDER BY NAME;
+NAME	TYPE	INSTRUMENTED
+thread/group_rpl/THD_applier_module_receiver	BACKGROUND	YES
+thread/group_rpl/THD_certifier_broadcast	BACKGROUND	YES
+thread/group_rpl/THD_Gcs_ext_logger_impl::m_consumer	BACKGROUND	YES
+thread/group_rpl/THD_Gcs_xcom_control::m_suspicions_processing_thread	BACKGROUND	YES
+thread/group_rpl/THD_Gcs_xcom_control::m_xcom_thread	BACKGROUND	YES
+thread/group_rpl/THD_Gcs_xcom_engine::m_engine_thread	BACKGROUND	YES
+thread/group_rpl/THD_message_service_handler	BACKGROUND	YES
+
+############################################################
+# 5. Test end.
 include/group_replication_end.inc

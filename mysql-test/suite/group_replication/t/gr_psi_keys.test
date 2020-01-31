@@ -9,7 +9,9 @@
 # 2. Start GR on M1
 # 3. Verify that there are no extra psi keys that were added after starting
 #    the GR
-# 4. Test end.
+# 4. Verify that performance_schema.threads list the usual
+#    threads after member is ONLINE.
+# 5. Test end.
 ################################################################################
 
 --source include/have_group_replication_plugin.inc
@@ -41,5 +43,11 @@ SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%'
 
 --echo
 --echo ############################################################
---echo # 4. Test end.
+--echo # 4. Verify that performance_schema.threads list the usual
+--echo #    threads after member is ONLINE.
+SELECT NAME, TYPE, INSTRUMENTED FROM performance_schema.threads WHERE NAME LIKE '%group_rpl%' ORDER BY NAME;
+
+--echo
+--echo ############################################################
+--echo # 5. Test end.
 --source include/group_replication_end.inc
