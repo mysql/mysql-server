@@ -45,6 +45,7 @@
 #include "m_string.h"  // my_stpncpy
 #include "my_alloc.h"
 #include "my_base.h"
+#include "my_bit.h"
 #include "my_check_opt.h"  // T_EXTEND
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -7190,8 +7191,8 @@ bool Item_field::replace_field_processor(uchar *arg) {
     return true;
   }
 
-  unsigned_flag = (create_field->sql_type == MYSQL_TYPE_BIT ||
-                   (field->flags & UNSIGNED_FLAG));
+  unsigned_flag = create_field->sql_type == MYSQL_TYPE_BIT ||
+                  field->is_flag_set(UNSIGNED_FLAG);
   maybe_null = create_field->is_nullable;
   field->field_length = max_length;
   return false;
@@ -10751,7 +10752,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
       continue;
 
     // Skip columns marked as NOT SECONDARY.
-    if ((*field)->flags & NOT_SECONDARY_FLAG) continue;
+    if ((*field)->is_flag_set(NOT_SECONDARY_FLAG)) continue;
 
     // Mark column as eligible for loading.
     table_list->table->mark_column_used(*field, MARK_COLUMNS_READ);
@@ -11161,7 +11162,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
     /* Clear marker for renamed or dropped field
     which we are going to set later. */
-    field->flags &= ~(FIELD_IS_RENAMED | FIELD_IS_DROPPED);
+    field->clear_flag(FIELD_IS_RENAMED);
+    field->clear_flag(FIELD_IS_DROPPED);
 
     /* Use transformed info to evaluate flags for storage engine. */
     uint new_field_index = 0;
@@ -11261,14 +11263,14 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
 
       /* Check if field was renamed */
       if (field_renamed) {
-        field->flags |= FIELD_IS_RENAMED;
+        field->set_flag(FIELD_IS_RENAMED);
         dropped_or_renamed_cols.push_back(field);
         ha_alter_info->handler_flags |= Alter_inplace_info::ALTER_COLUMN_NAME;
       }
 
       /* Check that NULL behavior is same for old and new fields */
-      if ((new_field->flags & NOT_NULL_FLAG) !=
-          (uint)(field->flags & NOT_NULL_FLAG)) {
+      if (Overlaps(new_field->flags, NOT_NULL_FLAG) !=
+          field->is_flag_set(NOT_NULL_FLAG)) {
         if (new_field->flags & NOT_NULL_FLAG)
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE;
@@ -11324,7 +11326,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         ha_alter_info->virtual_column_drop_count++;
       } else
         ha_alter_info->handler_flags |= Alter_inplace_info::DROP_STORED_COLUMN;
-      field->flags |= FIELD_IS_DROPPED;
+      field->set_flag(FIELD_IS_DROPPED);
       dropped_or_renamed_cols.push_back(field);
     }
     if (field->stored_in_db) old_field_index_without_vgc++;
@@ -11636,7 +11638,7 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
     for fields which participate in new indexes.
   */
   for (field_idx = 0; field_idx < altered_table->s->fields; ++field_idx)
-    altered_table->field[field_idx]->flags &= ~FIELD_IN_ADD_INDEX;
+    altered_table->field[field_idx]->clear_flag(FIELD_IN_ADD_INDEX);
 
   /*
     Go through array of newly added indexes and mark fields
@@ -11649,7 +11651,7 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
 
     end = key->key_part + key->user_defined_key_parts;
     for (key_part = key->key_part; key_part < end; key_part++)
-      altered_table->field[key_part->fieldnr]->flags |= FIELD_IN_ADD_INDEX;
+      altered_table->field[key_part->fieldnr]->set_flag(FIELD_IN_ADD_INDEX);
   }
 }
 
@@ -11756,7 +11758,7 @@ bool mysql_compare_tables(TABLE *table, Alter_info *alter_info,
 
     /* Check that NULL behavior is the same. */
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
-        (uint)(field->flags & NOT_NULL_FLAG))
+        field->is_flag_set(NOT_NULL_FLAG))
       return false;
 
     /* Check if field was renamed */
@@ -14512,7 +14514,7 @@ static fk_column_change_type fk_check_column_changes(
 
       if ((old_field->is_equal(new_field) == IS_EQUAL_NO) ||
           ((new_field->flags & NOT_NULL_FLAG) &&
-           !(old_field->flags & NOT_NULL_FLAG))) {
+           !old_field->is_flag_set(NOT_NULL_FLAG))) {
         if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)) {
           /*
             Column in a FK has changed significantly. Unless
@@ -17696,8 +17698,8 @@ static int copy_data_between_tables(
         uint key_nr = to->file->get_dup_key(error);
         if ((int)key_nr >= 0) {
           const char *err_msg = ER_THD(thd, ER_DUP_ENTRY_WITH_KEY_NAME);
-          if (key_nr == 0 &&
-              (to->key_info[0].key_part[0].field->flags & AUTO_INCREMENT_FLAG))
+          if (key_nr == 0 && (to->key_info[0].key_part[0].field->is_flag_set(
+                                 AUTO_INCREMENT_FLAG)))
             err_msg = ER_THD(thd, ER_DUP_ENTRY_AUTOINCREMENT_CASE);
           print_keydup_error(
               to, key_nr == MAX_KEY ? nullptr : &to->key_info[key_nr], err_msg,

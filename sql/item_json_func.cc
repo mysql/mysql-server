@@ -289,7 +289,7 @@ static bool is_convertible_to_json(const Item *item) {
       if (item->type() == Item::FIELD_ITEM) {
         const Item_field *fi = down_cast<const Item_field *>(item);
         const Field *field = fi->field;
-        if (field->flags & (ENUM_FLAG | SET_FLAG)) {
+        if (field->is_flag_set(ENUM_FLAG) || field->is_flag_set(SET_FLAG)) {
           return false;
         }
       }
@@ -4085,7 +4085,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
       } else if (w->type() == enum_json_type::J_UINT) {
         value_unsigned = true;
       } else {
-        value_unsigned = field->unsigned_flag;
+        value_unsigned = field->is_unsigned();
       }
 
       if (!err)

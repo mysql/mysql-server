@@ -266,7 +266,7 @@ static int get_ndb_blobs_value(TABLE *table, NdbValue *value_array,
     for (uint i = 0; i < table->s->fields; i++) {
       Field *field = table->field[i];
       NdbValue value = value_array[i];
-      if (!(field->flags & BLOB_FLAG && field->stored_in_db)) continue;
+      if (!field->is_flag_set(BLOB_FLAG) && field->stored_in_db) continue;
       if (value.blob == NULL) {
         DBUG_PRINT("info", ("[%u] skipped", i));
         continue;
@@ -6461,7 +6461,7 @@ int Ndb_binlog_client::create_event(Ndb *ndb,
 }
 
 inline int is_ndb_compatible_type(Field *field) {
-  return !(field->flags & BLOB_FLAG) && field->type() != MYSQL_TYPE_BIT &&
+  return !field->is_flag_set(BLOB_FLAG) && field->type() != MYSQL_TYPE_BIT &&
          field->pack_length() != 0;
 }
 
@@ -6584,7 +6584,7 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
           attr1.rec =
               op->getPreValue(col_name, (f->field_ptr() - table->record[0]) +
                                             (char *)table->record[1]);
-        } else if (!(f->flags & BLOB_FLAG)) {
+        } else if (!f->is_flag_set(BLOB_FLAG)) {
           DBUG_PRINT("info", ("%s non compatible", col_name));
           attr0.rec = op->getValue(col_name);
           attr1.rec = op->getPreValue(col_name);
@@ -6855,7 +6855,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
   */
   for (; field; p_field++, field = *p_field) {
     if (field->is_virtual_gcol()) {
-      if (field->flags & BLOB_FLAG) {
+      if (field->is_flag_set(BLOB_FLAG)) {
         /**
          * Valgrind shows Server binlog code uses length
          * of virtual blob fields for allocation decisions
@@ -6873,7 +6873,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value, MY_BITMAP *defined,
 
     field->set_notnull(row_offset);
     if ((*value).ptr) {
-      if (!(field->flags & BLOB_FLAG)) {
+      if (!field->is_flag_set(BLOB_FLAG)) {
         int is_null = (*value).rec->isNULL();
         if (is_null) {
           if (is_null > 0) {

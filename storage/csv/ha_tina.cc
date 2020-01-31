@@ -742,7 +742,7 @@ int ha_tina::find_current_row(uchar *buf) {
                           is_enum ? CHECK_FIELD_IGNORE : CHECK_FIELD_WARN)) {
         if (!is_enum) goto err;
       }
-      if ((*field)->flags & BLOB_FLAG) {
+      if ((*field)->is_flag_set(BLOB_FLAG)) {
         Field_blob *blob_field = down_cast<Field_blob *>(*field);
         size_t length = blob_field->get_length();
         // BLOB data is not stored inside buffer. It only contains a

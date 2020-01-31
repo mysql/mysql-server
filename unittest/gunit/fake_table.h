@@ -218,7 +218,8 @@ class Fake_TABLE : public TABLE {
     for (int i = 0; i < column_count; ++i) {
       std::stringstream str;
       str << "field_" << (i + 1);
-      add(new (*THR_MALLOC) Mock_field_long(str.str().c_str(), cols_nullable),
+      add(new (*THR_MALLOC)
+              Mock_field_long(str.str().c_str(), cols_nullable, false),
           i);
     }
   }
@@ -237,7 +238,8 @@ class Fake_TABLE : public TABLE {
     for (size_t i = 0; i < column_values.size(); ++i) {
       std::stringstream s;
       s << "field_" << i + 1;
-      field[i] = new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
+      field[i] =
+          new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable, false);
       field[i]->table = this;
       const ptrdiff_t field_offset = i * MAX_FIELD_WIDTH;
       field[i]->set_field_ptr(record[0] + field_offset + 1);
@@ -259,8 +261,8 @@ class Fake_TABLE : public TABLE {
 
   // Defines an index over (column1, column2) and generates a unique id.
   int create_index(Field *column1, Field *column2) {
-    column1->flags |= PART_KEY_FLAG;
-    column2->flags |= PART_KEY_FLAG;
+    column1->set_flag(PART_KEY_FLAG);
+    column2->set_flag(PART_KEY_FLAG);
     int index_id = highest_index_id++;
     column1->key_start.set_bit(index_id);
     keys_in_use_for_query.set_bit(index_id);

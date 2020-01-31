@@ -100,12 +100,12 @@ void TableCollection::AddTable(QEP_TAB *qep_tab) {
   for (const hash_join_buffer::Column &column : table.columns) {
     // Field_typed_array will mask away the BLOB_FLAG for all types. Hence,
     // we will treat all Field_typed_array as blob columns.
-    if ((column.field->flags & BLOB_FLAG) > 0 || column.field->is_array()) {
+    if (column.field->is_flag_set(BLOB_FLAG) || column.field->is_array()) {
       m_has_blob_column = true;
     }
 
     // If a column is marked as nullable, we need to copy the NULL flags.
-    if ((column.field->flags & NOT_NULL_FLAG) == 0) {
+    if (!column.field->is_flag_set(NOT_NULL_FLAG)) {
       table.copy_null_flags = true;
     }
 

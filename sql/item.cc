@@ -902,7 +902,7 @@ bool Item_field::check_function_as_value_generator(uchar *checker_args) {
     engine.
     So this case is forbidden.
   */
-  if (field->flags & AUTO_INCREMENT_FLAG) {
+  if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
     func_args->err_code =
         (func_args->source == VGS_GENERATED_COLUMN)
             ? ER_GENERATED_COLUMN_REF_AUTO_INC
@@ -2390,9 +2390,8 @@ void Item_ident_for_show::make_field(Send_field *tmp_field) {
   tmp_field->charsetnr = field->charset()->number;
   tmp_field->length = field->field_length;
   tmp_field->type = field->type();
-  tmp_field->flags = field->table->is_nullable()
-                         ? (field->flags & ~NOT_NULL_FLAG)
-                         : field->flags;
+  tmp_field->flags = field->all_flags();
+  if (field->table->is_nullable()) tmp_field->flags &= ~NOT_NULL_FLAG;
   tmp_field->decimals = field->decimals();
   tmp_field->field = false;
 }
@@ -2400,7 +2399,7 @@ void Item_ident_for_show::make_field(Send_field *tmp_field) {
 bool Item_ident_for_show::fix_fields(THD *, Item **) {
   maybe_null = field->is_nullable();
   decimals = field->decimals();
-  unsigned_flag = field->flags & UNSIGNED_FLAG;
+  unsigned_flag = field->is_flag_set(UNSIGNED_FLAG);
   collation.set(field->charset(), field->derivation(), field->repertoire());
   set_data_type(field->type());
   max_length = char_to_byte_length_safe(field->char_length(),
@@ -2557,7 +2556,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
 inline static uint32 adjust_max_effective_column_length(Field *field_par,
                                                         uint32 max_length) {
   uint32 new_max_length = field_par->max_display_length();
-  uint32 sign_length = (field_par->flags & UNSIGNED_FLAG) ? 0 : 1;
+  uint32 sign_length = field_par->is_flag_set(UNSIGNED_FLAG) ? 0 : 1;
 
   switch (field_par->type()) {
     case MYSQL_TYPE_INT24:
@@ -2598,7 +2597,7 @@ void Item_field::set_field(Field *field_par) {
   table_name = *field_par->table_name;
   field_name = field_par->field_name;
   db_name = field_par->table->s->db.str;
-  unsigned_flag = field_par->flags & UNSIGNED_FLAG;
+  unsigned_flag = field_par->is_flag_set(UNSIGNED_FLAG);
   collation.set(field_par->charset(), field_par->derivation(),
                 field_par->repertoire());
   set_data_type(field_par->type());
@@ -5555,7 +5554,8 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
   */
   if (!item || !has_compatible_context(item))
     item = this;
-  else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type())) {
+  else if (field && field->is_flag_set(ZEROFILL_FLAG) &&
+           IS_NUM(field->type())) {
     /*
       We don't need to zero-fill timestamp columns here because they will be
       first converted to a string (in date/time format) and compared as such if
@@ -6466,11 +6466,11 @@ type_conversion_status Item_hex_string::save_in_field_inner(Field *field,
     return TYPE_WARN_OUT_OF_RANGE;
   }
   if (length > 8) {
-    nr = field->flags & UNSIGNED_FLAG ? ULLONG_MAX : LLONG_MAX;
+    nr = field->is_flag_set(UNSIGNED_FLAG) ? ULLONG_MAX : LLONG_MAX;
     goto warn;
   }
   nr = (ulonglong)val_int();
-  if ((length == 8) && !(field->flags & UNSIGNED_FLAG) && (nr > LLONG_MAX)) {
+  if ((length == 8) && !field->is_flag_set(UNSIGNED_FLAG) && (nr > LLONG_MAX)) {
     nr = LLONG_MAX;
     goto warn;
   }
@@ -8022,7 +8022,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **) {
   }
 
   field_arg = (Item_field *)real_arg;
-  if (field_arg->field->flags & NO_DEFAULT_VALUE_FLAG) {
+  if (field_arg->field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
     my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), field_arg->field->field_name);
     return true;
   }
@@ -8058,7 +8058,7 @@ void Item_default_value::print(const THD *thd, String *str,
 type_conversion_status Item_default_value::save_in_field_inner(
     Field *field_arg, bool no_conversions) {
   if (!arg) {
-    if ((field_arg->flags & NO_DEFAULT_VALUE_FLAG &&
+    if ((field_arg->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          field_arg->m_default_val_expr == nullptr) &&
         field_arg->real_type() != MYSQL_TYPE_ENUM) {
       if (field_arg->reset()) {
@@ -9516,7 +9516,7 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
       non-nullable with a default of 0. However, in strict mode, for dates,
       0000-00-00 is invalid; in that case, don't give any default.
     */
-    field->flags |= NO_DEFAULT_VALUE_FLAG;
+    field->set_flag(NO_DEFAULT_VALUE_FLAG);
   }
   field->set_derivation(collation.derivation);
   return field;

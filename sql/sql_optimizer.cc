@@ -6698,7 +6698,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
       return true;
     if (!allocated) return false;
   }
-  if (!(field->flags & PART_KEY_FLAG)) {
+  if (!field->is_flag_set(PART_KEY_FLAG)) {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
         !tl->table->is_nullable() || field->is_nullable())

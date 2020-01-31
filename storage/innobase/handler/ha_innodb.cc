@@ -7346,7 +7346,7 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
   DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
   DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
 
-  if (field->flags & UNSIGNED_FLAG) {
+  if (field->is_flag_set(UNSIGNED_FLAG)) {
     *unsigned_flag = DATA_UNSIGNED;
   } else {
     *unsigned_flag = 0;
@@ -8271,7 +8271,7 @@ static void innobase_store_multi_value_low(json_binary::Value *bv,
         an assumption the data passed from server should be always
         little-endian one, so need to convert it explicitly here.
         @see Field_longlong::store() */
-        if (fld->unsigned_flag) {
+        if (fld->is_unsigned()) {
           val = static_cast<int64_t>(elt.get_uint64());
         } else {
           val = elt.get_int64();

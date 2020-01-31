@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -362,9 +362,9 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     cr_field->after = nullptr;
     cr_field->offset = 0;
     cr_field->pack_length_override = 0;
-    cr_field->is_nullable = !(tmp_field->flags & NOT_NULL_FLAG);
-    cr_field->is_zerofill = (tmp_field->flags & ZEROFILL_FLAG);
-    cr_field->is_unsigned = (tmp_field->flags & UNSIGNED_FLAG);
+    cr_field->is_nullable = !tmp_field->is_flag_set(NOT_NULL_FLAG);
+    cr_field->is_zerofill = tmp_field->is_flag_set(ZEROFILL_FLAG);
+    cr_field->is_unsigned = tmp_field->is_flag_set(UNSIGNED_FLAG);
 
     create_fields.push_back(cr_field);
   }

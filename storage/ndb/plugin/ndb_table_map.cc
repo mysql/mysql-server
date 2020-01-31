@@ -141,7 +141,7 @@ bool Ndb_table_map::have_physical_blobs(const TABLE *table) {
       continue;
     }
 
-    if (field->flags & BLOB_FLAG) {
+    if (field->is_flag_set(BLOB_FLAG)) {
       // Double check that TABLE_SHARE thinks that table had some
       // blobs(physical or not)
       DBUG_ASSERT(table->s->blob_fields > 0);
@@ -187,13 +187,13 @@ void Ndb_table_map::print_table(const char *info, const TABLE *table) {
     DBUG_PRINT("info",
                ("[%d] \"%s\"(0x%lx:%s%s%s%s%s%s) type: %d  pack_length: %d  "
                 "ptr: 0x%lx[+%d]  null_bit: %u  null_ptr: 0x%lx[+%d]",
-                i, f->field_name, (long)f->flags,
-                (f->flags & PRI_KEY_FLAG) ? "pri" : "attr",
-                (f->flags & NOT_NULL_FLAG) ? "" : ",nullable",
-                (f->flags & UNSIGNED_FLAG) ? ",unsigned" : ",signed",
-                (f->flags & ZEROFILL_FLAG) ? ",zerofill" : "",
-                (f->flags & BLOB_FLAG) ? ",blob" : "",
-                (f->flags & BINARY_FLAG) ? ",binary" : "", f->real_type(),
+                i, f->field_name, (long)f->all_flags(),
+                f->is_flag_set(PRI_KEY_FLAG) ? "pri" : "attr",
+                f->is_flag_set(NOT_NULL_FLAG) ? "" : ",nullable",
+                f->is_flag_set(UNSIGNED_FLAG) ? ",unsigned" : ",signed",
+                f->is_flag_set(ZEROFILL_FLAG) ? ",zerofill" : "",
+                f->is_flag_set(BLOB_FLAG) ? ",blob" : "",
+                f->is_flag_set(BINARY_FLAG) ? ",binary" : "", f->real_type(),
                 f->pack_length(), (long)f->field_ptr(),
                 (int)(f->offset(table->record[0])), f->null_bit,
                 (long)f->null_offset(nullptr), (int)f->null_offset()));

@@ -335,7 +335,7 @@ static bool reads_not_secondary_columns(const LEX *lex) {
     // Check all read columns of table.
     for (unsigned int i = bitmap_get_first_set(tl->table->read_set);
          i != MY_BIT_NONE; i = bitmap_get_next_set(tl->table->read_set, i)) {
-      if (tl->table->field[i]->flags & NOT_SECONDARY_FLAG) {
+      if (tl->table->field[i]->is_flag_set(NOT_SECONDARY_FLAG)) {
         Opt_trace_context *trace = &lex->thd->opt_trace;
         if (trace->is_started()) {
           std::string message("");
@@ -1825,11 +1825,10 @@ void calc_used_field_length(TABLE *table, bool needs_rowid, uint *p_used_fields,
   uneven_bit_fields = null_fields = blobs = fields = rec_length = 0;
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
     if (bitmap_is_set(read_set, field->field_index)) {
-      uint flags = field->flags;
       fields++;
       rec_length += field->pack_length();
-      if (flags & BLOB_FLAG || field->is_array()) blobs++;
-      if (!(flags & NOT_NULL_FLAG)) null_fields++;
+      if (field->is_flag_set(BLOB_FLAG) || field->is_array()) blobs++;
+      if (!field->is_flag_set(NOT_NULL_FLAG)) null_fields++;
       if (field->type() == MYSQL_TYPE_BIT && ((Field_bit *)field)->bit_len)
         uneven_bit_fields++;
     }

@@ -10936,7 +10936,7 @@ bool Table_map_log_event::init_signedness_field() {
   for (auto field : this->m_fields) {
     if (is_numeric_field(field)) {
       Field_num *field_num = dynamic_cast<Field_num *>(field);
-      if (field_num->unsigned_flag) flag |= mask;
+      if (field_num->is_unsigned()) flag |= mask;
 
       mask >>= 1;
 

@@ -725,15 +725,15 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
 
   /* Flag field as unique if it is the only keypart in a unique index */
   if (key_part_n == 0 && key_n != primary_key_n)
-    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                      (keyinfo->user_defined_key_parts == 1))
-                         ? UNIQUE_KEY_FLAG
-                         : MULTIPLE_KEY_FLAG);
+    field->set_flag(
+        ((keyinfo->flags & HA_NOSAME) && (keyinfo->user_defined_key_parts == 1))
+            ? UNIQUE_KEY_FLAG
+            : MULTIPLE_KEY_FLAG);
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
 
   const bool full_length_key_part =
-      (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
+      field->key_length() == key_part->length && !field->is_flag_set(BLOB_FLAG);
   /*
     part_of_key contains all non-prefix keys, part_of_prefixkey
     contains prefix keys.
@@ -1326,10 +1326,10 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
       (*null_bit_pos) -= 8;
     }
   }
-  if (!(reg_field->flags & NOT_NULL_FLAG)) {
+  if (!reg_field->is_flag_set(NOT_NULL_FLAG)) {
     if (!(*null_bit_pos = (*null_bit_pos + 1) & 7)) (*null_pos)++;
   }
-  if (f_no_default(pack_flag)) reg_field->flags |= NO_DEFAULT_VALUE_FLAG;
+  if (f_no_default(pack_flag)) reg_field->set_flag(NO_DEFAULT_VALUE_FLAG);
 
   if (unireg == FRM_context::NEXT_NUMBER)
     share->found_next_number_field = share->field + field_idx;
@@ -2081,16 +2081,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         setup_key_part_field(share, handler_file, primary_key, keyinfo, key, i,
                              &usable_parts, true);
 
-        field->flags |= PART_KEY_FLAG;
+        field->set_flag(PART_KEY_FLAG);
         if (key == primary_key) {
-          field->flags |= PRI_KEY_FLAG;
+          field->set_flag(PRI_KEY_FLAG);
           /*
             If this field is part of the primary key and all keys contains
             the primary key, then we can use any key to find this column
           */
           if (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX) {
             if (field->key_length() == key_part->length &&
-                !(field->flags & BLOB_FLAG))
+                !field->is_flag_set(BLOB_FLAG))
               field->part_of_key = share->keys_in_use;
             if (field->part_of_sortkey.is_set(key))
               field->part_of_sortkey = share->keys_in_use;
@@ -2184,7 +2184,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       error = 4;
       goto err;
     } else
-      reg_field->flags |= AUTO_INCREMENT_FLAG;
+      reg_field->set_flag(AUTO_INCREMENT_FLAG);
   }
 
   if (share->blob_fields) {
@@ -2196,7 +2196,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
               (uint)(share->blob_fields * sizeof(uint)))))
       goto err;
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG) (*save++) = k;
+      if ((*ptr)->is_flag_set(BLOB_FLAG)) (*save++) = k;
     }
   }
 
@@ -2818,7 +2818,7 @@ bool create_key_part_field_with_prefix_length(TABLE *table, MEM_ROOT *root) {
       Field *field = key_part->field = table->field[key_part->fieldnr - 1];
 
       if (field->key_length() != key_part->length &&
-          !(field->flags & BLOB_FLAG)) {
+          !field->is_flag_set(BLOB_FLAG)) {
         /*
           We are using only a prefix of the column as a key:
           Create a new field for the key part that matches the index
@@ -5458,7 +5458,7 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
 
   switch (mark) {
     case MARK_COLUMNS_NONE:
-      if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
+      if (get_fields_in_item_tree) field->set_flag(GET_FIXED_FIELDS_FLAG);
       break;
 
     case MARK_COLUMNS_READ: {
@@ -5468,7 +5468,7 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
       part_of_key.merge(field->part_of_prefixkey);
       covering_keys.intersect(part_of_key);
       merge_keys.merge(field->part_of_key);
-      if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
+      if (get_fields_in_item_tree) field->set_flag(GET_FIXED_FIELDS_FLAG);
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
     }
@@ -5594,7 +5594,7 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE) {
     Field **reg_field;
     for (reg_field = field; *reg_field; reg_field++) {
-      if ((*reg_field)->flags & PART_KEY_FLAG)
+      if ((*reg_field)->is_flag_set(PART_KEY_FLAG))
         bitmap_set_bit(read_set, (*reg_field)->field_index);
     }
     file->column_bitmaps_signal();
@@ -5768,7 +5768,7 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
             nothing we can do about it.
            */
           if ((s->primary_key < MAX_KEY) &&
-              ((my_field->flags & PRI_KEY_FLAG) ||
+              (my_field->is_flag_set(PRI_KEY_FLAG) ||
                (my_field->type() != MYSQL_TYPE_BLOB)))
             bitmap_set_bit(read_set, my_field->field_index);
 
@@ -5873,7 +5873,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
     if (key_parts->is_set(i)) {
       KEY_PART_INFO tkp;
       // Ensure that we're not creating a key over a blob field.
-      DBUG_ASSERT(!((*reg_field)->flags & BLOB_FLAG));
+      DBUG_ASSERT(!(*reg_field)->is_flag_set(BLOB_FLAG));
       /*
         Check if possible key is too long, ignore it if so.
         The reason to use MI_MAX_KEY_LENGTH (myisam's default) is that it is
@@ -5948,7 +5948,7 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name, bool invisible,
     key_start = false;
     (*reg_field)->part_of_key.set_bit(keyno);
     (*reg_field)->part_of_sortkey.set_bit(keyno);
-    (*reg_field)->flags |= PART_KEY_FLAG;
+    (*reg_field)->set_flag(PART_KEY_FLAG);
     key_part_info->init_from_field(*reg_field);
     key_part_info++;
   }
@@ -6038,7 +6038,7 @@ void TABLE::drop_unused_tmp_keys(bool modify_share) {
     auto f = *reg_field;
     f->key_start.intersect(keys_to_keep);
     f->part_of_key.intersect(keys_to_keep);
-    if (f->part_of_key.is_clear_all()) f->flags &= ~PART_KEY_FLAG;
+    if (f->part_of_key.is_clear_all()) f->clear_flag(PART_KEY_FLAG);
     f->part_of_sortkey.intersect(keys_to_keep);
   }
 
@@ -6769,7 +6769,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   /* Don't create keys longer than REF access can use. */
   if (entry->used_fields.bits_set() < MAX_REF_PARTS) {
     field->part_of_key.set_bit(key - 1);
-    field->flags |= PART_KEY_FLAG;
+    field->set_flag(PART_KEY_FLAG);
     entry->used_fields.set_bit(field->field_index);
   }
   return false;
@@ -6804,8 +6804,8 @@ bool TABLE_LIST::update_derived_keys(THD *thd, Field *field, Item **values,
     Don't bother with keys for CREATE VIEW, BLOB fields and fields with
     zero length.
   */
-  if (thd->lex->is_ps_or_view_context_analysis() || field->flags & BLOB_FLAG ||
-      field->field_length == 0)
+  if (thd->lex->is_ps_or_view_context_analysis() ||
+      field->is_flag_set(BLOB_FLAG) || field->field_length == 0)
     return false;
 
   const Sql_cmd *const cmd = thd->lex->m_sql_cmd;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -417,7 +417,7 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
 
     if (real_item->type() == Item::FIELD_ITEM) {
       const Field *field = down_cast<const Item_field *>(real_item)->field;
-      if (field->flags & BLOB_FLAG) {
+      if (field->is_flag_set(BLOB_FLAG)) {
         use_blobs = true;
         tot_length += 256;  // Will be extended if needed
       } else

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ void test_store_string(Field_long *field, const char *store_value,
 }
 
 TEST_F(FieldLongTest, StoreLegalIntValues) {
-  Mock_field_long field_long;
+  Mock_field_long field_long(false);
   Fake_TABLE table(&field_long);
   table.in_use = thd();
   field_long.make_writable();
@@ -117,173 +117,201 @@ TEST_F(FieldLongTest, StoreLegalIntValues) {
 
 // Values higher and lower than valid range for the Field_long
 TEST_F(FieldLongTest, StoreOutOfRangeIntValues) {
-  Mock_field_long field_long;
-  Fake_TABLE table(&field_long);
-  table.in_use = thd();
-  field_long.make_writable();
-  field_long.make_readable();
-  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
-
   // Field_long is signed
   {
-    SCOPED_TRACE("");
-    test_store_long(&field_long, INT_MAX32 + 1LL, INT_MAX32,
-                    ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_long(&field_long, INT_MIN32 - 1LL, INT_MIN32,
-                    ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    Mock_field_long field_long(false);
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
+    thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
+
+    {
+      SCOPED_TRACE("");
+      test_store_long(&field_long, INT_MAX32 + 1LL, INT_MAX32,
+                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_long(&field_long, INT_MIN32 - 1LL, INT_MIN32,
+                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
   }
 
   // Field_long is unsigned
   {
-    SCOPED_TRACE("");
-    field_long.unsigned_flag = true;
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_long(&field_long, -1LL, 0, ER_WARN_DATA_OUT_OF_RANGE,
-                    TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_long(&field_long, INT_MIN32, 0, ER_WARN_DATA_OUT_OF_RANGE,
-                    TYPE_WARN_OUT_OF_RANGE);
+    Mock_field_long field_long(true);
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
+    thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
+
+    {
+      SCOPED_TRACE("");
+      test_store_long(&field_long, -1LL, 0, ER_WARN_DATA_OUT_OF_RANGE,
+                      TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_long(&field_long, INT_MIN32, 0, ER_WARN_DATA_OUT_OF_RANGE,
+                      TYPE_WARN_OUT_OF_RANGE);
+    }
   }
 }
 
 TEST_F(FieldLongTest, StoreLegalStringValues) {
-  Mock_field_long field_long;
-
-  Fake_TABLE table(&field_long);
-  table.in_use = thd();
-  field_long.make_writable();
-  field_long.make_readable();
-  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
-
   const char min_int[] = "-2147483648";
   const char max_int[] = "2147483647";
   const char max_int_plus1[] = "2147483648";
   const char max_uint[] = "4294967295";
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   // Field_long is signed
   {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN("0"), 0, 0, TYPE_OK);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN("1"), 1, 0, TYPE_OK);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN("-1"), -1, 0, TYPE_OK);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_int), INT_MAX32, 0,
-                      TYPE_OK);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(min_int), INT_MIN32, 0,
-                      TYPE_OK);
+    Mock_field_long field_long(false);
+
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
+
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN("0"), 0, 0, TYPE_OK);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN("1"), 1, 0, TYPE_OK);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN("-1"), -1, 0, TYPE_OK);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(max_int), INT_MAX32, 0,
+                        TYPE_OK);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(min_int), INT_MIN32, 0,
+                        TYPE_OK);
+    }
   }
 
   // Field_long is unsigned
-  field_long.unsigned_flag = true;
   {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1),
-                      INT_MAX32 + 1LL, 0, TYPE_OK);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_uint), UINT_MAX32, 0,
-                      TYPE_OK);
+    Mock_field_long field_long(true);
+
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
+
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1),
+                        INT_MAX32 + 1LL, 0, TYPE_OK);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(max_uint), UINT_MAX32, 0,
+                        TYPE_OK);
+    }
   }
 }
 
 TEST_F(FieldLongTest, StoreIllegalStringValues) {
-  Mock_field_long field_long;
-
-  Fake_TABLE table(&field_long);
-  table.in_use = thd();
-  field_long.make_writable();
-  field_long.make_readable();
-  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
-
-  const char max_int_plus1[] = "2147483648";
-  const char min_int_minus1[] = "-2147483649";
-  const char very_high[] = "999999999999999";
-  const char very_low[] = "-999999999999999";
-
   // Field_long is signed - Stored value is INT_MIN32/INT_MAX32
   //                        depending on sign of string to store
+  const char very_high[] = "999999999999999";
+  const char very_low[] = "-999999999999999";
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
   {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1), INT_MAX32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(very_high), INT_MAX32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(min_int_minus1), INT_MIN32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(very_low), INT_MIN32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    Mock_field_long field_long(false);
+
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
+
+    const char max_int_plus1[] = "2147483648";
+    const char min_int_minus1[] = "-2147483649";
+
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(max_int_plus1), INT_MAX32,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(very_high), INT_MAX32,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(min_int_minus1), INT_MIN32,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(very_low), INT_MIN32,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
   }
 
   // Field_long is unsigned - Stored value is 0/UINT_MAX32
   //                          depending on sign of string to store
-  const char min_int[] = "-2147483648";
-  const char max_uint_plus1[] = "4294967296";
-  field_long.unsigned_flag = true;
+  {
+    Mock_field_long field_long(true);
 
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(max_uint_plus1), UINT_MAX32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(very_high), UINT_MAX32,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN("-1"), 0,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(min_int), 0,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN(very_low), 0,
-                      ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
-  }
+    Fake_TABLE table(&field_long);
+    table.in_use = thd();
+    field_long.make_writable();
+    field_long.make_readable();
 
-  // Invalid value
-  {
-    SCOPED_TRACE("");
-    test_store_string(&field_long, STRING_WITH_LEN("foo"), 0,
-                      ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, TYPE_ERR_BAD_VALUE);
+    const char min_int[] = "-2147483648";
+    const char max_uint_plus1[] = "4294967296";
+
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(max_uint_plus1),
+                        UINT_MAX32, ER_WARN_DATA_OUT_OF_RANGE,
+                        TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(very_high), UINT_MAX32,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN("-1"), 0,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(min_int), 0,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN(very_low), 0,
+                        ER_WARN_DATA_OUT_OF_RANGE, TYPE_WARN_OUT_OF_RANGE);
+    }
+
+    // Invalid value
+    {
+      SCOPED_TRACE("");
+      test_store_string(&field_long, STRING_WITH_LEN("foo"), 0,
+                        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD, TYPE_ERR_BAD_VALUE);
+    }
   }
 }
 
 TEST_F(FieldLongTest, StoreNullValue) {
-  Mock_field_long field_long;
+  Mock_field_long field_long(false);
 
   Fake_TABLE table(&field_long);
   table.in_use = thd();

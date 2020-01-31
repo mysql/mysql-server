@@ -6277,7 +6277,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
         item->item_name = ref->item_name;
       }
       pos = item;
-      if (item->field->flags & BLOB_FLAG) {
+      if (item->field->is_flag_set(BLOB_FLAG)) {
         Item_copy *item_copy = Item_copy::create(pos);
         if (item_copy == nullptr) return true;
         pos = item_copy;

@@ -1035,7 +1035,7 @@ static bool print_on_update_clause(Field *field, String *val, bool lcase) {
 static bool print_default_clause(THD *thd, Field *field, String *def_value,
                                  bool quoted) {
   enum enum_field_types field_type = field->type();
-  const bool has_default = (!(field->flags & NO_DEFAULT_VALUE_FLAG) &&
+  const bool has_default = (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
                             !(field->auto_flags & Field::NEXT_NUMBER));
 
   if (field->gcol_info) return false;
@@ -1331,7 +1331,6 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     // Skip fields that are hidden from the user.
     if (field->is_hidden_from_user()) continue;
 
-    uint flags = field->flags;
     enum_field_types field_type = field->real_type();
 
     if (ptr != table->field) packet->append(STRING_WITH_LEN(",\n"));
@@ -1401,7 +1400,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" VIRTUAL"));
     }
 
-    if (flags & NOT_NULL_FLAG)
+    if (field->is_flag_set(NOT_NULL_FLAG))
       packet->append(STRING_WITH_LEN(" NOT NULL"));
     else if (field->type() == MYSQL_TYPE_TIMESTAMP) {
       /*
@@ -1411,7 +1410,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" NULL"));
     }
 
-    if (flags & NOT_SECONDARY_FLAG)
+    if (field->is_flag_set(NOT_SECONDARY_FLAG))
       packet->append(STRING_WITH_LEN(" NOT SECONDARY"));
 
     if (field->type() == MYSQL_TYPE_GEOMETRY) {
@@ -3071,18 +3070,18 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     }
 
     // IS_NULLABLE
-    pos = pointer_cast<const uchar *>((field->flags & NOT_NULL_FLAG) ? "NO"
-                                                                     : "YES");
+    pos = pointer_cast<const uchar *>(
+        field->is_flag_set(NOT_NULL_FLAG) ? "NO" : "YES");
     table->field[TMP_TABLE_COLUMNS_IS_NULLABLE]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_KEY
     pos = pointer_cast<const uchar *>(
-        (field->flags & PRI_KEY_FLAG)
+        field->is_flag_set(PRI_KEY_FLAG)
             ? "PRI"
-            : (field->flags & UNIQUE_KEY_FLAG)
+            : field->is_flag_set(UNIQUE_KEY_FLAG)
                   ? "UNI"
-                  : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
+                  : field->is_flag_set(MULTIPLE_KEY_FLAG) ? "MUL" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
@@ -3353,8 +3352,11 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       }
 
       // NULLABLE
-      uint flags = key_part->field ? key_part->field->flags : 0;
-      const char *pos = ((flags & NOT_NULL_FLAG) ? "" : "YES");
+      const char *pos;
+      if (key_part->field && key_part->field->is_flag_set(NOT_NULL_FLAG))
+        pos = "";
+      else
+        pos = "YES";
       table->field[TMP_TABLE_KEYS_IS_NULLABLE]->store(pos, strlen(pos), cs);
 
       // COMMENT

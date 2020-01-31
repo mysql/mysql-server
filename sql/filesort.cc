@@ -2168,7 +2168,7 @@ Addon_fields *Filesort::get_addon_fields(
     const enum_field_types field_type = field->type();
     if (field->is_nullable() || field_type == MYSQL_TYPE_STRING ||
         field_type == MYSQL_TYPE_VARCHAR ||
-        field_type == MYSQL_TYPE_VAR_STRING || (field->flags & BLOB_FLAG)) {
+        field_type == MYSQL_TYPE_VAR_STRING || field->is_flag_set(BLOB_FLAG)) {
       AddWithSaturate(field_length, &packable_length);
     }
     if (field->is_nullable()) null_fields++;

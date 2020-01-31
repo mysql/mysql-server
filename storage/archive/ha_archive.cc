@@ -616,7 +616,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     for (; key_part != key_part_end; key_part++) {
       Field *field = key_part->field;
 
-      if (!(field->flags & AUTO_INCREMENT_FLAG)) {
+      if (!field->is_flag_set(AUTO_INCREMENT_FLAG)) {
         error = -1;
         DBUG_PRINT("ha_archive", ("Index error in creating archive table"));
         goto error;
@@ -800,7 +800,7 @@ int ha_archive::write_row(uchar *buf) {
   if (table->next_number_field && record == table->record[0]) {
     KEY *mkey = &table->s->key_info[0];  // We only support one key right now
     update_auto_increment();
-    temp_auto = (((Field_num *)table->next_number_field)->unsigned_flag ||
+    temp_auto = (table->next_number_field->is_unsigned() ||
                          table->next_number_field->val_int() > 0
                      ? table->next_number_field->val_int()
                      : 0);

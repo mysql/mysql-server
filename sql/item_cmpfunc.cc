@@ -464,7 +464,7 @@ longlong Item_func_nop_all::val_int() {
 static Item *make_year_constant(Field *field) {
   Item_int *year = new Item_int(field->val_int());
   if (year == nullptr) return nullptr;
-  year->unsigned_flag = field->flags & UNSIGNED_FLAG;
+  year->unsigned_flag = field->is_flag_set(UNSIGNED_FLAG);
   year->set_data_type(MYSQL_TYPE_YEAR);
   return year;
 }
@@ -586,9 +586,9 @@ static bool convert_constant_item(THD *thd, Item_field *field_item, Item **item,
 #endif
                     field->type() == MYSQL_TYPE_YEAR
                         ? make_year_constant(field)
-                        : new Item_int_with_ref(field->type(), field->val_int(),
-                                                *item,
-                                                field->flags & UNSIGNED_FLAG);
+                        : new Item_int_with_ref(
+                              field->type(), field->val_int(), *item,
+                              field->is_flag_set(UNSIGNED_FLAG));
         if (tmp == nullptr) return true;
 
         thd->change_item_tree(item, tmp);
@@ -5628,7 +5628,7 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
         thd->lex->current_select()->first_execution &&
         (field->type() == MYSQL_TYPE_DATE ||
          field->type() == MYSQL_TYPE_DATETIME) &&
-        (field->flags & NOT_NULL_FLAG)) {
+        field->is_flag_set(NOT_NULL_FLAG)) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       Item *item0 = new Item_int(0);
       if (item0 == nullptr) return true;
@@ -5660,7 +5660,7 @@ bool Item_func_isnull::fix_fields(THD *thd, Item **ref) {
     */
     if (thd->lex->current_select()->where_cond() == this &&
         (thd->variables.option_bits & OPTION_AUTO_IS_NULL) != 0 &&
-        (field->flags & AUTO_INCREMENT_FLAG) != 0 &&
+        field->is_flag_set(AUTO_INCREMENT_FLAG) &&
         !field->table->is_nullable()) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       const auto last_insert_id_func = new Item_func_last_insert_id();

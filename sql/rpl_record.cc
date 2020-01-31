@@ -939,7 +939,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols,
     uint field_index = (uint)(field_ptr - table->field);
     if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index)) {
       Field *const f = *field_ptr;
-      if ((f->flags & NO_DEFAULT_VALUE_FLAG) &&
+      if (f->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
           (f->real_type() != MYSQL_TYPE_ENUM)) {
         f->set_default();
         push_warning_printf(

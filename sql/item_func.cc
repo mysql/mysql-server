@@ -5899,9 +5899,8 @@ bool Item_func_set_user_var::check(bool use_result_field) {
     case INT_RESULT: {
       save_result.vint =
           use_result_field ? result_field->val_int() : args[0]->val_int();
-      unsigned_flag = use_result_field
-                          ? ((Field_num *)result_field)->unsigned_flag
-                          : args[0]->unsigned_flag;
+      unsigned_flag = use_result_field ? result_field->is_unsigned()
+                                       : args[0]->unsigned_flag;
       break;
     }
     case STRING_RESULT: {
@@ -7633,7 +7632,7 @@ bool Item_func_sp::resolve_type(THD *) {
   max_length = sp_result_field->field_length;
   collation.set(sp_result_field->charset());
   maybe_null = true;
-  unsigned_flag = (sp_result_field->flags & UNSIGNED_FLAG);
+  unsigned_flag = sp_result_field->is_flag_set(UNSIGNED_FLAG);
 
   return false;
 }

@@ -837,7 +837,16 @@ class Field {
   uint32 field_length;
   virtual void set_field_length(uint32 length) { field_length = length; }
 
-  uint32 flags;
+ private:
+  uint32 flags{0};
+
+ public:
+  bool is_flag_set(unsigned flag) const { return flags & flag; }
+  void set_flag(unsigned flag) { flags |= flag; }
+  void clear_flag(unsigned flag) { flags &= ~flag; }
+  // Avoid using this function as it makes it harder to change the internal
+  // representation.
+  uint32 all_flags() const { return flags; }
   uint16 field_index;  // field number in fields array
   uchar null_bit;      // Bit used to test null bit
   /**
@@ -893,7 +902,7 @@ class Field {
     Whether the field is signed or not. Meaningful only for numeric fields
     and numeric arrays.
   */
-  bool unsigned_flag;
+  virtual bool is_unsigned() const { return false; }
   bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
 
@@ -1846,7 +1855,7 @@ class Field {
       false  otherwise
   */
   bool handle_old_value() const {
-    return (((flags & BLOB_FLAG) != 0 || is_array()) && is_virtual_gcol());
+    return (is_flag_set(BLOB_FLAG) || is_array()) && is_virtual_gcol();
   }
 
  private:
@@ -1966,6 +1975,13 @@ class Create_field_wrapper final : public Field {
 };
 
 class Field_num : public Field {
+ private:
+  /**
+    Whether the field is signed or not. Meaningful only for numeric fields
+    and numeric arrays.
+  */
+  const bool unsigned_flag;
+
  public:
   const uint8 dec;
   /**
@@ -1978,6 +1994,7 @@ class Field_num : public Field {
             uchar null_bit_arg, uchar auto_flags_arg,
             const char *field_name_arg, uint8 dec_arg, bool zero_arg,
             bool unsigned_arg);
+  bool is_unsigned() const override final { return unsigned_flag; }
   Item_result result_type() const override { return REAL_RESULT; }
   enum Derivation derivation() const final override {
     return DERIVATION_NUMERIC;
@@ -2244,7 +2261,7 @@ class Field_tiny : public Field_num {
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const override { return MYSQL_TYPE_TINY; }
   enum ha_base_keytype key_type() const final override {
-    return unsigned_flag ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8;
+    return is_unsigned() ? HA_KEYTYPE_BINARY : HA_KEYTYPE_INT8;
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) override;
@@ -2274,7 +2291,7 @@ class Field_tiny : public Field_num {
   }
 
   ulonglong get_max_int_value() const final override {
-    return unsigned_flag ? 0xFFULL : 0x7FULL;
+    return is_unsigned() ? 0xFFULL : 0x7FULL;
   }
 };
 
@@ -2295,7 +2312,7 @@ class Field_short final : public Field_num {
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_SHORT; }
   enum ha_base_keytype key_type() const final override {
-    return unsigned_flag ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;
+    return is_unsigned() ? HA_KEYTYPE_USHORT_INT : HA_KEYTYPE_SHORT_INT;
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
@@ -2325,7 +2342,7 @@ class Field_short final : public Field_num {
   }
 
   ulonglong get_max_int_value() const final override {
-    return unsigned_flag ? 0xFFFFULL : 0x7FFFULL;
+    return is_unsigned() ? 0xFFFFULL : 0x7FFFULL;
   }
 };
 
@@ -2344,7 +2361,7 @@ class Field_medium final : public Field_num {
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_INT24; }
   enum ha_base_keytype key_type() const final override {
-    return unsigned_flag ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24;
+    return is_unsigned() ? HA_KEYTYPE_UINT24 : HA_KEYTYPE_INT24;
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
@@ -2364,7 +2381,7 @@ class Field_medium final : public Field_num {
     return new (mem_root) Field_medium(*this);
   }
   ulonglong get_max_int_value() const final override {
-    return unsigned_flag ? 0xFFFFFFULL : 0x7FFFFFULL;
+    return is_unsigned() ? 0xFFFFFFULL : 0x7FFFFFULL;
   }
 };
 
@@ -2385,7 +2402,7 @@ class Field_long : public Field_num {
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_LONG; }
   enum ha_base_keytype key_type() const final override {
-    return unsigned_flag ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT;
+    return is_unsigned() ? HA_KEYTYPE_ULONG_INT : HA_KEYTYPE_LONG_INT;
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
@@ -2416,7 +2433,7 @@ class Field_long : public Field_num {
   }
 
   ulonglong get_max_int_value() const final override {
-    return unsigned_flag ? 0xFFFFFFFFULL : 0x7FFFFFFFULL;
+    return is_unsigned() ? 0xFFFFFFFFULL : 0x7FFFFFFFULL;
   }
 };
 
@@ -2437,7 +2454,7 @@ class Field_longlong : public Field_num {
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_LONGLONG; }
   enum ha_base_keytype key_type() const final override {
-    return unsigned_flag ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG;
+    return is_unsigned() ? HA_KEYTYPE_ULONGLONG : HA_KEYTYPE_LONGLONG;
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
@@ -2467,7 +2484,7 @@ class Field_longlong : public Field_num {
   }
 
   ulonglong get_max_int_value() const final override {
-    return unsigned_flag ? 0xFFFFFFFFFFFFFFFFULL : 0x7FFFFFFFFFFFFFFFULL;
+    return is_unsigned() ? 0xFFFFFFFFFFFFFFFFULL : 0x7FFFFFFFFFFFFFFFULL;
   }
 };
 
@@ -2791,7 +2808,7 @@ class Field_temporal : public Field {
               len_arg +
                   ((normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
               null_ptr_arg, null_bit_arg, auto_flags_arg, field_name_arg) {
-    flags |= BINARY_FLAG;
+    set_flag(BINARY_FLAG);
     dec = normalize_dec(dec_arg);
   }
   Item_result result_type() const final override { return STRING_RESULT; }
@@ -3733,7 +3750,7 @@ class Field_blob : public Field_longstr {
                       field_name_arg, cs),
         packlength(4),
         m_keep_old_value(false) {
-    flags |= BLOB_FLAG;
+    set_flag(BLOB_FLAG);
     if (set_packlength) {
       packlength = len_arg <= 255
                        ? 1
@@ -4241,6 +4258,7 @@ class Field_typed_array final : public Field_json {
   uint m_elt_decimals;
   /// Element's charset
   const CHARSET_INFO *m_elt_charset;
+  const bool unsigned_flag;
 
  public:
   /**
@@ -4270,6 +4288,7 @@ class Field_typed_array final : public Field_json {
   }
   uint32 key_length() const override;
   Field_typed_array *clone(MEM_ROOT *mem_root) const override;
+  bool is_unsigned() const override final { return unsigned_flag; }
   bool is_array() const override { return true; }
   Item_result result_type() const override;
   uint decimals() const override { return m_elt_decimals; }
@@ -4397,7 +4416,7 @@ class Field_enum : public Field_str {
                   field_name_arg, charset_arg),
         packlength(packlength_arg),
         typelib(typelib_arg) {
-    flags |= ENUM_FLAG;
+    set_flag(ENUM_FLAG);
   }
   Field_enum(uint32 len_arg, bool is_nullable_arg, const char *field_name_arg,
              uint packlength_arg, TYPELIB *typelib_arg,
@@ -4464,7 +4483,8 @@ class Field_set final : public Field_enum {
       : Field_enum(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, packlength_arg, typelib_arg, charset_arg),
         empty_set_string("", 0, charset_arg) {
-    flags = (flags & ~ENUM_FLAG) | SET_FLAG;
+    clear_flag(ENUM_FLAG);
+    set_flag(SET_FLAG);
   }
   Field_set(uint32 len_arg, bool is_nullable_arg, const char *field_name_arg,
             uint32 packlength_arg, TYPELIB *typelib_arg,

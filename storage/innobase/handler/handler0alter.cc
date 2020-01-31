@@ -911,10 +911,10 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
         return HA_ALTER_INPLACE_NOT_SUPPORTED;
       }
 
-      DBUG_ASSERT((key_part->field->auto_flags & Field::NEXT_NUMBER) ==
-                  !!(key_part->field->flags & AUTO_INCREMENT_FLAG));
+      DBUG_ASSERT(((key_part->field->auto_flags & Field::NEXT_NUMBER) != 0) ==
+                  key_part->field->is_flag_set(AUTO_INCREMENT_FLAG));
 
-      if (key_part->field->flags & AUTO_INCREMENT_FLAG) {
+      if (key_part->field->is_flag_set(AUTO_INCREMENT_FLAG)) {
         /* We cannot assign an AUTO_INCREMENT
         column values during online ALTER. */
         DBUG_ASSERT(key_part->field == altered_table->found_next_number_field);
@@ -973,7 +973,8 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
     renaming the FTS_DOC_ID. */
 
     for (Field **fp = table->field; *fp; fp++) {
-      if (!((*fp)->flags & (FIELD_IS_RENAMED | FIELD_IS_DROPPED))) {
+      if (!((*fp)->is_flag_set(FIELD_IS_RENAMED) ||
+            (*fp)->is_flag_set(FIELD_IS_DROPPED))) {
         continue;
       }
 
@@ -1905,7 +1906,7 @@ static void innobase_col_to_mysql(
         *--ptr = *data++;
       }
 
-      if (!(field->flags & UNSIGNED_FLAG)) {
+      if (!field->is_flag_set(UNSIGNED_FLAG)) {
         ((byte *)dest)[len - 1] ^= 0x80;
       }
 
@@ -2494,7 +2495,7 @@ bool innobase_fts_check_doc_id_col(
       my_error(ER_WRONG_COLUMN_NAME, MYF(0), field->field_name);
     } else if (field->type() != MYSQL_TYPE_LONGLONG ||
                field->pack_length() != 8 || field->is_nullable() ||
-               !(field->flags & UNSIGNED_FLAG) || innobase_is_v_fld(field)) {
+               !field->is_flag_set(UNSIGNED_FLAG) || innobase_is_v_fld(field)) {
       my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN, MYF(0), field->field_name);
     } else {
       *fts_doc_col_no = i - *num_v;
@@ -5326,7 +5327,7 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
         ha_alter_info->alter_info->create_list);
 
     for (Field **fp = table->field; *fp; fp++) {
-      if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+      if (!(*fp)->is_flag_set(FIELD_IS_RENAMED)) {
         continue;
       }
 
@@ -5784,10 +5785,10 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
 
     field = altered_table->field[i];
 
-    DBUG_ASSERT((field->auto_flags & Field::NEXT_NUMBER) ==
-                !!(field->flags & AUTO_INCREMENT_FLAG));
+    DBUG_ASSERT(((field->auto_flags & Field::NEXT_NUMBER) != 0) ==
+                field->is_flag_set(AUTO_INCREMENT_FLAG));
 
-    if (field->flags & AUTO_INCREMENT_FLAG) {
+    if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
       if (add_autoinc_col_no != ULINT_UNDEFINED) {
         /* This should have been blocked earlier. */
         ut_ad(0);
@@ -6325,7 +6326,7 @@ static void innobase_rename_or_enlarge_columns_cache(
         }
       }
 
-      if ((*fp)->flags & FIELD_IS_RENAMED) {
+      if ((*fp)->is_flag_set(FIELD_IS_RENAMED)) {
         dict_mem_table_col_rename(user_table, col_n, cf->field->field_name,
                                   cf->field_name, is_virtual);
       }
@@ -6597,7 +6598,7 @@ static void innobase_rename_col_discard_foreign(
   ut_ad(ha_alter_info->handler_flags & Alter_inplace_info::ALTER_COLUMN_NAME);
 
   for (Field **fp = mysql_table->field; *fp; fp++) {
-    if (!((*fp)->flags & FIELD_IS_RENAMED)) {
+    if (!(*fp)->is_flag_set(FIELD_IS_RENAMED)) {
       continue;
     }
 

@@ -63,7 +63,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       comment(old_field->comment),
       sql_type(old_field->real_type()),
       decimals(old_field->decimals()),
-      flags(old_field->flags),
+      flags(old_field->all_flags()),
       auto_flags(old_field->auto_flags),
       charset(old_field->charset()),  // May be NULL ptr
       is_explicit_collation(false),

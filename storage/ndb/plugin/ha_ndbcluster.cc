@@ -1600,7 +1600,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
   uint32 offset = 0;
   for (uint i = 0; i < ha->table->s->fields; i++) {
     Field *field = ha->table->field[i];
-    if (!((field->flags & BLOB_FLAG) && field->stored_in_db)) continue;
+    if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
     NdbValue value = ha->m_value[i];
     if (value.blob == NULL) {
       DBUG_PRINT("info", ("[%u] skipped", i));
@@ -1670,7 +1670,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
   if (!autocommit && !ha->m_active_cursor) {
     for (uint i = 0; i < ha->table->s->fields; i++) {
       Field *field = ha->table->field[i];
-      if (!((field->flags & BLOB_FLAG) && field->stored_in_db)) continue;
+      if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
       NdbValue value = ha->m_value[i];
       if (value.blob == NULL) {
         DBUG_PRINT("info", ("[%u] skipped", i));
@@ -1716,7 +1716,7 @@ int ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op,
 
   for (i = 0; i < table_share->fields; i++) {
     Field *field = table->field[i];
-    if (!((field->flags & BLOB_FLAG) && field->stored_in_db)) continue;
+    if (!(field->is_flag_set(BLOB_FLAG) && field->stored_in_db)) continue;
 
     DBUG_PRINT("info", ("fieldnr=%d", i));
     NdbBlob *ndb_blob;
@@ -1869,7 +1869,8 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
       const NdbDictionary::Column *ndbCol =
           m_table_map->getColumn(field->field_index);
 
-      if ((!(field->flags & (PRI_KEY_FLAG | NO_DEFAULT_VALUE_FLAG))) &&
+      if ((!(field->is_flag_set(PRI_KEY_FLAG) ||
+             field->is_flag_set(NO_DEFAULT_VALUE_FLAG))) &&
           type_supports_default_value(field->real_type())) {
         /* We expect Ndb to have a native default for this
          * column
@@ -1919,7 +1920,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
           ndb_log_error(
               "Internal error, Column %u has native "
               "default, but shouldn't. Flags=%u, type=%u",
-              field->field_index, field->flags, field->real_type());
+              field->field_index, field->all_flags(), field->real_type());
           defaults_aligned = false;
         }
       }
@@ -1928,8 +1929,8 @@ int ha_ndbcluster::check_default_values(const NDBTAB *ndbtab) {
         ndb_log_error(
             "field[ name: '%s', type: %u, real_type: %u, "
             "flags: 0x%x, is_null: %d]",
-            field->field_name, field->type(), field->real_type(), field->flags,
-            field->is_null());
+            field->field_name, field->type(), field->real_type(),
+            field->all_flags(), field->is_null());
         // Dump ndbCol
         ndb_log_error(
             "ndbCol[name: '%s', type: %u, column_no: %d, "
@@ -4961,10 +4962,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
         DBUG_PRINT("info", ("Field#%u, (%u), Type : %u "
                             "NO_DEFAULT_VALUE_FLAG : %u PRI_KEY_FLAG : %u",
                             i, field->field_index, field->real_type(),
-                            field->flags & NO_DEFAULT_VALUE_FLAG,
-                            field->flags & PRI_KEY_FLAG));
-        if ((field->flags & (NO_DEFAULT_VALUE_FLAG |  // bug 41616
-                             PRI_KEY_FLAG)) ||        // bug 42238
+                            field->is_flag_set(NO_DEFAULT_VALUE_FLAG),
+                            field->is_flag_set(PRI_KEY_FLAG)));
+        if (field->is_flag_set(NO_DEFAULT_VALUE_FLAG) ||  // bug 41616
+            field->is_flag_set(PRI_KEY_FLAG) ||           // bug 42238
             !type_supports_default_value(field->real_type())) {
           bitmap_set_bit(user_cols_written_bitmap, field->field_index);
         }
@@ -6004,7 +6005,7 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
     Field *field = table->field[i];
     if (!field->stored_in_db) continue;
 
-    if (likely(!(field->flags & BLOB_FLAG))) {
+    if (likely(!field->is_flag_set(BLOB_FLAG))) {
       if (field->is_real_null(src_offset)) {
         /* NULL bits already set -> no further action needed. */
       } else if (likely(field->type() != MYSQL_TYPE_BIT)) {
@@ -6112,7 +6113,7 @@ static void get_default_value(void *def_val, Field *field) {
           memcpy(def_val, out, sizeof(longlong));
           field->move_field_offset(-src_offset);
         }
-      } else if (field->flags & BLOB_FLAG) {
+      } else if (field->is_flag_set(BLOB_FLAG)) {
         assert(false);
       } else {
         field->move_field_offset(src_offset);
@@ -7856,7 +7857,7 @@ static bool ndb_column_is_dynamic(THD *thd, Field *field,
       if (create_info->row_type == ROW_TYPE_DEFAULT) {
         if (default_was_fixed ||  // Created in old version where fixed was
                                   // the default choice
-            (field->flags & PRI_KEY_FLAG))  // Primary key
+            field->is_flag_set(PRI_KEY_FLAG))  // Primary key
         {
           dynamic = use_dynamic_as_default;
         } else {
@@ -7955,12 +7956,12 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     /* Clear default value (col obj is reused for whole table def) */
     col.setDefaultValue(NULL, 0);
 
-    if ((!(field->flags & PRI_KEY_FLAG)) &&
+    if ((!field->is_flag_set(PRI_KEY_FLAG)) &&
         type_supports_default_value(mysql_type)) {
-      if (!(field->flags & NO_DEFAULT_VALUE_FLAG)) {
+      if (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
         ptrdiff_t src_offset = field->table->default_values_offset();
         if ((!field->is_real_null(src_offset)) ||
-            ((field->flags & NOT_NULL_FLAG))) {
+            field->is_flag_set(NOT_NULL_FLAG)) {
           /* Set a non-null native default */
           memset(buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
           get_default_value(buf, field);
@@ -7979,35 +7980,35 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
   switch (mysql_type) {
     // Numeric types
     case MYSQL_TYPE_TINY:
-      if (field->flags & UNSIGNED_FLAG)
+      if (field->is_flag_set(UNSIGNED_FLAG))
         col.setType(NDBCOL::Tinyunsigned);
       else
         col.setType(NDBCOL::Tinyint);
       col.setLength(1);
       break;
     case MYSQL_TYPE_SHORT:
-      if (field->flags & UNSIGNED_FLAG)
+      if (field->is_flag_set(UNSIGNED_FLAG))
         col.setType(NDBCOL::Smallunsigned);
       else
         col.setType(NDBCOL::Smallint);
       col.setLength(1);
       break;
     case MYSQL_TYPE_LONG:
-      if (field->flags & UNSIGNED_FLAG)
+      if (field->is_flag_set(UNSIGNED_FLAG))
         col.setType(NDBCOL::Unsigned);
       else
         col.setType(NDBCOL::Int);
       col.setLength(1);
       break;
     case MYSQL_TYPE_INT24:
-      if (field->flags & UNSIGNED_FLAG)
+      if (field->is_flag_set(UNSIGNED_FLAG))
         col.setType(NDBCOL::Mediumunsigned);
       else
         col.setType(NDBCOL::Mediumint);
       col.setLength(1);
       break;
     case MYSQL_TYPE_LONGLONG:
-      if (field->flags & UNSIGNED_FLAG)
+      if (field->is_flag_set(UNSIGNED_FLAG))
         col.setType(NDBCOL::Bigunsigned);
       else
         col.setType(NDBCOL::Bigint);
@@ -8025,7 +8026,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       Field_decimal *f = (Field_decimal *)field;
       uint precision = f->pack_length();
       uint scale = f->decimals();
-      if (field->flags & UNSIGNED_FLAG) {
+      if (field->is_flag_set(UNSIGNED_FLAG)) {
         col.setType(NDBCOL::Olddecimalunsigned);
         precision -= (scale > 0);
       } else {
@@ -8040,7 +8041,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       Field_new_decimal *f = (Field_new_decimal *)field;
       uint precision = f->precision;
       uint scale = f->decimals();
-      if (field->flags & UNSIGNED_FLAG) {
+      if (field->is_flag_set(UNSIGNED_FLAG)) {
         col.setType(NDBCOL::Decimalunsigned);
       } else {
         col.setType(NDBCOL::Decimal);
@@ -8100,7 +8101,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       if (field->pack_length() == 0) {
         col.setType(NDBCOL::Bit);
         col.setLength(1);
-      } else if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin) {
+      } else if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin) {
         col.setType(NDBCOL::Binary);
         col.setLength(field->pack_length());
       } else {
@@ -8112,14 +8113,14 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     case MYSQL_TYPE_VAR_STRING:  // ?
     case MYSQL_TYPE_VARCHAR: {
       if (field->get_length_bytes() == 1) {
-        if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+        if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
           col.setType(NDBCOL::Varbinary);
         else {
           col.setType(NDBCOL::Varchar);
           col.setCharset(cs);
         }
       } else if (field->get_length_bytes() == 2) {
-        if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+        if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
           col.setType(NDBCOL::Longvarbinary);
         else {
           col.setType(NDBCOL::Longvarchar);
@@ -8133,7 +8134,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     // Blob types (all come in as MYSQL_TYPE_BLOB)
     mysql_type_tiny_blob:
     case MYSQL_TYPE_TINY_BLOB:
-      if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+      if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
       else {
         col.setType(NDBCOL::Text);
@@ -8147,7 +8148,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
     // mysql_type_blob:
     case MYSQL_TYPE_GEOMETRY:
     case MYSQL_TYPE_BLOB:
-      if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+      if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
       else {
         col.setType(NDBCOL::Text);
@@ -8180,7 +8181,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       break;
     mysql_type_medium_blob:
     case MYSQL_TYPE_MEDIUM_BLOB:
-      if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+      if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
       else {
         col.setType(NDBCOL::Text);
@@ -8195,7 +8196,7 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
       break;
     mysql_type_long_blob:
     case MYSQL_TYPE_LONG_BLOB:
-      if ((field->flags & BINARY_FLAG) && cs == &my_charset_bin)
+      if (field->is_flag_set(BINARY_FLAG) && cs == &my_charset_bin)
         col.setType(NDBCOL::Blob);
       else {
         col.setType(NDBCOL::Text);
@@ -8255,13 +8256,13 @@ static int create_ndb_column(THD *thd, NDBCOL &col, Field *field,
   }
   // Set nullable and pk
   col.setNullable(field->is_nullable());
-  col.setPrimaryKey(field->flags & PRI_KEY_FLAG);
-  if ((field->flags & FIELD_IN_PART_FUNC_FLAG) != 0) {
+  col.setPrimaryKey(field->is_flag_set(PRI_KEY_FLAG));
+  if (field->is_flag_set(FIELD_IN_PART_FUNC_FLAG)) {
     col.setPartitionKey(true);
   }
 
   // Set autoincrement
-  if (field->flags & AUTO_INCREMENT_FLAG) {
+  if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
     col.setAutoIncrement(true);
     ulonglong value = create_info->auto_increment_value
                           ? create_info->auto_increment_value
@@ -8545,7 +8546,7 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info) {
     */
     for (uint i = 0; i < table->s->fields; i++) {
       Field *field = table->field[i];
-      if (field->flags & AUTO_INCREMENT_FLAG) {
+      if (field->is_flag_set(AUTO_INCREMENT_FLAG)) {
         ulonglong auto_value;
         uint retries = NDB_AUTO_INCREMENT_RETRIES;
         for (;;) {
@@ -9529,28 +9530,28 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
       uint64 max_field_memory;
       switch (field->pack_length()) {
         case 1:
-          if (field->unsigned_flag) {
+          if (field->is_unsigned()) {
             max_field_memory = UINT_MAX8;
           } else {
             max_field_memory = INT_MAX8;
           }
           break;
         case 2:
-          if (field->unsigned_flag) {
+          if (field->is_unsigned()) {
             max_field_memory = UINT_MAX16;
           } else {
             max_field_memory = INT_MAX16;
           }
           break;
         case 3:
-          if (field->unsigned_flag) {
+          if (field->is_unsigned()) {
             max_field_memory = UINT_MAX24;
           } else {
             max_field_memory = INT_MAX24;
           }
           break;
         case 4:
-          if (field->unsigned_flag) {
+          if (field->is_unsigned()) {
             max_field_memory = UINT_MAX32;
           } else {
             max_field_memory = INT_MAX32;
@@ -9558,7 +9559,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
           break;
         case 8:
         default:
-          if (field->unsigned_flag) {
+          if (field->is_unsigned()) {
             max_field_memory = UINT_MAX64;
           } else {
             max_field_memory = INT_MAX64;
@@ -14717,7 +14718,7 @@ void ha_ndbcluster::check_implicit_column_format_change(
       Find fields that are not part of the primary key
       and that have a default COLUMN_FORMAT.
     */
-    if ((!(field->flags & PRI_KEY_FLAG)) &&
+    if ((!field->is_flag_set(PRI_KEY_FLAG)) &&
         field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT) {
       DBUG_PRINT("info", ("Found old non-pk field %s", field->field_name));
       bool modified_explicitly = false;
@@ -14855,7 +14856,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_ndb_column_change(
   }
 
   // Check if we are adding an index to a disk stored column
-  if (new_field->flags & FIELD_IN_ADD_INDEX &&
+  if (new_field->is_flag_set(FIELD_IN_ADD_INDEX) &&
       new_col.getStorageType() == NdbDictionary::Column::StorageTypeDisk) {
     return inplace_unsupported(ha_alter_info,
                                "Add/drop index is not supported for disk "
@@ -14954,7 +14955,8 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   }
 
   // Check that BLOB fields are not modified
-  if ((old_field->flags & BLOB_FLAG || new_field->flags & BLOB_FLAG) &&
+  if ((old_field->is_flag_set(BLOB_FLAG) ||
+       new_field->is_flag_set(BLOB_FLAG)) &&
       !old_field->eq_def(new_field)) {
     return inplace_unsupported(ha_alter_info,
                                "Altering BLOB field is not supported");
@@ -14964,12 +14966,12 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   char old_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   char new_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
 
-  if ((!(old_field->flags & PRI_KEY_FLAG)) &&
+  if ((!old_field->is_flag_set(PRI_KEY_FLAG)) &&
       type_supports_default_value(mysql_type)) {
-    if (!(old_field->flags & NO_DEFAULT_VALUE_FLAG)) {
+    if (!old_field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
       ptrdiff_t src_offset = old_field->table->default_values_offset();
       if ((!old_field->is_real_null(src_offset)) ||
-          ((old_field->flags & NOT_NULL_FLAG))) {
+          (old_field->is_flag_set(NOT_NULL_FLAG))) {
         DBUG_PRINT("info", ("Checking default value hasn't changed "
                             "for field %s",
                             old_field->field_name));
@@ -14987,7 +14989,7 @@ enum_alter_inplace_result ha_ndbcluster::supported_inplace_field_change(
   }
 
   // Check if the field is renamed
-  if ((new_field->flags & FIELD_IS_RENAMED) ||
+  if ((new_field->is_flag_set(FIELD_IS_RENAMED)) ||
       (strcmp(old_field->field_name, new_field->field_name) != 0)) {
     DBUG_PRINT("info", ("Detected field %s is renamed %s",
                         old_field->field_name, new_field->field_name));
@@ -15358,7 +15360,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
         DBUG_PRINT("info", ("storage_type %i, column_format %i",
                             (uint)field->field_storage_type(),
                             (uint)field->column_format()));
-        if (!(field->flags & NO_DEFAULT_VALUE_FLAG)) {
+        if (!field->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
           ptrdiff_t src_offset =
               field->table->s->default_values - field->table->record[0];
           if (/*
@@ -15366,7 +15368,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
                 as default value.
                */
               (!field->is_real_null(src_offset)) ||
-              ((field->flags & NOT_NULL_FLAG)) ||
+              (field->is_flag_set(NOT_NULL_FLAG)) ||
               /*
                  Check that column doesn't have
                  DEFAULT/ON INSERT/UPDATE CURRENT_TIMESTAMP as default

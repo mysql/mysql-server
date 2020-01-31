@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,10 @@ class Fake_key_field : public Key_field {
 class OptRefTest : public ::testing::Test {
  public:
   OptRefTest()
-      : field_t1_a("field1", true),
-        field_t1_b("field2", true),
-        field_t2_a("field3", true),
-        field_t2_b("field4", true),
+      : field_t1_a("field1", true, false),
+        field_t1_b("field2", true, false),
+        field_t2_a("field3", true, false),
+        field_t2_b("field4", true, false),
         t1(&field_t1_a, &field_t1_b),
         t2(&field_t2_a, &field_t2_b),
         t1_key_fields(&t1_key_field_arr[0]) {

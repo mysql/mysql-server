@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,8 +185,7 @@ static Value_map_type field_type_to_value_map_type(const Field *field) {
       BIGINT, so we need to distinguish between SIGNED BIGINT and UNSIGNED
       BIGINT so that we can switch the Value_map_type to UINT (uint64).
     */
-    const Field_num *field_num = down_cast<const Field_num *>(field);
-    is_unsigned = field_num->unsigned_flag;
+    is_unsigned = field->is_unsigned();
   }
 
   return field_type_to_value_map_type(field->real_type(), is_unsigned);

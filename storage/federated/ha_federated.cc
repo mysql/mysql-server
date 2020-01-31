@@ -942,7 +942,7 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
           (*field)->store(*row, *lengths, &my_charset_bin);
         }
 
-        if ((*field)->flags & BLOB_FLAG) {
+        if ((*field)->is_flag_set(BLOB_FLAG)) {
           Field_blob *blob_field = down_cast<Field_blob *>(*field);
           size_t length = blob_field->get_length();
           // BLOB data is not stored inside record. It only contains a

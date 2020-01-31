@@ -3717,8 +3717,7 @@ int handler::update_auto_increment() {
       we should call adjust_next_insert_id_after_explicit_value()
       and result row will be (1, 333, 334).
     */
-    if (((Field_num *)table->next_number_field)->unsigned_flag ||
-        ((longlong)nr) > 0)
+    if (table->next_number_field->is_unsigned() || ((longlong)nr) > 0)
       adjust_next_insert_id_after_explicit_value(nr);
 
     insert_id_for_cur_row = 0;  // didn't generate anything

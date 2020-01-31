@@ -253,12 +253,12 @@ class HashJoinTestHelper {
   HashJoinTestHelper(Server_initializer *initializer,
                      const vector<int> &left_dataset,
                      const vector<int> &right_dataset) {
-    m_left_table_field.reset(
-        new (&m_mem_root) Mock_field_long("column1", false /* is_nullable */));
+    m_left_table_field.reset(new (&m_mem_root) Mock_field_long(
+        "column1", false /* is_nullable */, false));
     m_left_table.reset(new (&m_mem_root) Fake_TABLE(m_left_table_field.get()));
 
-    m_right_table_field.reset(
-        new (&m_mem_root) Mock_field_long("column1", false /* is_nullable */));
+    m_right_table_field.reset(new (&m_mem_root) Mock_field_long(
+        "column1", false /* is_nullable */, false));
     m_right_table.reset(new (&m_mem_root)
                             Fake_TABLE(m_right_table_field.get()));
     SetupFakeTables(initializer);

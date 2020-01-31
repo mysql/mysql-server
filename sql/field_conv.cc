@@ -373,7 +373,7 @@ static void do_field_varbinary_pre50(Copy_field *copy, const Field *from_field,
 static void do_field_int(Copy_field *, const Field *from_field,
                          Field *to_field) {
   longlong value = from_field->val_int();
-  to_field->store(value, from_field->flags & UNSIGNED_FLAG);
+  to_field->store(value, from_field->is_flag_set(UNSIGNED_FLAG));
 }
 
 static void do_field_real(Copy_field *, const Field *from_field,
@@ -639,7 +639,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
     That call will take place anyway in all known cases.
  */
 Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
-  if ((m_to_field->flags & BLOB_FLAG) && save) {
+  if ((m_to_field->is_flag_set(BLOB_FLAG)) && save) {
     if (m_to_field->real_type() == MYSQL_TYPE_JSON &&
         m_from_field->real_type() == MYSQL_TYPE_JSON)
       return do_save_json;
@@ -671,13 +671,13 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
       return do_field_eq;
 
     return do_conv_blob;
-  } else if (m_to_field->flags & BLOB_FLAG) {
+  } else if (m_to_field->is_flag_set(BLOB_FLAG)) {
     /*
       We need to do conversion if we are copying from BLOB to
       non-BLOB, or if we are copying between BLOBs with different
       character sets, or if we are copying between JSON and non-JSON.
     */
-    if (!(m_from_field->flags & BLOB_FLAG) ||
+    if (!m_from_field->is_flag_set(BLOB_FLAG) ||
         m_from_field->charset() != m_to_field->charset() ||
         ((m_to_field->type() == MYSQL_TYPE_JSON) !=
          (m_from_field->type() == MYSQL_TYPE_JSON)))
@@ -810,7 +810,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
       }
     }
     if (to->pack_length() == from->pack_length() &&
-        !(to->flags & UNSIGNED_FLAG && !(from->flags & UNSIGNED_FLAG)) &&
+        !(to->is_flag_set(UNSIGNED_FLAG) &&
+          !from->is_flag_set(UNSIGNED_FLAG)) &&
         to->real_type() != MYSQL_TYPE_ENUM &&
         to->real_type() != MYSQL_TYPE_SET &&
         to->real_type() != MYSQL_TYPE_BIT &&
@@ -873,7 +874,7 @@ type_conversion_status field_conv(Field *to, const Field *from) {
   } else if (is_temporal_type(from_type) && is_temporal_type(to_type)) {
     return copy_time_to_time(from, to);
   } else if (from_type == MYSQL_TYPE_JSON && is_integer_type(to_type)) {
-    return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
+    return to->store(from->val_int(), from->is_flag_set(UNSIGNED_FLAG));
   } else if (from_type == MYSQL_TYPE_JSON && to_type == MYSQL_TYPE_NEWDECIMAL) {
     my_decimal buff;
     return to->store_decimal(from->val_decimal(&buff));
@@ -919,5 +920,5 @@ type_conversion_status field_conv(Field *to, const Field *from) {
     my_decimal buff;
     return to->store_decimal(from->val_decimal(&buff));
   } else
-    return to->store(from->val_int(), from->flags & UNSIGNED_FLAG);
+    return to->store(from->val_int(), from->is_flag_set(UNSIGNED_FLAG));
 }

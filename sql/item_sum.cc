@@ -1705,7 +1705,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
 
     if ((field = create_tmp_field_from_field(current_thd, field,
                                              item_name.ptr(), table, nullptr)))
-      field->flags &= ~NOT_NULL_FLAG;
+      field->clear_flag(NOT_NULL_FLAG);
     return field;
   }
   /*

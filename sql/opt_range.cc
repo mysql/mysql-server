@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7344,9 +7344,8 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
              b) if field is unsigned and has a negative value (which, when
                 cast to unsigned, means some value higher than LLONG_MAX).
         */
-        if ((field->val_int() > 0) ||  // a)
-            (static_cast<Field_num *>(field)->unsigned_flag &&
-             field->val_int() < 0))  // b)
+        if ((field->val_int() > 0) ||                        // a)
+            (field->is_unsigned() && field->val_int() < 0))  // b)
         {
           if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC) {
             /*
@@ -7707,7 +7706,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
   */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((field->type() == FIELD_TYPE_BIT || field->unsigned_flag) &&
+      ((field->type() == FIELD_TYPE_BIT || field->is_unsigned()) &&
        !(value)->unsigned_flag)) {
     longlong item_val = value->val_int();
     if (item_val < 0) {
@@ -15318,7 +15317,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
                             const uchar *key) {
   Field *field = key_part->field;
 
-  if (field->flags & BLOB_FLAG) {
+  if (field->is_flag_set(BLOB_FLAG)) {
     // Byte 0 of a nullable key is the null-byte. If set, key is NULL.
     if (field->is_nullable() && *key)
       out->append(STRING_WITH_LEN("NULL"));
@@ -15350,7 +15349,7 @@ static void print_key_value(String *out, const KEY_PART_INFO *key_part,
     optimizer trace expects. If the column is binary, the hex
     representation is printed to the trace instead.
   */
-  if (field->flags & BINARY_FLAG) {
+  if (field->is_flag_set(BINARY_FLAG)) {
     out->append("0x");
     for (uint i = 0; i < store_length; i++) {
       out->append(_dig_vec_lower[*(key + i) >> 4]);

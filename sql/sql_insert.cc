@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -305,7 +305,7 @@ bool validate_default_values_of_unset_fields(THD *thd, TABLE *table) {
 
   for (Field **field = table->field; *field; field++) {
     if (!bitmap_is_set(write_set, (*field)->field_index) &&
-        !((*field)->flags & NO_DEFAULT_VALUE_FLAG)) {
+        !(*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG)) {
       if ((*field)->validate_stored_val(thd) && thd->is_error()) return true;
     }
   }
@@ -2165,7 +2165,7 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 
   for (Field **field = entry->field; *field; field++) {
     if (!bitmap_is_set(write_set, (*field)->field_index) &&
-        (((*field)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        ((*field)->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          ((*field)->m_default_val_expr == nullptr)) &&
         ((*field)->real_type() != MYSQL_TYPE_ENUM)) {
       bool view = false;
