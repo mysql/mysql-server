@@ -1489,7 +1489,7 @@ static inline bool in_LTM(THD *thd) {
   situation, then this function does not return 'true'. We do not know if
   there is such a situation right now.
 
-  This function ignores materialized table/view that is created by optimizer
+  This function ignores TABLE_LIST's that is created by optimizer
   when processing a system view.
 
   @param    tl             TABLE_LIST point to the table.
@@ -1499,8 +1499,8 @@ static inline bool in_LTM(THD *thd) {
 */
 static bool belongs_to_dd_table(const TABLE_LIST *tl) {
   return (tl->is_dd_ctx_table ||
-          (!tl->uses_materialization() && tl->referencing_view &&
-           tl->referencing_view->is_system_view));
+          (!tl->is_internal() && !tl->uses_materialization() &&
+           tl->referencing_view && tl->referencing_view->is_system_view));
 }
 
 /**
