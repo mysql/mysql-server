@@ -526,18 +526,21 @@ int ha_warp::find_current_row(uchar *buf) {
           }
           if ((*field)->flags & BLOB_FLAG) {
             Field_blob *blob_field = down_cast<Field_blob *>(*field);
-            size_t length = blob_field->get_length(blob_field->ptr);
+            //size_t length = blob_field->get_length(blob_field->ptr);
+            size_t length = blob_field->get_length();
             // BLOB data is not stored inside buffer. It only contains a
             // pointer to it. Copy the BLOB data into a separate memory
             // area so that it is not overwritten by subsequent calls to
             // Field::store() after moving the offset.
             if (length > 0) {
-              unsigned char *old_blob;
-              blob_field->get_ptr(&old_blob);
+              const unsigned char *old_blob;
+              //blob_field->get_ptr(&old_blob);
+              old_blob = blob_field->get_ptr();
               unsigned char *new_blob = new (&blobroot) unsigned char[length];
               if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
               memcpy(new_blob, old_blob, length);
               blob_field->set_ptr(length, new_blob);
+              
             }
           }
         }
@@ -649,7 +652,7 @@ void ha_warp::update_row_count() {
     delete base_table;
   }
   
-  base_table = new ibis::warp(share->data_dir_name);
+  base_table = new ibis::mensa(share->data_dir_name);
   stats.records = base_table->nRows();
   
   delete base_table;
@@ -803,7 +806,7 @@ int ha_warp::rnd_init(bool) {
   /* This second table object is a new relation which is a projection of all
      the rows and columns in the table.
   */
-  base_table = new ibis::warp(share->data_dir_name);
+  base_table = new ibis::mensa(share->data_dir_name);
   filtered_table = base_table->select(column_set.c_str(), "1=1");
   if(filtered_table != NULL) {
     /* Allocate a cursor for any queries that actually fetch columns */
@@ -964,7 +967,7 @@ int ha_warp::extra(enum ha_extra_function operation) {
     if(base_table) {
       delete base_table;
     }
-    base_table=new ibis::warp(share->data_dir_name);
+    base_table=new ibis::mensa(share->data_dir_name);
     ibis::partList parts;
     ibis::util::gatherParts(parts, share->data_dir_name);
     
@@ -1032,7 +1035,7 @@ int ha_warp::extra(enum ha_extra_function operation) {
      int rowcount = writer->write(share->data_dir_name);
      writer->clearData();
      if(base_table == NULL) {
-       base_table=new ibis::warp(share->data_dir_name);
+       base_table=new ibis::mensa(share->data_dir_name);
      }
            
      /* rebuild any indexed columns */

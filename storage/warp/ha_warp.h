@@ -40,7 +40,7 @@
 #include "include/fastbit/bundle.h"
 #include "include/fastbit/tafel.h"
 #include "include/fastbit/array_t.h"
-#include "include/fastbit/warp.h"
+#include "include/fastbit/mensa.h"
 
 /*
   Version for file format.
@@ -89,7 +89,7 @@ class ha_warp : public handler {
   bool count_star_query;
 
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
-  ibis::warp*         base_table; 
+  ibis::mensa*         base_table; 
   ibis::table*         filtered_table;
   ibis::table::cursor* cursor;
 
@@ -207,7 +207,7 @@ class ha_warp : public handler {
     if(sorted) DBUG_RETURN(-1);
     
     active_index=idx; 
-    base_table = new ibis::warp(share->data_dir_name);
+    base_table = new ibis::mensa(share->data_dir_name);
     set_column_set();
     DBUG_RETURN(0);
   }
