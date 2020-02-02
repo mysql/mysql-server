@@ -1,0 +1,105 @@
+diff -ru old/array_t.h new/array_t.h
+--- old/array_t.h	2020-02-02 10:22:56.268668900 -0700
++++ new/array_t.h	2020-02-02 10:22:43.662741700 -0700
+@@ -65,9 +65,9 @@
+     const T& front() const {return *m_begin;};
+     const T& back() const {return m_end[-1];};
+ 
+-    bool empty() const {return (m_begin == 0 || m_begin >= m_end);};
++    bool empty() const {return (m_begin == NULL || m_begin >= m_end);};
+     size_t size() const {	///!< Return the number of elements.
+-	return (m_begin > 0 && m_end > m_begin ? m_end - m_begin : 0);
++	return (m_begin > (void*)NULL && m_end > m_begin ? m_end - m_begin : 0);
+     };
+     inline void clear();
+ 
+diff -ru old/colValues.h new/colValues.h
+--- old/colValues.h	2020-02-02 10:23:01.756988000 -0700
++++ new/colValues.h	2020-02-02 10:22:43.663740500 -0700
+@@ -662,7 +662,7 @@
+     virtual ~colFloats() {delete array;}
+ 
+     virtual bool   empty() const {return (col==0 || array==0);}
+-    virtual uint32_t size() const {return (array ? array->size() : 0);}
++    virtual uint32_t size() const {return (array != (void*)NULL ? array->size() : 0);}
+     virtual uint32_t elementSize() const {return sizeof(float);}
+     virtual ibis::TYPE_T getType() const {return ibis::FLOAT;}
+     virtual void* getArray() const {return array;}
+diff -ru old/const.h new/const.h
+--- old/const.h	2020-02-02 10:23:09.418522700 -0700
++++ new/const.h	2020-02-02 10:22:43.664768400 -0700
+@@ -48,7 +48,7 @@
+ //  #define __USE_UNIX98
+ //  #endif
+ #ifndef HAVE_STRUCT_TIMESPEC
+-#if defined(__CYGWIN__) || defined(__MINGW32__) || (_MSC_VER+0 >= 1900)
++#if defined(__CYGWIN__) || defined(__MINGW32__)
+ #  define HAVE_STRUCT_TIMESPEC
+ #endif
+ #endif
+diff -ru old/qExpr.h new/qExpr.h
+--- old/qExpr.h	2020-02-02 10:23:15.003114500 -0700
++++ new/qExpr.h	2020-02-02 10:22:43.665734200 -0700
+@@ -230,7 +230,9 @@
+     qRange(TYPE t) : qExpr(t) {};
+ 
+ private:
++#pragma GCC diagnostic ignored "-Wextra"
+     qRange(const qRange&) {}; // no copy constructor allowed, must use dup
++#pragma GCC diagnostic warning "-Wextra"
+     qRange& operator=(const qRange&);
+ }; // ibis::qRange
+ 
+@@ -816,9 +818,11 @@
+ 	    // later to retrieve value from expr class).
+ 	    variable(const char* var)
+ 		: name(ibis::util::strnewdup(var)), myBar(0), varind(0) {}
++#pragma GCC diagnostic ignored "-Wextra"
+ 	    variable(const variable& v)
+ 		: name(ibis::util::strnewdup(v.name)), decor(v.decor),
+                   myBar(v.myBar), varind(v.varind) {}
++#pragma GCC diagnostic warning "-Wextra"
+ 	    virtual ~variable() {delete [] name;}
+ 
+ 	    virtual TERM_TYPE termType() const {return VARIABLE;}
+@@ -894,7 +898,7 @@
+ 	    /// 't' or 'T', or it equals to "1".
+ 	    virtual bool isTrue() const {
+ 		return(str != 0 && (*str == 't' || *str == 'T' ||
+-				    (*str == '1' && *str == 0)));}
++				    (*str == '1' && *(str+1) == 0)));}
+ 
+ 	    virtual uint32_t nItems() const {return 1U;}
+ 	    virtual void print(std::ostream& out) const {out << str;}
+@@ -1028,6 +1032,7 @@
+ 	    virtual ~customFunction1() {delete fun_;}
+ 	    customFunction1(const func1 &ft)
+                 : fun_(ft.dup()) {}
++	    #pragma GCC diagnostic ignored "-Wextra"
+ 	    customFunction1(const customFunction1 &rhs)
+                 : fun_(rhs.fun_->dup()) {
+                 if (rhs.getLeft() != 0) {
+@@ -1037,6 +1042,7 @@
+                     setLeft(rhs.getRight()->dup());
+                 }
+             }
++	    #pragma GCC diagnostic warning "-Wextra"
+ 
+ 	    virtual customFunction1* dup() const {
+ 		return new customFunction1(*this);
+@@ -1112,6 +1118,7 @@
+ 	    virtual ~stringFunction1() {delete fun_;}
+ 	    stringFunction1(const sfunc1 &ft)
+                 : fun_(ft.dup()) {}
++	    #pragma GCC diagnostic ignored "-Wextra"
+ 	    stringFunction1(const stringFunction1 &rhs)
+                 : fun_(rhs.fun_->dup()) {
+                 if (rhs.getLeft() != 0) {
+@@ -1121,6 +1128,7 @@
+                     setLeft(rhs.getRight()->dup());
+                 }
+             }
++	    #pragma GCC diagnostic warning "-Wextra"
+ 
+ 	    virtual stringFunction1* dup() const {
+ 		return new stringFunction1(*this);

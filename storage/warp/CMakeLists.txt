@@ -25,6 +25,7 @@ ExternalProject_Add(
   URL https://codeforge.lbl.gov/frs/download.php/file/426/fastbit-2.0.3.tar.gz
   CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/src/fastbit-2.0.3/configure --prefix=${CMAKE_CURRENT_SOURCE_DIR}
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/
+  PATCH_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patch_fastbit.sh ${CMAKE_CURRENT_SOURCE_DIR}
   BUILD_COMMAND make -j8 && make install
   BUILD_IN_SOURCE 1
 )

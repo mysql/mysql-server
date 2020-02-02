@@ -41,6 +41,8 @@
 #include "include/fastbit/tafel.h"
 #include "include/fastbit/array_t.h"
 #include "include/fastbit/mensa.h"
+#include "include/fastbit/resource.h"
+#include "include/fastbit/util.h"
 
 /*
   Version for file format.
@@ -82,11 +84,9 @@ class ha_warp : public handler {
   int reset_table();
   int encode_quote(uchar *buf);
   int set_column_set(); 
+  int set_column_set(uint32_t idxno);
   int find_current_row(uchar *buf);
   void create_writer(TABLE *table_arg);
-  MEM_ROOT blobroot; 
-  uint64_t count_star_counter;
-  bool count_star_query;
 
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
   ibis::mensa*         base_table; 
@@ -102,14 +102,15 @@ class ha_warp : public handler {
   /* this is always the rowid of the current row */
   uint64_t current_rowid;  
 
-  /* a SELECT list of the columns that have been fetched for the current query */
+  /* a SELECT lists of the columns that have been fetched for the current query */
   std::string column_set;
+  std::string index_column_set;
 
   /* temporary buffer populated with CSV of row for insertions*/
   String buffer;
 
-  //unsigned int column_count;
-
+  /* storage for BLOBS */
+  MEM_ROOT blobroot; 
  public:
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
  
@@ -169,7 +170,7 @@ class ha_warp : public handler {
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-  int delete_table(const char *table_name, const dd::Table *table_def);
+  int delete_table(const char *table_name, const dd::Table *);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
@@ -183,13 +184,25 @@ class ha_warp : public handler {
 
  ulong index_flags(uint, uint, bool) const {
    DBUG_ENTER("ha_warp::index_flags");
-   DBUG_RETURN(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
+   //DBUG_RETURN(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
+   DBUG_RETURN(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY);
  }
 
- ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key) {
+ /* Not quite sure if this is implemented correctly but we will see... */
+ ha_rows records_in_range(uint idxno, key_range *min_key, key_range *max_key) {
     DBUG_ENTER("ha_warp::records_in_range");
     //table->s->key_parts
-    DBUG_RETURN(1);
+    ibis::mensa bt(share->data_dir_name);
+    uint64_t min=0;
+    uint64_t max=0;
+    uint64_t dummy;
+    std::string min_where;
+    std::string max_where;
+    make_where_clause(min_key->key,min_key->keypart_map,min_key->flag, min_where,idxno);
+    make_where_clause(max_key->key,max_key->keypart_map,max_key->flag, max_where,idxno);
+    bt.estimate(min_where.c_str(), min, dummy);
+    bt.estimate(max_where.c_str(), dummy, max);
+    DBUG_RETURN(min + max / 2);
   }
 
   void get_auto_increment	(	
@@ -201,42 +214,47 @@ class ha_warp : public handler {
   );
 
   // bitmap indexes are not sorted 
-  int index_init(uint idx, bool sorted) {
+  int index_init(uint idxno, bool sorted) {
     DBUG_ENTER("ha_warp::index_init");
-    DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idx, sorted));
+    DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idxno, sorted));
     if(sorted) DBUG_RETURN(-1);
     
-    active_index=idx; 
+    active_index=idxno; 
     base_table = new ibis::mensa(share->data_dir_name);
-    set_column_set();
+    set_column_set(idxno);
     DBUG_RETURN(0);
   }
 
-  int index_init(uint idx) { 
+  int index_init(uint idxno) { 
     DBUG_ENTER("ha_warp::index_init(uint)");
-    active_index=idx; 
+    active_index=idxno; 
+    set_column_set(idxno);
     DBUG_RETURN(0); 
   }
 
+  /*
   int index_read(uint8_t * buf, const uint8_t * key,
                         ulonglong keypart_map,
                         enum ha_rkey_function find_flag) {
     DBUG_ENTER("ha_warp::index_read");
     DBUG_RETURN(-1);
   }
-
+  */
+  /*
   int index_read_idx(uint8_t * buf, uint keynr, const uint8_t * key,
                            ulonglong keypart_map,
                            enum ha_rkey_function find_flag) {
     DBUG_ENTER("ha_warp::index_read_idx");
     DBUG_RETURN(-1);                           
   }
-
+  */ 
+  /*
   int index_read_last(uint8_t * buf, const uint8_t * key,
                             key_part_map keypart_map) {
     DBUG_ENTER("ha_warp::index_read_last");
     DBUG_RETURN(-1);
   }
+  */
 
   int index_next(uchar * buf) {
     DBUG_ENTER("ha_warp::index_next");
@@ -247,15 +265,15 @@ class ha_warp : public handler {
     find_current_row(buf);
     DBUG_RETURN(0);
   }
-
+/*
   int index_prev(uchar * buf) {
     DBUG_ENTER("ha_warp::index_prev");
     DBUG_RETURN(-1);
   }
-
+*/
   int index_first(uchar * buf) {
     DBUG_ENTER("ha_warp::index_first");
-    filtered_table = base_table->select(column_set.c_str(), "1=1");
+    filtered_table = base_table->select(index_column_set.c_str(), "1=1");
     if(filtered_table == NULL) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
@@ -278,19 +296,16 @@ class ha_warp : public handler {
     base_table = NULL;
     DBUG_RETURN(0);
   }
-  
-  
 
-  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause) {
+  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno=0) {
     DBUG_ENTER("ha_warp::make_where_clause");
     where_clause = "";
-    char data[1024];
-    auto key_part = table->key_info[active_index].key_part;
+    int index_to_use = idxno ? idxno : active_index;
     /* If the bit is set, then the part is being used.  Unfortunately MySQL will only 
        consider prefixes so we need to use ECP for magical performance.
     */
-    unsigned char* key_offset = (unsigned char*)key;
-    for (int partno = 0; partno < table->key_info[active_index].actual_key_parts; partno++ ) {
+    auto key_offset = key;
+    for (uint16_t partno = 0; partno < table->key_info[index_to_use].actual_key_parts; partno++ ) {
       /* given index (a,b,c) and where a=1 quit when we reach the b key part
          given a=1 and b=2 then quit when we reach the c part
       */
@@ -298,12 +313,12 @@ class ha_warp : public handler {
         DBUG_RETURN(0);
       }
       /* What field is this? */
-      Field* f = table->key_info[active_index].key_part[partno].field;
+      Field* f = table->key_info[index_to_use].key_part[partno].field;
       
       if(partno >0) where_clause += " AND ";
 
       /* Which column number does this correspond to? */
-      where_clause += "c" + std::to_string(table->key_info[active_index].key_part[partno].field->field_index);
+      where_clause += "c" + std::to_string(table->key_info[index_to_use].key_part[partno].field->field_index);
       
       switch(find_flag) {
         case HA_READ_AFTER_KEY:
@@ -393,7 +408,7 @@ class ha_warp : public handler {
           uint16_t strlen = (uint16_t)(*key_offset);
           
           where_clause += "'" + std::string((const char*)key_offset+2, strlen) + "'";  
-          key_offset += table->key_info[active_index].key_part[partno].store_length;
+          key_offset += table->key_info[index_to_use].key_part[partno].store_length;
           break;
         }
         case MYSQL_TYPE_FLOAT:
@@ -424,6 +439,7 @@ class ha_warp : public handler {
         case MYSQL_TYPE_ENUM:
         case MYSQL_TYPE_SET:
         case MYSQL_TYPE_GEOMETRY:
+	default:
           DBUG_RETURN(0);
           break;
       }
@@ -452,7 +468,7 @@ class ha_warp : public handler {
       }
       filtered_table = NULL;
       //std::cout << "SELECT " + column_set + " WHERE " + where_clause << "\n";
-      filtered_table = base_table->select(column_set.c_str(), where_clause.c_str());
+      filtered_table = base_table->select(index_column_set.c_str(), where_clause.c_str());
       if(filtered_table == NULL) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }

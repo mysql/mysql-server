@@ -41,9 +41,6 @@
 
 #define WRITE_BUFFER_ROWS 10000
 
-/* The file extensions */
-#define EXT1 ".data"               // The extension of the directory containing the data
-
 static WARP_SHARE *get_share(const char *table_name, TABLE *table);
 static int free_share(WARP_SHARE *share);
 
@@ -105,15 +102,17 @@ static void init_warp_psi_keys(void) {
 
 /*
   If frm_error() is called in table.cc this is called to find out what file
-  extensions exist for this handler.
+  extensions exist for this handler.  Our table name, however, is not a set
+  of files in the schema directory, but instead is a directory itself which
+  contains files which respresent each column and also the table metadata.
 */
-static const char *ha_warp_exts[] = {EXT1, NullS};
+static const char *ha_warp_exts[] = {NullS};
 
 static int warp_init_func(void *p) {
   DBUG_ENTER("warp_init_func");
   handlerton *warp_hton;
+  ibis::fileManager::adjustCacheSize(1U<<31);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(5);
   
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
@@ -132,6 +131,7 @@ static int warp_init_func(void *p) {
       (HTON_CAN_RECREATE | HTON_NO_PARTITION);
   warp_hton->file_extensions = ha_warp_exts;
   warp_hton->rm_tmp_tables = default_rm_tmp_tables;
+
   DBUG_RETURN(0);
 }
 
@@ -146,20 +146,20 @@ static int warp_done_func(void *) {
 ha_warp::ha_warp(handlerton *hton, TABLE_SHARE *table_arg)
     : handler(hton, table_arg),
       //reader(NULL),
+      base_table(NULL),
+      filtered_table(NULL),
       cursor(NULL),
       writer(NULL),
       current_rowid(0),
-      base_table(NULL),
-      filtered_table(NULL),
       blobroot(warp_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE)
       { 
         
       }
 
 void ha_warp::get_auto_increment	(	
-  ulonglong 	offset,
-  ulonglong 	increment,
-  ulonglong 	nb_desired_values,
+  ulonglong 	,
+  ulonglong 	,
+  ulonglong 	,
   ulonglong * 	first_value,
   ulonglong * 	nb_reserved_values 
 )	{
@@ -287,7 +287,7 @@ static WARP_SHARE *get_share(const char *table_name, TABLE *) {
 
     share->use_count = 0;
     share->table_name.assign(table_name, length);
-    fn_format(share->data_dir_name, table_name, "", EXT1,
+    fn_format(share->data_dir_name, table_name, "", ".data",
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
     
     warp_open_tables->emplace(table_name, share);
@@ -346,7 +346,6 @@ static int free_share(WARP_SHARE *share) {
 int ha_warp::set_column_set() {
   bool read_all;
   DBUG_ENTER("ha_warp::set_column_set");
-  count_star_query = false;
   column_set = "";
  
   /* We must read all columns in case a table is opened for update */
@@ -380,6 +379,37 @@ int ha_warp::set_column_set() {
   DBUG_RETURN(count+1);
 }
 
+/*
+  Populates the comma separarted list of all the columns that need to be read from 
+  the storage engine for this query for a given index.
+*/
+int ha_warp::set_column_set(uint32_t idxno) {
+  DBUG_ENTER("ha_warp::set_column_set");
+  index_column_set = "";
+  uint32_t count=0;
+
+  for(uint32_t i=0; i < table->key_info[idxno].actual_key_parts;++i) {
+    uint16_t fieldno = table->key_info[idxno].key_part[i].field->field_index;
+    bool may_be_null = table->key_info[idxno].key_part[i].field->real_maybe_null();
+    ++count;
+    
+    /* this column must be read from disk */
+    index_column_set += std::string("c") + std::to_string(fieldno);
+    
+    /* Add the NULL bitmap for the column if the column is NULLable */
+    if(may_be_null) {
+      index_column_set += "," + std::string("n") + std::to_string(fieldno);
+    }
+    index_column_set += ",";    
+  }
+  
+  index_column_set = index_column_set.substr(0,index_column_set.length()-1);
+  
+  DBUG_PRINT("ha_warp::set_column_set", ("column_list=%s", index_column_set.c_str()));
+
+  DBUG_RETURN(count+1);
+}
+
 /* store the binary data for each returned value into the MySQL buffer
    using field->store()
 */
@@ -404,43 +434,11 @@ int ha_warp::find_current_row(uchar *buf) {
      that contain variable length fields) reserve an extra bit in
      the NULL bitmap...
   */
-  int column_count = 0;
-  int result_column_count = 0;
-  int nullable_column_count = 0;
-  bool dynamic = false;
-  
-  for (Field **field = table->field; *field; field++) {
-    ++column_count;
-    if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
-      result_column_count++;
-    }
-          
-    if((*field)->real_maybe_null()) {
-      nullable_column_count++;
-    }
-    
-    switch((*field)->real_type()) {
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_JSON:
-        if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
-          dynamic=true;
-        }  
-      break;        
-    }
-  }
-  
   for (Field **field = table->field; *field; field++) {
     buffer.length(0);
     DBUG_PRINT("ha_warp::find_current_row", ("Getting value for field: %s",(*field)->field_name));
     if (read_all || bitmap_is_set(table->read_set, (*field)->field_index)) {
       bool is_unsigned = (*field)->flags & UNSIGNED_FLAG;
-      bool is_string = 0;
       std::string cname = "c" + std::to_string((*field)->field_index);
       std::string nname = "n" + std::to_string((*field)->field_index);
       
@@ -779,7 +777,7 @@ int ha_warp::delete_row(const uchar *) {
   DBUG_RETURN(0);
 }
 
-int ha_warp::delete_table(const char *table_name, const dd::Table *table_def) {
+int ha_warp::delete_table(const char *table_name, const dd::Table *) {
   DBUG_ENTER("ha_warp::delete_table");
   //my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "DROP is not supported)");
   //DBUG_RETURN(HA_ERR_UNSUPPORTED);
@@ -789,7 +787,7 @@ int ha_warp::delete_table(const char *table_name, const dd::Table *table_def) {
   std::string cmdline = std::string("rm -rf ") + std::string(table_name) + ".data/";
   int rc = system(cmdline.c_str());
   ha_statistic_increment(&System_status_var::ha_delete_count);
-  DBUG_RETURN(0);
+  DBUG_RETURN(rc != 0);
 }
 
 int ha_warp::rnd_init(bool) {
@@ -941,9 +939,11 @@ int ha_warp::info(uint) {
       case MYSQL_TYPE_ENUM:
       case MYSQL_TYPE_SET:
       case MYSQL_TYPE_GEOMETRY:
+      default:
         /* this is a total lie but this is just an estimate */
         stats.mean_rec_length += 8;
         break; 
+	 
     }    
 
     stats.auto_increment_value = stats.records;
@@ -961,8 +961,7 @@ int ha_warp::info(uint) {
    the writer object, flush them to disk when ::extra is called.   Seems to
    work.
 */
-int ha_warp::extra(enum ha_extra_function operation) {
-  int rowcount = 0;
+int ha_warp::extra(enum ha_extra_function) {
   if(deleted_rows.size() > 0) {
     if(base_table) {
       delete base_table;
@@ -971,7 +970,6 @@ int ha_warp::extra(enum ha_extra_function operation) {
     ibis::partList parts;
     ibis::util::gatherParts(parts, share->data_dir_name);
     
-    uint64_t rowcount = 0;
     std::vector<uint32_t> rowids;
      
     /* skip through the partitions until we find the one containing the row */
@@ -981,7 +979,7 @@ int ha_warp::extra(enum ha_extra_function operation) {
        about why i is initialized here and not inside the for loop where it
        would usually be done.
     */
-    int i=0;
+    uint64_t i=0;
     for(auto itp = parts.begin();itp < parts.end();++itp) {
       uint32_t part_rowcount = (*itp)->nRows();
       cumulative_rowcount += part_rowcount;
@@ -1011,7 +1009,7 @@ int ha_warp::extra(enum ha_extra_function operation) {
       }
     }
     
-    for(int idx = 0; idx < table->s->keys ; ++idx) {
+    for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
        std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
 
        // a field can have an index= comment that indicates an index spec.  
@@ -1040,7 +1038,7 @@ int ha_warp::extra(enum ha_extra_function operation) {
            
      /* rebuild any indexed columns */
      
-     for(int idx = 0; idx < table->s->keys ; ++idx) {
+     for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
        std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
 
        // a field can have an index= comment that indicates an index spec.  
@@ -1084,7 +1082,7 @@ int ha_warp::rnd_end() {
   DBUG_RETURN(0);
 }
 
-int ha_warp::repair(THD *thd, HA_CHECK_OPT *) {
+int ha_warp::repair(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("ha_warp::repair");
   my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "REPAIR is not supported");
   DBUG_RETURN(HA_ERR_UNSUPPORTED);
@@ -1320,8 +1318,7 @@ int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
   DBUG_RETURN(rc);
 }
 
-int ha_warp::check(THD *thd, HA_CHECK_OPT *) {
-  int rc = 0;
+int ha_warp::check(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("ha_warp::check");
   //old_proc_info = thd_proc_info(thd, "Checking table");
 
