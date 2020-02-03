@@ -331,6 +331,11 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   if (err) {
     assert(m_impl.m_table == 0);
     if (err == NdbInfo::ERR_NoSuchTable) return HA_ERR_NO_SUCH_TABLE;
+    if (err == NdbInfo::ERR_ClusterFailure) {
+      /* Not currently connected to cluster, but mark table offline */
+      m_impl.m_offline = true;
+      return 0;
+    }
     return err2mysql(err);
   }
 
@@ -413,13 +418,17 @@ int ha_ndbinfo::rnd_init(bool scan) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("scan: %d", scan));
 
-  if (is_offline()) {
+  if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
     push_warning(current_thd, Sql_condition::SL_NOTE, 1,
                  "'NDBINFO' has been started in offline mode "
                  "since the 'NDBCLUSTER' engine is disabled "
                  "or @@global.ndbinfo_offline is turned on "
                  "- no rows can be returned");
     return 0;
+  }
+
+  if (is_offline()) {
+    return HA_ERR_NO_CONNECTION;
   }
 
   assert(is_open());
