@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,12 @@ FUNCTION(LIBFUZZER_ADD_TEST TARGET)
     # prepare the corpus in the build-dir based on samples from the source-dir
     ADD_CUSTOM_COMMAND(TARGET ${TARGET}
       POST_BUILD
-      COMMAND $<TARGET_FILE:${TARGET}> -merge=1 "${ARG_INITIAL_CORPUS_DIR}" "${BINARY_CORPUS_DIR}"
+      COMMAND $<TARGET_FILE:${TARGET}>
+        -merge=1
+        -verbosity=0
+        -merge_control_file="${CMAKE_CURRENT_BINARY_DIR}/${TARGET}.control"
+        "${ARG_INITIAL_CORPUS_DIR}" "${BINARY_CORPUS_DIR}" 2> /dev/null
+      COMMENT "Preparing corpus for ${TARGET}"
       )
   ENDIF()
 
