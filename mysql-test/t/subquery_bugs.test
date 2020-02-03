@@ -1112,3 +1112,47 @@ eval explain format = tree $query;
 eval $query;
 
 DROP TABLE t1,t2,t3;
+
+--echo # Bug#30837240 Assertion 'item->is_bool_func()' failed
+
+CREATE TABLE t1 (
+  col_datetime datetime DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_char char(1) DEFAULT NULL,
+  col_char_key char(1) DEFAULT NULL,
+  col_tinyint tinyint DEFAULT NULL,
+  col_tinyint_key tinyint DEFAULT NULL
+);
+
+CREATE TABLE t2 (
+  col_real_key double DEFAULT NULL,
+  col_mediumint mediumint DEFAULT NULL
+);
+
+CREATE TABLE t3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL
+);
+
+let $query=
+SELECT COUNT(table1.col_datetime) AS field1
+FROM t1 AS table1 RIGHT JOIN t1 AS table2
+     ON table1.col_varchar_key = table2.col_char
+WHERE table1.col_char_key IN
+       (SELECT sq2_t1.col_real_key
+        FROM t2 AS sq2_t1 JOIN
+               t3 AS sq2_t2 JOIN t1 AS sq2_t3
+               ON INSTR(sq2_t3.col_tinyint, 'K') = sq2_t2.col_varchar
+             ON sq2_t3.col_varchar_key = sq2_t2.col_varchar_key
+        WHERE sq2_t1.col_mediumint IN
+               (SELECT sq1_t1.col_varchar_key
+                FROM t1 AS sq1_t1 JOIN t1 AS sq1_t2
+                     ON sq1_t2.col_tinyint_key = table1.col_tinyint_key
+               )
+       ) OR
+      RTRIM(table1.col_tinyint_key) IS NOT NULL;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
