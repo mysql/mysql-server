@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ Ndb_record_layout::Ndb_record_layout(int ncol)
     : record_specs(new NdbDictionary::RecordSpecification[ncol]),
       record_size(4),  // Use first four bytes for null bitmap
       m_columns(ncol),
-      m_seq(0){};
+      m_seq(0) {}
 
 Ndb_record_layout::~Ndb_record_layout() { delete[] record_specs; }
 
@@ -74,7 +74,7 @@ void Ndb_record_layout::addColumn(const NdbDictionary::Column *column) {
   /* Increment the counter and record size */
   m_seq += 1;
   record_size += column->getSizeInBytes();
-};
+}
 
 bool Ndb_record_layout::isNull(const char *data, int idx) const {
   if (record_specs[idx].column->getNullable()) {

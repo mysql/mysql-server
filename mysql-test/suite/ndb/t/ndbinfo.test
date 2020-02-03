@@ -1024,24 +1024,3 @@ select *
 select count(*) > 700
   from ndbinfo.error_messages;
 --remove_file $NDB_TOOLS_OUTPUT
-
-
-# WL#11563 Flexible creation and versioning of ndbinfo tables
-#
-# Check in the server error log for the ER_NDBINFO_NOT_UPGRADING_SCHEMA message:
-# "Installed ndbinfo schema is current. Not upgrading."
-#
-# Also check that the ER_NDBINFO_UPGRADING_SCHEMA message does *not* appear
-# in the server error log.
-#
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.1.err
---let $assert_only_after=^CURRENT_TEST: ndb.ndbinfo\$
---let $assert_text=Require ER_NDBINFO_NOT_UPGRADING_SCHEMA message
---let $assert_select=Installed ndbinfo schema is current. Not upgrading.
---let $assert_count=1
---source include/assert_grep.inc
-
---let $assert_text=Check for ER_NDBINFO_UPGRADING_SCHEMA message
---let $assert_select=Installing ndbinfo schema version
---let $assert_count=0
---source include/assert_grep.inc
