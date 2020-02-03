@@ -19,7 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
+#ifndef WarpHeader
+#define WarpHeader
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -28,6 +29,24 @@
 #include "my_io.h"
 #include "sql/handler.h"
 #include "sql_string.h"
+
+#include <fcntl.h>
+#include <mysql/plugin.h>
+#include <mysql/psi/mysql_file.h>
+#include <algorithm>
+
+#include "map_helpers.h"
+#include "my_byteorder.h"
+#include "my_dbug.h"
+#include "my_psi_config.h"
+#include "mysql/plugin.h"
+#include "mysql/psi/mysql_memory.h"
+#include "sql/field.h"
+#include "sql/sql_class.h"
+#include "sql/system_variables.h"
+#include "sql/table.h"
+#include "template_utils.h"
+
 
 #include <fstream>  
 #include <iostream>  
@@ -182,318 +201,18 @@ class ha_warp : public handler {
   void get_status();
   void update_status();
 
- ulong index_flags(uint, uint, bool) const {
-   DBUG_ENTER("ha_warp::index_flags");
-   //DBUG_RETURN(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
-   DBUG_RETURN(HA_READ_NEXT | HA_READ_RANGE | HA_KEYREAD_ONLY);
- }
-
- /* Not quite sure if this is implemented correctly but we will see... */
- ha_rows records_in_range(uint idxno, key_range *min_key, key_range *max_key) {
-    DBUG_ENTER("ha_warp::records_in_range");
-    //table->s->key_parts
-    ibis::mensa bt(share->data_dir_name);
-    uint64_t min=0;
-    uint64_t max=0;
-    uint64_t dummy;
-    std::string min_where;
-    std::string max_where;
-    make_where_clause(min_key->key,min_key->keypart_map,min_key->flag, min_where,idxno);
-    make_where_clause(max_key->key,max_key->keypart_map,max_key->flag, max_where,idxno);
-    bt.estimate(min_where.c_str(), min, dummy);
-    bt.estimate(max_where.c_str(), dummy, max);
-    DBUG_RETURN(min + max / 2);
-  }
-
-  void get_auto_increment	(	
-    ulonglong 	offset,
-    ulonglong 	increment,
-    ulonglong 	nb_desired_values,
-    ulonglong * 	first_value,
-    ulonglong * 	nb_reserved_values 
-  );
-
-  // bitmap indexes are not sorted 
-  int index_init(uint idxno, bool sorted) {
-    DBUG_ENTER("ha_warp::index_init");
-    DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idxno, sorted));
-    if(sorted) DBUG_RETURN(-1);
-    
-    active_index=idxno; 
-    base_table = new ibis::mensa(share->data_dir_name);
-    set_column_set(idxno);
-    DBUG_RETURN(0);
-  }
-
-  int index_init(uint idxno) { 
-    DBUG_ENTER("ha_warp::index_init(uint)");
-    active_index=idxno; 
-    set_column_set(idxno);
-    DBUG_RETURN(0); 
-  }
-
-  /*
-  int index_read(uint8_t * buf, const uint8_t * key,
-                        ulonglong keypart_map,
-                        enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_warp::index_read");
-    DBUG_RETURN(-1);
-  }
-  */
-  /*
-  int index_read_idx(uint8_t * buf, uint keynr, const uint8_t * key,
-                           ulonglong keypart_map,
-                           enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_warp::index_read_idx");
-    DBUG_RETURN(-1);                           
-  }
-  */ 
-  /*
-  int index_read_last(uint8_t * buf, const uint8_t * key,
-                            key_part_map keypart_map) {
-    DBUG_ENTER("ha_warp::index_read_last");
-    DBUG_RETURN(-1);
-  }
-  */
-
-  int index_next(uchar * buf) {
-    DBUG_ENTER("ha_warp::index_next");
-    if(cursor->fetch() != 0) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-
-    find_current_row(buf);
-    DBUG_RETURN(0);
-  }
-/*
-  int index_prev(uchar * buf) {
-    DBUG_ENTER("ha_warp::index_prev");
-    DBUG_RETURN(-1);
-  }
-*/
-  int index_first(uchar * buf) {
-    DBUG_ENTER("ha_warp::index_first");
-    filtered_table = base_table->select(index_column_set.c_str(), "1=1");
-    if(filtered_table == NULL) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-    cursor = filtered_table->createCursor();
-    if(cursor->fetch() != 0) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-    find_current_row(buf);
-
-    DBUG_RETURN(0);
-  }
-
-  int index_end() {
-    DBUG_ENTER("ha_warp::index_end");
-    if(cursor) delete cursor;
-    cursor = NULL;
-    if(filtered_table) delete filtered_table;
-    filtered_table = NULL;
-    if(base_table) delete base_table;
-    base_table = NULL;
-    DBUG_RETURN(0);
-  }
-
-  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno=0) {
-    DBUG_ENTER("ha_warp::make_where_clause");
-    where_clause = "";
-    int index_to_use = idxno ? idxno : active_index;
-    /* If the bit is set, then the part is being used.  Unfortunately MySQL will only 
-       consider prefixes so we need to use ECP for magical performance.
-    */
-    auto key_offset = key;
-    for (uint16_t partno = 0; partno < table->key_info[index_to_use].actual_key_parts; partno++ ) {
-      /* given index (a,b,c) and where a=1 quit when we reach the b key part
-         given a=1 and b=2 then quit when we reach the c part
-      */
-      if(!(keypart_map & (1<<partno))){
-        DBUG_RETURN(0);
-      }
-      /* What field is this? */
-      Field* f = table->key_info[index_to_use].key_part[partno].field;
-      
-      if(partno >0) where_clause += " AND ";
-
-      /* Which column number does this correspond to? */
-      where_clause += "c" + std::to_string(table->key_info[index_to_use].key_part[partno].field->field_index);
-      
-      switch(find_flag) {
-        case HA_READ_AFTER_KEY:
-          where_clause += " > ";
-          break;
-        case HA_READ_BEFORE_KEY:
-          where_clause += " < ";
-          break;
-        case HA_READ_KEY_EXACT:
-          where_clause += " = ";
-          break;
-        case HA_READ_KEY_OR_NEXT:
-          where_clause += ">=";
-          break;
-    
-        case HA_READ_KEY_OR_PREV:
-          where_clause += "<=";
-          break;
-    
-        case HA_READ_PREFIX:
-        case HA_READ_PREFIX_LAST:
-        case HA_READ_PREFIX_LAST_OR_PREV:
-        default:
-          DBUG_RETURN(-1);
-      }
-
-      bool is_unsigned = f->flags & UNSIGNED_FLAG;
-    
-      switch(f->real_type()) {
-        case MYSQL_TYPE_TINY:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint8_t)*(key_offset));
-          } else {
-            where_clause += std::to_string((int8_t)*(key_offset));
-          }
-          key_offset += 1;
-          break;
-
-        case MYSQL_TYPE_SHORT:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint16_t)*(key_offset));
-          } else {
-            where_clause += std::to_string((int16_t)*(key_offset));
-          }
-          key_offset += 2;
-          break;
-
-        case MYSQL_TYPE_LONG:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint32_t)*(key_offset));
-          } else {
-            where_clause += std::to_string((int32_t)*(key_offset));
-          }
-          key_offset += 4;
-          break;
-        
-        /* FIXME: use 4 byte buffer that three bytes are copied into */
-        case MYSQL_TYPE_INT24:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint32_t)*(key_offset));
-          } else {
-            where_clause += std::to_string((int32_t)*(key_offset));
-          }
-          key_offset += 3;
-          break;
-        
-        case MYSQL_TYPE_LONGLONG:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint64_t)*(key_offset));
-          } else {
-            where_clause += std::to_string((int64_t)*(key_offset));
-          }
-          key_offset += 8;
-          break;
-
-        case MYSQL_TYPE_VAR_STRING:
-        case MYSQL_TYPE_VARCHAR:
-        case MYSQL_TYPE_STRING:
-        case MYSQL_TYPE_TINY_BLOB:
-        case MYSQL_TYPE_MEDIUM_BLOB:
-        case MYSQL_TYPE_LONG_BLOB:
-        case MYSQL_TYPE_BLOB:
-        case MYSQL_TYPE_JSON: {
-          // for strings, the key buffer is fixed width, and there is a two byte prefix
-          // which lists the string length
-          // FIXME: different data types probably have different prefix lengths
-          uint16_t strlen = (uint16_t)(*key_offset);
-          
-          where_clause += "'" + std::string((const char*)key_offset+2, strlen) + "'";  
-          key_offset += table->key_info[index_to_use].key_part[partno].store_length;
-          break;
-        }
-        case MYSQL_TYPE_FLOAT:
-          where_clause += std::to_string((float_t)*(key_offset));
-          key_offset += 4;
-          break;
-
-        case MYSQL_TYPE_DOUBLE:
-          where_clause += std::to_string((double_t)*(key_offset));
-          key_offset += 8;
-          break;
-
-        
-        // Support lookups for these types
-        case MYSQL_TYPE_DECIMAL:
-        case MYSQL_TYPE_NEWDECIMAL:         
-        case MYSQL_TYPE_DATE:
-        case MYSQL_TYPE_TIME:
-        case MYSQL_TYPE_TIMESTAMP:
-        case MYSQL_TYPE_DATETIME:
-        case MYSQL_TYPE_YEAR:
-        case MYSQL_TYPE_NEWDATE: 
-        case MYSQL_TYPE_BIT:
-        case MYSQL_TYPE_NULL:
-        case MYSQL_TYPE_TIMESTAMP2:
-        case MYSQL_TYPE_DATETIME2: 
-        case MYSQL_TYPE_TIME2:   
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_GEOMETRY:
-	default:
-          DBUG_RETURN(0);
-          break;
-      }
-
-      /* exclude NULL columns */
-      //if(f->real_maybe_null()) {
-      //  where_clause += " and n" + std::to_string(f->field_index) + " = 0";
-      //}
-    }
-    DBUG_RETURN(0);
-  }
-  
-  int index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
-      DBUG_ENTER("ha_warp::index_read_map");
-      //DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-      std::string where_clause;
-      make_where_clause(key, keypart_map, find_flag, where_clause);
-      
-      if(cursor) {
-        delete cursor; 
-      }
-      cursor=NULL;
-      
-      if(filtered_table) {
-        delete filtered_table;    
-      }
-      filtered_table = NULL;
-      //std::cout << "SELECT " + column_set + " WHERE " + where_clause << "\n";
-      filtered_table = base_table->select(index_column_set.c_str(), where_clause.c_str());
-      if(filtered_table == NULL) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
-
-      cursor = filtered_table->createCursor();
-      if(cursor->fetch() != 0) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
-
-      find_current_row(buf);
-      DBUG_RETURN(0);
-
-    }
-
-/*
-int index_read_last_map (uchar *buf, const uchar *key, key_part_map keypart_map) {
-  DBUG_ENTER("ha_warp::index_read_last_map");
-  DBUG_RETURN(-1);
-}
- 
-  int index_read_idx_map (uchar *buf, uint index, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_warp::index_read_idx_map");
-    DBUG_RETURN(-1);
-  }
-*/
-
+  // Functions to support indexing
+  ulong index_flags(uint, uint, bool) const;
+  ha_rows records_in_range(uint idxno, key_range *, key_range *); 
+  int index_init(uint idxno, bool sorted);
+  int index_init(uint idxno);
+  int index_next(uchar * buf);
+  int index_first(uchar * buf);
+  int index_end();
+  int index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
+  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno=0);
+  void get_auto_increment(ulonglong, ulonglong, ulonglong, ulonglong *, ulonglong *);
 
 };
+#endif

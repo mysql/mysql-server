@@ -30,13 +30,13 @@ ExternalProject_Add(
   BUILD_IN_SOURCE 1
 )
 
-SET(MENSA_PLUGIN_STATIC  "warp")
-SET(MENSA_PLUGIN_MANDATORY TRUE)
+SET(WARP_PLUGIN_STATIC  "warp")
+SET(WARP_PLUGIN_MANDATORY TRUE)
 
-SET(MENSA_SOURCES  ha_warp.cc ha_warp.h )
+SET(WARP_SOURCES  ha_warp.cc ha_warp.h)
 SET(FASTBIT_LIBS ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.a  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.la  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1  ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so.1.0.0)
 
-MYSQL_ADD_PLUGIN(warp ${MENSA_SOURCES} STORAGE_ENGINE MANDATORY)
+MYSQL_ADD_PLUGIN(warp ${WARP_SOURCES} STORAGE_ENGINE MANDATORY)
 add_library(fastbit SHARED IMPORTED)
 set_property(TARGET fastbit PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/libfastbit.so)
 add_dependencies(warp fastbit fastbit-2.0.3)
