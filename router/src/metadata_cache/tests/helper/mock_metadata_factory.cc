@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,30 +24,11 @@
 
 #include <memory>
 
+#include "metadata_factory.h"  // get_instance
 #include "mock_metadata.h"
 
 std::shared_ptr<MetaData> meta_data;
 
-/**
- * Create an instance of the mock metadata.
- * @param cluster_type type of the cluster the metadata cache object will
- *                     represent (GR or ReplicaSet)
- * @param user The user name used to authenticate to the metadata server.
- * @param password The password used to authenticate to the metadata server.
- * @param connect_timeout The time after which trying to connect to the
- *                        metadata server should timeout.
- * @param read_timeout The time after which read from the metadata server should
- *                     timeout.
- * @param connection_attempts The number of times a connection to metadata must
- * be attempted, when a connection attempt fails.
- * @param ssl_options ssl options
- * @param use_cluster_notifications Flag indicating if the metadata cache
- *                                  should use cluster notifications as an
- *                                  additional trigger for metadata refresh
- *                                  (only available for GR cluster type)
- * @param view_id last known view_id of the cluster metadata (only relevant
- *                for ReplicaSet cluster)
- */
 std::shared_ptr<MetaData> get_instance(
     mysqlrouter::ClusterType /*cluster_type*/, const std::string &user,
     const std::string &password, int connect_timeout, int read_timeout,

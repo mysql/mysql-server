@@ -32,27 +32,13 @@
 
 using namespace std;
 
-/** @brief Constructor
- * @param user The user name used to authenticate to the metadata server.
- * @param password The password used to authenticate to the metadata server.
- * @param connect_timeout The time after which trying to connect to the
- *                        metadata server should timeout.
- * @param read_timeout The time after which read from metadata server should
- *                     timeout.
- * @param connection_attempts The number of times a connection to metadata must
- *                            be attempted, when a connection attempt fails.
- * @param ssl_options SSL related options for connections
- * @param use_gr_notifications Flag indicating if the metadata cache should
- *                             use GR notifications as an additional trigger
- *                             for metadata refresh
- */
 MockNG::MockNG(const std::string &user, const std::string &password,
                int connect_timeout, int read_timeout, int connection_attempts,
                const mysqlrouter::SSLOptions &ssl_options,
-               const bool use_gr_notifications)
+               const bool use_cluster_notifications)
     : GRClusterMetadata(user, password, connect_timeout, read_timeout,
                         connection_attempts, ssl_options,
-                        use_gr_notifications) {
+                        use_cluster_notifications) {
   ms1.replicaset_name = "replicaset-1";
   ms1.mysql_server_uuid = "instance-1";
   ms1.host = "host-1";
