@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gmock/gmock.h>
-
-#include <string.h>
 #include <cstdlib>
 #include <cstring>
 #include <stdexcept>
+
+#include <gmock/gmock.h>
 
 #include "helpers/router_test_helpers.h"
 #include "mysqlrouter/mysql_protocol.h"
@@ -863,4 +862,9 @@ TEST_F(HandshakeResponseParseTest, all) {
     EXPECT_EQ(database, pkt.database_);
     EXPECT_EQ(auth_plugin, pkt.auth_plugin_);
   }
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

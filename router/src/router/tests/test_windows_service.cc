@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,8 @@
  * @brief Unit tests for Windows Service wrapper
  */
 
-// these tests are Windows-specific
-#ifdef _WIN32
+#include <gmock/gmock.h>
 
-#include "gmock/gmock.h"
 #include "gtest_consoleoutput.h"
 
 #include <cctype>
@@ -39,6 +37,9 @@
 
 #include "filesystem_utils.h"
 #include "router_test_helpers.h"  // EXPECT_THROW_LIKE
+
+// these tests are Windows-specific
+#ifdef _WIN32
 
 // these are not declared in a header, because they're private to
 // main-windows.cc
@@ -306,7 +307,9 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_file_is_not_a_file) {
       allow_windows_service_to_write_logs(path_to_conf_file_.str()),
       std::runtime_error, expected_error);
 }
-
-#else
-int main() { return 0; }
 #endif
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

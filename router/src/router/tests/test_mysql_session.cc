@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,21 +22,19 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-// must be the first header, don't move it
-#include <gtest/gtest_prod.h>
+#include "mysqlrouter/mysql_session.h"
 
 // ignore GMock warnings
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
-#include <mysql.h>
-#include "mysqlrouter/mysql_session.h"
+#include <mysql.h>  // SSL_MODE_DISABLED, ...
 
 class MySQLSessionTest : public ::testing::Test {};
 
@@ -67,4 +65,9 @@ TEST_F(MySQLSessionTest, ssl_mode_to_string) {
             MySQLSession::ssl_mode_to_string(SSL_MODE_VERIFY_CA));
   EXPECT_EQ(MySQLSession::kSslModeVerifyIdentity,
             MySQLSession::ssl_mode_to_string(SSL_MODE_VERIFY_IDENTITY));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

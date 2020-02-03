@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,8 @@
 #include "hostname_validator.h"
 
 ////////////////////////////////////////
-// Test system include files
-
-////////////////////////////////////////
 // Third-party include files
-#include "gmock/gmock.h"
-
-////////////////////////////////////////
-// Standard include files
+#include <gmock/gmock.h>
 
 using mysql_harness::is_valid_hostname;
 
@@ -84,4 +78,9 @@ TEST(TestHostnameValidator, DISABLED_known_mishandled_cornercases) {
   EXPECT_TRUE(is_valid_hostname("-"));
   EXPECT_TRUE(is_valid_hostname("1_2-3.4"));
   EXPECT_TRUE(is_valid_hostname("foo.bar.1.2"));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

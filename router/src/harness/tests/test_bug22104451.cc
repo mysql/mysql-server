@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 ////////////////////////////////////////
 // Third-party include files
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
 
 using mysql_harness::Config;
 
@@ -62,4 +62,9 @@ TEST_F(Bug22104451, ReadLongValues) {
     EXPECT_EQ(long_destinations,
               config.get("routing", "c").get("destinations"));
   });
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }
