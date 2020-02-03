@@ -334,11 +334,13 @@ static bool dd_upgrade_match_single_col(const Field *field,
 @param[in]	srv_table	Server table object
 @param[in]	dd_table	New DD table object
 @param[in]	ib_table	InnoDB table object
+@param[in]	skip_fts_col	Skip FTS_DOC_ID column match
 @retval		true		failure
 @retval		false		success, all columns matched */
 static bool dd_upgrade_match_cols(const TABLE *srv_table,
                                   const dd::Table *dd_table,
-                                  const dict_table_t *ib_table) {
+                                  const dict_table_t *ib_table,
+                                  bool skip_fts_col) {
   uint32_t innodb_num_cols = ib_table->n_t_cols;
   bool has_explicit_pk = dd_has_explicit_pk(dd_table);
   if (has_explicit_pk) {
@@ -370,6 +372,14 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
       ib_col_name = dict_table_get_v_col_name(ib_table, v_idx);
       ++v_idx;
     } else {
+      if (strcmp(col_obj->name().c_str(), FTS_DOC_ID_COL_NAME) == 0 &&
+          skip_fts_col) {
+        continue;
+      }
+      ib_col_name = ib_table->get_col_name(idx);
+      if (strcmp(ib_col_name, FTS_DOC_ID_COL_NAME) == 0 && skip_fts_col) {
+        ++idx;
+      }
       ib_col_name = ib_table->get_col_name(idx);
       if (has_explicit_pk && strcmp(ib_col_name, "DB_ROW_ID") == 0) {
         ++idx;
@@ -834,6 +844,27 @@ static void dd_upgrade_set_row_type(dict_table_t *ib_table,
   }
 }
 
+/* Check Innodb table definition and add FTS_DOC_ID column and index to DD table
+if needed. This is required when all FTS index are dropped but Innodb still
+retains the FTS_DOC_ID column and FTS_DOC_ID_INDEX.
+@param[in,out]	dd_table	Server table object
+@param[in]	ib_table	Innodb table
+@return true if fix FTS_DOC_ID column, false otherwise. */
+bool dd_upgrade_fix_fts_column(dd::Table *dd_table, dict_table_t *ib_table) {
+  if (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
+      !dict_table_has_fts_index(ib_table)) {
+    /* Add hidden FTS_DOC_ID column in the dd cache as it does not
+    exist there. */
+    dd::Column *col =
+        dd_add_hidden_column(&dd_table->table(), FTS_DOC_ID_COL_NAME,
+                             FTS_DOC_ID_LEN, dd::enum_column_types::LONGLONG);
+    dd_set_hidden_unique_index(dd_table->table().add_index(),
+                               FTS_DOC_ID_INDEX_NAME, col);
+    return true;
+  }
+  return false;
+}
+
 /** Migrate table from InnoDB Dictionary (INNODB SYS_*) tables to new Data
 Dictionary. Since FTS tables contain table_id in their physical file name
 and during upgrade we reserve DICT_MAX_DD_TABLES for dictionary tables.
@@ -879,7 +910,12 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     return (true);
   }
 
-  bool failure = dd_upgrade_match_cols(srv_table, dd_table, ib_table);
+  /* If all FTS index are dropped but Innodb still retains the
+  FTS_DOC_ID column then add FTS_DOC_ID column and index to DD table */
+  bool added_fts_col = dd_upgrade_fix_fts_column(dd_table, ib_table);
+
+  bool failure =
+      dd_upgrade_match_cols(srv_table, dd_table, ib_table, added_fts_col);
 
   if (failure) {
     dict_table_close(ib_table, false, false);
