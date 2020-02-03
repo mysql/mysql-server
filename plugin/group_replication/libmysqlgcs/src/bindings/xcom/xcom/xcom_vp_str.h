@@ -20,10 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef E_T_S
 #define E_T_S
 extern const char *delivery_status_to_str(delivery_status x);
@@ -34,8 +30,4 @@ extern const char *pax_op_to_str(pax_op x);
 extern const char *pax_msg_type_to_str(pax_msg_type x);
 extern const char *client_reply_code_to_str(client_reply_code x);
 extern const char *xcom_proto_to_str(xcom_proto x);
-#endif
-
-#ifdef __cplusplus
-}
 #endif

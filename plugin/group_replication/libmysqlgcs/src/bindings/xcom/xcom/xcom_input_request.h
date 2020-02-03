@@ -25,10 +25,6 @@
 
 #include "xcom/pax_msg.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * A request directed to XCom through the input channel.
  */
@@ -99,9 +95,5 @@ app_data_ptr xcom_input_request_extract_app_data(
  * @param payload the payload of the reply
  */
 void xcom_input_request_reply(xcom_input_request_ptr request, pax_msg *payload);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* XCOM_INPUT_REQUEST_H */

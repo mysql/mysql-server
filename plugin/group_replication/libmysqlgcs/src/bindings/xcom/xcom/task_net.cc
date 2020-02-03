@@ -49,10 +49,6 @@
 #define STRING_PORT_SIZE 6
 #define NR_GETADDRINFO_ATTEMPTS 10
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Wrapper function which retries and checks errors from socket
  */
@@ -138,7 +134,7 @@ struct infonode;
 typedef struct infonode infonode;
 
 struct infonode {
-  char const *server;
+  char *server;
   struct addrinfo *addr;
   infonode *left;
   infonode *right;
@@ -202,7 +198,7 @@ void free_getaddrinfo_cache(infonode *top) {
   if (top) {
     infonode *right = top->right;
     infonode *left = top->left;
-    free((char *)top->server);
+    free(top->server);
     freeaddrinfo(top->addr);
     free(top);
     if (right) free_getaddrinfo_cache(right);
@@ -269,9 +265,5 @@ int init_net() { return 0; }
 int deinit_net() {
   deinit_network_cache();
   return 0;
-}
-#endif
-
-#ifdef __cplusplus
 }
 #endif

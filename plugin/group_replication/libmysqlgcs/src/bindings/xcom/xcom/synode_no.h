@@ -27,10 +27,6 @@
 #include "xcom/xcom_common.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define FILENAME_SYNODE_FMT "%x_%" PRIu64 "_%u"
 #define FILENAME_SYNODE_MEM(x) SY_MEM(x)
 #define NULL_SYNODE \
@@ -42,7 +38,7 @@ extern "C" {
 int synode_eq(synode_no x, synode_no y);
 int synode_gt(synode_no x, synode_no y);
 int synode_lt(synode_no x, synode_no y);
-static const synode_no null_synode = NULL_SYNODE;
+extern "C" synode_no const null_synode;
 void add_synode_event(synode_no const synode);
 
 static inline int group_mismatch(synode_no x, synode_no y) {
@@ -52,8 +48,4 @@ static inline int group_mismatch(synode_no x, synode_no y) {
 void synode_array_move(synode_no_array *const to, synode_no_array *const from);
 void synode_app_data_array_move(synode_app_data_array *const to,
                                 synode_app_data_array *const from);
-#ifdef __cplusplus
-}
-#endif
-
 #endif

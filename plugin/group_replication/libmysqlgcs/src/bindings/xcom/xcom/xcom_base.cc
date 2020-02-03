@@ -798,9 +798,10 @@ static int prop_majority(site_def const *site, pax_machine *p) {
 
 /* Xcom thread */
 
-static site_def const *executor_site = 0;
+static site_def *executor_site = 0;
 
 site_def const *get_executor_site() { return executor_site; }
+site_def *get_executor_site_rw() { return executor_site; }
 
 static site_def *proposer_site = 0;
 
@@ -2125,7 +2126,7 @@ static node_no leader(site_def const *s) {
 
 int iamthegreatest(site_def const *s) { return leader(s) == s->nodeno; }
 
-void execute_msg(site_def const *site, pax_machine *pma, pax_msg *p) {
+void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
   app_data_ptr a = p->a;
   IFDBG(D_EXEC, FN; COPY_AND_FREE_GOUT(dbg_pax_msg(p)););
   if (a) {
@@ -2149,8 +2150,7 @@ void execute_msg(site_def const *site, pax_machine *pma, pax_msg *p) {
                         a->body.app_u_u.present.node_set_len) {
           assert(site->global_node_set.node_set_len ==
                  a->body.app_u_u.present.node_set_len);
-          copy_node_set(&a->body.app_u_u.present,
-                        &(((site_def *)site)->global_node_set));
+          copy_node_set(&a->body.app_u_u.present, &site->global_node_set);
           deliver_global_view_msg(site, p->synode);
           ADD_DBG(D_BASE,
                   add_event(EVENT_DUMP_PAD,
@@ -2323,7 +2323,7 @@ synode_no set_executed_msg(synode_no msgno) {
   if (msgno.msgno > executed_msg.msgno) task_wakeup(&exec_wait);
 
   executed_msg = msgno;
-  executor_site = find_site_def(executed_msg);
+  executor_site = find_site_def_rw(executed_msg);
   return executed_msg;
 }
 
@@ -3215,7 +3215,7 @@ static void x_execute(execute_context *xc) {
          SYCEXP(delivered_msg); SYCEXP(executed_msg);
               SYCEXP(xc->delivery_limit); NDBG(xc->exit_flag, d)); */
       last_delivered_msg = delivered_msg;
-      execute_msg(find_site_def(delivered_msg), xc->p, xc->p->learner.msg);
+      execute_msg(find_site_def_rw(delivered_msg), xc->p, xc->p->learner.msg);
     }
   }
   /* Garbage collect old servers */
@@ -3275,7 +3275,7 @@ static int executor_task(task_arg arg MY_ATTRIBUTE((unused))) {
   if (executed_msg.msgno == 0) executed_msg.msgno = 1;
   delivered_msg = executed_msg;
   ep->xc.state = x_fetch;
-  executor_site = find_site_def(executed_msg);
+  executor_site = find_site_def_rw(executed_msg);
 
   /* The following loop implements a state machine based on function pointers,
      effectively acting as non-local gotos.
@@ -3462,7 +3462,7 @@ static void send_read(synode_no find) {
   IFDBG(D_NONE, FN; NDBG(get_maxnodes(site), u); NDBG(get_nodeno(site), u););
   ADD_DBG(D_CONS, add_event(EVENT_DUMP_PAD, string_arg("find"));
           add_synode_event(find); add_event(EVENT_DUMP_PAD, string_arg("site"));
-          add_event(EVENT_DUMP_PAD, void_arg((void *)site));
+          add_event(EVENT_DUMP_PAD, void_arg((void *)find_site_def_rw(find)));
           add_event(EVENT_DUMP_PAD, string_arg("get_nodeno(site)"));
           add_event(EVENT_DUMP_PAD, uint_arg(get_nodeno(site))););
 

@@ -23,10 +23,6 @@
 #ifndef RESULT_H
 #define RESULT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/x_platform.h"
 
 /* Combined return value and error code */
@@ -47,9 +43,5 @@ static inline int from_errno(int err) { return err; }
 static inline int from_ssl_err(int err) { return err - ssl_zero; }
 
 static inline int is_ssl_err(int err) { return err > errno_max; }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

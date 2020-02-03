@@ -477,14 +477,14 @@ static inline int old_proto_knows(xcom_proto x_proto MY_ATTRIBUTE((unused)),
 }
 
 /* must match enum x_proto */
-extern bool_t xdr_pax_msg_1_0(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_1(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_2(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_3(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
-extern bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_0(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_1(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_2(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_3(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
 
 static xdrproc_t pax_msg_func[] = {(xdrproc_t)0,
                                    (xdrproc_t)xdr_pax_msg_1_0,
@@ -1817,19 +1817,6 @@ xcom_proto negotiate_protocol(xcom_proto proto_vers) {
   } else {
     return proto_vers;
   }
-}
-
-/* Encode and decode a application data with added check that there is enough
- * data when decoding */
-bool_t xdr_checked_data(XDR *xdrs, checked_data *objp) {
-  /*
-          Sanity check. x_handy is number of remaining bytes. For old XDR,
-          x_handy is int type. So type cast is used to eliminate a warning.
-  */
-  if (xdrs->x_op == XDR_DECODE && (objp->data_len + 4) > (u_int)xdrs->x_handy)
-    return FALSE;
-  return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *)&objp->data_len,
-                   0xffffffff);
 }
 
 xcom_proto minimum_ipv6_version() { return x_1_5; }

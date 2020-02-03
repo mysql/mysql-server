@@ -35,10 +35,6 @@
 #include "xcom/x_platform.h"
 #include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/node_connection.h"
 #include "xcom/result.h"
 
@@ -601,9 +597,5 @@ extern xcom_proto const
 /* Use SSL ? */
 void xcom_enable_ssl();
 void xcom_disable_ssl();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -34,10 +34,6 @@
 #endif
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
 #endif
@@ -80,9 +76,5 @@ typedef unsigned short xcom_port;
 #endif
 
 #define BSD_COMP
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

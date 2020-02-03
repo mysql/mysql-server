@@ -38,10 +38,6 @@
 #include "xcom/xcom_proto.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 enum con_state { CON_NULL, CON_FD, CON_PROTO };
 typedef enum con_state con_state;
 
@@ -86,9 +82,5 @@ static inline int proto_done(connection_descriptor *con) {
 static inline void set_connected(connection_descriptor *con, con_state val) {
   con->connected_ = val;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* NODE_CONNECTION_H */

@@ -27,10 +27,6 @@
 #include "xcom/task_debug.h"
 #include "xcom/task_os.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef XCOM_WITHOUT_OPENSSL
 
 static inline int can_retry(int err) {
@@ -80,10 +76,6 @@ static inline int can_retry_write(int err) {
                from_errno(err) == SOCK_EWOULDBLOCK;
   if (!retval) IFDBG(D_NONE, FN; STRLIT("cannot retry "); NDBG(err, d));
   return retval;
-}
-#endif
-
-#ifdef __cplusplus
 }
 #endif
 

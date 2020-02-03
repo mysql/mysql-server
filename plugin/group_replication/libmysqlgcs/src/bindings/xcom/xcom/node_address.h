@@ -25,14 +25,6 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 char *dbg_node_address(node_address n);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

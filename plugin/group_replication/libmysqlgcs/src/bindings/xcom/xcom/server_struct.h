@@ -27,10 +27,6 @@
 #include "xcom/xcom_common.h"
 #include "xcom/xcom_limits.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct srv_buf {
   u_int start;
   u_int n;
@@ -57,9 +53,5 @@ struct server {
 };
 
 typedef struct server server;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -23,10 +23,6 @@
 #ifndef TASK_OS_H
 #define TASK_OS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/result.h"
 #include "xcom/task_debug.h"
 
@@ -186,9 +182,5 @@ static inline result shut_close_socket(int *sock) {
   }
   return res;
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

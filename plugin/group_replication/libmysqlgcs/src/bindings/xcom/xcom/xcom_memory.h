@@ -26,10 +26,6 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define X_FREE(x) \
   {               \
     free(x);      \
@@ -42,9 +38,5 @@ extern "C" {
   }
 
 void xcom_xdr_free(xdrproc_t f, char *p);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

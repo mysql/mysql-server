@@ -23,17 +23,9 @@
 #ifndef XCOM_RECOVER_H
 #define XCOM_RECOVER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/task_arg.h"
 
 int xcom_booted();
 void xcom_recover_init();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -27,10 +27,6 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define copy_app_data(target, source)                            \
   {                                                              \
     IFDBG(D_NONE, FN; STRLIT(" copy_app_data "); PTREXP(target); \
@@ -60,9 +56,5 @@ void follow(app_data_list l, app_data_ptr p);
 size_t app_data_size(app_data const *a);
 size_t app_data_list_size(app_data const *a);
 unsigned long msg_count(app_data_ptr a);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

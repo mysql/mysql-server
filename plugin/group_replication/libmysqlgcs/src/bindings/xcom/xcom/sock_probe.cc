@@ -36,9 +36,9 @@
 #include "xdr_gen/xcom_vp.h"
 
 #ifdef _WIN32
-#include "xcom/sock_probe_win32.c"
+#include "xcom/sock_probe_win32.cc"
 #else
-#include "xcom/sock_probe_ix.c"
+#include "xcom/sock_probe_ix.cc"
 #endif
 
 /* compare two sockaddr */

@@ -32,10 +32,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef SSL_SUCCESS
 #define SSL_SUCCESS 1
 #define SSL_ERROR 0
@@ -185,8 +181,5 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname);
 extern SSL_CTX *server_ctx;
 extern SSL_CTX *client_ctx;
 
-#ifdef __cplusplus
-}
-#endif
 #endif /* !XCOM_WITHOUT_OPENSSL */
 #endif /* XCOM_SSL_TRANSPORT_H */

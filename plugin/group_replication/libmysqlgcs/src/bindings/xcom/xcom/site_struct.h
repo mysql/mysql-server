@@ -26,10 +26,6 @@
 #include "xcom/server_struct.h"
 #include "xcom/xcom_detector.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct site_def {
   synode_no start;    /* Config is active from this message number */
   synode_no boot_key; /* The message number of the original unified_boot */
@@ -47,9 +43,5 @@ struct site_def {
   xcom_event_horizon event_horizon;
 };
 typedef struct site_def site_def;
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

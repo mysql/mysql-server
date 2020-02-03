@@ -25,10 +25,6 @@
 
 #include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/x_platform.h"
 
 #ifdef TASK_DBUG_ON
@@ -312,7 +308,7 @@ extern uint32_t get_my_xcom_id();
   ADD_GOUT(__func__);                                               \
   ADD_F_GOUT(" pid %d xcom_id %x %s:%d ", xpid(), get_my_xcom_id(), \
              fixpath(__FILE__), __LINE__)
-#define PTREXP(x) ADD_F_GOUT(#x ": %p ", (void *)(x))
+#define PTREXP(x) ADD_F_GOUT(#x ": %p ", (void const*)(x))
 #define CONSTPTREXP(x) PTREXP(x)
 #define PPUT(x) ADD_F_GOUT("0x%p ", (void *)(x))
 #define STREXP(x) ADD_F_GOUT(#x ": %s ", x)
@@ -338,7 +334,4 @@ extern uint32_t get_my_xcom_id();
 #define TIMECEXP(exp) ADD_F_GOUT(#exp "=%f sec ", (exp))
 #define BALCEXP(exp) ADD_F_GOUT(#exp "={%d %d} ", (exp).cnt, (exp).node)
 
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 #endif /* GCS_DEBUG_H */

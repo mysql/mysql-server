@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,47 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef XCOM_CFG_H
-#define XCOM_CFG_H
+#include "xcom/xdr_checked_data.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-#include "xdr_gen/xcom_vp.h"
-
-typedef struct cfg_app_xcom {
+/* Encode and decode a application data with added check that there is enough
+ * data when decoding */
+bool_t xdr_checked_data(XDR *xdrs, checked_data *objp) {
   /*
-   The number of spin loops the XCom thread does before
-   blocking on the poll system call.
+          Sanity check. x_handy is number of remaining bytes. For old XDR,
+          x_handy is int type. So type cast is used to eliminate a warning.
   */
-  unsigned int m_poll_spin_loops;
-
-  /*
-   cache size limit and interval
-  */
-  uint64_t m_cache_limit;
-
-  /*
-   The (address, incarnation) pair that uniquely identifies this XCom instance.
-  */
-  node_address *identity;
-} cfg_app_xcom_st;
-
-/*
- The application will set this pointer before engaging
- xcom
-*/
-extern cfg_app_xcom_st *the_app_xcom_cfg;
-
-void init_cfg_app_xcom();
-void deinit_cfg_app_xcom();
-
-node_address *cfg_app_xcom_get_identity();
-
-/*
- Takes ownership of @c identity.
-
- @param identity The unique identity of this XCom instance. Must not be null.
-*/
-void cfg_app_xcom_set_identity(node_address *identity);
-
-#endif
+  if (xdrs->x_op == XDR_DECODE && (objp->data_len + 4) > (u_int)xdrs->x_handy)
+    return FALSE;
+  return xdr_bytes(xdrs, (char **)&objp->data_val, (u_int *)&objp->data_len,
+                   0xffffffff);
+}

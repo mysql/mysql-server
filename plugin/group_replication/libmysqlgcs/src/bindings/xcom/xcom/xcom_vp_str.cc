@@ -23,10 +23,6 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* purecov: begin deadcode */
 const char *delivery_status_to_str(delivery_status x) {
   switch (x) {
@@ -222,7 +218,3 @@ const char *xcom_proto_to_str(xcom_proto x) {
   }
 }
 /* purecov: end */
-
-#ifdef __cplusplus
-}
-#endif

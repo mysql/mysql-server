@@ -26,10 +26,6 @@
 #include "xcom/site_struct.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef PAX_MSG_SANITY_CHECK
 #define PAX_MSG_SANITY_CHECK(p)                      \
   {                                                  \
@@ -68,9 +64,5 @@ void unchecked_replace_pax_msg(pax_msg **target, pax_msg *p);
     PAX_MSG_SANITY_CHECK(p);              \
     unchecked_replace_pax_msg(target, p); \
   }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

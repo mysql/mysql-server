@@ -27,8 +27,8 @@
 %#include "xcom/xcom_limits.h"
 %#include "xcom/xcom_profile.h"
 #ifdef RPC_XDR
-%#include "xcom/synode_no.h"
-%#include "xcom/xcom_base.h"
+%extern synode_no const null_synode;
+%extern synode_no get_delivered_msg();
 #endif
 
 /*

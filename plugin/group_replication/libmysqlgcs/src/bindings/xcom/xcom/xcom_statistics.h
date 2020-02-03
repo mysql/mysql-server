@@ -28,10 +28,6 @@
 #include "xcom/task_arg.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern uint64_t send_count[LAST_OP];
 extern uint64_t receive_count[LAST_OP];
 extern uint64_t send_bytes[LAST_OP];
@@ -40,9 +36,5 @@ extern uint64_t receive_bytes[LAST_OP];
 double median_time();
 void add_to_filter(double t);
 void median_filter_init();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

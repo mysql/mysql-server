@@ -28,10 +28,6 @@
 #include <stdio.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef _WIN32
 #include <netdb.h>
 #endif
@@ -97,6 +93,7 @@ void init_xcom_base();
 uint32_t new_id();
 synode_no get_boot_key();
 site_def const *get_executor_site();
+site_def *get_executor_site_rw();
 site_def const *get_proposer_site();
 synode_no get_current_message();
 void start_run_tasks();
@@ -472,7 +469,7 @@ static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #define XCOM_COMMS_OK 0
 void set_xcom_comms_cb(xcom_state_change_cb x);
 
-synode_no get_delivered_msg();
+extern "C" synode_no get_delivered_msg();
 void set_max_synode_from_unified_boot(synode_no unified_boot_synode);
 void send_x_fsm_complete();
 synode_no get_default_start(app_data_ptr a);
@@ -487,9 +484,5 @@ void set_log_end(gcs_snapshot *gcs);
   } while (0)
 
 int pm_finished(pax_machine *p);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

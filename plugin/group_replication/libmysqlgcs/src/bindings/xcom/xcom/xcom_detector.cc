@@ -161,14 +161,14 @@ void update_detected(site_def *site) {
   }
 }
 
-int enough_live_nodes(site_def const *site) {
+int enough_live_nodes(site_def *site) {
   node_no i = 0;
   double t = task_now();
   node_no n = 0;
   node_no maxnodes = get_maxnodes(site);
   node_no self = get_nodeno(site);
 
-  update_detected((site_def *)site);
+  update_detected(site);
 
   /* IFDBG(D_DETECT, FN; NDBG(maxnodes,d); );*/
   if (maxnodes == 0) return 0;
@@ -286,10 +286,10 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
   IFDBG(D_DETECT, FN;);
   while (!xcom_shutdown) {
     {
-      site_def *x_site = (site_def *)get_executor_site();
+      site_def *x_site = get_executor_site_rw();
 #if TASK_DBUG_ON
-      site_def *p_site = (site_def *)get_proposer_site();
-      if (!p_site) p_site = (site_def *)get_site_def();
+      site_def const *p_site = get_proposer_site();
+      if (!p_site) p_site = get_site_def();
 #endif
 
       IFDBG(D_DETECT, FN; SYCEXP(executed_msg); SYCEXP(max_synode));

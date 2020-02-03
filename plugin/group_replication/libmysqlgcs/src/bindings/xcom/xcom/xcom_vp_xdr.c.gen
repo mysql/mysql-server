@@ -23,8 +23,8 @@
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_0 (XDR *xdrs, xcom_proto *objp)
 {
@@ -652,8 +652,8 @@ xdr_pax_msg_1_0 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_1 (XDR *xdrs, xcom_proto *objp)
 {
@@ -1277,8 +1277,8 @@ xdr_pax_msg_1_1 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_2 (XDR *xdrs, xcom_proto *objp)
 {
@@ -1901,8 +1901,8 @@ xdr_pax_msg_1_2 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_3 (XDR *xdrs, xcom_proto *objp)
 {
@@ -2520,8 +2520,8 @@ xdr_pax_msg_1_3 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_4 (XDR *xdrs, xcom_proto *objp)
 {
@@ -3142,8 +3142,8 @@ xdr_pax_msg_1_4 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_5 (XDR *xdrs, xcom_proto *objp)
 {
@@ -3764,8 +3764,8 @@ xdr_pax_msg_1_5 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_6 (XDR *xdrs, xcom_proto *objp)
 {
@@ -4382,8 +4382,8 @@ xdr_pax_msg_1_6 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto_1_7 (XDR *xdrs, xcom_proto *objp)
 {
@@ -4993,8 +4993,8 @@ xdr_pax_msg_1_7 (XDR *xdrs, pax_msg *objp)
 #include "xcom/xcom_vp_platform.h"
 #include "xcom/xcom_limits.h"
 #include "xcom/xcom_profile.h"
-#include "xcom/synode_no.h"
-#include "xcom/xcom_base.h"
+extern synode_no const null_synode;
+extern synode_no get_delivered_msg();
 bool_t
 xdr_xcom_proto (XDR *xdrs, xcom_proto *objp)
 {

@@ -23,10 +23,6 @@
 #ifndef X_PLATFORM_H
 #define X_PLATFORM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * Abstraction layer for lower level OS stuff needed
  */
@@ -302,10 +298,6 @@ typedef void *xcom_sockoptptr_t;
 #define NEWLINE "\r\n"
 #else
 #define NEWLINE "\n"
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

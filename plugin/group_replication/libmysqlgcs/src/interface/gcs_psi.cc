@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,7 +179,7 @@ static uint64_t current_count = 0;
 /**
   Reports to PSI the allocation of 'size' bytes of data.
 */
-extern "C" int psi_report_mem_alloc(size_t size) {
+int psi_report_mem_alloc(size_t size) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   PSI_thread *owner = nullptr;
   PSI_memory_key key = key_MEM_XCOM_xcom_cache;
@@ -197,7 +197,7 @@ extern "C" int psi_report_mem_alloc(size_t size) {
 /**
   Reports to PSI the deallocation of 'size' bytes of data.
 */
-extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
+void psi_report_mem_free(size_t size, int is_instrumented) {
   if (!is_instrumented) {
     return;
   }
@@ -213,4 +213,4 @@ extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
   we have allocated data that has not been deallocated (or has not been
   reported as deallocated).
 */
-extern "C" void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }
+void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }

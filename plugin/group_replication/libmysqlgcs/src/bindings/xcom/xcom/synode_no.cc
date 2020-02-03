@@ -34,6 +34,8 @@
 #include "xcom/xdr_utils.h"
 #include "xdr_gen/xcom_vp.h"
 
+synode_no const null_synode = NULL_SYNODE;
+
 int synode_eq(synode_no x, synode_no y) {
   return x.group_id == y.group_id && x.msgno == y.msgno && x.node == y.node;
 }

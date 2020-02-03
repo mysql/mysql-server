@@ -25,10 +25,6 @@
 
 #include "xcom/xcom_limits.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define DETECTOR_LIVE_TIMEOUT 5.0
 
 typedef double detector_state[NSERVERS];
@@ -41,9 +37,5 @@ void init_detector(detector_state ds);
 void invalidate_detector_sites(struct site_def *site);
 void update_detected(struct site_def *site);
 void send_global_view();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

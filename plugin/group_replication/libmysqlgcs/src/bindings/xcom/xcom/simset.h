@@ -23,10 +23,6 @@
 #ifndef SIMSET_H
 #define SIMSET_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
@@ -170,9 +166,5 @@ static inline int cardinal(linkage *self) {
   return n;
 }
 /* purecov: end */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

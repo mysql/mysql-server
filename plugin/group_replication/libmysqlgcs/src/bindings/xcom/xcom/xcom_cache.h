@@ -29,10 +29,6 @@
 #include "xcom/xcom_profile.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
 We require that the number of elements in the cache is big enough enough that
 it is always possible to find instances that are not busy.
@@ -166,9 +162,5 @@ enum {
   CACHE_RESULT_LOW = 4,
   CACHE_INCREASING = 5
 };
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -26,10 +26,6 @@
 #include "xcom/site_struct.h"
 #include "xcom/xcom_cache.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void deliver_view_msg(site_def const *site);
 void deliver_global_view_msg(site_def const *site, synode_no message_id);
 
@@ -70,9 +66,5 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
 void deliver_config(app_data_ptr a);
 
 void deinit_xcom_interface();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

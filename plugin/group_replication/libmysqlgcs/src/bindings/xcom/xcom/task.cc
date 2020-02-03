@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  \file task.c
+  \file task.cc
   Rudimentary, non-preemptive task system in portable C,
   based on Tom Duff's switch-based coroutine trick
   and a stack of environment structs. (continuations?)

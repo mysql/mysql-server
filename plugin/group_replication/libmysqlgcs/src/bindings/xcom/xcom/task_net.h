@@ -26,10 +26,6 @@
 #include "xcom/result.h"
 #include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 result xcom_checked_socket(int domain, int type, int protocol);
 struct addrinfo *xcom_caching_getaddrinfo(char const *server);
 int checked_getaddrinfo(const char *nodename, const char *servname,
@@ -43,9 +39,5 @@ void deinit_network_cache();
 
 int init_net();
 int deinit_net();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

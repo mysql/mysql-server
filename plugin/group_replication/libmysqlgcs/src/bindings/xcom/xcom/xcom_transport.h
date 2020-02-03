@@ -25,10 +25,6 @@
 
 #include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define XDR_INT_SIZE 4
 #define MSG_HDR_SIZE (3 * XDR_INT_SIZE)
 
@@ -231,9 +227,5 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
 #define INITIAL_CONNECT_WAIT 0.1
 #define MAX_CONNECT_WAIT 1.0
 #define CONNECT_WAIT_INCREASE 1.1
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -25,10 +25,6 @@
 
 #include "xcom/xcom_common.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "xcom/xcom_os_layer.h"
 
 struct sock_probe;
@@ -44,9 +40,5 @@ node_no xcom_mynode_match(char *name, xcom_port port);
 typedef int (*port_matcher)(xcom_port if_port);
 void set_port_matcher(port_matcher x);
 port_matcher get_port_matcher();
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

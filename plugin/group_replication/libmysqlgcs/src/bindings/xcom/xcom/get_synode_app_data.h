@@ -25,10 +25,6 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  Error code for the xcom_get_synode_app_data command.
  */
@@ -56,9 +52,5 @@ typedef enum {
  */
 xcom_get_synode_app_data_result xcom_get_synode_app_data(
     synode_no_array const *const synodes, synode_app_data_array *const reply);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* GET_SYNODE_APP_DATA_H */

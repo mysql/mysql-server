@@ -23,9 +23,6 @@
 #ifndef ERR_DUMP_H
 #define ERR_DUMP_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include <string.h>
 
 #include "xcom/result.h"
@@ -44,9 +41,5 @@ static inline void task_dump_err(int err) {
 #endif
   }
 }
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

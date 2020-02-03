@@ -25,10 +25,6 @@
 
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 node_list clone_node_list(node_list list);
 char *dbg_list(node_list const *nodes);
 void init_node_list(u_int n, node_address *names, node_list *nodes);
@@ -47,9 +43,5 @@ node_list null_node_list();
 blob clone_blob(blob const b);
 blob *clone_blob_ptr(blob const *b);
 uint32_t chksum_node_list(node_list const *nodes);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file sock_probe_win32.c
+  @file sock_probe_win32.cc
   Utility functions to check if a network address or name matches an
   interface on the machine we are running on. This is useful to deduce
   the node number from a list of network addresses or names. The node

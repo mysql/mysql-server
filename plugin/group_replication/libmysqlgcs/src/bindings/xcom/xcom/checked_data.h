@@ -25,10 +25,6 @@
 
 #include "xdr_gen/xcom_vp.h" /* checked_data */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  Creates a copy of the given checked_data.
 
@@ -39,9 +35,5 @@ extern "C" {
  */
 bool_t copy_checked_data(checked_data *const to,
                          checked_data const *const from);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CHECKED_DATA_H */

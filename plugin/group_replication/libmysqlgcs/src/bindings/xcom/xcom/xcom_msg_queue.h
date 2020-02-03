@@ -27,10 +27,6 @@
 #include "xcom/task.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* Helper struct used for putting messages in a queue */
 struct msg_link {
   linkage l;
@@ -48,9 +44,5 @@ void init_link_list();
 void msg_link_delete(msg_link **link_p);
 void shrink_msg_list(linkage *l, int n);
 void shrink_msg_channel(channel *c, int n);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
