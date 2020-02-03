@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,7 +156,8 @@ bool Ndb_util_table::open(bool reload_table) {
 
   const NdbDictionary::Table *tab = m_table_guard.get_table();
   if (!tab) {
-    push_warning("Failed to open table from NDB");
+    push_warning("Failed to open table %s.%s from NDB", m_db_name.c_str(),
+                 m_table_name.c_str());
     return false;
   }
 
@@ -577,7 +578,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
 
   Ndb_local_connection mysqld(m_thd);
   if (mysqld.create_util_table(m_util_table.define_table_dd())) {
-    ndb_log_error("Failed to create table defintion for '%s' in DD",
+    ndb_log_error("Failed to create table definition for '%s' in DD",
                   m_name.c_str());
     return false;
   }
