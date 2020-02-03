@@ -20,6 +20,7 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 --let $output_file = $MYSQLTEST_VARDIR/tmp/gr-checksum-dump-file
+--let $_binlog_compression_enable= `SELECT @@GLOBAL.binlog_transaction_compression`
 
 
 --echo
@@ -93,6 +94,9 @@ INSERT INTO t1 VALUES (1);
 
 --let $assert_file= $output_file
 --let $assert_count = 17
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 18
+}
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums
 --source include/assert_grep.inc
@@ -110,6 +114,9 @@ INSERT INTO t1 VALUES (1);
 
 --let $assert_file= $output_file
 --let $assert_count = 17
+if ($_binlog_compression_enable == 1) {
+  --let $assert_count = 18
+}
 --let $assert_select = .*CRC32 0x\w+.*
 --let $assert_text = binary log have checksums
 --source include/assert_grep.inc
