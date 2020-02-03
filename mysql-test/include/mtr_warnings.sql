@@ -252,6 +252,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] Unable to announce tcp port .*. Port already in use\\?"),
  ("\\[GCS\\] Error joining the group while waiting for the network layer to become ready."),
  ("\\[GCS\\] The member was unable to join the group. Local port: .*"),
+ ("Shutting down an outgoing connection. This happens because something might be wrong .*"),
  ("Member with address .* has become unreachable."),
  ("This server is not able to reach a majority of members in the group.*"),
  ("Member with address .* is reachable again."),

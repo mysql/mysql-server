@@ -106,6 +106,41 @@ int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info);
 int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
 struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved);
 
+/**
+ * @brief Process incoming are_you_alive (i.e.: ping) messages and act
+ * accordingly
+ *
+ * GCS/XCom has a full mesh of connections between all nodes. A connects to B
+ * and B connects back to A.
+ *
+ * If we cut out B with, for instance, a firewall, we have the A->B connection
+ * silently dead, but we have the B->A connection alive. Since we only do
+ * monitoring on one half of the connection (the incoming messages), we will
+ * consider that B is alive, although we can't contact it. In the same way, B
+ * will consider that A is dead, since it does not receive any message from it.
+ *
+ * We must be able to break the outgoing connection if we detect that something
+ * is wrong, in order to make the bi-directional connection state consistent and
+ * report that node as unreachable. That can be done if we start receiving
+ * pings from a node that we consider that it is alive. After some pings,
+ * we just kill the outgoing connection, thus creating a consistent state.
+ *
+ * Breaking this connection should only occur if the node has already booted,
+ * meaning that the whole joining process is complete and the node is up and
+ * running. This is due to the fact that we receive pings as part of the
+ * process of joining a group.
+ *
+ * @param site current site definitions
+ * @param pm a possible ping message:
+ * @param has_client_already_booted check if this node has already booted
+ * @param current_time current XCom time
+ *
+ * @return int 1 if the node connection is closed. 0, otherwise.
+ */
+int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
+                              int has_client_already_booted,
+                              double current_time);
+
 #define RESET_CLIENT_MSG              \
   if (ep->client_msg) {               \
     msg_link_delete(&ep->client_msg); \
@@ -377,9 +412,8 @@ void init_propose_msg(pax_msg *p);
  */
 pax_msg *handle_simple_accept(pax_machine *p, pax_msg *m, synode_no synode);
 /**
- * Process the incoming acknowledge from an Acceptor to a sent Accept, as in the
- * message for Phase 2 (b) of the Paxos protocol.
- * Executed by Proposers.
+ * Process the incoming acknowledge from an Acceptor to a sent Accept, as in
+ * the message for Phase 2 (b) of the Paxos protocol. Executed by Proposers.
  *
  * @param site XCom configuration
  * @param p Paxos instance

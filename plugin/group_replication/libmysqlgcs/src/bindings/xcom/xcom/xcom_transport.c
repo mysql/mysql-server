@@ -561,8 +561,11 @@ static server *mksrv(char *srv, xcom_port port) {
   reset_connection(&s->con);
   s->active = 0.0;
   s->detected = 0.0;
+  s->last_ping_received = 0.0;
+  s->number_of_pings_received = 0;
   channel_init(&s->outgoing, TYPE_HASH("msg_link"));
   IFDBG(D_NONE, FN; STREXP(srv); NDBG(port, d));
+
   if (xcom_mynode_match(srv, port)) { /* Short-circuit local messages */
     IFDBG(D_NONE, FN; STRLIT("creating local sender"); STREXP(srv);
           NDBG(port, d));
@@ -1645,6 +1648,15 @@ void update_servers(site_def *s, cargo_type operation) {
         if (sp) {
           G_INFO("Re-using server node %d host %s", i, name);
           s->servers[i] = sp;
+
+          /*
+          Reset ping counters to make sure that we clear this state between
+          different configurations. It is an assumption that at least in this
+          point, every node is working fine.
+          */
+          s->servers[i]->last_ping_received = 0.0;
+          s->servers[i]->number_of_pings_received = 0;
+
           free(name);
           if (sp->invalid) sp->invalid = 0;
         } else { /* No server? Create one */

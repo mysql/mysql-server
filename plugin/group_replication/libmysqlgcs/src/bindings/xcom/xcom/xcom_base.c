@@ -4195,10 +4195,57 @@ void init_need_boot_op(pax_msg *p, node_address *identity) {
   }
 }
 
+#define PING_GATHERING_TIME_WINDOW 5.0
+#define PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN 3
+
+int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
+                              int has_client_already_booted,
+                              double current_time) {
+  // Yes... it is a ping for me, boot is done and it is a are_you_alive_op
+  // This means that something wrong is not right...
+  int did_shutdown = 0;
+
+  if ((pm->from != get_nodeno(site)) && has_client_already_booted &&
+      (pm->op == are_you_alive_op)) {
+    G_DEBUG(
+        "Received a ping to myself. This means that something must be wrong in "
+        "a bi-directional connection")
+    // Going to kill the connection for that node...
+    if (site && (pm->from < site->nodes.node_list_len)) {
+      // This is not the first ping received in the last 5 seconds...
+      if (site->servers[pm->from]->last_ping_received >
+          (current_time - PING_GATHERING_TIME_WINDOW)) {
+        site->servers[pm->from]->number_of_pings_received++;
+      } else {  // First ping since at least more than 5 seconds...
+        site->servers[pm->from]->number_of_pings_received = 1;
+      }
+
+      site->servers[pm->from]->last_ping_received = current_time;
+
+      // If we keep on receiving periodical pings... lets kill the connection
+      if (is_connected(&site->servers[pm->from]->con) &&
+          site->servers[pm->from]->number_of_pings_received ==
+              PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN) {
+        shutdown_connection(&site->servers[pm->from]->con);
+        G_WARNING(
+            "Shutting down an outgoing connection. This happens because "
+            "something might be wrong on a bi-directional connection to node "
+            "%s:%d. Please check the connection status to this member",
+            site->servers[pm->from]->srv, site->servers[pm->from]->port);
+        did_shutdown = 1;
+      }
+    }
+  }
+
+  return did_shutdown;
+}
+
 /* Handle incoming alive message */
 static double sent_alive = 0.0;
 static inline void handle_alive(site_def const *site, linkage *reply_queue,
                                 pax_msg *pm) {
+  pre_process_incoming_ping(site, pm, client_boot_done, task_now());
+
   if (client_boot_done || !(task_now() - sent_alive > 1.0)) /* Already done? */
     return;
 
@@ -4553,7 +4600,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
     in_front = 0;
   }
 
-  if (dsite && p->op != client_msg) {
+  if (dsite && p->op != client_msg && is_server_connected(dsite, p->from)) {
     /* Wake up the detector task if this node was previously marked as
      * potentially failed. */
     if (!note_detected(dsite, p->from)) task_wakeup(&detector_wait);
@@ -5083,7 +5130,8 @@ again:
             add_event(EVENT_DUMP_PAD, uint_arg(ep->p->from));
             add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->p->op))););
 
-    if (ep->srv && !ep->srv->invalid && ((int)ep->p->op != (int)client_msg))
+    if (ep->srv && !ep->srv->invalid && ((int)ep->p->op != (int)client_msg) &&
+        is_connected(&ep->srv->con))
       server_detected(ep->srv);
 
     if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {

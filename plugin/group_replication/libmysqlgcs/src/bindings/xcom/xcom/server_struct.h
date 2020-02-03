@@ -52,6 +52,8 @@ struct server {
   task_env *reply_handler;   /* The reply task */
   srv_buf out_buf;
   int invalid;
+  int number_of_pings_received; /* Number of pings received from this server */
+  double last_ping_received;    /* Last received ping timestamp */
 };
 
 typedef struct server server;

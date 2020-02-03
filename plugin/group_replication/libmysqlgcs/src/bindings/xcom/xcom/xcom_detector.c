@@ -86,6 +86,29 @@ int note_detected(site_def const *site, node_no node) {
   return retval;
 }
 
+/**
+ * @brief States if a server is still physically connected to another server.
+ * This will test the connection state to that node.
+ *
+ * @param site site definition that contains the server collections.
+ * @param node node index that we want to test for connectivity
+ *
+ * @return 1 if the server is connected. 0 otherwise.
+ */
+int is_server_connected(struct site_def const *site, node_no node) {
+  int retval = 0;
+
+  if (site) {
+    if (get_nodeno(site) == node) {  // Me to myself... i'm always connected
+      retval = 1;
+    } else if (node < site->nodes.node_list_len) {
+      retval = is_connected(&site->servers[node]->con);
+    }
+  }
+
+  return retval;
+}
+
 static void reset_detected(site_def const *site, u_int node) {
   IFDBG(D_DETECT, FN; PTREXP(site); NDBG(node, d););
   /* site->servers's size is NSERVERS. */
