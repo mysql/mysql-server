@@ -4097,6 +4097,14 @@ static void dd_commit_inplace_instant(Alter_inplace_info *ha_alter_info,
       dd_commit_inplace_no_change(old_dd_tab, new_dd_tab, false);
       break;
     case Instant_Type::INSTANT_VIRTUAL_ONLY:
+      if (dd_find_column(&old_dd_tab->table(), FTS_DOC_ID_COL_NAME) &&
+          !dd_find_column(&new_dd_tab->table(), FTS_DOC_ID_COL_NAME)) {
+        dd::Column *col = dd_add_hidden_column(
+            &new_dd_tab->table(), FTS_DOC_ID_COL_NAME, FTS_DOC_ID_LEN,
+            dd::enum_column_types::LONGLONG);
+        dd_set_hidden_unique_index(new_dd_tab->table().add_index(),
+                                   FTS_DOC_ID_INDEX_NAME, col);
+      }
       dd_commit_inplace_no_change(old_dd_tab, new_dd_tab, true);
 
       if (!dd_table_is_partitioned(new_dd_tab->table()) ||
