@@ -1942,6 +1942,9 @@ bool binlog_cache_data::compress(THD *thd) {
     compressor->close();
 
     if ((error = m_cache.truncate(0))) goto compression_end;
+    // Since we deleted all events from the cache, we also need to
+    // reset event_counter.
+    event_counter = 0;
 
     // fill in the new transport event
     std::tie(buffer, size, std::ignore) = compressor->get_buffer();
