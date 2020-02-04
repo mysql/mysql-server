@@ -2770,6 +2770,30 @@ bool THD::secondary_storage_engine_eligible() const {
 }
 
 /**
+  Set the rewritten query (with passwords obfuscated etc.) on the THD.
+  Wraps this in the LOCK_thd_query mutex to protect against race conditions
+  with SHOW PROCESSLIST inspecting that string.
+
+  This uses swap() and therefore changes the argument in the caller.
+  That behavior is expected by (save|restore)_rlb() in sql_prepare.cc,
+  and harmless in sql_rewrite.cc. Using it elsewhere is almost certainly
+  wrong and must be reviewed with extreme prejudice. If in doubt, please
+  check with the runtime team.
+
+  @param query_arg  The rewritten query to use for slow/bin/general logging.
+                    The value will be changed in the caller.
+*/
+void THD::swap_rewritten_query(String &query_arg) {
+  DBUG_ASSERT(this == current_thd);
+
+  mysql_mutex_lock(&LOCK_thd_query);
+  m_rewritten_query.swap(query_arg);
+  // The rewritten query should always be a valid C string, just in case.
+  (void)m_rewritten_query.c_ptr_safe();
+  mysql_mutex_unlock(&LOCK_thd_query);
+}
+
+/**
   Restore session state in case of parse error.
 
   This is a clean up function that is invoked after the Bison generated
