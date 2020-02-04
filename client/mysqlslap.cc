@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1737,7 +1737,7 @@ extern "C" void *run_task(void *p) {
         if (!(mysql = mysql_init(nullptr))) {
           fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
                   mysql_error(mysql));
-          exit(0);
+          goto end;
         }
 
         if (slap_connect(mysql)) goto end;
@@ -1774,16 +1774,14 @@ extern "C" void *run_task(void *p) {
           if (run_query(mysql, buffer, length)) {
             fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n",
                     my_progname, (uint)length, buffer, mysql_error(mysql));
-            mysql_close(mysql);
-            exit(0);
+            goto end;
           }
         }
       } else {
         if (run_query(mysql, ptr->string, ptr->length)) {
           fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n", my_progname,
                   (uint)ptr->length, ptr->string, mysql_error(mysql));
-          mysql_close(mysql);
-          exit(0);
+          goto end;
         }
       }
 
