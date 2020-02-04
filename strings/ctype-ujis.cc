@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -35824,7 +35824,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state        */
     "ujis",                         /* cs name    */
     "ujis_japanese_ci",             /* name         */
-    "",                             /* comment      */
+    "EUC-JP Japanese",              /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */
     ctype_ujis,
@@ -35859,7 +35859,7 @@ CHARSET_INFO my_charset_ujis_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "ujis",                         /* cs name    */
     "ujis_bin",                     /* name         */
-    "",                             /* comment      */
+    "EUC-JP Japanese",              /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */
     ctype_ujis,

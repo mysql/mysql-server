@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6558,7 +6558,7 @@ CHARSET_INFO my_charset_gb2312_chinese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state      */
     "gb2312",                       /* cs name    */
     "gb2312_chinese_ci",            /* name */
-    "",                             /* comment    */
+    "GB2312 Simplified Chinese",    /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
     ctype_gb2312,
@@ -6593,7 +6593,7 @@ CHARSET_INFO my_charset_gb2312_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state      */
     "gb2312",                       /* cs name    */
     "gb2312_bin",                   /* name */
-    "",                             /* comment    */
+    "GB2312 Simplified Chinese",    /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
     ctype_gb2312,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -674,7 +674,7 @@ CHARSET_INFO my_charset_latin2_czech_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_CSSORT, /* state     */
     "latin2",                                       /* cs name   */
     "latin2_czech_cs",                              /* name      */
-    "",                                             /* comment   */
+    "ISO 8859-2 Central European",                  /* comment   */
     nullptr,                                        /* tailoring */
     nullptr,                                        /* coll_param */
     ctype_czech,

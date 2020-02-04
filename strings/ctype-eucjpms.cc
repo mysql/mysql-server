@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -36530,7 +36530,7 @@ CHARSET_INFO my_charset_eucjpms_japanese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY, /* state        */
     "eucjpms",                      /* cs name    */
     "eucjpms_japanese_ci",          /* name         */
-    "",                             /* comment      */
+    "UJIS for Windows Japanese",    /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */
     ctype_eucjpms,
@@ -36565,7 +36565,7 @@ CHARSET_INFO my_charset_eucjpms_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state        */
     "eucjpms",                      /* cs name    */
     "eucjpms_bin",                  /* name         */
-    "",                             /* comment      */
+    "UJIS for Windows Japanese",    /* comment      */
     nullptr,                        /* tailoring    */
     nullptr,                        /* coll_param   */
     ctype_eucjpms,

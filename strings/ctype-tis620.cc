@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -930,7 +930,7 @@ CHARSET_INFO my_charset_tis620_thai_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state     */
     "tis620",                                        /* cs name    */
     "tis620_thai_ci",                                /* name      */
-    "",                                              /* comment   */
+    "TIS-620 Thai",                                  /* comment   */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
     ctype_tis620,
@@ -965,7 +965,7 @@ CHARSET_INFO my_charset_tis620_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "tis620",                       /* cs name    */
     "tis620_bin",                   /* name      */
-    "",                             /* comment   */
+    "TIS-620 Thai",                 /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
     ctype_tis620,

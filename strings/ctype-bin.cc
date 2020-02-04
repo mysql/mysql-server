@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -514,7 +514,7 @@ CHARSET_INFO my_charset_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_PRIMARY, /* state */
     "binary",                                       /* cs name    */
     "binary",                                       /* name          */
-    "",                                             /* comment       */
+    "Binary pseudo charset",                        /* comment       */
     nullptr,                                        /* tailoring     */
     nullptr,                                        /* coll_param    */
     ctype_bin,                                      /* ctype         */

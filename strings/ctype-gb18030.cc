@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20426,7 +20426,7 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state         */
     "gb18030",                                       /* cs name       */
     "gb18030_chinese_ci",                            /* name          */
-    "",                                              /* comment       */
+    "China National Standard GB18030",               /* comment       */
     nullptr,                                         /* tailoring     */
     nullptr,                                         /* coll_param    */
     ctype_gb18030,                                   /* ctype         */
@@ -20457,34 +20457,34 @@ CHARSET_INFO my_charset_gb18030_chinese_ci = {
 CHARSET_INFO my_charset_gb18030_bin = {
     249,
     0,
-    0,                              /* number        */
-    MY_CS_COMPILED | MY_CS_BINSORT, /* state         */
-    "gb18030",                      /* cs name       */
-    "gb18030_bin",                  /* name          */
-    "",                             /* comment       */
-    nullptr,                        /* tailoring     */
-    nullptr,                        /* coll_param    */
-    ctype_gb18030,                  /* ctype         */
-    to_lower_gb18030,               /* lower         */
-    to_upper_gb18030,               /* UPPER         */
-    nullptr,                        /* sort order    */
-    nullptr,                        /* uca           */
-    nullptr,                        /* tab_to_uni    */
-    nullptr,                        /* tab_from_uni  */
-    &my_caseinfo_gb18030,           /* caseinfo      */
-    nullptr,                        /* state_map     */
-    nullptr,                        /* ident_map     */
-    1,                              /* strxfrm_multiply */
-    2,                              /* caseup_multiply  */
-    2,                              /* casedn_multiply  */
-    1,                              /* mbminlen      */
-    4,                              /* mbmaxlen      */
-    2,                              /* mbmaxlenlen   */
-    0,                              /* min_sort_char */
-    0xFEFEFEFE,                     /* max_sort_char */
-    ' ',                            /* pad char      */
-    true,                           /* escape_with_backslash_is_dangerous */
-    1,                              /* levels_for_compare */
+    0,                                 /* number        */
+    MY_CS_COMPILED | MY_CS_BINSORT,    /* state         */
+    "gb18030",                         /* cs name       */
+    "gb18030_bin",                     /* name          */
+    "China National Standard GB18030", /* comment       */
+    nullptr,                           /* tailoring     */
+    nullptr,                           /* coll_param    */
+    ctype_gb18030,                     /* ctype         */
+    to_lower_gb18030,                  /* lower         */
+    to_upper_gb18030,                  /* UPPER         */
+    nullptr,                           /* sort order    */
+    nullptr,                           /* uca           */
+    nullptr,                           /* tab_to_uni    */
+    nullptr,                           /* tab_from_uni  */
+    &my_caseinfo_gb18030,              /* caseinfo      */
+    nullptr,                           /* state_map     */
+    nullptr,                           /* ident_map     */
+    1,                                 /* strxfrm_multiply */
+    2,                                 /* caseup_multiply  */
+    2,                                 /* casedn_multiply  */
+    1,                                 /* mbminlen      */
+    4,                                 /* mbmaxlen      */
+    2,                                 /* mbmaxlenlen   */
+    0,                                 /* min_sort_char */
+    0xFEFEFEFE,                        /* max_sort_char */
+    ' ',                               /* pad char      */
+    true,                              /* escape_with_backslash_is_dangerous */
+    1,                                 /* levels_for_compare */
     &my_charset_gb18030_handler,
     &my_collation_mb_bin_handler,
     PAD_SPACE};

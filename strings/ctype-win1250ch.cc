@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -600,7 +600,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_CSSORT, /* state     */
     "cp1250",                                       /* cs name   */
     "cp1250_czech_cs",                              /* name      */
-    "",                                             /* comment   */
+    "Windows Central European",                     /* comment   */
     nullptr,                                        /* tailoring */
     nullptr,                                        /* coll_param */
     ctype_win1250ch,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5782,7 +5782,7 @@ CHARSET_INFO my_charset_utf8_general_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8",              /* cs name      */
     "utf8_general_ci",   /* name         */
-    "",                  /* comment      */
+    "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
@@ -5817,7 +5817,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE | MY_CS_LOWER_SORT,
     "utf8",              /* cs name      */
     "utf8_tolower_ci",   /* name         */
-    "",                  /* comment      */
+    "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
@@ -5852,7 +5852,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci = {
     MY_CS_COMPILED | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state            */
     "utf8",                                          /* cs name          */
     "utf8_general_mysql500_ci",                      /* name             */
-    "",                                              /* comment          */
+    "UTF-8 Unicode",                                 /* comment          */
     nullptr,                                         /* tailoring        */
     nullptr,                                         /* coll_param       */
     ctype_utf8,                                      /* ctype            */
@@ -5887,7 +5887,7 @@ CHARSET_INFO my_charset_utf8_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_STRNXFRM | MY_CS_UNICODE, /* state */
     "utf8",              /* cs name      */
     "utf8_bin",          /* name         */
-    "",                  /* comment      */
+    "UTF-8 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
     ctype_utf8,          /* ctype        */
@@ -7382,12 +7382,12 @@ static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
 
     if (wc > 0xFFFF) {
       /*
-       Put the highest byte only if it is non-zero,
-       to make hash functions for utf8mb3 and utf8mb4
-       compatible for BMP characters.
-       This is useful to keep order of records in
-       test results, e.g. for "SHOW GRANTS".
-     */
+        Put the highest byte only if it is non-zero,
+        to make hash functions for utf8mb3 and utf8mb4
+        compatible for BMP characters.
+        This is useful to keep order of records in
+        test results, e.g. for "SHOW GRANTS".
+       */
       ch = (wc >> 16) & 0xFF;
       tmp1 ^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
       tmp2 += 3;
