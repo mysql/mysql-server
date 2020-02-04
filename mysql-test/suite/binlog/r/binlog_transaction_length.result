@@ -1,0 +1,14 @@
+RESET MASTER;
+
+############################################################
+# 1. Run a transaction with 5 events: GTID, Begin, Table_map, Write_rows, Commit.
+#    When compressed it will only have 2 events: GTID, Transaction_Payload
+CREATE TABLE t1 (c1 INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+DROP TABLE t1;
+
+############################################################
+# 2. Assert that the transaction length is correct, with and without compression
+#    (which will be enabled on the MTR collection).
+Asserting all GTID transaction length information in 'binlog.000001'
+Inspected 3 transactions, all with correct transaction length.
