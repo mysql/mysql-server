@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,6 +93,26 @@ dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
 }
 
 bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
+  // Check the version set in the SDI that has been passed in
+  dd::RJ_Document doc;
+  doc.Parse<0>(sdi.c_str());
+  if (doc.HasParseError()) {
+    return true;
+  }
+  dd::RJ_Value &sdi_version_val = doc["sdi_version"];
+  const std::uint64_t sdi_version = sdi_version_val.GetUint64();
+  if (sdi_version != dd::SDI_VERSION) {
+    // The version of the SDI passed in does not match the current version which
+    // causes the subsequent deserialization to fail. Workaround the problem by
+    // setting the version to the current version.
+    sdi_version_val.SetUint64(dd::SDI_VERSION);
+    dd::RJ_StringBuffer buf;
+    MinifyWriter w(buf);
+    if (!doc.Accept(w)) {
+      return true;
+    }
+    return dd::deserialize(thd, buf.GetString(), table);
+  }
   return dd::deserialize(thd, sdi, table);
 }
 
