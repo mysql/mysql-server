@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -1816,6 +1816,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   bool is_privileged_user= false;
   bool rollback_whole_statement= false;
   std::set<LEX_USER *> extra_users;
+  std::set<LEX_USER *> reset_users;
   Acl_table_intact table_intact;
 
   DBUG_ENTER("mysql_alter_user");
@@ -1957,6 +1958,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
                   false);
       continue;
     }
+    if (what_to_alter & RESOURCE_ATTR)
+      reset_users.insert(tmp_user_from);
     some_user_altered= true;
     update_sctx_cache(thd->security_context(), acl_user,
                       user_from->alter_status.update_password_expired_column);
@@ -2008,7 +2011,17 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
                                    rollback_whole_statement);
 
   if (some_user_altered && !result)
+  {
+    std::set<LEX_USER *>::iterator one_user;
+    LEX_USER *ext_user;
+    for (one_user= reset_users.begin(); one_user != reset_users.end(); one_user++)
+    {
+      LEX_USER *user= *one_user;
+      if ((ext_user= get_current_user(thd, user)))
+        reset_mqh(ext_user, false);
+    }
     acl_notify_htons(thd, thd->query().str, thd->query().length);
+  }
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
