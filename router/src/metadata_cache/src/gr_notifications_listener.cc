@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -457,7 +457,7 @@ void GRNotificationListener::Impl::set_mysqlx_wait_timeout(
 xcl::XError GRNotificationListener::Impl::ping(
     xcl::XSession &session) noexcept {
   xcl::XError out_error;
-  session.execute_stmt("xplugin", "ping", {}, &out_error);
+  session.execute_stmt("mysqlx", "ping", {}, &out_error);
 
   return out_error;
 }
