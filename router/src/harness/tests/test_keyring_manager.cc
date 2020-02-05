@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "common.h"
-#include "dim.h"
-#include "gtest/gtest.h"
 #include "keyring/keyring_manager.h"
-#include "keyring/keyring_memory.h"
-#include "random_generator.h"
-#include "test/helpers.h"
-
-#include <fstream>
-#include <set>
-#include <stdexcept>
 
 #ifndef _WIN32
 #include <sys/stat.h>
@@ -40,6 +30,17 @@
 #else
 #include <windows.h>
 #endif
+
+#include <fstream>
+#include <set>
+#include <stdexcept>
+
+#include "common.h"
+#include "dim.h"
+#include "gtest/gtest.h"
+#include "keyring/keyring_memory.h"
+#include "random_generator.h"
+#include "test/helpers.h"
 
 using namespace testing;
 
@@ -556,4 +557,9 @@ TEST(KeyringManager, regression) {
   EXPECT_TRUE(check_kr.check_unchanged());
 
   mysql_harness::reset_keyring();
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

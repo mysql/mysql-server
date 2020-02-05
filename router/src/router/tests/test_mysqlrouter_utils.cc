@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,10 +26,10 @@
  * Test free functions found in utils.cc
  */
 
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
 #include <cstdlib>
+
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "mysql/harness/filesystem.h"
 #include "mysqlrouter/utils.h"
@@ -251,4 +251,9 @@ TEST_F(StringFormatTest, Simple) {
             mysqlrouter::string_format("%d + %d = %d", 5, 5, 10));
   EXPECT_EQ(std::string("Spam is 5"),
             mysqlrouter::string_format("%s is %d", "Spam", 5));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

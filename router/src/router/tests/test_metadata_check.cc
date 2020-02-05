@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 */
 
 #include "mysqlrouter/utils.h"
-#include "router_test_helpers.h"
 
 #include <cstring>
 #include <sstream>
@@ -35,7 +34,7 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -44,6 +43,7 @@
 #include "cluster_metadata.h"
 #include "mysql_session_replayer.h"
 #include "mysqlrouter/mysql_session.h"
+#include "router_test_helpers.h"
 
 using ::testing::Return;
 using namespace testing;
@@ -382,3 +382,8 @@ INSTANTIATE_TEST_CASE_P(Quorum, MetadataQuorumOkTest,
                                           std::make_tuple("3", "3"),
                                           std::make_tuple("3", "5"),
                                           std::make_tuple("2", "2")));
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

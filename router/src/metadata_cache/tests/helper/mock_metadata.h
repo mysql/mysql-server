@@ -97,7 +97,7 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
   MockNG(const std::string &user, const std::string &password,
          int connect_timeout, int read_timeout, int connection_attempts,
          const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
-         const bool use_gr_notifications = false);
+         const bool use_cluster_notifications = false);
 
   /** @brief Destructor
    *

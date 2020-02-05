@@ -1610,7 +1610,7 @@ std::string ConfigGenerator::fetch_password_from_keyring(
   try {
     return mysql_harness::get_keyring()->fetch(username,
                                                kKeyringAttributePassword);
-  } catch (const std::out_of_range &e) {
+  } catch (const std::out_of_range &) {
     throw std::runtime_error(R"(Failed retrieving password for user ')"s +
                              username + R"(' from keyring:
 

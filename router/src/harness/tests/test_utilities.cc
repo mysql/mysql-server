@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,19 +24,6 @@
 
 #include "utilities.h"
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wundef"
-#endif
-
-////////////////////////////////////////
-// Third-party include files
-#include "gtest/gtest.h"
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
 ////////////////////////////////////////
 // Standard include files
 #include <cstring>
@@ -46,6 +33,19 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
+#endif
+
+////////////////////////////////////////
+// Third-party include files
+#include <gtest/gtest.h>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 using std::make_pair;
 using std::map;
@@ -117,4 +117,9 @@ TEST(TestUtilities, FindRangeFirst) {
   auto rng4 = find_range_first(assoc, "xyzzy");
   EXPECT_EQ(rng4.first, assoc.end());
   EXPECT_EQ(0, distance(rng4.first, rng4.second));
+}
+
+int main(int argc, char **argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

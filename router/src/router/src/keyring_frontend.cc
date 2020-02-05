@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ static std::pair<bool, std::string> master_key_file_prepare(
     } else {
       keyring_file_load(kf, keyring_filename, kf_key);
     }
-  } catch (const mysql_harness::decryption_error &e) {
+  } catch (const mysql_harness::decryption_error &) {
     // file is known, but our key doesn't match
     throw FrontendError(
         "master-key-file knows key-file, but key doesn't match.");
@@ -341,7 +341,7 @@ static std::pair<bool, std::string> master_key_reader_load(
     } else {
       return {false, kf_key};
     }
-  } catch (const FrontendError &e) {
+  } catch (const FrontendError &) {
     throw;
   } catch (const std::exception &e) {
     throw FrontendError(
@@ -446,11 +446,11 @@ static void cmd_master_rename(const std::string &master_keyring_filename,
 
   try {
     mkf.add_encrypted(new_key, mkf.get_encrypted(old_key));
-  } catch (const std::out_of_range &e) {
+  } catch (const std::out_of_range &) {
     throw FrontendError("old-key '" + old_key +
                         "' not found in master-key-file '" +
                         master_keyring_filename + "'");
-  } catch (const std::invalid_argument &e) {
+  } catch (const std::invalid_argument &) {
     throw FrontendError("new-key '" + new_key +
                         "' already exists in master-key-file '" +
                         master_keyring_filename + "'");

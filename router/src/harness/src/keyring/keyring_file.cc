@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,7 @@ void KeyringFile::load(const std::string &file_name, const std::string &key) {
     std::array<char, kKeyringFileSignature.size()> sig;
     try {
       file.read(sig.data(), sig.size());
-    } catch (const std::ios_base::failure &e) {
+    } catch (const std::ios_base::failure &) {
       throw std::runtime_error("Failure reading contents of keyring file " +
                                file_name);
     }

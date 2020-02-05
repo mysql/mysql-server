@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1208,7 +1208,7 @@ void MySQLRouter::prepare_command_options() noexcept {
           mysqlrouter::MySQLSession::parse_ssl_mode(
               ssl_mode);  // we only care if this succeeds
           bootstrap_options_["ssl_mode"] = ssl_mode;
-        } catch (const std::logic_error &e) {
+        } catch (const std::logic_error &) {
           throw std::runtime_error("Invalid value for --ssl-mode option");
         }
       },
