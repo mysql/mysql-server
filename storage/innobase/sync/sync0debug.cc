@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -40,6 +40,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stddef.h>
 #include <algorithm>
+#include <atomic>
 #include <iostream>
 #include <map>
 #include <string>
@@ -68,7 +69,7 @@ it may wait for this event */
 static os_event_t rw_lock_debug_event;
 
 /** This is set to true, if there may be waiters for the event */
-static bool rw_lock_debug_waiters;
+static std::atomic<bool> rw_lock_debug_waiters{false};
 
 /** The latch held by a thread */
 struct Latched {
@@ -1136,7 +1137,7 @@ void LatchDebug::init() UNIV_NOTHROW {
 
   rw_lock_debug_event = os_event_create("rw_lock_debug_event");
 
-  rw_lock_debug_waiters = FALSE;
+  rw_lock_debug_waiters.store(false, std::memory_order_relaxed);
 }
 
 /** Shutdown the latch debug checking
@@ -1176,24 +1177,40 @@ void rw_lock_debug_mutex_enter() {
       return;
     }
 
-    os_event_reset(rw_lock_debug_event);
-
-    rw_lock_debug_waiters = TRUE;
-
+    const auto sig_count = os_event_reset(rw_lock_debug_event);
+    /* We need to set rw_lock_debug_waiters to true AFTER we have reset the
+    event, and got the sig_count, as doing it in opposite order might mean that
+    we will miss the wakeup occurring in between, and will wait forever as our
+    latest sig_count value will indicate we are waiting for a next wakeup. */
+    rw_lock_debug_waiters.exchange(true, std::memory_order_acq_rel);
+    /* We need to make sure we read the state of the rw_lock_debug_mutex AFTER
+    we have set rw_lock_debug_waiters to true. Otherwise, if we might first
+    observe a latched mutex, then the other thread releases it without waking up
+    anyone, because we haven't yet set rw_lock_debug_waiters to true, and then
+    we go to os_event_wait_low() forever as there is no one to wake us up.*/
     if (0 == mutex_enter_nowait(&rw_lock_debug_mutex)) {
       return;
     }
 
-    os_event_wait(rw_lock_debug_event);
+    os_event_wait_low(rw_lock_debug_event, sig_count);
   }
 }
 
 /** Releases the debug mutex. */
 void rw_lock_debug_mutex_exit() {
   mutex_exit(&rw_lock_debug_mutex);
-
-  if (rw_lock_debug_waiters) {
-    rw_lock_debug_waiters = FALSE;
+  /* It is crucial that we read rw_lock_debug_waiters AFTER we have released
+  the rw_lock_debug_mutex. If we check it too soon, we might miss a thread
+  which decided to wait on the mutex we hold just after we have checked and
+  never wake it up.
+  Also, we want to establish a causal relation: if this thread sees
+  rw_lock_debug_waiters set to true, then the os_event_set() from this thread
+  happens after the thread setting rw_lock_debug_mutex to true has obtained the
+  sig_count from os_event_reset(). */
+  if (rw_lock_debug_waiters.exchange(false, std::memory_order_acq_rel)) {
+    /* We want the rw_lock_debug_waiter to be set to false BEFORE the call to
+    os_event_set() below. Otherwise we could overwrite true set by a new waiter
+    waiting for a new lock owner (note we have already released the mutex!) */
     os_event_set(rw_lock_debug_event);
   }
 }
