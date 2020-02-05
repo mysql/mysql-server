@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1331,6 +1331,13 @@ sub collect_one_test_case {
     return $tinfo;
   }
 
+  if ($tinfo->{'asan_need_debug'} && !$::debug_compiled_binaries) {
+    if ($::mysql_version_extra =~ /asan/) {
+      skip_test($tinfo, "Test needs debug binaries if built with ASAN.");
+      return $tinfo;
+    }
+  }
+
   if ($tinfo->{'ndb_test'}) {
     # This is a NDB test
     if ($::ndbcluster_enabled == 0) {
@@ -1479,6 +1486,7 @@ my @tags = (
   [ "include/force_myisam_default.inc", "myisam_test", 1 ],
 
   [ "include/big_test.inc",       "big_test",   1 ],
+  [ "include/asan_have_debug.inc","asan_need_debug", 1 ],
   [ "include/have_debug.inc",     "need_debug", 1 ],
   [ "include/have_ndb.inc",       "ndb_test",   1 ],
   [ "include/have_multi_ndb.inc", "ndb_test",   1 ],
