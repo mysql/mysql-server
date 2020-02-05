@@ -659,7 +659,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
 
 /** Try to read encryption metadata from an undo tablespace.
 @param[in]	fh		file handle of undo log file
-@param[in]  file_name file name
+@param[in]	file_name	file name
 @param[in]	space		undo tablespace
 @return DB_SUCCESS if success */
 static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
@@ -2918,8 +2918,7 @@ bool is_early_redo_undo_encryption_done() {
 /** Start purge threads. During upgrade we start
 purge threads early to apply purge. */
 void srv_start_purge_threads() {
-  /* Start purge threads only if they are not started
-  earlier. */
+  /* Start purge threads only if they are not started earlier. */
   if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
     return;
   }
@@ -3047,6 +3046,8 @@ void srv_start_threads_after_ddl_recovery() {
   /* Start and consume all GTIDs for recovered transactions. */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.start();
+
+  DBUG_EXECUTE_IF("crash_before_purge_thread", ut_ad(false););
 
   /* Now the InnoDB Metadata and file system should be consistent.
   Start the Purge thread */

@@ -2401,6 +2401,8 @@ void undo_rotate_default_master_key() {
     return;
   }
 
+  DBUG_EXECUTE_IF("skip_rotating_default_master_key", return;);
+
   undo::spaces->s_lock();
   for (auto undo_space : undo::spaces->m_spaces) {
     ut_ad(fsp_is_undo_tablespace(undo_space->id()));
