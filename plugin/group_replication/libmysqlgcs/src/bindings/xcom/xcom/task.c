@@ -778,8 +778,8 @@ static int poll_wait(int ms) {
     nfds.funerr = to_errno(GET_OS_ERR);
     if (!can_retry(nfds.funerr)) {
       task_dump_err(nfds.funerr);
-      INFO(FN; STRLIT("poll failed "); NUMEXP(nfds.val); NUMEXP(nfds.funerr);
-           NUMEXP(iot.nwait));
+      DBGOUT(FN; STRLIT("poll failed "); NUMEXP(nfds.val); NUMEXP(nfds.funerr);
+             NUMEXP(iot.nwait));
       break;
       /* abort(); */
     }
@@ -796,11 +796,11 @@ static int poll_wait(int ms) {
       if (interrupt || /* timeout ? */
           get_pollfd(&iot.fd, i).revents) {
         if (get_pollfd(&iot.fd, i).revents & POLLERR) {
-          INFO(FN; STRLIT("IO failed POLLERR "); NUMEXP(i);
-               NUMEXP(get_pollfd(&iot.fd, i).fd);
-               NUMEXP(get_pollfd(&iot.fd, i).events);
-               NUMEXP(get_pollfd(&iot.fd, i).revents); NUMEXP(i);
-               NUMEXP(iot.nwait););
+          DBGOUT(FN; STRLIT("IO failed POLLERR "); NUMEXP(i);
+                 NUMEXP(get_pollfd(&iot.fd, i).fd);
+                 NUMEXP(get_pollfd(&iot.fd, i).events);
+                 NUMEXP(get_pollfd(&iot.fd, i).revents); NUMEXP(i);
+                 NUMEXP(iot.nwait););
         }
         get_task_env_p(&iot.tasks, i)->interrupt = interrupt;
         poll_wakeup(i);

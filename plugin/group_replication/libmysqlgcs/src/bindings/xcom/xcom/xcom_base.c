@@ -3196,7 +3196,9 @@ static void x_execute(execute_context *xc) {
         SYCEXP(executed_msg); SYCEXP(xc->exit_synode); NDBG(xc->exit_flag, d));
   if (!is_cached(delivered_msg)) {
     /* purecov: begin deadcode */
+#ifdef TASK_EVENT_TRACE
     dump_task_events();
+#endif
     /* purecov: end */
   }
   assert(is_cached(delivered_msg) && "delivered_msg should have been cached");
@@ -3421,12 +3423,14 @@ static double wakeup_delay(double old) {
   } else {
     retval = old * 1.4142136; /* Exponential backoff */
   }
+  {
 #ifdef EXECUTOR_TASK_AGGRESSIVE_NO_OP
-  double const maximum_threshold = 1.0;
+    double const maximum_threshold = 1.0;
 #else
-  double const maximum_threshold = 3.0;
+    double const maximum_threshold = 3.0;
 #endif /* EXECUTOR_TASK_AGGRESSIVE_NO_OP */
-  while (retval > maximum_threshold) retval /= 1.31415926;
+    while (retval > maximum_threshold) retval /= 1.31415926;
+  }
   /* IFDBG(D_NONE, FN; NDBG(retval,d)); */
   return retval;
 }

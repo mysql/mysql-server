@@ -111,7 +111,7 @@ void reset_disjunct_servers(struct site_def const *old_site,
 static void dbg_detected(site_def *site) {
   u_int node;
 
-  if (site && site->servers) {
+  if (site) {
     for (node = 0; node < site->nodes.node_list_len; node++) {
       IFDBG(D_DETECT, FN; NDBG(node, d); NDBG(site->detected[node], f);
             NDBG(site->servers[node]->detected, f));
@@ -122,7 +122,7 @@ static void dbg_detected(site_def *site) {
 void update_detected(site_def *site) {
   u_int node;
 
-  if (site && site->servers) {
+  if (site) {
     bool_t changed = FALSE;
     for (node = 0; node < site->nodes.node_list_len; node++) {
       IFDBG(D_DETECT, FN; NDBG(node, d); NDBG(site->detected[node], f);
@@ -263,11 +263,11 @@ int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
   IFDBG(D_DETECT, FN;);
   while (!xcom_shutdown) {
     {
+      site_def *x_site = (site_def *)get_executor_site();
 #if TASK_DBUG_ON
       site_def *p_site = (site_def *)get_proposer_site();
       if (!p_site) p_site = (site_def *)get_site_def();
 #endif
-      site_def *x_site = (site_def *)get_executor_site();
 
       IFDBG(D_DETECT, FN; SYCEXP(executed_msg); SYCEXP(max_synode));
       IFDBG(D_DETECT, FN; PTREXP(p_site); NDBG(get_nodeno(p_site), u));
@@ -375,7 +375,9 @@ static void validate_update_configuration(site_def const *site,
 }
 
 /* Send alive messages periodically */
+#ifdef TASK_EVENT_TRACE
 static unsigned int dump = 0;
+#endif
 
 int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DECL_ENV

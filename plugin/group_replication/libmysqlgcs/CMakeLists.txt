@@ -156,16 +156,21 @@ IF(MSVC)
   # This disables signed/unsigned mismatch warnings
   # Compiler warning C4018.
   IF(WIN32_CLANG)
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "-Wno-sign-compare")
   ELSE()
-    ADD_COMPILE_FLAGS(${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+    ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
   ENDIF()
 ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
-  ADD_COMPILE_FLAGS(${XCOM_SOURCES} ${XCOM_SUN_RPCS} ${XCOM_RPCGEN_SOURCES}
+  ADD_COMPILE_FLAGS(
+    src/bindings/xcom/xcom/xcom_base.c
+    src/bindings/xcom/xcom/sock_probe.c
     COMPILE_FLAGS
-    "-Wno-unused-variable -Wno-unused-function -Wno-conversion -Wno-switch")
+    "-Wno-unused-function")
+  ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
+    COMPILE_FLAGS
+    "-Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-incompatible-pointer-types -Wno-unused-local-typedef")
   IF(SOLARIS)
     # rpcgen generates 'void bzero();'
     ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}

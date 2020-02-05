@@ -106,6 +106,10 @@ void set_xcom_debugger_check(xcom_debugger_check x) { xcom_debug_check = x; }
 
 void deliver_to_app(pax_machine *pma, app_data_ptr app,
                     delivery_status app_status) {
+  site_def const *site = 0;
+  int full_doit = xcom_full_receive_data != 0;
+  int doit = (xcom_receive_data != 0 && app_status == delivery_ok);
+
   if (app_status == delivery_ok) {
     if (!pma) {
       g_critical(
@@ -115,10 +119,6 @@ void deliver_to_app(pax_machine *pma, app_data_ptr app,
     }
     assert(pma && "pma must not be a null pointer");
   }
-
-  site_def const *site = 0;
-  int full_doit = xcom_full_receive_data != 0;
-  int doit = (xcom_receive_data != 0 && app_status == delivery_ok);
 
   if (!(full_doit || doit)) return;
 

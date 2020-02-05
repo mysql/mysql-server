@@ -222,15 +222,13 @@ static inline void pop_dbg() {
 #ifdef INFO
 #error "INFO already defined!"
 #else
-#define INFO(x)                              \
-  do {                                       \
-    if (IS_XCOM_DEBUG_WITH(XCOM_LOG_INFO)) { \
-      GET_GOUT;                              \
-      ADD_F_GOUT("%f ", task_now());         \
-      x;                                     \
-      PRINT_LOUT(XCOM_LOG_INFO);             \
-      FREE_GOUT;                             \
-    }                                        \
+#define INFO(x)                    \
+  do {                             \
+    GET_GOUT;                      \
+    ADD_F_GOUT("%f ", task_now()); \
+    x;                             \
+    PRINT_LOUT(XCOM_LOG_INFO);     \
+    FREE_GOUT;                     \
   } while (0)
 #endif
 
