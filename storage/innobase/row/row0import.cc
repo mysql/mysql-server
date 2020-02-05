@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -709,6 +709,7 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
   cfg->m_page_size.copy_from(m_page_size);
   cfg->m_n_indexes = m_indexes.size();
   cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(m_space_flags);
+  cfg->m_flags = m_table->flags;
 
   if (cfg->m_n_indexes == 0) {
     ib::error(ER_IB_MSG_938) << "No B+Tree found in tablespace";
