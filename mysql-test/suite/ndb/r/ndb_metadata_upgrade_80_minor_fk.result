@@ -1,0 +1,77 @@
+Backup restored
+Restart server 1 to trigger schema synchronization
+# restart
+SHOW TABLES;
+Tables_in_test
+child
+parent
+self_ref
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  UNIQUE KEY `p_ukc2` (`c2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM parent;
+c1	c2
+1	10
+2	20
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `c1` int DEFAULT NULL,
+  `c2` int DEFAULT NULL,
+  KEY `c_xc1` (`c1`),
+  KEY `c_xc2` (`c2`),
+  CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`),
+  CONSTRAINT `c_fk2` FOREIGN KEY (`c2`) REFERENCES `parent` (`c2`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+# Check foreign key constraints
+INSERT INTO parent VALUES (3, 30);
+DELETE FROM parent WHERE c1 = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+SELECT * FROM parent;
+c1	c2
+1	10
+2	20
+3	30
+INSERT INTO child VALUES (3, 30);
+INSERT INTO child VALUES (4, 40);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `c_fk1` FOREIGN KEY (`c1`) REFERENCES `parent` (`c1`) ON DELETE NO ACTION ON UPDATE NO ACTION)
+SELECT * FROM child;
+c1	c2
+1	10
+1	20
+2	10
+2	20
+3	30
+SHOW CREATE TABLE self_ref;
+Table	Create Table
+self_ref	CREATE TABLE `self_ref` (
+  `c1` int NOT NULL,
+  `c2` int DEFAULT NULL,
+  UNIQUE KEY `sr_ukc1` (`c1`),
+  KEY `sr_fk1` (`c2`),
+  CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM self_ref;
+c1	c2
+1	1
+2	1
+INSERT INTO self_ref VALUES (3, 2);
+INSERT INTO self_ref VALUES (4, 5);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`self_ref`, CONSTRAINT `sr_fk1` FOREIGN KEY (`c2`) REFERENCES `self_ref` (`c1`) ON DELETE CASCADE ON UPDATE SET DEFAULT)
+DELETE FROM self_ref WHERE c1 = 1;
+SELECT * FROM self_ref;
+c1	c2
+DROP TABLE child;
+DROP TABLE parent;
+DROP TABLE self_ref;
