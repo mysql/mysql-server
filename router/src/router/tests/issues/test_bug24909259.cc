@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,12 @@
 
 #include <gtest/gtest_prod.h>
 
+#include <fstream>
+#include <stdexcept>
+#include <string>
+
+#include <gmock/gmock.h>
+
 #include "dim.h"
 #include "keyring/keyring_manager.h"
 #include "keyring/keyring_memory.h"
@@ -38,12 +44,6 @@
 #include "random_generator.h"
 #include "router_app.h"
 #include "router_test_helpers.h"
-
-#include <fstream>
-#include <stdexcept>
-#include <string>
-
-#include "gmock/gmock.h"
 
 static mysql_harness::Path g_origin;
 
@@ -67,8 +67,6 @@ static std::string my_prompt_password(const std::string &,
   *num_password_prompts = *num_password_prompts + 1;
   return kTestKey;
 }
-
-using namespace std::placeholders;
 
 static void create_keyfile(const std::string &path) {
   mysql_harness::delete_file(path);
@@ -102,7 +100,9 @@ TEST(Bug24909259, PasswordPrompt_plain) {
 
   int num_password_prompts = 0;
   mysqlrouter::set_prompt_password(
-      std::bind(my_prompt_password, _1, &num_password_prompts));
+      [&num_password_prompts](const std::string &prompt) {
+        return my_prompt_password(prompt, &num_password_prompts);
+      });
 
   // metadata_cache
   mysql_harness::reset_keyring();
@@ -178,7 +178,9 @@ TEST(Bug24909259, PasswordPrompt_keyed) {
 
   int num_password_prompts = 0;
   mysqlrouter::set_prompt_password(
-      std::bind(my_prompt_password, _1, &num_password_prompts));
+      [&num_password_prompts](const std::string &prompt) {
+        return my_prompt_password(prompt, &num_password_prompts);
+      });
 
   // metadata_cache
   mysql_harness::reset_keyring();
