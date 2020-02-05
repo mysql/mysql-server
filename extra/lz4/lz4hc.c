@@ -881,26 +881,12 @@ LZ4HC_compress_generic (
 
 int LZ4_sizeofStateHC(void) { return (int)sizeof(LZ4_streamHC_t); }
 
-#ifndef _MSC_VER  /* for some reason, Visual fails the aligment test on 32-bit x86 :
-                   * it reports an aligment of 8-bytes,
-                   * while actually aligning LZ4_streamHC_t on 4 bytes. */
-static size_t LZ4_streamHC_t_alignment(void)
-{
-    struct { char c; LZ4_streamHC_t t; } t_a;
-    return sizeof(t_a) - sizeof(t_a.t);
-}
-#endif
 
 /* state is presumed correctly initialized,
  * in which case its size and alignment have already been validate */
 int LZ4_compress_HC_extStateHC_fastReset (void* state, const char* src, char* dst, int srcSize, int dstCapacity, int compressionLevel)
 {
     LZ4HC_CCtx_internal* const ctx = &((LZ4_streamHC_t*)state)->internal_donotuse;
-#ifndef _MSC_VER  /* for some reason, Visual fails the aligment test on 32-bit x86 :
-                   * it reports an aligment of 8-bytes,
-                   * while actually aligning LZ4_streamHC_t on 4 bytes. */
-    assert(((size_t)state & (LZ4_streamHC_t_alignment() - 1)) == 0);  /* check alignment */
-#endif
     if (((size_t)(state)&(sizeof(void*)-1)) != 0) return 0;   /* Error : state is not aligned for pointers (32 or 64 bits) */
     LZ4_resetStreamHC_fast((LZ4_streamHC_t*)state, compressionLevel);
     LZ4HC_init_internal (ctx, (const BYTE*)src);
@@ -970,11 +956,6 @@ LZ4_streamHC_t* LZ4_initStreamHC (void* buffer, size_t size)
     LZ4_streamHC_t* const LZ4_streamHCPtr = (LZ4_streamHC_t*)buffer;
     if (buffer == NULL) return NULL;
     if (size < sizeof(LZ4_streamHC_t)) return NULL;
-#ifndef _MSC_VER  /* for some reason, Visual fails the aligment test on 32-bit x86 :
-                   * it reports an aligment of 8-bytes,
-                   * while actually aligning LZ4_streamHC_t on 4 bytes. */
-    if (((size_t)buffer) & (LZ4_streamHC_t_alignment() - 1)) return NULL;  /* alignment check */
-#endif
     /* if compilation fails here, LZ4_STREAMHCSIZE must be increased */
     LZ4_STATIC_ASSERT(sizeof(LZ4HC_CCtx_internal) <= LZ4_STREAMHCSIZE);
     DEBUGLOG(4, "LZ4_initStreamHC(%p, %u)", LZ4_streamHCPtr, (unsigned)size);
