@@ -159,6 +159,8 @@ static bool initialize_ndbinfo(THD *thd) {
     failed = d->set_ndbinfo_schema_version(thd, MYSQL_VERSION_ID);
   }
 
+  ndbinfo_tables.delete_elements();
+
   // Commit the DD transaction
   return dd::end_transaction(thd, failed);
 }
