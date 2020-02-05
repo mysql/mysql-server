@@ -701,11 +701,14 @@ static void row_ins_foreign_trx_print(trx_t *trx) /*!< in: transaction */
     return;
   }
 
-  lock_mutex_enter();
-  n_rec_locks = lock_number_of_rows_locked(&trx->lock);
-  n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-  heap_size = mem_heap_get_size(trx->lock.lock_heap);
-  lock_mutex_exit();
+  {
+    /** lock_number_of_rows_locked() requires global exclusive latch, and so
+    does accessing trx_locks with trx->mutex */
+    locksys::Global_exclusive_latch_guard guard{};
+    n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+    n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
+    heap_size = mem_heap_get_size(trx->lock.lock_heap);
+  }
 
   trx_sys_mutex_enter();
 

@@ -86,6 +86,7 @@ struct lock_rec_t {
                      placed immediately after the
                      lock struct */
 
+  page_id_t get_page_id() const { return page_id_t(space, page_no); }
   /** Print the record lock into the given output stream
   @param[in,out]	out	the output stream
   @return the given output stream. */
@@ -128,7 +129,7 @@ bool lock_mode_is_next_key_lock(ulint mode) {
 UNIV_INLINE
 bool lock_rec_get_nth_bit(const lock_t *lock, ulint i);
 
-/** Lock struct; protected by lock_sys->mutex */
+/** Lock struct; protected by lock_sys latches */
 struct lock_t {
   /** transaction owning the lock */
   trx_t *trx;
@@ -612,26 +613,19 @@ struct RecID {
   @param[in]	lock		Record lock
   @param[in]	heap_no		Heap number in the page */
   RecID(const lock_t *lock, ulint heap_no)
-      : m_space_id(lock->rec_lock.space),
-        m_page_no(lock->rec_lock.page_no),
-        m_heap_no(static_cast<uint32_t>(heap_no)),
-        m_fold(lock_rec_fold(m_space_id, m_page_no)) {
-    ut_ad(m_space_id < UINT32_MAX);
-    ut_ad(m_page_no < UINT32_MAX);
-    ut_ad(m_heap_no < UINT32_MAX);
+      : RecID(lock->rec_lock.get_page_id(), heap_no) {
+    ut_ad(lock->is_record_lock());
   }
 
   /** Constructor
-  @param[in]	space_id	Tablespace ID
-  @param[in]	page_no		Page number in space_id
-  @param[in]	heap_no		Heap number in <space_id, page_no> */
-  RecID(space_id_t space_id, page_no_t page_no, ulint heap_no)
-      : m_space_id(space_id),
-        m_page_no(page_no),
-        m_heap_no(static_cast<uint32_t>(heap_no)),
-        m_fold(lock_rec_fold(m_space_id, m_page_no)) {
-    ut_ad(m_space_id < UINT32_MAX);
-    ut_ad(m_page_no < UINT32_MAX);
+  @param[in]	page_id		Tablespace ID and page number within space
+  @param[in]	heap_no		Heap number in the page */
+  RecID(page_id_t page_id, uint32_t heap_no)
+      : m_page_id(page_id),
+        m_heap_no(heap_no),
+        m_fold(lock_rec_fold(page_id.space(), page_id.page_no())) {
+    ut_ad(m_page_id.space() < UINT32_MAX);
+    ut_ad(m_page_id.page_no() < UINT32_MAX);
     ut_ad(m_heap_no < UINT32_MAX);
   }
 
@@ -639,12 +633,7 @@ struct RecID {
   @param[in]	block		Block in a tablespace
   @param[in]	heap_no		Heap number in the block */
   RecID(const buf_block_t *block, ulint heap_no)
-      : m_space_id(block->page.id.space()),
-        m_page_no(block->page.id.page_no()),
-        m_heap_no(static_cast<uint32_t>(heap_no)),
-        m_fold(lock_rec_fold(m_space_id, m_page_no)) {
-    ut_ad(heap_no < UINT32_MAX);
-  }
+      : RecID(block->get_page_id(), heap_no) {}
 
   /**
   @return the "folded" value of {space, page_no} */
@@ -658,13 +647,10 @@ struct RecID {
   @return true if <space, page_no, heap_no> matches the lock. */
   inline bool matches(const lock_t *lock) const;
 
-  /**
-  Tablespace ID */
-  space_id_t m_space_id;
+  const page_id_t &get_page_id() const { return m_page_id; }
 
-  /**
-  Page number within the space ID */
-  page_no_t m_page_no;
+  /** Tablespace ID and page number within space  */
+  page_id_t m_page_id;
 
   /**
   Heap number within the page */
@@ -801,7 +787,7 @@ class RecLock {
   /**
   Setup the context from the requirements */
   void init(const page_t *page) {
-    ut_ad(lock_mutex_own());
+    ut_ad(locksys::owns_page_shard(m_rec_id.get_page_id()));
     ut_ad(!srv_read_only_mode);
     ut_ad(m_index->is_clustered() || !dict_index_is_online_ddl(m_index));
     ut_ad(m_thr == nullptr || m_trx == thr_get_trx(m_thr));
@@ -1070,7 +1056,7 @@ struct Lock_iter {
   @param[in]	lock		The current lock
   @return matching lock or nullptr if end of list */
   static lock_t *advance(const RecID &rec_id, lock_t *lock) {
-    ut_ad(lock_mutex_own());
+    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
     ut_ad(lock->is_record_lock());
 
     while ((lock = static_cast<lock_t *>(lock->hash)) != nullptr) {
@@ -1090,7 +1076,7 @@ struct Lock_iter {
   @param[in]	rec_id		Record ID
   @return	first lock, nullptr if none exists */
   static lock_t *first(hash_cell_t *list, const RecID &rec_id) {
-    ut_ad(lock_mutex_own());
+    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
     auto lock = static_cast<lock_t *>(list->node);
 
@@ -1111,7 +1097,7 @@ struct Lock_iter {
   template <typename F>
   static const lock_t *for_each(const RecID &rec_id, F &&f,
                                 hash_table_t *hash_table = lock_sys->rec_hash) {
-    ut_ad(lock_mutex_own());
+    ut_ad(locksys::owns_page_shard(rec_id.get_page_id()));
 
     auto list = hash_get_nth_cell(hash_table,
                                   hash_calc_hash(rec_id.m_fold, hash_table));
@@ -1128,5 +1114,13 @@ struct Lock_iter {
     return (nullptr);
   }
 };
+
+namespace locksys {
+class Unsafe_global_latch_manipulator {
+ public:
+  static void exclusive_unlatch() { lock_sys->latches.global_latch.x_unlock(); }
+  static void exclusive_latch() { lock_sys->latches.global_latch.x_lock(); }
+};
+}  // namespace locksys
 
 #endif /* lock0priv_h */

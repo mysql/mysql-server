@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@ the file COPYING.Google.
 #define sync0sharded_rw_h
 
 #include "sync0rw.h"
+#include "ut0cpu_cache.h"
 #include "ut0rnd.h"
 #include "ut0ut.h"
 
@@ -84,18 +85,35 @@ class Sharded_rw_lock {
 
   size_t s_lock() {
     const size_t shard_no = ut_rnd_interval(0, m_n_shards - 1);
-    rw_lock_s_lock(&m_shards[shard_no].lock);
+    rw_lock_s_lock(&m_shards[shard_no]);
     return shard_no;
   }
 
   ibool s_lock_nowait(size_t &shard_no, const char *file, ulint line) {
     shard_no = ut_rnd_interval(0, m_n_shards - 1);
-    return rw_lock_s_lock_nowait(&m_shards[shard_no].lock, file, line);
+    return rw_lock_s_lock_nowait(&m_shards[shard_no], file, line);
   }
 
   void s_unlock(size_t shard_no) {
     ut_a(shard_no < m_n_shards);
-    rw_lock_s_unlock(&m_shards[shard_no].lock);
+    rw_lock_s_unlock(&m_shards[shard_no]);
+  }
+
+  /**
+  Tries to obtain exclusive latch - similar to x_lock(), but non-blocking, and
+  thus can fail.
+  @return true iff succeeded to acquire the exclusive latch
+  */
+  bool try_x_lock() {
+    for (size_t shard_no = 0; shard_no < m_n_shards; ++shard_no) {
+      if (!rw_lock_x_lock_nowait(&m_shards[shard_no])) {
+        while (0 < shard_no--) {
+          rw_lock_x_unlock(&m_shards[shard_no]);
+        }
+        return (false);
+      }
+    }
+    return (true);
   }
 
   void x_lock() {
@@ -108,23 +126,18 @@ class Sharded_rw_lock {
 
 #ifdef UNIV_DEBUG
   bool s_own(size_t shard_no) const {
-    return rw_lock_own(&m_shards[shard_no].lock, RW_LOCK_S);
+    return rw_lock_own(&m_shards[shard_no], RW_LOCK_S);
   }
 
-  bool x_own() const { return rw_lock_own(&m_shards[0].lock, RW_LOCK_X); }
+  bool x_own() const { return rw_lock_own(&m_shards[0], RW_LOCK_X); }
 #endif /* !UNIV_DEBUG */
 
  private:
-  struct Shard {
-    rw_lock_t lock;
-
-    char pad[INNOBASE_CACHE_LINE_SIZE];
-  };
+  using Shard = ut::Cacheline_padded<rw_lock_t>;
 
   template <typename F>
   void for_each(F f) {
-    std::for_each(m_shards, m_shards + m_n_shards,
-                  [&f](Shard &shard) { f(shard.lock); });
+    std::for_each(m_shards, m_shards + m_n_shards, f);
   }
 
   Shard *m_shards = nullptr;

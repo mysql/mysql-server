@@ -1,4 +1,5 @@
 --source include/have_debug_sync.inc
+--source include/count_sessions.inc
 
 --echo #################################################################
 --echo #                                                               #
@@ -139,3 +140,47 @@
 --echo # End of Bug #27898384 #
 --echo #                      #
 --echo ########################
+
+
+--echo # Bug #31046834    ASSERTION FAILURE: TRX0TRX.CC:2663:TRX_ALLOWED_TWO_LATCHES THREAD 14024410520550
+--echo # Bug #31047326    ASSERTION FAILURE: TRX0TRX.CC:2663:TRX_ALLOWED_2_LATCHES THREAD 139840853837568
+
+    CREATE TABLE t1 (
+        id INT PRIMARY KEY,
+        val INT
+    ) Engine=InnoDB;
+    INSERT INTO t1 (id, val) VALUES (1,1);
+
+    --connect (con1, localhost, root,,)
+    --connect (con2, localhost, root,,)
+
+    --connection con1
+        SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+        BEGIN;
+        SET DEBUG_SYNC = 'after_lock_clust_rec_read_check_and_lock SIGNAL con1_created_lock WAIT_FOR con2_will_wait';
+        --send SELECT * FROM t1 WHERE val=13 FOR UPDATE
+
+    --connection con2
+        SET DEBUG_SYNC = 'now WAIT_FOR con1_created_lock';
+        BEGIN;
+        SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL con2_will_wait';
+        --send SELECT * FROM t1 WHERE id=1 FOR UPDATE
+
+    --connection con1
+        --reap
+        COMMIT;
+
+    --connection con2
+        --reap
+        COMMIT;
+
+
+
+    # Clean up:
+        --connection default
+        --disconnect con1
+        --disconnect con2
+        DROP TABLE t1;
+        SET DEBUG_SYNC = 'RESET';
+
+--source include/wait_until_count_sessions.inc

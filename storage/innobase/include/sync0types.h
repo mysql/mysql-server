@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -175,7 +175,15 @@ V
 lock_sys_wait_mutex			Mutex protecting lock timeout data
 |
 V
-lock_sys_mutex				Mutex protecting lock_sys_t
+lock_sys->global_sharded_latch		Sharded rw-latch protecting lock_sys_t
+|
+V
+lock_sys->table_mutexes			Mutexes protecting lock_sys_t table
+|					lock queues
+|
+V
+lock_sys->page_mutexes			Mutexes protecting lock_sys_t page
+|					lock queues
 |
 V
 trx_sys->mutex				Mutex protecting trx_sys_t
@@ -264,13 +272,13 @@ enum latch_level_t {
   SYNC_PAGE_CLEANER,
   SYNC_PURGE_QUEUE,
   SYNC_TRX_SYS_HEADER,
-  SYNC_REC_LOCK,
   SYNC_THREADS,
   SYNC_TRX,
   SYNC_POOL,
   SYNC_POOL_MANAGER,
   SYNC_TRX_SYS,
-  SYNC_LOCK_SYS,
+  SYNC_LOCK_SYS_SHARDED,
+  SYNC_LOCK_SYS_GLOBAL,
   SYNC_LOCK_WAIT_SYS,
 
   SYNC_INDEX_ONLINE_LOG,
@@ -369,6 +377,10 @@ enum latch_id_t {
   LATCH_ID_IBUF,
   LATCH_ID_IBUF_PESSIMISTIC_INSERT,
   LATCH_ID_LOCK_FREE_HASH,
+  LATCH_ID_LOCK_SYS_GLOBAL,
+  LATCH_ID_LOCK_SYS_PAGE,
+  LATCH_ID_LOCK_SYS_TABLE,
+  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_LOG_SN,
   LATCH_ID_LOG_CHECKPOINTER,
   LATCH_ID_LOG_CLOSER,
@@ -410,8 +422,6 @@ enum latch_id_t {
   LATCH_ID_TRX_POOL_MANAGER,
   LATCH_ID_TEMP_POOL_MANAGER,
   LATCH_ID_TRX,
-  LATCH_ID_LOCK_SYS,
-  LATCH_ID_LOCK_SYS_WAIT,
   LATCH_ID_TRX_SYS,
   LATCH_ID_SRV_SYS,
   LATCH_ID_SRV_SYS_TASKS,

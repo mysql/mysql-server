@@ -91,7 +91,7 @@ struct Block {
 
   byte *m_ptr;
 
-  byte pad[INNOBASE_CACHE_LINE_SIZE - sizeof(ulint)];
+  byte pad[ut::INNODB_CACHE_LINE_SIZE - sizeof(ulint)];
   lock_word_t m_in_use;
 };
 }  // namespace file

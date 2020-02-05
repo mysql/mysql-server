@@ -1,0 +1,84 @@
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+# This test scenario exercises a rare case in which READ COMMITTED
+# (or UNCOMMITTED) transaction tries to release read locks during PREPARE stage
+# (as is typical for XA or in group replication) and is interupted MAX_FAILURES
+# times by other transactions when trying to iterate over its own list of locks.
+# The other transactions are converting implicit locks of the transaction to
+# explicit, adding the explicit locks to the list the transaction is iterating
+# over, so it has to restart. Finally the transaction gives up with s-latching
+# and attempts to x-latch the whole lock-sys to get job done.
+
+# keep in sync with MAX_FAILURES defined in lock_trx_release_read_locks()
+--let MAX_FAILURES=5
+# We create one extra table
+--let i=0
+while($i<=$MAX_FAILURES)
+{
+  --eval CREATE TABLE t$i (id INT PRIMARY KEY) ENGINE=InnoDB
+  --inc $i
+}
+# We will need this row to create explicit lock on it from c0
+INSERT INTO t0 (id) VALUES (1);
+
+--connect (c0, localhost, root,,)
+  SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+  XA START 'x';
+  # create at least MAX_FAILURES implicit locks
+  --let i=1
+  while($i<=$MAX_FAILURES)
+  {
+    --eval INSERT INTO t$i (id) VALUES (1);
+    --inc $i
+  }
+  # create at least 1 explicit lock
+  SELECT * FROM t0 WHERE id=1 FOR UPDATE;
+  XA END 'x';
+  SET DEBUG_SYNC='lock_trx_release_read_locks_in_x_mode_will_release
+    SIGNAL c0_releases_in_xmode';
+  SET DEBUG_SYNC='try_relatch_trx_and_shard_and_do_noted_expected_version
+    SIGNAL c0_noted_expected_version
+    WAIT_FOR c0_can_go
+    EXECUTE 5';
+  --send XA PREPARE 'x'
+
+--let i=1
+while($i<=$MAX_FAILURES)
+{
+  --connect (c$i, localhost, root,,)
+    BEGIN;
+    SET DEBUG_SYNC = 'now WAIT_FOR c0_noted_expected_version';
+    --eval SET DEBUG_SYNC='lock_wait_will_wait SIGNAL c0_can_go'
+    --send_eval SELECT * FROM t$i FOR SHARE
+
+  --inc $i
+}
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR c0_releases_in_xmode';
+
+--connection c0
+  --reap
+  XA COMMIT 'x';
+
+--disconnect c0
+--let i=1
+while($i<=$MAX_FAILURES)
+{
+  --connection c$i
+    --reap
+    COMMIT;
+  --connection default
+  --disconnect c$i
+  --inc $i
+}
+
+--let i=0
+while($i<=$MAX_FAILURES)
+{
+  --eval DROP TABLE t$i
+  --inc $i
+}
+
+--source include/wait_until_count_sessions.inc

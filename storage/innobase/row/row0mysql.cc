@@ -76,7 +76,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0rec.h"
 #include "trx0roll.h"
 #include "trx0undo.h"
-#include "ut0mpmcbq.h"
+#include "ut0cpu_cache.h"
 #include "ut0new.h"
 
 #include "current_thd.h"
@@ -1153,8 +1153,11 @@ dberr_t row_lock_table_autoinc_for_mysql(
   ibool was_lock_wait;
 
   /* If we already hold an AUTOINC lock on the table then do nothing.
-  Note: We peek at the value of the current owner without acquiring
-  the lock mutex. */
+  Note: We peek at the value of the current owner without acquiring any latch,
+  which is OK, because if the equality holds, it means we were granted the lock,
+  and the only way table->autoinc_trx can subsequently change is by releasing
+  the lock, which can not happen concurrently with the thread running the trx.*/
+  ut_ad(trx_can_be_handled_by_current_thread(trx));
   if (trx == table->autoinc_trx) {
     return (DB_SUCCESS);
   }
@@ -3990,8 +3993,8 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
     if (!table->is_intrinsic()) {
       lock_remove_all_on_table(table, TRUE);
     }
-    ut_a(table->n_rec_locks == 0);
-  } else if (table->get_ref_count() > 0 || table->n_rec_locks > 0) {
+    ut_a(table->n_rec_locks.load() == 0);
+  } else if (table->get_ref_count() > 0 || table->n_rec_locks.load() > 0) {
     ibool added;
 
     ut_ad(0);
@@ -4405,8 +4408,7 @@ dberr_t row_mysql_parallel_select_count_star(
   Shards n_recs;
   Counter::clear(n_recs);
 
-  struct Check_interrupt {
-    byte m_pad[INNOBASE_CACHE_LINE_SIZE - (sizeof(size_t) + sizeof(void *))];
+  struct alignas(ut::INNODB_CACHE_LINE_SIZE) Check_interrupt {
     size_t m_count{};
     const buf_block_t *m_prev_block{};
   };

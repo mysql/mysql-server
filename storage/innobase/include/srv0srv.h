@@ -954,16 +954,16 @@ void srv_active_wake_master_thread_low(void);
 void srv_wake_master_thread(void);
 #ifndef UNIV_HOTBACKUP
 /** Outputs to a file the output of the InnoDB Monitor.
- @return false if not all information printed
- due to failure to obtain necessary mutex */
-ibool srv_printf_innodb_monitor(
-    FILE *file,       /*!< in: output stream */
-    ibool nowait,     /*!< in: whether to wait for the
-                      lock_sys_t::mutex */
-    ulint *trx_start, /*!< out: file position of the start of
-                      the list of active transactions */
-    ulint *trx_end);  /*!< out: file position of the end of
-                      the list of active transactions */
+@param[in]    file      output stream
+@param[in]    nowait    whether to wait for the exclusive global lock_sys latch
+@param[out]   trx_start file position of the start of the list of active
+                        transactions
+@param[out]   trx_end   file position of the end of the list of active
+                        transactions
+@return false if not all information printed due to failure to obtain necessary
+        mutex */
+bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start,
+                               ulint *trx_end);
 
 /** Function to pass InnoDB status variables to MySQL */
 void srv_export_innodb_status(void);

@@ -745,12 +745,12 @@ class Batch_segment : public Segment {
   /** The instance that is being written to disk. */
   Double_write *m_dblwr{};
 
-  byte m_pad1[INNOBASE_CACHE_LINE_SIZE];
+  byte m_pad1[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Size of the batch. */
   std::atomic_int m_batch_size{};
 
-  byte m_pad2[INNOBASE_CACHE_LINE_SIZE];
+  byte m_pad2[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Number of pages to write. */
   std::atomic_int m_written{};

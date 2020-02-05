@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,10 +86,12 @@ void que_graph_free(que_t *graph); /*!< in: query graph; we assume that the
                                    que_graph_free_recursive and free the heap
                                    afterwards! */
 /** Stops a query thread if graph or trx is in a state requiring it. The
- conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
- has to be reserved.
+ conditions are tested in the order (1) graph, (2) trx.
+ Caller must hold the trx mutex.
+ @param[in,out]   thr   query thread
  @return true if stopped */
-ibool que_thr_stop(que_thr_t *thr); /*!< in: query thread */
+bool que_thr_stop(que_thr_t *thr);
+
 /** Moves a thread from another state to the QUE_THR_RUNNING state. Increments
  the n_active_thrs counters of the query graph and transaction. */
 void que_thr_move_to_run_state_for_mysql(
@@ -272,9 +274,11 @@ struct que_thr_t {
   /** The thread slot in the lock_sys->waiting_threads array protected by
   lock_sys->wait_mutex when writing to it, and also by trx->mutex when changing
   from null to non-null.
-  While reading, one either hold the lock_sys->wait_mutex, or hold the
-  lock_sys->mutex, trx->mutex and a proof that noone else has woken the trx yet,
-  so the slot is either null, or changing to non-null, but definitely not
+  While reading, one can either hold the lock_sys->wait_mutex, or hold the
+  trx->mutex and a proof that no one has woken the trx yet,
+  so the slot is either still null (if trx hadn't yet started the sleep), or
+  already non-null (if it already started sleep), but definitely not
+  changing from null to non-null (as it requires trx->mutex) nor
   changing from non-null to null (as it happens after wake up). */
   struct srv_slot_t *slot;
   /*------------------------------*/

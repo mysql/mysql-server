@@ -134,7 +134,7 @@ struct Log_handle {
 
 /** Redo log - single data structure with state of the redo log system.
 In future, one could consider splitting this to multiple data structures. */
-struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
+struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   /**************************************************/ /**
 
    @name Users writing to log buffer
@@ -159,11 +159,11 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /**
   @see @ref subsect_redo_log_sn */
   MY_COMPILER_DIAGNOSTIC_PUSH()
-  alignas(INNOBASE_CACHE_LINE_SIZE) atomic_sn_t sn;
+  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_sn_t sn;
 
   /** Padding after the _sn to avoid false sharing issues for
   constants below (due to changes of sn). */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** Pointer to the log buffer, aligned up to OS_FILE_LOG_BLOCK_SIZE.
       The alignment is to ensure that buffer parts specified for file IO write
@@ -180,19 +180,19 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   that is including bytes for headers and footers of log blocks. */
   size_t buf_size;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent written buffer.
       Protected by: sn_lock or writer_mutex. */
       Link_buf<lsn_t> recent_written;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** The recent closed buffer.
       Protected by: sn_lock or closer_mutex. */
       Link_buf<lsn_t> recent_closed;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -218,9 +218,9 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /*
   @see @ref subsect_redo_log_write_lsn */
   MY_COMPILER_DIAGNOSTIC_POP()
-  alignas(INNOBASE_CACHE_LINE_SIZE) atomic_lsn_t write_lsn;
+  alignas(ut::INNODB_CACHE_LINE_SIZE) atomic_lsn_t write_lsn;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** Unaligned pointer to array with events, which are used for
       notifications sent from the log write notifier thread to user threads.
@@ -236,17 +236,17 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   size_t write_events_size;
 
   /** Approx. number of requests to write/flush redo since startup. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
       std::atomic<uint64_t> write_to_file_requests_total;
 
   /** How often redo write/flush is requested in average.
   Measures in microseconds. Log threads do not spin when
   the write/flush requests are not frequent. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
       std::atomic<uint64_t> write_to_file_requests_interval;
 
   /** This padding is probably not needed, left for convenience. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -273,13 +273,13 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   size_t flush_events_size;
 
   /** Padding before the frequently updated flushed_to_disk_lsn. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** Up to this lsn data has been flushed to disk (fsynced). */
       atomic_lsn_t flushed_to_disk_lsn;
 
   /** Padding after the frequently updated flushed_to_disk_lsn. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -304,13 +304,13 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /** Mutex which can be used to pause log flusher thread. */
   mutable ib_mutex_t flusher_mutex;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       os_event_t flusher_event;
 
   /** Padding to avoid any dependency between the log flusher
   and the log writer threads. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -392,13 +392,13 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /** Mutex which can be used to pause log writer thread. */
   mutable ib_mutex_t writer_mutex;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       os_event_t writer_event;
 
   /** Padding after section for the log writer thread, to avoid any
   dependency between the log writer and the log closer threads. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -418,7 +418,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
   /** Padding after the log closer thread and before the memory used
   for communication between the log flusher and notifier threads. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -440,7 +440,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   mutable ib_mutex_t flush_notifier_mutex;
 
   /** Padding. */
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -455,14 +455,14 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
       /** Mutex which can be used to pause log write notifier thread. */
       mutable ib_mutex_t write_notifier_mutex;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** Event used by the log writer thread to notify the log write
       notifier thread, that it should proceed with notifying user threads
       waiting for the advanced write_lsn (because it has been advanced). */
       os_event_t write_notifier_event;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -520,7 +520,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
 #endif /* UNIV_DEBUG */
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 
@@ -610,7 +610,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Protected by (updates only): limits_mutex. */
   atomic_sn_t dict_persist_margin;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
+  alignas(ut::INNODB_CACHE_LINE_SIZE)
 
       /** @} */
 

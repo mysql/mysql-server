@@ -223,7 +223,7 @@ lock_t *lock_prdt_has_lock(ulint precise_mode, /*!< in: LOCK_S or LOCK_X */
 {
   lock_t *lock;
 
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
   ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S ||
         (precise_mode & LOCK_MODE_MASK) == LOCK_X);
   ut_ad(!(precise_mode & LOCK_INSERT_INTENTION));
@@ -271,7 +271,7 @@ static const lock_t *lock_prdt_other_has_conflicting(
                              the new lock will be on */
     const trx_t *trx)         /*!< in: our transaction */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
 
   for (const lock_t *lock =
            lock_rec_get_first(lock_hash_get(mode), block, PRDT_HEAPNO);
@@ -350,7 +350,7 @@ static lock_t *lock_prdt_find_on_page(
 {
   lock_t *lock;
 
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
 
   for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
        lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
@@ -384,7 +384,7 @@ static lock_t *lock_prdt_add_to_queue(
     lock_prdt_t *prdt)        /*!< in: Minimum Bounding Rectangle
                               the new lock will be on */
 {
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
   ut_ad(!index->is_clustered() && !dict_index_is_online_ddl(index));
   ut_ad(type_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
   ut_ad(!trx_mutex_own(trx));
@@ -451,65 +451,54 @@ dberr_t lock_prdt_insert_check_and_lock(
 
   trx_t *trx = thr_get_trx(thr);
 
-  lock_mutex_enter();
+  dberr_t err = DB_SUCCESS;
+  {
+    locksys::Shard_latch_guard guard{block->get_page_id()};
 
-  /* Because this code is invoked for a running transaction by
-  the thread that is serving the transaction, it is not necessary
-  to hold trx->mutex here. */
+    /* Because this code is invoked for a running transaction by
+    the thread that is serving the transaction, it is not necessary
+    to hold trx->mutex here. */
 
-  ut_ad(lock_table_has(trx, index->table, LOCK_IX));
+    ut_ad(lock_table_has(trx, index->table, LOCK_IX));
 
-  lock_t *lock;
+    lock_t *lock;
 
-  /* Only need to check locks on prdt_hash */
-  lock = lock_rec_get_first(lock_sys->prdt_hash, block, PRDT_HEAPNO);
+    /* Only need to check locks on prdt_hash */
+    lock = lock_rec_get_first(lock_sys->prdt_hash, block, PRDT_HEAPNO);
 
-  if (lock == nullptr) {
-    lock_mutex_exit();
+    if (lock != nullptr) {
+      ut_ad(lock->type_mode & LOCK_PREDICATE);
 
-    /* Update the page max trx id field */
-    page_update_max_trx_id(block, buf_block_get_page_zip(block), trx->id, mtr);
+      /* If another transaction has an explicit lock request which locks
+      the predicate, waiting or granted, on the successor, the insert
+      has to wait.
 
-    return (DB_SUCCESS);
-  }
+      Similar to GAP lock, we do not consider lock from inserts conflicts
+      with each other */
 
-  ut_ad(lock->type_mode & LOCK_PREDICATE);
+      const ulint mode = LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION;
 
-  dberr_t err;
+      const lock_t *wait_for =
+          lock_prdt_other_has_conflicting(mode, block, prdt, trx);
 
-  /* If another transaction has an explicit lock request which locks
-  the predicate, waiting or granted, on the successor, the insert
-  has to wait.
+      if (wait_for != nullptr) {
+        rtr_mbr_t *mbr = prdt_get_mbr_from_prdt(prdt);
 
-  Similar to GAP lock, we do not consider lock from inserts conflicts
-  with each other */
+        trx_mutex_enter(trx);
 
-  const ulint mode = LOCK_X | LOCK_PREDICATE | LOCK_INSERT_INTENTION;
+        /* Allocate MBR on the lock heap */
+        lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
 
-  const lock_t *wait_for =
-      lock_prdt_other_has_conflicting(mode, block, prdt, trx);
+        RecLock rec_lock(thr, index, block, PRDT_HEAPNO, mode);
 
-  if (wait_for != nullptr) {
-    rtr_mbr_t *mbr = prdt_get_mbr_from_prdt(prdt);
+        /* Note that we may get DB_SUCCESS also here! */
 
-    trx_mutex_enter(trx);
+        err = rec_lock.add_to_waitq(wait_for, prdt);
 
-    /* Allocate MBR on the lock heap */
-    lock_init_prdt_from_mbr(prdt, mbr, 0, trx->lock.lock_heap);
-
-    RecLock rec_lock(thr, index, block, PRDT_HEAPNO, mode);
-
-    /* Note that we may get DB_SUCCESS also here! */
-
-    err = rec_lock.add_to_waitq(wait_for, prdt);
-
-    trx_mutex_exit(trx);
-
-  } else {
-    err = DB_SUCCESS;
-  }
-
-  lock_mutex_exit();
+        trx_mutex_exit(trx);
+      }
+    }
+  }  // release block latch
 
   switch (err) {
     case DB_SUCCESS_LOCKED_REC:
@@ -540,7 +529,9 @@ void lock_prdt_update_parent(
 {
   lock_t *lock;
 
-  lock_mutex_enter();
+  /* We will operate on three blocks (left, right, parent). Latching their
+  shards without deadlock is easiest using exlusive global latch. */
+  locksys::Global_exclusive_latch_guard guard{};
 
   /* Get all locks in parent */
   for (lock =
@@ -576,8 +567,6 @@ void lock_prdt_update_parent(
                              lock->trx, lock_prdt);
     }
   }
-
-  lock_mutex_exit();
 }
 
 /** Update predicate lock when page splits */
@@ -593,8 +582,7 @@ static void lock_prdt_update_split_low(
 {
   lock_t *lock;
 
-  lock_mutex_enter();
-
+  locksys::Shard_latches_guard guard{*block, *new_block};
   for (lock = lock_rec_get_first_on_page_addr(lock_hash_get(type_mode), space,
                                               page_no);
        lock; lock = lock_rec_get_next_on_page(lock)) {
@@ -639,8 +627,6 @@ static void lock_prdt_update_split_low(
                              lock_prdt);
     }
   }
-
-  lock_mutex_exit();
 }
 
 /** Update predicate lock when page splits */
@@ -715,7 +701,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
   index record, and this would not have been possible if another active
   transaction had modified this secondary index record. */
 
-  lock_mutex_enter();
+  locksys::Shard_latch_guard guard{block->get_page_id()};
 
   const ulint prdt_mode = mode | type_mode;
   lock_t *lock = lock_rec_get_first_on_page(hash, block);
@@ -765,8 +751,6 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
     }
   }
 
-  lock_mutex_exit();
-
   if (status == LOCK_REC_SUCCESS_CREATED && type_mode == LOCK_PREDICATE) {
     /* Append the predicate in the lock record */
     lock_prdt_set_prdt(lock, prdt);
@@ -796,7 +780,8 @@ dberr_t lock_place_prdt_page_lock(
   index record, and this would not have been possible if another active
   transaction had modified this secondary index record. */
 
-  lock_mutex_enter();
+  RecID rec_id(page_id_t{space, page_no}, PRDT_HEAPNO);
+  locksys::Shard_latch_guard guard{rec_id.get_page_id()};
 
   const lock_t *lock =
       lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, space, page_no);
@@ -820,7 +805,6 @@ dberr_t lock_place_prdt_page_lock(
   }
 
   if (lock == nullptr) {
-    RecID rec_id(space, page_no, PRDT_HEAPNO);
     RecLock rec_lock(index, rec_id, mode);
 
     trx_mutex_enter(trx);
@@ -831,8 +815,6 @@ dberr_t lock_place_prdt_page_lock(
     printf("GIS_DIAGNOSTIC: page lock %d\n", (int)page_no);
 #endif /* PRDT_DIAG */
   }
-
-  lock_mutex_exit();
 
   return (DB_SUCCESS);
 }
@@ -847,12 +829,10 @@ bool lock_test_prdt_page_lock(const trx_t *trx, space_id_t space,
                               page_no_t page_no) {
   lock_t *lock;
 
-  lock_mutex_enter();
+  locksys::Shard_latch_guard guard{page_id_t{space, page_no}};
 
   lock =
       lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, space, page_no);
-
-  lock_mutex_exit();
 
   return (lock == nullptr || trx == lock->trx);
 }
@@ -871,7 +851,7 @@ void lock_prdt_rec_move(
     return;
   }
 
-  lock_mutex_enter();
+  locksys::Shard_latches_guard guard{*receiver, *donator};
 
   for (lock = lock_rec_get_first(lock_sys->prdt_hash, donator, PRDT_HEAPNO);
        lock != nullptr; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {
@@ -883,8 +863,6 @@ void lock_prdt_rec_move(
     lock_prdt_add_to_queue(type_mode, receiver, lock->index, lock->trx,
                            lock_prdt);
   }
-
-  lock_mutex_exit();
 }
 
 /** Removes predicate lock objects set on an index page which is discarded.
@@ -897,7 +875,7 @@ void lock_prdt_page_free_from_discard(const buf_block_t *block,
   space_id_t space;
   page_no_t page_no;
 
-  ut_ad(lock_mutex_own());
+  ut_ad(locksys::owns_page_shard(block->get_page_id()));
 
   space = block->page.id.space();
   page_no = block->page.id.page_no();

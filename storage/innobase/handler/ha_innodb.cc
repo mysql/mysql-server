@@ -663,7 +663,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(temp_pool_manager_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(lock_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(lock_sys_page_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(lock_sys_table_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_wait_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(srv_threads_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -699,6 +700,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
     PSI_RWLOCK_KEY(log_sn_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(undo_spaces_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(rsegs_lock, 0, PSI_DOCUMENT_ME),
+    PSI_RWLOCK_KEY(lock_sys_global_rw_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fts_cache_rw_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fts_cache_init_rw_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(trx_i_s_cache_lock, 0, PSI_DOCUMENT_ME),
@@ -5546,25 +5548,13 @@ static bool innobase_rollback_to_savepoint_can_release_mdl(
 
   TrxInInnoDB trx_in_innodb(trx);
 
-  /* If transaction has not acquired any locks then it is safe
-  to release MDL after rollback to savepoint.
-  We assume that we are in the thread which is running the transaction, and
-  we check the length of this list without holding trx->mutex nor lock_sys
-  exclusive latch, so at least in theory other threads can concurrently modify
-  this list. However, such modifications are either implicit-to-explicit
-  conversions (which is only possible if trx has any implicit locks, which in
-  turn requires that it has acquired at least one IX table lock, so the list
-  is not empty) or related to B-tree reorganization (which is always performed
-  by first making a copy of a lock and then removing the old lock, so the number
-  of locks can not drop to zero). So, if we are only interested in "emptiness"
-  of the list, we should get accurate result without holding any latch. */
+  trx_mutex_enter(trx);
   ut_ad(thd == current_thd);
   ut_ad(trx->lock.wait_lock == nullptr);
-  if (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0) {
-    return true;
-  }
+  const bool has_no_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+  trx_mutex_exit(trx);
 
-  return false;
+  return has_no_locks;
 }
 
 /** Release transaction savepoint name.

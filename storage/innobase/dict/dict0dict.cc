@@ -1886,7 +1886,7 @@ static void dict_table_remove_from_cache_low(
   ut_ad(table);
   ut_ad(dict_lru_validate());
   ut_a(table->get_ref_count() == 0);
-  ut_a(table->n_rec_locks == 0);
+  ut_a(table->n_rec_locks.load() == 0);
   ut_ad(mutex_own(&dict_sys->mutex));
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 

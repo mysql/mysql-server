@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,10 @@ SET(INNOBASE_SOURCES
   lob/zlob0update.cc
   lob/zlob0first.cc
   lob/zlob0read.cc
+  lock/lock0guards.cc
   lock/lock0iter.cc
   lock/lock0prdt.cc
+  lock/lock0latches.cc
   lock/lock0lock.cc
   lock/lock0wait.cc
   log/log0buf.cc

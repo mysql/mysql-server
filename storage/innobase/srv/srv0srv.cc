@@ -1262,18 +1262,30 @@ static void srv_refresh_innodb_monitor_stats(void) {
   mutex_exit(&srv_innodb_monitor_mutex);
 }
 
-/** Outputs to a file the output of the InnoDB Monitor.
- @return false if not all information printed
- due to failure to obtain necessary mutex */
-ibool srv_printf_innodb_monitor(
-    FILE *file,           /*!< in: output stream */
-    ibool nowait,         /*!< in: whether to wait for the
-                          lock_sys_t:: mutex */
-    ulint *trx_start_pos, /*!< out: file position of the start of
-                          the list of active transactions */
-    ulint *trx_end)       /*!< out: file position of the end of
-                          the list of active transactions */
-{
+/**
+Prints info summary and info about all transactions to the file, recording the
+position where the part about transactions starts.
+@param[in]    file            output stream
+@param[out]   trx_start_pos   file position of the start of the list of active
+                              transactions
+*/
+static void srv_printf_locks_and_transactions(FILE *file,
+                                              ulint *trx_start_pos) {
+  ut_ad(locksys::owns_exclusive_global_latch());
+  lock_print_info_summary(file);
+  if (trx_start_pos) {
+    long t = ftell(file);
+    if (t < 0) {
+      *trx_start_pos = ULINT_UNDEFINED;
+    } else {
+      *trx_start_pos = (ulint)t;
+    }
+  }
+  lock_print_info_all_transactions(file);
+}
+
+bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
+                               ulint *trx_end) {
   ulint n_reserved;
   ibool ret;
 
@@ -1331,27 +1343,22 @@ ibool srv_printf_innodb_monitor(
 
   mutex_exit(&dict_foreign_err_mutex);
 
-  /* Only if lock_print_info_summary proceeds correctly,
-  before we call the lock_print_info_all_transactions
-  to print all the lock information. IMPORTANT NOTE: This
-  function acquires the lock mutex on success. */
-  ret = lock_print_info_summary(file, nowait);
+  ret = true;
+  if (nowait) {
+    locksys::Global_exclusive_try_latch guard{};
+    if (guard.owns_lock()) {
+      srv_printf_locks_and_transactions(file, trx_start_pos);
+    } else {
+      fputs("FAIL TO OBTAIN LOCK MUTEX, SKIP LOCK INFO PRINTING\n", file);
+      ret = false;
+    }
+  } else {
+    locksys::Global_exclusive_latch_guard guard{};
+    srv_printf_locks_and_transactions(file, trx_start_pos);
+  }
 
   if (ret) {
-    if (trx_start_pos) {
-      long t = ftell(file);
-      if (t < 0) {
-        *trx_start_pos = ULINT_UNDEFINED;
-      } else {
-        *trx_start_pos = (ulint)t;
-      }
-    }
-
-    /* NOTE: If we get here then we have the lock mutex. This
-    function will release the lock mutex that we acquired when
-    we called the lock_print_info_summary() function earlier. */
-
-    lock_print_info_all_transactions(file);
+    ut_ad(lock_validate());
 
     if (trx_end) {
       long t = ftell(file);
@@ -1693,7 +1700,7 @@ void srv_monitor_thread() {
   ib_time_monotonic_t current_time;
   ib_time_monotonic_t time_elapsed;
   ulint mutex_skipped;
-  ibool last_srv_print_monitor;
+  bool last_srv_print_monitor = srv_print_innodb_monitor;
 
   ut_ad(!srv_read_only_mode);
 
@@ -1701,10 +1708,10 @@ void srv_monitor_thread() {
   srv_last_monitor_time = last_monitor_time;
 
   mutex_skipped = 0;
-  last_srv_print_monitor = srv_print_innodb_monitor;
+
 loop:
   /* Wake up every 5 seconds to see if we need to print
-  monitor information or if signalled at shutdown. */
+  monitor information or if signaled at shutdown. */
 
   sig_count = os_event_reset(srv_monitor_event);
 
@@ -1718,14 +1725,13 @@ loop:
     last_monitor_time = ut_time_monotonic();
 
     if (srv_print_innodb_monitor) {
-      /* Reset mutex_skipped counter everytime
-      srv_print_innodb_monitor changes. This is to
-      ensure we will not be blocked by lock_sys->mutex
-      for short duration information printing,
-      such as requested by sync_array_print_long_waits() */
+      /* Reset mutex_skipped counter every time srv_print_innodb_monitor
+      changes. This is to ensure we will not be blocked by lock_sys global latch
+      for short duration information printing, such as requested by
+      sync_array_print_long_waits() */
       if (!last_srv_print_monitor) {
         mutex_skipped = 0;
-        last_srv_print_monitor = TRUE;
+        last_srv_print_monitor = true;
       }
 
       if (!srv_printf_innodb_monitor(stderr, MUTEX_NOWAIT(mutex_skipped),
@@ -1736,7 +1742,7 @@ loop:
         mutex_skipped = 0;
       }
     } else {
-      last_srv_print_monitor = FALSE;
+      last_srv_print_monitor = false;
     }
 
     /* We don't create the temp files or associated

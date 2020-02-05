@@ -162,10 +162,13 @@ UNIV_INLINE
 trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
-/** Looks for the trx instance with the given id in the rw trx_list.
- @return	the trx handle or NULL if not found */
+/** Looks for the trx handle with the given id in rw trxs list.
+ The caller must be holding trx_sys->mutex.
+ @param[in]   trx_id   trx id to search for
+ @return the trx handle or NULL if not found */
 UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id); /*!< in: trx id to search for */
+trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
+
 /** Returns the minimum trx id in rw trx list. This is the smallest id for which
  the trx can possibly be active. (But, you must look at the trx->state to
  find out if the minimum trx id transaction itself is active, or already

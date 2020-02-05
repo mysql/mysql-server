@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -179,14 +179,8 @@ trx_id_t trx_read_trx_id(
   return (mach_read_from_6(ptr));
 }
 
-/** Looks for the trx handle with the given id in rw_trx_list.
- The caller must be holding trx_sys->mutex.
- @return the trx handle or NULL if not found;
- the pointer must not be dereferenced unless lock_sys->mutex was
- acquired before calling this function and is still being held */
 UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) /*!< in: trx id to search for */
-{
+trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) {
   ut_ad(trx_id > 0);
   ut_ad(trx_sys_mutex_own());
 

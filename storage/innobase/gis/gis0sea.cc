@@ -1123,10 +1123,9 @@ void rtr_check_discard_page(
 
   mutex_exit(&index->rtr_track->rtr_active_mutex);
 
-  lock_mutex_enter();
+  locksys::Shard_latch_guard guard{block->get_page_id()};
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
-  lock_mutex_exit();
 }
 
 /** Restore the stored position of a persistent cursor bufferfixing the page */

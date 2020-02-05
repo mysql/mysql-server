@@ -1,0 +1,20 @@
+CREATE TABLE t (
+id INT PRIMARY KEY,
+c0 INT,   c1 INT,   c2 INT,   c3 INT,   c4 INT,   c5 INT,   c6 INT,   c7 INT,   c8 INT,   c9 INT,
+c10 INT,  c11 INT,  c12 INT,  c13 INT,  c14 INT,  c15 INT,  c16 INT,  c17 INT,  c18 INT,  c19 INT,
+c20 INT,  c21 INT,  c22 INT,  c23 INT,  c24 INT,  c25 INT,  c26 INT,  c27 INT,  c28 INT,  c29 INT,
+c30 INT,  c31 INT,  c32 INT,  c33 INT,  c34 INT,  c35 INT,  c36 INT,  c37 INT,  c38 INT,  c39 INT,
+c40 INT,  c41 INT,  c42 INT,  c43 INT,  c44 INT,  c45 INT,  c46 INT,  c47 INT,  c48 INT,  c49 INT,
+c50 INT,  c51 INT,  c52 INT,  c53 INT,  c54 INT,  c55 INT,  c56 INT,  c57 INT,  c58 INT,  c59 INT,
+c60 INT,  c61 INT,  c62 INT,  c63 INT,  c64 INT,  c65 INT,  c66 INT,  c67 INT,  c68 INT,  c69 INT,
+c70 INT,  c71 INT,  c72 INT,  c73 INT,  c74 INT,  c75 INT,  c76 INT,  c77 INT,  c78 INT,  c79 INT,
+c80 INT,  c81 INT,  c82 INT,  c83 INT,  c84 INT,  c85 INT,  c86 INT,  c87 INT,  c88 INT,  c89 INT,
+c90 INT,  c91 INT,  c92 INT,  c93 INT,  c94 INT,  c95 INT,  c96 INT,  c97 INT,  c98 INT,  c99 INT,
+c100 INT UNIQUE KEY
+) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t (id,c100) VALUES (1,1);
+INSERT INTO t (id,c100) VALUES (2,1);
+ERROR 23000: Duplicate entry '1' for key 't.c100'
+COMMIT;
+DROP TABLE t;

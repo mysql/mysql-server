@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -637,8 +637,7 @@ static ibool trx_rollback_resurrected(
   ut_ad(trx_sys_mutex_own());
 
   /* The trx->is_recovered flag and trx->state are set
-  atomically under the protection of the trx->mutex (and
-  lock_sys->mutex) in lock_trx_release_locks(). We do not want
+  atomically under the protection of the trx->mutex . We do not want
   to accidentally clean up a non-recovered transaction here. */
 
   trx_mutex_enter(trx);

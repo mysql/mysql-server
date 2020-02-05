@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -190,13 +190,11 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
 que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
                                              in QUE_THR_LOCK_WAIT */
 {
-  que_thr_t *thr;
-  ibool was_active;
+  ut_ad(locksys::owns_lock_shard(trx->lock.wait_lock));
 
-  ut_ad(lock_mutex_own());
   ut_ad(trx_mutex_own(trx));
 
-  thr = trx->lock.wait_thr;
+  que_thr_t *const thr = trx->lock.wait_thr;
 
   ut_ad(thr != nullptr);
 
@@ -204,7 +202,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
   /* In MySQL this is the only possible state here */
   ut_a(thr->state == QUE_THR_LOCK_WAIT);
 
-  was_active = thr->is_active;
+  bool const was_active = thr->is_active;
 
   que_thr_move_to_run_state(thr);
 
@@ -215,7 +213,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
   /* In MySQL we let the OS thread (not just the query thread) to wait
   for the lock to be released: */
 
-  return ((!was_active && thr != nullptr) ? thr : nullptr);
+  return !was_active ? thr : nullptr;
 }
 
 /** Inits a query thread for a command. */
@@ -591,15 +589,9 @@ static void que_thr_move_to_run_state(
   thr->state = QUE_THR_RUNNING;
 }
 
-/** Stops a query thread if graph or trx is in a state requiring it. The
- conditions are tested in the order (1) graph, (2) trx.
- @return true if stopped */
-ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
-{
-  que_t *graph;
+bool que_thr_stop(que_thr_t *thr) {
+  que_t *graph = thr->graph;
   trx_t *trx = thr_get_trx(thr);
-
-  graph = thr->graph;
 
   ut_ad(trx_mutex_own(trx));
 
@@ -620,10 +612,10 @@ ibool que_thr_stop(que_thr_t *thr) /*!< in: query thread */
   } else {
     ut_ad(graph->state == QUE_FORK_ACTIVE);
 
-    return (FALSE);
+    return false;
   }
 
-  return (TRUE);
+  return true;
 }
 
 /** Decrements the query thread reference counts in the query graph and the

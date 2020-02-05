@@ -2140,28 +2140,30 @@ withdraw_retry:
       message_interval *= 2;
     }
 
-    lock_mutex_enter();
-    trx_sys_mutex_enter();
-    bool found = false;
-    for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
-         trx != nullptr; trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
-      if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
-          ut_difftime(withdraw_started, trx->start_time) > 0) {
-        if (!found) {
-          ib::warn(ER_IB_MSG_61) << "The following trx might hold"
-                                    " the blocks in buffer pool to"
-                                    " be withdrawn. Buffer pool"
-                                    " resizing can complete only"
-                                    " after all the transactions"
-                                    " below release the blocks.";
-          found = true;
-        }
+    {
+      /* lock_trx_print_wait_and_mvcc_state() requires exclusive global latch */
+      locksys::Global_exclusive_latch_guard guard{};
+      trx_sys_mutex_enter();
+      bool found = false;
+      for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);
+           trx != nullptr; trx = UT_LIST_GET_NEXT(mysql_trx_list, trx)) {
+        if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
+            ut_difftime(withdraw_started, trx->start_time) > 0) {
+          if (!found) {
+            ib::warn(ER_IB_MSG_61) << "The following trx might hold"
+                                      " the blocks in buffer pool to"
+                                      " be withdrawn. Buffer pool"
+                                      " resizing can complete only"
+                                      " after all the transactions"
+                                      " below release the blocks.";
+            found = true;
+          }
 
-        lock_trx_print_wait_and_mvcc_state(stderr, trx);
+          lock_trx_print_wait_and_mvcc_state(stderr, trx);
+        }
       }
+      trx_sys_mutex_exit();
     }
-    trx_sys_mutex_exit();
-    lock_mutex_exit();
 
     withdraw_started = ut_time();
   }
@@ -4404,14 +4406,6 @@ bool buf_page_get_known_nowait(ulint rw_latch, buf_block_t *block,
   return (true);
 }
 
-/** Given a tablespace id and page number tries to get that page. If the
-page is not in the buffer pool it is not loaded and NULL is returned.
-Suitable for using when holding the lock_sys_t::mutex.
-@param[in]	page_id	page id
-@param[in]	file	file name
-@param[in]	line	line where called
-@param[in]	mtr	mini-transaction
-@return pointer to a page or NULL */
 const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
                                          const char *file, ulint line,
                                          mtr_t *mtr) {

@@ -39,18 +39,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 
 #include "os0thread.h"
+#include "ut0cpu_cache.h"
 #include "ut0dbg.h"
 
 #include <array>
 #include <atomic>
 #include <functional>
-
-/** CPU cache line size */
-#ifdef __powerpc__
-#define INNOBASE_CACHE_LINE_SIZE 128
-#else
-#define INNOBASE_CACHE_LINE_SIZE 64
-#endif /* __powerpc__ */
 
 /** Default number of slots to use in ib_counter_t */
 #define IB_N_SLOTS 64
@@ -62,7 +56,7 @@ struct generic_indexer_t {
 
   /** @return offset within m_counter */
   static size_t offset(size_t index) UNIV_NOTHROW {
-    return (((index % N) + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+    return (((index % N) + 1) * (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 };
 
@@ -105,7 +99,7 @@ struct single_indexer_t {
   /** @return offset within m_counter */
   static size_t offset(size_t index) UNIV_NOTHROW {
     ut_ad(N == 1);
-    return ((INNOBASE_CACHE_LINE_SIZE / sizeof(Type)));
+    return ((ut::INNODB_CACHE_LINE_SIZE / sizeof(Type)));
   }
 
   /** @return 1 */
@@ -120,7 +114,7 @@ struct single_indexer_t {
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close
 enough. Creates an array of counters and separates each element by the
-INNOBASE_CACHE_LINE_SIZE bytes */
+ut::INNODB_CACHE_LINE_SIZE bytes */
 template <typename Type, int N = IB_N_SLOTS,
           template <typename, int> class Indexer = default_indexer_t>
 class ib_counter_t {
@@ -133,7 +127,7 @@ class ib_counter_t {
 
   bool validate() UNIV_NOTHROW {
 #ifdef UNIV_DEBUG
-    size_t n = (INNOBASE_CACHE_LINE_SIZE / sizeof(Type));
+    size_t n = (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type));
 
     /* Check that we aren't writing outside our defined bounds. */
     for (size_t i = 0; i < UT_ARR_SIZE(m_counter); i += n) {
@@ -219,7 +213,7 @@ class ib_counter_t {
   Indexer<Type, N> m_policy;
 
   /** Slot 0 is unused. */
-  Type m_counter[(N + 1) * (INNOBASE_CACHE_LINE_SIZE / sizeof(Type))];
+  Type m_counter[(N + 1) * (ut::INNODB_CACHE_LINE_SIZE / sizeof(Type))];
 };
 
 /** Sharded atomic counter. */
@@ -229,10 +223,10 @@ using Type = uint64_t;
 
 using N = std::atomic<Type>;
 
-static_assert(INNOBASE_CACHE_LINE_SIZE >= sizeof(N),
-              "Atomic counter size > INNOBASE_CACHE_LINE_SIZE");
+static_assert(ut::INNODB_CACHE_LINE_SIZE >= sizeof(N),
+              "Atomic counter size > ut::INNODB_CACHE_LINE_SIZE");
 
-using Pad = byte[INNOBASE_CACHE_LINE_SIZE - sizeof(N)];
+using Pad = byte[ut::INNODB_CACHE_LINE_SIZE - sizeof(N)];
 
 /** Counter shard. */
 struct Shard {
