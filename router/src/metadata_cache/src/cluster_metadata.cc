@@ -23,6 +23,19 @@
 */
 
 #include "cluster_metadata.h"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+
+#include <errmsg.h>
+#include <mysql.h>
+
 #include "dim.h"
 #include "group_replication_metadata.h"
 #include "mysql/harness/logging/logging.h"
@@ -32,19 +45,6 @@
 #include "mysqlrouter/utils.h"
 #include "mysqlrouter/utils_sqlstring.h"
 #include "tcp_address.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <algorithm>
-#include <chrono>
-#include <cstdlib>
-#include <sstream>
-#include <stdexcept>
-#include <vector>
-
-#include <errmsg.h>
-#include <mysql.h>
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
@@ -196,7 +196,7 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
       const std::string x_port = get_string(row[x_port_column]);
       const auto addr_port = mysqlrouter::split_addr_port(x_port);
       instance.xport = addr_port.second != 0 ? addr_port.second : 33060;
-    } catch (const std::runtime_error &e) {
+    } catch (const std::runtime_error &) {
       // There is a Shell bug (#27677227) that can cause the mysqlx port be
       // invalid in the metadata (>65535). For the backward compatibility we
       // need to tolerate this and still let the node be used for classic

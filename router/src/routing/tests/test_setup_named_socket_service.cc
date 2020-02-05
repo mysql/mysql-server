@@ -54,4 +54,3 @@ int main(int argc, char *argv[]) {
   init_test_logger();
   return RUN_ALL_TESTS();
 }
-

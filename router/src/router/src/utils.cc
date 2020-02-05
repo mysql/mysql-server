@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,13 @@
 
 #include "mysqlrouter/utils.h"
 
-#include "common.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/string_utils.h"
-
-#include <string.h>
 #include <algorithm>
 #include <cassert>
 #include <cctype>
 #include <climits>
 #include <cstdarg>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -58,6 +54,10 @@ namespace {
 extern "C" bool g_windows_service;
 }
 #endif
+
+#include "common.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/string_utils.h"
 
 using mysql_harness::trim;
 using std::string;
@@ -333,9 +333,9 @@ uint16_t get_tcp_port(const string &data) {
     port = data.empty()
                ? 0
                : static_cast<int>(std::strtol(data.c_str(), nullptr, 10));
-  } catch (const std::invalid_argument &exc) {
+  } catch (const std::invalid_argument &) {
     throw std::runtime_error("convertion to integer failed");
-  } catch (const std::out_of_range &exc) {
+  } catch (const std::out_of_range &) {
     throw std::runtime_error("impossible port number (out-of-range)");
   }
 
