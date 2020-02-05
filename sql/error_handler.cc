@@ -240,11 +240,21 @@ Functional_index_error_handler::Functional_index_error_handler(
     // This field is only used by one functional index, so it's OK to just fetch
     // the first key that matches.
     for (uint i = 0; i < field->table->s->keys; ++i) {
-      if (field->part_of_key.is_set(i)) {
-        m_functional_index_name.assign(field->table->s->key_info[i].name);
-        break;
+      const KEY &index = field->table->key_info[i];
+      if (!index.is_functional_index()) {
+        continue;
+      }
+
+      for (uint j = 0; j < index.actual_key_parts; ++j) {
+        const KEY_PART_INFO &key_part = index.key_part[j];
+        if (key_part.field->field_index == field->field_index) {
+          m_functional_index_name.assign(index.name);
+          return;
+        }
       }
     }
+
+    assert(false);
   }
 }
 

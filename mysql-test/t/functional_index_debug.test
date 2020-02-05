@@ -268,3 +268,17 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 SET SESSION debug="-d,show_hidden_columns";
+
+--echo #
+--echo #  Bug#30714013 SIG6 IN
+--echo #               FUNCTIONAL_INDEX_ERROR_HANDLER::HANDLE_CONDITION()
+--echo #
+CREATE TABLE t (x INTEGER, KEY ((x+1)));
+
+# The results are not interesting, we only want to see that we do not hit an
+# assertion.
+--disable_result_log
+SELECT * FROM t
+WHERE x + 1 = JSON_CONTAINS(JSON_ARRAY(CAST('12:32:69' AS TIME)), 'false');
+--enable_result_log
+DROP TABLE t;
