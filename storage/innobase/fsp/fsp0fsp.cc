@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1009,6 +1009,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   ut_ad(mtr);
 
   fil_space_t *space = fil_space_get(space_id);
+  ut_ad(space != nullptr);
 
   mtr_x_lock_space(space, mtr);
 

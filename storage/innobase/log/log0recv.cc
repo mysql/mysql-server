@@ -1595,7 +1595,7 @@ specified.
 static byte *recv_parse_or_apply_log_rec_body(
     mlog_id_t type, byte *ptr, byte *end_ptr, space_id_t space_id,
     page_no_t page_no, buf_block_t *block, mtr_t *mtr, ulint parsed_bytes) {
-  ut_ad(!block == !mtr);
+  bool applying_redo = (block != nullptr);
 
   switch (type) {
 #ifndef UNIV_HOTBACKUP
@@ -1663,12 +1663,11 @@ static byte *recv_parse_or_apply_log_rec_body(
 #ifdef UNIV_HOTBACKUP
       if (recv_recovery_on && meb_is_space_loaded(space_id)) {
 #endif /* UNIV_HOTBACKUP */
-        /* For encrypted tablespace, we need to get the
-        encryption key information before the page 0 is
-        recovered. Otherwise, redo will not find the key
-        to decrypt the data pages. */
-
-        if (page_no == 0 && !fsp_is_system_or_temp_tablespace(space_id) &&
+        /* For encrypted tablespace, we need to get the encryption key
+        information before the page 0 is recovered. Otherwise, redo will not
+        find the key to decrypt the data pages. */
+        if (page_no == 0 && !applying_redo &&
+            !fsp_is_system_or_temp_tablespace(space_id) &&
             /* For cloned db header page has the encryption information. */
             !recv_sys->is_cloned_db) {
           return (fil_tablespace_redo_encryption(ptr, end_ptr, space_id));
@@ -1701,8 +1700,9 @@ static byte *recv_parse_or_apply_log_rec_body(
                 << ", mtr: " << static_cast<const void *>(mtr) << " }";
 #endif /* UNIV_HOTBACKUP && UNIV_DEBUG */
 
-  if (block != nullptr) {
+  if (applying_redo) {
     /* Applying a page log record. */
+    ut_ad(mtr != nullptr);
 
     page = block->frame;
     page_zip = buf_block_get_page_zip(block);
@@ -1716,6 +1716,7 @@ static byte *recv_parse_or_apply_log_rec_body(
 
   } else {
     /* Parsing a page log record. */
+    ut_ad(mtr == nullptr);
     page = nullptr;
     page_zip = nullptr;
 
