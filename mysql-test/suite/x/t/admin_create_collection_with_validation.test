@@ -99,6 +99,13 @@ varlet %STR% %CREATE_COLLECTION_ARG_HEAD% {"schema": {
 -->echo # 1. Validation contains only unknown fields.
 -->echo # 2. Validation contains valid fields along with unknown fields.
 -->echo # 3. Options is different type than "object".
+-->echo
+-->echo ## IV. Create collection with empty validation level.
+-->echo #
+-->echo # 1. Check empty validation level for validation encoded as protobuf
+-->echo #    string.
+-->echo # 2. Check empty validation level for validation encoded as
+-->echo #    Mysqlx.Datatypes.Object.
 
 -->quiet
 
@@ -242,7 +249,7 @@ stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options"
   }
 }};
 -->recvresult
--->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
 -->callmacro Drop_test_collection
 
 -->echo
@@ -254,7 +261,7 @@ stmtadmin create_collection	{"schema": "xtest", "name": "%TEST_COLL%", "options"
   }
 }};
 -->recvresult
--->callmacro Assert_is_enforced	%TEST_COLL%	NO
+-->callmacro Assert_is_enforced	%TEST_COLL%	YES
 -->callmacro Drop_test_collection
 
 -->echo
@@ -339,9 +346,66 @@ stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": {
 -->echo
 -->echo #
 -->echo # V.3
-stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options":
-  "dump" };
+stmtadmin COMMAND	{"schema": "xtest", "name": "coll", "options": "dump" };
 -->recverror ER_X_CMD_ARGUMENT_TYPE
+
+-->echo
+-->echo #
+-->echo # VI.1
+stmtadmin create_collection	{
+  "schema":"xtest",
+  "name": "%TEST_COLL%",
+  "options": {
+    "validation": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "latitude": {"type": "number", "minimum": -90, "maximum": 90},
+          "longitude": {"type": "number", "minimum": -180, "maximum": 180}
+        },
+        "required": ["latitude", "longitude"]
+      }
+    }
+  }
+};
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":45, "longitude":54}';
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "two", "wrong":45, "data":54}';
+-->expecterror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->recvresult
+-->callmacro Drop_test_collection
+
+-->echo
+-->echo #
+-->echo # VI.2
+stmtadmin create_collection	{
+  "schema":"xtest",
+  "name": "%TEST_COLL%",
+  "options": {
+    "validation": {
+      "schema": "{
+        \"type\": \"object\",
+        \"properties\": {
+          \"latitude\": {\"type\": \"number\", \"minimum\": -90, \"maximum\": 90},
+          \"longitude\": {\"type\": \"number\", \"minimum\": -180, \"maximum\": 180}
+        },
+        \"required\": [\"latitude\", \"longitude\"]
+      }"
+    }
+  }
+};
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "one", "latitude":45, "longitude":54}';
+-->recvresult
+callmacro Insert_value_to_collection	%TEST_COLL%
+	'{"_id": "two", "wrong":45, "data":54}';
+-->expecterror ER_X_DOCUMENT_DOESNT_MATCH_EXPECTED_SCHEMA
+-->recvresult
+-->callmacro Drop_test_collection
 
 EOF
 

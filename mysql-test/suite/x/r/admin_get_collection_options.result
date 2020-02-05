@@ -57,7 +57,7 @@ RUN DROP TABLE IF EXISTS xtest.test_coll
 
 command ok
 Result
-{ "validation": { "level": "off", "schema": {"description":"test"} } }
+{ "validation": { "level": "strict", "schema": {"description":"test"} } }
 command ok
 RUN DROP TABLE IF EXISTS xtest.test_coll
 
@@ -79,7 +79,7 @@ RUN DROP TABLE IF EXISTS xtest.test_coll
 
 command ok
 Result
-{ "validation": { "level": "off", "schema": {"description":"t`y\\\\p"e o`b`\\\\\\\\c""t"} } }
+{ "validation": { "level": "strict", "schema": {"description":"t`y\\\\p"e o`b`\\\\\\\\c""t"} } }
 command ok
 RUN DROP TABLE IF EXISTS xtest.test_coll
 
