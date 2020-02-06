@@ -2572,7 +2572,6 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
 static void test_key_length(
     MySQLSessionReplayer *mock_mysql, const std::string &key,
     const std::map<std::string, std::string> &default_paths) {
-  using std::placeholders::_1;
   ::testing::InSequence s;
 
   mysqlrouter::set_prompt_password(

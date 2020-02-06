@@ -57,10 +57,10 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
-#include "mysqlrouter/sha1.h"
 #include "mysqlrouter/uri.h"
 #include "random_generator.h"
 #include "router_app.h"
+#include "sha1.h"  // compute_sha1_hash() from mysql's include/
 #include "tcp_address.h"
 #include "utils.h"
 IMPORT_LOG_FUNCTIONS()
@@ -989,10 +989,9 @@ unsigned get_password_retries(
 
 std::string compute_password_hash(const std::string &password) {
   uint8_t hash_stage1[SHA1_HASH_SIZE];
-  my_sha1::compute_sha1_hash(hash_stage1, password.c_str(), password.length());
+  compute_sha1_hash(hash_stage1, password.c_str(), password.length());
   uint8_t hash_stage2[SHA1_HASH_SIZE];
-  my_sha1::compute_sha1_hash(hash_stage2, (const char *)hash_stage1,
-                             SHA1_HASH_SIZE);
+  compute_sha1_hash(hash_stage2, (const char *)hash_stage1, SHA1_HASH_SIZE);
 
   std::stringstream ss;
   ss << "*";

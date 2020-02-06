@@ -350,9 +350,12 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
 }
 
 void GRClusterMetadata::reset_metadata_backend(const ClusterType type) {
-  using namespace std::placeholders;
-  ConnectCallback connect_clb =
-      std::bind(&GRClusterMetadata::do_connect, this, _1, _2);
+  ConnectCallback connect_clb = [this](
+                                    mysqlrouter::MySQLSession &sess,
+                                    const metadata_cache::ManagedInstance &mi) {
+    return do_connect(sess, mi);
+  };
+
   switch (type) {
     case ClusterType::GR_V1:
       metadata_backend_ =

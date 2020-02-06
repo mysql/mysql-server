@@ -33,7 +33,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <functional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -1511,8 +1510,9 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
   for (const auto &section : usage_sections) {
     for (auto line : arg_handler_.usage_lines_if(
              "mysqlrouter", "", kHelpScreenWidth,
-             std::bind(cmd_option_acceptor, section.first, section.second,
-                       std::placeholders::_1))) {
+             [&section](const CmdOption &opt) {
+               return cmd_option_acceptor(section.first, section.second, opt);
+             })) {
       out_stream_ << line << "\n";
     }
     out_stream_ << "\n";
