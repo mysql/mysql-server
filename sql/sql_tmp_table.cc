@@ -396,7 +396,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
     case Item::PARAM_ITEM:
     case Item::SUM_FUNC_ITEM:
       if (type == Item::SUM_FUNC_ITEM && !is_wf) {
-        Item_sum *item_sum = (Item_sum *)item;
+        Item_sum *item_sum = down_cast<Item_sum *>(item);
         result = item_sum->create_tmp_field(group, table);
         if (!result) my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       } else {
@@ -799,9 +799,8 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   TABLE_SHARE.
   This function will replace Item_sum items in 'fields' list with
   corresponding Item_field items, pointing at the fields in the
-  temporary table, unless this was prohibited by true
-  value of argument save_sum_fields. The Item_field objects
-  are created in THD memory root.
+  temporary table, unless save_sum_fields is set to false.
+  The Item_field objects are created in THD memory root.
 
   @param thd                  thread handle
   @param param                a description used as input to create the table

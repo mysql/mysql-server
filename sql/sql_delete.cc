@@ -454,7 +454,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           thd, table, /*keep_buffers=*/false, order, HA_POS_ERROR,
           /*force_stable_sort=*/false,
           /*remove_duplicates=*/false,
-          /*force_sort_positions=*/true));
+          /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
       unique_ptr_destroy_only<RowIterator> sort = NewIterator<SortingIterator>(
           thd, &qep_tab, fsort.get(), move(iterator),
           /*rows_examined=*/nullptr);

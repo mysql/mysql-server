@@ -35,6 +35,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -91,11 +92,15 @@
 #include "sql/window.h"
 #include "template_utils.h"
 
+using std::function;
+
 static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = nullptr);
 static TABLE_LIST *locate_derived(mem_root_deque<TABLE_LIST *> &tables,
                                   SELECT_LEX_UNIT *query_expression = nullptr);
+static Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex,
+                                    Item *item, int send_group_parts);
 
 /**
   Prepare query block for optimization.
@@ -277,6 +282,12 @@ bool SELECT_LEX::prepare(THD *thd) {
   // Windowing is not allowed with HAVING
   thd->lex->m_deny_window_func |= (nesting_map)1 << nest_level;
 
+  if (olap == ROLLUP_TYPE) {
+    for (Item &item : all_fields) {
+      mark_item_as_maybe_null_if_rollup_item(&item);
+    }
+  }
+
   // Setup the HAVING clause
   if (m_having_cond) {
     DBUG_ASSERT(m_having_cond->is_bool_func());
@@ -299,11 +310,17 @@ bool SELECT_LEX::prepare(THD *thd) {
     resolve_place = RESOLVE_NONE;
   }
 
+  if (olap == ROLLUP_TYPE && resolve_rollup(thd))
+    return true; /* purecov: inspected */
+
   thd->lex->m_deny_window_func = save_deny_window_func;
 
-  if (m_having_cond && olap == ROLLUP_TYPE &&
-      resolve_rollup_item(thd, m_having_cond))
-    return true;
+  if (m_having_cond != nullptr && olap == ROLLUP_TYPE) {
+    m_having_cond = resolve_rollup_item(thd, m_having_cond);
+    if (m_having_cond == nullptr) {
+      return true;
+    }
+  }
 
   // Set up the ORDER BY clause
   all_fields_count = all_fields.elements;
@@ -433,6 +450,23 @@ bool SELECT_LEX::prepare(THD *thd) {
                         m_having_cond->has_grouping_func())) {
     m_having_cond->split_sum_func2(thd, base_ref_items, all_fields,
                                    &m_having_cond, true);
+    if (olap == ROLLUP_TYPE) {
+      uint send_group_parts = group_list_size();
+      List_iterator<Item> it(all_fields);
+      Item *item;
+      while ((item = it++)) {
+        if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+            down_cast<Item_sum *>(item)->aggr_select == this &&
+            !is_rollup_sum_wrapper(item)) {
+          // split_sum_func2 created a new aggregate function item,
+          // so we need to update it for rollup.
+          Item *new_item =
+              create_rollup_switcher(thd, this, item, send_group_parts);
+          if (new_item == nullptr) return true;
+          thd->change_item_tree(it.ref(), new_item);
+        }
+      }
+    }
   }
   if (inner_sum_func_list) {
     Item_sum *end = inner_sum_func_list;
@@ -4026,7 +4060,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   if (!select_item)
     return true; /* The item is not unique, or some other error occurred. */
 
-  /* Check whether the resolved field is not ambiguos. */
+  /* Check whether the resolved field is unambiguous. */
   if (select_item != not_found_item) {
     Item *view_ref = nullptr;
     /*
@@ -4348,9 +4382,6 @@ bool SELECT_LEX::setup_group(THD *thd) {
     }
   }
 
-  if (olap == ROLLUP_TYPE && resolve_rollup(thd))
-    return true; /* purecov: inspected */
-
   return false;
 }
 
@@ -4358,239 +4389,207 @@ bool SELECT_LEX::setup_group(THD *thd) {
  ROLLUP handling
  ****************************************************************************/
 
-/**
-  Minion of change_group_ref_for_func and change_group_ref_for_cond. Does the
-  brunt of the work: checks whether a function or condition contains a
-  reference to a grouped expression, and if so, creates an Item_ref to it and
-  replaces the reference to the condition with that reference. Marks the
-  expression tree as containing a rolled up expression.
-*/
-static bool find_and_change_grouped_expr(
-    THD *thd, SELECT_LEX *select, uint i, Item *func_or_cond, Item *item,
-    bool wf, bool *arg_changed, std::function<void(Item *)> update_functor) {
-  const bool is_grouping_func =
-      (wf ? false
-          : (func_or_cond->type() == Item::FUNC_ITEM &&
-             down_cast<Item_func *>(func_or_cond)->functype() ==
-                 Item_func::GROUPING_FUNC));
-
-  bool found_match = false;
-  for (ORDER *group = select->group_list.first; group; group = group->next) {
-    Item *real_item = item->real_item();
-    if (real_item->eq((*group->item)->real_item(), false)) {
-      // If to-be-replaced Item is alias, make replacing Item an alias.
-      bool alias_of_expr = (item->type() == Item::FIELD_ITEM ||
-                            item->type() == Item::REF_ITEM) &&
-                           down_cast<Item_ident *>(item)->is_alias_of_expr();
-      Item_ref *new_item;
-      if (!(new_item = new Item_ref(&select->context, group->item, nullptr,
-                                    item->item_name.ptr(), alias_of_expr)))
-        return true; /* purecov: inspected */
-
-      update_functor(new_item);
-      new_item->set_rollup_expr();
-      found_match = true;
-      break;
+ORDER *SELECT_LEX::find_in_group_list(Item *item, int *rollup_level) const {
+  Item *real_item = item->real_item();
+  ORDER *best_candidate = nullptr;
+  int idx = 0;
+  for (ORDER *group = group_list.first; group; group = group->next, ++idx) {
+    Item *group_item = *group->item;
+    if (real_item->eq(group_item->real_item(), /*binary_cmp=*/false)) {
+      if (item->item_name.ptr() != nullptr &&
+          group_item->item_name.ptr() != nullptr &&
+          item->item_name.eq(group_item->item_name)) {
+        // Match on group _and_ alias; return immediately.
+        if (rollup_level != nullptr) {
+          *rollup_level = idx;
+        }
+        return group;
+      } else if (best_candidate == nullptr) {
+        // Match on group but not alias; it's a good candidate,
+        // but only if we don't find a better match. (If there
+        // are multiple such candidates, we use the leftmost one.)
+        if (rollup_level != nullptr) {
+          *rollup_level = idx;
+        }
+        best_candidate = group;
+      }
     }
   }
+  return best_candidate;
+}
 
-  if (is_grouping_func && !found_match) {
-    my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (i + 1));
-    return true;
+int SELECT_LEX::group_list_size() const {
+  int size = 0;
+  for (ORDER *group = group_list.first; group; group = group->next) {
+    ++size;
+  }
+  return size;
+}
+
+/**
+  Checks whether an item matches a grouped expression, creates an
+  Item_rollup_group_item around it and replaces the reference to it with that
+  item.
+ */
+static ReplaceResult wrap_grouped_expressions_for_rollup(
+    SELECT_LEX *select, Item *item, Item *parent, unsigned argument_idx) {
+  if (is_rollup_group_wrapper(item->real_item())) {
+    // This item must already be a group item, or we wouldn't have
+    // wrapped it earlier. No need to do anything more about it,
+    // since it's already wrapped (also, don't traverse further).
+    return {ReplaceResult::REPLACE, item};
   }
 
-  if (found_match) {
-    *arg_changed = true;
-  } else {
-    Item *real_item = item->real_item();
-    if (real_item->type() == Item::FUNC_ITEM ||
-        (real_item->type() == Item::SUM_FUNC_ITEM &&
-         real_item->m_is_window_function)) {
-      if (select->change_group_ref_for_func(thd, real_item, arg_changed))
+  int rollup_level = 0;
+  ORDER *group = select->find_in_group_list(item, &rollup_level);
+  if (group != nullptr) {
+    Item_rollup_group_item *new_item =
+        new Item_rollup_group_item(rollup_level, item);
+    if (new_item == nullptr || select->rollup_group_items.push_back(new_item)) {
+      return {ReplaceResult::ERROR, nullptr};
+    }
+    new_item->quick_fix_field();
+    if (group->rollup_item == nullptr) {
+      current_thd->change_item_tree(
+          reinterpret_cast<Item **>(&group->rollup_item), new_item);
+    }
+    return {ReplaceResult::REPLACE, new_item};
+  } else if (parent != nullptr && parent->type() == Item::FUNC_ITEM &&
+             down_cast<Item_func *>(parent)->functype() ==
+                 Item_func::GROUPING_FUNC) {
+    my_error(ER_FIELD_IN_GROUPING_NOT_GROUP_BY, MYF(0), (argument_idx + 1));
+    return {ReplaceResult::ERROR, nullptr};
+  }
+
+  return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+}
+
+bool WalkAndReplace(
+    THD *thd, Item *item,
+    const function<ReplaceResult(Item *item, Item *parent,
+                                 unsigned argument_idx)> &get_new_item) {
+  if (item->type() == Item::FUNC_ITEM) {
+    Item_func *func_item = down_cast<Item_func *>(item);
+    if (func_item->m_is_window_function) {
+      return false;
+    }
+    for (unsigned argument_idx = 0; argument_idx < func_item->arg_count;
+         argument_idx++) {
+      Item *arg = func_item->arguments()[argument_idx];
+      ReplaceResult result = get_new_item(arg, item, argument_idx);
+      if (result.action == ReplaceResult::ERROR) {
         return true;
-    } else if (real_item->type() == Item::COND_ITEM) {
-      if (select->change_group_ref_for_cond(
-              thd, down_cast<Item_cond *>(real_item), arg_changed))
+      } else if (result.action == ReplaceResult::REPLACE) {
+        Item *new_arg = result.replacement;
+        func_item->replace_argument(thd, &func_item->arguments()[argument_idx],
+                                    new_arg);
+      } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
+      }
+    }
+  } else if (item->type() == Item::COND_ITEM) {
+    Item_cond *cond_item = down_cast<Item_cond *>(item);
+    List_iterator<Item> li(*cond_item->argument_list());
+    unsigned argument_idx = 0;
+    for (Item *arg = li++; arg != nullptr; arg = li++) {
+      ReplaceResult result = get_new_item(arg, item, argument_idx++);
+      if (result.action == ReplaceResult::ERROR) {
+        return true;
+      } else if (result.action == ReplaceResult::REPLACE) {
+        Item *new_arg = result.replacement;
+        DBUG_ASSERT(item != new_arg);
+        thd->change_item_tree(li.ref(), new_arg);
+      } else if (WalkAndReplace(thd, arg, get_new_item)) {
+        return true;
+      }
     }
   }
   return false;
 }
 
 /**
-  Replace occurrences of group by fields in a functions's arguments by ref
-  items.
-
-  The method replaces such occurrences of group by expressions by ref objects
-  for these expressions unless they are under aggregate functions.  The
-  function also corrects the value of the maybe_null attribute for the items of
-  all subexpressions containing group by expressions.
-
-  Similarly, replace occurrences of group by expressions in arguments of a
-  windowing function with ref items.
-
-  It also checks if expressions in the GROUPING function are present in GROUP
-  BY list. This cannot be pushed to Item_func_grouping::fix_fields as GROUP BY
-  expressions get resolved at the end. And it cannot be checked later in
-  Item_func_grouping::aggregate_check_group as we replace all occurrences of
-  GROUP BY expressions with ref items.  As a result, we cannot compare the
-  objects for equality.
-
-  @b EXAMPLES
-    @code
-      SELECT a+1 FROM t1 GROUP BY a WITH ROLLUP
-      SELECT SUM(a)+a FROM t1 GROUP BY a WITH ROLLUP
-      SELECT a+1, GROUPING(a) FROM t1 GROUP BY a WITH ROLLUP;
-  @endcode
-
-  @b IMPLEMENTATION
-
-    The function recursively traverses the tree of function's arguments, looks
-    for occurrences of the group by expression that are not under aggregate
-    functions and replaces them for the corresponding ref items.  It works
-    recursively in conjunction with the companion method
-    change_group_ref_for_cond which handles operands of conditions (as opposed
-    to function arguments).
-
-  @note
-    This substitution is needed GROUP BY queries with ROLLUP if
-    SELECT list contains expressions over group by attributes.
-
-  @b EXAMPLE
-    @code
-      SELECT LAG(f1+3/2,1,1) OVER (ORDER BY f1) FROM t GROUP BY f1
-      WITH ROLLUP
-  @endcode
-
-  @param thd                  reference to the context
-  @param func                 function to make replacement
-  @param [out] changed  returns true if item contains a replaced field item
+  Marks occurrences of group by fields in a function's arguments as maybe_null,
+  so that we do not optimize them away before we get to add the rollup wrappers.
 
   @todo
     Some functions are not null-preserving. For those functions
     updating of the maybe_null attribute is an overkill.
 
-  @returns false if success, true if error
-
 */
-bool SELECT_LEX::change_group_ref_for_func(THD *thd, Item *func,
-                                           bool *changed) {
-  bool arg_changed = false;
-  bool wf = func->m_is_window_function;
-  Item_sum *window_func = wf ? down_cast<Item_sum *>(func) : nullptr;
-  Item_func *func_item = !wf ? down_cast<Item_func *>(func) : nullptr;
-  uint argcnt = wf ? window_func->get_arg_count() : func_item->arg_count;
-  Item **args = (wf ? window_func->get_arg_ptr(0)
-                    : (argcnt > 0 ? func_item->arguments() : nullptr));
 
-  for (uint i = 0; i < argcnt; i++) {
-    Item *const item = args[i];
-
-    if (wf) {
-      if (find_and_change_grouped_expr(thd, this, i, func, item, wf,
-                                       &arg_changed,
-                                       [=](Item *new_item) -> void {
-                                         window_func->set_arg(i, thd, new_item);
-                                       }))
-        return true;
-    } else {
-      if (find_and_change_grouped_expr(
-              thd, this, i, func, item, wf, &arg_changed,
-              [=](Item *new_item) -> void {
-                func_item->replace_argument(thd, args + i, new_item);
-              }))
-        return true;
-    }
+void SELECT_LEX::mark_item_as_maybe_null_if_rollup_item(Item *item) {
+  if (find_in_group_list(item, /*rollup_level=*/nullptr)) {
+    /*
+      If this item is present in GROUP BY clause, set maybe_null
+      to true, as ROLLUP will generate NULLs for this column.
+      This prevents the optimizer from constant-folding away
+      IS NULL expressions (e.g. in HAVING). This must be done
+      before we start resolving subselects in m_having_cond.
+    */
+    item->maybe_null = true;
   }
-  if (arg_changed) {
-    func->maybe_null = true;
-    *changed = true;
-  }
-  return false;
 }
 
 /**
-  Similar to change_group_ref_for_func, except we are looking into an AND or OR
-  conditions instead of functions' arguments.  It works recursively in
-  conjunction with change_group_ref_for_func.
-
-  @b EXAMPLE
-    @code
-      SELECT FROM t1 GROUP BY a WITH ROLLUP HAVING foo(a) OR bar(a)
-  @endcode
-
-  @param thd            session context
-  @param cond_item      function to make replacement in
-  @param [out] changed  set to true if we replaced a group item with a
-                        reference, otherwise not touched, so needs
-                        initialization
-  @return true on error
-*/
-bool SELECT_LEX::change_group_ref_for_cond(THD *thd, Item_cond *cond_item,
-                                           bool *changed) {
-  bool arg_changed = false;
-  List_iterator<Item> li(*cond_item->argument_list());
-  for (Item *item = li++; item != nullptr; item = li++) {
-    if (find_and_change_grouped_expr(
-            thd, this, 0, cond_item, item, false, &arg_changed,
-            [thd, &li](Item *new_item) -> void {
-              thd->change_item_tree(li.ref(), new_item);
-            }))
-      return true;
-  }
-  if (arg_changed) {
-    cond_item->maybe_null = true;
-    *changed = true;
-  }
-  return false;
-}
-
-/**
-  Resolve an item (and its tree) for rollup processing by replacing fields with
-  references and updating properties (maybe_null, PROP_ROLLUP_FIELD).
+  Resolve an item (and its tree) for rollup processing by replacing items
+  matching grouped expressions with Item_rollup_group_items and
+  updating properties (maybe_null, PROP_ROLLUP_FIELD).
   Also check any GROUPING function for incorrect column.
 
   @param   thd      session context
   @param   item     the item to be processed
-  @returns true on error
+  @returns the new item, or nullptr on error
 */
-bool SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
-  bool found_in_group = false;
+Item *SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
+  ReplaceResult result =
+      wrap_grouped_expressions_for_rollup(this, item, nullptr, 0);
+  if (result.action == ReplaceResult::ERROR) {
+    return nullptr;
+  } else if (result.action == ReplaceResult::REPLACE) {
+    item->maybe_null = true;
+    return result.replacement;
+  }
+  bool changed = false;
+  bool error = WalkAndReplace(
+      thd, item,
+      [this, &changed](Item *inner_item, Item *parent, unsigned argument_idx) {
+        ReplaceResult inner_result = wrap_grouped_expressions_for_rollup(
+            this, inner_item, parent, argument_idx);
+        changed |= (inner_result.action == ReplaceResult::REPLACE);
+        return inner_result;
+      });
+  if (error) return nullptr;
+  if (changed) {
+    item->maybe_null = true;
+    item->update_used_tables();
+  }
+  return item;
+}
 
-  for (ORDER *group = group_list.first; group; group = group->next) {
-    /*
-      If this item is present in GROUP BY clause, set maybe_null
-      to true as ROLLUP will generate NULL's for this column.
-    */
-    if (*group->item == item || item->eq(*group->item, false)) {
-      item->maybe_null = true;
-      /*
-        If this is a reference, e.g a view column, we need the column to be
-        marked as nullable also, since this will form the basis of temporary
-        table fields.  Copy_field's from_null_ptr, to_null_ptr will be
-        missing if the Item_field isn't marked correctly, which will cause
-        problems if we have buffered windowing.
-      */
-      item->real_item()->maybe_null = true;
-      found_in_group = true;
-      break;
+Item *create_rollup_switcher(THD *thd, SELECT_LEX *select_lex, Item *item,
+                             int send_group_parts) {
+  DBUG_ASSERT(!item->m_is_window_function);
+  DBUG_ASSERT(!is_rollup_sum_wrapper(item));
+
+  List<Item> alternatives;
+  alternatives.push_back(item);
+  for (int level = 0; level < send_group_parts; ++level) {
+    Item_sum *new_item = down_cast<Item_sum *>(item->copy_or_same(thd));
+    if (new_item == nullptr) {
+      return nullptr;
+    }
+    new_item->make_unique();
+    if (alternatives.push_back(new_item)) {
+      return nullptr;
     }
   }
-
-  if (!found_in_group) {
-    bool changed = false;
-    if (item->type() == Item::FUNC_ITEM) {
-      if (change_group_ref_for_func(thd, item, &changed))
-        return true; /* purecov: inspected */
-    } else if (item->type() == Item::COND_ITEM) {
-      if (change_group_ref_for_cond(thd, down_cast<Item_cond *>(item),
-                                    &changed))
-        return true; /* purecov: inspected */
-    }
-    if (changed) item->update_used_tables();
+  Item_rollup_sum_switcher *new_item =
+      new Item_rollup_sum_switcher(&alternatives);
+  if (new_item == nullptr || select_lex->rollup_sums.push_back(new_item)) {
+    return nullptr;
   }
-
-  return false;
+  new_item->quick_fix_field();
+  return new_item;
 }
 
 /**
@@ -4603,8 +4602,27 @@ bool SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
 
 bool SELECT_LEX::resolve_rollup(THD *thd) {
   DBUG_TRACE;
-  for (Item &item : all_fields) {
-    if (resolve_rollup_item(thd, &item)) return true;
+
+  uint send_group_parts = group_list_size();
+
+  List_iterator<Item> it(all_fields);
+  Item *item;
+  while ((item = it++)) {
+    Item *new_item;
+    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+        down_cast<Item_sum *>(item)->aggr_select == this) {
+      // This is a top level aggregate, which must be replaced with
+      // a different one for each rollup level.
+      new_item = create_rollup_switcher(thd, this, item, send_group_parts);
+    } else {
+      new_item = resolve_rollup_item(thd, item);
+    }
+    if (new_item == nullptr) {
+      return true;
+    }
+    if (item != new_item) {
+      thd->change_item_tree(it.ref(), new_item);
+    }
   }
 
   /*
@@ -4626,7 +4644,17 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
                                 (order_item = *order->item)->check_cols(1)));
     if (ret) return true; /* Wrong field. */
 
-    if (resolve_rollup_item(thd, order_item)) return true;
+    if (order_item->type() == Item::SUM_FUNC_ITEM &&
+        !order_item->const_item() &&
+        down_cast<Item_sum *>(order_item)->aggr_select == this) {
+      // This is a top level aggregate, which must be replaced with
+      // a different one for each rollup level.
+      *order->item =
+          create_rollup_switcher(thd, this, order_item, send_group_parts);
+    } else {
+      *order->item = resolve_rollup_item(thd, order_item);
+    }
+    if (*order->item == nullptr) return true;
   }
 
   thd->lex->allow_sum_func = saved_allow;
@@ -4643,13 +4671,28 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
 
 bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
   DBUG_TRACE;
-  for (Item &item : all_fields) {
-    if (resolve_rollup_item(thd, &item)) return true;
-    if (item.type() == Item::SUM_FUNC_ITEM && item.m_is_window_function) {
-      bool changed = false;
-      if (change_group_ref_for_func(thd, &item, &changed))
-        return true; /* purecov: inspected */
-      if (changed) item.update_used_tables();
+  List_iterator<Item> it(all_fields);
+  Item *item;
+  while ((item = it++)) {
+    Item *new_item = resolve_rollup_item(thd, item);
+    if (new_item == nullptr) return true;
+    if (item != new_item) {
+      thd->change_item_tree(it.ref(), new_item);
+    }
+
+    // With rollup, pretty much any window function can become NULL.
+    // This might be slightly excessive, but false positives are fine.
+    if (!new_item->maybe_null) {
+      bool any_wf = false;
+      WalkItem(new_item, enum_walk::POSTFIX, [&any_wf](Item *inner_item) {
+        if (inner_item->real_item()->type() == Item::SUM_FUNC_ITEM &&
+            inner_item->real_item()->m_is_window_function) {
+          inner_item->maybe_null = true;
+          any_wf = true;
+        }
+        return false;
+      });
+      new_item->maybe_null |= any_wf;
     }
   }
   /*

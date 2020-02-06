@@ -655,7 +655,8 @@ void filesort_free_buffers(TABLE *table, bool full) {
 
 Filesort::Filesort(THD *thd, TABLE *table_arg, bool keep_buffers_arg,
                    ORDER *order, ha_rows limit_arg, bool force_stable_sort,
-                   bool remove_duplicates, bool sort_positions)
+                   bool remove_duplicates, bool sort_positions,
+                   bool unwrap_rollup)
     : m_thd(thd),
       table(table_arg),
       keep_buffers(keep_buffers_arg),
@@ -666,9 +667,9 @@ Filesort::Filesort(THD *thd, TABLE *table_arg, bool keep_buffers_arg,
           force_stable_sort),  // keep relative order of equiv. elts
       m_remove_duplicates(remove_duplicates),
       m_force_sort_positions(sort_positions),
-      m_sort_order_length(make_sortorder(order)) {}
+      m_sort_order_length(make_sortorder(order, unwrap_rollup)) {}
 
-uint Filesort::make_sortorder(ORDER *order) {
+uint Filesort::make_sortorder(ORDER *order, bool unwrap_rollup) {
   uint count;
   st_sort_field *sort, *pos;
   ORDER *ord;
@@ -690,8 +691,18 @@ uint Filesort::make_sortorder(ORDER *order) {
     Item *const item = ord->item[0], *const real_item = item->real_item();
     if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
       pos->item = static_cast<Item_copy *>(real_item)->get_item();
-    } else
+    } else {
       pos->item = real_item;
+    }
+
+    // If filesort runs before GROUP BY (potentially to sort rows
+    // in preparation for grouping), we cannot have any rollup NULLs
+    // (and they don't have any rollup state to query), so we need to
+    // remove the wrappers.
+    if (unwrap_rollup) {
+      pos->item = unwrap_rollup_group(pos->item);
+    }
+
     pos->reverse = (ord->direction == ORDER_DESC);
   }
   return count;

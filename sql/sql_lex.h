@@ -98,6 +98,8 @@ class Item_cond;
 class Item_exists_subselect;
 class Item_subselect;
 class Item_sum;
+class Item_rollup_group_item;
+class Item_rollup_sum_switcher;
 class Event_parse_data;
 class Item_func_match;
 class Parse_tree_root;
@@ -1161,6 +1163,19 @@ class SELECT_LEX {
 
   bool is_in_select_list(Item *i);
 
+  /**
+    Finds a group expression matching the given item, or nullptr if
+    none. When there are multiple candidates, ones that match in name are
+    given priority (such that “a AS c GROUP BY a,b,c” resolves to c, not a);
+    if there is still a tie, the leftmost is given priority.
+
+    @param item The item to search for.
+    @param [out] rollup_level If not nullptr, will be set to the group
+      expression's index (0-based).
+   */
+  ORDER *find_in_group_list(Item *item, int *rollup_level) const;
+  int group_list_size() const;
+
   /// @returns true if query block contains window functions
   bool has_windows() const { return m_windows.elements > 0; }
 
@@ -1676,6 +1691,13 @@ class SELECT_LEX {
   SQL_I_List<ORDER> group_list{};
   Group_list_ptrs *group_list_ptrs{nullptr};
 
+  // Used so that AggregateIterator knows which items to signal when the rollup
+  // level changes. Obviously only used in the presence of rollup.
+  Prealloced_array<Item_rollup_group_item *, 4> rollup_group_items{
+      PSI_NOT_INSTRUMENTED};
+  Prealloced_array<Item_rollup_sum_switcher *, 4> rollup_sums{
+      PSI_NOT_INSTRUMENTED};
+
   /// Query-block-level hints, for this query block
   Opt_hints_qb *opt_hints_qb{nullptr};
 
@@ -1938,7 +1960,8 @@ class SELECT_LEX {
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
-  bool resolve_rollup_item(THD *thd, Item *item);
+  void mark_item_as_maybe_null_if_rollup_item(Item *item);
+  Item *resolve_rollup_item(THD *thd, Item *item);
   bool resolve_rollup(THD *thd);
 
   bool setup_wild(THD *thd);

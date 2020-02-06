@@ -68,8 +68,6 @@ class THD;
 class Window;
 struct MYSQL_LOCK;
 
-typedef Bounds_checked_array<Item_null_result *> Item_null_array;
-
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
 typedef Mem_root_array<Key_use> Key_use_array;
 
@@ -79,15 +77,6 @@ struct SARGABLE_PARAM {
   Field *field;     /* field against which to check sargability */
   Item **arg_value; /* values of potential keys for lookups     */
   uint num_values;  /* number of values in the above array      */
-};
-
-struct ROLLUP {
-  enum State { STATE_NONE, STATE_INITED, STATE_READY };
-  State state;
-  Item_null_array null_items;
-  Ref_item_array *ref_item_arrays;
-  List<Item> *fields_list;  ///< SELECT list
-  List<Item> *all_fields;   ///< Including hidden fields
 };
 
 /**
@@ -289,7 +278,6 @@ class JOIN {
   List<Cached_item> group_fields{};
   List<Cached_item> group_fields_cache{};
   Item_sum **sum_funcs{nullptr};
-  Item_sum ***sum_funcs_end{nullptr};
   /**
      Describes a temporary table.
      Each tmp table has its own tmp_table_param.
@@ -302,7 +290,8 @@ class JOIN {
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
 
-  ROLLUP rollup{};         ///< Used with rollup
+  enum class RollupState { NONE, INITED, READY };
+  RollupState rollup_state;
   bool implicit_grouping;  ///< True if aggregated but no GROUP BY
 
   /**
@@ -566,14 +555,6 @@ class JOIN {
   */
   bool with_json_agg;
 
-  /**
-    If set, "fields" has been replaced with a set of Item_refs for rollup
-    processing; see the AggregateIterator constructor for more details.
-    This is used when constructing iterators only; it is not used during
-    execution.
-   */
-  bool replaced_items_for_rollup = false;
-
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
 
@@ -588,8 +569,8 @@ class JOIN {
   bool prepare_result();
   bool destroy();
   bool alloc_func_list();
-  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
-                          bool before_group_by, bool recompute = false);
+  bool make_sum_func_list(List<Item> &all_fields, bool before_group_by,
+                          bool recompute = false);
 
   /**
      Overwrites one slice of ref_items with the contents of another slice.
@@ -644,11 +625,6 @@ class JOIN {
   List<Item> *get_current_fields();
 
   bool optimize_rollup();
-  bool rollup_process_const_fields();
-  bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
-                          Item_sum ***func);
-  bool switch_slice_for_rollup_fields(List<Item> &all_fields,
-                                      List<Item> &fields);
   bool finalize_table_conditions();
   /**
     Release memory and, if possible, the open tables held by this execution
@@ -691,7 +667,7 @@ class JOIN {
  public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
-                            bool force_stable_sort = false);
+                            bool force_stable_sort, bool sort_before_group);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   void recalculate_deps_of_remaining_lateral_derived_tables(
@@ -785,7 +761,7 @@ class JOIN {
     @param tab              the JOIN_TAB object to attach created table to
     @param tmp_table_fields List of items that will be used to define
                             column types of the table.
-    @param tmp_table_group  Group key to use for temporary table, NULL if none.
+    @param tmp_table_group  Group key to use for temporary table, empty if none.
     @param save_sum_fields  If true, do not replace Item_sum items in
                             @c tmp_fields list with Item_field items referring
                             to fields in temporary table.

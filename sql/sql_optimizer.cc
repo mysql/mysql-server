@@ -181,7 +181,7 @@ JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
       tables_list(reinterpret_cast<TABLE_LIST *>(1)),
       current_ref_item_slice(REF_SLICE_SAVED_BASE),
       with_json_agg(select->json_agg_func_used()) {
-  rollup.state = ROLLUP::STATE_NONE;
+  rollup_state = RollupState::NONE;
   if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
   if (select->group_list.first) explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
   if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
@@ -516,7 +516,7 @@ bool JOIN::optimize() {
     goto setup_subq_exit;
   }
 
-  if (rollup.state == ROLLUP::STATE_NONE) {
+  if (rollup_state == RollupState::NONE) {
     /* Remove distinct if only const tables */
     select_distinct &= !plan_is_const();
   }
@@ -664,13 +664,9 @@ bool JOIN::optimize() {
       item->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
   }
 
-  if (rollup.state != ROLLUP::STATE_NONE) {
-    if (rollup_process_const_fields()) {
-      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
-      return true;
-    }
+  if (rollup_state != RollupState::NONE) {
     /*
-      Fields may have been replaced by Item_func_rollup_const, so
+      Fields may have been replaced by Item_rollup_group_item, so
       recalculate the number of fields and functions for this query block.
     */
 
@@ -789,7 +785,7 @@ bool JOIN::optimize() {
     row so doesn't need sorting.
   */
 
-  if (rollup.state != ROLLUP::STATE_NONE &&  // (1)
+  if (rollup_state != RollupState::NONE &&  // (1)
       (select_distinct || has_windows || !order.empty()))
     need_tmp_before_win = true;
 
@@ -1238,8 +1234,8 @@ bool JOIN::optimize_distinct_group_order() {
   {
     ORDER *org_order = order.order;
     order = ORDER_with_src(
-        remove_const(order.order, where_cond,
-                     rollup.state == ROLLUP::STATE_NONE, &simple_order, false),
+        remove_const(order.order, where_cond, rollup_state == RollupState::NONE,
+                     &simple_order, false),
         order.src);
     if (thd->is_error()) {
       error = 1;
@@ -1276,7 +1272,7 @@ bool JOIN::optimize_distinct_group_order() {
       !tmp_table_param.sum_func_count &&
       (!tab->quick() ||
        tab->quick()->get_type() != QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)) {
-    if (!group_list.empty() && rollup.state == ROLLUP::STATE_NONE &&
+    if (!group_list.empty() && rollup_state == RollupState::NONE &&
         list_contains_unique_index(tab, find_field_in_order_list,
                                    (void *)group_list.order)) {
       /*
@@ -1296,7 +1292,7 @@ bool JOIN::optimize_distinct_group_order() {
   }
   if (!(!group_list.empty() || tmp_table_param.sum_func_count || windowing) &&
       select_distinct && plan_is_single_table() &&
-      rollup.state == ROLLUP::STATE_NONE) {
+      rollup_state == RollupState::NONE) {
     int order_idx = -1, group_idx = -1;
     /*
       We are only using one table. In this case we change DISTINCT to a
@@ -1372,7 +1368,7 @@ bool JOIN::optimize_distinct_group_order() {
   ORDER *old_group_list = group_list.order;
   group_list = ORDER_with_src(
       remove_const(group_list.order, where_cond,
-                   rollup.state == ROLLUP::STATE_NONE, &simple_group, true),
+                   rollup_state == RollupState::NONE, &simple_group, true),
       group_list.src);
 
   if (thd->is_error()) {
@@ -7656,8 +7652,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
       join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     return false;
 
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, true))
-    return false;
+  if (join->make_sum_func_list(join->all_fields, true)) return false;
 
   for (sum_item_ptr = join->sum_funcs; *sum_item_ptr; sum_item_ptr++) {
     Item_sum *sum_item = *sum_item_ptr;
@@ -9722,7 +9717,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
           table for all queries containing more than one table, ROLLUP, and an
           outer join.
          */
-        (primary_tables > 1 && rollup.state == ROLLUP::STATE_INITED &&
+        (primary_tables > 1 && rollup_state == RollupState::INITED &&
          select_lex->outer_join))
       *simple_order = false;  // Must do a temp table to sort
     else if ((order_tables & not_const_tables) == 0 &&
@@ -10815,59 +10810,8 @@ double calculate_subquery_executions(const Item_subselect *subquery,
 
 bool JOIN::optimize_rollup() {
   tmp_table_param.allow_group_via_temp_table = false;
-  rollup.state = ROLLUP::STATE_INITED;
-
-  /*
-    Create pointers to the different sum function groups
-    These are updated by rollup_make_fields()
-  */
+  rollup_state = RollupState::INITED;
   tmp_table_param.group_parts = send_group_parts;
-  /*
-    substitute_gc() might substitute an expression in the GROUP BY list with
-    a generated column. In such case the GC is added to the all_fields as a
-    hidden field. In total, all_fields list could be grown by up to
-    send_group_parts columns. Reserve space for them here.
-  */
-  const uint ref_array_size = all_fields.elements + send_group_parts;
-
-  Item_null_result **null_items = static_cast<Item_null_result **>(
-      thd->alloc(sizeof(Item *) * send_group_parts));
-
-  rollup.null_items = Item_null_array(null_items, send_group_parts);
-  rollup.ref_item_arrays = static_cast<Ref_item_array *>(
-      thd->alloc((sizeof(Ref_item_array) + ref_array_size * sizeof(Item *)) *
-                 send_group_parts));
-  rollup.all_fields = static_cast<List<Item> *>(
-      thd->alloc(sizeof(List<Item>) * send_group_parts));
-  rollup.fields_list = static_cast<List<Item> *>(
-      thd->alloc(sizeof(List<Item>) * send_group_parts));
-
-  if (!null_items || !rollup.ref_item_arrays || !rollup.all_fields ||
-      !rollup.fields_list)
-    return true;
-
-  Item **ref_array = (Item **)(rollup.ref_item_arrays + send_group_parts);
-
-  /*
-    Prepare space for field list for the different levels
-    These will be filled up in rollup_make_fields()
-  */
-  ORDER *group = group_list.order;
-  for (uint i = 0; i < send_group_parts; i++, group = group->next) {
-    rollup.null_items[i] = new (thd->mem_root) Item_null_result(
-        (*group->item)->data_type(), (*group->item)->result_type());
-    if (rollup.null_items[i] == NULL) return true; /* purecov: inspected */
-    rollup.fields_list[i].empty();
-    rollup.all_fields[i].empty();
-    rollup.ref_item_arrays[i] = Ref_item_array(ref_array, ref_array_size);
-    ref_array += ref_array_size;
-  }
-  for (uint i = 0; i < send_group_parts; i++) {
-    for (uint j = 0; j < fields_list.elements; j++)
-      rollup.fields_list[i].push_back(rollup.null_items[i]);
-    for (uint j = 0; j < all_fields.elements; j++)
-      rollup.all_fields[i].push_back(rollup.null_items[i]);
-  }
   return false;
 }
 

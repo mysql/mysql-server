@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+
 #include <memory>
 #include <new>
 #include <string>
@@ -803,7 +804,6 @@ class Item : public Parse_tree_node {
     XPATH_NODESET_CMP,
     VIEW_FIXER_ITEM,
     FIELD_BIT_ITEM,
-    NULL_RESULT_ITEM,
     VALUES_COLUMN_ITEM
   };
 
@@ -1823,6 +1823,11 @@ class Item : public Parse_tree_node {
   type_conversion_status save_date_in_field(Field *field);
   type_conversion_status save_str_value_in_field(Field *field, String *result);
 
+  /**
+    If this Item is being materialized into a temporary table, returns the
+    field that is being materialized into. (Typically, this is the
+    “result_field” members for items that have one.)
+   */
   virtual Field *get_tmp_table_field() {
     DBUG_TRACE;
     return nullptr;
@@ -2013,11 +2018,19 @@ class Item : public Parse_tree_node {
     return runtime_item ? real_item() : this;
   }
   virtual void set_runtime_created() { runtime_item = true; }
-  virtual Item *get_tmp_table_item(THD *thd) {
-    DBUG_TRACE;
-    Item *result = copy_or_same(thd);
-    return result;
-  }
+
+  /**
+    If an Item is materialized in a temporary table, a different Item may have
+    to be used in the part of the query that runs after the materialization.
+    For instance, if the Item was an Item_field, the new Item_field needs to
+    point into the temporary table instead of the original one, but if, on the
+    other hand, the Item was a literal constant, it can be reused as-is.
+    This function encapsulates these policies for the different kinds of Items.
+    See also get_tmp_table_field().
+
+    TODO: Document how aggregate functions (Item_sum) are handled.
+   */
+  virtual Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   static const CHARSET_INFO *default_charset();
   virtual const CHARSET_INFO *compare_collation() const { return nullptr; }
@@ -3890,41 +3903,6 @@ class Item_null : public Item_basic_constant {
 
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
-};
-
-/**
-  An item representing NULL values for use with ROLLUP.
-
-  When grouping WITH ROLLUP, Item_null_result items are created to
-  represent NULL values in the grouping columns of the ROLLUP rows. To
-  avoid type problems during execution, these objects are created with
-  the same field and result types as the fields of the columns they
-  belong to.
- */
-class Item_null_result final : public Item_null {
-  /** Result type for this NULL value */
-  Item_result res_type;
-  Field *result_field{nullptr};
-
- public:
-  Item_null_result(enum_field_types fld_type, Item_result res_type)
-      : Item_null(), res_type(res_type) {
-    set_data_type(fld_type);
-  }
-  void set_result_field(Field *field) override { result_field = field; }
-  bool is_result_field() const override { return result_field != nullptr; }
-  Field *get_result_field() const override { return result_field; }
-  bool check_partition_func_processor(uchar *) override { return true; }
-  Item_result result_type() const override { return res_type; }
-  bool check_function_as_value_generator(uchar *args) override {
-    Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->banned_function_name = "NULL";
-    // This should not happen as SELECT statements are not allowed.
-    DBUG_ASSERT(false);
-    return true;
-  }
-  enum Type type() const override { return NULL_RESULT_ITEM; }
 };
 
 /// Placeholder ('?') of prepared statement.
@@ -5980,6 +5958,8 @@ class Item_cache : public Item_basic_constant {
     cache_value() will set this flag to true.
   */
   bool value_cached;
+
+  friend bool has_rollup_result(Item *item);
 
  public:
   Item_cache()

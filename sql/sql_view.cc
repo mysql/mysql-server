@@ -900,7 +900,9 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     // view definition.
     Sql_mode_parse_guard parse_guard(thd);
 
-    lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    lex->unit->print(
+        thd, &view_query,
+        enum_query_type(QT_TO_ARGUMENT_CHARSET | QT_HIDE_ROLLUP_FUNCTIONS));
     lex->unit->print(
         thd, &is_query,
         enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));

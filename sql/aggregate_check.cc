@@ -50,6 +50,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -278,6 +279,8 @@ bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
       return false;
     }
   }
+
+  expr = unwrap_rollup_group(expr);
 
   for (ORDER *grp = select->group_list.first; grp; grp = grp->next) {
     if ((*grp->item)->eq(expr, false))

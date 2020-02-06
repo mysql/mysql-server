@@ -3787,7 +3787,7 @@ bool JOIN::alloc_func_list() {
     If we are using rollup, we need a copy of the summary functions for
     each level
   */
-  if (rollup.state != ROLLUP::STATE_NONE) func_count *= (send_group_parts + 1);
+  if (rollup_state != RollupState::NONE) func_count *= (send_group_parts + 1);
 
   group_parts = send_group_parts;
   /*
@@ -3810,7 +3810,6 @@ bool JOIN::alloc_func_list() {
   sum_funcs =
       (Item_sum **)thd->mem_calloc(sizeof(Item_sum **) * (func_count + 1) +
                                    sizeof(Item_sum ***) * (group_parts + 1));
-  sum_funcs_end = (Item_sum ***)(sum_funcs + func_count + 1);
   return sum_funcs == nullptr;
 }
 
@@ -3818,7 +3817,6 @@ bool JOIN::alloc_func_list() {
   Initialize 'sum_funcs' array with all Item_sum objects.
 
   @param field_list        All items
-  @param send_result_set_metadata       Items in select list
   @param before_group_by   Set to 1 if this is called before GROUP BY handling
   @param recompute         Set to true if sum_funcs must be recomputed
 
@@ -3828,32 +3826,22 @@ bool JOIN::alloc_func_list() {
     1  error
 */
 
-bool JOIN::make_sum_func_list(List<Item> &field_list,
-                              List<Item> &send_result_set_metadata,
-                              bool before_group_by, bool recompute) {
-  List_iterator_fast<Item> it(field_list);
-  Item_sum **func;
-  Item *item;
-  DBUG_TRACE;
-
+bool JOIN::make_sum_func_list(List<Item> &field_list, bool before_group_by,
+                              bool recompute) {
   if (*sum_funcs && !recompute)
     return false; /* We have already initialized sum_funcs. */
 
-  func = sum_funcs;
-  while ((item = it++)) {
-    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        down_cast<Item_sum *>(item)->aggr_select == select_lex) {
-      DBUG_ASSERT(!item->m_is_window_function);
-      *func++ = down_cast<Item_sum *>(item);
+  Item_sum **func = sum_funcs;
+  for (Item &item : field_list) {
+    if (item.type() == Item::SUM_FUNC_ITEM && !item.const_item() &&
+        down_cast<Item_sum &>(item).aggr_select == select_lex) {
+      DBUG_ASSERT(!item.m_is_window_function);
+      *func++ = down_cast<Item_sum *>(&item);
     }
   }
-  if (before_group_by && rollup.state == ROLLUP::STATE_INITED) {
-    rollup.state = ROLLUP::STATE_READY;
-    if (rollup_make_fields(field_list, send_result_set_metadata, &func))
-      return true;  // Should never happen
-  } else if (rollup.state == ROLLUP::STATE_NONE) {
-    for (uint i = 0; i <= send_group_parts; i++) sum_funcs_end[i] = func;
-  } else if (rollup.state == ROLLUP::STATE_READY)
+  if (before_group_by && rollup_state == RollupState::INITED) {
+    rollup_state = RollupState::READY;
+  } else if (rollup_state == RollupState::READY)
     return false;   // Don't put end marker
   *func = nullptr;  // End marker
   return false;
@@ -3873,277 +3861,6 @@ void free_underlaid_joins(THD *thd, SELECT_LEX *select) {
   for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
        unit = unit->next_unit())
     unit->cleanup(thd, false);
-}
-
-/****************************************************************************
-  ROLLUP handling
-****************************************************************************/
-
-/**
-   Wrap all constant Items in GROUP BY list.
-
-   For ROLLUP queries each constant item referenced in GROUP BY list
-   is wrapped up into an Item_func object yielding the same value
-   as the constant item. The objects of the wrapper class are never
-   considered as constant items and besides they inherit all
-   properties of the Item_result_field class.
-   This wrapping allows us to ensure writing constant items
-   into temporary tables whenever the result of the ROLLUP
-   operation has to be written into a temporary table, e.g. when
-   ROLLUP is used together with DISTINCT in the SELECT list.
-   Usually when creating temporary tables for a intermidiate
-   result we do not include fields for constant expressions.
-
-   @retval
-     0  if ok
-   @retval
-     1  on error
-*/
-
-bool JOIN::rollup_process_const_fields() {
-  ORDER *group_tmp;
-  Item *item;
-  List_iterator<Item> it(all_fields);
-
-  for (group_tmp = group_list.order; group_tmp; group_tmp = group_tmp->next) {
-    if (!(*group_tmp->item)->const_item()) continue;
-    while ((item = it++)) {
-      if (*group_tmp->item == item) {
-        Item *new_item = new Item_func_rollup_const(item);
-        if (!new_item) return true;
-        if (new_item->fix_fields(thd, (Item **)nullptr)) return true;
-        thd->change_item_tree(it.ref(), new_item);
-        for (ORDER *tmp = group_tmp; tmp; tmp = tmp->next) {
-          if (*tmp->item == item) thd->change_item_tree(tmp->item, new_item);
-        }
-        break;
-      }
-    }
-    it.rewind();
-  }
-  return false;
-}
-
-/**
-  Fill up rollup structures with pointers to fields to use.
-
-  Creates copies of item_sum items for each sum level.
-
-  @param fields_arg		List of all fields (hidden and real ones)
-  @param sel_fields		Pointer to selected fields
-  @param func			Store here a pointer to all fields
-
-  @retval
-    0	if ok;
-    In this case func is pointing to next not used element.
-  @retval
-    1    on error
-*/
-
-bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
-                              Item_sum ***func) {
-  List_iterator_fast<Item> it(fields_arg);
-  Item *first_field = sel_fields.head();
-  uint level;
-
-  /*
-    Create field lists for the different levels
-
-    The idea here is to have a separate field list for each rollup level to
-    avoid all runtime checks of which columns should be NULL.
-
-    The list is stored in reverse order to get sum function in such an order
-    in func that it makes it easy to reset them with init_sum_functions()
-
-    Assuming:  SELECT a, b, c SUM(b) FROM t1 GROUP BY a,b WITH ROLLUP
-
-    rollup.fields[0] will contain list where a,b,c is NULL
-    rollup.fields[1] will contain list where b,c is NULL
-    ...
-    rollup.ref_item_array[#] points to fields for rollup.fields[#]
-    ...
-    sum_funcs_end[0] points to all sum functions
-    sum_funcs_end[1] points to all sum functions, except grand totals
-    ...
-  */
-
-  for (level = 0; level < send_group_parts; level++) {
-    uint i;
-    uint pos = send_group_parts - level - 1;
-    bool real_fields = false;
-    Item *item;
-    List_iterator<Item> new_it_fields_list(rollup.fields_list[pos]);
-    List_iterator<Item> new_it_all_fields(rollup.all_fields[pos]);
-    Ref_item_array ref_array_start = rollup.ref_item_arrays[pos];
-    ORDER *start_group;
-
-    /* Point to first hidden field */
-    uint ref_array_ix = fields_arg.elements - 1;
-
-    /* Remember where the sum functions ends for the previous level */
-    sum_funcs_end[pos + 1] = *func;
-
-    /* Find the start of the group for this level */
-    for (i = 0, start_group = group_list.order; i++ < pos;
-         start_group = start_group->next)
-      ;
-
-    it.rewind();
-    while ((item = it++)) {
-      if (item == first_field) {
-        real_fields = true;  // End of hidden fields
-        ref_array_ix = 0;
-      }
-
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          down_cast<Item_sum *>(item)->aggr_select == select_lex) {
-        DBUG_ASSERT(!item->m_is_window_function);
-        /*
-          This is a top level summary function that must be replaced with
-          a sum function that is reset for this level.
-
-          NOTE: This code creates an object which is not that nice in a
-          sub select.  Fortunately it's not common to have rollup in
-          sub selects.
-        */
-        item = item->copy_or_same(thd);
-        if (item == nullptr) return true;
-        ((Item_sum *)item)->make_unique();
-        *(*func) = (Item_sum *)item;
-        (*func)++;
-      } else {
-        /* Check if this is something that is part of this group by */
-        ORDER *group_tmp;
-        for (group_tmp = start_group, i = pos; group_tmp;
-             group_tmp = group_tmp->next, i++) {
-          /*
-            Query
-              SELECT SUM(k) OVER() FROM t GROUP BY k WITH ROLLUP
-            will add 'k' to select list twice, first one from GROUP BY, 2nd
-            from SUM(). ROLLUP code should find and set both NULL in order
-            to get correct result.
-          */
-          if (item == *group_tmp->item || item->eq(*group_tmp->item, false)) {
-            /*
-              This is an element that is used by the GROUP BY and should be
-              set to NULL in this level
-            */
-            Item_null_result *null_item = new (thd->mem_root)
-                Item_null_result(item->data_type(), item->result_type());
-            if (!null_item) return true;
-            item->maybe_null = true;  // Value will be null sometimes
-            null_item->set_result_field(item->get_tmp_table_field());
-            item = null_item;
-            break;
-          }
-        }
-      }
-      ref_array_start[ref_array_ix] = item;
-      if (real_fields) {
-        (void)new_it_fields_list++;  // Point to next item
-        (void)new_it_all_fields++;
-        new_it_fields_list.replace(item);  // Replace previous
-        new_it_all_fields.replace(item);
-        ref_array_ix++;
-      } else {
-        rollup.all_fields[pos].replace(ref_array_ix, item);
-        ref_array_ix--;
-      }
-    }
-  }
-  sum_funcs_end[0] = *func;  // Point to last function
-  return false;
-}
-
-/**
-  Switch the ref item slice for rollup structures which need to use
-  fields from the first temp table to evaluate functions and
-  having_condition correctly.
-  ROLLUP has a ref_item_slice which is pointing to the output
-  of join operation. Super aggregates are calculated with the regular
-  aggregations using the join output.
-  In rollup_make_fields, we create a ref_item_array where
-  1. Fields which are part of group by are replaced with Item_null_result
-  objects.
-  2. New aggregation functions to calculate super aggregates are added to
-  the list of sum_funcs.
-  3. The remaining objects point to join output.
-
-  For operations like order by, distinct, windowing functions
-  that are done post rollup, output of rollup data needs to be written
-  into a temp table. For evaluation of having conditions and functions,
-  we need the objects which are not dependent on ROLLUP NULL's to
-  point to temp table fields. So we switch the ref_array pointers
-  to refer to REF_ITEM_SLICE_1 (contents of first temp table).
-
-  @param curr_all_fields    List of all fields(hidden and real ones)
-  @param curr_sel_fields    Pointer to selected fields
-
-  @retval  0    if ok
-  @retval  1    if error
-*/
-bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
-                                          List<Item> &curr_sel_fields) {
-  List_iterator_fast<Item> it(curr_all_fields);
-  Item *first_field = curr_sel_fields.head();
-  uint level;
-
-  for (level = 0; level < send_group_parts; level++) {
-    uint pos = send_group_parts - level - 1;
-    bool real_fields = false;
-    Item *item;
-    List_iterator<Item> new_it_fields_list(rollup.fields_list[pos]);
-    List_iterator<Item> new_it_all_fields(rollup.all_fields[pos]);
-    Ref_item_array ref_array_start = rollup.ref_item_arrays[pos];
-
-    /* Point to first hidden field */
-    uint ref_array_ix = curr_all_fields.elements - 1;
-
-    it.rewind();
-    while ((item = it++)) {
-      bool has_rollup_fields = false;
-      if (item == first_field) {
-        real_fields = true;  // End of hidden fields
-        ref_array_ix = 0;
-      }
-      /*
-        Check if the existing ref_array_item is a group by field or
-        a function which uses group by fields or an aggregation function.
-        We do not replace these items with the items in temp table as they
-        need the ROLLUP NULL's.
-      */
-      Item *ref_array_item = ref_array_start[ref_array_ix];
-      if (ref_array_item->type() == Item::NULL_RESULT_ITEM ||
-          ref_array_item->has_rollup_expr() ||
-          (ref_array_item->type() == Item::SUM_FUNC_ITEM &&
-           !ref_array_item->m_is_window_function)) {
-        has_rollup_fields = true;
-      }
-      if (real_fields) {
-        (void)new_it_fields_list++;  // Point to next item
-        (void)new_it_all_fields++;
-        /*
-          Replace all the items which do not need ROLLUP nulls for evaluation
-        */
-        if (!has_rollup_fields) {
-          ref_array_start[ref_array_ix] = item;
-          new_it_fields_list.replace(item);  // Replace previous
-          new_it_all_fields.replace(item);
-        }
-        ref_array_ix++;
-      } else {
-        /*
-          Replace all the items which do not need ROLLUP nulls for evaluation
-        */
-        if (!has_rollup_fields) {
-          ref_array_start[ref_array_ix] = item;
-          rollup.all_fields[pos].replace(ref_array_ix, item);
-        }
-        ref_array_ix--;
-      }
-    }
-  }
-  return false;
 }
 
 /**
@@ -4217,7 +3934,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
     So do not move the having condition.
   */
   Item *sort_table_cond =
-      (rollup.state == ROLLUP::STATE_NONE)
+      (rollup_state == RollupState::NONE)
           ? make_cond_for_table(thd, having_cond, used_tables, table_map{0},
                                 false)
           : nullptr;
@@ -4396,16 +4113,16 @@ bool JOIN::make_tmp_tables_info() {
     // Change sum_fields reference to calculated fields in tmp_table
     if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by) {
-      if (change_to_use_tmp_fields(all_fields, fields_list.size(), thd,
+      if (change_to_use_tmp_fields(&all_fields, fields_list.size(), thd,
                                    ref_items[REF_SLICE_TMP1],
                                    &tmp_fields_list[REF_SLICE_TMP1],
                                    &tmp_all_fields[REF_SLICE_TMP1]))
         return true;
     } else {
-      if (change_refs_to_tmp_fields(all_fields, fields_list.size(), thd,
-                                    ref_items[REF_SLICE_TMP1],
-                                    &tmp_fields_list[REF_SLICE_TMP1],
-                                    &tmp_all_fields[REF_SLICE_TMP1]))
+      if (change_to_use_tmp_fields_except_sums(
+              &all_fields, fields_list.size(), thd, select_lex,
+              ref_items[REF_SLICE_TMP1], &tmp_fields_list[REF_SLICE_TMP1],
+              &tmp_all_fields[REF_SLICE_TMP1]))
         return true;
     }
     curr_all_fields = &tmp_all_fields[REF_SLICE_TMP1];
@@ -4415,9 +4132,6 @@ bool JOIN::make_tmp_tables_info() {
     qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP1;
     setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_outer);
     last_slice_before_windowing = REF_SLICE_TMP1;
-
-    if (rollup.state == ROLLUP::STATE_READY)
-      switch_slice_for_rollup_fields(*curr_all_fields, *curr_fields_list);
 
     /*
       If having is not handled here, it will be checked before the row is sent
@@ -4435,7 +4149,7 @@ bool JOIN::make_tmp_tables_info() {
         As this condition will read the tmp table, it is appropriate that
         REF_SLICE_TMP1 is in effect when we create it below.
       */
-      if ((!select_distinct && rollup.state == ROLLUP::STATE_NONE) &&
+      if ((!select_distinct && rollup_state == RollupState::NONE) &&
           add_having_as_tmp_table_cond(curr_tmp_table))
         return true;
 
@@ -4480,9 +4194,9 @@ bool JOIN::make_tmp_tables_info() {
 
     if ((!group_list.empty() &&
          (!test_if_subpart(group_list.order, order.order) || select_distinct ||
-          m_windowing_steps || rollup.state != ROLLUP::STATE_NONE)) ||
+          m_windowing_steps || rollup_state != RollupState::NONE)) ||
         (select_distinct && (tmp_table_param.using_outer_summary_function ||
-                             rollup.state != ROLLUP::STATE_NONE))) {
+                             rollup_state != RollupState::NONE))) {
       DBUG_PRINT("info", ("Creating group table"));
 
       calc_group_buffer(this, group_list.order);
@@ -4523,7 +4237,9 @@ bool JOIN::make_tmp_tables_info() {
         explain_flags.set(group_list.src, ESP_USING_TMPTABLE);
         if (!plan_is_const())  // No need to sort a single row
         {
-          if (add_sorting_to_table(curr_tmp_table - 1, &group_list))
+          if (add_sorting_to_table(curr_tmp_table - 1, &group_list,
+                                   /*force_stable_sort=*/false,
+                                   /*sort_before_group=*/true))
             return true;
         }
 
@@ -4533,8 +4249,7 @@ bool JOIN::make_tmp_tables_info() {
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
       if (!group_list.empty() || tmp_table_param.sum_func_count) {
-        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
-          return true;
+        if (make_sum_func_list(*curr_all_fields, true, true)) return true;
         const bool need_distinct =
             !(qep_tab[0].quick() &&
               qep_tab[0].quick()->is_agg_loose_index_scan());
@@ -4551,7 +4266,7 @@ bool JOIN::make_tmp_tables_info() {
 
       // No sum funcs anymore
       if (change_to_use_tmp_fields(
-              tmp_all_fields[REF_SLICE_TMP1], fields_list.size(), thd,
+              &tmp_all_fields[REF_SLICE_TMP1], fields_list.size(), thd,
               ref_items[REF_SLICE_TMP2], &tmp_fields_list[REF_SLICE_TMP2],
               &tmp_all_fields[REF_SLICE_TMP2]))
         return true;
@@ -4662,8 +4377,7 @@ bool JOIN::make_tmp_tables_info() {
     */
     uint save_sliceno = current_ref_item_slice;
     set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
-    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
-      return true;
+    if (make_sum_func_list(*curr_all_fields, true, true)) return true;
     /*
       Exit the TMP3 slice, to set up sum funcs, as they take input from
       previous table, not from that slice.
@@ -4690,7 +4404,7 @@ bool JOIN::make_tmp_tables_info() {
       when rollup is present
     */
     if (having_cond && group_list.empty() && !streaming_aggregation &&
-        rollup.state == ROLLUP::STATE_NONE) {
+        rollup_state == RollupState::NONE) {
       if (add_having_as_tmp_table_cond(curr_tmp_table)) return true;
     }
 
@@ -4735,7 +4449,10 @@ bool JOIN::make_tmp_tables_info() {
       if (need_tmp_before_win && !materialize_join && !exec_tmp_table->group)
         explain_flags.set(order_arg.src, ESP_USING_TMPTABLE);
 
-      if (add_sorting_to_table(curr_tmp_table, &order_arg)) return true;
+      if (add_sorting_to_table(curr_tmp_table, &order_arg,
+                               /*force_stable_sort=*/false,
+                               /*sort_before_group=*/false))
+        return true;
       /*
         filesort_limit:	 Return only this many rows from filesort().
         We can use select_limit_cnt only if we have no group_by and 1 table.
@@ -4822,7 +4539,7 @@ bool JOIN::make_tmp_tables_info() {
 
         if (alloc_ref_item_slice(thd, fbidx)) return true;
 
-        if (change_to_use_tmp_fields(*curr_all_fields, curr_fields_list->size(),
+        if (change_to_use_tmp_fields(curr_all_fields, curr_fields_list->size(),
                                      thd, ref_items[fbidx],
                                      &tmp_fields_list[fbidx],
                                      &tmp_all_fields[fbidx]))
@@ -4849,8 +4566,8 @@ bool JOIN::make_tmp_tables_info() {
 
       if (change_to_use_tmp_fields(
               (last_slice_before_windowing == REF_SLICE_ACTIVE
-                   ? all_fields
-                   : tmp_all_fields[last_slice_before_windowing]),
+                   ? &all_fields
+                   : &tmp_all_fields[last_slice_before_windowing]),
               fields_list.size(), thd, ref_items[widx], &tmp_fields_list[widx],
               &tmp_all_fields[widx]))
         return true;
@@ -4866,13 +4583,18 @@ bool JOIN::make_tmp_tables_info() {
 
       if (w_partition.order != nullptr) {
         Opt_trace_object trace_pre_sort(trace, "adding_sort_to_previous_table");
-        if (add_sorting_to_table(curr_tmp_table - 1, &w_partition, true))
+        if (add_sorting_to_table(curr_tmp_table - 1, &w_partition,
+                                 /*force_stable_sort=*/true,
+                                 /*sort_before_group=*/false))
           return true;
       }
 
       if (m_windows[wno]->is_last()) {
         if (!order.empty() && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY) {
-          if (add_sorting_to_table(curr_tmp_table, &order)) return true;
+          if (add_sorting_to_table(curr_tmp_table, &order,
+                                   /*force_stable_sort=*/false,
+                                   /*sort_before_group=*/false))
+            return true;
         }
         if (!tab->filesort && !tab->table()->s->keys &&
             (!(select_lex->active_options() & OPTION_BUFFER_RESULT) ||
@@ -4950,6 +4672,11 @@ void JOIN::unplug_join_tabs() {
                     If true, use stable sort, that is the sort will
                     keep the reative order of equivalent elements.
                     Needed for windowing semantics.
+  @param sort_before_group
+                    If true, this sort happens before grouping is done
+                    (potentially as a step of grouping itself),
+                    so any wrapped rollup group items should be
+                    unwrapped.
 
   @note This function moves tab->select, if any, to filesort->select
 
@@ -4957,7 +4684,8 @@ void JOIN::unplug_join_tabs() {
 */
 
 bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
-                                bool force_stable_sort) {
+                                bool force_stable_sort,
+                                bool sort_before_group) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   DBUG_ASSERT(!select_lex->is_recursive());
@@ -5003,7 +4731,8 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     tab->filesort = new (thd->mem_root)
         Filesort(thd, tab->table(), keep_buffers, sort_order->order,
                  HA_POS_ERROR, force_stable_sort,
-                 /*remove_duplicates=*/false, force_sort_position);
+                 /*remove_duplicates=*/false, force_sort_position,
+                 /*unwrap_rollup=*/sort_before_group);
     tab->filesort_pushed_order = sort_order->order;
   }
   if (!tab->filesort) return true;

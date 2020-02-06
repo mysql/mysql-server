@@ -36,6 +36,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <stdint.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -103,9 +104,11 @@
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/system_variables.h"
@@ -259,18 +262,20 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     DBUG_PRINT("info", ("Sorting for group"));
 
     if (m_ordered_index_usage != ORDERED_INDEX_GROUP_BY &&
-        add_sorting_to_table(const_tables, &group_list))
+        add_sorting_to_table(const_tables, &group_list,
+                             /*force_stable_sort=*/false,
+                             /*sort_before_group=*/true))
       goto err;
 
     if (alloc_group_fields(this, group_list.order)) goto err;
-    if (make_sum_func_list(all_fields, fields_list, true)) goto err;
+    if (make_sum_func_list(all_fields, true)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
     group_list.clean();
   } else {
-    if (make_sum_func_list(all_fields, fields_list, false)) goto err;
+    if (make_sum_func_list(all_fields, false)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
@@ -281,7 +286,9 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       DBUG_PRINT("info", ("Sorting for order"));
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
-          add_sorting_to_table(const_tables, &order))
+          add_sorting_to_table(const_tables, &order,
+                               /*force_stable_sort=*/false,
+                               /*sort_before_group=*/false))
         goto err;
       order.clean();
     }
@@ -308,22 +315,51 @@ err:
 */
 
 bool has_rollup_result(Item *item) {
-  if (item->type() == Item::NULL_RESULT_ITEM) return true;
+  while (item->type() == Item::REF_ITEM) {
+    item = *((down_cast<Item_ref *>(item))->ref);
+  }
 
-  if (item->type() == Item::FUNC_ITEM) {
-    for (uint i = 0; i < ((Item_func *)item)->arg_count; i++) {
-      Item *real_item = ((Item_func *)item)->arguments()[i];
-      while (real_item->type() == Item::REF_ITEM)
-        real_item = *((down_cast<Item_ref *>(real_item))->ref);
+  if (is_rollup_group_wrapper(item) &&
+      down_cast<Item_rollup_group_item *>(item)->rollup_null()) {
+    return true;
+  }
 
-      if (real_item->type() == Item::NULL_RESULT_ITEM)
-        return true;
-      else if (real_item->type() == Item::FUNC_ITEM &&
-               has_rollup_result(real_item))
-        return true;
+  if (item->type() == Item::COPY_STR_ITEM) {
+    return has_rollup_result(down_cast<Item_copy *>(item)->get_item());
+  } else if (item->type() == Item::CACHE_ITEM) {
+    return has_rollup_result(down_cast<Item_cache *>(item)->example);
+  } else if (item->type() == Item::FUNC_ITEM) {
+    Item_func *item_func = down_cast<Item_func *>(item);
+    for (uint i = 0; i < item_func->arg_count; i++) {
+      if (has_rollup_result(item_func->arguments()[i])) return true;
+    }
+  } else if (item->type() == Item::COND_ITEM) {
+    for (Item &arg : *down_cast<Item_cond *>(item)->argument_list()) {
+      if (has_rollup_result(&arg)) return true;
     }
   }
+
   return false;
+}
+
+bool is_rollup_group_wrapper(Item *item) {
+  return item->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(item)->functype() ==
+             Item_func::ROLLUP_GROUP_ITEM_FUNC;
+}
+
+bool is_rollup_sum_wrapper(Item *item) {
+  return item->type() == Item::SUM_FUNC_ITEM &&
+         down_cast<Item_sum *>(item)->real_sum_func() ==
+             Item_sum::ROLLUP_SUM_SWITCHER_FUNC;
+}
+
+Item *unwrap_rollup_group(Item *item) {
+  if (is_rollup_group_wrapper(item)) {
+    return down_cast<Item_rollup_group_item *>(item)->inner_item();
+  } else {
+    return item;
+  }
 }
 
 void JOIN::optimize_distinct() {
@@ -343,13 +379,11 @@ void JOIN::optimize_distinct() {
   }
 }
 
-bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct) {
-  Item_sum *func;
-  DBUG_TRACE;
-  while ((func = *(func_ptr++))) {
-    if (func->set_aggregator(need_distinct && func->has_with_distinct()
-                                 ? Aggregator::DISTINCT_AGGREGATOR
-                                 : Aggregator::SIMPLE_AGGREGATOR))
+bool prepare_sum_aggregators(Item_sum **sum_funcs, bool need_distinct) {
+  for (Item_sum **item = sum_funcs; *item != nullptr; ++item) {
+    if ((*item)->set_aggregator(need_distinct && (*item)->has_with_distinct()
+                                    ? Aggregator::DISTINCT_AGGREGATOR
+                                    : Aggregator::SIMPLE_AGGREGATOR))
       return true;
   }
   return false;
@@ -393,36 +427,6 @@ void update_tmptable_sum_func(Item_sum **func_ptr,
   DBUG_TRACE;
   Item_sum *func;
   while ((func = *(func_ptr++))) func->update_field();
-}
-
-/** Copy result of sum functions to record in tmp_table. */
-
-void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
-  DBUG_TRACE;
-  for (; func_ptr != end_ptr; func_ptr++) {
-    if ((*func_ptr)->get_result_field() != nullptr) {
-      (*func_ptr)->save_in_field((*func_ptr)->get_result_field(), true);
-    }
-  }
-}
-
-bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
-  for (; func_ptr != end_ptr; func_ptr++) {
-    if ((*func_ptr)->reset_and_add()) return true;
-  }
-  /* If rollup, calculate the upper sum levels */
-  for (; *func_ptr; func_ptr++) {
-    if ((*func_ptr)->aggregator_add()) return true;
-  }
-  return false;
-}
-
-bool update_sum_func(Item_sum **func_ptr) {
-  DBUG_TRACE;
-  Item_sum *func;
-  for (; (func = *func_ptr); func_ptr++)
-    if (func->aggregator_add()) return true;
-  return false;
 }
 
 /**
@@ -485,6 +489,9 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
       case CFT_DEPENDING_ON_AGGREGATE:
         do_copy =
             item->has_aggregation() && item->type() != Item::SUM_FUNC_ITEM;
+        break;
+      case CFT_ROLLUP_NULLS:
+        do_copy = has_rollup_result(item);
         break;
     }
 
@@ -1028,11 +1035,8 @@ enum CallingContext {
   TODO: The optimizer should output just one kind of structure directly.
  */
 void ConvertItemsToCopy(List<Item> *items, Field **fields,
-                        Temp_table_param *param, JOIN *join) {
+                        Temp_table_param *param) {
   DBUG_ASSERT(param->items_to_copy == nullptr);
-
-  const bool replaced_items_for_rollup =
-      (join != nullptr && join->replaced_items_for_rollup);
 
   // All fields are to be copied.
   Func_ptr_array *copy_func =
@@ -1044,38 +1048,10 @@ void ConvertItemsToCopy(List<Item> *items, Field **fields,
       Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
       Field *to_field = *field_ptr;
       param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
-
-      // If any of the Item_null_result items are set to save in this field,
-      // forward them to the new field instead. See below for the result fields
-      // for the other items.
-      if (replaced_items_for_rollup) {
-        for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
-             ++rollup_level) {
-          for (Item &item_r : join->rollup.fields_list[rollup_level]) {
-            if (item_r.type() == Item::NULL_RESULT_ITEM &&
-                item_r.get_result_field() == from_field) {
-              item_r.set_result_field(to_field);
-            }
-          }
-        }
-      }
     } else if (item.real_item()->is_result_field()) {
-      Field *from_field = item.real_item()->get_result_field();
       Field *to_field = *field_ptr;
       item.set_result_field(to_field);
       copy_func->push_back(Func_ptr(&item));
-
-      // Similarly to above, set the right result field for any aggregates
-      // that we might output as part of rollup.
-      if (replaced_items_for_rollup && &item != real_item) {
-        for (Item_sum **func_ptr = join->sum_funcs;
-             func_ptr != join->sum_funcs_end[join->send_group_parts];
-             ++func_ptr) {
-          if ((*func_ptr)->get_result_field() == from_field) {
-            (*func_ptr)->set_result_field(to_field);
-          }
-        }
-      }
     } else {
       Func_ptr ptr(&item);
       ptr.set_override_result_field(*field_ptr);
@@ -1084,27 +1060,6 @@ void ConvertItemsToCopy(List<Item> *items, Field **fields,
     ++field_ptr;
   }
   param->items_to_copy = copy_func;
-
-  if (replaced_items_for_rollup) {
-    // Patch up the rollup items so that they save in the same field as
-    // the ref would. This is required because we call save_in_result_field()
-    // directly on each field in the rollup field list
-    // (in AggregateIterator::Read), not on the Item_ref in join->fields.
-    for (size_t rollup_level = 0; rollup_level < join->send_group_parts;
-         ++rollup_level) {
-      List_STL_Iterator<Item> item_it = join->fields->begin();
-      for (Item &item : join->rollup.fields_list[rollup_level]) {
-        // For cases where we need an Item_null_result, the field in
-        // join->fields often does not have the right result field set.
-        // However, the Item_null_result field does after we patched it
-        // up earlier in the function.
-        if (item.type() != Item::NULL_RESULT_ITEM) {
-          item.set_result_field(item_it->get_result_field());
-        }
-        ++item_it;
-      }
-    }
-  }
 }
 
 /** Similar to PendingCondition, but for cache invalidator iterators. */
@@ -1564,8 +1519,7 @@ unique_ptr_destroy_only<RowIterator> GetIteratorForDerivedTable(
     select_number = unit->first_select()->select_number;
   }
   ConvertItemsToCopy(unit->get_field_list(),
-                     qep_tab->table()->visible_field_ptr(), tmp_table_param,
-                     subjoin);
+                     qep_tab->table()->visible_field_ptr(), tmp_table_param);
   bool copy_fields_and_items_in_materialize = true;
   if (unit->is_simple()) {
     // See if AggregateIterator already does this for us.
@@ -1661,8 +1615,8 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(THD *thd,
     // correctly, so we just clear it and create our own.
     sjm->table_param.items_to_copy = nullptr;
     ConvertItemsToCopy(&sjm->sj_nest->nested_join->sj_inner_exprs,
-                       qep_tab->table()->visible_field_ptr(), &sjm->table_param,
-                       qep_tab->join());
+                       qep_tab->table()->visible_field_ptr(),
+                       &sjm->table_param);
 
     int join_start = sjm->inner_table_index;
     int join_end = join_start + sjm->table_count;
@@ -2959,14 +2913,14 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       // (We can also aggregate as we go after the materialization step;
       // see below. We won't be aggregating twice, though.)
       if (qep_tab->tmp_table_param->precomputed_group_by) {
-        DBUG_ASSERT(rollup.state == ROLLUP::STATE_NONE);
+        DBUG_ASSERT(rollup_state == RollupState::NONE);
         iterator = NewIterator<PrecomputedAggregateIterator>(
             thd, move(iterator), this, qep_tab->tmp_table_param,
             qep_tab->ref_item_slice);
       } else {
         iterator = NewIterator<AggregateIterator>(
             thd, move(iterator), this, qep_tab->tmp_table_param,
-            qep_tab->ref_item_slice, rollup.state != ROLLUP::STATE_NONE);
+            qep_tab->ref_item_slice, rollup_state != RollupState::NONE);
       }
     }
 
@@ -3053,7 +3007,8 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
         dup_filesort = new (thd->mem_root)
             Filesort(thd, qep_tab->table(), /*keep_buffers=*/false, order,
                      HA_POS_ERROR, /*force_stable_sort=*/false,
-                     /*remove_duplicates=*/true, force_sort_positions);
+                     /*remove_duplicates=*/true, force_sort_positions,
+                     /*unwrap_rollup=*/false);
       }
     }
 
@@ -3180,11 +3135,11 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       iterator = NewIterator<PrecomputedAggregateIterator>(
           thd, move(iterator), this, &tmp_table_param,
           REF_SLICE_ORDERED_GROUP_BY);
-      DBUG_ASSERT(rollup.state == ROLLUP::STATE_NONE);
+      DBUG_ASSERT(rollup_state == RollupState::NONE);
     } else {
       iterator = NewIterator<AggregateIterator>(
           thd, move(iterator), this, &tmp_table_param,
-          REF_SLICE_ORDERED_GROUP_BY, rollup.state != ROLLUP::STATE_NONE);
+          REF_SLICE_ORDERED_GROUP_BY, rollup_state != RollupState::NONE);
     }
   }
 
@@ -6308,8 +6263,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
                  real_pos->type() == Item::SUBSELECT_ITEM ||
                  real_pos->type() == Item::CACHE_ITEM ||
                  real_pos->type() == Item::COND_ITEM) &&
-                !real_pos->has_aggregation() &&
-                !real_pos->has_rollup_expr())) {  // Save for send fields
+                !real_pos->has_aggregation())) {
       pos = real_pos;
       /* TODO:
          In most cases this result will be sent to the user.
@@ -6382,6 +6336,44 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
 }
 
 /**
+  For each rollup wrapper below the given item, replace it with a temporary
+  field, e.g.
+
+    1 + rollup_group_item(a) -> 1 + \<temporary\>.`rollup_group_item(a)`
+
+  Which temporary field to use is found by looking at the other fields;
+  the rollup_group_item should already exist earlier in the list
+  (and having a temporary table field set up), simply by virtue of being a
+  group item.
+ */
+static bool replace_embedded_rollup_references_with_tmp_fields(
+    THD *thd, Item *item, List<Item> *all_fields) {
+  if (!item->has_rollup_expr()) {
+    return false;
+  }
+  const auto replace_functor = [thd, item, all_fields](
+                                   Item *sub_item, Item *,
+                                   unsigned) -> ReplaceResult {
+    if (!is_rollup_group_wrapper(sub_item)) {
+      return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+    }
+    for (Item &other_item : *all_fields) {
+      if (other_item.eq(sub_item, false)) {
+        Field *field = other_item.get_tmp_table_field();
+        Item *item_field = new (thd->mem_root) Item_field(field);
+        if (item_field == nullptr) return {ReplaceResult::ERROR, nullptr};
+        field->orig_table = nullptr;
+        item_field->item_name = item->item_name;
+        return {ReplaceResult::REPLACE, item_field};
+      }
+    }
+    assert(false);
+    return {ReplaceResult::ERROR, nullptr};
+  };
+  return WalkAndReplace(thd, item, std::move(replace_functor));
+}
+
+/**
   Change all funcs and sum_funcs to fields in tmp table, and create
   new list of all items.
 
@@ -6398,7 +6390,7 @@ bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
   @returns false if success, true if error
 */
 
-bool change_to_use_tmp_fields(List<Item> &all_fields,
+bool change_to_use_tmp_fields(List<Item> *all_fields,
                               size_t num_select_elements, THD *thd,
                               Ref_item_array ref_item_array,
                               List<Item> *res_selected_fields,
@@ -6408,8 +6400,8 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
   res_selected_fields->empty();
   res_all_fields->empty();
 
-  List_iterator_fast<Item> li(all_fields);
-  size_t border = all_fields.size() - num_select_elements;
+  List_iterator_fast<Item> li(*all_fields);
+  size_t border = all_fields->size() - num_select_elements;
   Item *item;
   for (size_t i = 0; (item = li++); i++) {
     Item *item_field;
@@ -6463,15 +6455,17 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
         item_field->item_name.copy(str.ptr(), str.length());
       }
 #endif
-    } else
+    } else {
       item_field = item;
+      replace_embedded_rollup_references_with_tmp_fields(thd, item, all_fields);
+    }
 
     res_all_fields->push_back(item_field);
     /*
       Cf. comment explaining the reordering going on below in
-      similar section of change_refs_to_tmp_fields
+      similar section of change_to_use_tmp_fields_except_sums
     */
-    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
+    ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
         item_field;
     item_field->set_orig_field(item->get_orig_field());
   }
@@ -6483,13 +6477,57 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
 }
 
 /**
+  For each rollup wrapper below the given item, replace its argument with a
+  temporary field, e.g.
+
+    1 + rollup_group_item(a) -> 1 + rollup_group_item(\<temporary\>.a).
+
+  Which temporary field to use is found by looking at the SELECT_LEX's group
+  items, and looking up their (previously set) result fields.
+ */
+static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
+    THD *thd, SELECT_LEX *select, Item *item_arg) {
+  return WalkAndReplace(
+      thd, item_arg,
+      [thd, select](Item *item, Item *, unsigned) -> ReplaceResult {
+        if (!is_rollup_group_wrapper(item)) {
+          return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+        }
+        Item_rollup_group_item *rollup_item =
+            down_cast<Item_rollup_group_item *>(item);
+
+        Item *real_item = item;
+        while (is_rollup_group_wrapper(real_item)) {
+          real_item = unwrap_rollup_group(real_item)->real_item();
+        }
+
+        ORDER *order = select->find_in_group_list(real_item, nullptr);
+        Item_rollup_group_item *new_item = new Item_rollup_group_item(
+            rollup_item->min_rollup_level(),
+            order->rollup_item->inner_item()->get_tmp_table_item(thd));
+        if (new_item == nullptr ||
+            select->rollup_group_items.push_back(new_item)) {
+          return {ReplaceResult::ERROR, nullptr};
+        }
+        new_item->quick_fix_field();
+        return {ReplaceResult::REPLACE, new_item};
+      });
+}
+
+/**
   Change all sum_func refs to fields to point at fields in tmp table.
   Change all funcs to be fields in tmp table.
+
+  This is used when we set up a temporary table, but aggregate functions
+  (sum_funcs) cannot be evaluated yet, for instance because data is not
+  sorted in the right order. (Otherwise, change_to_use_tmp_fields() would
+  be used.)
 
   @param all_fields                  all fields list; should really be const,
                                        but Item does not always respect
                                        constness
   @param num_select_elements         number of elements in select item list
+  @param select                      the query block we are doing this to
   @param thd                         THD pointer
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
@@ -6499,55 +6537,116 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
   @returns false if success, true if error
 */
 
-bool change_refs_to_tmp_fields(List<Item> &all_fields,
-                               size_t num_select_elements, THD *thd,
-                               Ref_item_array ref_item_array,
-                               List<Item> *res_selected_fields,
-                               List<Item> *res_all_fields) {
+bool change_to_use_tmp_fields_except_sums(List<Item> *all_fields,
+                                          size_t num_select_elements, THD *thd,
+                                          SELECT_LEX *select,
+                                          Ref_item_array ref_item_array,
+                                          List<Item> *res_selected_fields,
+                                          List<Item> *res_all_fields) {
   DBUG_TRACE;
   res_selected_fields->empty();
   res_all_fields->empty();
 
-  List_iterator_fast<Item> li(all_fields);
-  size_t border = all_fields.size() - num_select_elements;
-  Item *item;
-  for (size_t i = 0; (item = li++); i++) {
-    /*
-      Below we create "new_item" using get_tmp_table_item
-      based on all_fields[i] and assign them to res_all_fields[i].
+  size_t border = all_fields->size() - num_select_elements;
 
-      The new items are also put into ref_item_array, but in another order,
-      cf the diagram below.
+  {
+    List_iterator<Item> li(*all_fields);
+    Item *item;
+    for (size_t i = 0; (item = li++); i++) {
+      /*
+        Below we create "new_item" using get_tmp_table_item
+        based on all_fields[i] and assign them to res_all_fields[i].
 
-      Example of the population of ref_item_array, ref_all_fields and
-      res_selected_fields based on all_fields:
+        The new items are also put into ref_item_array, but in another order,
+        cf the diagram below.
 
-      res_all_fields             res_selected_fields
-         |                          |
-         V                          V
-       +--+   +--+   +--+   +--+   +--+   +--+          +--+
-       |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
-       +--+   +--+   +--+   +--+   +--+   +--+          +--+
-                              |     |
-        ,------------->--------\----/
-        |                       |
-      +-^-+---+---+---+---+---#-^-+---+---+---+
-      |   |   |   |   |   |   #   |   |   |   | ref_item_array
-      +---+---+---+---+---+---#---+---+---+---+
-        4   5   6   7   8   9   3   2   1   0   position in all_fields list
-                                                similar to ref_all_fields pos
-      all_fields.elements == 10      border == 4
-      (visible) elements == 6
+        Example of the population of ref_item_array, ref_all_fields and
+        res_selected_fields based on all_fields:
 
-      i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
-      i==1   ->   afe-1-1 == 8      :
-      i==2   ->   afe-2-1 == 7
-      i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
-    */
-    Item *new_item = item->get_tmp_table_item(thd);
-    res_all_fields->push_back(new_item);
-    ref_item_array[((i < border) ? all_fields.size() - i - 1 : i - border)] =
-        new_item;
+        res_all_fields             res_selected_fields
+           |                          |
+           V                          V
+         +--+   +--+   +--+   +--+   +--+   +--+          +--+
+         |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
+         +--+   +--+   +--+   +--+   +--+   +--+          +--+
+                                |     |
+          ,------------->--------\----/
+          |                       |
+        +-^-+---+---+---+---+---#-^-+---+---+---+
+        |   |   |   |   |   |   #   |   |   |   | ref_item_array
+        +---+---+---+---+---+---#---+---+---+---+
+          4   5   6   7   8   9   3   2   1   0   position in all_fields list
+                                                  similar to ref_all_fields pos
+        all_fields.elements == 10      border == 4
+        (visible) elements == 6
+
+        i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
+        i==1   ->   afe-1-1 == 8      :
+        i==2   ->   afe-2-1 == 7
+        i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
+      */
+      Item *new_item;
+
+      if (is_rollup_group_wrapper(item)) {
+        // If we cannot evaluate aggregates at this point, we also cannot
+        // evaluate rollup NULL items, so we will need to move the wrapper out
+        // into this layer.
+        Item_rollup_group_item *rollup_item =
+            down_cast<Item_rollup_group_item *>(item);
+
+        rollup_item->inner_item()->set_result_field(item->get_result_field());
+        new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
+
+        // The group item may have been resolved to a different Item_field
+        // for the same field. Update it accordingly, for the sake of
+        // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
+        ORDER *order =
+            select->find_in_group_list(rollup_item->inner_item(), nullptr);
+        down_cast<Item_rollup_group_item *>(order->rollup_item)
+            ->inner_item()
+            ->set_result_field(item->get_result_field());
+
+        new_item = new Item_rollup_group_item(rollup_item->min_rollup_level(),
+                                              new_item);
+        if (new_item == nullptr ||
+            select->rollup_group_items.push_back(
+                down_cast<Item_rollup_group_item *>(new_item))) {
+          return true;
+        }
+        new_item->quick_fix_field();
+
+        // Remove the rollup wrapper on the inner level; it's harmless to keep
+        // on the lower level, but also pointless.
+        thd->change_item_tree(li.ref(), unwrap_rollup_group(item));
+      } else if (item->has_rollup_expr()) {
+        // Delay processing until below; see comment.
+        new_item = item->copy_or_same(thd);
+      } else {
+        new_item = item->get_tmp_table_item(thd);
+      }
+
+      new_item->update_used_tables();
+
+      res_all_fields->push_back(new_item);
+      ref_item_array[((i < border) ? all_fields->size() - i - 1 : i - border)] =
+          new_item;
+    }
+  }
+
+  for (Item &item : *all_fields) {
+    if (!is_rollup_group_wrapper(&item) && item.has_rollup_expr()) {
+      // An item that isn't a rollup wrapper itself, but depends on one (or
+      // multiple). We need to go into those items, find the rollup wrappers,
+      // and replace them with rollup wrappers around the temporary fields,
+      // as in the conditional above. Note that this needs to be done after
+      // we've gone through all the items, so that we know the right result
+      // fields for all the rollup wrappers (the function uses them to know
+      // which temporary field to replace with).
+      if (replace_contents_of_rollup_wrappers_with_tmp_fields(thd, select,
+                                                              &item)) {
+        return true;
+      }
+    }
   }
 
   List_iterator_fast<Item> itr(*res_all_fields);

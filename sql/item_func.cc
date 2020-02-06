@@ -31,6 +31,7 @@
 
 #include <string.h>
 #include <time.h>
+
 #include <algorithm>
 #include <atomic>
 #include <cfloat>  // DBL_DIG
@@ -176,8 +177,7 @@ void Item_func::set_arguments(List<Item> &list, bool context_free) {
   allowed_arg_cols = 1;
   arg_count = list.elements;
   args = tmp_arg;  // If 2 arguments
-  if (arg_count <= 2 ||
-      (args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count))) {
+  if (arg_count <= 2 || (args = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count))) {
     List_iterator_fast<Item> li(list);
     Item *item;
     Item **save_args = args;
@@ -458,15 +458,6 @@ void Item_func::update_used_tables() {
   used_tables_cache = get_initial_pseudo_tables();
   not_null_tables_cache = 0;
 
-  /*
-    Rollup property not always derivable from arguments, so don't reset that,
-    cf. "GROUP BY (a+b) WITH ROLLUP": the a and the b are never marked, cf. the
-    logic in `resolve_rollup_item', `resolve_rollup_wfs' and
-    `change_func_or_wf_group_ref', so "a+b" being a rollup expression can't be
-    derived from a or b.
-  */
-  m_accum_properties &= PROP_ROLLUP_EXPR;
-
   for (uint i = 0; i < arg_count; i++) {
     args[i]->update_used_tables();
     used_tables_cache |= args[i]->used_tables();
@@ -625,16 +616,13 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
   /*
     For items with aggregate functions, return the copy
     of the function.
-    For constant items, return the same object as fields
+    For constant items, return the same object, as fields
     are not created in temp tables for them.
     For items with windowing functions, return the same
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
-    For items which need to store ROLLUP NULLs, we need
-    the same object as we need to detect if ROLLUP NULL's
-    need to be written for this item (in has_rollup_result).
   */
-  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_expr()) {
+  if (!has_aggregation() && !const_item() && !has_wf()) {
     Item *result = new Item_field(result_field);
     return result;
   }
@@ -3573,39 +3561,95 @@ my_decimal *Item_func_min_max::val_decimal(my_decimal *dec) {
   return Item_func_numhybrid::val_decimal(dec);
 }
 
-double Item_func_rollup_const::val_real() {
-  DBUG_ASSERT(fixed == 1);
+bool Item_rollup_group_item::get_date(MYSQL_TIME *ltime,
+                                      my_time_flags_t fuzzydate) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = args[0]->get_date(ltime, fuzzydate));
+}
+
+bool Item_rollup_group_item::get_time(MYSQL_TIME *ltime) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = args[0]->get_time(ltime));
+}
+
+double Item_rollup_group_item::val_real() {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return 0.0;
+  }
   double res = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
   return res;
 }
 
-longlong Item_func_rollup_const::val_int() {
-  DBUG_ASSERT(fixed == 1);
+longlong Item_rollup_group_item::val_int() {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return 0;
+  }
   longlong res = args[0]->val_int();
   if ((null_value = args[0]->null_value)) return 0;
   return res;
 }
 
-String *Item_func_rollup_const::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+String *Item_rollup_group_item::val_str(String *str) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return nullptr;
+  }
   String *res = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
-my_decimal *Item_func_rollup_const::val_decimal(my_decimal *dec) {
-  DBUG_ASSERT(fixed == 1);
+my_decimal *Item_rollup_group_item::val_decimal(my_decimal *dec) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return nullptr;
+  }
   my_decimal *res = args[0]->val_decimal(dec);
   if ((null_value = args[0]->null_value)) return nullptr;
   return res;
 }
 
-bool Item_func_rollup_const::val_json(Json_wrapper *result) {
-  DBUG_ASSERT(fixed == 1);
+bool Item_rollup_group_item::val_json(Json_wrapper *result) {
+  DBUG_ASSERT(fixed);
+  if (rollup_null()) {
+    null_value = true;
+    return false;
+  }
   bool res = args[0]->val_json(result);
   null_value = args[0]->null_value;
   return res;
+}
+
+void Item_rollup_group_item::print(const THD *thd, String *str,
+                                   enum_query_type query_type) const {
+  if (query_type & QT_HIDE_ROLLUP_FUNCTIONS) {
+    print_args(thd, str, 0, query_type);
+    return;
+  }
+
+  str->append(func_name());
+  str->append('(');
+  print_args(thd, str, 0, query_type);
+  str->append(',');
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%d", m_min_rollup_level);
+  str->append(buf);
+  str->append(')');
 }
 
 longlong Item_func_length::val_int() {

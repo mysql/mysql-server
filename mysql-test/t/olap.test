@@ -302,6 +302,36 @@ CREATE TABLE t1 (a INT(10) NOT NULL, b INT(10) NOT NULL);
 INSERT INTO t1 VALUES (1, 1);
 INSERT INTO t1 VALUES (1, 2);
 
+#
+# In SQL, conceptually GROUP BY (and thus also ROLLUP) happens before
+# projection (the SELECT list), so GROUP BY on aliases is disallowed.
+# However, MySQL extends the standard by allowing such aliases.
+# This makes the following query ambiguous, and MySQL has gone back and forth
+# a few times on what the implementation should be.
+#
+# After reading t1 and doing GROUP BY, the rows will look like this:
+#
+#   <group 1, a>  <group 2, b>  <group 3, a>  COUNT(*)
+#   1             1             1             1
+#   1             1             NULL          1
+#   1             2             1             1
+#   1             2             NULL          1
+#   1             NULL          NULL          2
+#   NULL          NULL          NULL          2
+#
+# Now, in the projection, what does the three parameters resolve to?
+# It is obvious that b has to resolve to <group 2>, since that is the
+# only candidate. The first a (the one without an alias) could resolve
+# to either <group 1> or <group 3>, but we arbitrarily (and not unreasonably)
+# resolve it to the one that is specified the first, ie., <group 1>.
+#
+# Now, what should “a AS c” resolve to? It would not be unreasonable to
+# resolve it consistently with the first a, ie., to <group 1>. The alternative,
+# which is what Postgres chooses, is to say that “a AS c” fits better with
+# <group 3> due to the alias. Both are possible, and we make no guarantee
+# that it will not change in the future, but for now, we've chosen to do the
+# same.
+#
 SELECT a, b, a AS c, COUNT(*) AS count FROM t1 GROUP BY a, b, c WITH ROLLUP;
 
 DROP TABLE t1;
@@ -429,6 +459,11 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2);
 CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (100);
+
+# Verify that the sorting iterator does not have any rollup_group_item()
+# in its sorting list, since the sorting is before group by.
+EXPLAIN FORMAT=tree
+SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 
 --sorted_result
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
@@ -928,6 +963,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES(7,3);
 
+# See the discussion on #11543 above for how field1 and field2 are resolved.
 --sorted_result
 SELECT  alias1.f1 AS field1, alias1.f1 AS field2, (alias1.f1 +1) AS field3 FROM
   ( t1 AS alias1, t1 as alias2 ) WHERE alias1.pk = 3
@@ -1013,4 +1049,21 @@ INSERT INTO t1 VALUES (2, 10), (3, NULL);
 SELECT DISTINCT COUNT(*), f1+f2 FROM t1 GROUP BY f1+F2 WITH ROLLUP;
 SELECT COUNT(*), f1+f2 FROM t1 GROUP BY f1+F2 WITH ROLLUP;
 
+DROP TABLE t1;
+
+--echo # Verify that the collation of rollup group items is correct.
+
+CREATE TABLE t1 ( f1 VARCHAR(10) COLLATE utf8mb4_da_0900_ai_ci );
+CREATE TABLE t2 AS SELECT f1, COUNT(*) FROM t1 GROUP BY f1 WITH ROLLUP;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1, t2;
+
+--echo # Verify the case where the fields in rollup do not resolve
+--echo # to that same items as in the SELECT list (it is unclear exactly
+--echo # why this happens).
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
+SELECT a, b, 2*a+b, SUM(a+b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
 DROP TABLE t1;

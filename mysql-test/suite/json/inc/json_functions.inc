@@ -2487,7 +2487,10 @@ GROUP BY j, i WITH ROLLUP;
 UPDATE tt SET j = CAST(CAST('2015-06-19' AS DATE) AS JSON) WHERE j IS NOT NULL;
 SELECT CAST(j AS DATE), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 
-# Exercise an error path through Item_copy_json::val_str
+# Exercise an error path through Item_copy_json::val_str.
+# Note that most functions would return NULL here, but Field_json::val_str()
+# sets length to zero on error, so it becomes the empty string instead.
+# This is consistent with non-ROLLUP, which we also test for comparison.
 DELETE FROM tt;
 INSERT INTO tt(j) VALUES (JSON_ARRAY(REPEAT('abc', 100)));
 UPDATE tt SET j = JSON_ARRAY(j,j,j,j);
@@ -2496,6 +2499,7 @@ SET GLOBAL max_allowed_packet = 1024;
 CONNECT (con1,localhost,root,,);
 CONNECTION con1;
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
+SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
 CONNECTION default;
 DISCONNECT con1;
 SET GLOBAL max_allowed_packet = default;

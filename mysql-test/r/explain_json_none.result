@@ -2565,7 +2565,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select sum(`test`.`t1`.`b`) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
+Note	1003	/* select#1 */ select rollup_sum_switcher(sum(`test`.`t1`.`b`)) AS `SUM(b)` from `test`.`t1` group by `test`.`t1`.`a` with rollup
 DROP TABLE t1;
 # Composition of DISTINCT, GROUP BY and ORDER BY
 CREATE TABLE t1 (a INT, b INT);

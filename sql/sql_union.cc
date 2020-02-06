@@ -789,7 +789,7 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
     DBUG_ASSERT(join && join->is_optimized());
     DBUG_ASSERT(join->root_iterator() != nullptr);
     ConvertItemsToCopy(join->fields, dst_table->visible_field_ptr(),
-                       &join->tmp_table_param, join);
+                       &join->tmp_table_param);
 
     query_block.subquery_iterator = join->release_root_iterator();
     query_block.select_number = select->select_number;
@@ -923,7 +923,7 @@ void SELECT_LEX_UNIT::create_iterators(THD *thd) {
       JOIN *join = select->join;
       DBUG_ASSERT(join && join->is_optimized());
       ConvertItemsToCopy(join->fields, tmp_table->visible_field_ptr(),
-                         &join->tmp_table_param, join);
+                         &join->tmp_table_param);
       bool copy_fields_and_items = !join->streaming_aggregation ||
                                    join->tmp_table_param.precomputed_group_by;
       union_all_sub_iterators.emplace_back(NewIterator<StreamingIterator>(
@@ -1475,6 +1475,9 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
     Window *w;
     while ((w = li++)) w->cleanup(thd);
   }
+
+  rollup_group_items.clear();
+  rollup_sums.clear();
 
   return error;
 }

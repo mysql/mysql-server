@@ -2871,7 +2871,7 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	366	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`j` AS `j`,count(0) AS `COUNT(*)` from `test`.`t` group by `test`.`t`.`j` with rollup
+Note	1003	/* select#1 */ select rollup_group_item(`test`.`t`.`j`,0) AS `j`,rollup_sum_switcher(count(0)) AS `COUNT(*)` from `test`.`t` group by `test`.`t`.`j` with rollup
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 j	COUNT(*)
 NULL	2
@@ -7212,7 +7212,6 @@ NULL	1
 NULL	2
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 3
-Warning	3156	Invalid JSON value for CAST to DATE/TIME/DATETIME/TIMESTAMP from column j at row 4
 UPDATE tt SET j = CAST(CAST('2015-06-19' AS DATE) AS JSON) WHERE j IS NOT NULL;
 SELECT CAST(j AS DATE), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 CAST(j AS DATE)	COUNT(*)
@@ -7228,11 +7227,16 @@ SET GLOBAL net_buffer_length = 1024;
 SET GLOBAL max_allowed_packet = 1024;
 SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 REPEAT(j, 2)	COUNT(*)
-NULL	1
-NULL	1
+	1
+	1
 NULL	1
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
+Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
+SELECT REPEAT(j, 2), COUNT(*) FROM tt GROUP BY j, i;
+REPEAT(j, 2)	COUNT(*)
+	1
+Warnings:
 Warning	1301	Result of j() was larger than max_allowed_packet (1024) - truncated
 SET GLOBAL max_allowed_packet = default;
 SET GLOBAL net_buffer_length = default;

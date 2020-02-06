@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -612,7 +613,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             thd, qep_tab.table(), /*keep_buffers=*/false, order, limit,
             /*force_stable_sort=*/false,
             /*remove_duplicates=*/false,
-            /*force_sort_positions=*/true));
+            /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
         iterator = NewIterator<SortingIterator>(thd, &qep_tab, fsort.get(),
                                                 move(iterator),
                                                 /*examined_rows=*/nullptr);
@@ -2040,7 +2041,6 @@ bool Query_result_update::optimize() {
 
     group = new (thd->mem_root) ORDER;
     /* Make an unique key over the first field to avoid duplicated updates */
-    memset(group, 0, sizeof(*group));
     group->direction = ORDER_ASC;
     group->item = temp_fields.head_ref();
 

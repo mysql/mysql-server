@@ -274,25 +274,29 @@ class View_creation_ctx : public Default_object_creation_ctx {
 
 /** Order clause list element */
 
+class Item_rollup_group_item;
+
 struct ORDER {
-  ORDER *next;
+  ORDER *next{nullptr};
   /**
     Points at the item in the select fields. Note that this means that
     after resolving, it points into a slice (see JOIN::ref_items),
     even though the item is not of type Item_ref!
    */
-  Item **item;
-  Item *item_ptr; /* Storage for initial item */
+  Item **item{nullptr};
+  Item *item_ptr{nullptr}; /* Storage for initial item */
+  Item_rollup_group_item *rollup_item{nullptr};
 
-  enum_order direction; /* Requested direction of ordering */
-  bool in_field_list;   /* true if in select field list */
+  enum_order direction{
+      ORDER_NOT_RELEVANT};   /* Requested direction of ordering */
+  bool in_field_list{false}; /* true if in select field list */
   /**
      Tells whether this ORDER element was referenced with an alias or with an
      expression, in the query:
      SELECT a AS foo GROUP BY foo: true.
      SELECT a AS foo GROUP BY a: false.
   */
-  bool used_alias;
+  bool used_alias{false};
   /**
     When GROUP BY is implemented with a temporary table (i.e. the table takes
     care to store only unique group rows, table->group != nullptr), each GROUP
@@ -302,11 +306,11 @@ struct ORDER {
     value from a tmp table's row), or into 'buff' (if we use it to do index
     lookup into the tmp table).
   */
-  Field *field_in_tmp_table;
-  char *buff; /* If tmp-table group */
-  table_map used, depend_map;
-  bool is_position; /* An item expresses a position in a ORDER clause */
-  bool is_explicit; /* Whether ASC/DESC is explicitly specified */
+  Field *field_in_tmp_table{nullptr};
+  char *buff{nullptr}; /* If tmp-table group */
+  table_map used{0}, depend_map{0};
+  bool is_position{false}; /* An item expresses a position in a ORDER clause */
+  bool is_explicit{false}; /* Whether ASC/DESC is explicitly specified */
 };
 
 /**

@@ -72,7 +72,7 @@ class Filesort {
 
   Filesort(THD *thd, TABLE *table, bool keep_buffers, ORDER *order,
            ha_rows limit_arg, bool force_stable_sort, bool remove_duplicates,
-           bool force_sort_positions);
+           bool force_sort_positions, bool unwrap_rollup);
 
   Addon_fields *get_addon_fields(TABLE *table,
                                  Addon_fields_status *addon_fields_status,
@@ -89,7 +89,7 @@ class Filesort {
 
  private:
   /* Prepare ORDER BY list for sorting. */
-  uint make_sortorder(ORDER *order);
+  uint make_sortorder(ORDER *order, bool unwrap_rollup);
 
   uint m_sort_order_length;
 };
