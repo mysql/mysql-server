@@ -118,14 +118,12 @@ std::error_code HttpAuthBackendHtpasswd::from_stream_(std::istream &is) {
     auto sep_it = std::find(line.begin(), line.end(), ':');
 
     // fail if colon isn't found
-    if (sep_it == line.end()) return std::make_error_code(McfErrc::kParseError);
+    if (sep_it == line.end()) return make_error_code(McfErrc::kParseError);
 
     // forbid empty username
-    if (line.begin() == sep_it)
-      return std::make_error_code(McfErrc::kParseError);
+    if (line.begin() == sep_it) return make_error_code(McfErrc::kParseError);
     // forbid empty auth-part
-    if (line.end() == sep_it + 1)
-      return std::make_error_code(McfErrc::kParseError);
+    if (line.end() == sep_it + 1) return make_error_code(McfErrc::kParseError);
 
     // username : data
     std::string username{line.begin(), sep_it};
@@ -163,18 +161,17 @@ std::error_code HttpAuthBackendHtpasswd::authenticate(
   }
 
   if (credentials_.count(username) == 0) {
-    return std::make_error_code(McfErrc::kUserNotFound);
+    return make_error_code(McfErrc::kUserNotFound);
   }
 
   auto mcf_line = credentials_.at(username);
 
-  if (mcf_line.size() < 1) return std::make_error_code(McfErrc::kParseError);
-  if (mcf_line[0] != '$') return std::make_error_code(McfErrc::kParseError);
+  if (mcf_line.size() < 1) return make_error_code(McfErrc::kParseError);
+  if (mcf_line[0] != '$') return make_error_code(McfErrc::kParseError);
 
   auto mcf_id_it = std::find(mcf_line.begin() + 1, mcf_line.end(), '$');
   // no terminating $ found
-  if (mcf_id_it == mcf_line.end())
-    return std::make_error_code(McfErrc::kParseError);
+  if (mcf_id_it == mcf_line.end()) return make_error_code(McfErrc::kParseError);
   std::string mcf_id(mcf_line.begin() + 1, mcf_id_it);
 
   try {
@@ -186,10 +183,10 @@ std::error_code HttpAuthBackendHtpasswd::authenticate(
       return Pbkdf2McfAdaptor::validate(mcf_line, password);
     }
 
-    return std::make_error_code(McfErrc::kUnknownScheme);
+    return make_error_code(McfErrc::kUnknownScheme);
   } catch (const std::exception &) {
     // treat all exceptions as parse-errors
-    return std::make_error_code(McfErrc::kParseError);
+    return make_error_code(McfErrc::kParseError);
   }
 }
 

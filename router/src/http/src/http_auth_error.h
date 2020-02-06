@@ -39,15 +39,8 @@ enum class HttpAuthErrc {
 namespace std {
 template <>
 struct is_error_code_enum<HttpAuthErrc> : true_type {};
-
-std::error_code HTTP_AUTH_BACKEND_LIB_EXPORT make_error_code(HttpAuthErrc);
 }  // namespace std
 
-struct HTTP_AUTH_BACKEND_LIB_EXPORT HttpAuthErrCategory : std::error_category {
-  const char *name() const noexcept override;
-  std::string message(int ev) const override;
-};
-
-const HttpAuthErrCategory theHttpAuthErrCategory{};
+std::error_code HTTP_AUTH_BACKEND_LIB_EXPORT make_error_code(HttpAuthErrc);
 
 #endif

@@ -42,7 +42,7 @@
 std::error_code HttpAuthBackendMetadataCache::authorize(
     const rapidjson::Document &privileges) {
   if (!privileges.IsNull())
-    return std::make_error_code(HttpAuthErrc::kAuthorizationNotSupported);
+    return make_error_code(HttpAuthErrc::kAuthorizationNotSupported);
 
   return {};
 }
@@ -50,13 +50,12 @@ std::error_code HttpAuthBackendMetadataCache::authorize(
 std::error_code HttpAuthBackendMetadataCache::authenticate(
     const std::string &username, const std::string &password) {
   if (!metadata_cache::MetadataCacheAPI::instance()->is_initialized())
-    return std::make_error_code(McfErrc::kMetadataNotInitialized);
+    return make_error_code(McfErrc::kMetadataNotInitialized);
 
   const auto auth_data_maybe =
       metadata_cache::MetadataCacheAPI::instance()->get_rest_user_auth_data(
           username);
-  if (!auth_data_maybe.first)
-    return std::make_error_code(McfErrc::kUserNotFound);
+  if (!auth_data_maybe.first) return make_error_code(McfErrc::kUserNotFound);
 
   const auto &auth_data = auth_data_maybe.second;
   const auto &encoded_hash = auth_data.first;

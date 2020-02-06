@@ -235,11 +235,11 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT ShaCryptMcfAdaptor {
           me.checksum()) {
         return {};
       } else {
-        return std::make_error_code(McfErrc::kPasswordNotMatched);
+        return make_error_code(McfErrc::kPasswordNotMatched);
       }
     } catch (const std::exception &) {
       // treat all exceptions as parse-errors
-      return std::make_error_code(McfErrc::kParseError);
+      return make_error_code(McfErrc::kParseError);
     }
   }
 
