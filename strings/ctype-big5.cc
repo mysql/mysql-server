@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6538,7 +6538,7 @@ CHARSET_INFO my_charset_big5_chinese_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state      */
     "big5",                                          /* cs name    */
     "big5_chinese_ci",                               /* name       */
-    "",                                              /* comment    */
+    "Big5 Traditional Chinese",                      /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
     ctype_big5,
@@ -6573,7 +6573,7 @@ CHARSET_INFO my_charset_big5_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state */
     "big5",                         /* cs name    */
     "big5_bin",                     /* name       */
-    "",                             /* comment    */
+    "Big5 Traditional Chinese",     /* comment    */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
     ctype_big5,

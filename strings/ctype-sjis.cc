@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -18022,12 +18022,12 @@ CHARSET_INFO my_charset_sjis_japanese_ci = {
     0,
     0, /* number */
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM |
-        MY_CS_NONASCII, /* state */
-    "sjis",             /* cs name    */
-    "sjis_japanese_ci", /* name */
-    "",                 /* comment    */
-    nullptr,            /* tailoring */
-    nullptr,            /* coll_param */
+        MY_CS_NONASCII,   /* state */
+    "sjis",               /* cs name    */
+    "sjis_japanese_ci",   /* name */
+    "Shift-JIS Japanese", /* comment    */
+    nullptr,              /* tailoring */
+    nullptr,              /* coll_param */
     ctype_sjis,
     to_lower_sjis,
     to_upper_sjis,
@@ -18060,7 +18060,7 @@ CHARSET_INFO my_charset_sjis_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_NONASCII, /* state  */
     "sjis",                                          /* cs name    */
     "sjis_bin",                                      /* name */
-    "",                                              /* comment    */
+    "Shift-JIS Japanese",                            /* comment    */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
     ctype_sjis,

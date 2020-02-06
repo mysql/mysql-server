@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -2875,7 +2875,7 @@ CHARSET_INFO my_charset_ucs2_general_ci = {
         MY_CS_NONASCII,
     "ucs2",              /* cs name    */
     "ucs2_general_ci",   /* name         */
-    "",                  /* comment      */
+    "UCS-2 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
     ctype_ucs2,          /* ctype        */
@@ -2911,7 +2911,7 @@ CHARSET_INFO my_charset_ucs2_general_mysql500_ci = {
         MY_CS_NONASCII,         /* state */
     "ucs2",                     /* cs name          */
     "ucs2_general_mysql500_ci", /* name             */
-    "",                         /* comment          */
+    "UCS-2 Unicode",            /* comment          */
     nullptr,                    /* tailoring        */
     nullptr,                    /* coll_param       */
     ctype_ucs2,                 /* ctype            */
@@ -2946,7 +2946,7 @@ CHARSET_INFO my_charset_ucs2_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT | MY_CS_UNICODE | MY_CS_NONASCII,
     "ucs2",              /* cs name    */
     "ucs2_bin",          /* name         */
-    "",                  /* comment      */
+    "UCS-2 Unicode",     /* comment      */
     nullptr,             /* tailoring    */
     nullptr,             /* coll_param   */
     ctype_ucs2,          /* ctype        */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,9 +210,12 @@ static void copy_uca_collation(CHARSET_INFO *to, CHARSET_INFO *from) {
 }
 
 static int add_collation(CHARSET_INFO *cs) {
-  if (cs->name &&
-      (cs->number || (cs->number = get_collation_number_internal(cs->name))) &&
-      cs->number < array_elements(all_charsets)) {
+  // Disallow overwriting internal character sets.
+  if (cs->name == nullptr || get_collation_number_internal(cs->name) != 0) {
+    return MY_XML_OK;  // Just ignore it.
+  }
+
+  if (cs->number != 0 && cs->number < array_elements(all_charsets)) {
     if (!all_charsets[cs->number]) {
       if (!(all_charsets[cs->number] =
                 (CHARSET_INFO *)my_once_alloc(sizeof(CHARSET_INFO), MYF(0))))
