@@ -255,11 +255,11 @@ class HTTP_AUTH_BACKEND_LIB_EXPORT Pbkdf2McfAdaptor {
           mcf.checksum()) {
         return {};
       } else {
-        return std::make_error_code(McfErrc::kPasswordNotMatched);
+        return make_error_code(McfErrc::kPasswordNotMatched);
       }
     } catch (const std::exception &) {
       // whatever the exception was, make it a parse-error
-      return std::make_error_code(McfErrc::kParseError);
+      return make_error_code(McfErrc::kParseError);
     }
   }
 

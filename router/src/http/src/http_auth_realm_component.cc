@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ std::error_code HttpAuthRealmComponent::authenticate(
   if (auto realm = get(inst)) {
     return realm->authenticate(username, authdata);
   } else {
-    return std::make_error_code(HttpAuthErrc::kRealmNotFound);
+    return make_error_code(HttpAuthErrc::kRealmNotFound);
   }
 }
 

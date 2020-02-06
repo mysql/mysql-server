@@ -109,7 +109,7 @@ static bool is_token68(char c) {
 HttpAuthCredentials HttpAuthCredentials::from_header(const std::string &hdr,
                                                      std::error_code &errc) {
   if (hdr.empty()) {
-    errc = std::make_error_code(std::errc::invalid_argument);
+    errc = make_error_code(std::errc::invalid_argument);
     return {{}, {}, {}};
   }
   // Basic dGVzdDoxMjPCow==
@@ -117,7 +117,7 @@ HttpAuthCredentials HttpAuthCredentials::from_header(const std::string &hdr,
   auto end_scheme = std::find_if_not(hdr.begin(), hdr.end(), is_tchar);
   // stopped too late
   if (begin_scheme == end_scheme) {
-    errc = std::make_error_code(std::errc::invalid_argument);
+    errc = make_error_code(std::errc::invalid_argument);
     return {{}, {}, {}};
   }
 
@@ -215,7 +215,7 @@ bool HttpAuth::require_auth(HttpRequest &req,
           HttpAuthChallenge(realm->method(), "", {{"realm", realm->name()}})
               .str()
               .c_str());
-      if (ec == std::make_error_code(HttpAuthErrc::kAuthorizationNotSupported))
+      if (ec == make_error_code(HttpAuthErrc::kAuthorizationNotSupported))
         req.send_reply(HttpStatusCode::Forbidden);
       else
         req.send_reply(HttpStatusCode::Unauthorized);
