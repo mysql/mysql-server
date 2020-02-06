@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 typedef ULONG nfds_t;
-typedef long ssize_t;
 #else
 #include <errno.h>
 #include <netdb.h>
@@ -43,6 +42,7 @@ typedef long ssize_t;
 #endif
 
 #include "harness_export.h"
+#include "my_inttypes.h"  // ssize_t
 #include "tcp_address.h"
 
 namespace mysql_harness {

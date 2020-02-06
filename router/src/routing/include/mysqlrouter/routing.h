@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,10 +42,11 @@
 
 #ifdef _WIN32
 typedef ULONG nfds_t;
-typedef long ssize_t;
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
+
+#include "my_inttypes.h"  // ssize_t
 
 namespace routing {
 
