@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
+#include <system_error>
+#include <thread>
 
 #include <gmock/gmock.h>
 
@@ -244,16 +247,24 @@ TEST_P(HttpServerPlainTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   if (!has_port) {
     http_port = kHttpDefaultPort;
   }
 
+  // Add a DEBUG level to trigger the 'Running' message.
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section))};
+      mysql_harness::join(
+          std::vector<std::string>{
+              ConfigBuilder::build_section("http_server", http_section),
+              ConfigBuilder::build_section("logger",
+                                           {
+                                               {"level", "DEBUG"},
+                                           })},
+          "\n"))};
   ProcessWrapper &http_server{launch_router(
       {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
 
@@ -270,9 +281,29 @@ TEST_P(HttpServerPlainTest, ensure) {
     RestClient rest_client(io_ctx, GetParam().http_hostname, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
-                                             kDefaultPortReadyTimeout,
-                                             GetParam().http_hostname));
+    try {
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
+                                               kDefaultPortReadyTimeout,
+                                               GetParam().http_hostname))
+          << "http-server:\n"
+          << http_server.get_current_output();
+    } catch (const std::system_error &e) {
+      SCOPED_TRACE(
+          "// wait_for_port_ready() failed, waiting for process to startup "
+          "before we can kill it");
+      // if we tried to connect to an address we can't assign (like connect(::1)
+      // on a host IPv6 disabled), skip the test
+
+      ASSERT_EQ(e.code(),
+                make_error_condition(std::errc::address_not_available));
+
+      // wait a bit to let the process actually startup to not kill it too early
+      EXPECT_TRUE(wait_log_contains(http_server, "Running", 1000ms))
+          << "log: " << http_server.get_full_logfile();
+
+      // skip
+      return;
+    }
 
     SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
