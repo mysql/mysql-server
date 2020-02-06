@@ -3,8 +3,6 @@ Restart server 1 to trigger schema synchronization
 # restart
 SHOW TABLES;
 Tables_in_test
-child
-parent
 t1
 t2
 t3
@@ -74,30 +72,7 @@ t5	CREATE TABLE `t5` (
 SELECT * FROM t5;
 a	b
 1	Lipstick on a pig
-SHOW CREATE TABLE parent;
-Table	Create Table
-parent	CREATE TABLE `parent` (
-  `c1` int NOT NULL,
-  PRIMARY KEY (`c1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM parent;
-c1
-1
-2
-SHOW CREATE TABLE child;
-Table	Create Table
-child	CREATE TABLE `child` (
-  `c1` int NOT NULL,
-  `c2` int DEFAULT NULL,
-  PRIMARY KEY (`c1`),
-  KEY `xc2` (`c2`),
-  CONSTRAINT `child_fk_1` FOREIGN KEY (`c2`) REFERENCES `parent` (`c1`) ON DELETE CASCADE
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SELECT * FROM child;
-c1	c2
-1	1
-2	2
-DROP TABLE t1, t2, t3, t4, t5, child, parent;
+DROP TABLE t1, t2, t3, t4, t5;
 ALTER TABLESPACE ts1
 DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;
