@@ -2064,6 +2064,11 @@ err:
   // before returning
   release_indexes(dict, 1 /* invalidate */);
 
+  //  Release field to column map
+  if (m_table_map != nullptr) {
+    delete m_table_map;
+    m_table_map = nullptr;
+  }
   // Release NdbRecord's allocated for the table
   if (m_ndb_record != NULL) {
     dict->releaseRecord(m_ndb_record);
