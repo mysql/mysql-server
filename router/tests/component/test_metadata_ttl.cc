@@ -588,7 +588,7 @@ TEST_F(MetadataChacheTTLTest, CheckMetadataUpgradeBetweenTTLs) {
   EXPECT_GE(1, count_str_occurences(log_content, needle)) << log_content;
 
   SCOPED_TRACE(
-      "// there should no be any cluster change reported caused by the version "
+      "// there should be no cluster change reported caused by the version "
       "upgrade");
   needle = "Potential changes detected in cluster";
   // 1 is expected, that comes from the inital reading of the metadata
