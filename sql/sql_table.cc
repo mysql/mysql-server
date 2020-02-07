@@ -9618,6 +9618,10 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
           result = true;
         else {
           DBUG_ASSERT(new_table != nullptr);
+          // Check for usage of prefix key index in PARTITION BY KEY() function.
+          dd::warn_on_deprecated_prefix_key_partition(thd, create_table->db,
+                                                      create_table->table_name,
+                                                      new_table, false);
           /*
             If we are to support FKs for storage engines which don't support
             atomic DDL we need to decide what to do for such SEs in case of
@@ -16239,6 +16243,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     set_check_constraints_alter_mode(table_def, alter_info);
 
     DBUG_ASSERT(table_def);
+  }
+
+  if (!is_tmp_table) {
+    // Check for usage of prefix key index in PARTITION BY KEY() function.
+    dd::warn_on_deprecated_prefix_key_partition(
+        thd, alter_ctx.db, alter_ctx.table_name, table_def, false);
   }
 
   if (remove_secondary_engine(thd, *table_list, *create_info, old_table_def))

@@ -10806,6 +10806,9 @@ ER_IB_MSG_INNODB_START_INITIALIZE
 ER_IB_MSG_INNODB_END_INITIALIZE
   eng "InnoDB initialization has ended."
 
+ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Usage of column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

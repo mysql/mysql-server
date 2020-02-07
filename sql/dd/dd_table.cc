@@ -2912,4 +2912,106 @@ bool uses_general_tablespace(const Table &t) {
   return false;
 }
 
+void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
+                                             const char *orig_table_name,
+                                             const Table *table,
+                                             const bool is_upgrade) {
+  DBUG_TRACE;
+  DBUG_ASSERT(table);
+
+  // Check if table is partitioned.
+  const Table::enum_partition_type pt_type = table->partition_type();
+  if (pt_type == Table::enum_partition_type::PT_NONE) return;
+
+  // Check if table is partitioned by [LINEAR] KEY.
+  if (pt_type != Table::PT_KEY_51 && pt_type != Table::PT_KEY_55 &&
+      pt_type != Table::PT_LINEAR_KEY_51 && pt_type != Table::PT_LINEAR_KEY_55)
+    return;
+
+  // Parse the partition expression to get the list of columns used.
+  // NOTE : This is similar to working of set_field_list().
+  std::vector<String_type> part_columns;
+  String_type part_expr = table->partition_expression();
+  String_type::const_iterator it(part_expr.begin());
+  String_type::const_iterator end(part_expr.end());
+  String_type part_column_name;
+  while (it != end) {
+    if (eat_str(part_column_name, it, end, dd::FIELD_NAME_SEPARATOR_CHAR))
+      break; /* purecov: inspected */
+    part_columns.push_back(part_column_name);
+  }
+
+  // We check the list of columns only if columns are explicitly specified in
+  // PARTITION BY KEY (column_list).
+  const bool check_part_columns = !part_columns.empty();
+
+  const Table::Partition_collection *partitions = &table->partitions();
+  DBUG_ASSERT(!partitions->empty());
+
+  // Since the indexes referred by every partition would be the same, we only
+  // need the first partition.
+  const Partition *partition = *partitions->begin();
+
+  // Check each index element of each partition index, and throw a warning if
+  // prefix key index is used in the PARTITION BY KEY() clause.
+  for (const auto *part_index : partition->indexes()) {
+    if (part_index->index().is_hidden()) continue;
+
+    for (const auto *index_element : part_index->index().elements()) {
+      if (index_element->is_hidden()) continue;
+
+      // Index length should not be unset, if the index is visible.
+      DBUG_ASSERT(!index_element->is_length_null());
+
+      // In case PARTITION BY KEY(...) columns are explicitly specified, check
+      // if this column is one of them.
+      const Column *column = &index_element->column();
+      String_type column_name = column->name();
+      if (check_part_columns) {
+        bool found = false;
+        for (auto part_column : part_columns) {
+          if (!my_strcasecmp(system_charset_info, column_name.c_str(),
+                             part_column.c_str())) {
+            found = true;
+            break;
+          }
+        }
+        if (!found) continue;
+      }
+
+      // Check if column is one of the types for which prefixes can be
+      // specified.
+      const enum enum_column_types column_type = column->type();
+      if (column_type !=
+              enum_column_types::VARCHAR &&  // For CHAR/VARCHAR/VARBINARY
+          column_type != enum_column_types::STRING)  // For BINARY
+        continue;
+
+      DBUG_ASSERT(index_element->length() <= column->char_length());
+
+      // Check if the partition index element length differs from the column
+      // length, which indicates that it uses a prefix key.
+      if (index_element->length() == column->char_length()) continue;
+
+      // Calculate prefix key length to be displayed, based on charset.
+      const CHARSET_INFO *cs = dd_get_mysql_charset(column->collation_id());
+      const uint prefix_key_length = index_element->length() / cs->mbmaxlen;
+
+      // In case of UPGRADE from 5.7 or lower 8.0.x version, send warning to the
+      // error log. In case of CREATE|ALTER TABLE, send warning to client.
+      if (is_upgrade)
+        LogErr(WARNING_LEVEL, ER_WARN_LOG_DEPRECATED_PARTITION_PREFIX_KEY,
+               schema_name, orig_table_name, column_name.c_str(),
+               column_name.c_str(), prefix_key_length);
+      else
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING,
+            ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
+            ER_THD(thd, ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY),
+            schema_name, orig_table_name, column_name.c_str(),
+            column_name.c_str(), prefix_key_length);
+    }
+  }
+}
+
 }  // namespace dd

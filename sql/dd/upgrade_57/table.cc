@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1776,6 +1776,10 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
       key_info_buffer, key_count, Alter_info::ENABLE, fk_key_info_buffer,
       fk_number, &cc_spec_list_unused, table.file);
+
+  // Check for usage of prefix key index in PARTITION BY KEY() function.
+  dd::warn_on_deprecated_prefix_key_partition(
+      thd, schema_name.c_str(), table_name.c_str(), table_def.get(), true);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
     LogErr(ERROR_LEVEL, ER_DD_ERROR_CREATING_ENTRY, schema_name.c_str(),

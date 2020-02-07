@@ -9314,6 +9314,10 @@ ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
 ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT error code.
+ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
+  eng "Usage of column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
