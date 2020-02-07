@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -152,12 +152,42 @@ Path Path::join(const Path &other) const {
   return result;
 }
 
+static const char *file_type_name(Path::FileType type) {
+  switch (type) {
+    case Path::FileType::DIRECTORY_FILE:
+      return "a directory";
+    case Path::FileType::CHARACTER_FILE:
+      return "a character device";
+    case Path::FileType::BLOCK_FILE:
+      return "a block device";
+    case Path::FileType::EMPTY_PATH:
+      return "an empty path";
+    case Path::FileType::FIFO_FILE:
+      return "a FIFO";
+    case Path::FileType::FILE_NOT_FOUND:
+      return "not found";
+    case Path::FileType::REGULAR_FILE:
+      return "a regular file";
+    case Path::FileType::TYPE_UNKNOWN:
+      return "unknown";
+    case Path::FileType::STATUS_ERROR:
+      return "error";
+    case Path::FileType::SOCKET_FILE:
+      return "a socket";
+    case Path::FileType::SYMLINK_FILE:
+      return "a symlink";
+  }
+
+  // in case a non-enum value is passed in, return 'undefined'
+  // [should never happen]
+  //
+  // note: don't use 'default:' in the switch to get a warning for
+  // 'unhandled enunaration' when new values are added.
+  return "undefined";
+}
+
 std::ostream &operator<<(std::ostream &out, Path::FileType type) {
-  static const char *type_names[]{
-      "ERROR",        "not found",        "regular", "directory", "symlink",
-      "block device", "character device", "FIFO",    "socket",    "UNKNOWN",
-  };
-  out << type_names[static_cast<int>(type)];
+  out << file_type_name(type);
   return out;
 }
 

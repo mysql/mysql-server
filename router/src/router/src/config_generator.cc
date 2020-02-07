@@ -703,8 +703,9 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   if (!Path(directory).is_directory()) {
-    throw std::runtime_error("Can't use " + directory +
-                             " for bootstrap, it is not directory.");
+    throw std::runtime_error("Expected bootstrap directory '" + directory +
+                             "' to be a directory, but its type is: " +
+                             mysqlrouter::to_string(Path(directory).type()));
   }
 
   set_file_owner(user_options, directory);
