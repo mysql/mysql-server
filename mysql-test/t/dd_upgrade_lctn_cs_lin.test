@@ -101,44 +101,44 @@
 # |              | lctn0_cs_lin | OK.                                         |
 # |              | lctn1_cs_lin | (1).                                        |
 # |              | lctn1_ci_mac | (1).                                        |
-# |              | lctn2_ci_mac | Bug#30450918, bug#30450968, bug#30450979.   |
-# |              | lctn1_ci_win | Bug#30411118. (1).                          |
-# |              | lctn2_ci_win | Bug#30411118. (2).                          |
+# |              | lctn2_ci_mac | (2).                                        |
+# |              | lctn1_ci_win | (1), (3).                                   |
+# |              | lctn2_ci_win | (2), (3).                                   |
 # | lctn1_cs_lin |              |                                             |
 # |              | lctn0_cs_lin | OK.                                         |
 # |              | lctn1_cs_lin | OK.                                         |
 # |              | lctn1_ci_mac | OK.                                         |
 # |              | lctn2_ci_mac | OK.                                         |
-# |              | lctn1_ci_win | Bug#30411118.                               |
-# |              | lctn2_ci_win | Bug#30411118.                               |
+# |              | lctn1_ci_win | (3).                                        |
+# |              | lctn2_ci_win | (3).                                        |
 # | lctn1_ci_mac |              |                                             |
 # |              | lctn0_cs_lin | OK.                                         |
 # |              | lctn1_cs_lin | OK.                                         |
 # |              | lctn1_ci_mac | OK.                                         |
 # |              | lctn2_ci_mac | OK.                                         |
-# |              | lctn1_ci_win | Bug#30411118.                               |
-# |              | lctn2_ci_win | Bug#30411118.                               |
+# |              | lctn1_ci_win | (3).                                        |
+# |              | lctn2_ci_win | (3).                                        |
 # | lctn2_ci_mac |              |                                             |
-# |              | lctn0_cs_lin | Bug#30450918, bug#30450968, (2).            |
+# |              | lctn0_cs_lin | (2).                                        |
 # |              | lctn1_cs_lin | (1).                                        |
 # |              | lctn1_ci_mac | (1).                                        |
-# |              | lctn2_ci_mac | Bug#30450944.                               |
-# |              | lctn1_ci_win | Bug#30411118. (1).                          |
-# |              | lctn2_ci_win | Bug#30411118.                               |
+# |              | lctn2_ci_mac | OK.                                         |
+# |              | lctn1_ci_win | (1), (3).                                   |
+# |              | lctn2_ci_win | (3).                                        |
 # | lctn1_ci_win |              |                                             |
-# |              | lctn0_cs_lin | Bug#30411118.                               |
-# |              | lctn1_cs_lin | Bug#30411118.                               |
-# |              | lctn1_ci_mac | Bug#30411118.                               |
-# |              | lctn2_ci_mac | Bug#30411118.                               |
-# |              | lctn1_ci_win | Bug#30450918.                               |
-# |              | lctn2_ci_win | Bug#30450918.                               |
+# |              | lctn0_cs_lin | (3).                                        |
+# |              | lctn1_cs_lin | (3).                                        |
+# |              | lctn1_ci_mac | (3).                                        |
+# |              | lctn2_ci_mac | (3).                                        |
+# |              | lctn1_ci_win | OK.                                         |
+# |              | lctn2_ci_win | OK.                                         |
 # | lctn2_ci_win |              |                                             |
-# |              | lctn0_cs_lin | Bug#30411118. (2).                          |
-# |              | lctn1_cs_lin | Bug#30411118. (1).                          |
-# |              | lctn1_ci_mac | Bug#30411118. (1).                          |
-# |              | lctn2_ci_mac | Bug#30411118. (2).                          |
-# |              | lctn1_ci_win | Bug#30450918. (1).                          |
-# |              | lctn2_ci_win | Bug#30450918.                               |
+# |              | lctn0_cs_lin | (2), (3).                                   |
+# |              | lctn1_cs_lin | (1), (3).                                   |
+# |              | lctn1_ci_mac | (1), (3).                                   |
+# |              | lctn2_ci_mac | (2), (3).                                   |
+# |              | lctn1_ci_win | (1).                                        |
+# |              | lctn2_ci_win | OK.                                         |
 # +--------------+--------------+---------------------------------------------+
 #
 # Notes:
@@ -149,32 +149,13 @@
 #    refer to an upper case name. There are errors emitted from the SQL
 #    layer during upgrade that explain these issues.
 # 2) OK after removing the .frm files having upper case names to skip
-#    tables with upper case names. There are errors emitted from the
-#    InnoDB during upgrade that explain these issues.
-#
-# Bugs filed:
-#
-# - Bug#30411118: During upgrade, InnoDB will use the partition separator
-#   used by the target platform. If the source data directory came from
-#   another platform, the partition separators might be different. Hence,
-#   opening the table returns a nullptr, which will cause a segfault when
-#   we try to close it.
-#
-# - Bug#30450918: With the same source and target platform, upper case
-#   partition names cause problems when trying to upgrade partitioned
-#   tables. Opening the table in InnoDB returns a nullptr, causing a
-#   segfault when closing the table. However, in this case, the reason is
-#   not an unexpected partition separator, but an upper case partition name.
-#
-# - Bug#30450968: Upgrading between MacOS and linux makes upper case table
-#   names for partitioned tables cause a segfault in InnoDB during upgrade.
-#
-# - Bug#30450979: Upgrading from linux to MacOS makes upper case table
-#   names cause an assert in InnoDB while opening the table at the end
-#   of upgrade.
-#
-# - Bug#30450944: (2) also happens for upgrade on MacOS with upper case
-#   table names and lower_case_table_names=2.
+#    tables with upper case names. There are errors emitted from InnoDB
+#    during upgrade that explain these issues.
+# 3) OK after removing partitioned tables. During upgrade, InnoDB will
+#    use the partition separator used by the target platform. If the source
+#    data directory came from another platform, the partition separators
+#    might be different. There are errors emitted from InnoDB during
+#    upgrade that explain these issues.
 #
 ###############################################################################
 #
@@ -431,12 +412,6 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30450918.
---remove_files_wildcard $MYSQLD_DATADIR/lower_s *_Upper_p.frm
-
---echo # TODO: Bug#30450968.
---remove_files_wildcard $MYSQLD_DATADIR/lower_s Upper_t_*_p.frm
-
 --echo # Upgrade with upper case table names fails when changing platform (InnoDB error in log file).
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s Upper_*.frm
 
@@ -533,12 +508,23 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern=  not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
@@ -568,12 +554,23 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern=  not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
@@ -603,7 +600,18 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern=  not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade with upper case table names fails when changing platform (InnoDB error in log file).
@@ -611,7 +619,7 @@
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
@@ -655,12 +663,23 @@
 
 --force-rmdir $MYSQLD_DATADIR/Upper_s
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern=  not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-3.log
 --error 1
 --exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
 
@@ -675,7 +694,7 @@
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-3.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-4.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG

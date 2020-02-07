@@ -101,13 +101,18 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30450918.
---remove_files_wildcard $MYSQLD_DATADIR/lower_s *_Upper_p.frm
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
 
---echo # TODO: Bug#30450968.
---remove_files_wildcard $MYSQLD_DATADIR/lower_s Upper_t_*_p.frm
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
 
---echo # TODO: Bug#30450979.
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s Upper_*.frm
 
 --echo # Upgrade server.
@@ -331,9 +336,6 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30450944.
---remove_files_wildcard $MYSQLD_DATADIR/lower_s Upper_*.frm
-
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
@@ -366,12 +368,23 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
@@ -401,12 +414,23 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
@@ -450,12 +474,23 @@
 
 --force-rmdir $MYSQLD_DATADIR/Upper_s
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-3.log
 --error 1
 --exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
 
@@ -500,7 +535,18 @@
 --let $MYSQLD_DATADIR = $MYSQL_TMP_DIR/$name_base
 --file_exists $MYSQLD_DATADIR
 
---echo # TODO: Bug#30411118.
+--echo # Upgrade server.
+--list_files $MYSQLD_DATADIR/lower_s
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-1.log
+--error 1
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --lower_case_table_names=$to_lctn
+
+--echo # Invalid names.
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= not found in InnoDB dictionary
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
 --remove_files_wildcard $MYSQLD_DATADIR/lower_s *_p.frm
 
 --echo # Upgrade with upper case table names fails when changing platform (InnoDB error in log file).
@@ -508,7 +554,7 @@
 
 --echo # Upgrade server.
 --list_files $MYSQLD_DATADIR/lower_s
---let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to.log
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/$from-$to-2.log
 --let $wait_counter= 10000
 --let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --lower_case_table_names=$to_lctn
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG
