@@ -930,7 +930,7 @@ CHARSET_INFO my_charset_tis620_thai_ci = {
     MY_CS_COMPILED | MY_CS_PRIMARY | MY_CS_STRNXFRM, /* state     */
     "tis620",                                        /* cs name    */
     "tis620_thai_ci",                                /* name      */
-    "TIS-620 Thai",                                  /* comment   */
+    "TIS620 Thai",                                   /* comment   */
     nullptr,                                         /* tailoring */
     nullptr,                                         /* coll_param */
     ctype_tis620,
@@ -965,7 +965,7 @@ CHARSET_INFO my_charset_tis620_bin = {
     MY_CS_COMPILED | MY_CS_BINSORT, /* state     */
     "tis620",                       /* cs name    */
     "tis620_bin",                   /* name      */
-    "TIS-620 Thai",                 /* comment   */
+    "TIS620 Thai",                  /* comment   */
     nullptr,                        /* tailoring */
     nullptr,                        /* coll_param */
     ctype_tis620,
