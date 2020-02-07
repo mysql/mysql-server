@@ -19,8 +19,9 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#ifndef WarpHeader
-#define WarpHeader
+#ifndef HA_WARP_HDR
+#define HA_WARP_HDR
+#include "sql/sql_class.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -53,6 +54,7 @@
 #include <string> 
 #include <atomic>
 #include <vector>
+#include <thread>
 
 #include "include/fastbit/ibis.h"
 #include "include/fastbit/query.h"
@@ -72,8 +74,56 @@
 /* 1 million rows per partition is small, but I want to stress test the 
    database with lots of partitions to start
 */
-#define WARP_PARTITION_MAX_ROWS 1000000
 #define BLOB_MEMROOT_ALLOC_SIZE 8192
+
+/* engine variables */
+static unsigned long long my_partition_max_rows, my_cache_size, my_write_cache_size;
+
+static MYSQL_SYSVAR_ULONGLONG(
+  partition_max_rows,
+  my_partition_max_rows,
+  PLUGIN_VAR_RQCMDARG,
+  "Fastbit cache size",
+  NULL,
+  NULL,
+  1024 * 1024,
+  1024 * 1024,
+  1ULL<<63,
+  0
+);
+
+static MYSQL_SYSVAR_ULONGLONG(
+  cache_size,
+  my_cache_size,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum number of rows in a Fastbit partition.  Default is reasonable.",
+  NULL,
+  NULL,
+  1024 * 1024 * 256,
+  1024 * 1024 * 256,
+  1ULL<<63,
+  0
+);
+
+static MYSQL_SYSVAR_ULONGLONG(
+  write_cache_size,
+  my_write_cache_size,
+  PLUGIN_VAR_RQCMDARG,
+  "The number of rows to cache in ram before flushing to disk.",
+  NULL,
+  NULL,
+  1024 * 1024,
+  1024 * 1024,
+  1ULL<<63,
+  0
+);
+
+SYS_VAR* system_variables[] = {
+  MYSQL_SYSVAR(partition_max_rows),
+  MYSQL_SYSVAR(cache_size),
+  MYSQL_SYSVAR(write_cache_size),
+  NULL
+};
 
 struct WARP_SHARE {
   std::string table_name;
@@ -87,16 +137,13 @@ struct WARP_SHARE {
 static WARP_SHARE *get_share(const char *table_name, TABLE* table_ptr);
 static int free_share(WARP_SHARE *share); 
 
-struct COLUMN_INFO {
-  std::string name;
-  int datatype;
-  bool is_unsigned;
-};
-
 class ha_warp : public handler {
-  THR_LOCK_DATA lock; /* MySQL lock */
-  WARP_SHARE *share;  /* Shared lock info */
-  bool records_is_known;
+  /* MySQL lock - Fastbit has its own internal mutex implementation.  This is used to protect the share.*/
+  THR_LOCK_DATA lock; 
+
+  /* Shared lock info */
+  WARP_SHARE *share;  
+  
   
  private:
   void update_row_count();
@@ -104,16 +151,19 @@ class ha_warp : public handler {
   int encode_quote(uchar *buf);
   int set_column_set(); 
   int set_column_set(uint32_t idxno);
-  int find_current_row(uchar *buf);
+  int find_current_row(uchar *buf, ibis::table::cursor* cursor);
   void create_writer(TABLE *table_arg);
+  static void background_write(ibis::tablex* writer,  char* datadir);
 
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
   ibis::mensa*         base_table; 
   ibis::table*         filtered_table;
+  ibis::table*         idx_filtered_table;
   ibis::table::cursor* cursor;
+  ibis::table::cursor* idx_cursor;
 
   /* This object is used to append tuples to the table */
-  ibis::tablex*         writer;
+  ibis::tablex* writer;
 
   /* A list of row numbers to delete (filled in by delete_row) */
   std::vector<uint64_t> deleted_rows;
@@ -130,6 +180,10 @@ class ha_warp : public handler {
 
   /* storage for BLOBS */
   MEM_ROOT blobroot; 
+
+  /* if MySQL asks us to sort an index, then it is using a disjunction */
+  bool index_merge = false;
+
  public:
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
  
@@ -214,5 +268,14 @@ class ha_warp : public handler {
   int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno=0);
   void get_auto_increment(ulonglong, ulonglong, ulonglong, ulonglong *, ulonglong *);
 
+  int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* ) {
+    DBUG_ENTER("ha_example::rename_table ");
+    std::string cmd = "mv " + std::string(from) + ".data/ " + std::string(to) + ".data/";
+    
+    system(cmd.c_str()); 
+    DBUG_RETURN(0);
+  }
+
+  
 };
 #endif
