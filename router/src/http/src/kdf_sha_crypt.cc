@@ -24,10 +24,15 @@
 
 #include "kdf_sha_crypt.h"
 
+#include <stddef.h>
+
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
+#include <tuple>
 #include <string>
 #include <vector>
 

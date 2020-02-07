@@ -24,11 +24,16 @@
 
 #include "kdf_pbkdf2.h"
 
+#include <stdint.h>
+
 #include <algorithm>
+#include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include <iostream>
