@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,12 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include "config_files.h"
-#include "mysql/harness/filesystem.h"
-#include "router_app.h"
 
 #include <algorithm>
 #include <fstream>
 
-using mysqlrouter::string_format;
-const std::string path_sep = ":";
+#include "mysql/harness/filesystem.h"
+#include "router_app.h"
 
 std::string use_ini_extension(const std::string &file_name) {
   auto pos = file_name.find_last_of(".conf");
@@ -50,8 +48,8 @@ ConfigFiles::ConfigFiles(const std::vector<std::string> &default_config_files,
       auto pos = std::find(available_config_files_.begin(),
                            available_config_files_.end(), file);
       if (pos != available_config_files_.end()) {
-        throw std::runtime_error(
-            string_format("Duplicate configuration file: %s.", file.c_str()));
+        throw std::runtime_error(mysqlrouter::string_format(
+            "Duplicate configuration file: %s.", file.c_str()));
       }
       if (mysql_harness::Path(file).is_readable()) {
         available_config_files_.push_back(file);
@@ -73,8 +71,8 @@ ConfigFiles::ConfigFiles(const std::vector<std::string> &default_config_files,
         }
       }
 
-      paths_attempted_.append(file).append(path_sep);
-      if (!file_ini.empty()) paths_attempted_.append(file_ini).append(path_sep);
+      paths_attempted_.push_back(file);
+      if (!file_ini.empty()) paths_attempted_.push_back(file_ini);
     }
   }
 
@@ -91,7 +89,7 @@ const std::vector<std::string> &ConfigFiles::available_config_files() const {
   return available_config_files_;
 }
 
-const std::string &ConfigFiles::paths_attempted() const {
+std::vector<std::string> ConfigFiles::paths_attempted() const {
   return paths_attempted_;
 }
 

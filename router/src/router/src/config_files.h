@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,10 +67,9 @@ class ConfigFiles {
   const std::vector<std::string> &available_config_files() const;
 
   /*
-   * @return list of comma separated configuration files that were checked if
-   * they are available.
+   * @return configuration files that were checked if they are available.
    */
-  const std::string &paths_attempted() const;
+  std::vector<std::string> paths_attempted() const;
 
   /*
    * @return true if there is at least 1 available configuration file, false
@@ -90,8 +89,8 @@ class ConfigFiles {
   // number of verified config files and defalt config files that were checked
   size_t valid_config_count_ = 0;
 
-  // list of comma separated configuration files that were checked
-  std::string paths_attempted_;
+  // configuration files that were checked
+  std::vector<std::string> paths_attempted_;
 };
 
 #endif  // ROUTER_CONFIG_FILES_INCLUDED

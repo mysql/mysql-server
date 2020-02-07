@@ -749,8 +749,8 @@ vector<string> MySQLRouter::check_config_files() {
   if (config_files.empty())
     throw std::runtime_error(
         "No valid configuration file available. See --help for more "
-        "information (looked at paths '" +
-        config_files.paths_attempted() + "').");
+        "information\nChecked paths:\n\n" +
+        mysql_harness::join(config_files.paths_attempted(), "\n"));
   return config_files.available_config_files();
 }
 
