@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -210,31 +210,32 @@ TEST_F(
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
-TEST_F(Server_client_timeout_test_suite,
+class Server_client_timeout_test_suite_param
+    : public Server_client_timeout_test_suite,
+      public testing::WithParamInterface<iface::Client::State> {};
+
+TEST_P(Server_client_timeout_test_suite_param,
        returnDateOfOldestNotExpiredNotAuthClient_whenWithMixedClientSet) {
   expectClientValid(TP_NOT_TO_RELEASE_1, iface::Client::State::k_accepted);
   expectClientValid(TP_NOT_TO_RELEASE_2, iface::Client::State::k_accepted);
   expectClientValid(TP_NOT_TO_RELEASE_3, iface::Client::State::k_accepted);
-  expectClientNotValid(TP_TO_RELEASE_1, iface::Client::State::k_accepted);
+  expectClientNotValid(TP_TO_RELEASE_1, GetParam());
 
   ASSERT_TRUE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
+
+INSTANTIATE_TEST_CASE_P(InstantiationOfTargetedStates,
+                        Server_client_timeout_test_suite_param,
+                        Values(iface::Client::State::k_invalid,
+                               iface::Client::State::k_accepted,
+                               iface::Client::State::k_authenticating_first));
 
 TEST_F(Server_client_timeout_test_suite,
        returnInvalidDate_whenAllClientAreAuthenticated) {
   expectClientValid(TP_TO_RELEASE_1, iface::Client::State::k_running);
   expectClientValid(TP_TO_RELEASE_2, iface::Client::State::k_closing);
   expectClientValid(TP_TO_RELEASE_3, iface::Client::State::k_closing);
-
-  ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
-}
-
-TEST_F(Server_client_timeout_test_suite,
-       returnInvalidDate_whenNoInitializedDate) {
-  xpl::chrono::Time_point not_set_Time_point;
-
-  expectClientValid(not_set_Time_point, iface::Client::State::k_invalid);
 
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }

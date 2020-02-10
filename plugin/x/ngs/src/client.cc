@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -412,8 +412,8 @@ void Client::on_accept() {
 
   m_connection->set_thread_owner();
 
-  // it can be accessed directly (no other thread access thus object)
-  m_state = State::k_accepted;
+  auto expected = State::k_invalid;
+  m_state.compare_exchange_strong(expected, State::k_accepted);
 
   set_encoder(ngs::allocate_object<Protocol_encoder>(
       m_connection,

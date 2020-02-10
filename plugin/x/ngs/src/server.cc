@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -239,8 +239,6 @@ void Server::restart_client_supervision_timer() {
 }
 
 bool Server::timeout_for_clients_validation() {
-  m_timer_running = false;
-
   log_debug("Supervision timeout - started client state verification");
 
   const xpl::chrono::Time_point time_oldest =
@@ -257,7 +255,10 @@ bool Server::timeout_for_clients_validation() {
   if (xpl::chrono::is_valid(client_validator.get_oldest_client_accept_time())) {
     start_client_supervision_timer(
         client_validator.get_oldest_client_accept_time() - time_oldest);
+  } else {
+    start_client_supervision_timer(get_config()->connect_timeout);
   }
+
   return false;
 }
 
