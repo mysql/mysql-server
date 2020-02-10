@@ -687,13 +687,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v1: {
-      stmt: "select ((select count(*) from " +
-            "mysql_innodb_cluster_metadata.clusters)=1) as has_one_gr_cluster",
+      stmt: "select count(*) from " +
+            "mysql_innodb_cluster_metadata.clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_gr_cluster"
+            "name": "count(*)"
           }
          ],
          rows: [
@@ -705,13 +705,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v2: {
-      stmt: "select ((select count(*) from " +
-             "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster",
+      stmt: "select count(*) from " +
+             "mysql_innodb_cluster_metadata.v2_gr_clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_gr_cluster"
+            "name": "count(*)"
           }
          ],
          rows: [
@@ -723,13 +723,13 @@ exports.get = function get(stmt_key, options) {
     },
 
     router_count_clusters_v2_ar: {
-      stmt: "select ((select count(*) from " +
-            "mysql_innodb_cluster_metadata.v2_ar_clusters)=1) as has_one_ar_cluster",
+      stmt: "select count(*) from " +
+            "mysql_innodb_cluster_metadata.v2_ar_clusters",
       result: {
         columns: [
           {
             "type": "LONGLONG",
-            "name": "has_one_ar_cluster"
+            "name": "count(*)"
            }
         ],
         rows: [
