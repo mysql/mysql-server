@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -840,7 +840,20 @@ XError Session_impl::authenticate(const char *user, const char *pass,
                                         get_compression_capability());
       error = protocol.execute_set_capability(capability_builder.get_result());
       // We shouldn't fail here, server supports needed capability
-      if (error) return error;
+      // still there is possibility that compression_level is not
+      // supported by the server
+      if (error && error.is_fatal()) return error;
+
+      if (error) {
+        const bool without_compression_level = false;
+        capability_builder.clear();
+        capability_builder.add_capability(
+            "compression",
+            get_compression_capability(without_compression_level));
+        // We shouldn't fail here, server supports needed capability
+        error =
+            protocol.execute_set_capability(capability_builder.get_result());
+      }
     }
 
     // Server doesn't support given compression configuration
@@ -1096,7 +1109,8 @@ Argument_uobject Session_impl::get_connect_attrs() const {
   };
 }
 
-Argument_value Session_impl::get_compression_capability() const {
+Argument_value Session_impl::get_compression_capability(
+    const bool include_compression_level) const {
   static const std::map<Compression_algorithm, std::string> k_algorithm{
       {Compression_algorithm::k_deflate, "DEFLATE_STREAM"},
       {Compression_algorithm::k_lz4, "LZ4_MESSAGE"},
@@ -1109,7 +1123,7 @@ Argument_value Session_impl::get_compression_capability() const {
       config.m_use_server_combine_mixed_messages;
   obj["server_max_combine_messages"] =
       static_cast<int64_t>(config.m_use_server_max_combine_messages);
-  if (config.m_use_level_server.has_value())
+  if (config.m_use_level_server.has_value() && include_compression_level)
     obj["level"] = static_cast<int64_t>(config.m_use_level_server.value());
 
   return Argument_value{obj};
