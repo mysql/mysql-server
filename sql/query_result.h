@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ class Item_subselect;
 class PT_select_var;
 class SELECT_LEX_UNIT;
 class THD;
+struct TABLE_LIST;
 
 /*
   This is used to get result from a query
@@ -166,6 +167,18 @@ class Query_result {
     @return true if it is an interceptor, false otherwise
   */
   virtual bool is_interceptor() const { return false; }
+
+  /**
+    If this Query_result performs modifications to tables: tells if it modifies
+    the given table's row as it's read (a.k.a. "on the fly"), or rather buffers
+    it to a temporary structure and modifies it in a post-all-reads phase.
+    @param t  TABLE to answer for
+    @return   true if "on the fly"
+  */
+  virtual bool immediate_update(TABLE_LIST *t MY_ATTRIBUTE((unused))) const {
+    DBUG_ASSERT(false);
+    return false;
+  }
 };
 
 /*

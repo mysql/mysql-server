@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1254,6 +1254,10 @@ bool Query_result_delete::send_eof(THD *thd) {
     ::my_ok(thd, deleted_rows);
   }
   return thd->is_error();
+}
+
+bool Query_result_delete::immediate_update(TABLE_LIST *t) const {
+  return t->map() & delete_immediate;
 }
 
 bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {

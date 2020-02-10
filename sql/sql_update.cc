@@ -2620,6 +2620,10 @@ bool Query_result_update::send_eof(THD *thd) {
   return false;
 }
 
+bool Query_result_update::immediate_update(TABLE_LIST *t) const {
+  return t->table == table_to_update;
+}
+
 bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
   SELECT_LEX *const select = thd->lex->select_lex;
   // Update tables

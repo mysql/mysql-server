@@ -447,3 +447,17 @@ ANALYZE TABLE t1;
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE SELECT f1, ( SELECT COUNT(*) FROM t1 AS inner_t1 WHERE inner_t1.f1 < t1.f1 ) FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#17978975 EXPLAIN FOR MULTI-TABLE UPDATE/DELETE DOES NOT MENTION TEMPORARY TABLE
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+CREATE TABLE t2(a INT, b INT);
+ANALYZE TABLE t1,t2;
+# Show when the table is updated on the fly, or with a tmp table:
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1;
+EXPLAIN FORMAT=TREE UPDATE t1,t2 SET t1.a=1,t2.b=1 WHERE t2.a=t1.a;
+EXPLAIN FORMAT=TREE DELETE t1.*,t2.* FROM t1,t2;
+EXPLAIN FORMAT=TREE DELETE t1.*,t1bis.* FROM t1, t1 AS t1bis;
+DROP TABLE t1,t2;

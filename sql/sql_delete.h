@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,6 +106,7 @@ class Query_result_delete final : public Query_result_interceptor {
   inline ha_rows num_deleted() { return deleted_rows; }
   void abort_result_set(THD *thd) override;
   void cleanup(THD *thd) override;
+  bool immediate_update(TABLE_LIST *t) const override;
 };
 
 class Sql_cmd_delete final : public Sql_cmd_dml {

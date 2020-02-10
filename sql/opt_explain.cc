@@ -2058,18 +2058,23 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
   return ret;
 }
 
-// Return a comma-separated list of all tables that are touched by UPDATE or
-// DELETE.
+/// @returns a comma-separated list of all tables that are touched by UPDATE or
+/// DELETE, with a mention of whether a temporary table is used for each.
 static string FindUpdatedTables(JOIN *join) {
+  Query_result *result = join->select_lex->query_result();
   string ret;
   for (size_t idx = 0; idx < join->tables; ++idx) {
-    TABLE *table = join->qep_tab[idx].table();
-    if (table != nullptr && table->pos_in_table_list->updating &&
+    TABLE_LIST *table_ref = join->qep_tab[idx].table_ref;
+    if (table_ref == nullptr) continue;
+    TABLE *table = table_ref->table;
+    if (table_ref->updating &&
         table->s->table_category != TABLE_CATEGORY_TEMPORARY) {
       if (!ret.empty()) {
         ret += ", ";
       }
       ret += table->alias;
+      ret +=
+          result->immediate_update(table_ref) ? " (immediate)" : " (buffered)";
     }
   }
   return ret;
