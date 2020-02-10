@@ -1426,7 +1426,7 @@
   INSERT INTO t1 VALUES (1);
   INSERT INTO t1 VALUES ("hej");
   Warnings:
-  Warning	1366	Incorrect integer value: 'hej' for column 'a' at row 1
+  Warning 1366  Incorrect integer value: 'hej' for column 'a' at row 1
   DROP TABLE t1;
   @endverbatim
 
@@ -6231,6 +6231,23 @@
       @verbatim
   --disable_abort_on_error
   --enable_abort_on_error
+      @endverbatim
+    </li>
+
+    <li>
+      <tt>disable_async_client</tt>, <tt>enable_async_client</tt>
+
+      Disable or enable asynchronous communication between the client and
+      the server. With this setting enabled, @ref PAGE_MYSQLTEST "mysqltest"
+      uses non-blocking C API's to communicate with the server.<br> Please
+      note that <b>disable_async_client</b> disables asynchronous
+      communication if it had been enabled either by the
+      <b>--enable_async_client</b> command or the <b>--async-client</b>
+      command line option.
+
+      @verbatim
+  --disable_async_client
+  --enable_async_client
       @endverbatim
     </li>
 
