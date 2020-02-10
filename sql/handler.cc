@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6166,6 +6166,17 @@ ha_rows handler::multi_range_read_info_const(
         rows = static_cast<ha_rows>(
             table->key_info[keyno].records_per_key(keyparts_used - 1));
       } else {
+        /*
+          Return HA_POS_ERROR if the range does not use all key parts and
+          the key cannot use partial key searches.
+        */
+        if ((index_flags(keyno, 0, false) & HA_ONLY_WHOLE_INDEX)) {
+          DBUG_ASSERT(
+              (range.range_flag & EQ_RANGE) &&
+              !table->key_info[keyno].has_records_per_key(keyparts_used - 1));
+          total_rows = HA_POS_ERROR;
+          break;
+        }
         /*
           Since records_in_range has not been called, set the rows to 1.
           FORCE INDEX has been used, cost model values will be ignored anyway.
