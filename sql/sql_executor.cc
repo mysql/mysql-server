@@ -2046,13 +2046,14 @@ static void ExtractJoinConditions(const QEP_TAB *current_table,
 // 'false' for both sides of 'join 1' as the pushed join is a part of multiple
 // subtrees.
 static bool SubtreeHasIncompletePushedJoin(JOIN *join, qep_tab_map subtree) {
+  const table_map subtree_table_map = ConvertQepTabMapToTableMap(join, subtree);
   for (QEP_TAB *qep_tab : TablesContainedIn(join, subtree)) {
     handler *handler = qep_tab->table()->file;
     table_map tables_in_pushed_join = handler->tables_in_pushed_join();
 
     // See if any of the tables in the pushed join does not belong to the given
     // subtree.
-    if (tables_in_pushed_join & ~subtree) {
+    if (tables_in_pushed_join & ~subtree_table_map) {
       return true;
     }
   }
