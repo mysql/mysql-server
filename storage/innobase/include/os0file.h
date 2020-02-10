@@ -1396,14 +1396,28 @@ os_file_size_t os_file_get_size(const char *filename)
 os_offset_t os_file_get_size(pfs_os_file_t file)
     MY_ATTRIBUTE((warn_unused_result));
 
+/** Allocate a block to file using fallocate from the given offset if
+fallocate is supported. Falls back to the old slower method of writing
+zeros otherwise.
+@param[in]	name		name of the file
+@param[in]	file		handle to the file
+@param[in]	offset		file offset
+@param[in]	size		file size
+@param[in]	read_only	enable read-only checks if true
+@param[in]	flush		flush file content to disk
+@return true if success */
+bool os_file_set_size_fast(const char *name, pfs_os_file_t file,
+                           os_offset_t offset, os_offset_t size, bool read_only,
+                           bool flush) MY_ATTRIBUTE((warn_unused_result));
+
 /** Write the specified number of zeros to a file from specific offset.
 @param[in]	name		name of the file or path as a null-terminated
                                 string
 @param[in]	file		handle to a file
 @param[in]	offset		file offset
 @param[in]	size		file size
-@param[in]	read_only	Enable read-only checks if true
-@param[in]	flush		Flush file content to disk
+@param[in]	read_only	enable read-only checks if true
+@param[in]	flush		flush file content to disk
 @return true if success */
 bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
                       os_offset_t size, bool read_only, bool flush)

@@ -5398,15 +5398,39 @@ void os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
 }
 
-/**  Write the specified number of zeros to a file from specific offset.
-@param[in]	name		name of the file or path as a null-terminated
-                                string
-@param[in]	file		handle to a file
-@param[in]	offset		file offset
-@param[in]	size		file size
-@param[in]	read_only	Enable read-only checks if true
-@param[in]	flush		Flush file content to disk
-@return true if success */
+bool os_file_set_size_fast(const char *name, pfs_os_file_t pfs_file,
+                           os_offset_t offset, os_offset_t size, bool read_only,
+                           bool flush) {
+#if !defined(NO_FALLOCATE) && defined(UNIV_LINUX) && \
+    defined(HAVE_FALLOC_FL_ZERO_RANGE)
+  ut_a(size >= offset);
+
+  static bool print_message = true;
+
+  int ret =
+      fallocate(pfs_file.m_file, FALLOC_FL_ZERO_RANGE, offset, size - offset);
+
+  if (ret == 0) {
+    if (flush) {
+      return os_file_flush(pfs_file);
+    }
+
+    return true;
+  }
+
+  ut_a(ret == -1);
+
+  /* Print the failure message only once for all the redo log files. */
+  if (print_message) {
+    ib::info() << "fallocate() failed with errno " << errno
+               << " - falling back to writing NULLs.";
+    print_message = false;
+  }
+#endif /* !NO_FALLOCATE && UNIV_LINUX && HAVE_FALLOC_FL_ZERO_RANGE */
+
+  return os_file_set_size(name, pfs_file, offset, size, read_only, flush);
+}
+
 bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
                       os_offset_t size, bool read_only, bool flush) {
   /* Write up to FSP_EXTENT_SIZE bytes at a time. */
