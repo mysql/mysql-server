@@ -5436,7 +5436,7 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
   os_offset_t current_size = offset;
 
   /* Count to check and print progress of file write for file_size > 100 MB. */
-  ulint percentage_count = 10;
+  uint percentage_count = 10;
 
   while (current_size < size) {
     ulint n_bytes;
@@ -5491,7 +5491,7 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
           ((float)(current_size + n_bytes) / (float)size) * 100;
 
       if (progress_percentage >= percentage_count) {
-        ib::info(ER_IB_MSG_1062, name, size >> 20, percentage_count);
+        ib::info(ER_IB_MSG_1062, name, ulong{size >> 20}, percentage_count);
         percentage_count += 10;
       }
     }
