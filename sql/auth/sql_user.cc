@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -343,9 +343,13 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   {
     Show_user_params show_user_params(
         hide_password_hash, thd->variables.print_identified_with_as_hex);
-    mysql_rewrite_acl_query(thd, Consumer_type::STDOUT, &show_user_params,
-                            false);
-    sql_text.takeover(thd->rewritten_query);
+    /*
+      By disabling instrumentation, we're requesting a rewrite to our
+      local buffer, sql_text. The value on the THD and those seen in
+      instrumentation remain unchanged.
+    */
+    mysql_rewrite_acl_query(thd, sql_text, Consumer_type::STDOUT,
+                            &show_user_params, false);
   }
 
   /* send the result row to client */

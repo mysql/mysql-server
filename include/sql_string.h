@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -446,9 +446,9 @@ class String {
   }
   /**
     Takeover the buffer owned by another string.
-    "this" becames the owner of the buffer and
+    "this" becomes the owner of the buffer and
     is further responsible to free it.
-    The string "s" is detouched from the buffer (cleared).
+    The string "s" is detached from the buffer (cleared).
 
     @param s - a String object to steal buffer from.
   */
