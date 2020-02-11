@@ -33,6 +33,7 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>  // rapidjson::Writer
 
+#include "sql/dd/impl/dictionary_impl.h"  // dd::Dictionary_impl::get_target_dd_version
 #include "sql/dd/impl/sdi.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
@@ -93,7 +94,7 @@ dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
 }
 
 bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
-  // Check the version set in the SDI that has been passed in
+  // Check the dd_version and sdi_version set in the SDI that has been passed in
   dd::RJ_Document doc;
   doc.Parse<0>(sdi.c_str());
   if (doc.HasParseError()) {
@@ -101,19 +102,32 @@ bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
   }
   dd::RJ_Value &sdi_version_val = doc["sdi_version"];
   const std::uint64_t sdi_version = sdi_version_val.GetUint64();
+  dd::RJ_Value &dd_version_val = doc["dd_version"];
+  const unsigned int sdi_dd_version = dd_version_val.GetUint();
+  const unsigned int server_dd_version =
+      dd::Dictionary_impl::get_target_dd_version();
+  if (sdi_version == dd::SDI_VERSION && sdi_dd_version == server_dd_version) {
+    // Both SDI and DD versions match, deserialize the SDI as is
+    return dd::deserialize(thd, sdi, table);
+  }
   if (sdi_version != dd::SDI_VERSION) {
     // The version of the SDI passed in does not match the current version which
     // causes the subsequent deserialization to fail. Workaround the problem by
     // setting the version to the current version.
     sdi_version_val.SetUint64(dd::SDI_VERSION);
-    dd::RJ_StringBuffer buf;
-    MinifyWriter w(buf);
-    if (!doc.Accept(w)) {
-      return true;
-    }
-    return dd::deserialize(thd, buf.GetString(), table);
   }
-  return dd::deserialize(thd, sdi, table);
+  if (sdi_dd_version != server_dd_version) {
+    // The dd_version of the SDI passed in does not match the current dd_version
+    // which causes the subsequent deserialization to fail. Workaround the
+    // problem by setting the version to the current version.
+    dd_version_val.SetUint(server_dd_version);
+  }
+  dd::RJ_StringBuffer buf;
+  MinifyWriter w(buf);
+  if (!doc.Accept(w)) {
+    return true;
+  }
+  return dd::deserialize(thd, buf.GetString(), table);
 }
 
 dd::sdi_t ndb_dd_sdi_serialize(THD *thd, const dd::Table &table,
