@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,6 @@ SET(HAVE_SYS_WAIT_H CACHE  INTERNAL "")
 SET(HAVE_SYS_PARAM_H CACHE  INTERNAL "")
 SET(HAVE_FNMATCH_H CACHE  INTERNAL "")
 SET(HAVE_SYS_UN_H CACHE  INTERNAL "")
-SET(HAVE_SASL_SASL_H CACHE  INTERNAL "")
 
 # Functions
 SET(HAVE_ALIGNED_MALLOC 1 CACHE  INTERNAL "")

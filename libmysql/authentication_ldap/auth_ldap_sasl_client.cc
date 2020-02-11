@@ -29,6 +29,12 @@
 #include <sasl/sasl.h>
 #endif
 
+#if defined(SASL_CUSTOM_LIBRARY)
+#include <dlfcn.h>
+#include <link.h>
+#include <string>
+#endif
+
 #include <mysql.h>
 #include <mysql/client_plugin.h>
 #include <sql_common.h>
@@ -149,49 +155,6 @@ int Sasl_client::initilize() {
     m_user_name[0] = '\0';
   }
 #endif
-#ifdef _WIN32
-  char sasl_plugin_dir[MAX_PATH] = "";
-  int ret_executable_path = 0;
-  /**
-    Getting the current executable path, SASL SCRAM dll will be copied in
-    executable path. Using/Setting the path from cmake file may not work as
-    during installation SASL SCRAM DLL may be copied to any path based on
-    installable path.
-  */
-  ret_executable_path =
-      GetModuleFileName(NULL, sasl_plugin_dir, sizeof(sasl_plugin_dir));
-  if ((ret_executable_path == 0) ||
-      (ret_executable_path == sizeof(sasl_plugin_dir))) {
-    log_error(
-        "sasl client initilize: failed to find executable path or buffer size "
-        "for path is too small.");
-    log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
-    log_error(log_stream.str());
-    return SASL_FAIL;
-  }
-  char *pos = strrchr(sasl_plugin_dir, '\\');
-  if (pos != NULL) {
-    *pos = '\0';
-  }
-  /**
-    Sasl SCRAM dll default search path is C:\CMU2,
-    This is the reason we have copied in the executable folder and setting the
-    same from the code.
-  */
-  sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
-  log_stream << "Sasl_client::initilize sasl scrum plug-in path : "
-             << sasl_plugin_dir;
-  log_dbg(log_stream.str());
-  log_stream.clear();
-#endif
-  /** Initialize client-side of SASL. */
-  rc_sasl = sasl_client_init(nullptr);
-  if (rc_sasl != SASL_OK) {
-    log_stream << "Sasl_client::initilize failed rc: " << rc_sasl;
-    log_error(log_stream.str());
-    return rc_sasl;
-  }
-
   /** Creating sasl connection. */
   if (m_ldap_server_host.empty()) {
     rc_sasl = sasl_client_new(m_service_name, NULL, NULL, NULL, callbacks, 0,
@@ -216,7 +179,6 @@ Sasl_client::~Sasl_client() {
   if (m_connection) {
     sasl_dispose(&m_connection);
     m_connection = nullptr;
-    sasl_client_done_wrapper();
   }
   delete m_sasl_mechanism;
   m_sasl_mechanism = nullptr;
@@ -340,6 +302,8 @@ void Sasl_client::set_user_info(std::string name, std::string pwd) {
 // Call to function through pointer to incorrect function type
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio,
                              MYSQL *mysql) SUPPRESS_UBSAN;
+static int initialize_plugin(char *, size_t, int, va_list) SUPPRESS_UBSAN;
+static int deinitialize_plugin() SUPPRESS_UBSAN;
 #endif  // __clang__
 
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
@@ -349,14 +313,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int server_packet_len = 0;
   char *sasl_client_output = nullptr;
   int sasl_client_output_len = 0;
-  const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
-  int opt_val = opt ? atoi(opt) : 0;
   std::stringstream log_stream;
-
-  g_logger_client = new Ldap_logger();
-  if (opt && opt_val > 0 && opt_val < 6) {
-    g_logger_client->set_log_level((ldap_log_level)opt_val);
-  }
   Sasl_client sasl_client;
   sasl_client.set_user_info(mysql->user, mysql->passwd);
   sasl_client.set_plugin_info(vio, mysql);
@@ -438,14 +395,140 @@ EXIT:
     log_stream << "sasl_authenticate client failed rc: " << rc_sasl;
     log_error(log_stream.str());
   }
-  if (g_logger_client) {
-    delete g_logger_client;
-    g_logger_client = nullptr;
-  }
   return rc_auth;
+}
+
+#if defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+static int set_sasl_plugin_path() {
+#if defined(_WIN32)
+  std::stringstream log_stream;
+
+  char sasl_plugin_dir[MAX_PATH] = "";
+  int ret_executable_path = 0;
+  /**
+    Getting the current executable path, SASL SCRAM dll will be copied in
+    executable path. Using/Setting the path from cmake file may not work as
+    during installation SASL SCRAM DLL may be copied to any path based on
+    installable path.
+  */
+  ret_executable_path =
+      GetModuleFileName(NULL, sasl_plugin_dir, sizeof(sasl_plugin_dir));
+  if ((ret_executable_path == 0) ||
+      (ret_executable_path == sizeof(sasl_plugin_dir))) {
+    log_error(
+        "sasl client initialize: failed to find executable path or buffer size "
+        "for path is too small.");
+    log_stream << "Sasl_client::initialize failed";
+    log_error(log_stream.str());
+    return 1;
+  }
+  char *pos = strrchr(sasl_plugin_dir, '\\');
+  if (pos != NULL) {
+    *pos = '\0';
+  }
+  /**
+    Sasl SCRAM dll default search path is C:\CMU2,
+    This is the reason we have copied in the executable folder and setting the
+    same from the code.
+  */
+  sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
+  log_stream << "Sasl_client::initilize sasl scrum plug-in path : "
+             << sasl_plugin_dir;
+  log_dbg(log_stream.str());
+  return 0;
+#endif
+
+#if defined(SASL_CUSTOM_LIBRARY)
+  /**
+    Tell SASL where to look for plugins:
+
+    Custom versions of libsasl2.so and libscram.so will be copied to
+      <build directory>/library_output_directory/
+    and
+      <build directory>/library_output_directory/sasl2
+    respectively during build, and to
+      <install directory>/lib/private
+      <install directory>/lib/private/sasl2
+    after 'make install'.
+
+    sasl_set_path() must be called before sasl_client_init(),
+    and is not thread-safe.
+   */
+  char sasl_plugin_dir[PATH_MAX]{};
+  // dlopen(NULL, ) should not fail ...
+  void *main_handle = dlopen(nullptr, RTLD_LAZY);
+  if (main_handle == nullptr) {
+    log_error(dlerror());
+    return 1;
+  }
+  struct link_map *lm = nullptr;
+  if (0 != dlinfo(main_handle, RTLD_DI_LINKMAP, &lm)) {
+    log_error(dlerror());
+    dlclose(main_handle);
+    return 1;
+  }
+  size_t find_result = std::string::npos;
+  for (; lm; lm = lm->l_next) {
+    std::string so_path(lm->l_name);
+    find_result = so_path.find("/libsasl");
+    if (find_result != std::string::npos) {
+      std::string so_dir(lm->l_name, find_result);
+      so_dir.append("/sasl2");
+      so_dir.copy(sasl_plugin_dir, so_dir.size());
+      sasl_set_path(SASL_PATH_TYPE_PLUGIN, sasl_plugin_dir);
+      break;
+    }
+  }
+  dlclose(main_handle);
+  if (find_result == std::string::npos) {
+    log_error("Cannot find SASL plugins");
+    return 1;
+  }
+  return 0;
+#endif  // defined(SASL_CUSTOM_LIBRARY)
+}
+#endif  // defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+
+static int initialize_plugin(char *, size_t, int, va_list) {
+  g_logger_client = new Ldap_logger();
+
+  const char *opt = getenv("AUTHENTICATION_LDAP_CLIENT_LOG");
+  int opt_val = opt ? atoi(opt) : 0;
+  if (opt && opt_val > 0 && opt_val < 6) {
+    g_logger_client->set_log_level(static_cast<ldap_log_level>(opt_val));
+  }
+
+  int rc_sasl;
+#if defined(SASL_CUSTOM_LIBRARY) || defined(_WIN32)
+  rc_sasl = set_sasl_plugin_path();
+  if (rc_sasl != SASL_OK) {
+    // Error already logged.
+    return 1;
+  }
+#endif  // SASL_CUSTOM_LIBRARY
+
+  /** Initialize client-side of SASL. */
+  rc_sasl = sasl_client_init(nullptr);
+  if (rc_sasl != SASL_OK) {
+    std::stringstream log_stream;
+    log_stream << "sasl_client_init failed rc: " << rc_sasl;
+    log_error(log_stream.str());
+    return 1;
+  }
+
+  return 0;
+}
+
+static int deinitialize_plugin() {
+  Sasl_client::sasl_client_done_wrapper();
+
+  delete g_logger_client;
+  g_logger_client = nullptr;
+
+  return 0;
 }
 
 mysql_declare_client_plugin(AUTHENTICATION) "authentication_ldap_sasl_client",
     MYSQL_CLIENT_PLUGIN_AUTHOR_ORACLE, "LDAP SASL Client Authentication Plugin",
-    {0, 1, 0}, "PROPRIETARY", nullptr, nullptr, nullptr,
+    {0, 1, 0}, "PROPRIETARY", nullptr, initialize_plugin, deinitialize_plugin,
     nullptr, sasl_authenticate, nullptr mysql_end_client_plugin;

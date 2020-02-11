@@ -24,18 +24,18 @@
 # Configuration for building LDAP SASL Authentication Plugin (client-side)
 #
 
-INCLUDE(CheckIncludeFiles)
+# The client authentication plugin is part of the community build.
+# Build it if we have found the necessary libraries.
+IF(NOT SASL_FOUND OR NOT LDAP_FOUND)
+  MESSAGE(WARNING "Skipping the LDAP client authentication plugin")
+  RETURN()
+ENDIF()
 
-# If cmake was invoked with -DWITH_AUTHENTICATION_LDAP=1
-# then fail if we are unable to build the LDAP plugin.
-MACRO(CROAK_AND_RETURN)
-  IF (WITH_AUTHENTICATION_LDAP)
-    MESSAGE(SEND_ERROR ${ARGV})
-  ELSE()
-    MESSAGE(STATUS ${ARGV} " Skipping the LDAP SASL client authentication plugin.")
-    RETURN()
-  ENDIF()
-ENDMACRO()
+IF(FREEBSD AND KERBEROS_SYSTEM_LIBRARY)
+  INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
+ENDIF()
+
+INCLUDE(CheckIncludeFiles)
 
 # Several sasl_() functions are deprecated
 IF(APPLE)
@@ -44,113 +44,51 @@ ENDIF()
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-IF(NOT WIN32)
-  IF(DEFINED WITH_SASL)
-    MESSAGE(STATUS ${ARGV} "Currently LDAP SASL client authentication plug-in is build with only system installed cyrus SASL library.")
-  ENDIF()
-
-  IF(FREEBSD)
-    INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
-    LIST(APPEND CMAKE_REQUIRED_INCLUDES "/usr/local/include")
-  ENDIF()
-
-  CHECK_INCLUDE_FILES(lber.h HAVE_LBER_H)
-
-  IF(HAVE_SASL_SASL_H)
-    SET(CMAKE_EXTRA_INCLUDE_FILES sasl/sasl.h)
-  ELSE()
-    CROAK_AND_RETURN("Required SASL library is missing.")
-  ENDIF()
-  IF(HAVE_LBER_H)
-    SET(CMAKE_EXTRA_INCLUDE_FILES lber.h)
-  ELSE()
-    CROAK_AND_RETURN("Required LBER library is missing.")
-  ENDIF()
-  IF(KERBEROS_FOUND)
-    SET(CMAKE_EXTRA_INCLUDE_FILES krb5.h)
-  ENDIF()
-  IF(SASL_LIBRARY_PATH STREQUAL "")
-    SET(SASL_LIBRARY_PATH /usr/lib64/libsasl2.so)
-  ENDIF ()
-ELSE()
-  # There is no system installed SASL library on Windows
-  SET(WITH_SASL "" CACHE PATH "Location of the SASL install")
-
-  IF(NOT WITH_SASL OR WITH_SASL STREQUAL "system")
-    # This plug-in is only compulsory for the enterprise MySQL.
-    # For MySQL community/Dev's user can build without this plug-in.
-    MESSAGE(STATUS ${ARGV} " You need to set WITH_SASL path to build LDAP SASL client authentication plugin.")
-    RETURN()
-  ENDIF()
-
-  # Use forward slashes from CMake code
-  FILE(TO_CMAKE_PATH "${WITH_SASL}" SASL_ROOT_DIR)
-
-  FIND_PATH(SASL_INCLUDE_DIR
-    NAMES sasl/sasl.h
-    NO_CMAKE_PATH
-    NO_CMAKE_ENVIRONMENT_PATH
-    PATHS ${SASL_ROOT_DIR}/include
-  )
-
-  FIND_FILE(SASL_LIBRARY_DLL
-    NAMES libsasl.dll
-    NO_CMAKE_PATH
-    NO_CMAKE_ENVIRONMENT_PATH
-    PATHS ${SASL_ROOT_DIR}/lib
-  )
-
-  FIND_FILE(SASL_SCRAM_PLUGIN
-    NAMES saslSCRAM.dll
-    NO_CMAKE_PATH
-    NO_CMAKE_ENVIRONMENT_PATH
-    PATHS ${SASL_ROOT_DIR}/lib
-  )
-
-  IF(SASL_INCLUDE_DIR AND
-     SASL_LIBRARY AND
-     SASL_LIBRARY_DLL AND
-     SASL_SCRAM_PLUGIN)
-    SET(SASL_FOUND TRUE)
-  ELSE()
-    SET(SASL_FOUND FALSE)
-  ENDIF()
-
-  INCLUDE_DIRECTORIES(${SASL_INCLUDE_DIR})
-
-  MESSAGE(STATUS "SASL_INCLUDE_DIR  = ${SASL_INCLUDE_DIR}")
-  MESSAGE(STATUS "SASL_LIBRARY_DLL  = ${SASL_LIBRARY_DLL}")
-  MESSAGE(STATUS "SASL_SCRAM_PLUGIN = ${SASL_SCRAM_PLUGIN}")
-
-ENDIF()
-
-MESSAGE(STATUS "SASL_LIBRARY      = ${SASL_LIBRARY}")
-
 IF (KERBEROS_FOUND)
-  MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
-  # Kerberos is deprecated in macOS.
-  IF(APPLE)
-    ADD_COMPILE_FLAGS(auth_ldap_kerberos.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
+  IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
+    MESSAGE(STATUS "KERBEROS is not yet supported on this platform")
+    UNSET(KERBEROS_LIBRARY_PATH)
+    UNSET(KERBEROS_LIBRARY_PATH CACHE)
+  ELSE()
+    MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
+    SET(AUTH_LDAP_KERBEROS_CC auth_ldap_kerberos.cc)
   ENDIF()
-  MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
-                   auth_ldap_kerberos.cc auth_ldap_sasl_mechanism.cc
-                   auth_ldap_sasl_client.cc log_client.cc
-                   LINK_LIBRARIES ${KERBEROS_LIBRARY_PATH} ${SASL_LIBRARY}
-                   CLIENT_ONLY MODULE_ONLY
-                   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
 ELSE()
   MESSAGE(STATUS "Without Kerberos")
-  MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
-                   auth_ldap_sasl_mechanism.cc
-                   auth_ldap_sasl_client.cc log_client.cc
-                   LINK_LIBRARIES ${SASL_LIBRARY}
-                   CLIENT_ONLY MODULE_ONLY
-                   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+  UNSET(KERBEROS_LIBRARY_PATH)
+  UNSET(KERBEROS_LIBRARY_PATH CACHE)
+ENDIF()
+
+MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
+  auth_ldap_sasl_client.cc
+  auth_ldap_sasl_mechanism.cc
+  ${AUTH_LDAP_KERBEROS_CC}
+  log_client.cc
+  LINK_LIBRARIES
+  ${SASL_LIBRARY}
+  # Uncomment to verify that all symbols are found.
+  # ${LINK_FLAG_NO_UNDEFINED}
+  ${KERBEROS_LIBRARY_PATH}
+  ${SSL_LIBRARIES}
+  ${LIBDL}
+  CLIENT_ONLY
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")
+
+IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
+  TARGET_COMPILE_DEFINITIONS(authentication_ldap_sasl_client
+    PRIVATE SASL_CUSTOM_LIBRARY)
+  ADD_DEPENDENCIES(authentication_ldap_sasl_client ${sasl_target})
+  ADD_DEPENDENCIES(authentication_ldap_sasl_client ${scram_target})
 ENDIF()
 
 IF(WIN32)
   GET_FILENAME_COMPONENT(SASL_DLL_NAME ${SASL_LIBRARY_DLL} NAME)
   GET_FILENAME_COMPONENT(SASL_SCRAM_PLUGIN_NAME "${SASL_SCRAM_PLUGIN}" NAME)
+
+  MESSAGE(STATUS "SASL_INCLUDE_DIR  = ${SASL_INCLUDE_DIR}")
+  MESSAGE(STATUS "SASL_LIBRARY_DLL  = ${SASL_LIBRARY_DLL}")
+  MESSAGE(STATUS "SASL_SCRAM_PLUGIN = ${SASL_SCRAM_PLUGIN}")
 
   # Note that "libsasl.dll" and "saslSCRAM.dll" go into the "bin" directory
   # where "mysql.exe" and other client executables are located.
@@ -167,10 +105,10 @@ IF(WIN32)
   ADD_CUSTOM_COMMAND(TARGET authentication_ldap_sasl_client POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_LIBRARY_DLL}"
-      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_DLL_NAME}"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
       "${SASL_SCRAM_PLUGIN}"
-      "${CMAKE_BINARY_DIR}/client/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
+      "${CMAKE_BINARY_DIR}/runtime_output_directory/${CMAKE_CFG_INTDIR}/${SASL_SCRAM_PLUGIN_NAME}"
   )
   ADD_DEPENDENCIES(authentication_ldap_sasl_client mysqltest)
 

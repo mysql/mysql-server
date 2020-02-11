@@ -197,7 +197,7 @@ IF (KERBEROS_FOUND)
     ADD_COMPILE_FLAGS(authentication_ldap/auth_ldap_kerberos.cc
       COMPILE_FLAGS "-Wno-deprecated-declarations")
   ENDIF()
-  IF(FREEBSD)
+  IF(FREEBSD AND KERBEROS_SYSTEM_LIBRARY)
     INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
   ENDIF()
 ENDIF()
@@ -262,9 +262,8 @@ IF(WIN32)
 ENDIF()
 
 # LDAP authentication SASL client plugin
-MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
-  
+
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE} COMPONENT Development)
 TARGET_LINK_LIBRARIES(mysqlclient PRIVATE ${LIBS_TO_LINK})

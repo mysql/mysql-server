@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,10 @@ IF(UNIX)
   SET(SYSCONFDIR "${CMAKE_INSTALL_PREFIX}/etc"
     CACHE PATH "config directory (for my.cnf)")
   MARK_AS_ADVANCED(SYSCONFDIR)
+ENDIF()
+
+IF(LINUX AND INSTALL_LAYOUT MATCHES "STANDALONE")
+  SET(LINUX_STANDALONE 1)
 ENDIF()
 
 IF(WIN32)

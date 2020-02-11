@@ -54,6 +54,11 @@ IF(EXISTS "/etc/os-release")
       MY_OS_RELEASE MATCHES "16.04")
     SET(LINUX_UBUNTU_16_04 1)
   ENDIF()
+  IF(MY_OS_RELEASE MATCHES "Debian")
+    SET(LINUX_DEBIAN 1)
+  ELSEIF(MY_OS_RELEASE MATCHES "Ubuntu")
+    SET(LINUX_UBUNTU 1)
+  ENDIF()
 ENDIF()
 
 # We require at least GCC 5.3 or Clang 3.4.

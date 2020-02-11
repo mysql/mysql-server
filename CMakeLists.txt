@@ -533,6 +533,7 @@ INCLUDE(icu)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(sasl)
+INCLUDE(ldap)
 INCLUDE(kerberos)
 INCLUDE(rpc)
 INCLUDE(readline)
@@ -575,8 +576,16 @@ IF(NOT WITHOUT_SERVER)
   OPTION(WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
   OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  SET(WITH_AUTHENTICATION_LDAP_DEFAULT ON)
+ELSE()
+  SET(WITH_AUTHENTICATION_LDAP_DEFAULT OFF)
+ENDIF()
+
 OPTION(WITH_AUTHENTICATION_LDAP
-  "Report error if the LDAP authentication plugin cannot be built." OFF)
+  "Report error if the LDAP authentication plugin cannot be built."
+  ${WITH_AUTHENTICATION_LDAP_DEFAULT})
 
 OPTION(WITH_LOCK_ORDER
   "Build the lock order mutex instrumentation code." OFF)
@@ -1231,9 +1240,81 @@ IF(BUILD_BUNDLED_ZSTD)
   ADD_SUBDIRECTORY(extra/zstd)
 ENDIF()
 
+IF(LINUX_STANDALONE)
+  FIND_PROGRAM(PATCHELF_EXECUTABLE patchelf)
+  ADD_CUSTOM_TARGET(copy_linux_custom_dlls)
+  SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
+ENDIF()
+
 # Add system openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
+
+# Add Kerberos library (custom DLLS not yet supported)
+MYSQL_CHECK_KERBEROS()
+
+# Add SASL library
+MYSQL_CHECK_SASL()
+MYSQL_CHECK_SASL_DLLS()
+
+# Add LDAP library
+MYSQL_CHECK_LDAP()
+MYSQL_CHECK_LDAP_DLLS()
+
+# Custom versions of LDAP / SASL / SSL.
+IF(LINUX_STANDALONE AND KNOWN_CUSTOM_LIBRARIES)
+  SET(LINUX_INSTALL_RPATH_ORIGIN 1)
+  # Debug versions of plugins may be installed to <root>/lib/plugin/debug
+  FOREACH(LINK_FLAG
+      CMAKE_MODULE_LINKER_FLAGS_DEBUG
+      CMAKE_SHARED_LINKER_FLAGS_DEBUG
+      )
+    STRING_APPEND(${LINK_FLAG} " -Wl,-rpath,'\$ORIGIN/../../private'")
+    MESSAGE(STATUS "${LINK_FLAG} ${${LINK_FLAG}}")
+  ENDFOREACH()
+  IF(NOT PATCHELF_EXECUTABLE)
+    MESSAGE(FATAL_ERROR "Please install the patchelf(1) utility.")
+  ENDIF()
+  VERIFY_CUSTOM_LIBRARY_DEPENDENCIES()
+ENDIF()
+
+IF(WITH_AUTHENTICATION_LDAP)
+  IF(LINUX_STANDALONE AND KNOWN_CUSTOM_LIBRARIES)
+    # LDAP / SASL / SSL must all be "system" or "custom", not a mix.
+    IF(WITH_LDAP STREQUAL "system" OR
+        WITH_SASL STREQUAL "system" OR
+        WITH_SSL STREQUAL "system")
+      MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
+      MESSAGE(FATAL_ERROR "Inconsistent options for LDAP/SASL/SSL")
+    ENDIF()
+  ELSEIF(WIN32)
+    # system LDAP, but SASL needs to be explicitly added
+    IF(NOT SASL_LIBRARY_DLL OR NOT SASL_SCRAM_PLUGIN)
+      MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
+      MESSAGE(FATAL_ERROR "Missing SASL and/or SCRAM libraries.")
+    ENDIF()
+  ELSEIF(APPLE)
+    # system LDAP and SASL, but there is no scram plugin.
+  ELSEIF(SOLARIS)
+    # 11.3 has system LDAP and SASL, but there is no scram plugin.
+  ELSE()
+    # We must have "system" LDAP and SASL (SSL is always required)
+    SET(LDAP_WARN_GIVEN)
+    SET(SASL_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_LDAP(LDAP_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_SASL(SASL_WARN_GIVEN)
+    IF(LDAP_WARN_GIVEN OR SASL_WARN_GIVEN)
+      # SUSE linux: may or may not have SCRAM, do not break the build.
+      IF(LINUX_SUSE)
+        MESSAGE(WARNING
+          "-DWITH_AUTHENTICATION_LDAP=ON, but missing system libraries")
+      ELSE()
+        MESSAGE(FATAL_ERROR
+          "-DWITH_AUTHENTICATION_LDAP=ON, but missing system libraries")
+      ENDIF()
+    ENDIF()
+  ENDIF()
+ENDIF()
 
 # Add system/bundled editline.
 MYSQL_CHECK_EDITLINE()
@@ -1243,10 +1324,6 @@ MYSQL_CHECK_LIBEVENT()
 MYSQL_CHECK_LZ4()
 # Add icu library
 MYSQL_CHECK_ICU()
-# Add SASL library
-MYSQL_CHECK_SASL()
-# Add Kerberos library
-MYSQL_CHECK_KERBEROS()
 # Add protoc and libprotobuf
 IF(NOT WITHOUT_SERVER)
   MYSQL_CHECK_PROTOBUF()
@@ -1563,7 +1640,12 @@ IF(UNIX)
     COMMAND ${CMAKE_COMMAND} -E make_directory plugin_output_directory
     COMMAND ${CMAKE_COMMAND} -E make_directory runtime_output_directory
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  )
+    )
+  IF(SASL_CUSTOM_LIBRARY)
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_COMMAND} -E make_directory library_output_directory/sasl2
+    )
+  ENDIF()
 ENDIF()
 
 # Pre-create directories for library_output_directory and

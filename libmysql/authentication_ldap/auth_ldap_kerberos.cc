@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #ifndef _WIN32
-#include <krb5.h>
+#include <krb5/krb5.h>
 #include <profile.h>
 #include <sasl/sasl.h>
 #endif
