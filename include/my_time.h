@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -147,6 +147,9 @@ constexpr const unsigned int WEEK_MONDAY_FIRST = 1;
 constexpr const unsigned int WEEK_YEAR = 2;
 constexpr const unsigned int WEEK_FIRST_WEEKDAY = 4;
 
+/** Daynumber from year 0 to 9999-12-31 */
+constexpr const int64_t MAX_DAY_NUMBER = 3652424;
+
 /**
   Structure to return status from
     str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
@@ -182,7 +185,7 @@ unsigned int year_2000_handling(unsigned int year);
 bool time_zone_displacement_to_seconds(const char *str, size_t length,
                                        int *result);
 
-void get_date_from_daynr(long daynr, unsigned int *year, unsigned int *month,
+void get_date_from_daynr(int64_t daynr, unsigned int *year, unsigned int *month,
                          unsigned int *day);
 int calc_weekday(long daynr, bool sunday_first_day_of_week);
 bool valid_period(long long int period);

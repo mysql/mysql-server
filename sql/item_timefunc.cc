@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,9 +68,6 @@
 
 using std::max;
 using std::min;
-
-/** Day number for Dec 31st, 9999. */
-#define MAX_DAY_NUMBER 3652424L
 
 /**
   Check and adjust a time value with a warning.
@@ -1610,7 +1607,16 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime,
   longlong value = args[0]->val_int();
   if ((null_value = args[0]->null_value)) return true;
   memset(ltime, 0, sizeof(MYSQL_TIME));
-  get_date_from_daynr((long)value, &ltime->year, &ltime->month, &ltime->day);
+  get_date_from_daynr(value, &ltime->year, &ltime->month, &ltime->day);
+
+  if (check_datetime_range(*ltime)) {
+    // Value is out of range, cannot use our printing functions to output it.
+    push_warning_printf(
+        current_thd, Sql_condition::SL_WARNING, ER_DATETIME_FUNCTION_OVERFLOW,
+        ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW), func_name());
+    null_value = true;
+    return true;
+  }
 
   if ((null_value = (fuzzy_date & TIME_NO_ZERO_DATE) &&
                     (ltime->year == 0 || ltime->month == 0 || ltime->day == 0)))

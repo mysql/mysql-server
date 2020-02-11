@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -2116,7 +2116,7 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME &my_time) {
     Change a daynr to year, month and day. Daynr 0 is returned as date
     00.00.00
 */
-void get_date_from_daynr(long daynr, uint *ret_year, uint *ret_month,
+void get_date_from_daynr(int64_t daynr, uint *ret_year, uint *ret_month,
                          uint *ret_day) {
   uint year;
   uint temp;
@@ -2281,9 +2281,6 @@ ulong convert_month_to_period(ulong month) {
   return year * 100 + month % 12 + 1;
 }
 
-/** Daynumber from year 0 to 9999-12-31 */
-#define MAX_DAY_NUMBER 3652424UL
-
 /**
    Add an interval to a MYSQL_TIME struct.
 
@@ -2345,9 +2342,8 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
       ltime->hour = static_cast<uint>(sec / 3600);
       daynr = calc_daynr(ltime->year, ltime->month, 1) + days;
       /* Day number from year 0 to 9999-12-31 */
-      if (static_cast<ulonglong>(daynr) > MAX_DAY_NUMBER) goto invalid_date;
-      get_date_from_daynr(static_cast<long>(daynr), &ltime->year, &ltime->month,
-                          &ltime->day);
+      if (daynr < 0 || daynr > MAX_DAY_NUMBER) goto invalid_date;
+      get_date_from_daynr(daynr, &ltime->year, &ltime->month, &ltime->day);
       break;
     }
     case INTERVAL_DAY:
@@ -2365,8 +2361,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
           goto invalid_date;
         period += interval.day;
       }
-      get_date_from_daynr(static_cast<long>(period), &ltime->year,
-                          &ltime->month, &ltime->day);
+      get_date_from_daynr(period, &ltime->year, &ltime->month, &ltime->day);
     } break;
     case INTERVAL_YEAR:
       if (interval.year > 10000UL) goto invalid_date;
