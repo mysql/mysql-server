@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -11479,7 +11479,8 @@ void QUICK_ROR_UNION_SELECT::add_keys_and_lengths(String *key_names,
 static inline uint get_field_keypart(KEY *index, const Field *field);
 static inline SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree,
                                              PARAM *param);
-static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *index_range_tree,
+static bool get_sel_root_for_keypart(uint key_part_num,
+                                     SEL_ROOT *index_range_tree,
                                      SEL_ROOT **cur_range);
 
 static bool check_key_infix(SEL_ROOT *index_range_tree,
@@ -11487,7 +11488,7 @@ static bool check_key_infix(SEL_ROOT *index_range_tree,
                             KEY_PART_INFO *min_max_arg_part,
                             KEY_PART_INFO *last_part, uint *key_infix_len,
                             KEY_PART_INFO **first_non_infix_part,
-                            uint *infix_factor);
+                            uint *infix_factor, KEY *index_info);
 
 static bool check_group_min_max_predicates(Item *cond,
                                            Item_field *min_max_arg_item,
@@ -12005,7 +12006,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
         if (!check_key_infix(index_range_tree, first_non_group_part,
                              cur_min_max_arg_part, last_part,
                              &cur_key_infix_len, &first_non_infix_part,
-                             &cur_infix_factor)) {
+                             &cur_infix_factor, cur_index_info)) {
           cause = "non_equality_gap_attribute";
           goto next_index;
         }
@@ -12067,8 +12068,9 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     if (tree && min_max_arg_item) {
       SEL_ROOT *index_range_tree = get_index_range_tree(cur_index, tree, param);
       SEL_ROOT *cur_range = nullptr;
-      if (get_sel_root_for_keypart(cur_min_max_arg_part->field,
-                                   index_range_tree, &cur_range) ||
+      if (get_sel_root_for_keypart(
+              cur_min_max_arg_part - cur_index_info->key_part, index_range_tree,
+              &cur_range) ||
           (cur_range && cur_range->type != SEL_ROOT::Type::KEY_RANGE)) {
         cause = "minmax_keypart_in_disjunctive_query";
         goto next_index;
@@ -12494,16 +12496,16 @@ static bool min_max_inspect_cond_for_fields(Item *cond,
 
    This function effectively tests requirement WA2.
 
-  @param[in]   field          The field we want the SEL_ARG tree for
+  @param[in]   key_part_num   Key part number we want the SEL_ARG tree for
   @param[in]   keypart_tree   The SEL_ARG* tree for the index
   @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
-                              covering field 'keypart_field'
-  @retval true   'keypart_tree' contained a predicate for 'field' that
+
+  @retval true   'keypart_tree' contained a predicate for key part that
                   is not conjunction to all predicates on earlier keyparts
   @retval false  otherwise
 */
 
-static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *keypart_tree,
+static bool get_sel_root_for_keypart(uint key_part_num, SEL_ROOT *keypart_tree,
                                      SEL_ROOT **cur_range) {
   if (keypart_tree == nullptr) return false;
   if (keypart_tree->type != SEL_ROOT::Type::KEY_RANGE) {
@@ -12515,7 +12517,7 @@ static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *keypart_tree,
     *cur_range = keypart_tree;
     return false;
   }
-  if (keypart_tree->root->field->eq(field)) {
+  if (keypart_tree->root->part == key_part_num) {
     *cur_range = keypart_tree;
     return false;
   }
@@ -12526,7 +12528,8 @@ static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *keypart_tree,
   for (SEL_ARG *cur_kp = first_kp; cur_kp; cur_kp = cur_kp->next) {
     SEL_ROOT *curr_tree = nullptr;
     if (cur_kp->next_key_part) {
-      if (get_sel_root_for_keypart(field, cur_kp->next_key_part, &curr_tree))
+      if (get_sel_root_for_keypart(key_part_num, cur_kp->next_key_part,
+                                   &curr_tree))
         return true;
     }
     /**
@@ -12555,6 +12558,7 @@ static bool get_sel_root_for_keypart(Field *field, SEL_ROOT *keypart_tree,
     first_non_infix_part   [out] The first keypart after the infix (if any)
     infix_factor           [out] The number of combinations of infixes
                                  that can be possible.
+    index_info             [in]  Pointer to KEY object
 
   DESCRIPTION
     Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
@@ -12577,7 +12581,7 @@ static bool check_key_infix(SEL_ROOT *index_range_tree,
                             KEY_PART_INFO *min_max_arg_part,
                             KEY_PART_INFO *last_part, uint *key_infix_len,
                             KEY_PART_INFO **first_non_infix_part,
-                            uint *infix_factor) {
+                            uint *infix_factor, KEY *index_info) {
   SEL_ROOT *cur_range;
   KEY_PART_INFO *cur_part;
   /* End part for the first loop below. */
@@ -12589,11 +12593,12 @@ static bool check_key_infix(SEL_ROOT *index_range_tree,
   for (cur_part = first_non_group_part; cur_part != end_part; cur_part++) {
     cur_range = nullptr;
     /*
-      get_sel_root_for_keypart gets the range tree for the 'field' and
+      get_sel_root_for_keypart gets the range tree for the key part and
       also checks for a unique conjunction of this tree with all the
       predicates on the earlier keyparts in the index.
     */
-    if (get_sel_root_for_keypart(cur_part->field, index_range_tree, &cur_range))
+    if (get_sel_root_for_keypart(cur_part - index_info->key_part,
+                                 index_range_tree, &cur_range))
       return false;
 
     if (!cur_range || cur_range->type != SEL_ROOT::Type::KEY_RANGE) {
@@ -14426,8 +14431,8 @@ static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
     for (cur_part = cur_index_info->key_part; cur_part != end_part;
          cur_part++, part++) {
       SEL_ROOT *cur_range_root = nullptr;
-      if (get_sel_root_for_keypart(cur_part->field, cur_index_range_tree,
-                                   &cur_range_root)) {
+      if (get_sel_root_for_keypart(cur_part - cur_index_info->key_part,
+                                   cur_index_range_tree, &cur_range_root)) {
         cause = "keypart_in_disjunctive_query";
         goto next_index;
       }
