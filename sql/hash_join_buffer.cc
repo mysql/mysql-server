@@ -39,6 +39,7 @@
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/psi_memory_key.h"
+#include "sql/sql_class.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_join_buffer.h"
 #include "sql/sql_optimizer.h"
@@ -373,6 +374,11 @@ StoreRowResult HashJoinRowBuffer::StoreRow(
     bool null_in_join_condition =
         hash_join_condition.join_condition()->append_join_key_for_hash_join(
             thd, m_tables.tables_bitmap(), hash_join_condition, &m_buffer);
+
+    if (thd->is_error()) {
+      // An error was raised while evaluating the join condition.
+      return StoreRowResult::FATAL_ERROR;
+    }
 
     if (null_in_join_condition && !store_rows_with_null_in_condition) {
       // SQL NULL values will never match in an inner join or semijoin, so skip

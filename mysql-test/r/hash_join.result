@@ -3751,3 +3751,22 @@ WHERE (SELECT a FROM t1 WHERE table1.a <> 6) IN (SELECT a FROM t1);
 a	b
 1	1
 DROP TABLE t1;
+#
+# Bug#30792727 ERRORS WHEN BUILDING HASH TABLE FOR HASH JOIN NOT
+#              PROPAGATED
+#
+CREATE TABLE t (i INTEGER);
+INSERT INTO t VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+EXPLAIN
+-> Inner hash join (json_extract(t1.i,t1.i) = t2.i)  (cost=1.10 rows=2)
+    -> Table scan on t2  (cost=0.18 rows=2)
+    -> Hash
+        -> Table scan on t1  (cost=0.45 rows=2)
+
+SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
+SHOW ERRORS;
+Level	Code	Message
+Error	3146	Invalid data type for JSON data in argument 1 to function json_extract; a JSON string or JSON type is required.
+DROP TABLE t;

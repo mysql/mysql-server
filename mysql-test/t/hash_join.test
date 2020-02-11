@@ -2242,3 +2242,25 @@ eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#30792727 ERRORS WHEN BUILDING HASH TABLE FOR HASH JOIN NOT
+--echo #              PROPAGATED
+--echo #
+CREATE TABLE t (i INTEGER);
+INSERT INTO t VALUES (1), (2);
+
+# The first argument to JSON_EXTRACT should be a JSON document. An error
+# is expected when building the hash table for t1 since
+# "JSON_EXTRACT(t1.i, t1.i)" is used as the hash table key (giving a number as
+# the first argument results in an error).
+let $query = SELECT * FROM t t1, t t2 WHERE JSON_EXTRACT(t1.i, t1.i) = t2.i;
+eval EXPLAIN FORMAT=tree $query;
+
+--error ER_INVALID_TYPE_FOR_JSON
+eval $query;
+
+# See that only one error was raised.
+SHOW ERRORS;
+DROP TABLE t;
