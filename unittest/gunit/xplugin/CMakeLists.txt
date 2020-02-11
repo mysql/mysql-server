@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -204,6 +204,7 @@ SET(XCL_SRC
   xcl/session_execute_t.cc
   xcl/session_general_t.cc
   xcl/session_options_t.cc
+  xcl/session_negotiation_t.cc
   xcl/sha256_scramble_t.cc
   xcl/ssl_config_t.cc
   xcl/xpriority_list_t.cc
