@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -66,6 +66,10 @@ ngs::Error_code Sql_data_context::init() {
   if (!m_mysql_session) {
     if (ER_SERVER_ISNT_AVAILABLE == m_last_sql_errno)
       return ngs::Error_code(ER_SERVER_ISNT_AVAILABLE, "Server API not ready");
+
+    if (ER_CON_COUNT_ERROR == m_last_sql_errno)
+      return ngs::Error_code(m_last_sql_errno, m_last_sql_error);
+
     log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }

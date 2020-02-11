@@ -1,7 +1,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Could not open session'");
+call mtr.add_suppression("Plugin mysqlx reported: '.*: Error initializing session for connection: Too many connections'");
 call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
@@ -1304,9 +1304,9 @@ open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
 Mysqlx.Error {
-  severity: ERROR
-  code: 5011
-  msg: "Could not open session"
+  severity: FATAL
+  code: 1040
+  msg: "Too many connections"
   sql_state: "HY000"
 }
 

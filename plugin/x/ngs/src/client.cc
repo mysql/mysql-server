@@ -618,6 +618,7 @@ bool Client::create_session() {
   if (error) {
     log_warning(ER_XPLUGIN_FAILED_TO_INITIALIZE_SESSION, client_id(),
                 error.message.c_str());
+    error.severity = Error_code::FATAL;
     m_encoder->send_result(error);
     return false;
   }
