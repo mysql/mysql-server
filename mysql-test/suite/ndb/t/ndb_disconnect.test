@@ -22,6 +22,10 @@ show create table test.t1;
 --disable_result_log
 --disable_query_log
 source include/ndb_not_readonly.inc;
+connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1);
+connection mysqld2;
+source include/ndb_not_readonly.inc;
+connection default;
 --enable_query_log
 --enable_result_log
 
