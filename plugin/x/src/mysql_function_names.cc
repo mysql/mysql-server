@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "plugin/x/src/mysql_function_names.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "plugin/x/src/helper/string_case.h"
@@ -301,7 +302,7 @@ const char *const mysql_functions_that_operate_on_json[] = {
     "JSON_SCHEMA_VALID", "JSON_SCHEMA_VALIDATION_REPORT",
     "JSON_STORAGE_FREE", "JSON_STORAGE_SIZE",
     "JSON_TYPE",         "JSON_UNQUOTE",
-    "JSON_VALID",
+    "JSON_VALID",        "JSON_VALUE",
 };
 
 // keep in ASC order

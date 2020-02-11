@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@ Admin_command_collection_handler::Admin_command_collection_handler(
     : m_session(session), k_mysqlx_namespace(mysqlx_namespace) {}
 
 namespace {
+
 iface::Admin_command_arguments::Any create_default_schema_validation() {
   iface::Admin_command_arguments::Any any;
   any.set_type(::Mysqlx::Datatypes::Any::OBJECT);
@@ -73,6 +74,13 @@ iface::Admin_command_arguments::Object create_default_validation_obj() {
   auto schema_fld = obj.add_fld();
   schema_fld->set_key("schema");
   *schema_fld->mutable_value() = create_default_schema_validation();
+  auto level_fld = obj.add_fld();
+  level_fld->set_key("level");
+  auto level_value = level_fld->mutable_value();
+  level_value->set_type(::Mysqlx::Datatypes::Any::SCALAR);
+  auto scalar = level_value->mutable_scalar();
+  scalar->set_type(::Mysqlx::Datatypes::Scalar::V_STRING);
+  scalar->mutable_v_string()->set_value("OFF");
   return obj;
 }
 
@@ -541,9 +549,9 @@ ngs::Error_code Admin_command_collection_handler::get_validation_info(
   static const char *k_level_strict = "STRICT";
   static const char *k_level_off = "OFF";
 
-  std::string validation_level = k_level_off;
-  ::Mysqlx::Datatypes::Any validation_schema =
-      create_default_schema_validation();
+  std::string validation_level = k_level_strict;
+
+  auto validation_schema = create_default_schema_validation();
 
   ngs::Error_code error = validation
                               .any_arg({"schema"}, &validation_schema,
@@ -554,6 +562,7 @@ ngs::Error_code Admin_command_collection_handler::get_validation_info(
   if (error) return error;
 
   validation_level = to_upper(validation_level);
+
   if (!validation_level.empty() && validation_level != k_level_off &&
       validation_level != k_level_strict)
     return ngs::Error(ER_X_CMD_ARGUMENT_VALUE,
