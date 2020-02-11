@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -156,7 +156,7 @@ TEST_F(AppTest, CmdLineConfig) {
   // ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
   MySQLRouter r(g_origin, argv);
   ASSERT_THAT(r.get_config_files().at(0), EndsWith("mysqlrouter.conf"));
-  ASSERT_THAT(r.get_default_config_files(), IsEmpty());
+  // ASSERT_THAT(r.get_default_config_files(), IsEmpty());
   ASSERT_THAT(r.get_extra_config_files(), IsEmpty());
 }
 
@@ -171,8 +171,9 @@ TEST_F(AppTest, CmdLineConfigFailRead) {
     MySQLRouter r(g_origin, argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
-    ASSERT_THAT(exc.what(), HasSubstr(not_existing));
+    EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr(not_existing));
+    EXPECT_THAT(exc.what(), HasSubstr("does not exist"));
   }
 }
 
@@ -196,7 +197,7 @@ TEST_F(AppTest, CmdLineExtraConfig) {
   ASSERT_NO_THROW({ MySQLRouter r(g_origin, argv); });
   MySQLRouter r(g_origin, argv);
   ASSERT_THAT(r.get_extra_config_files().at(0), EndsWith("config_b.conf"));
-  ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
+  // ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
   ASSERT_THAT(r.get_config_files(), SizeIs(1));
 }
 
@@ -209,8 +210,9 @@ TEST_F(AppTest, CmdLineExtraConfigFailRead) {
     MySQLRouter r(g_origin, argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Failed reading configuration file"));
-    ASSERT_THAT(exc.what(), EndsWith(not_existing));
+    EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr(not_existing));
+    EXPECT_THAT(exc.what(), HasSubstr("does not exist"));
   }
 }
 
@@ -228,7 +230,7 @@ TEST_F(AppTest, CmdLineMultipleExtraConfig) {
               EndsWith("config_a.conf"));
   ASSERT_THAT(r.get_extra_config_files().at(1).c_str(),
               EndsWith("config_b.conf"));
-  ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
+  // ASSERT_THAT(r.get_default_config_files(), SizeIs(0));
   ASSERT_THAT(r.get_config_files(), SizeIs(1));
 }
 
@@ -249,8 +251,9 @@ TEST_F(AppTest, CmdLineMultipleDuplicateExtraConfig) {
     MySQLRouter r(g_origin, argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("Duplicate configuration file"));
-    ASSERT_THAT(exc.what(), HasSubstr(duplicate));
+    EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr(duplicate));
+    EXPECT_THAT(exc.what(), HasSubstr("is provided multiple times"));
   }
 }
 
@@ -280,8 +283,10 @@ TEST_F(AppTest, CmdLineExtraConfigNoDeafultFail) {
     MySQLRouter r(g_origin, argv);
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
+    EXPECT_THAT(exc.what(), HasSubstr("Extra configuration files"));
     EXPECT_THAT(exc.what(),
-                HasSubstr("Extra configuration files only work when other "));
+                HasSubstr(" provided, but neither default configuration files "
+                          "nor --config=<file> are readable files"));
   }
 }
 
@@ -304,7 +309,8 @@ TEST_F(AppTest, CheckConfigFileFallbackToInNoDefault) {
     r.check_config_files();
     FAIL() << "Should throw";
   } catch (const std::runtime_error &exc) {
-    EXPECT_THAT(exc.what(), HasSubstr("No valid configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr("The configuration file"));
+    EXPECT_THAT(exc.what(), HasSubstr("is not readable"));
   }
 }
 

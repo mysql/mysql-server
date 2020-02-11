@@ -27,7 +27,10 @@
 
 #include <cstddef>
 #include <string>
+#include <system_error>
 #include <vector>
+
+#include "mysql/harness/stdx/expected.h"
 
 /*
  * @brief Converts configuration file name into legacy configuration file name.
@@ -36,14 +39,28 @@
  */
 std::string use_ini_extension(const std::string &file_name);
 
+enum class ConfigFilePathValidatorErrc {
+  kDuplicate = 1,
+  kNotReadable = 2,
+  kExtraWithoutMainConfig = 3,
+  kNoConfigfile = 4,
+};
+
+namespace std {
+template <>
+struct is_error_code_enum<ConfigFilePathValidatorErrc> : true_type {};
+}  // namespace std
+
+std::error_code make_error_code(ConfigFilePathValidatorErrc);
+
 /*
- * @class ConfigFiles
+ * @class ConfigFilePathValidator
  *
  * The class ConfigFiles encapsulates handling of configuration files
  * of different types. There are 3 types of configuration files: default
  * configuration files, configuration files, extra configuration files.
  */
-class ConfigFiles {
+class ConfigFilePathValidator {
  public:
   /*
    * @brief Constructor with configuration files.
@@ -57,40 +74,26 @@ class ConfigFiles {
    * @param extra_config_files list of extra configuration files passed using
    *                           command line
    */
-  ConfigFiles(const std::vector<std::string> &default_config_files,
-              const std::vector<std::string> &config_files,
-              const std::vector<std::string> &extra_config_files);
-  /*
-   * @return vector of configuration file names that exist and can be opened for
-   * reading.
-   */
-  const std::vector<std::string> &available_config_files() const;
+  ConfigFilePathValidator(std::vector<std::string> default_config_files,
+                          std::vector<std::string> config_files,
+                          std::vector<std::string> extra_config_files)
+      : default_config_files_{std::move(default_config_files)},
+        config_files_{std::move(config_files)},
+        extra_config_files_{std::move(extra_config_files)} {}
 
-  /*
-   * @return configuration files that were checked if they are available.
-   */
-  std::vector<std::string> paths_attempted() const;
+  struct ValidateError {
+    std::error_code ec;
+    std::string current_filename;
+    std::vector<std::string> paths_attempted;
+  };
 
-  /*
-   * @return true if there is at least 1 available configuration file, false
-   * otherwise.
-   */
-  bool empty() const;
-
-  /*
-   * @return a number of available configuration files.
-   */
-  size_t size() const;
+  stdx::expected<std::vector<std::string>, ValidateError> validate(
+      bool main_config_file_required = true) const;
 
  private:
-  // vector of available configuration file names
-  std::vector<std::string> available_config_files_;
-
-  // number of verified config files and defalt config files that were checked
-  size_t valid_config_count_ = 0;
-
-  // configuration files that were checked
-  std::vector<std::string> paths_attempted_;
+  std::vector<std::string> default_config_files_;
+  std::vector<std::string> config_files_;
+  std::vector<std::string> extra_config_files_;
 };
 
 #endif  // ROUTER_CONFIG_FILES_INCLUDED
