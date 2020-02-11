@@ -172,6 +172,7 @@ let SEARCH_PATTERN= Renaming log file .*ib_logfile101 to .*ib_logfile0;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
 
 SELECT * FROM t1;

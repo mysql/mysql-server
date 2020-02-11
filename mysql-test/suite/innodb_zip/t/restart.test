@@ -532,6 +532,10 @@ eval DROP DATABASE $SCHEMA_NAME;
 
 --disable_query_log
 
+# Restart with standard innodb_directories
+--let $restart_parameters=
+--source include/restart_mysqld.inc
+
 --rmdir $ALT_DIR_MOVED/$SCHEMA_NAME
 --rmdir $ALT_DIR_MOVED
 

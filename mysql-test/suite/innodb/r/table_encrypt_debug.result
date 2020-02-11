@@ -5,8 +5,6 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
-# Starting server with keyring plugin restart with keying
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH 
 CREATE TABLE tde_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SHOW CREATE TABLE tde_db.t1;
 Table	Create Table
@@ -117,10 +115,12 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 ERROR HY000: Tablespace has been discarded for table 't1'
 DROP TABLE tde_db.t1;
+DROP DATABASE tde_db;
 #
 # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
 # DURING CRASH RECOVERY
 #
+CREATE DATABASE tde_db;
 CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
 SET SESSION debug="+d,keyring_file_backup_fail";
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
@@ -130,4 +130,5 @@ SELECT COUNT(*) FROM tde_db.test_tbl;
 COUNT(*)
 0
 DROP TABLE tde_db.test_tbl;
+DROP DATABASE tde_db;
 SET GLOBAL innodb_file_per_table=1;

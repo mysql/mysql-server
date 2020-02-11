@@ -197,7 +197,7 @@ Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
 Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
 Pattern "Incorrect unsigned integer value: '18446744073709551616'" found
 # Restart the server
-# restart: --innodb_checksum_algorithm=strict_none --default_storage_engine=InnoDB
+# restart: --innodb_checksum_algorithm=crc32
 DROP TABLE tab1;
 DROP TABLE tab2;
 SET GLOBAL innodb_file_per_table=default;

@@ -201,3 +201,6 @@ insert into t values (2);
 insert into t values (2);
 drop table t;
 drop table t2;
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

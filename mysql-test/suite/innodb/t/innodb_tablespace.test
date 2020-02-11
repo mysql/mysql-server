@@ -567,3 +567,6 @@ SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LI
 --echo #
 DROP DATABASE `abc/def`;
 --force-rmdir $MYSQL_TMP_DIR/my_dir1
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
