@@ -902,6 +902,8 @@ ALTER TABLE t1 ADD INDEX key2 (col_int_key);
 
 ANALYZE TABLE t1;
 
+let $query=SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
+                               OR (col_int_key >= 7 AND col_int_key < 13);
 eval EXPLAIN $query;
 eval $query;
 

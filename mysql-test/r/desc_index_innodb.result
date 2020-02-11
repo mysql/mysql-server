@@ -1636,13 +1636,13 @@ ALTER TABLE t1 ADD INDEX key2 (col_int_key);
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1 WHERE pk IN (6,2)
+EXPLAIN SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index_merge	PRIMARY,col_int_key,key1,key2	key1,col_int_key	4,5	NULL	2	100.00	Using sort_union(key1,col_int_key); Using where
+1	SIMPLE	t1	NULL	index_merge	col_int_key,key1	key1,col_int_key	4,5	NULL	2	100.00	Using sort_union(key1,col_int_key); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
-SELECT * FROM t1 WHERE pk IN (6,2)
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key` from `test`.`t1` FORCE INDEX (`col_int_key`) FORCE INDEX (`key1`) where ((`test`.`t1`.`pk` in (6,2)) or ((`test`.`t1`.`col_int_key` >= 7) and (`test`.`t1`.`col_int_key` < 13)))
+SELECT * FROM t1 FORCE INDEX (key1,col_int_key) WHERE pk IN (6,2)
 OR (col_int_key >= 7 AND col_int_key < 13);
 pk	col_int_key
 2	1
