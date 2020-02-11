@@ -193,6 +193,13 @@ void MetadataCache::refresh_thread() {
 
         if (!replicasets_with_unreachable_nodes_.empty())
           break;  // we're in "emergency mode", don't wait until TTL expires
+
+        // if the metadata is not consistent refresh it at a higher rate (if the
+        // ttl>1s) until it becomes consistent again
+        if ((!replicaset_data_.empty()) &&
+            replicaset_data_.begin()->second.md_discrepancy) {
+          break;
+        }
       }
     }
   }
@@ -285,6 +292,7 @@ bool operator==(const MetaData::ReplicaSetsByName &map_a,
   auto bi = map_b.begin();
   for (; ai != map_a.end(); ++ai, ++bi) {
     if ((ai->first != bi->first)) return false;
+    if (ai->second.md_discrepancy != bi->second.md_discrepancy) return false;
     // we need to compare 2 vectors if their content is the same
     // but order of their elements can be different as we use
     // SQL with no "ORDER BY" to fetch them from different nodes

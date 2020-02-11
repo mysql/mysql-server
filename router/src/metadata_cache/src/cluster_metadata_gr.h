@@ -153,8 +153,8 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 
   metadata_cache::ReplicasetStatus check_replicaset_status(
       std::vector<metadata_cache::ManagedInstance> &instances,
-      const std::map<std::string, GroupReplicationMember> &member_status) const
-      noexcept;
+      const std::map<std::string, GroupReplicationMember> &member_status,
+      bool &metadata_gr_discrepancy) const noexcept;
 
   void reset_metadata_backend(const mysqlrouter::ClusterType type);
   std::unique_ptr<GRMetadataBackend> metadata_backend_;

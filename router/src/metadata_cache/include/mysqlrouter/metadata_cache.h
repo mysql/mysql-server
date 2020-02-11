@@ -139,6 +139,10 @@ class METADATA_API ManagedReplicaSet {
   bool single_primary_mode;
   /** @brief Id of the view this metadata represents (only used for AR now)*/
   unsigned view_id{0};
+  /** @brief Metadata for the replicaset is not consistent (only applicable for
+   * the GR cluster when the data in the GR metadata is not consistent with the
+   * cluster metadata)*/
+  bool md_discrepancy{false};
 };
 
 /** @class connection_error
