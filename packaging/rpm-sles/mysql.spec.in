@@ -344,6 +344,7 @@ database server.
 Summary:        Development header files and libraries for MySQL database client applications
 Group:          Applications/Databases
 Requires:       %{name}-libs >= %{min}
+Requires:       openssl-devel
 %if 0%{?commercial}
 Provides:       MySQL-devel-advanced = %{version}-%{release}
 Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
