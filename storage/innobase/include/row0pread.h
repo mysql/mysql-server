@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -116,7 +116,8 @@ class Parallel_reader {
   using Start = std::function<dberr_t(size_t thread_id)>;
 
   /** Callback to finalise callers state. */
-  using Finish = std::function<dberr_t(size_t thread_id)>;
+  using Finish =
+      std::function<dberr_t(Parallel_reader::Ctx *ctx, size_t thread_id)>;
 
   /** Callback to process the rows. */
   using F = std::function<dberr_t(const Ctx *)>;
@@ -150,17 +151,20 @@ class Parallel_reader {
   /** Scan (Scan_ctx) configuration. */
   struct Config {
     /** Constructor.
-    @param[in] scan_range       Range to scan.
-    @param[in] index            Cluster index to scan.
-    @param[in] read_level       Btree level from which records need to be read.
+    @param[in] scan_range     Range to scan.
+    @param[in] index          Cluster index to scan.
+    @param[in] read_level     Btree level from which records need to be read.
+    @param[in] partition_id   Partition id if it the index to be scanned
+    belongs to a partitioned table.
   */
     Config(const Scan_range &scan_range, dict_index_t *index,
-           size_t read_level = 0)
+           size_t read_level = 0, size_t partition_id = 0)
         : m_scan_range(scan_range),
           m_index(index),
           m_is_compact(dict_table_is_comp(index->table)),
           m_page_size(dict_tf_to_fsp_flags(index->table->flags)),
-          m_read_level(read_level) {}
+          m_read_level(read_level),
+          m_partition_id(partition_id) {}
 
     /** Copy constructor.
     @param[in] config           Instance to copy from. */
@@ -169,7 +173,8 @@ class Parallel_reader {
           m_index(config.m_index),
           m_is_compact(config.m_is_compact),
           m_page_size(config.m_page_size),
-          m_read_level(config.m_read_level) {}
+          m_read_level(config.m_read_level),
+          m_partition_id(config.m_partition_id) {}
 
     /** Range to scan. */
     const Scan_range m_scan_range;
@@ -188,6 +193,10 @@ class Parallel_reader {
 
     /** Btree level from which records need to be read. */
     size_t m_read_level{0};
+
+    /** Partition id if the index to be scanned belongs to a partitioned table,
+    else std::numeric_limits<uint64_t>::max(). */
+    size_t m_partition_id{std::numeric_limits<size_t>::max()};
   };
 
   /** Constructor.
@@ -692,6 +701,13 @@ class Parallel_reader::Ctx {
   /** @return the index being scanned. */
   const dict_index_t *index() const MY_ATTRIBUTE((warn_unused_result)) {
     return (m_scan_ctx->m_config.m_index);
+  }
+
+  /** @return the partition id of the index.
+  @note this is std::numeric_limits<uint64_t>::max() if the index does not
+  belong to a partition. */
+  size_t partition_id() const MY_ATTRIBUTE((warn_unused_result)) {
+    return m_scan_ctx->m_config.m_partition_id;
   }
 
  private:

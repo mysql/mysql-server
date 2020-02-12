@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -636,6 +636,8 @@ void Parallel_reader::worker(size_t thread_id) {
   constexpr auto FOREVER = OS_SYNC_INFINITE_TIME;
   os_event_wait_time_low(m_event, FOREVER, m_sig_count);
 
+  std::shared_ptr<Parallel_reader::Ctx> last_ctx{nullptr};
+
   for (;;) {
     size_t n_completed = 0;
     int64_t sig_count = os_event_reset(m_event);
@@ -664,6 +666,7 @@ void Parallel_reader::worker(size_t thread_id) {
       }
 
       ++n_completed;
+      last_ctx = std::move(ctx);
     }
 
     if (err != DB_SUCCESS || is_error_set()) {
@@ -696,9 +699,12 @@ void Parallel_reader::worker(size_t thread_id) {
   }
 
   if (m_finish_callback) {
-    dberr_t finish_err = m_finish_callback(thread_id);
+    dberr_t finish_err = m_finish_callback(last_ctx.get(), thread_id);
+
     /* Keep the err status from previous failed operations */
-    if (unlikely(finish_err != DB_SUCCESS)) err = finish_err;
+    if (finish_err != DB_SUCCESS) {
+      err = finish_err;
+    }
   }
 
   ut_a(err != DB_SUCCESS || is_error_set() ||

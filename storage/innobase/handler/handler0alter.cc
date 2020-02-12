@@ -9767,8 +9767,21 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
 
   trx_assign_read_view(trx);
 
-  const Parallel_reader::Scan_range FULL_SCAN{};
+  auto dd_client = ha_thd()->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
+  const dd::Table *dd_table = nullptr;
 
+  if (dd_client->acquire(table_share->db.str, table_share->table_name.str,
+                         &dd_table)) {
+    ib::error(ER_INNODB_UNABLE_TO_ACQUIRE_DD_OBJECT)
+        << "InnoDB can't get table object for table"
+        << table_share->table_name.str;
+    return HA_ERR_INTERNAL_ERROR;
+  }
+
+  auto dd_partitions = dd_table->leaf_partitions();
+
+  const Parallel_reader::Scan_range FULL_SCAN{};
   const auto first_used_partition = m_part_info->get_first_used_partition();
 
   for (auto i = first_used_partition; i < m_tot_parts;
@@ -9780,12 +9793,13 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t &num_threads) {
                   m_prebuilt->table->name.m_name);
 
       UT_DELETE(adapter);
-      return (HA_ERR_NO_SUCH_TABLE);
+      return HA_ERR_NO_SUCH_TABLE;
     }
 
     build_template(true);
 
-    Parallel_reader::Config config(FULL_SCAN, m_prebuilt->table->first_index());
+    Parallel_reader::Config config(FULL_SCAN, m_prebuilt->table->first_index(),
+                                   0, dd_partitions[i]->number());
 
     dberr_t err =
         adapter->add_scan(trx, config, [=](const Parallel_reader::Ctx *ctx) {
