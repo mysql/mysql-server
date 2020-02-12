@@ -1,0 +1,20 @@
+# Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+
+INCLUDE(java)
+
+FIND_PROGRAM(MAVEN_EXECUTABLE
+ mvn
+)
+IF(MAVEN_EXECUTABLE)
+  IF(UNIX)
+    FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh"
+      "${MAVEN_EXECUTABLE} --version | head -1\n")
+    EXECUTE_PROCESS(COMMAND bash "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh"
+      OUTPUT_VARIABLE MAVEN_VERSION_OUTPUT)
+    FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/mavenversion.sh")
+    STRING(STRIP "${MAVEN_VERSION_OUTPUT}" MAVEN_VERSION)
+  ENDIF()
+  MESSAGE(STATUS "Found maven: ${MAVEN_EXECUTABLE} (${MAVEN_VERSION})")
+ELSE()
+  MESSAGE(FATAL_ERROR "Maven not found!")
+ENDIF()
