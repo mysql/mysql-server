@@ -224,11 +224,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   Hence an extra logical layer is added on top of the minimal chassis:
 
-  The minimal chassis library has four exposed apis those are:
+  The minimal chassis library has three exposed apis those are:
   - minimal_chassis_init()
   - minimal_chassis_deinit()
-  - minimal_chassis_load_component()
-  - minimal_chassis_unload_component()
+  - minimal_chassis_services_refresh()
   (see @ref minimal_chassis.cc)
 
   Note: minimal chassis support the native implementation of rwlocks and
@@ -255,8 +254,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   layers. Mostly to allow safe reuse of the minimal chassis in other
   binaries.
 
-  Hence the elements of the minimal chassis are implemented in
-  components/mysql-server and the implementations of services the
+  The elements of the minimal chassis are implemented in
+  components/libminchassis and the implementations of services the
   server component provides are to be found in sql/server_component/
 */
 
