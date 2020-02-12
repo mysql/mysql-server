@@ -220,3 +220,20 @@ bool wait_for_transaction_count_increase(const uint16_t http_port,
 
   return wait_for_transaction_count(http_port, expected_queries_count, timeout);
 }
+
+bool wait_connection_dropped(mysqlrouter::MySQLSession &session,
+                             std::chrono::milliseconds timeout) {
+  const auto kStep = 50ms;
+  do {
+    try {
+      session.query_one("select @@@port");
+    } catch (const mysqlrouter::MySQLSession::Error &) {
+      return true;
+    }
+
+    std::this_thread::sleep_for(kStep);
+    timeout -= kStep;
+  } while (timeout >= 0ms);
+
+  return false;
+}

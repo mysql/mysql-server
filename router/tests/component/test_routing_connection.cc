@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include "random_generator.h"
 #include "rest_metadata_client.h"
 #include "router_component_test.h"
+#include "router_component_testutils.h"
 #include "tcp_port_pool.h"
 
 #define ASSERT_NO_ERROR(expr) \
@@ -654,8 +655,7 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
   // verify that connections to PRIMARY are broken
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    ASSERT_ANY_THROW(client.query_one("select @@port"))
-        << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
   }
 }
 
@@ -728,8 +728,7 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
     uint16_t port = client_and_port.second;
 
     if (port == cluster_nodes_ports_[1])
-      ASSERT_ANY_THROW(client.query_one("select @@port"))
-          << router.get_full_logfile();
+      EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
     else
       ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
           client.query_one("select @@port")})
@@ -801,8 +800,7 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   // verify if RW connections to PRIMARY are closed
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    ASSERT_ANY_THROW(client.query_one("select @@port"))
-        << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
   }
 }
 
@@ -1024,8 +1022,7 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
     uint16_t port = client_and_port.second;
 
     if (port == cluster_nodes_ports_[1])
-      ASSERT_ANY_THROW(client.query_one("select @@port"))
-          << router.get_full_output();
+      EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
     else
       ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
           client.query_one("select @@port")})
@@ -1138,8 +1135,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
    */
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    ASSERT_ANY_THROW(client.query_one("select @@port"))
-        << router.get_full_logfile();
+    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
   }
 }
 
@@ -1225,8 +1221,7 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   // verify that all connections are closed
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    ASSERT_ANY_THROW(client.query_one("select @@port"))
-        << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
   }
 }
 

@@ -28,6 +28,7 @@
 #include <chrono>
 #include <string>
 #include <vector>
+#include "mysql_session.h"
 
 std::string create_state_file_content(
     const std::string &replication_goup_id,
@@ -51,6 +52,10 @@ bool wait_for_transaction_count(
 
 bool wait_for_transaction_count_increase(
     const uint16_t http_port, const int increment_by = 1,
+    std::chrono::milliseconds timeout = std::chrono::seconds(5));
+
+bool wait_connection_dropped(
+    mysqlrouter::MySQLSession &session,
     std::chrono::milliseconds timeout = std::chrono::seconds(5));
 
 #endif  // _ROUTER_COMPONENT_TESTUTILS_H_
