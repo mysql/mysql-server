@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"  /* ER_THD */
 #include "sql/handler.h" /* ha_resolve_by_legacy_type */
+#include "sql/lock.h"    /* acquire_shared_global_read_lock */
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
 #include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
@@ -96,6 +97,18 @@ bool Rotate_innodb_master_key::execute() {
 
   if (!hton->rotate_encryption_master_key) {
     my_error(ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE, MYF(0));
+    return true;
+  }
+
+  /*
+    Acquire protection against GRL and check for concurrent change of read_only
+    value since encryption key rotation is not allowed in read_only/
+    super_read_only mode.
+  */
+  if (acquire_shared_global_read_lock(m_thd,
+                                      m_thd->variables.lock_wait_timeout)) {
+    // MDL subsystem has to set an error in Diagnostics Area
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
