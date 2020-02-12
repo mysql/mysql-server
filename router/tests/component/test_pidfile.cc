@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,12 +94,9 @@ class RouterPidfileTest : public RouterComponentTest {
 
   void start_router() {
     router = &ProcessManager::launch_router(router_cmdline);
-
-    // Wait for logfile to appear on start or framework throws errors
-    MY_WAIT_US(!mysql_harness::Path(logfile).exists(), 200 * 1000);
-
-    // ... and extend wait for just a tad
-    std::this_thread::sleep_for(2ms);
+    // make sure to get past the setup of the signal handler, otherwise
+    // ProcessManager will complain about the "signal 15"
+    wait_log_contains(*router, "Starting all plugins", 5s);
   }
 
   void stop_router() {
