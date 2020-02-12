@@ -173,6 +173,7 @@ eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
 eval DROP TABLE IF EXISTS $dest_db.t1;
 eval DROP TABLE IF EXISTS $source_db.t1;
 --enable_query_log
+--remove_files_wildcard $MYSQLD_DATADIR/$dest_db/ t1.*
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.cfp_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back
