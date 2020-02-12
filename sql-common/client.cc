@@ -1075,6 +1075,7 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
                                                    ulong *res) {
   NET *net = &mysql->net;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+
   ulong len = 0, complen = 0;
   DBUG_TRACE;
 
@@ -1104,6 +1105,14 @@ net_async_status cli_safe_read_with_ok_nonblocking(MYSQL *mysql, bool parse_ok,
   *res = cli_safe_read_with_ok_complete(
       mysql, parse_ok, is_data_packet,
       net_async->async_multipacket_read_total_len);
+
+  /*
+    In case, packet is too large or connection is lost, net_end() is called to
+    free up net->extention. Thus return NET_ASYNC_ERROR.
+  */
+  if ((*res == packet_error) && (NET_ASYNC_DATA(net) == nullptr)) {
+    return NET_ASYNC_ERROR;
+  }
 
   net_async->async_multipacket_read_started = false;
   net_async->async_multipacket_read_saved_whereb = 0;
@@ -6990,8 +6999,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
       return NET_ASYNC_NOT_READY;
     }
     if (length == packet_error) {
-      net_async->async_read_query_result_status =
-          NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      if (NET_ASYNC_DATA(net) != nullptr)
+        net_async->async_read_query_result_status =
+            NET_ASYNC_READ_QUERY_RESULT_IDLE;
       return NET_ASYNC_ERROR;
     }
     mysql->packet_length = length;
