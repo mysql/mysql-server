@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6475,6 +6475,9 @@ static ulonglong lo_get_thread_internal_id(PSI_thread *thread) {
 static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
   PSI_thread *chain = nullptr;
   LO_thread *lo = nullptr;
+  PSI_thread *result = nullptr;
+
+  native_mutex_lock(&serialize);
 
   if (g_thread_chain != nullptr) {
     chain = g_thread_chain->get_thread_by_id(processlist_id);
@@ -6485,12 +6488,15 @@ static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
          it++) {
       lo = *it;
       if (lo->m_chain == chain) {
-        return reinterpret_cast<PSI_thread *>(lo);
+        result = reinterpret_cast<PSI_thread *>(lo);
+        break;
       }
     }
   }
 
-  return nullptr;
+  native_mutex_unlock(&serialize);
+
+  return result;
 }
 
 static void lo_set_thread_THD(PSI_thread *thread, THD *thd) {
@@ -6644,6 +6650,7 @@ static void lo_delete_thread(PSI_thread *thread) {
       g_thread_chain->delete_thread(lo->m_chain);
     }
 
+    LO_thread::g_threads.remove(lo);
     delete lo;
   }
 
@@ -7989,6 +7996,8 @@ void LO_dump() { global_graph->dump_txt(); }
 void LO_cleanup() {
   LO_thread *lo = nullptr;
 
+  native_mutex_lock(&serialize);
+
   LO_thread_list::const_iterator it;
   for (it = LO_thread::g_threads.begin(); it != LO_thread::g_threads.end();
        it++) {
@@ -8022,6 +8031,8 @@ void LO_cleanup() {
     fclose(out_txt);
     out_txt = nullptr;
   }
+
+  native_mutex_unlock(&serialize);
 
   native_mutex_destroy(&serialize);
   native_mutex_destroy(&serialize_logs);

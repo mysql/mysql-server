@@ -1509,7 +1509,7 @@ sub command_line_setup {
     'gcov'                      => \$opt_gcov,
     'gprof'                     => \$opt_gprof,
     'helgrind'                  => \$opt_helgrind,
-    'lock-order'                => \$opt_lock_order,
+    'lock-order=i'              => \$opt_lock_order,
     'sanitize'                  => \$opt_sanitize,
     'valgrind-clients'          => \$opt_valgrind_clients,
     'valgrind-mysqld'           => \$opt_valgrind_mysqld,
