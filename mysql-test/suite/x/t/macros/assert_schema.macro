@@ -1,0 +1,12 @@
+
+-->macro Assert_schema %COMMAND%	%DATABASE%	%COLLECTION%	%SCHEMA%	%ERROR%
+stmtadmin %COMMAND%	{
+  "schema": "%DATABASE%", "name": "%COLLECTION%", "options": {
+    "validation": {
+      "schema": %SCHEMA%
+    }
+  }
+};
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro

@@ -64,7 +64,7 @@ Table	Create Table
 test_coll	CREATE TABLE `test_coll` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{ "id": "http://json-schema.org/geo", "$schema": "http://json-schema.org/draft-06/schema#", "description": "A geographical coordinate", "type": "object", "properties": {   "latitude": {"type": "number", "minimum": -90, "maximum": 90},   "longitude": {"type": "number", "minimum": -180, "maximum": 180}}, "required": ["latitude", "longitude"]}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"id":"http://json-schema.org/geo","$schema":"http://json-schema.org/draft-06/schema#","description":"A geographical coordinate","type":"object","properties":{"latitude":{"type":"number","minimum":-90,"maximum":90},"longitude":{"type":"number","minimum":-180,"maximum":180}},"required":["latitude","longitude"]}') VIRTUAL,
   PRIMARY KEY (`_id`),
   CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -231,7 +231,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -242,7 +242,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -427,7 +427,7 @@ Table	Create Table
 test_coll	CREATE TABLE `test_coll` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{ "id": "http://json-schema.org/geo", "$schema": "http://json-schema.org/draft-06/schema#", "description": "A geographical coordinate", "type": "object", "properties": {   "latitude": {"type": "number", "minimum": -90, "maximum": 90},   "longitude": {"type": "number", "minimum": -180, "maximum": 180}}, "required": ["latitude", "longitude"]}') VIRTUAL,
+  `_json_schema` json GENERATED ALWAYS AS (_utf8mb4'{"id":"http://json-schema.org/geo","$schema":"http://json-schema.org/draft-06/schema#","description":"A geographical coordinate","type":"object","properties":{"latitude":{"type":"number","minimum":-90,"maximum":90},"longitude":{"type":"number","minimum":-180,"maximum":180}},"required":["latitude","longitude"]}') VIRTUAL,
   PRIMARY KEY (`_id`),
   CONSTRAINT `$val_strict_889D1D09A01D7029B101675FBE738D1897A37F32` CHECK (json_schema_valid(`_json_schema`,`doc`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -594,7 +594,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
@@ -605,7 +605,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid validation.level argument. Allowed values are \'OFF\' and \'STRICT\'"
+  msg: "Invalid \"validation.level\" argument. Allowed values are \'OFF\' and \'STRICT\'"
   sql_state: "HY000"
 }
 
