@@ -7678,8 +7678,6 @@ Dbspj::scanFrag_send(Signal* signal,
   ScanFragData& data = treeNodePtr.p->m_scanFrag_data;
   ndbassert(noOfFrags > 0);
   ndbassert(noOfFrags <= data.m_frags_not_started);
-  ndbassert(noOfFrags == data.m_frags_not_started ||
-    (noOfFrags + data.m_frags_outstanding >= requestPtr.p->m_rootFragCnt));
   ScanFragReq* const req =
     reinterpret_cast<ScanFragReq*>(signal->getDataPtrSend());
   const ScanFragReq * const org
