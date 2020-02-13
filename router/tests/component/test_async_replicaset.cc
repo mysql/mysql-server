@@ -467,9 +467,8 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
   SCOPED_TRACE(
       "// The connection to the first secondary should still be alive, the "
       "connection to the second secondary should be dropped");
-
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 }
 
 /**
@@ -629,7 +628,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
     const std::string pattern =
         "metadata_cache WARNING .* Failed fetching metadata from instance: " +
         std::to_string(cluster_nodes_ports[i]);
-    ASSERT_TRUE(pattern_found(log_content, pattern));
+    ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
   }
 }
 
@@ -721,7 +720,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   SCOPED_TRACE(
       "// RW connection should have survived, RO one should have been closed");
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 
   SCOPED_TRACE(
       "// Make sure the state file did not change, it should still contain "
@@ -816,7 +815,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
 
   SCOPED_TRACE(
       "// RO connection should have survived, RW one should have been closed");
-  ASSERT_ANY_THROW(client1.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client1));
   ASSERT_NO_THROW(client2.query_one("select @@port"));
 
   /////////////////////////////////////////
@@ -1011,7 +1010,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
       "// Check that the existing connection to the second SECONDARY got "
       "dropped");
   ASSERT_NO_THROW(client1.query_one("select @@port"));
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client2));
 
   SCOPED_TRACE(
       "// Check that new RO connections are made to the first secondary");
@@ -1112,7 +1111,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
 
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
   ASSERT_NO_THROW(client_ro.query_one("select @@port"));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
@@ -1205,7 +1204,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped "
       "and the ro connection to the new PRIMARY is still up");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
   ASSERT_NO_THROW(client_ro.query_one("select @@port"));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
@@ -1301,8 +1300,8 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
   MySQLSession client_rw2;
@@ -1398,8 +1397,8 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                    view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  ASSERT_ANY_THROW(client_rw.query_one("select @@port"));
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_rw));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
 
   SCOPED_TRACE(
       "// Check that new RO connection is now made to the new PRIMARY");
@@ -1487,7 +1486,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                    view_id + 1);
 
   SCOPED_TRACE("// Check that RO connection is down and no new is accepted");
-  ASSERT_ANY_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(client_ro));
   MySQLSession client_ro2;
   ASSERT_ANY_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
                                      "password", "", ""));
@@ -1845,14 +1844,9 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
                       /*empty_result_from_cluster_type_query=*/true);
   }
 
-  SCOPED_TRACE("// Wait untill the router sees this change");
-  ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 3));
-
   SCOPED_TRACE("// Both connections should get dropped");
-  ASSERT_ANY_THROW(client1.query_one("select @@port"))
-      << router.get_full_logfile();
-  ASSERT_ANY_THROW(client2.query_one("select @@port"));
-
+  EXPECT_TRUE(wait_connection_dropped(client1)) << router.get_full_logfile();
+  EXPECT_TRUE(wait_connection_dropped(client2)) << router.get_full_logfile();
   // check that the router did not crash (happens automatically)
 }
 
