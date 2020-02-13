@@ -1916,11 +1916,11 @@ public:
 
     void TooLong(const Ch* str, SizeType length, SizeType expected) {
         AddNumberError(SchemaType::GetMaxLengthString(),
-            ValueType(str, length, GetStateAllocator()).Move(), SValue(expected).Move());
+            ValueType(str, length, GetStateAllocator()).Move(), SValue(uint64_t{expected}).Move());
     }
     void TooShort(const Ch* str, SizeType length, SizeType expected) {
         AddNumberError(SchemaType::GetMinLengthString(),
-            ValueType(str, length, GetStateAllocator()).Move(), SValue(expected).Move());
+            ValueType(str, length, GetStateAllocator()).Move(), SValue(uint64_t{expected}).Move());
     }
     void DoesNotMatch(const Ch* str, SizeType length) {
         currentError_.SetObject();
@@ -1930,21 +1930,21 @@ public:
 
     void DisallowedItem(SizeType index) {
         currentError_.SetObject();
-        currentError_.AddMember(GetDisallowedString(), ValueType(index).Move(), GetStateAllocator());
+        currentError_.AddMember(GetDisallowedString(), ValueType(uint64_t{index}).Move(), GetStateAllocator());
         AddCurrentError(SchemaType::GetAdditionalItemsString(), true);
     }
     void TooFewItems(SizeType actualCount, SizeType expectedCount) {
         AddNumberError(SchemaType::GetMinItemsString(),
-            ValueType(actualCount).Move(), SValue(expectedCount).Move());
+            ValueType(uint64_t{actualCount}).Move(), SValue(uint64_t{expectedCount}).Move());
     }
     void TooManyItems(SizeType actualCount, SizeType expectedCount) {
         AddNumberError(SchemaType::GetMaxItemsString(),
-            ValueType(actualCount).Move(), SValue(expectedCount).Move());
+            ValueType(uint64_t{actualCount}).Move(), SValue(uint64_t{expectedCount}).Move());
     }
     void DuplicateItems(SizeType index1, SizeType index2) {
         ValueType duplicates(kArrayType);
-        duplicates.PushBack(index1, GetStateAllocator());
-        duplicates.PushBack(index2, GetStateAllocator());
+        duplicates.PushBack(uint64_t{index1}, GetStateAllocator());
+        duplicates.PushBack(uint64_t{index2}, GetStateAllocator());
         currentError_.SetObject();
         currentError_.AddMember(GetDuplicatesString(), duplicates, GetStateAllocator());
         AddCurrentError(SchemaType::GetUniqueItemsString(), true);
@@ -1952,11 +1952,11 @@ public:
 
     void TooManyProperties(SizeType actualCount, SizeType expectedCount) {
         AddNumberError(SchemaType::GetMaxPropertiesString(),
-            ValueType(actualCount).Move(), SValue(expectedCount).Move());
+            ValueType(uint64_t{actualCount}).Move(), SValue(uint64_t{expectedCount}).Move());
     }
     void TooFewProperties(SizeType actualCount, SizeType expectedCount) {
         AddNumberError(SchemaType::GetMinPropertiesString(),
-            ValueType(actualCount).Move(), SValue(expectedCount).Move());
+            ValueType(uint64_t{actualCount}).Move(), SValue(uint64_t{expectedCount}).Move());
     }
     void StartMissingProperties() {
         currentError_.SetArray();
