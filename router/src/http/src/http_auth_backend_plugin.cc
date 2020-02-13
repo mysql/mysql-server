@@ -140,6 +140,13 @@ static void init(PluginFuncEnv *env) {
         continue;
       }
 
+      if (section->key.empty()) {
+        set_error(env, mysql_harness::kConfigInvalidArgument,
+                  "The config section [%s] requires a name, like [%s:example]",
+                  kSectionName, kSectionName);
+        return;
+      }
+
       PluginConfig config(section);
 
       auth_backends->insert({section->key, HttpAuthBackendFactory::create(

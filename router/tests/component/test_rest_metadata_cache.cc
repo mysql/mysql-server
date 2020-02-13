@@ -891,9 +891,8 @@ TEST_F(RestMetadataCacheApiTest, invalid_realm) {
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_NE(router_output.find(
-                "Configuration error: unknown authentication "
-                "realm for [rest_metadata_cache] '': invalidrealm, known "
-                "realm(s): somerealm"),
+                "Configuration error: The option 'require_realm=invalidrealm' "
+                "in [rest_metadata_cache] does not match any http_auth_realm."),
             router_output.npos)
       << router_output;
 }

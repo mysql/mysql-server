@@ -1744,6 +1744,16 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 }
 
 const HttpServerAuthFailParams http_server_auth_fail_params[]{
+    {"backend_no_section",
+     "",
+     {
+         ConfigBuilder::build_section(
+             "http_auth_backend",
+             {{"backend", "file"}, {"filename", "does-not-exists"}}),
+     },
+     false,
+     "The config section [http_auth_backend] requires a name, like "
+     "[http_auth_backend:example]"},
     {"backend_file_filename_not_exists",
      "WL12503::TS_FR6_1",
      {ConfigBuilder::build_section("http_auth_backend:local",
@@ -1779,7 +1789,21 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
                                        {"require", "valid-user"}}),
      },
      false,
-     "unknown authentication backend for"},
+     "The option 'backend=doesnotexist' in [http_auth_realm:secure] does not "
+     "match any http_auth_backend. No [http_auth_backend:doesnotexist] "
+     "section defined."},
+    {"realm_no_section",
+     "WL12503::TS_FR6_1",
+     {
+         ConfigBuilder::build_section("http_auth_realm",
+                                      {{"backend", "doesnotexist"},
+                                       {"method", "basic"},
+                                       {"name", "API"},
+                                       {"require", "valid-user"}}),
+     },
+     false,
+     "The config section [http_auth_realm] requires a name, like "
+     "[http_auth_realm:example]"},
     {"multiple_backends",
      "WL12503::TS_2_7",
      {
