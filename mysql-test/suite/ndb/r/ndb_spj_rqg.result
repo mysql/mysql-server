@@ -1,0 +1,1076 @@
+Table	Op	Msg_type	Msg_text
+test.A	analyze	status	OK
+test.B	analyze	status	OK
+test.C	analyze	status	OK
+test.D	analyze	status	OK
+test.E	analyze	status	OK
+test.F	analyze	status	OK
+test.G	analyze	status	OK
+test.H	analyze	status	OK
+test.I	analyze	status	OK
+test.J	analyze	status	OK
+test.K	analyze	status	OK
+test.L	analyze	status	OK
+test.M	analyze	status	OK
+test.N	analyze	status	OK
+test.O	analyze	status	OK
+test.P	analyze	status	OK
+test.Q	analyze	status	OK
+test.R	analyze	status	OK
+test.S	analyze	status	OK
+test.T	analyze	status	OK
+test.U	analyze	status	OK
+test.V	analyze	status	OK
+test.W	analyze	status	OK
+test.X	analyze	status	OK
+test.Y	analyze	status	OK
+test.Z	analyze	status	OK
+explain format=tree SELECT
+table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
+FROM U AS table1
+JOIN Q AS table2
+JOIN H AS table3 ON table2.col_int = table3.col_int
+ON table1.col_int_key = table2.col_int_key
+LEFT JOIN N AS table4
+LEFT JOIN Q AS table5 ON table4.col_int = table5.col_int
+ON table2.col_int = table4.col_int AND
+table1.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+# Limits output somewhat:
+where table3.pk between 0 and 1
+and table2.pk between 4 and 5;
+EXPLAIN
+-> Nested loop left join  (cost=33.18 rows=182)
+    -> Nested loop inner join  (cost=14.69 rows=40)
+        -> Nested loop inner join  (cost=9.91 rows=9)
+            -> Index range scan on table3 using PRIMARY, activating pushed join of 5 tables, with pushed condition: ((table3.pk between 0 and 1) and (table3.col_int is not null))  (cost=1.16 rows=2)
+            -> Index lookup on table2 using ix1 (col_int=table3.col_int), child of table3 in pushed join, with pushed condition: ((table2.pk between 4 and 5) and (table2.col_int_key is not null))  (cost=0.65 rows=4)
+        -> Index lookup on table1 using col_int_key (col_int_key=table2.col_int_key), child of table2 in pushed join  (cost=1.09 rows=4)
+    -> Nested loop left join  (cost=3.56 rows=4)
+        -> Index lookup on table4 using ix3 (col_int=table3.col_int, col_int_key=table2.col_int_key, col_int_unique=table2.col_int_unique), child of table2 in pushed join  (cost=0.08 rows=1)
+        -> Index lookup on table5 using ix1 (col_int=table3.col_int), child of table3 in pushed join  (cost=0.72 rows=4)
+
+SELECT
+table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
+FROM U AS table1
+JOIN Q AS table2
+JOIN H AS table3 ON table2.col_int = table3.col_int
+ON table1.col_int_key = table2.col_int_key
+LEFT JOIN N AS table4
+LEFT JOIN Q AS table5 ON table4.col_int = table5.col_int
+ON table2.col_int = table4.col_int AND
+table1.col_int_key = table4.col_int_key AND
+table2.col_int_unique = table4.col_int_unique
+# Limits output somewhat:
+where table3.pk between 0 and 1
+and table2.pk between 4 and 5;
+pk	pk	pk	pk	pk
+1	4	1	NULL	NULL
+1	4	12	NULL	NULL
+1	4	18	NULL	NULL
+1	4	2	NULL	NULL
+1	4	24	NULL	NULL
+1	4	27	NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk
+FROM X AS table1
+JOIN Y AS table2 ON table1.col_int = table2.col_int 
+AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.pk IN (
+SELECT
+table1s.pk AS field3
+FROM D AS table1s
+JOIN M AS table2s ON table1s.pk = table2s.col_int_key
+);
+EXPLAIN
+-> Nested loop semijoin  (cost=6843.21 rows=75)
+    -> Nested loop inner join  (cost=6825.03 rows=19)
+        -> Nested loop inner join  (cost=6818.53 rows=19)
+            -> Table scan on table1, activating pushed join of 4 tables  (cost=6752.70 rows=27)
+            -> Filter: (table2.col_int_unique = table1.col_int_unique)  (cost=1.75 rows=1)
+                -> Index lookup on table2 using PRIMARY (col_int=table1.col_int), child of table1 in pushed join  (cost=1.75 rows=7)
+        -> Index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  (cost=0.26 rows=1)
+    -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1 in pushed join  (cost=2.41 rows=4)
+
+SELECT
+table1.pk, table2.pk
+FROM X AS table1
+JOIN Y AS table2 ON table1.col_int = table2.col_int 
+AND table1.col_int_unique = table2.col_int_unique
+WHERE table1.pk IN (
+SELECT
+table1s.pk AS field3
+FROM D AS table1s
+JOIN M AS table2s ON table1s.pk = table2s.col_int_key
+);
+pk	pk
+3	16
+explain format=tree SELECT straight_join
+table1.pk, table3.pk, table2.pk, table4.pk
+FROM T AS table1
+LEFT JOIN (Q AS table3
+INNER JOIN M AS table2 ON table2.col_int = table3.col_int_key)
+LEFT JOIN R AS table4 ON table2.col_int_key = table4.col_int
+ON table1.col_int_unique = table3.col_int_key
+where table1.pk between 14 and 14;
+EXPLAIN
+-> Nested loop left join  (cost=6472.89 rows=2187)
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: (table1.pk between 14 and 14)  (cost=6252.50 rows=25)
+    -> Nested loop left join  (cost=39.99 rows=87)
+        -> Nested loop inner join  (cost=7.52 rows=14)
+            -> Index lookup on table3 using ix2 (col_int_key=table1.col_int_unique), child of table1 in pushed join  (cost=0.75 rows=3)
+            -> Index lookup on table2 using ix3 (col_int=table1.col_int_unique), child of table1 in pushed join  (cost=0.62 rows=4)
+        -> Index lookup on table4 using ix1 (col_int=table2.col_int_key), child of table2 in pushed join  (cost=0.64 rows=6)
+
+SELECT straight_join
+table1.pk, table3.pk, table2.pk, table4.pk
+FROM T AS table1
+LEFT JOIN (Q AS table3
+INNER JOIN M AS table2 ON table2.col_int = table3.col_int_key)
+LEFT JOIN R AS table4 ON table2.col_int_key = table4.col_int
+ON table1.col_int_unique = table3.col_int_key
+where table1.pk between 14 and 14;
+pk	pk	pk	pk
+14	10	11	16
+14	10	11	23
+14	10	16	19
+14	10	16	20
+14	10	16	24
+14	10	16	4
+14	10	16	6
+14	10	16	9
+14	10	17	19
+14	10	17	20
+14	10	17	24
+14	10	17	4
+14	10	17	6
+14	10	17	9
+14	10	2	16
+14	10	2	23
+14	10	20	11
+14	10	20	13
+14	10	20	14
+14	10	20	17
+14	10	20	25
+14	10	21	19
+14	10	21	20
+14	10	21	24
+14	10	21	4
+14	10	21	6
+14	10	21	9
+14	10	8	19
+14	10	8	20
+14	10	8	24
+14	10	8	4
+14	10	8	6
+14	10	8	9
+14	14	11	16
+14	14	11	23
+14	14	16	19
+14	14	16	20
+14	14	16	24
+14	14	16	4
+14	14	16	6
+14	14	16	9
+14	14	17	19
+14	14	17	20
+14	14	17	24
+14	14	17	4
+14	14	17	6
+14	14	17	9
+14	14	2	16
+14	14	2	23
+14	14	20	11
+14	14	20	13
+14	14	20	14
+14	14	20	17
+14	14	20	25
+14	14	21	19
+14	14	21	20
+14	14	21	24
+14	14	21	4
+14	14	21	6
+14	14	21	9
+14	14	8	19
+14	14	8	20
+14	14	8	24
+14	14	8	4
+14	14	8	6
+14	14	8	9
+14	21	11	16
+14	21	11	23
+14	21	16	19
+14	21	16	20
+14	21	16	24
+14	21	16	4
+14	21	16	6
+14	21	16	9
+14	21	17	19
+14	21	17	20
+14	21	17	24
+14	21	17	4
+14	21	17	6
+14	21	17	9
+14	21	2	16
+14	21	2	23
+14	21	20	11
+14	21	20	13
+14	21	20	14
+14	21	20	17
+14	21	20	25
+14	21	21	19
+14	21	21	20
+14	21	21	24
+14	21	21	4
+14	21	21	6
+14	21	21	9
+14	21	8	19
+14	21	8	20
+14	21	8	24
+14	21	8	4
+14	21	8	6
+14	21	8	9
+14	24	11	16
+14	24	11	23
+14	24	16	19
+14	24	16	20
+14	24	16	24
+14	24	16	4
+14	24	16	6
+14	24	16	9
+14	24	17	19
+14	24	17	20
+14	24	17	24
+14	24	17	4
+14	24	17	6
+14	24	17	9
+14	24	2	16
+14	24	2	23
+14	24	20	11
+14	24	20	13
+14	24	20	14
+14	24	20	17
+14	24	20	25
+14	24	21	19
+14	24	21	20
+14	24	21	24
+14	24	21	4
+14	24	21	6
+14	24	21	9
+14	24	8	19
+14	24	8	20
+14	24	8	24
+14	24	8	4
+14	24	8	6
+14	24	8	9
+14	25	11	16
+14	25	11	23
+14	25	16	19
+14	25	16	20
+14	25	16	24
+14	25	16	4
+14	25	16	6
+14	25	16	9
+14	25	17	19
+14	25	17	20
+14	25	17	24
+14	25	17	4
+14	25	17	6
+14	25	17	9
+14	25	2	16
+14	25	2	23
+14	25	20	11
+14	25	20	13
+14	25	20	14
+14	25	20	17
+14	25	20	25
+14	25	21	19
+14	25	21	20
+14	25	21	24
+14	25	21	4
+14	25	21	6
+14	25	21	9
+14	25	8	19
+14	25	8	20
+14	25	8	24
+14	25	8	4
+14	25	8	6
+14	25	8	9
+14	8	11	16
+14	8	11	23
+14	8	16	19
+14	8	16	20
+14	8	16	24
+14	8	16	4
+14	8	16	6
+14	8	16	9
+14	8	17	19
+14	8	17	20
+14	8	17	24
+14	8	17	4
+14	8	17	6
+14	8	17	9
+14	8	2	16
+14	8	2	23
+14	8	20	11
+14	8	20	13
+14	8	20	14
+14	8	20	17
+14	8	20	25
+14	8	21	19
+14	8	21	20
+14	8	21	24
+14	8	21	4
+14	8	21	6
+14	8	21	9
+14	8	8	19
+14	8	8	20
+14	8	8	24
+14	8	8	4
+14	8	8	6
+14	8	8	9
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM R AS table1
+LEFT JOIN Z AS table2
+LEFT JOIN F AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique;
+EXPLAIN
+-> Nested loop left join  (cost=6317.50 rows=306)
+    -> Table scan on table1, activating pushed join of 3 tables  (cost=6252.50 rows=25)
+    -> Nested loop inner join  (cost=79.21 rows=12)
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join  (cost=1.42 rows=12)
+        -> Index lookup on table3 using ix1 (col_int_unique=table1.col_int_unique), child of table1 in pushed join  (cost=0.25 rows=1)
+
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM R AS table1
+LEFT JOIN Z AS table2
+LEFT JOIN F AS table3 ON table2.col_int_key = table3.col_int_unique
+ON table1.col_int_unique = table3.col_int_unique;
+pk	pk	pk
+1	NULL	NULL
+10	NULL	NULL
+11	NULL	NULL
+12	NULL	NULL
+13	NULL	NULL
+14	NULL	NULL
+15	NULL	NULL
+16	NULL	NULL
+17	NULL	NULL
+18	NULL	NULL
+19	NULL	NULL
+2	NULL	NULL
+20	NULL	NULL
+21	NULL	NULL
+22	NULL	NULL
+23	NULL	NULL
+24	NULL	NULL
+25	NULL	NULL
+3	NULL	NULL
+4	NULL	NULL
+5	NULL	NULL
+6	NULL	NULL
+7	11	15
+7	13	15
+7	16	15
+7	24	15
+7	28	15
+7	29	15
+7	32	15
+7	52	15
+7	65	15
+7	7	15
+7	70	15
+7	72	15
+7	9	15
+8	NULL	NULL
+9	NULL	NULL
+explain format=tree SELECT
+table2.pk AS field1, table2.col_int_unique AS field2
+FROM V AS table1
+LEFT JOIN G AS table2
+LEFT JOIN U AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_key = table2.col_int_unique;
+EXPLAIN
+-> Nested loop left join  (cost=7273.20 rows=130)
+    -> Table scan on table1, activating pushed join of 3 tables  (cost=7252.90 rows=29)
+    -> Nested loop left join  (cost=20.28 rows=4)
+        -> Index lookup on table2 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  (cost=0.25 rows=1)
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  (cost=0.69 rows=4)
+
+SELECT
+table2.pk AS field1, table2.col_int_unique AS field2
+FROM V AS table1
+LEFT JOIN G AS table2
+LEFT JOIN U AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.col_int_key = table2.col_int_unique;
+field1	field2
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+5	0
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+explain format=tree SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM T AS table1
+LEFT JOIN F AS table2
+INNER JOIN
+(R AS table3 inner JOIN I AS table4 ON table3.col_int_key = table4.col_int_key)
+ON table2.col_int_unique = table4.col_int
+ON table1.col_int = table2.col_int_unique
+where table1.pk > 8 and table1.pk < 11;
+EXPLAIN
+-> Nested loop left join  (cost=6296.11 rows=429)
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: ((table1.pk > 8) and (table1.pk < 11))  (cost=6252.50 rows=25)
+    -> Nested loop inner join  (cost=9.39 rows=17)
+        -> Nested loop inner join  (cost=2.00 rows=3)
+            -> Index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join  (cost=0.29 rows=1)
+            -> Index lookup on table4 using ix3 (col_int=table1.col_int), child of table1 in pushed join  (cost=0.62 rows=3)
+        -> Index lookup on table3 using col_int_key (col_int_key=table4.col_int_key), child of table4 in pushed join  (cost=0.68 rows=5)
+
+SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM T AS table1
+LEFT JOIN F AS table2
+INNER JOIN
+(R AS table3 inner JOIN I AS table4 ON table3.col_int_key = table4.col_int_key)
+ON table2.col_int_unique = table4.col_int
+ON table1.col_int = table2.col_int_unique
+where table1.pk > 8 and table1.pk < 11;
+pk	pk	pk	pk
+10	NULL	NULL	NULL
+9	15	6	1
+9	15	6	12
+9	15	6	15
+9	15	6	17
+9	15	6	4
+9	15	6	8
+9	15	6	9
+9	15	9	16
+9	15	9	19
+9	15	9	3
+explain format=tree SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM I AS table1
+LEFT JOIN J AS table2
+LEFT JOIN D AS table3
+JOIN E AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table2.col_int_key
+where table1.pk > 2 and table1.pk < 5;
+EXPLAIN
+-> Nested loop left join  (cost=3520.07 rows=179)
+    -> Table scan on table1, activating pushed join of 4 tables, with pushed condition: ((table1.pk > 2) and (table1.pk < 5))  (cost=3501.40 rows=14)
+    -> Nested loop left join  (cost=2.42 rows=13)
+        -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  (cost=0.75 rows=4)
+        -> Nested loop inner join  (cost=3.22 rows=4)
+            -> Index lookup on table4 using ix1 (col_int_unique=table1.col_int_key), child of table1 in pushed join  (cost=0.09 rows=1)
+            -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_key), child of table1 in pushed join  (cost=0.56 rows=4)
+
+SELECT
+table1.pk, table2.pk, table4.pk, table3.pk
+FROM I AS table1
+LEFT JOIN J AS table2
+LEFT JOIN D AS table3
+JOIN E AS table4 ON table3.col_int_key = table4.col_int_unique
+ON table2.col_int_key = table4.col_int_unique
+ON table1.col_int_key = table2.col_int_key
+where table1.pk > 2 and table1.pk < 5;
+pk	pk	pk	pk
+3	1	3	1
+3	1	3	5
+3	1	3	8
+3	1	3	9
+3	18	3	1
+3	18	3	5
+3	18	3	8
+3	18	3	9
+3	19	3	1
+3	19	3	5
+3	19	3	8
+3	19	3	9
+3	4	3	1
+3	4	3	5
+3	4	3	8
+3	4	3	9
+3	7	3	1
+3	7	3	5
+3	7	3	8
+3	7	3	9
+4	1	3	1
+4	1	3	5
+4	1	3	8
+4	1	3	9
+4	18	3	1
+4	18	3	5
+4	18	3	8
+4	18	3	9
+4	19	3	1
+4	19	3	5
+4	19	3	8
+4	19	3	9
+4	4	3	1
+4	4	3	5
+4	4	3	8
+4	4	3	9
+4	7	3	1
+4	7	3	5
+4	7	3	8
+4	7	3	9
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM S AS table1
+LEFT JOIN T AS table2
+LEFT JOIN Q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
+LEFT JOIN O AS table4 ON table2.pk = table4.col_int
+ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
+EXPLAIN
+-> Nested loop left join  (cost=6741.96 rows=9753)
+    -> Table scan on table1, activating pushed join of 2 tables  (cost=5752.30 rows=23)
+    -> Filter: (table4.col_int is null)  (cost=8259.64 rows=424)
+        -> Nested loop left join  (cost=8259.64 rows=424)
+            -> Nested loop left join  (cost=6338.90 rows=136)
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join  (cost=0.65 rows=5)
+                -> Table scan on table3, with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table3.col_int_unique = table1.col_int_unique))  (cost=50.53 rows=25)
+            -> Index lookup on table4 using ix3 (col_int=table2.pk)  (cost=0.60 rows=3)
+
+Warnings:
+Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push outer joined table 'table4' as child of 'table1', table condition can not be fully evaluated by pushed join
+Note	1003	Can't push table 'table4' as child of 'table3', no parent-child dependency exists between these tables
+SELECT straight_join
+table1.pk, table2.pk, table3.pk, table4.pk
+FROM S AS table1
+LEFT JOIN T AS table2
+LEFT JOIN Q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
+LEFT JOIN O AS table4 ON table2.pk = table4.col_int
+ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
+pk	pk	pk	pk
+1	NULL	NULL	NULL
+10	NULL	NULL	NULL
+11	NULL	NULL	NULL
+12	22	NULL	NULL
+12	25	NULL	NULL
+12	6	NULL	NULL
+12	7	NULL	NULL
+13	NULL	NULL	NULL
+14	NULL	NULL	NULL
+15	NULL	NULL	NULL
+16	NULL	NULL	NULL
+17	NULL	NULL	NULL
+18	NULL	NULL	NULL
+19	NULL	NULL	NULL
+2	NULL	NULL	NULL
+20	NULL	NULL	NULL
+21	13	NULL	NULL
+21	14	7	NULL
+21	15	NULL	NULL
+21	17	NULL	NULL
+21	20	NULL	NULL
+21	4	NULL	NULL
+21	5	NULL	NULL
+22	NULL	NULL	NULL
+23	NULL	NULL	NULL
+3	NULL	NULL	NULL
+4	NULL	NULL	NULL
+5	NULL	NULL	NULL
+6	NULL	NULL	NULL
+7	NULL	NULL	NULL
+8	NULL	NULL	NULL
+9	NULL	NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM C AS table1
+INNER JOIN X AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT  JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join  (cost=8027.20 rows=48)
+    -> Inner hash join (table2.col_int_unique = table1.col_int_unique)  (cost=8015.29 rows=14)
+        -> Table scan on table2, activating pushed join of 2 tables  (cost=1350.31 rows=27)
+        -> Hash
+            -> Table scan on table1  (cost=1250.50 rows=5)
+    -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_unique), child of table2 in pushed join  (cost=0.55 rows=4)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM C AS table1
+INNER JOIN X AS table2 ON table1.col_int_unique = table2.col_int_unique
+LEFT  JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key;
+pk	pk	pk
+1	18	NULL
+3	20	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM S AS table1
+LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join  (cost=7169.24 rows=681)
+    -> Nested loop left join  (cost=7014.90 rows=115)
+        -> Table scan on table1  (cost=5752.30 rows=23)
+        -> Filter: (table2.pk = table1.col_int)  (cost=54.42 rows=5)
+            -> Table scan on table2, activating pushed join of 2 tables  (cost=54.42 rows=5)
+    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int), child of table2 in pushed join  (cost=0.76 rows=6)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM S AS table1
+LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
+pk	pk	pk
+1	NULL	NULL
+10	1	10
+10	1	23
+10	1	25
+10	1	7
+10	1	8
+11	2	11
+11	2	13
+11	2	2
+11	2	27
+11	2	30
+11	2	6
+12	NULL	NULL
+13	1	10
+13	1	23
+13	1	25
+13	1	7
+13	1	8
+14	NULL	NULL
+15	2	11
+15	2	13
+15	2	2
+15	2	27
+15	2	30
+15	2	6
+16	NULL	NULL
+17	2	11
+17	2	13
+17	2	2
+17	2	27
+17	2	30
+17	2	6
+18	2	11
+18	2	13
+18	2	2
+18	2	27
+18	2	30
+18	2	6
+19	2	11
+19	2	13
+19	2	2
+19	2	27
+19	2	30
+19	2	6
+2	1	10
+2	1	23
+2	1	25
+2	1	7
+2	1	8
+20	1	10
+20	1	23
+20	1	25
+20	1	7
+20	1	8
+21	NULL	NULL
+22	3	10
+22	3	23
+22	3	25
+22	3	7
+22	3	8
+23	NULL	NULL
+3	NULL	NULL
+4	2	11
+4	2	13
+4	2	2
+4	2	27
+4	2	30
+4	2	6
+5	3	10
+5	3	23
+5	3	25
+5	3	7
+5	3	8
+6	1	10
+6	1	23
+6	1	25
+6	1	7
+6	1	8
+7	NULL	NULL
+8	3	10
+8	3	23
+8	3	25
+8	3	7
+8	3	8
+9	3	10
+9	3	23
+9	3	25
+9	3	7
+9	3	8
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM S AS table1
+LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
+EXPLAIN
+-> Nested loop left join  (cost=7169.24 rows=681)
+    -> Nested loop left join  (cost=7014.90 rows=115)
+        -> Table scan on table1  (cost=5752.30 rows=23)
+        -> Filter: (table2.pk = table1.col_int)  (cost=54.42 rows=5)
+            -> Table scan on table2, activating pushed join of 2 tables  (cost=54.42 rows=5)
+    -> Index lookup on table3 using col_int_key (col_int_key=table2.col_int), child of table2 in pushed join  (cost=0.76 rows=6)
+
+Warnings:
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM S AS table1
+LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
+LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
+pk	pk	pk
+1	NULL	NULL
+10	1	10
+10	1	23
+10	1	25
+10	1	7
+10	1	8
+11	2	11
+11	2	13
+11	2	2
+11	2	27
+11	2	30
+11	2	6
+12	NULL	NULL
+13	1	10
+13	1	23
+13	1	25
+13	1	7
+13	1	8
+14	NULL	NULL
+15	2	11
+15	2	13
+15	2	2
+15	2	27
+15	2	30
+15	2	6
+16	NULL	NULL
+17	2	11
+17	2	13
+17	2	2
+17	2	27
+17	2	30
+17	2	6
+18	2	11
+18	2	13
+18	2	2
+18	2	27
+18	2	30
+18	2	6
+19	2	11
+19	2	13
+19	2	2
+19	2	27
+19	2	30
+19	2	6
+2	1	10
+2	1	23
+2	1	25
+2	1	7
+2	1	8
+20	1	10
+20	1	23
+20	1	25
+20	1	7
+20	1	8
+21	NULL	NULL
+22	3	10
+22	3	23
+22	3	25
+22	3	7
+22	3	8
+23	NULL	NULL
+3	NULL	NULL
+4	2	11
+4	2	13
+4	2	2
+4	2	27
+4	2	30
+4	2	6
+5	3	10
+5	3	23
+5	3	25
+5	3	7
+5	3	8
+6	1	10
+6	1	23
+6	1	25
+6	1	7
+6	1	8
+7	NULL	NULL
+8	3	10
+8	3	23
+8	3	25
+8	3	7
+8	3	8
+9	3	10
+9	3	23
+9	3	25
+9	3	7
+9	3	8
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM R AS table1
+LEFT JOIN G AS table2
+LEFT JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.pk = table2.col_int_unique
+WHERE table1.pk < 3;
+EXPLAIN
+-> Nested loop left join  (cost=6263.51 rows=89)
+    -> Table scan on table1, activating pushed join of 3 tables, with pushed condition: (table1.pk < 3)  (cost=6252.50 rows=25)
+    -> Nested loop left join  (cost=4.99 rows=4)
+        -> Index lookup on table2 using ix1 (col_int_unique=table1.pk), child of table1 in pushed join  (cost=0.26 rows=1)
+        -> Index lookup on table3 using col_int_key (col_int_key=table1.pk), child of table1 in pushed join  (cost=0.57 rows=4)
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM R AS table1
+LEFT JOIN G AS table2
+LEFT JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key
+ON table1.pk = table2.col_int_unique
+WHERE table1.pk < 3;
+pk	pk	pk
+1	NULL	NULL
+2	NULL	NULL
+explain format=tree SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM C AS table1
+INNER JOIN P AS table2 ON table1.pk = table2.pk
+LEFT OUTER JOIN I AS table3 ON table2.col_int_unique = table3.col_int;
+EXPLAIN
+-> Nested loop left join  (cost=1256.38 rows=16)
+    -> Nested loop inner join  (cost=1252.25 rows=5)
+        -> Table scan on table1, activating pushed join of 3 tables  (cost=1250.50 rows=5)
+        -> Index lookup on table2 using PRIMARY (pk=table1.pk), child of table1 in pushed join  (cost=0.27 rows=1)
+    -> Index lookup on table3 using ix3 (col_int=table2.col_int_unique), child of table2 in pushed join  (cost=0.57 rows=3)
+
+SELECT straight_join
+table1.pk, table2.pk, table3.pk
+FROM C AS table1
+INNER JOIN P AS table2 ON table1.pk = table2.pk
+LEFT OUTER JOIN I AS table3 ON table2.col_int_unique = table3.col_int;
+pk	pk	pk
+1	1	NULL
+2	2	6
+2	2	9
+3	3	NULL
+4	4	NULL
+5	5	NULL
+explain format=tree SELECT
+table2.col_int_key AS field2
+FROM Z AS table2
+WHERE NOT table2.col_int_unique IN (
+SELECT table1s.col_int_key AS field3
+FROM F AS table1s
+left JOIN U AS table2s ON table2s.col_int IN (6, 6, 7)
+WHERE table2.pk = 9 OR table2s.col_int = 1
+) IS TRUE ;
+EXPLAIN
+-> Filter: <if>(found_match(table2s), true, true)  (cost=13868.33 rows=853)
+    -> Nested loop antijoin  (cost=13868.33 rows=853)
+        -> Table scan on table2  (cost=13755.50 rows=55)
+        -> Filter: ((table2.pk = 9) or (table2s.col_int = 1))  (cost=409.53 rows=16)
+            -> Nested loop left join  (cost=409.53 rows=16)
+                -> Index lookup on table1s using col_int_key (col_int_key=table2.col_int_unique)  (cost=0.51 rows=4)
+                -> Index range scan on table2s using PRIMARY, with pushed condition: (table2s.col_int in (6,6,7))  (cost=29.66 rows=4)
+
+Warnings:
+Note	1276	Field or reference 'test.table2.pk' of SELECT #2 was resolved in SELECT #1
+Note	1003	Can't push outer joined table 'table1s' as child of 'table2', table condition can not be fully evaluated by pushed join
+Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+SELECT
+table2.col_int_key AS field2
+FROM Z AS table2
+WHERE NOT table2.col_int_unique IN (
+SELECT table1s.col_int_key AS field3
+FROM F AS table1s
+left JOIN U AS table2s ON table2s.col_int IN (6, 6, 7)
+WHERE table2.pk = 9 OR table2s.col_int = 1
+) IS TRUE ;
+field2
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+2
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+3
+NULL
+NULL
+explain format=tree SELECT
+table1.col_int_key AS field1
+FROM T AS table1
+WHERE table1.col_int NOT IN (
+SELECT table1s.pk AS field2
+FROM Z AS table1s
+JOIN V AS table2s ON table1s.col_int = table2s.col_int AND
+table1s.col_int_unique = table2s.col_int_unique
+);
+EXPLAIN
+-> Nested loop antijoin
+    -> Table scan on table1, activating pushed join of 2 tables  (cost=6252.50 rows=25)
+    -> Limit: 1 row(s)
+        -> Nested loop inner join  (cost=7270.44 rows=29)
+            -> Index lookup on table1s using PRIMARY (pk=table1.col_int), child of table1 in pushed join  (cost=0.25 rows=1)
+            -> Table scan on table2s, with pushed condition: ((table2s.col_int_unique = table1s.col_int_unique) and (table2s.col_int = table1s.col_int))  (cost=8433.42 rows=29)
+
+Warnings:
+Note	1003	Can't push table 'table2s' as child, 'type' must be a 'ref' access
+SELECT
+table1.col_int_key AS field1
+FROM T AS table1
+WHERE table1.col_int NOT IN (
+SELECT table1s.pk AS field2
+FROM Z AS table1s
+JOIN V AS table2s ON table1s.col_int = table2s.col_int AND
+table1s.col_int_unique = table2s.col_int_unique
+);
+field1
+0
+0
+0
+0
+0
+0
+0
+1
+1
+1
+1
+1
+1
+1
+1
+1
+2
+2
+2
+2
+3
+3
+3
+3
+3
+DROP TABLE A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z;
