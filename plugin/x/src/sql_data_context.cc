@@ -29,8 +29,11 @@
 #include <sstream>
 #include <string>
 
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
+
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/notices.h"
@@ -44,9 +47,33 @@
 
 namespace xpl {
 
+namespace details {
+
+class Admin_session_factory {
+ public:
+  Admin_session_factory()
+      : m_registry{mysql_plugin_registry_acquire()},
+        m_admin_session{"mysql_admin_session", m_registry} {}
+
+  ~Admin_session_factory() { mysql_plugin_registry_release(m_registry); }
+
+  MYSQL_SESSION create(srv_session_error_cb error_cb, void *context) {
+    if (!m_admin_session.is_valid()) return nullptr;
+
+    return m_admin_session->open(error_cb, context);
+  }
+
+ private:
+  SERVICE_TYPE(registry) * m_registry;
+  my_service<SERVICE_TYPE(mysql_admin_session)> m_admin_session;
+};
+
+}  // namespace details
+
 ngs::Error_code Sql_data_context::init(const int client_port,
-                                       const Connection_type type) {
-  ngs::Error_code error = init();
+                                       const Connection_type type,
+                                       const bool is_admin) {
+  ngs::Error_code error = init(is_admin);
   if (error) return error;
 
   if ((error = set_connection_type(type))) return error;
@@ -57,9 +84,17 @@ ngs::Error_code Sql_data_context::init(const int client_port,
   return ngs::Error_code();
 }
 
-ngs::Error_code Sql_data_context::init() {
-  m_mysql_session =
-      srv_session_open(&Sql_data_context::default_completion_handler, this);
+ngs::Error_code Sql_data_context::init(const bool is_admin) {
+  if (is_admin) {
+    details::Admin_session_factory factory;
+    m_mysql_session =
+        factory.create(&Sql_data_context::default_completion_handler, this);
+
+  } else {
+    m_mysql_session =
+        srv_session_open(&Sql_data_context::default_completion_handler, this);
+  }
+
   log_debug(
       "sqlsession init: %p [%i]", m_mysql_session,
       m_mysql_session ? srv_session_info_get_session_id(m_mysql_session) : -1);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -101,8 +101,9 @@ class Sql_data_context : public iface::Sql_session {
   ngs::Error_code reset() override;
   bool is_sql_mode_set(const std::string &mode) override;
 
-  ngs::Error_code init();
-  ngs::Error_code init(const int client_port, const Connection_type type);
+  ngs::Error_code init(const bool is_admin = false);
+  ngs::Error_code init(const int client_port, const Connection_type type,
+                       const bool is_admin = false);
   void deinit();
 
   MYSQL_THD get_thd() const;
