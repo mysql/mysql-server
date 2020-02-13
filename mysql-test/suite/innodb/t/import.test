@@ -86,3 +86,25 @@ DROP TABLE t1;
 --remove_file $MYSQLD_DATADIR/t1.cfg_back
 --remove_file $MYSQLD_DATADIR/t1.ibd_back
 
+--echo #
+--echo # Bug #30830441 ALTER TABLE IMPORT TABLESPACE FAILS AFTER A SERVER RESTART
+--echo #
+CREATE TABLE t1 ( id int );
+INSERT INTO t1 values (1),(2),(3);
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+--source include/shutdown_mysqld.inc
+--copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+--source include/start_mysqld.inc
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/test/t1.ibd
+
+--disable_warnings
+ALTER TABLE t1 IMPORT TABLESPACE;
+--enable_warnings
+
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
