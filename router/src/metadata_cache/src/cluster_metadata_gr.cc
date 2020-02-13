@@ -218,11 +218,11 @@ void GRClusterMetadata::update_replicaset_status(
           "replicaset '%s': %s",
           mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
-    } catch (...) {
+    } catch (const std::exception &e) {
       log_warning(
           "Unable to fetch live group_replication member data from %s from "
-          "replicaset '%s'",
-          mi_addr.c_str(), name.c_str());
+          "replicaset '%s': %s",
+          mi_addr.c_str(), name.c_str(), e.what());
       continue;  // faulty server, next!
     }
 
