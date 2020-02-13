@@ -196,8 +196,8 @@ dberr_t Parallel_reader_adapter::process_rows(const Parallel_reader::Ctx *ctx) {
   const auto p = &buffer[0] + next_rec * m_mysql_row.m_max_len;
 
   if (row_sel_store_mysql_rec(p, m_prebuilt, ctx->m_rec, nullptr, true,
-                              ctx->index(), offsets, false, nullptr,
-                              m_blob_heaps[thread_id])) {
+                              ctx->index(), ctx->index(), offsets, false,
+                              nullptr, m_blob_heaps[thread_id])) {
     Counter::inc(m_n_read, thread_id);
 
     if (m_parallel_reader.is_error_set()) {
