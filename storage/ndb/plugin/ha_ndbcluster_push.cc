@@ -1398,12 +1398,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
     ndb_table_access_map filter_cond;
 
     /**
-     * Check conditions inside nest(s) for possible FOUND_MATCH-triggers.
+     * Check conditions inside nest(s) for possible trigger conditions.
      * These are effectively evaluated 'higher up' in the nest structure
-     * when we have found a join-match for all 'used_tables()' in the
-     * trigger condition.
+     * when we have found a join-match, or created a null-extension
+     * for all 'used_tables()' in the trigger condition.
      * So we collect the aggregated map of tables possibly affected by
-     * these MATCH-filters in 'filter_cond'
+     * such trigger conditions in 'filter_cond'
      *
      * Example: select straight_join *
      *          from
@@ -1416,13 +1416,13 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
      *
      * The where condition refers columns from the outer joined nest (t2,t3)
      * which are possibly NULL extended. Thus, the where cond is encapsulated in
-     * a FOUND_MATCH(t2,t3), effectively forcing the cond. to be evaluated only
-     * when we have a non-NULL extended match for t2,t3. For some (legacy?)
-     * reason the optimizer will attach the where condition to table t2
-     * in the query plan 't1,t2,t3', as all referred tables(t1,t2) are available
-     * at this point.
-     * However, this ignores the encapsulating FOUND_MATCH(t2,t3) trigger,
-     * which require the condition to also have a matching t3 row. The
+     * a triggered-FOUND_MATCH(t2,t3), effectively forcing the cond. to be
+     * evaluated only when we have a non-NULL extended match for t2,t3.
+     * For some (legacy?) reason the optimizer will attach the trigger condition
+     * to table t2 in the query plan 't1,t2,t3', as all referred tables(t1,t2)
+     * are available at this point.
+     * However, this ignores the encapsulating (t2,t3) trigger, which require
+     * the condition to be evaluated after t2 & t3 rows are produced. The
      * WalkItem below will identify such triggers and calculate the real table
      * coverage of them.
      *
@@ -1455,11 +1455,9 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
                      if (func_item->functype() == Item_func::TRIG_COND_FUNC) {
                        const Item_func_trig_cond *func_trig =
                            static_cast<const Item_func_trig_cond *>(func_item);
-                       if (func_trig->get_trig_type() ==
-                           Item_func_trig_cond::FOUND_MATCH) {
-                         filtered_tables |= func_trig->used_tables();
-                         return true;  // break out of WalkItem
-                       }
+                       // is a FOUND_MATCH or IS_NOT_NULL_COMPL trigger
+                       // Trigger is evaluated 'on top' of the inner_tables
+                       filtered_tables |= func_trig->get_inner_tables();
                      }
                    }
                    return false;  // continue WalkItem

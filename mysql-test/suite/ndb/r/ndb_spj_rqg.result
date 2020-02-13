@@ -25,6 +25,168 @@ test.W	analyze	status	OK
 test.X	analyze	status	OK
 test.Y	analyze	status	OK
 test.Z	analyze	status	OK
+explain format=tree SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM N AS table1
+LEFT JOIN W AS table2
+LEFT JOIN W AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
+EXPLAIN
+-> Nested loop left join  (cost=5531.73 rows=130)
+    -> Table scan on table1  (cost=5502.20 rows=22)
+    -> Filter: (table3.col_int is null)  (cost=33.93 rows=6)
+        -> Nested loop left join  (cost=33.93 rows=6)
+            -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int)  (cost=0.78 rows=6)
+            -> Filter: (table2.col_varchar_256_unique = table3.col_char_16_unique)  (cost=0.25 rows=1)
+                -> Single-row index lookup on table3 using col_char_16_unique (col_char_16_unique=table2.col_varchar_256_unique)  (cost=0.25 rows=1)
+
+Warnings:
+Note	1003	Can't push table 'table3' as child, column 'col_char_16_unique' does not have same datatype as ref'ed column 'table2.col_varchar_256_unique'
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', nest containing the table has a FILTER conditions
+SELECT STRAIGHT_JOIN
+table1.pk, table2.pk, table3.pk
+FROM N AS table1
+LEFT JOIN W AS table2
+LEFT JOIN W AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
+pk	pk	pk
+1	1	NULL
+1	12	NULL
+1	14	NULL
+1	15	NULL
+1	16	NULL
+1	18	NULL
+1	22	NULL
+1	24	NULL
+1	29	NULL
+1	9	NULL
+10	1	NULL
+10	12	NULL
+10	14	NULL
+10	15	NULL
+10	16	NULL
+10	18	NULL
+10	22	NULL
+10	24	NULL
+10	29	NULL
+10	9	NULL
+11	11	NULL
+11	13	NULL
+11	2	NULL
+11	27	NULL
+11	30	NULL
+11	6	NULL
+12	NULL	NULL
+13	10	NULL
+13	23	NULL
+13	25	NULL
+13	7	NULL
+14	17	NULL
+14	20	NULL
+14	21	NULL
+14	26	NULL
+14	28	NULL
+14	3	NULL
+14	5	NULL
+15	10	NULL
+15	23	NULL
+15	25	NULL
+15	7	NULL
+16	17	NULL
+16	20	NULL
+16	21	NULL
+16	26	NULL
+16	28	NULL
+16	3	NULL
+16	5	NULL
+17	10	NULL
+17	23	NULL
+17	25	NULL
+17	7	NULL
+18	17	NULL
+18	20	NULL
+18	21	NULL
+18	26	NULL
+18	28	NULL
+18	3	NULL
+18	5	NULL
+19	10	NULL
+19	23	NULL
+19	25	NULL
+19	7	NULL
+2	11	NULL
+2	13	NULL
+2	2	NULL
+2	27	NULL
+2	30	NULL
+2	6	NULL
+20	1	NULL
+20	12	NULL
+20	14	NULL
+20	15	NULL
+20	16	NULL
+20	18	NULL
+20	22	NULL
+20	24	NULL
+20	29	NULL
+20	9	NULL
+21	10	NULL
+21	23	NULL
+21	25	NULL
+21	7	NULL
+22	NULL	NULL
+3	1	NULL
+3	12	NULL
+3	14	NULL
+3	15	NULL
+3	16	NULL
+3	18	NULL
+3	22	NULL
+3	24	NULL
+3	29	NULL
+3	9	NULL
+4	17	NULL
+4	20	NULL
+4	21	NULL
+4	26	NULL
+4	28	NULL
+4	3	NULL
+4	5	NULL
+5	17	NULL
+5	20	NULL
+5	21	NULL
+5	26	NULL
+5	28	NULL
+5	3	NULL
+5	5	NULL
+6	17	NULL
+6	20	NULL
+6	21	NULL
+6	26	NULL
+6	28	NULL
+6	3	NULL
+6	5	NULL
+7	NULL	NULL
+8	1	NULL
+8	12	NULL
+8	14	NULL
+8	15	NULL
+8	16	NULL
+8	18	NULL
+8	22	NULL
+8	24	NULL
+8	29	NULL
+8	9	NULL
+9	1	NULL
+9	12	NULL
+9	14	NULL
+9	15	NULL
+9	16	NULL
+9	18	NULL
+9	22	NULL
+9	24	NULL
+9	29	NULL
+9	9	NULL
 explain format=tree SELECT
 table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
 FROM U AS table1
@@ -586,17 +748,19 @@ LEFT JOIN O AS table4 ON table2.pk = table4.col_int
 ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
 EXPLAIN
 -> Nested loop left join  (cost=6741.96 rows=9753)
-    -> Table scan on table1, activating pushed join of 2 tables  (cost=5752.30 rows=23)
+    -> Table scan on table1  (cost=5752.30 rows=23)
     -> Filter: (table4.col_int is null)  (cost=8259.64 rows=424)
         -> Nested loop left join  (cost=8259.64 rows=424)
             -> Nested loop left join  (cost=6338.90 rows=136)
-                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join  (cost=0.65 rows=5)
+                -> Index lookup on table2 using col_int_key (col_int_key=table1.col_int_unique)  (cost=0.65 rows=5)
                 -> Table scan on table3, with pushed condition: ((table2.col_int_unique = table1.col_int_unique) and (table3.col_int_unique = table1.col_int_unique))  (cost=50.53 rows=25)
             -> Index lookup on table4 using ix3 (col_int=table2.pk)  (cost=0.60 rows=3)
 
 Warnings:
 Note	1003	Can't push table 'table3' as child, 'type' must be a 'ref' access
 Note	1003	Can't push outer joined table 'table4' as child of 'table1', table condition can not be fully evaluated by pushed join
+Note	1003	Can't push outer joined table 'table2' as child of 'table1', nest containing the table has a FILTER conditions
+Note	1003	Can't push outer joined table 'table4' as child of 'table2', table condition can not be fully evaluated by pushed join
 Note	1003	Can't push table 'table4' as child of 'table3', no parent-child dependency exists between these tables
 SELECT straight_join
 table1.pk, table2.pk, table3.pk, table4.pk

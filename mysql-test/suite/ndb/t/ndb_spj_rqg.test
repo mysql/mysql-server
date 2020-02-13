@@ -1401,6 +1401,25 @@ ANALYZE TABLE A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z;
 ######## Fixed before release, so no bug#            ###########
 ################################################################
 
+# Trigger conditions are being evaluated on top of a set
+# of 'inner-tables', instead of on the table they are attached to.
+# We had code for identifying such triggers, which may disallow
+# join pushdown. However it didn't correctly identify 'IS NULL'
+# in a trigger. Neither did it handle triggers nested inside
+# triggers.
+#
+
+let $query=
+SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM N AS table1
+  LEFT JOIN W AS table2
+    LEFT JOIN W AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+  ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
 
 #################################################################
 ######## Collection of other interesting RQG queries. ###########
