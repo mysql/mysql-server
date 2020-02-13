@@ -2593,3 +2593,15 @@ LOCK TABLE mysql.user READ;
 --echo # Without the fix, this statement fails.
 SELECT * FROM information_schema.ST_GEOMETRY_COLUMNS;
 UNLOCK TABLES;
+
+
+--echo #
+--echo # Bug#30764651 ASSERTION "TEMPTABLE..HANDLER..INIT_TABLE_HANDLE_FOR_HANDLER"
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+FLUSH TABLES t1 FOR EXPORT;
+--echo # Without the fix, this statement fails in debug build.
+SELECT * FROM INFORMATION_SCHEMA.APPLICABLE_ROLES;
+UNLOCK TABLES;
+DROP TABLE t1;
