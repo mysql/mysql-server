@@ -220,7 +220,7 @@ dberr_t Histogram_sampler::sample_rec(ulint thread_id, const rec_t *rec,
     return (m_err);
   }
 
-  if (row_sel_store_mysql_rec(m_buf, prebuilt, rec, nullptr, true, index,
+  if (row_sel_store_mysql_rec(m_buf, prebuilt, rec, nullptr, true, index, index,
                               offsets, false, nullptr,
                               m_blob_heaps[thread_id])) {
     m_n_sampled.fetch_add(1, std::memory_order_relaxed);
