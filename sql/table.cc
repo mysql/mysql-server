@@ -4819,17 +4819,8 @@ TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution() {
 
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
-    cur_table_ref = cur_nested_join->join_list.front();
-
-    /*
-      If the current nested join is a RIGHT JOIN, the operands in
-      'join_list' are in reverse order, thus the first operand is
-      already at the front of the list. Otherwise the first operand
-      is in the end of the list of join operands.
-    */
-    if (cur_table_ref->outer_join != JOIN_TYPE_RIGHT) {
-      cur_table_ref = cur_nested_join->join_list.back();
-    }
+    // The first operand is in the end of the list of join operands
+    cur_table_ref = cur_nested_join->join_list.back();
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
   return cur_table_ref;
@@ -4863,14 +4854,6 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution() {
   for (cur_nested_join = nested_join; cur_nested_join;
        cur_nested_join = cur_table_ref->nested_join) {
     cur_table_ref = cur_nested_join->join_list.front();
-    /*
-      If the current nested is a RIGHT JOIN, the operands in
-      'join_list' are in reverse order, thus the last operand is in the
-      end of the list.
-    */
-    if (cur_table_ref->outer_join == JOIN_TYPE_RIGHT) {
-      cur_table_ref = cur_nested_join->join_list.back();
-    }
     if (cur_table_ref->is_leaf_for_name_resolution()) break;
   }
   return cur_table_ref;
@@ -7259,26 +7242,6 @@ bool TABLE_LIST::set_recursive_reference() {
   select_lex->recursive_reference = this;
   m_is_recursive_reference = true;
   return false;
-}
-
-/**
-  Propagate table map of a table up by nested join tree. Used to check
-  dependencies for LATERAL JOIN of table functions.
-  simplify_joins() calculates the same information but also does
-  transformations, and we need this semantic check to be earlier than
-  simplify_joins() and before transformations.
-
-  @param map_arg  table map to propagate
-*/
-
-void TABLE_LIST::propagate_table_maps(table_map map_arg) {
-  table_map prop_map;
-  if (nested_join) {
-    nested_join->used_tables |= map_arg;
-    prop_map = nested_join->used_tables;
-  } else
-    prop_map = map();
-  if (embedding) embedding->propagate_table_maps(prop_map);
 }
 
 LEX_USER *LEX_USER::alloc(THD *thd, LEX_STRING *user_arg,

@@ -21,15 +21,15 @@ PREPARE stmt FROM
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
-2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
+2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
-2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 2	SUBQUERY	a	NULL	index	NULL	f1_2	26	NULL	1	100.00	Using index
+2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where; Ft_hints: no_ranking
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DEALLOCATE PREPARE stmt;

@@ -3694,7 +3694,7 @@ RIGHT JOIN t AS d ON 1
 ) AS z
 NATURAL RIGHT JOIN t;
 EXPLAIN
--> Left hash join (1 = t.c)  (cost=1.83 rows=1)
+-> Left hash join (t.c = 1)  (cost=1.83 rows=1)
     -> Table scan on t  (cost=0.35 rows=1)
     -> Hash
         -> Left hash join (no condition)  (cost=1.46 rows=1)

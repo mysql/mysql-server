@@ -1242,7 +1242,6 @@ class SELECT_LEX {
   TABLE_LIST *end_nested_join();
   TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt = 2);
   bool add_joined_table(TABLE_LIST *table);
-  TABLE_LIST *convert_right_join();
   List<Item> *get_fields_list() { return &fields_list; }
 
   // Check privileges for views that are merged into query block
@@ -1616,6 +1615,9 @@ class SELECT_LEX {
   void set_agg_func_used(bool val) { m_agg_func_used = val; }
 
   void set_json_agg_func_used(bool val) { m_json_agg_func_used = val; }
+
+  bool right_joins() const { return m_right_joins; }
+  void set_right_joins() { m_right_joins = true; }
 
   /// Lookup for SELECT_LEX type
   enum_explain_type type();
@@ -2153,7 +2155,8 @@ class SELECT_LEX {
     before the full resolver process is complete.
   */
   bool has_sj_nests{false};
-  bool has_aj_nests{false};  ///< @see has_sj_nests; counts antijoin nests.
+  bool has_aj_nests{false};   ///< @see has_sj_nests; counts antijoin nests.
+  bool m_right_joins{false};  ///< True if query block has right joins
 
   /// Allow merge of immediate unnamed derived tables
   bool allow_merge_derived{true};

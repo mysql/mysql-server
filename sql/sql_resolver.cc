@@ -625,44 +625,6 @@ bool SELECT_LEX::prepare_values(THD *thd) {
 }
 
 /**
-  Check whether the given table function or lateral derived table depends on a
-  table which it's RIGHT JOINed to. An error is thrown if such dependency is
-  found. For example:
-  T RIGHT JOIN [lateral derived depending on T].
-  Note that there is no need to look for the symmetric situation:
-  [lateral derived depending on T] LEFT JOIN T
-  because name resolution in the lateral derived table's body stops before T.
-
-  @param table_ref  Table representing the table function or lateral derived
-                    table
-  @param map        Tables on which table_ref depends.
-
-  @returns
-    false no dependency is found
-    true  otherwise
-*/
-
-bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map) {
-  TABLE_LIST *orig_table = table_ref;
-
-  for (; table_ref->embedding && map; table_ref = table_ref->embedding) {
-    for (TABLE_LIST *table : table_ref->embedding->nested_join->join_list) {
-      table_map cur_table_map =
-          table->nested_join ? table->nested_join->used_tables : table->map();
-      if (cur_table_map & map) {
-        if (table->outer_join == JOIN_TYPE_RIGHT) {
-          my_error(ER_TF_FORBIDDEN_JOIN_TYPE, MYF(0), orig_table->alias);
-          return true;
-        }
-        map &= (~cur_table_map);
-        if (!map) return false;
-      }
-    }
-  }
-  return false;
-}
-
-/**
   Apply local transformations, such as query block merging.
   Also perform partition pruning, which is most effective after transformations
   have been done.
@@ -1521,7 +1483,8 @@ bool SELECT_LEX::setup_wild(THD *thd) {
         it.replace(new Item_int(NAME_STRING("Not_used"), (longlong)1,
                                 MY_INT64_NUM_DECIMAL_DIGITS));
       } else {
-        if (insert_fields(thd, item_field->context, item_field->db_name,
+        DBUG_ASSERT(item_field->context == &this->context);
+        if (insert_fields(thd, this, item_field->db_name,
                           item_field->table_name, &it, any_privileges))
           return true;
       }
@@ -1900,7 +1863,7 @@ bool SELECT_LEX::simplify_joins(THD *thd,
       */
       if (table->outer_join) {
         *changelog |= OUTER_JOIN_TO_INNER;
-        table->outer_join = JOIN_TYPE_INNER;
+        table->outer_join = false;
       }
       if (table->join_cond()) {
         *changelog |= JOIN_COND_TO_WHERE;
@@ -2959,7 +2922,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
         and join condition.
       */
       wrap_nest->outer_join = outer_tbl->outer_join;
-      outer_tbl->outer_join = JOIN_TYPE_INNER;
+      outer_tbl->outer_join = false;
 
       // There are item-rollback problems in this function: see bug#16926177
       wrap_nest->set_join_cond(outer_tbl->join_cond()->real_item());
@@ -3242,7 +3205,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   DBUG_ASSERT(sj_nest->join_cond() == nullptr);
 
   if (do_aj) {
-    sj_nest->outer_join = JOIN_TYPE_LEFT;
+    sj_nest->outer_join = true;
     sj_nest->set_join_cond(sj_cond);
     this->outer_join |= sj_nest->nested_join->used_tables;
     if (emb_tbl_nest == nullptr)
@@ -5419,7 +5382,7 @@ bool SELECT_LEX::transform_table_subquery_to_join_with_derived(
   derived_field->cached_field_index = 0;
 
   Item *null_check;
-  if (tl->outer_join == JOIN_TYPE_INNER)
+  if (!tl->outer_join)
     null_check = new (thd->mem_root) Item_func_true();
   else if (subq->can_do_aj)
     null_check = new (thd->mem_root) Item_func_isnull(derived_field);
@@ -5491,8 +5454,7 @@ TABLE_LIST *SELECT_LEX::synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
   if (derived_table == nullptr) return nullptr;
 
   if (left_outer) {
-    derived_table->outer_join =
-        use_inner_join ? JOIN_TYPE_INNER : JOIN_TYPE_LEFT;
+    derived_table->outer_join = !use_inner_join;
     if (unit->item->is_bool_func())
       derived_table->m_was_table_subquery = true;
     else

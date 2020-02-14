@@ -57,9 +57,6 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
                         List<Item> &all_fields, bool is_group_field,
                         bool is_window_order);
 
-#include "my_table_map.h"
-bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map);
-
 struct ReplaceResult {
   enum {
     // Immediately return with an error.

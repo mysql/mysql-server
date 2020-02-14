@@ -6299,48 +6299,6 @@ bool SELECT_LEX::add_joined_table(TABLE_LIST *table) {
   return false;
 }
 
-/**
-  Convert a right join into equivalent left join.
-
-    The function takes the current join list t[0],t[1] ... and
-    effectively converts it into the list t[1],t[0] ...
-    Although the outer_join flag for the new nested table contains
-    JOIN_TYPE_RIGHT, it will be handled as the inner table of a left join
-    operation.
-
-  EXAMPLES
-  @verbatim
-    SELECT * FROM t1 RIGHT JOIN t2 ON on_expr =>
-      SELECT * FROM t2 LEFT JOIN t1 ON on_expr
-
-    SELECT * FROM t1,t2 RIGHT JOIN t3 ON on_expr =>
-      SELECT * FROM t1,t3 LEFT JOIN t2 ON on_expr
-
-    SELECT * FROM t1,t2 RIGHT JOIN (t3,t4) ON on_expr =>
-      SELECT * FROM t1,(t3,t4) LEFT JOIN t2 ON on_expr
-
-    SELECT * FROM t1 LEFT JOIN t2 ON on_expr1 RIGHT JOIN t3  ON on_expr2 =>
-      SELECT * FROM t3 LEFT JOIN (t1 LEFT JOIN t2 ON on_expr2) ON on_expr1
-   @endverbatim
-
-  @return
-    - Pointer to the table representing the inner table, if success
-    - 0, otherwise
-*/
-
-TABLE_LIST *SELECT_LEX::convert_right_join() {
-  TABLE_LIST *tab2 = join_list->front();
-  join_list->pop_front();
-  TABLE_LIST *tab1 = join_list->front();
-  join_list->pop_front();
-
-  join_list->push_front(tab2);
-  join_list->push_front(tab1);
-  tab1->outer_join = JOIN_TYPE_RIGHT;
-
-  return tab1;
-}
-
 void SELECT_LEX::set_lock_for_table(const Lock_descriptor &descriptor,
                                     TABLE_LIST *table) {
   thr_lock_type lock_type = descriptor.type;

@@ -1503,8 +1503,8 @@ ON sq1_t2.col_tinyint_key = table1.col_tinyint_key
 ) OR
 RTRIM(table1.col_tinyint_key) IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-1	PRIMARY	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	PRIMARY	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	table1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	sq2_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	sq2_t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
 2	DEPENDENT SUBQUERY	sq2_t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)

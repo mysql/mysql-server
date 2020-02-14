@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,9 +206,9 @@ bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool resolve_var_assignments(THD *thd, LEX *lex);
-bool insert_fields(THD *thd, Name_resolution_context *context,
-                   const char *db_name, const char *table_name,
-                   List_iterator<Item> *it, bool any_privileges);
+bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
+                   const char *table_name, List_iterator<Item> *it,
+                   bool any_privileges);
 bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
                   ulong privilege, List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);

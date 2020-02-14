@@ -7798,6 +7798,9 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     as follows: if there were no tables we wouldn't go through the loop
     and cur_table wouldn't be updated by the loop increment part, so it
     will be equal to the first table.
+    @todo revisit this logic. If the first table is a table function or lateral
+    derived table and contains an inner column reference in it which is not
+    found, cur_table==first_table, even though there _were_ tables to search.
   */
   if (table_name && (cur_table == first_table) &&
       (report_error == REPORT_ALL_ERRORS ||
@@ -8275,9 +8278,7 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
         fix_fields() is applied to all ON conditions in setup_conds()
         so we don't do it here.
        */
-      add_join_on(table_ref_1->outer_join == JOIN_TYPE_RIGHT ? table_ref_1
-                                                             : table_ref_2,
-                  eq_cond);
+      add_join_on(table_ref_2, eq_cond);
 
       nj_col_1->is_common = nj_col_2->is_common = true;
       DBUG_PRINT("info", ("%s.%s and %s.%s are common",
@@ -8486,24 +8487,6 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
           (nested_it == table_ref->nested_join->join_list.end()) ? nullptr
                                                                  : *nested_it++;
       /*
-        The order of RIGHT JOIN operands is reversed in 'join list' to
-        transform it into a LEFT JOIN. However, in this procedure we need
-        the join operands in their lexical order, so below we reverse the
-        join operands. Notice that this happens only in the first loop,
-        and not in the second one, as in the second loop
-        same_level_left_neighbor == NULL.
-        This is the correct behavior, because the second loop sets
-        cur_table_ref reference correctly after the join operands are
-        swapped in the first loop.
-      */
-      if (same_level_left_neighbor &&
-          cur_table_ref->outer_join == JOIN_TYPE_RIGHT) {
-        /* This can happen only for JOIN ... ON. */
-        DBUG_ASSERT(table_ref->nested_join->join_list.size() == 2);
-        std::swap(same_level_left_neighbor, cur_table_ref);
-      }
-
-      /*
         Pick the parent's left and right neighbors if there are no immediate
         neighbors at the same level.
       */
@@ -8540,23 +8523,10 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     List<String> *using_fields = table_ref->join_using_fields;
     uint found_using_fields;
 
-    /*
-      The two join operands were interchanged in the parser, change the order
-      back for 'mark_common_columns'.
-    */
-    if (table_ref_2->outer_join == JOIN_TYPE_RIGHT)
-      std::swap(table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2, using_fields,
                             &found_using_fields))
       return true;
 
-    /*
-      Swap the join operands back, so that we pick the columns of the second
-      one as the coalesced columns. In this way the coalesced columns are the
-      same as of an equivalent LEFT JOIN.
-    */
-    if (table_ref_1->outer_join == JOIN_TYPE_RIGHT)
-      std::swap(table_ref_1, table_ref_2);
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))
@@ -8877,13 +8847,133 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
   return false;
 }
 
+/**
+  This is an iterator which emits leaf TABLE_LIST nodes in an order suitable
+  for expansion of 'table_name.*' (qualified asterisk) or '*' (unqualified),
+  fur use by insert_fields().
+
+  First here is some background.
+
+  1.
+  SELECT T1.*, T2.* FROM T1 NATURAL JOIN T2;
+  has to return all columns of T1 and then all of T2's;
+  whereas
+  SELECT * FROM T1 NATURAL JOIN T2;
+  has to return all columns of T1 and then only those of T2's which are not
+  common with T1.
+  Thus, in the first case a NATURAL JOIN isn't considered a leaf (we have to
+  see through it to find T1.* and T2.*), in the second case it is (we have
+  to ask it for its column set).
+  In the first case, the place to search for tables is thus the
+  TABLE_LIST::next_local list; in the second case it is
+  TABLE_LIST::next_name_resolution_table.
+
+  2.
+  SELECT * FROM T1 RIGHT JOIN T2 ON < cond >;
+  is converted, during contextualization, to:
+  SELECT * FROM T2 LEFT JOIN T1 ON < cond >;
+  however the former has to return columns of T1 then of T2,
+  while the latter has to return T2's then T1's.
+  The conversion has been complete: the lists 'next_local',
+  'next_name_resolution_table' and SELECT_LEX::join_list are as if the user
+  had typed the second query.
+
+  Now to the behaviour of this iterator.
+
+  A. If qualified asterisk, the emission order is irrelevant as the caller
+  tests the table's name; and a NATURAL JOIN isn't a leaf. So, we just follow
+  the TABLE_LIST::next_local pointers.
+
+  B. If non-qualified asterisk, the order must be the left-to-right order
+  as it was in the query entered by the user. And a NATURAL JOIN is a leaf. So:
+
+  B.i. if there was no RIGHT JOIN, then the user-input order is just that of
+  the 'next_name_resolution' pointers.
+
+  B.ii. otherwise, then the order has to be found by a more complex procedure
+  (function build_vec()):
+  - first we traverse the join operators, taking into account operators
+  which had a conversion from RIGHT to LEFT JOIN, we recreate the user-input
+  order and store leaf TABLE_LISTs in that order in a vector.
+  - then, in the emission phase, we just emit tables from the vector.
+
+  Sequence of calls: constructor, init(), [get_next() N times], destructor.
+ */
+class Tables_in_user_order_iterator {
+ public:
+  void init(SELECT_LEX *select_lex, bool qualified) {
+    DBUG_ASSERT(select_lex && !m_select_lex);
+    m_select_lex = select_lex;
+    m_qualified = qualified;
+    // Vector is needed only if '*' is not qualified and there were RIGHT JOINs
+    if (m_qualified) {
+      m_next = m_select_lex->context.table_list;
+      return;
+    }
+    if (!m_select_lex->right_joins()) {
+      m_next = m_select_lex->context.first_name_resolution_table;
+      return;
+    }
+    m_next = nullptr;
+    m_vec = new std::vector<TABLE_LIST *>;
+    fill_vec(*m_select_lex->join_list);
+  }
+  ~Tables_in_user_order_iterator() {
+    delete m_vec;
+    m_vec = nullptr;
+  }
+  TABLE_LIST *get_next() {
+    if (m_vec == nullptr) {
+      auto cur = m_next;
+      if (cur)
+        m_next =
+            m_qualified ? cur->next_local : cur->next_name_resolution_table;
+      return cur;
+    }
+    if (m_next_vec_pos == m_vec->size()) return nullptr;
+    return (*m_vec)[m_next_vec_pos++];
+  }
+
+ private:
+  /// Fills the vector
+  /// @param tables list of tables and join operators
+  void fill_vec(const mem_root_deque<TABLE_LIST *> &tables) {
+    if (tables.size() != 0 && tables.front()->join_order_swapped) {
+      DBUG_ASSERT(tables.size() == 2 && !tables.back()->join_order_swapped);
+      add_table(tables.front());
+      add_table(tables.back());
+      return;
+    }
+    // Walk from end to beginning, as join_list is always "reversed"
+    // (e.g. T1 INNER JOIN T2 leads to join_list = (T2,T1)):
+    for (auto it = tables.rbegin(); it != tables.rend(); ++it) add_table(*it);
+  }
+  void add_table(TABLE_LIST *tr) {
+    if (tr->is_leaf_for_name_resolution())  // stop diving here
+      return m_vec->push_back(tr);
+    if (tr->nested_join != nullptr)  // do dive
+      fill_vec(tr->nested_join->join_list);
+  }
+  // Query block which owns the FROM clause to search in
+  SELECT_LEX *m_select_lex{nullptr};
+  /// True/false if we want to expand 'table_name.*' / '*'.
+  bool m_qualified;
+  /// If not using the vector: next table to emit
+  TABLE_LIST *m_next;
+  /// Vector for the complex case. As the complex case is expected to be rare,
+  /// we allocate the vector only if needed. nullptr otherwise.
+  std::vector<TABLE_LIST *> *m_vec{nullptr};
+  /// If using the vector: position in vector, of next table to emit
+  uint m_next_vec_pos{0};
+};
+
 /*
   Drops in all fields instead of current '*' field
 
   SYNOPSIS
     insert_fields()
     thd			Thread handler
-    context             Context for name resolution
+    select_lex          Query block
     db_name		Database name in case of 'database_name.table_name.*'
     table_name		Table name in case of 'table_name.*'
     it			Pointer to '*'
@@ -8895,13 +8985,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
     1	error.  Error message is generated but not sent to client
 */
 
-bool insert_fields(THD *thd, Name_resolution_context *context,
-                   const char *db_name, const char *table_name,
-                   List_iterator<Item> *it, bool any_privileges) {
+bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
+                   const char *table_name, List_iterator<Item> *it,
+                   bool any_privileges) {
   char name_buff[NAME_LEN + 1];
   DBUG_TRACE;
   DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
 
+  // No need to expand '*' multiple times:
+  DBUG_ASSERT(select_lex->first_execution);
   if (db_name &&
       (lower_case_table_names || is_infoschema_db(db_name, strlen(db_name)))) {
     /*
@@ -8919,15 +9011,15 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 
   bool found = false;
 
-  /*
-    If table names are qualified, then loop over all tables used in the query,
-    else treat natural joins as leaves and do not iterate over their underlying
-    tables.
-  */
-  for (TABLE_LIST *tables = (table_name ? context->table_list
-                                        : context->first_name_resolution_table);
-       tables; tables = (table_name ? tables->next_local
-                                    : tables->next_name_resolution_table)) {
+  TABLE_LIST *tables;
+
+  Tables_in_user_order_iterator user_it;
+  user_it.init(select_lex, table_name != nullptr);
+
+  while (true) {
+    tables = user_it.get_next();
+    if (tables == nullptr) break;
+
     Field_iterator_table_ref field_iterator;
     TABLE *const table = tables->table;
 

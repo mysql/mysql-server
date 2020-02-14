@@ -383,7 +383,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2`
 # no right join
 explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+ERROR 42S22: Unknown column 't1.a' in 'field list'
 # no bad left join either
 explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
 ERROR 42S22: Unknown column 't1.a' in 'field list'
@@ -393,7 +393,7 @@ LEFT JOIN
 lateral (select t1.a) as dt ON t1.a=dt.a
 RIGHT JOIN
 lateral (select dt.a) as dt1 ON dt.a=dt1.a;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+ERROR 42S22: Unknown column 'dt.a' in 'field list'
 # LATERAL DT depending on LATERAL DT
 explain SELECT * FROM t1
 JOIN
@@ -1893,7 +1893,7 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `dt`.`a` AS `a` from `test`.`t1` join lateral (/* select#2 */ select `test`.`t1`.`a` AS `a` from `test`.`t2`) `dt`
 # no right join
 explain select dt.a from t1 right join lateral (select t1.a from t2) dt on 1;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt'
+ERROR 42S22: Unknown column 't1.a' in 'field list'
 # no bad left join either
 explain select dt.a from lateral (select t1.a from t2) dt left join t1 on 1;
 ERROR 42S22: Unknown column 't1.a' in 'field list'
@@ -1903,7 +1903,7 @@ LEFT JOIN
 lateral (select t1.a) as dt ON t1.a=dt.a
 RIGHT JOIN
 lateral (select dt.a) as dt1 ON dt.a=dt1.a;
-ERROR HY000: INNER or LEFT JOIN must be used for LATERAL references made by 'dt1'
+ERROR 42S22: Unknown column 'dt.a' in 'field list'
 # LATERAL DT depending on LATERAL DT
 explain SELECT * FROM t1
 JOIN
@@ -3381,3 +3381,17 @@ a	b	c	d	a+t1.a
 1	2	3	40	NULL
 1	2	3	40	2
 DROP TABLE t1, t2;
+#
+# Bug#30887665 ASSERT: `SELECT_LEX->IS_RECURSIVE()' IN JOIN::MAKE_JOIN_PLAN()
+#
+CREATE TABLE t1 (c1 VARCHAR(1));
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT 1 FROM
+v1 AS table1 RIGHT OUTER JOIN LATERAL
+(SELECT 1 FROM v1 AS table2 RIGHT OUTER JOIN LATERAL
+( SELECT 1 FROM v1 AS table3 ) AS table4
+ON table1.c1 = 1) AS table5
+ON 1;
+ERROR 42S22: Unknown column 'table1.c1' in 'on clause'
+DROP VIEW v1;
+DROP TABLE t1;

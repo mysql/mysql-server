@@ -2266,12 +2266,6 @@ struct ST_SCHEMA_TABLE {
   bool hidden;
 };
 
-enum Outer_join_type {
-  JOIN_TYPE_INNER = 0,
-  JOIN_TYPE_LEFT = 1,
-  JOIN_TYPE_RIGHT = 2
-};
-
 /**
   Strategy for how to process a view or derived table (merge or materialization)
 */
@@ -3380,8 +3374,14 @@ struct TABLE_LIST {
   GRANT_INFO grant;
 
  public:
-  Outer_join_type outer_join{JOIN_TYPE_INNER}; /* Which join type */
-  uint shared{0};                              /* Used in multi-upd */
+  /// True if right argument of LEFT JOIN; false in other cases (i.e. if left
+  /// argument of LEFT JOIN, if argument of INNER JOIN; RIGHT JOINs are
+  /// converted to LEFT JOIN during contextualization).
+  bool outer_join{false};
+  /// True if was originally the left argument of a RIGHT JOIN, before we
+  /// made it the right argument of a LEFT JOIN.
+  bool join_order_swapped{false};
+  uint shared{0}; /* Used in multi-upd */
   size_t db_length{0};
   size_t table_name_length{0};
 
@@ -3571,7 +3571,6 @@ struct TABLE_LIST {
   void set_derived_column_names(const Create_col_name_list *d) {
     m_derived_column_names = d;
   }
-  void propagate_table_maps(table_map map_arg);
 
  private:
   /*

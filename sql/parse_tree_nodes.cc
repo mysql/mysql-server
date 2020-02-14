@@ -134,6 +134,14 @@ PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join *cj) {
 bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
   if (tr1 != nullptr) return false;  // already done
 
+  bool was_right = m_type & JTT_RIGHT;
+  if (was_right)  // rewrite to LEFT
+  {
+    m_type =
+        static_cast<PT_joined_table_type>((m_type & ~JTT_RIGHT) | JTT_LEFT);
+    std::swap(tab1_node, tab2_node);
+  }
+
   if (tab1_node->contextualize(pc) || tab2_node->contextualize(pc)) return true;
 
   tr1 = tab1_node->value;
@@ -143,6 +151,15 @@ bool PT_joined_table::contextualize_tabs(Parse_context *pc) {
     error(pc, join_pos);
     return true;
   }
+
+  if (m_type & JTT_LEFT) {
+    tr2->outer_join = true;
+    if (was_right) {
+      tr2->join_order_swapped = true;
+      tr2->select_lex->set_right_joins();
+    }
+  }
+
   return false;
 }
 
@@ -2731,19 +2748,6 @@ bool PT_table_reference_list_parens::contextualize(Parse_context *pc) {
 
 bool PT_joined_table::contextualize(Parse_context *pc) {
   if (super::contextualize(pc) || contextualize_tabs(pc)) return true;
-
-  if (m_type & (JTT_LEFT | JTT_RIGHT)) {
-    if (m_type & JTT_LEFT)
-      tr2->outer_join = JOIN_TYPE_LEFT;
-    else {
-      TABLE_LIST *inner_table = pc->select->convert_right_join();
-      if (inner_table == nullptr) return true;
-      /* swap tr1 and tr2 */
-      DBUG_ASSERT(inner_table == tr1);
-      tr1 = tr2;
-      tr2 = inner_table;
-    }
-  }
 
   if (m_type & JTT_NATURAL) tr1->add_join_natural(tr2);
 

@@ -471,17 +471,11 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
     if (derived->m_lateral_deps) {
       select_lex->end_lateral_table = nullptr;
       derived->m_lateral_deps &= ~PSEUDO_TABLE_BITS;
-      if (derived->m_lateral_deps == 0) {
-        /*
-          Table doesn't depend on tables in the same FROM clause, so it can be
-          evaluated once per execution of the parent query; having the map
-          equal to 0 is like removing the LATERAL word.
-        */
-      } else {
-        propagate_table_maps(0);
-        if (check_right_lateral_join(this, derived->m_lateral_deps))
-          return true;
-      }
+      /*
+        It is possible that derived->m_lateral_deps is now 0, if it was
+        declared as LATERAL but actually contained no lateral references. Then
+        it will be handled as if LATERAL hadn't been specified.
+      */
     }
   }
 
@@ -717,10 +711,6 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
       .add("materialized", true);
 
   select_lex->end_lateral_table = nullptr;
-
-  propagate_table_maps(0);
-  if (check_right_lateral_join(this, table_function->used_tables()))
-    return true;
 
   thd->where = saved_where;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -599,8 +599,7 @@ retry:
     }
   }
 
-  if (insert_fields(thd, &select_lex->context, tables->db, tables->alias, &it,
-                    false))
+  if (insert_fields(thd, select_lex, tables->db, tables->alias, &it, false))
     goto err;
 
   DBUG_EXECUTE_IF("simulate_handler_read_failure",
