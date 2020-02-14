@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20181,11 +20181,14 @@ static void test_wl11381() {
     myerror("mysql_client_init() failed");
     exit(1);
   }
-  status = mysql_real_connect_nonblocking(
-      mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
-      opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  do {
+    status = mysql_real_connect_nonblocking(
+        mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
+        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  } while (status == NET_ASYNC_NOT_READY);
   if (status == NET_ASYNC_ERROR) {
-    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed");
+    fprintf(stdout, "\n mysql_real_connect_nonblocking() failed. Error: [%s]",
+            mysql_error(mysql_local));
     exit(1);
   } else {
     fprintf(stdout, "\n asynchronous connection estalished");
@@ -20377,13 +20380,25 @@ static void test_wl11381_qa() {
     exit(1);
   }
 
-  mysql_con1_status = (mysql_real_connect_nonblocking(
+  mysql_con1_status = mysql_real_connect_nonblocking(
       mysql_con1, opt_host, opt_user, opt_password, current_db, opt_port,
-      opt_unix_socket, CLIENT_MULTI_STATEMENTS));
+      opt_unix_socket, CLIENT_MULTI_STATEMENTS);
 
-  mysql_con2_status = (mysql_real_connect_nonblocking(
+  mysql_con2_status = mysql_real_connect_nonblocking(
       mysql_con2, opt_host, opt_user, opt_password, current_db, opt_port,
-      opt_unix_socket, CLIENT_MULTI_STATEMENTS));
+      opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+
+  while (mysql_con1_status == NET_ASYNC_NOT_READY) {
+    mysql_con1_status = mysql_real_connect_nonblocking(
+        mysql_con1, opt_host, opt_user, opt_password, current_db, opt_port,
+        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  }
+
+  while (mysql_con2_status == NET_ASYNC_NOT_READY) {
+    mysql_con2_status = mysql_real_connect_nonblocking(
+        mysql_con2, opt_host, opt_user, opt_password, current_db, opt_port,
+        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+  }
 
   if (mysql_con1_status == NET_ASYNC_ERROR) {
     fprintf(stdout, "\n mysql_real_connect_nonblocking() failed");

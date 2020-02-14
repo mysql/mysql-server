@@ -4455,6 +4455,7 @@ static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx);
 static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx);
 static mysql_state_machine_status csm_complete_connect(
     mysql_async_connect *ctx);
+static mysql_state_machine_status csm_wait_connect(mysql_async_connect *ctx);
 static mysql_state_machine_status csm_read_greeting(mysql_async_connect *ctx);
 static mysql_state_machine_status csm_parse_handshake(mysql_async_connect *ctx);
 static mysql_state_machine_status csm_establish_ssl(mysql_async_connect *ctx);
@@ -5664,9 +5665,7 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_CONNECT;
   }
 
-  do {
-    status = ctx->state_function(ctx);
-  } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
+  status = ctx->state_function(ctx);
 
   if (status == STATE_MACHINE_DONE) {
     my_free(ASYNC_DATA(mysql)->connect_context);
@@ -5674,7 +5673,7 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     ASYNC_DATA(mysql)->async_op_status = ASYNC_OP_UNSET;
     return NET_ASYNC_COMPLETE;
   }
-  {
+  if (status == STATE_MACHINE_FAILED) {
     DBUG_PRINT("error", ("message: %u/%s (%s)", mysql->net.last_errno,
                          mysql->net.sqlstate, mysql->net.last_error));
     /* Free alloced memory */
@@ -5689,6 +5688,7 @@ net_async_status STDCALL mysql_real_connect_nonblocking(
     my_free(ctx);
     return NET_ASYNC_ERROR;
   }
+  return NET_ASYNC_NOT_READY;
 }
 /**
   Begin the connection to the server, including any DNS resolution
@@ -5703,6 +5703,8 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
   uint port = ctx->port;
   const char *unix_socket = ctx->unix_socket;
   ulong client_flag = ctx->client_flag;
+  bool connect_done =
+      true;  // this is true for most of the connect methods except sockets
 
   DBUG_TRACE;
 
@@ -5835,7 +5837,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
 
     if (vio_socket_connect(net->vio, (struct sockaddr *)&UNIXaddr,
                            sizeof(UNIXaddr), ctx->non_blocking,
-                           get_vio_connect_timeout(mysql))) {
+                           get_vio_connect_timeout(mysql), &connect_done)) {
       DBUG_PRINT("error",
                  ("Got error %d on connect to local server", socket_errno));
       set_mysql_extended_error(mysql, CR_CONNECTION_ERROR, unknown_sqlstate,
@@ -6023,7 +6025,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
 
       status = vio_socket_connect(
           net->vio, t_res->ai_addr, (socklen_t)t_res->ai_addrlen,
-          ctx->non_blocking, get_vio_connect_timeout(mysql));
+          ctx->non_blocking, get_vio_connect_timeout(mysql), &connect_done);
       /*
         Here we rely on vio_socket_connect() to return success only if
         the connect attempt was really successful. Otherwise we would
@@ -6063,7 +6065,7 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
     }
   }
 
-  ctx->state_function = csm_complete_connect;
+  ctx->state_function = connect_done ? csm_complete_connect : csm_wait_connect;
   ctx->host = host;
   ctx->user = user;
   ctx->passwd = passwd;
@@ -6071,6 +6073,76 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
   ctx->port = port;
   ctx->unix_socket = unix_socket;
   ctx->client_flag = client_flag;
+  return STATE_MACHINE_CONTINUE;
+}
+
+/**
+  Wait for async connect attempt to complete.
+*/
+static mysql_state_machine_status csm_wait_connect(mysql_async_connect *ctx) {
+  NET *net = &(ctx->mysql->net);
+  MYSQL_VIO vio = net->vio;
+  int timeout_ms = 1;  // this is 1ms: the smallest non-zero timeout we can use
+  int ret;
+
+  DBUG_TRACE;
+
+  DBUG_PRINT(
+      "enter",
+      ("host: %s  db: %s  user: %s (client)", ctx->host ? ctx->host : "(Null)",
+       ctx->db ? ctx->db : "(Null)", ctx->user ? ctx->user : "(Null)"));
+
+  if (!net->vio) {
+    DBUG_PRINT("error", ("Unknown protocol %d", ctx->mysql->options.protocol));
+    set_mysql_error(ctx->mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+    return STATE_MACHINE_FAILED;
+  }
+
+  /*
+    The connect() is in progress. The vio_io_wait() with the smallest non-zero
+    timeout possible can be used to peek if connect() completed.
+
+    If vio_io_wait() returns 0,
+    the socket never became writable and we'll return to caller.
+    Otherwise, if vio_io_wait() returns 1, then one of two conditions
+    exist:
+
+    1. An error occurred. Use getsockopt() to check for this.
+    2. The connection was set up successfully: getsockopt() will
+       return 0 as an error.
+  */
+  if (vio_io_wait(vio, VIO_IO_EVENT_CONNECT, timeout_ms) == 1) {
+    int error;
+    IF_WIN(int, socklen_t) optlen = sizeof(error);
+    IF_WIN(char, void) *optval = (IF_WIN(char, void) *)&error;
+
+    /*
+      At this point, we know that something happened on the socket.
+      But this does not means that everything is alright. The connect
+      might have failed. We need to retrieve the error code from the
+      socket layer. We must return success only if we are sure that
+      it was really a success. Otherwise we might prevent the caller
+      from trying another address to connect to.
+    */
+    DBUG_PRINT("info", ("Connect to '%s' completed", ctx->host));
+    ctx->state_function = csm_complete_connect;
+    if (!(ret = mysql_socket_getsockopt(vio->mysql_socket, SOL_SOCKET, SO_ERROR,
+                                        optval, &optlen))) {
+#ifdef _WIN32
+      WSASetLastError(error);
+#else
+      errno = error;
+#endif
+      if (error != 0) {
+        DBUG_PRINT("error",
+                   ("Got error %d on connect to '%s'", error, ctx->host));
+        set_mysql_extended_error(
+            ctx->mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
+            ER_CLIENT(CR_CONN_HOST_ERROR), ctx->host, error);
+        return STATE_MACHINE_FAILED;
+      }
+    }
+  }
   return STATE_MACHINE_CONTINUE;
 }
 
