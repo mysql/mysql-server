@@ -560,18 +560,8 @@ IF(NOT WITHOUT_SERVER)
   OPTION(WITH_ROUTER "Build MySQL Router" ON)
 ENDIF()
 
-IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
-  SET(WITH_INTERNAL_DEFAULT 1)
-ELSE()
-  SET(WITH_INTERNAL_DEFAULT 0)
-ENDIF()
-
-IF(NOT DEFINED WITH_INTERNAL)
-  SET(WITH_INTERNAL ${WITH_INTERNAL_DEFAULT})
-ENDIF()
-
 # On windows we need a non-standard package for SASL.
-IF(WITH_INTERNAL AND NOT WIN32)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt AND NOT WIN32)
   SET(WITH_AUTHENTICATION_LDAP_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_LDAP_DEFAULT OFF)
@@ -1234,14 +1224,13 @@ IF(BUILD_BUNDLED_ZSTD)
   ADD_SUBDIRECTORY(extra/zstd)
 ENDIF()
 
-IF(LINUX)
-  # Look up patchelf(1) here, before doing SSL/KERBEROS/SASL/LDAP config.
+IF(LINUX_STANDALONE)
   FIND_PROGRAM(PATCHELF_EXECUTABLE patchelf)
   ADD_CUSTOM_TARGET(copy_linux_custom_dlls)
   SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
 ENDIF()
 
-# Add system/custom openssl.
+# Add system openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
 
@@ -1257,12 +1246,8 @@ MYSQL_CHECK_LDAP()
 MYSQL_CHECK_LDAP_DLLS()
 
 # Custom versions of LDAP / SASL / SSL.
-IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
-  # Custom libraries are not targets, we install them as FILES.
-  # INSTALL_RPATH must must be set depending on binary type
-  # EXECUTABLE MODULE_LIBRARY SHARED_LIBRARY, see ADD_INSTALL_RPATH_FOR_OPENSSL
+IF(LINUX_STANDALONE AND KNOWN_CUSTOM_LIBRARIES)
   SET(LINUX_INSTALL_RPATH_ORIGIN 1)
-
   # Debug versions of plugins may be installed to <root>/lib/plugin/debug
   FOREACH(LINK_FLAG
       CMAKE_MODULE_LINKER_FLAGS_DEBUG
@@ -1278,7 +1263,7 @@ IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
 ENDIF()
 
 IF(WITH_AUTHENTICATION_LDAP)
-  IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
+  IF(LINUX_STANDALONE AND KNOWN_CUSTOM_LIBRARIES)
     # LDAP / SASL / SSL must all be "system" or "custom", not a mix.
     IF(WITH_LDAP STREQUAL "system" OR
         WITH_SASL STREQUAL "system" OR
@@ -1383,8 +1368,6 @@ IF(LINUX)
 ENDIF()
 
 IF(WITH_PROTOBUF STREQUAL "bundled")
-  # Protobuf library is a target, installed to <root>/${INSTALL_PRIV_LIBDIR}
-  # INSTALL_RPATH must be set for all binaries linking with libprotobuf.
   SET(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR 1)
   ADD_SUBDIRECTORY(extra/protobuf)
 ENDIF()
@@ -1482,7 +1465,7 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  IF(WITH_INTERNAL)
+  IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
 ENDIF()
