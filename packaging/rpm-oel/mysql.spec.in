@@ -37,6 +37,10 @@
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_KEYRING_AWS=1 -DWITH_AWS_SDK=%{with_aws_sdk}}
 %{?with_aws_sdk: %global aws_sdk 1}
 
+# Pass alternative ssl setting if provided. Can be used for newer OpenSSL.
+%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
+%{?with_ssl: %global ssl_bundled 1}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -172,7 +176,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*
+%global _privatelibs libprotobuf.*|libmysqlharness.so.*|libmysqlrouter.so.*|libmysqlrouter_http.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -785,6 +789,7 @@ mkdir debug
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
+           %{?ssl_option} \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
@@ -826,6 +831,7 @@ mkdir release
            -DWITH_CURL=system \
            %{?aws_sdk_option} \
 %endif
+           %{?ssl_option} \
            -DWITH_INNODB_MEMCACHED=1 \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
@@ -1331,6 +1337,12 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %{_libdir}/mysql/libmysqlclient.so.21*
+%if 0%{?ssl_bundled}
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so
+%attr(755, root, root) %{_libdir}/mysql/private/libssl.so.1.1
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so
+%attr(755, root, root) %{_libdir}/mysql/private/libcrypto.so.1.1
+%endif # ssl_bundled
 
 %if 0%{?compatlib}
 %files libs-compat
@@ -1646,6 +1658,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Tue Feb 04 2020 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.20-1
+- Again add back support for alternative with_ssl, now with bundled openssl
+
 * Wed Aug 14 2019 Rahul Sisondia <rahul.sisondia@oracle.com> - 8.0.19-1
 - Added component_test_udf_services test component
 
