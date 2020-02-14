@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include "my_config.h"        // NOLINT(build/include_subdir)
+#include "my_systime.h"       // NOLINT(build/include_subdir)
 #include "my_thread_local.h"  // NOLINT(build/include_subdir)
 
 #include "mysql/plugin.h"
@@ -527,7 +528,14 @@ bool Server::on_net_startup() {
       throw ngs::Error_code(ER_X_SERVICE_ERROR,
                             "Service isn't ready after pulling it few times");
 
-    ngs::Error_code error = sql_context.init();
+#ifndef DBUG_OFF
+    while (DBUG_EVALUATE_IF("xplugin_init_wait", true, false)) {
+      my_sleep(100000);
+    }
+#endif  // DBUG_OFF
+
+    const bool admin_session = true;
+    ngs::Error_code error = sql_context.init(admin_session);
 
     if (error) throw error;
 
