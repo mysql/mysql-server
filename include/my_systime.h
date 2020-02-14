@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,6 +195,31 @@ inline unsigned long long int my_micro_time() {
   while (gettimeofday(&t, nullptr) != 0) {
   }
   return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
+#endif /* _WIN32 */
+}
+
+/**
+  Return time in milliseconds. Uses std::chrono::high_resolution_clock
+
+  @remark This function is to be used to measure time in
+          millisecond.
+
+  @retval Number of milliseconds since the Epoch, 1970-01-01 00:00:00 +0000
+  (UTC)
+*/
+inline unsigned long long int my_milli_time() {
+#ifdef _WIN32
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             UTC_clock::now().time_since_epoch())
+      .count();
+#else
+  struct timeval t;
+  /*
+  The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, nullptr) != 0) {
+  }
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000 + t.tv_usec);
 #endif /* _WIN32 */
 }
 
