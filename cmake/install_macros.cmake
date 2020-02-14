@@ -312,8 +312,7 @@ MACRO(ADD_INSTALL_RPATH TARGET VALUE)
 ENDMACRO()
 
 
-# For standalone Linux build or community RPM build, we support
-#   -DWITH_SSL=</path/to/custom/openssl>
+# For standalone Linux build and -DWITH_SSL=</path/to/custom/openssl>
 # SSL libraries are installed in lib/private
 # We need to extend INSTALL_RPATH with location of SSL libraries:
 # executable  in bin        rpath $ORIGIN/../lib/private
@@ -409,7 +408,7 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
     OUTPUT_LIBRARY_NAME
     OUTPUT_TARGET_NAME
     )
-  IF(NOT LINUX_WITH_CUSTOM_LIBRARIES)
+  IF(NOT LINUX_STANDALONE)
     RETURN()
   ENDIF()
   GET_FILENAME_COMPONENT(LIBRARY_EXT "${library_full_filename}" EXT)
