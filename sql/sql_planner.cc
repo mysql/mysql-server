@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1276,7 +1276,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
          tab->join()->select_lex->master_unit()->outer_select() !=
              nullptr ||                                 // 2c
          !tab->join()->select_lex->sj_nests.empty() ||  // 2d
-         ((tab->join()->order || tab->join()->group_list) &&
+         ((!tab->join()->order.empty() || !tab->join()->group_list.empty()) &&
           tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||  // 2e
          thd->lex->is_explain())))                                 // 2f
     return COND_FILTER_ALLPASS;

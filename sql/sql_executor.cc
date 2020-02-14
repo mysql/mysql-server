@@ -200,7 +200,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     in all these cases we need all result rows.
   */
   ha_rows tmp_rows_limit =
-      ((order == nullptr || skip_sort_order) && !tmp_table_group &&
+      ((order.empty() || skip_sort_order) && tmp_table_group.empty() &&
        !windowing && !select_lex->with_sum_func)
           ? m_select_limit
           : HA_POS_ERROR;
@@ -211,14 +211,14 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   bool distinct_arg =
       select_distinct &&
       // GROUP BY is absent or has been done in a previous step
-      !group_list &&
+      group_list.empty() &&
       // We can only do DISTINCT in last window's tmp table step
       (!windowing || (tab->tmp_table_param->m_window &&
                       tab->tmp_table_param->m_window->is_last()));
 
   TABLE *table =
       create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
-                       tmp_table_group, distinct_arg, save_sum_fields,
+                       tmp_table_group.order, distinct_arg, save_sum_fields,
                        select_lex->active_options(), tmp_rows_limit, "");
   if (!table) return true;
   tmp_table_param.using_outer_summary_function =
@@ -227,7 +227,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   DBUG_ASSERT(tab->idx() > 0);
   tab->set_table(table);
   tab->set_temporary_table_deduplicates(distinct_arg ||
-                                        tmp_table_group != nullptr);
+                                        !tmp_table_group.empty());
 
   /**
     If this is a window's OUT table, any final DISTINCT, ORDER BY will lead to
@@ -247,27 +247,28 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
         then ORDER BY happens after windowing, and here we are before
         windowing, so the table is not for ORDER BY either.
       */
-      if ((!group_list && (!order || windowing) && !select_distinct) ||
+      if ((group_list.empty() && (order.empty() || windowing) &&
+           !select_distinct) ||
           (select_lex->active_options() &
            (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)))
         explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
     }
   }
   /* if group or order on first table, sort first */
-  if (group_list && simple_group) {
+  if (!group_list.empty() && simple_group) {
     DBUG_PRINT("info", ("Sorting for group"));
 
     if (m_ordered_index_usage != ORDERED_INDEX_GROUP_BY &&
         add_sorting_to_table(const_tables, &group_list))
       goto err;
 
-    if (alloc_group_fields(this, group_list)) goto err;
+    if (alloc_group_fields(this, group_list.order)) goto err;
     if (make_sum_func_list(all_fields, fields_list, true)) goto err;
     const bool need_distinct =
         !(tab->quick() && tab->quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
-    group_list = nullptr;
+    group_list.clean();
   } else {
     if (make_sum_func_list(all_fields, fields_list, false)) goto err;
     const bool need_distinct =
@@ -275,14 +276,14 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
-    if (!group_list && !table->is_distinct && order && simple_order &&
-        !m_windows_sort) {
+    if (group_list.empty() && !table->is_distinct && !order.empty() &&
+        simple_order && !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           add_sorting_to_table(const_tables, &order))
         goto err;
-      order = nullptr;
+      order.clean();
     }
   }
   return false;
@@ -333,11 +334,11 @@ void JOIN::optimize_distinct() {
   }
 
   /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
-  if (order && skip_sort_order) {
+  if (!order.empty() && skip_sort_order) {
     /* Should already have been optimized away */
     DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_ORDER_BY);
     if (m_ordered_index_usage == ORDERED_INDEX_ORDER_BY) {
-      order = nullptr;
+      order.clean();
     }
   }
 }
@@ -3009,7 +3010,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       // If there's an ORDER BY on the query, it needs to be heeded in the
       // re-sort for DISTINCT. Note that the global ORDER BY could be pushed
       // to the first table, so we need to check there, too.
-      ORDER *desired_order = this->order;
+      ORDER *desired_order = this->order.order;
       if (desired_order == nullptr &&
           this->qep_tab[0].filesort_pushed_order != nullptr) {
         desired_order = this->qep_tab[0].filesort_pushed_order;
@@ -6158,7 +6159,7 @@ bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
     curr_join->group_fields = main_join->group_fields_cache;
     curr_join->streaming_aggregation = true;
   } else {
-    if (alloc_group_fields(curr_join, curr_join->group_list)) return true;
+    if (alloc_group_fields(curr_join, curr_join->group_list.order)) return true;
     main_join->group_fields_cache = curr_join->group_fields;
   }
   return false;

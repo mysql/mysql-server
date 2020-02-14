@@ -354,7 +354,7 @@ class Explain_union_result : public Explain {
     DBUG_ASSERT(select_lex_arg ==
                 select_lex_arg->master_unit()->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list = (select_lex_arg->join->order != nullptr);
+    order_list = !select_lex_arg->join->order.empty();
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -436,7 +436,7 @@ class Explain_join : public Explain_table_base {
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list = (join->order != nullptr);
+    order_list = !join->order.empty();
   }
 
  private:

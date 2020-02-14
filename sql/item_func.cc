@@ -7382,7 +7382,8 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   }
 
   /* skip hints setting if there are aggregates(except of FT_NO_RANKING) */
-  if (join->implicit_grouping || join->group_list || join->select_distinct) {
+  if (join->implicit_grouping || !join->group_list.empty() ||
+      join->select_distinct) {
     /* 'No ranking' is possibe even if aggregates are present */
     if ((ft_flag & FT_NO_RANKING)) hints->set_hint_flag(FT_NO_RANKING);
     return;

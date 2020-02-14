@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,19 +98,6 @@ struct ROLLUP {
   the whole ORDER list.
 */
 class ORDER_with_src {
-  /**
-    Private empty class to implement type-safe NULL assignment
-
-    This private utility class allows us to implement a constructor
-    from NULL and only NULL (or 0 -- this is the same thing) and
-    an assignment operator from NULL.
-    Assignments from other pointers still prohibited since other
-    pointer types are incompatible with the "null" type, and the
-    casting is impossible outside of ORDER_with_src class, since
-    the "null" type is private.
-  */
-  struct null {};
-
  public:
   ORDER *order;  ///< ORDER expression that we are wrapping with this class
   Explain_sort_clause src;  ///< origin of order list
@@ -126,39 +113,7 @@ class ORDER_with_src {
         src(src_arg),
         flags(order_arg ? ESP_EXISTS : ESP_none) {}
 
-  /**
-    Type-safe NULL assignment
-
-    See a commentary for the "null" type above.
-  */
-  ORDER_with_src &operator=(null *) {
-    clean();
-    return *this;
-  }
-
-  /**
-    Type-safe constructor from NULL
-
-    See a commentary for the "null" type above.
-  */
-  ORDER_with_src(null *) { clean(); }
-
-  /**
-    Transparent access to the wrapped order list
-
-    These operators are safe, since we don't do any conversion of
-    ORDER_with_src value, but just an access to the wrapped
-    ORDER pointer value.
-    We can use ORDER_with_src objects instead ORDER pointers in
-    a transparent way without accessor functions.
-
-    @note     This operator also implements safe "operator bool()"
-              functionality.
-  */
-  operator ORDER *() { return order; }
-  operator const ORDER *() const { return order; }
-
-  ORDER *operator->() const { return order; }
+  bool empty() const { return order == nullptr; }
 
   void clean() {
     order = nullptr;
@@ -720,7 +675,7 @@ class JOIN {
   */
   bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-            group_list == nullptr && !group_optimized_away &&
+            group_list.empty() && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
 

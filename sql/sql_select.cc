@@ -2948,8 +2948,9 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab) {
 bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
   const bool statistics = !join->thd->lex->is_explain();
   const bool prep_for_pos = join->need_tmp_before_win ||
-                            join->select_distinct || join->group_list ||
-                            join->order || join->m_windows.elements > 0;
+                            join->select_distinct ||
+                            !join->group_list.empty() || !join->order.empty() ||
+                            join->m_windows.elements > 0;
 
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
@@ -3787,9 +3788,9 @@ bool JOIN::alloc_func_list() {
       If the ORDER clause is specified then it's possible that
       it also will be optimized, so reserve space for it too
     */
-    if (order) {
+    if (!order.empty()) {
       ORDER *ord;
-      for (ord = order; ord; ord = ord->next) group_parts++;
+      for (ord = order.order; ord; ord = ord->next) group_parts++;
     }
   }
 
@@ -3892,7 +3893,7 @@ bool JOIN::rollup_process_const_fields() {
   Item *item;
   List_iterator<Item> it(all_fields);
 
-  for (group_tmp = group_list; group_tmp; group_tmp = group_tmp->next) {
+  for (group_tmp = group_list.order; group_tmp; group_tmp = group_tmp->next) {
     if (!(*group_tmp->item)->const_item()) continue;
     while ((item = it++)) {
       if (*group_tmp->item == item) {
@@ -3971,7 +3972,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     sum_funcs_end[pos + 1] = *func;
 
     /* Find the start of the group for this level */
-    for (i = 0, start_group = group_list; i++ < pos;
+    for (i = 0, start_group = group_list.order; i++ < pos;
          start_group = start_group->next)
       ;
 
@@ -4287,7 +4288,7 @@ bool JOIN::make_tmp_tables_info() {
                       !implicit_grouping && !group_optimized_away;
   const bool may_trace =  // just to avoid an empty trace block
       need_tmp_before_win || implicit_grouping || m_windowing_steps ||
-      group_list || order;
+      !group_list.empty() || !order.empty();
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_disable_I_S trace_disabled(trace, !may_trace);
@@ -4360,7 +4361,8 @@ bool JOIN::make_tmp_tables_info() {
         all_fields.elements - fields_list.elements;
 
     if (create_intermediate_table(&qep_tab[curr_tmp_table], &all_fields,
-                                  tmp_group, group_list && simple_group))
+                                  tmp_group,
+                                  !group_list.empty() && simple_group))
       return true;
     exec_tmp_table = qep_tab[curr_tmp_table].table();
 
@@ -4414,7 +4416,7 @@ bool JOIN::make_tmp_tables_info() {
       to the client.
     */
     if (having_cond && (streaming_aggregation ||
-                        (exec_tmp_table->is_distinct && !group_list))) {
+                        (exec_tmp_table->is_distinct && group_list.empty()))) {
       /*
         If there is no select distinct or rollup, then move the having to table
         conds of tmp table.
@@ -4450,15 +4452,15 @@ bool JOIN::make_tmp_tables_info() {
                                     Check if group by has to respect ordering. If true, move group by to
                                     order by.
                                   */
-      if (!order && !skip_sort_order) {
-        for (ORDER *group = group_list; group; group = group->next) {
+      if (order.empty() && !skip_sort_order) {
+        for (ORDER *group = group_list.order; group; group = group->next) {
           if (group->direction != ORDER_NOT_RELEVANT) {
             order = group_list; /* order by group */
             break;
           }
         }
       }
-      group_list = nullptr;
+      group_list.clean();
     }
     /*
       If we have different sort & group then we must sort the data by group
@@ -4468,17 +4470,17 @@ bool JOIN::make_tmp_tables_info() {
       like SEC_TO_TIME(SUM(...)) or when distinct is used with rollup.
     */
 
-    if ((group_list &&
-         (!test_if_subpart(group_list, order) || select_distinct ||
+    if ((!group_list.empty() &&
+         (!test_if_subpart(group_list.order, order.order) || select_distinct ||
           m_windowing_steps || rollup.state != ROLLUP::STATE_NONE)) ||
         (select_distinct && (tmp_table_param.using_outer_summary_function ||
                              rollup.state != ROLLUP::STATE_NONE))) {
       DBUG_PRINT("info", ("Creating group table"));
 
-      calc_group_buffer(this, group_list);
+      calc_group_buffer(this, group_list.order);
       count_field_types(select_lex, &tmp_table_param,
                         tmp_all_fields[REF_SLICE_TMP1],
-                        select_distinct && !group_list, false);
+                        select_distinct && group_list.empty(), false);
       tmp_table_param.hidden_field_count =
           tmp_all_fields[REF_SLICE_TMP1].elements -
           tmp_fields_list[REF_SLICE_TMP1].elements;
@@ -4503,13 +4505,13 @@ bool JOIN::make_tmp_tables_info() {
       if (qep_tab[0].quick() && qep_tab[0].quick()->is_loose_index_scan())
         tmp_table_param.precomputed_group_by = true;
 
-      ORDER_with_src dummy = nullptr;  // TODO can use table->group here also
+      ORDER_with_src dummy;  // TODO can use table->group here also
 
       if (create_intermediate_table(&qep_tab[curr_tmp_table], curr_all_fields,
                                     dummy, true))
         return true;
 
-      if (group_list) {
+      if (!group_list.empty()) {
         explain_flags.set(group_list.src, ESP_USING_TMPTABLE);
         if (!plan_is_const())  // No need to sort a single row
         {
@@ -4522,14 +4524,14 @@ bool JOIN::make_tmp_tables_info() {
 
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
-      if (group_list || tmp_table_param.sum_func_count) {
+      if (!group_list.empty() || tmp_table_param.sum_func_count) {
         if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
           return true;
         const bool need_distinct =
             !(qep_tab[0].quick() &&
               qep_tab[0].quick()->is_agg_loose_index_scan());
         if (prepare_sum_aggregators(sum_funcs, need_distinct)) return true;
-        group_list = nullptr;
+        group_list.clean();
         if (setup_sum_funcs(thd, sum_funcs)) return true;
       }
 
@@ -4556,7 +4558,7 @@ bool JOIN::make_tmp_tables_info() {
     if (qep_tab[curr_tmp_table].table()->is_distinct)
       select_distinct = false; /* Each row is unique */
 
-    if (select_distinct && !group_list && !m_windowing_steps) {
+    if (select_distinct && group_list.empty() && !m_windowing_steps) {
       if (having_cond) {
         qep_tab[curr_tmp_table].having = having_cond;
         having_cond->update_used_tables();
@@ -4598,7 +4600,7 @@ bool JOIN::make_tmp_tables_info() {
       // the temporary table does not have a grouping expression
       DBUG_ASSERT(!qep_tab[curr_tmp_table].table()->group);
     }
-    calc_group_buffer(this, group_list);
+    calc_group_buffer(this, group_list.order);
     count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false,
                       false);
   }
@@ -4667,7 +4669,8 @@ bool JOIN::make_tmp_tables_info() {
     set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
   }
 
-  if (qep_tab && (group_list || (order && !m_windowing_steps /* [1] */))) {
+  if (qep_tab && (!group_list.empty() ||
+                  (!order.empty() && !m_windowing_steps /* [1] */))) {
     /*
       [1] above: too early to do query ORDER BY if we have windowing; must
       wait till after window processing.
@@ -4678,7 +4681,7 @@ bool JOIN::make_tmp_tables_info() {
       If we have already done the group, add HAVING to sorted table except
       when rollup is present
     */
-    if (having_cond && !group_list && !streaming_aggregation &&
+    if (having_cond && group_list.empty() && !streaming_aggregation &&
         rollup.state == ROLLUP::STATE_NONE) {
       if (add_having_as_tmp_table_cond(curr_tmp_table)) return true;
     }
@@ -4712,10 +4715,11 @@ bool JOIN::make_tmp_tables_info() {
       OPTION_FOUND_ROWS supersedes LIMIT and is taken into account.
     */
     DBUG_PRINT("info", ("Sorting for order by/group by"));
-    ORDER_with_src order_arg = group_list ? group_list : order;
+    ORDER_with_src order_arg = group_list.empty() ? order : group_list;
     if (qep_tab &&
-        m_ordered_index_usage !=
-            (group_list ? ORDERED_INDEX_GROUP_BY : ORDERED_INDEX_ORDER_BY) &&
+        m_ordered_index_usage != (group_list.empty()
+                                      ? ORDERED_INDEX_ORDER_BY
+                                      : ORDERED_INDEX_GROUP_BY) &&
         // Windowing will change order, so it's too early to sort here
         !m_windowing_steps) {
       // Sort either first non-const table or the last tmp table
@@ -4767,7 +4771,7 @@ bool JOIN::make_tmp_tables_info() {
         tmp_tables++;
       }
 
-      ORDER_with_src dummy = nullptr;
+      ORDER_with_src dummy;
 
       if (last_slice_before_windowing == REF_SLICE_ACTIVE) {
         tmp_table_param.hidden_field_count =
@@ -4859,8 +4863,7 @@ bool JOIN::make_tmp_tables_info() {
       }
 
       if (m_windows[wno]->is_last()) {
-        if (order != nullptr &&
-            m_ordered_index_usage != ORDERED_INDEX_ORDER_BY) {
+        if (!order.empty() && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY) {
           if (add_sorting_to_table(curr_tmp_table, &order)) return true;
         }
         if (!tab->filesort && !tab->table()->s->keys &&
@@ -4990,8 +4993,8 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     // items from order_arg.
     Switch_ref_item_slice slice_switch(this, tab->ref_item_slice);
     tab->filesort = new (thd->mem_root)
-        Filesort(thd, tab->table(), keep_buffers, *sort_order, HA_POS_ERROR,
-                 force_stable_sort,
+        Filesort(thd, tab->table(), keep_buffers, sort_order->order,
+                 HA_POS_ERROR, force_stable_sort,
                  /*remove_duplicates=*/false, force_sort_position);
     tab->filesort_pushed_order = sort_order->order;
   }
@@ -5285,7 +5288,7 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
 
   TABLE *const table = tab->table();
 
-  if (!*order) {
+  if (order->empty()) {
     *need_sort = false;
     if (tab->quick())
       return tab->quick()->index;  // index or MAX_KEY, use quick select as is
@@ -5294,7 +5297,7 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
           ->key_used_on_scan;  // MAX_KEY or index for some engines
   }
 
-  if (!is_simple_order(*order))  // just to cut further expensive checks
+  if (!is_simple_order(order->order))  // just to cut further expensive checks
   {
     *need_sort = true;
     return MAX_KEY;

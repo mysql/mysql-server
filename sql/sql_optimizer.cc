@@ -187,7 +187,7 @@ JOIN::JOIN(THD *thd_arg, SELECT_LEX *select)
   if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
   if (m_windows.elements > 0) explain_flags.set(ESC_WINDOWING, ESP_EXISTS);
   // Calculate the number of groups
-  for (ORDER *group = group_list; group; group = group->next)
+  for (ORDER *group = group_list.order; group; group = group->next)
     send_group_parts++;
 }
 
@@ -303,7 +303,7 @@ bool JOIN::optimize() {
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
 
-  DBUG_ASSERT(tmp_table_param.sum_func_count == 0 || group_list ||
+  DBUG_ASSERT(tmp_table_param.sum_func_count == 0 || !group_list.empty() ||
               implicit_grouping);
 
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
@@ -338,9 +338,9 @@ bool JOIN::optimize() {
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
 
-  row_limit =
-      ((select_distinct || order || group_list) ? HA_POS_ERROR
-                                                : unit->select_limit_cnt);
+  row_limit = ((select_distinct || !order.empty() || !group_list.empty())
+                   ? HA_POS_ERROR
+                   : unit->select_limit_cnt);
   // m_select_limit is used to decide if we are likely to scan the whole table.
   m_select_limit = unit->select_limit_cnt;
 
@@ -487,10 +487,12 @@ bool JOIN::optimize() {
       }
   }
 
-  sort_by_table = get_sort_by_table(order, group_list, select_lex->leaf_tables);
+  sort_by_table =
+      get_sort_by_table(order.order, group_list.order, select_lex->leaf_tables);
 
-  if ((where_cond || group_list || order) &&
-      substitute_gc(thd, select_lex, where_cond, group_list, order)) {
+  if ((where_cond || !group_list.empty() || !order.empty()) &&
+      substitute_gc(thd, select_lex, where_cond, group_list.order,
+                    order.order)) {
     // We added hidden fields to the all_fields list, count them.
     count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
                       false, false);
@@ -702,8 +704,8 @@ bool JOIN::optimize() {
     */
     if (!plan_is_const()) {
       const TABLE *const first = best_ref[const_tables]->table();
-      if ((first->force_index_order && order) ||
-          (first->force_index_group && group_list))
+      if ((first->force_index_order && !order.empty()) ||
+          (first->force_index_group && !group_list.empty()))
         no_jbuf_after = 0;
     }
 
@@ -730,12 +732,13 @@ bool JOIN::optimize() {
     }
   }
 
-  if (!plan_is_const() && order) {
+  if (!plan_is_const() && !order.empty()) {
     /*
       Force using of tmp table if sorting by a SP or UDF function due to
       their expensive and probably non-deterministic nature.
     */
-    for (ORDER *tmp_order = order; tmp_order; tmp_order = tmp_order->next) {
+    for (ORDER *tmp_order = order.order; tmp_order;
+         tmp_order = tmp_order->next) {
       Item *item = *tmp_order->item;
       if (item->is_expensive()) {
         /* Force tmp table without sort */
@@ -787,15 +790,15 @@ bool JOIN::optimize() {
   */
 
   if (rollup.state != ROLLUP::STATE_NONE &&  // (1)
-      (select_distinct || has_windows || order))
+      (select_distinct || has_windows || !order.empty()))
     need_tmp_before_win = true;
 
   if (!plan_is_const())  // (2)
   {
-    if ((group_list && !simple_group) ||               // (3)
-        (!has_windows && (select_distinct ||           // (4)
-                          (order && !simple_order) ||  // (5)
-                          (group_list && order))) ||   // (6)
+    if ((!group_list.empty() && !simple_group) ||                       // (3)
+        (!has_windows && (select_distinct ||                            // (4)
+                          (!order.empty() && !simple_order) ||          // (5)
+                          (!group_list.empty() && !order.empty()))) ||  // (6)
         ((select_lex->active_options() & OPTION_BUFFER_RESULT) &&
          !has_windows &&
          !(unit->derived_table &&
@@ -1161,13 +1164,13 @@ int JOIN::replace_index_subquery() {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  if (group_list ||
+  if (!group_list.empty() ||
       !(unit->item && unit->item->substype() == Item_subselect::IN_SUBS) ||
       primary_tables != 1 || !where_cond || unit->is_union())
     return 0;
 
   // Guaranteed by remove_redundant_subquery_clauses():
-  DBUG_ASSERT(order == nullptr && !select_distinct);
+  DBUG_ASSERT(order.empty() && !select_distinct);
 
   Item_in_subselect *const in_subs =
       static_cast<Item_in_subselect *>(unit->item);
@@ -1224,7 +1227,8 @@ bool JOIN::optimize_distinct_group_order() {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
   const bool windowing = m_windows.elements > 0;
-  const bool may_trace = select_distinct || group_list || order || windowing ||
+  const bool may_trace = select_distinct || !group_list.empty() ||
+                         !order.empty() || windowing ||
                          tmp_table_param.sum_func_count;
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_disable_I_S trace_disabled(trace, !may_trace);
@@ -1232,10 +1236,10 @@ bool JOIN::optimize_distinct_group_order() {
   Opt_trace_object trace_opt(trace, "optimizing_distinct_group_by_order_by");
   /* Optimize distinct away if possible */
   {
-    ORDER *org_order = order;
+    ORDER *org_order = order.order;
     order = ORDER_with_src(
-        remove_const(order, where_cond, rollup.state == ROLLUP::STATE_NONE,
-                     &simple_order, false),
+        remove_const(order.order, where_cond,
+                     rollup.state == ROLLUP::STATE_NONE, &simple_order, false),
         order.src);
     if (thd->is_error()) {
       error = 1;
@@ -1247,7 +1251,7 @@ bool JOIN::optimize_distinct_group_order() {
       If we are using ORDER BY NULL or ORDER BY const_expression,
       return result in any order (even if we are using a GROUP BY)
     */
-    if (!order && org_order) skip_sort_order = true;
+    if (order.empty() && org_order) skip_sort_order = true;
   }
   /*
      Check if we can optimize away GROUP BY/DISTINCT.
@@ -1268,18 +1272,18 @@ bool JOIN::optimize_distinct_group_order() {
 
   JOIN_TAB *const tab = best_ref[const_tables];
 
-  if (plan_is_single_table() && (group_list || select_distinct) &&
+  if (plan_is_single_table() && (!group_list.empty() || select_distinct) &&
       !tmp_table_param.sum_func_count &&
       (!tab->quick() ||
        tab->quick()->get_type() != QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX)) {
-    if (group_list && rollup.state == ROLLUP::STATE_NONE &&
+    if (!group_list.empty() && rollup.state == ROLLUP::STATE_NONE &&
         list_contains_unique_index(tab, find_field_in_order_list,
-                                   (void *)group_list)) {
+                                   (void *)group_list.order)) {
       /*
         We have found that grouping can be removed since groups correspond to
         only one row anyway.
       */
-      group_list = nullptr;
+      group_list.clean();
       grouped = false;
     }
     if (select_distinct &&
@@ -1290,7 +1294,7 @@ bool JOIN::optimize_distinct_group_order() {
           .add("removed_distinct", true);
     }
   }
-  if (!(group_list || tmp_table_param.sum_func_count || windowing) &&
+  if (!(!group_list.empty() || tmp_table_param.sum_func_count || windowing) &&
       select_distinct && plan_is_single_table() &&
       rollup.state == ROLLUP::STATE_NONE) {
     int order_idx = -1, group_idx = -1;
@@ -1311,7 +1315,7 @@ bool JOIN::optimize_distinct_group_order() {
       because in this case we can just create a temporary table that
       holds LIMIT rows and stop when this table is full.
     */
-    if (order) {
+    if (!order.empty()) {
       skip_sort_order = test_if_skip_sort_order(
           tab, order, m_select_limit,
           true,  // no_changes
@@ -1320,10 +1324,10 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o = create_order_from_distinct(thd, ref_items[REF_SLICE_ACTIVE], order,
-                                        fields_list, /*skip_aggregates=*/true,
-                                        /*convert_bit_fields_to_long=*/true,
-                                        &all_order_fields_used))) {
+    if ((o = create_order_from_distinct(
+             thd, ref_items[REF_SLICE_ACTIVE], order.order, fields_list,
+             /*skip_aggregates=*/true,
+             /*convert_bit_fields_to_long=*/true, &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group =
           skip_sort_order &&
@@ -1336,7 +1340,8 @@ bool JOIN::optimize_distinct_group_order() {
       if (group_idx >= 0 && order_idx >= 0 && group_idx != order_idx)
         skip_sort_order = false;
       if ((skip_group && all_order_fields_used) ||
-          m_select_limit == HA_POS_ERROR || (order && !skip_sort_order)) {
+          m_select_limit == HA_POS_ERROR ||
+          (!order.empty() && !skip_sort_order)) {
         /*  Change DISTINCT to GROUP BY */
         select_distinct = false;
         /*
@@ -1344,11 +1349,11 @@ bool JOIN::optimize_distinct_group_order() {
           replaces it. So it must respect ordering. If there is no
           ORDER BY, GROUP BY need not have to provide order.
         */
-        if (!order) {
-          for (ORDER *group = group_list; group; group = group->next)
+        if (order.empty()) {
+          for (ORDER *group = group_list.order; group; group = group->next)
             group->direction = ORDER_NOT_RELEVANT;
         }
-        if (all_order_fields_used && skip_sort_order && order) {
+        if (all_order_fields_used && skip_sort_order && !order.empty()) {
           /*
             Force MySQL to read the table in sorted order to get result in
             ORDER BY order.
@@ -1358,16 +1363,16 @@ bool JOIN::optimize_distinct_group_order() {
         grouped = true;  // For end_write_group
         trace_opt.add("changed_distinct_to_group_by", true);
       } else
-        group_list = nullptr;
+        group_list.clean();
     } else if (thd->is_fatal_error())  // End of memory
       return true;
   }
   simple_group = false;
 
-  ORDER *old_group_list = group_list;
+  ORDER *old_group_list = group_list.order;
   group_list = ORDER_with_src(
-      remove_const(group_list, where_cond, rollup.state == ROLLUP::STATE_NONE,
-                   &simple_group, true),
+      remove_const(group_list.order, where_cond,
+                   rollup.state == ROLLUP::STATE_NONE, &simple_group, true),
       group_list.src);
 
   if (thd->is_error()) {
@@ -1375,16 +1380,16 @@ bool JOIN::optimize_distinct_group_order() {
     DBUG_PRINT("error", ("Error from remove_const"));
     return true;
   }
-  if (old_group_list && !group_list) select_distinct = false;
+  if (old_group_list && group_list.empty()) select_distinct = false;
 
-  if (!group_list && grouped) {
-    order = nullptr;  // The output has only one row
+  if (group_list.empty() && grouped) {
+    order.clean();  // The output has only one row
     simple_order = true;
     select_distinct = false;  // No need in distinct for 1 row
     group_optimized_away = true;
   }
 
-  calc_group_buffer(this, group_list);
+  calc_group_buffer(this, group_list.order);
   send_group_parts = tmp_table_param.group_parts; /* Save org parts */
 
   /*
@@ -1393,11 +1398,11 @@ bool JOIN::optimize_distinct_group_order() {
      enforce GROUP BY to provide order.
      Also true if the result is one row.
   */
-  if ((test_if_subpart(group_list, order) && !m_windows_sort &&
+  if ((test_if_subpart(group_list.order, order.order) && !m_windows_sort &&
        select_lex->olap != ROLLUP_TYPE) ||
-      (!group_list && tmp_table_param.sum_func_count)) {
-    if (order) {
-      order = nullptr;
+      (group_list.empty() && tmp_table_param.sum_func_count)) {
+    if (!order.empty()) {
+      order.clean();
       trace_opt.add("removed_order_by", true);
     }
     if (is_indexed_agg_distinct(this, nullptr)) streaming_aggregation = false;
@@ -1413,8 +1418,8 @@ void JOIN::test_skip_sort() {
 
   DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_VOID);
 
-  if (group_list)  // GROUP BY honoured first
-                   // (DISTINCT was rewritten to GROUP BY if skippable)
+  if (!group_list.empty())  // GROUP BY honoured first
+                            // (DISTINCT was rewritten to GROUP BY if skippable)
   {
     /*
       When there is SQL_BIG_RESULT or a JSON aggregation function,
@@ -1460,7 +1465,7 @@ void JOIN::test_skip_sort() {
         simple_order = simple_group = false;  // Force tmp table without sort
       }
     }
-  } else if (order &&  // ORDER BY wo/ preceding GROUP BY
+  } else if (!order.empty() &&  // ORDER BY wo/ preceding GROUP BY
              (simple_order ||
               skip_sort_order) &&  // which is possibly skippable,
              !m_windows_sort)      // and WFs will not shuffle rows
@@ -1535,7 +1540,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
   bool mixed_order = false;
   // Order direction of the first key part
   bool reverse_sorted = (bool)(key_part->key_part_flag & HA_REVERSE_SORT);
-  ORDER *order = *order_src;
+  ORDER *order = order_src->order;
   *skip_quick = false;
 
   for (; order; order = order->next, const_key_parts >>= 1) {
@@ -1930,11 +1935,11 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
     Check if FT index can be used to retrieve result in the required order.
     It is possible if ordering is on the first non-constant table.
   */
-  if (join->order && join->simple_order) {
+  if (!join->order.empty() && join->simple_order) {
     /*
       Check if ORDER is DESC, ORDER BY is a single MATCH function.
     */
-    Item_func_match *ft_func = test_if_ft_index_order(order);
+    Item_func_match *ft_func = test_if_ft_index_order(order.order);
     /*
       Two possible cases when we can skip sort order:
       1. FT_SORTED must be set(Natural mode, no ORDER BY).
@@ -1990,7 +1995,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
   */
   Key_map usable_keys = *map;
 
-  for (ORDER *tmp_order = order; tmp_order; tmp_order = tmp_order->next) {
+  for (ORDER *tmp_order = order.order; tmp_order; tmp_order = tmp_order->next) {
     const Item *item = (*tmp_order->item)->real_item();
     if (item->type() != Item::FIELD_ITEM) {
       usable_keys.clear_all();
@@ -2101,7 +2106,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
                                     ? HA_POS_ERROR
                                     : join->unit->select_limit_cnt,
                                 false,  // don't force quick range
-                                order->direction, tab,
+                                order.order->direction, tab,
                                 // we are after make_join_select():
                                 tab->condition(), &tab->needed_reg, &qck,
                                 tab->table()->force_index) <= 0;
@@ -2169,7 +2174,8 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
       clause is order by)?
     */
-    const bool is_group_by = join && join->grouped && order == join->group_list;
+    const bool is_group_by =
+        join && join->grouped && order.order == join->group_list.order;
     const bool is_force_index =
         table->force_index ||
         (is_group_by ? table->force_index_group : table->force_index_order);
@@ -2207,7 +2213,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           0,  // empty table_map
           join->calc_found_rows ? HA_POS_ERROR : join->unit->select_limit_cnt,
           true,  // force quick range
-          order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
+          order.order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
           tab->table()->force_index);
       if (order_direction < 0 && tab->quick() != nullptr &&
           tab->quick() != save_quick) {
@@ -2313,7 +2319,8 @@ check_reverse_order:
         Check if it is possible to shift from ref to range. The index chosen
         for 'ref' has changed since the last time this function was called.
       */
-      if (can_switch_from_ref_to_range(thd, tab, order->direction, true)) {
+      if (can_switch_from_ref_to_range(thd, tab, order.order->direction,
+                                       true)) {
         // Allow the code to fall-through to the next if condition.
         set_up_ref_access_to_key = false;
         best_key = changed_key;
@@ -2742,9 +2749,11 @@ bool JOIN::get_best_combination() {
     have frame buffer tmp tables, but those are not relevant here).
   */
   uint num_tmp_tables =
-      (group_list || (implicit_grouping && m_windows.elements) > 0 ? 1 : 0) +
+      (!group_list.empty() || (implicit_grouping && m_windows.elements) > 0
+           ? 1
+           : 0) +
       (select_distinct ? (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
-      (order ? 1 : 0) +
+      (order.empty() ? 0 : 1) +
       (select_lex->active_options() & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT)
            ? 1
            : 0) +
@@ -7060,7 +7069,7 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   if (cond->type() == Item::FUNC_ITEM &&
       down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
     Item *const cond_arg = down_cast<Item_func *>(cond)->arguments()[0];
-    if (!join->group_list && !join->order && join->unit->item &&
+    if (join->group_list.empty() && join->order.empty() && join->unit->item &&
         join->unit->item->substype() == Item_subselect::IN_SUBS &&
         !join->unit->is_union()) {
       Key_field *save = *key_fields;
@@ -7772,7 +7781,8 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
   /* Find the indexes that might be used for skip scan queries. */
   if (hint_table_state(join->thd, join_tab->table_ref, SKIP_SCAN_HINT_ENUM,
                        OPTIMIZER_SKIP_SCAN) &&
-      join->where_cond && join->primary_tables == 1 && !join->group_list &&
+      join->where_cond && join->primary_tables == 1 &&
+      join->group_list.empty() &&
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {
     join->where_cond->walk(&Item::collect_item_field_processor,
@@ -7789,9 +7799,10 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     return;
   }
 
-  if (join->group_list) {
+  if (!join->group_list.empty()) {
     /* Collect all query fields referenced in the GROUP clause. */
-    for (cur_group = join->group_list; cur_group; cur_group = cur_group->next)
+    for (cur_group = join->group_list.order; cur_group;
+         cur_group = cur_group->next)
       (*cur_group->item)
           ->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
@@ -10349,7 +10360,7 @@ bool JOIN::optimize_fts_query() {
       the first non-constant table in the JOIN.
     */
     if (i == const_tables && !(ft_func->get_hints()->get_flags() & FT_BOOL) &&
-        (!order || ft_func == test_if_ft_index_order(order)))
+        (order.empty() || ft_func == test_if_ft_index_order(order.order)))
       ft_func->set_hints(this, FT_SORTED, m_select_limit, false);
 
     /*
@@ -10359,7 +10370,7 @@ bool JOIN::optimize_fts_query() {
     */
     if (ft_func->can_skip_ranking())
       ft_func->set_hints(this, FT_NO_RANKING,
-                         !order ? m_select_limit : HA_POS_ERROR, false);
+                         order.empty() ? m_select_limit : HA_POS_ERROR, false);
   }
 
   return init_ftfuncs(thd, select_lex);
@@ -10385,7 +10396,8 @@ bool JOIN::fts_index_access(JOIN_TAB *tab) {
   /*
     This optimization does not work with filesort nor GROUP BY
   */
-  if (grouped || (order && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY))
+  if (grouped ||
+      (!order.empty() && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY))
     return false;
 
   /*
@@ -10845,7 +10857,7 @@ bool JOIN::optimize_rollup() {
     Prepare space for field list for the different levels
     These will be filled up in rollup_make_fields()
   */
-  ORDER *group = group_list;
+  ORDER *group = group_list.order;
   for (uint i = 0; i < send_group_parts; i++, group = group->next) {
     rollup.null_items[i] = new (thd->mem_root) Item_null_result(
         (*group->item)->data_type(), (*group->item)->result_type());

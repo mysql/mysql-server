@@ -11701,7 +11701,7 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
-  if ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */
+  if (join->group_list.empty() && /* Neither GROUP BY nor a DISTINCT query. */
       (!join->select_distinct) && !is_agg_distinct) {
     trace_group.add("chosen", false)
         .add_alnum("cause", "not_group_by_or_distinct");
@@ -11790,7 +11790,8 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
   }
 
   /* Check (GA4) - that there are no expressions among the group attributes. */
-  for (tmp_group = join->group_list; tmp_group; tmp_group = tmp_group->next) {
+  for (tmp_group = join->group_list.order; tmp_group;
+       tmp_group = tmp_group->next) {
     if ((*tmp_group->item)->real_item()->type() != Item::FIELD_ITEM) {
       trace_group.add("chosen", false)
           .add_alnum("cause", "group_field_is_expression");
@@ -11869,11 +11870,12 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
     /*
       Check (GA1) for GROUP BY queries.
     */
-    if (join->group_list) {
+    if (!join->group_list.empty()) {
       cur_part = cur_index_info->key_part;
       end_part = cur_part + actual_key_parts(cur_index_info);
       /* Iterate in parallel over the GROUP list and the index parts. */
-      for (tmp_group = join->group_list; tmp_group && (cur_part != end_part);
+      for (tmp_group = join->group_list.order;
+           tmp_group && (cur_part != end_part);
            tmp_group = tmp_group->next, cur_part++) {
         /*
           TODO:
@@ -11904,7 +11906,8 @@ static TRP_GROUP_MIN_MAX *get_best_group_min_max(
       Later group_fields_array of ORDER objects is used to convert the query
       to a GROUP query.
     */
-    if ((!join->group_list && join->select_distinct) || is_agg_distinct) {
+    if ((join->group_list.empty() && join->select_distinct) ||
+        is_agg_distinct) {
       if (!is_agg_distinct) {
         select_items_it.rewind();
       }
@@ -14337,7 +14340,7 @@ static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
     cause = "not_single_table";
   else if (table->s->keys == 0) /* There are no indexes to use. */
     cause = "no_index";
-  else if (join->group_list)
+  else if (!join->group_list.empty())
     cause = "has_group_by";
   else if (!tree)
     cause = "disjuntive_predicate_present";
