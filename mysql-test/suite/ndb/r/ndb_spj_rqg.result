@@ -188,6 +188,131 @@ pk	pk	pk
 9	29	NULL
 9	9	NULL
 explain format=tree SELECT
+table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
+FROM M AS table1
+JOIN R AS table2
+LEFT JOIN C AS table3 ON table2.col_int_unique = table3.col_int_unique
+LEFT JOIN R AS table4 ON table2.pk = table4.col_int_key
+LEFT JOIN E AS table5 ON table3.col_int_unique = table5.col_int_unique
+ON table1.col_int_key = table2.pk
+LEFT JOIN S AS table6 ON table1.col_int = table6.col_int
+AND table5.col_int_unique = table6.col_int_unique
+where table2.pk between 2 and 3;
+EXPLAIN
+-> Nested loop left join  (cost=6436.82 rows=530)
+    -> Nested loop left join  (cost=6381.04 rows=530)
+        -> Nested loop left join  (cost=6327.36 rows=530)
+            -> Nested loop inner join  (cost=6267.37 rows=101)
+                -> Nested loop left join  (cost=6255.69 rows=25)
+                    -> Table scan on table2, activating pushed join of 5 tables, with pushed condition: (table2.pk between 2 and 3)  (cost=6252.50 rows=25)
+                    -> Index lookup on table3 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  (cost=0.29 rows=1)
+                -> Index lookup on table1 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join  (cost=0.72 rows=4)
+            -> Index lookup on table4 using col_int_key (col_int_key=table2.pk), child of table2 in pushed join  (cost=0.67 rows=5)
+        -> Index lookup on table5 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join  (cost=0.01 rows=1)
+    -> Single-row index lookup on table6 using ix1 (col_int=table1.col_int, col_int_unique=table5.col_int_unique)  (cost=0.05 rows=1)
+
+Warnings:
+Note	1003	Can't push table 'table6' as child of 'table2', as it would make the parent table 'table5' depend on table(s) outside of its join-nest
+SELECT
+table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
+FROM M AS table1
+JOIN R AS table2
+LEFT JOIN C AS table3 ON table2.col_int_unique = table3.col_int_unique
+LEFT JOIN R AS table4 ON table2.pk = table4.col_int_key
+LEFT JOIN E AS table5 ON table3.col_int_unique = table5.col_int_unique
+ON table1.col_int_key = table2.pk
+LEFT JOIN S AS table6 ON table1.col_int = table6.col_int
+AND table5.col_int_unique = table6.col_int_unique
+where table2.pk between 2 and 3;
+pk	pk	pk	pk	pk	pk
+2	NULL	10	10	NULL	NULL
+2	NULL	10	11	NULL	NULL
+2	NULL	10	13	NULL	NULL
+2	NULL	10	14	NULL	NULL
+2	NULL	10	18	NULL	NULL
+2	NULL	10	2	NULL	NULL
+2	NULL	10	22	NULL	NULL
+2	NULL	10	5	NULL	NULL
+2	NULL	10	6	NULL	NULL
+2	NULL	11	10	NULL	NULL
+2	NULL	11	11	NULL	NULL
+2	NULL	11	13	NULL	NULL
+2	NULL	11	14	NULL	NULL
+2	NULL	11	18	NULL	NULL
+2	NULL	11	2	NULL	NULL
+2	NULL	11	22	NULL	NULL
+2	NULL	11	5	NULL	NULL
+2	NULL	11	6	NULL	NULL
+2	NULL	13	10	NULL	NULL
+2	NULL	13	11	NULL	NULL
+2	NULL	13	13	NULL	NULL
+2	NULL	13	14	NULL	NULL
+2	NULL	13	18	NULL	NULL
+2	NULL	13	2	NULL	NULL
+2	NULL	13	22	NULL	NULL
+2	NULL	13	5	NULL	NULL
+2	NULL	13	6	NULL	NULL
+2	NULL	15	10	NULL	NULL
+2	NULL	15	11	NULL	NULL
+2	NULL	15	13	NULL	NULL
+2	NULL	15	14	NULL	NULL
+2	NULL	15	18	NULL	NULL
+2	NULL	15	2	NULL	NULL
+2	NULL	15	22	NULL	NULL
+2	NULL	15	5	NULL	NULL
+2	NULL	15	6	NULL	NULL
+2	NULL	18	10	NULL	NULL
+2	NULL	18	11	NULL	NULL
+2	NULL	18	13	NULL	NULL
+2	NULL	18	14	NULL	NULL
+2	NULL	18	18	NULL	NULL
+2	NULL	18	2	NULL	NULL
+2	NULL	18	22	NULL	NULL
+2	NULL	18	5	NULL	NULL
+2	NULL	18	6	NULL	NULL
+2	NULL	2	10	NULL	NULL
+2	NULL	2	11	NULL	NULL
+2	NULL	2	13	NULL	NULL
+2	NULL	2	14	NULL	NULL
+2	NULL	2	18	NULL	NULL
+2	NULL	2	2	NULL	NULL
+2	NULL	2	22	NULL	NULL
+2	NULL	2	5	NULL	NULL
+2	NULL	2	6	NULL	NULL
+2	NULL	3	10	NULL	NULL
+2	NULL	3	11	NULL	NULL
+2	NULL	3	13	NULL	NULL
+2	NULL	3	14	NULL	NULL
+2	NULL	3	18	NULL	NULL
+2	NULL	3	2	NULL	NULL
+2	NULL	3	22	NULL	NULL
+2	NULL	3	5	NULL	NULL
+2	NULL	3	6	NULL	NULL
+2	NULL	4	10	NULL	NULL
+2	NULL	4	11	NULL	NULL
+2	NULL	4	13	NULL	NULL
+2	NULL	4	14	NULL	NULL
+2	NULL	4	18	NULL	NULL
+2	NULL	4	2	NULL	NULL
+2	NULL	4	22	NULL	NULL
+2	NULL	4	5	NULL	NULL
+2	NULL	4	6	NULL	NULL
+3	NULL	1	16	NULL	NULL
+3	NULL	1	19	NULL	NULL
+3	NULL	1	3	NULL	NULL
+3	NULL	12	16	NULL	NULL
+3	NULL	12	19	NULL	NULL
+3	NULL	12	3	NULL	NULL
+3	NULL	20	16	NULL	NULL
+3	NULL	20	19	NULL	NULL
+3	NULL	20	3	NULL	NULL
+3	NULL	5	16	NULL	NULL
+3	NULL	5	19	NULL	NULL
+3	NULL	5	3	NULL	NULL
+3	NULL	6	16	NULL	NULL
+3	NULL	6	19	NULL	NULL
+3	NULL	6	3	NULL	NULL
+explain format=tree SELECT
 table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
 FROM U AS table1
 JOIN Q AS table2

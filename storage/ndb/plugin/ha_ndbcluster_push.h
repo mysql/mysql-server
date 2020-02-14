@@ -496,11 +496,12 @@ class ndb_pushed_builder_ctx {
   ndb_table_access_map full_inner_nest(uint tab_no, uint last) const {
     ndb_table_access_map nest(m_tables[tab_no].m_inner_nest);
     nest.add(tab_no);
+    const uint first_inner = m_tables[tab_no].m_first_inner;
     for (uint i = tab_no + 1; i <= last; i++) {
       if (m_tables[i].m_first_inner == i) {  // Start of embedded nest?
         i = m_tables[i].m_last_inner;        // Skip embedded nest
-      } else {                               // Include member of nest
-        nest.add(i);
+      } else if (m_tables[i].m_first_inner == first_inner) {
+        nest.add(i);  // Include member of this nest
       }
     }
     return nest;

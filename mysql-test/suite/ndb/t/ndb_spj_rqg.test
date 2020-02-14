@@ -1421,6 +1421,64 @@ eval explain format=tree $query;
 --sorted_result
 eval $query;
 
+
+
+##############
+# The below query has the join-nest structure:
+#
+#   t2 (t3) t1 (t4) (t5) (t6)
+#
+# There are join-condition dependencies on previous outer joins:
+#  - t5 depends on the outer joined t3
+#  - t6 depends on the outer joined t5 (and t1 from upper nest)
+#
+# These tables upto t5 would result in this tree of pushed
+# table joins:
+#
+#            t2
+#          /  |  \
+#       (t3) (t4) t1
+#         |
+#       (t5)
+#
+# When attempting to also push t6 as part of this tree,
+# is_outer_nests_referable() incorrectly concluded that t6 could be
+# attached as well, and we ended up with the query topology:
+#
+#            t2
+#          /  |
+#       (t3) (t4)
+#        |
+#        t1
+#        |
+#       (t5)
+#        |
+#       (t6)
+#
+# Thus we have incorrectly introduced a t1 dependency on the
+# outer joined t3. This was due to that the set of outer_nest-table
+# referrences being incorrectly set up.
+#####################
+
+let $query=
+SELECT
+  table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
+FROM M AS table1
+  JOIN R AS table2
+    LEFT JOIN C AS table3 ON table2.col_int_unique = table3.col_int_unique
+    LEFT JOIN R AS table4 ON table2.pk = table4.col_int_key
+    LEFT JOIN E AS table5 ON table3.col_int_unique = table5.col_int_unique
+  ON table1.col_int_key = table2.pk
+  LEFT JOIN S AS table6 ON table1.col_int = table6.col_int
+                       AND table5.col_int_unique = table6.col_int_unique
+where table2.pk between 2 and 3;
+
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 #################################################################
 ######## Collection of other interesting RQG queries. ###########
 ######## Caused problems during development, but not  ###########
