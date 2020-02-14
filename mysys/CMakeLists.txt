@@ -176,6 +176,11 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${SSL_LIBRARIES}
   )
 
+# For targets that link with mysys, and are independent of other targets.
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(mysys copy_openssl_dlls)
+ENDIF()
+
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
