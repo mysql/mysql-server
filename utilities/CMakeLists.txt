@@ -109,17 +109,8 @@ MYSQL_ADD_EXECUTABLE(range_check_err
 # Set InnoDB mutex type
 ADD_DEFINITIONS(-DMUTEX_EVENT)
 
-## Most executables depend on SSL shared libraries (through mysys).
-## For these executables, we need them to be available during build.
-IF( (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL) OR
-    (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    )
-  ADD_DEPENDENCIES(GenError copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
-  ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
-ENDIF()
-
-IF(LINUX_INSTALL_RPATH_ORIGIN)
+# The copied shared libraries must be available at build time.
+IF(TARGET copy_openssl_dlls)
   ADD_DEPENDENCIES(GenError copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_client_err copy_openssl_dlls)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -79,14 +79,6 @@ SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
-
-# Be sure to copy SSL .dlls before building any unit tests that
-# link with ndbgeneral. (This was needed when building with Xcode.)
-IF( (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL) OR
-    (APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    )
-  ADD_DEPENDENCIES(ndbgeneral copy_openssl_dlls)
-ENDIF()
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack)
   NDB_ADD_TEST("${tests}-t" "${tests}.cpp" LIBS ndbgeneral)
