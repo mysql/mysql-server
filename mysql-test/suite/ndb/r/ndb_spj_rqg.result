@@ -313,6 +313,56 @@ pk	pk	pk	pk	pk	pk
 3	NULL	6	19	NULL	NULL
 3	NULL	6	3	NULL	NULL
 explain format=tree SELECT
+table1.pk, table3.pk, table4.pk
+FROM E AS table1
+JOIN W AS table3
+JOIN W AS table4 ON table3.col_int = table4.col_int
+AND table3.col_int_key = table4.col_int_key
+ON table1.col_int_unique = table3.col_int_key
+WHERE table4.col_int IN (
+SELECT table2s.col_int AS field3
+FROM O AS table1s
+LEFT JOIN X AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+) and table1.pk between 3 and 3;
+EXPLAIN
+-> Nested loop semijoin  (cost=4620.16 rows=255)
+    -> Nested loop inner join  (cost=4585.94 rows=63)
+        -> Nested loop inner join  (cost=4513.96 rows=107)
+            -> Table scan on table1, activating pushed join of 5 tables, with pushed condition: ((table1.pk between 3 and 3) and (table1.col_int_unique is not null))  (cost=4501.80 rows=18)
+            -> Index lookup on table3 using col_int_key (col_int_key=table1.col_int_unique), child of table1 in pushed join  (cost=1.05 rows=6)
+        -> Filter: (table4.col_int = table3.col_int)  (cost=0.76 rows=1)
+            -> Index lookup on table4 using col_int_key (col_int_key=table1.col_int_unique), child of table3 in pushed join  (cost=0.76 rows=6)
+    -> Nested loop inner join  (cost=8.78 rows=4)
+        -> Index lookup on table2s using PRIMARY (col_int=table3.col_int), child of table4 in pushed join, with pushed condition: (table2s.col_varchar_256_unique is not null)  (cost=1.31 rows=4)
+        -> Index lookup on table1s using col_varchar_256_key (col_varchar_256_key=table2s.col_varchar_256_unique), child of table2s in pushed join  (cost=1.02 rows=1)
+
+SELECT
+table1.pk, table3.pk, table4.pk
+FROM E AS table1
+JOIN W AS table3
+JOIN W AS table4 ON table3.col_int = table4.col_int
+AND table3.col_int_key = table4.col_int_key
+ON table1.col_int_unique = table3.col_int_key
+WHERE table4.col_int IN (
+SELECT table2s.col_int AS field3
+FROM O AS table1s
+LEFT JOIN X AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+) and table1.pk between 3 and 3;
+pk	pk	pk
+3	20	20
+3	20	5
+3	26	26
+3	26	28
+3	26	3
+3	28	26
+3	28	28
+3	28	3
+3	3	26
+3	3	28
+3	3	3
+3	5	20
+3	5	5
+explain format=tree SELECT
 table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
 FROM U AS table1
 JOIN Q AS table2
@@ -377,7 +427,7 @@ EXPLAIN
             -> Filter: (table2.col_int_unique = table1.col_int_unique)  (cost=1.75 rows=1)
                 -> Index lookup on table2 using PRIMARY (col_int=table1.col_int), child of table1 in pushed join  (cost=1.75 rows=7)
         -> Index lookup on table1s using PRIMARY (pk=table1.pk), child of table1 in pushed join  (cost=0.26 rows=1)
-    -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1 in pushed join  (cost=2.41 rows=4)
+    -> Index lookup on table2s using col_int_key (col_int_key=table1.pk), child of table1s in pushed join  (cost=2.41 rows=4)
 
 SELECT
 table1.pk, table2.pk

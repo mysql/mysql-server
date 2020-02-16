@@ -1072,7 +1072,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   }
 
   SpjTreeNodeMask firstMatchedNodes;
-  const NdbResultStream *joinType = nullptr;
 
   for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
   {
@@ -1082,10 +1081,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
     {
       // childStream got new result rows
       childStream.prepareResultSet(expectingResults,stillActive);
-
-      // The 'highest order' child treeNode decides whether firstMatch
-      // elimination should be done in result set or not.
-      joinType = &childStream;
     }
     else if (traceSignals)
     {
@@ -1104,6 +1099,10 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
     }
   }
 
+  // The 'highest order' child treeNode in expectingResults decides
+  // whether firstMatch elimination should be done in result set or not.
+  const uint firstInExpected = expectingResults.find_first();
+
   // Prepare rows from the NdbQueryOperation's accessible now
   if (m_tupleSet != nullptr)
   {
@@ -1118,9 +1117,12 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
       if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
           m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
       {
-        if (joinType->useFirstMatch())
+        // We have already found a match for (all of) our firstMatchedNodes.
+        // Should we skip potentially duplicates now? :
+
+        if (firstMatchedNodes.get(firstInExpected))
         {
-          // Get a new set of firstMatch'ed rows, starting with semi-joined tables.
+          // Got a new set of firstMatch'ed rows, starting with semi-joined tables.
           // Skip parent rows which already had its 'firstMatch'
           if (traceSignals) {
             ndbout << "prepareResultSet, useFirstMatch"
@@ -1136,8 +1138,8 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
         }
         else if (!firstMatchedNodes.overlaps(expectingResults))
         {
-          // No semi joined tables affect, do nothing.
-          // (Keep isSkipped if already set)
+          // No semi joined tables affected by the 'expecting'.
+          // Do nothing, except keeping 'isSkipped' if already set.
           if (traceSignals) {
             ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
                    << ", opNo: " << getInternalOpNo()
@@ -1153,7 +1155,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           // Set of new children rows start with a full-join. Thus, the
           // firstMatch handling is reset as part of preparing the new
           // joined result set.
-          DBUG_ASSERT(joinType->isInnerJoin() || joinType->isOuterJoin());
           if (traceSignals) {
             ndbout << "prepareResultSet, Join-useFirstMatch"
                    << ", cleared 'hadMatching'-> un-skip"

@@ -1229,6 +1229,24 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
       return false;
     }
+    if (table->get_first_sj_inner() == (int)tab_no) {
+      /**
+       * In order to do correct firstmatch duplicate elimination in
+       * SPJ, we need to ensure that the table to eliminate duplicates
+       * from is the parent of the firstmast-sj-nest -> enforce it
+       * as a mandatory ancestor of the sj-nest.
+       */
+      const int firstmatch_return = table->get_firstmatch_return();
+      if (!all_parents.contain(firstmatch_return)) {
+        EXPLAIN_NO_PUSH(
+            "Can't push table '%s' as child of '%s', "
+            "the FirstMatch-return '%s' can not be made the parent of sj-nest",
+            table->get_table()->alias, m_join_root->get_table()->alias,
+            m_plan.get_table_access(firstmatch_return)->get_table()->alias);
+        return false;
+      }
+      m_tables[tab_no].m_ancestors.add(firstmatch_return);
+    }
   } else if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
     if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
       // Semi-joined relative to some other tables in join_scope
@@ -1563,8 +1581,8 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
           }
         }
       }
-      m_tables[tab_no].m_ancestors.intersect(m_join_scope);
     }
+    m_tables[tab_no].m_ancestors.intersect(m_join_scope);
   }
   // Remove 'pending_cond' and 'scan_operations' not pushed any longer
   m_has_pending_cond.intersect(m_join_scope);

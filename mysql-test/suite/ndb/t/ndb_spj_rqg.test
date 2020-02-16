@@ -1473,6 +1473,28 @@ FROM M AS table1
                        AND table5.col_int_unique = table6.col_int_unique
 where table2.pk between 2 and 3;
 
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+#####################
+# In order to push a firstMatch, the firstMatch-return-table
+# need to be the parent of the firstMatch-sj-nest
+
+let $query=
+SELECT
+  table1.pk, table3.pk, table4.pk
+FROM E AS table1
+  JOIN W AS table3
+    JOIN W AS table4 ON table3.col_int = table4.col_int
+                    AND table3.col_int_key = table4.col_int_key
+  ON table1.col_int_unique = table3.col_int_key
+WHERE table4.col_int IN (
+  SELECT table2s.col_int AS field3
+  FROM O AS table1s
+    LEFT JOIN X AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+) and table1.pk between 3 and 3;
 
 eval explain format=tree $query;
 --sorted_result
