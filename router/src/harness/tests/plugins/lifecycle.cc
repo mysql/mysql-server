@@ -34,6 +34,8 @@
 
 #include "lifecycle.h"
 
+#include <array>
+#include <bitset>
 #include <chrono>
 #include <condition_variable>
 #include <cstdarg>
@@ -74,19 +76,11 @@ const int kExitOnStopLongTimeout = 60 * 1000;
 
 namespace {
 
-// these are made visible to unit test via passing back &g_lifecycle_plugin_ITC
-// during a special init() call
-static mysql_harness::test::LifecyclePluginSyncBus *get_bus_from_key(
-    const char *key);
-static mysql_harness::test::LifecyclePluginSyncBusSet g_lifecycle_plugin_logs;
-static mysql_harness::test::LifecyclePluginITC g_lifecycle_plugin_ITC{
-    &get_bus_from_key,
-};
+static std::array<mysql_harness::test::LifecyclePluginSyncBus, 3>
+    g_lifecycle_plugin_logs;
 
 static mysql_harness::test::LifecyclePluginSyncBus *get_bus_from_key(
-    const char *key) {
-  std::string k(key);  // easier than typing strcmp() everywhere
-
+    const std::string &k) {
   if (k == "instance1" || k == "all")
     return &g_lifecycle_plugin_logs[0];
   else if (k == "instance2")
@@ -112,8 +106,7 @@ static void log_info(bool notify, const std::string &key, const char *format,
 
   // and also post notification on ITC bus, if requested
   if (notify) {
-    mysql_harness::test::LifecyclePluginSyncBus &bus =
-        *get_bus_from_key(key.c_str());
+    mysql_harness::test::LifecyclePluginSyncBus &bus = *get_bus_from_key(key);
     bus.mtx.lock();
     bus.msg = buf;
     bus.mtx.unlock();
@@ -368,43 +361,12 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
 #define LIFECYCLE_API
 #endif
 
-static const char *requires[] = {
+static std::array<const char *, 2> requires = {
     "routertestplugin_magic (>>1.0)",
     "routertestplugin_lifecycle3",
 };
 
 static void init(PluginFuncEnv *env) {
-  // for explanation of pointer tagging, see
-  // https://en.wikipedia.org/wiki/Pointer_tagging PluginFuncEnv* ending with
-  // bit0 == 1 is special - it's a hack to perform pre-initialization:
-  // - tell the plugin to pre-initialize (unit test level init, not the normal
-  // plugin init())
-  // - return the necessary ITC info back to unit test
-  uintptr_t ptr = reinterpret_cast<uintptr_t>(env);
-  if (ptr & 0x01) {
-    // initialize the plugin
-    {
-      std::lock_guard<std::mutex> lock(g_strategies_mtx);
-      g_strategies.clear();
-
-      for (const std::string &key : {"instance1", "instance2", "instance3"}) {
-        g_strategies[key].strategy_set = false;  // optimisation,
-      }                                          // doesn't affect behavior
-    }
-
-    // pass ITC struct ptr back to unit test
-    {
-      // env is really LifecyclePluginITC**
-      using mysql_harness::test::LifecyclePluginITC;
-      ptr--;  // untag the ptr
-      LifecyclePluginITC **ppitc = reinterpret_cast<LifecyclePluginITC **>(ptr);
-      *ppitc = &g_lifecycle_plugin_ITC;
-    }
-
-    // return, since this is not a real init() call
-    return;
-  }
-
   const AppInfo *info = get_app_info(env);
 
   // init() and deinit() are called only once per plugin (not per plugin
@@ -463,13 +425,13 @@ static void deinit(PluginFuncEnv *env) {
 }
 
 extern "C" {
-Plugin LIFECYCLE_API harness_plugin_routertestplugin_lifecycle = {
+LIFECYCLE_API Plugin harness_plugin_routertestplugin_lifecycle = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "Lifecycle test plugin",
     VERSION_NUMBER(1, 0, 0),
-    sizeof(requires) / sizeof(*requires),
-    requires,
+    requires.size(),
+    requires.data(),
     0,        // \_ conflicts
     nullptr,  // /
     init,     // init
@@ -477,4 +439,30 @@ Plugin LIFECYCLE_API harness_plugin_routertestplugin_lifecycle = {
     start,    // start
     stop,     // stop
 };
+
+LIFECYCLE_API void lifecycle_init(int flags) {
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+
+  auto &plugin_info = harness_plugin_routertestplugin_lifecycle;
+
+  plugin_info.init = (flags & NoInit) ? nullptr : init;
+  plugin_info.deinit = (flags & NoDeinit) ? nullptr : deinit;
+  plugin_info.start = (flags & NoStart) ? nullptr : start;
+  plugin_info.stop = (flags & NoStop) ? nullptr : stop;
+
+  // initialize the plugin
+  {
+    std::lock_guard<std::mutex> lock(g_strategies_mtx);
+    g_strategies.clear();
+
+    for (const std::string &key : {"instance1", "instance2", "instance3"}) {
+      g_strategies[key].strategy_set = false;  // optimisation,
+    }                                          // doesn't affect behavior
+  }
+}
+
+LIFECYCLE_API mysql_harness::test::LifecyclePluginSyncBus *
+lifecycle_get_bus_from_key(const std::string &name) {
+  return get_bus_from_key(name);
+}
 }

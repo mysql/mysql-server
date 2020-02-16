@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -120,15 +120,15 @@ TEST_P(LoaderReadTest, Loading) {
   EXPECT_THROW(loader->load("routertestplugin_bad_two"), bad_plugin);
 
   // These should all be OK.
-  Plugin *ext1 = loader->load("routertestplugin_example", "one");
+  const Plugin *ext1 = loader->load("routertestplugin_example", "one");
   EXPECT_NE(ext1, nullptr);
   EXPECT_STREQ("An example plugin", ext1->brief);
 
-  Plugin *ext2 = loader->load("routertestplugin_example", "two");
+  const Plugin *ext2 = loader->load("routertestplugin_example", "two");
   EXPECT_NE(ext2, nullptr);
   EXPECT_STREQ("An example plugin", ext2->brief);
 
-  Plugin *ext3 = loader->load("routertestplugin_magic");
+  const Plugin *ext3 = loader->load("routertestplugin_magic");
   EXPECT_NE(ext3, nullptr);
   EXPECT_STREQ("A magic plugin", ext3->brief);
 }

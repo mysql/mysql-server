@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <condition_variable>
+#include <csignal>
+#include <fstream>
+#include <functional>
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -31,17 +39,6 @@
 #include "random_generator.h"
 #include "router_component_test.h"
 #include "tcp_port_pool.h"
-
-#ifndef _WIN32
-#include <signal.h>
-#endif
-
-#include <condition_variable>
-#include <fstream>
-#include <functional>
-#include <mutex>
-#include <string>
-#include <thread>
 
 /**
  * @file
@@ -81,7 +78,8 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_console) {
   // load: ./plugin_output_directory/invalid.so: cannot open shared object
   // file: No such file or directory
   const std::string out = router.get_full_output();
-  EXPECT_THAT(out.c_str(), HasSubstr("plugin 'invalid' failed to load"));
+  EXPECT_THAT(
+      out, HasSubstr("Loading plugin for config-section '[invalid]' failed"));
 }
 
 /** @test This test is similar to log_startup_failure_to_logfile(), but the
@@ -1095,13 +1093,14 @@ INSTANTIATE_TEST_CASE_P(
             "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Let's also check that the eventlog is NOT supported
-        LoggingConfigErrorParams("[logger]\n"
-                                 "sinks=eventlog\n"
-                                 "[eventlog]\n"
-                                 "level=invalid\n",
-                                 /* logging_folder_empty = */ false,
-                                 /* expected_error =  */
-                                 "plugin 'eventlog' failed to load")));
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=eventlog\n"
+            "[eventlog]\n"
+            "level=invalid\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Loading plugin for config-section '[eventlog]' failed")));
 #else
 INSTANTIATE_TEST_CASE_P(
     LoggingConfigErrorWindows, RouterLoggingConfigError,
@@ -1121,13 +1120,14 @@ INSTANTIATE_TEST_CASE_P(
             "values are: debug, error, fatal, info, note, system, and warning"),
 
         // Let's also check that the syslog is NOT supported
-        LoggingConfigErrorParams("[logger]\n"
-                                 "sinks=syslog\n"
-                                 "[syslog]\n"
-                                 "level=invalid\n",
-                                 /* logging_folder_empty = */ false,
-                                 /* expected_error =  */
-                                 "plugin 'syslog' failed to load")));
+        LoggingConfigErrorParams(
+            "[logger]\n"
+            "sinks=syslog\n"
+            "[syslog]\n"
+            "level=invalid\n",
+            /* logging_folder_empty = */ false,
+            /* expected_error =  */
+            "Loading plugin for config-section '[syslog]' failed")));
 #endif
 
 class RouterLoggingTestTimestampPrecisionConfig

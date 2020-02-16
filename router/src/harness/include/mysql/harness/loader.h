@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -618,6 +618,7 @@ end). Actions taken for each plugin function are as follows:
 
 #include "config_parser.h"
 #include "filesystem.h"
+#include "mysql/harness/dynamic_loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/plugin.h"
 
@@ -866,8 +867,6 @@ class HARNESS_EXPORT Loader {
     Unloading,
   };
 
-  void platform_specific_init();
-
   /**
    * Load the named plugin from a specific library.
    *
@@ -878,10 +877,10 @@ class HARNESS_EXPORT Loader {
    *
    * @throws bad_plugin (std::runtime_error) on load error
    */
-  Plugin *load_from(const std::string &plugin_name,
-                    const std::string &library_name);
+  const Plugin *load_from(const std::string &plugin_name,
+                          const std::string &library_name);
 
-  Plugin *load(const std::string &plugin_name);
+  const Plugin *load(const std::string &plugin_name);
 
   /**
    * Load the named plugin and all dependent plugins.
@@ -897,7 +896,7 @@ class HARNESS_EXPORT Loader {
    * plugins required by that plugin will be loaded.
    */
   /** @overload */
-  Plugin *load(const std::string &plugin_name, const std::string &key);
+  const Plugin *load(const std::string &plugin_name, const std::string &key);
 
   // IMPORTANT design note: start_all() will block until PluginFuncEnv objects
   // have been created for all plugins. This guarantees that the required
@@ -944,30 +943,18 @@ class HARNESS_EXPORT Loader {
    */
   class HARNESS_EXPORT PluginInfo {
    public:
-    PluginInfo(const std::string &folder,
-               const std::string &library);  // throws bad_plugin
-    PluginInfo(const PluginInfo &) = delete;
-    PluginInfo(PluginInfo &&);
-    PluginInfo(void *h, Plugin *ext) : handle(h), plugin(ext) {}
-    ~PluginInfo();
+    PluginInfo(const std::string &folder, const std::string &libname);
+    PluginInfo(const Plugin *const plugin) : plugin_(plugin) {}
 
-    void load_plugin(const std::string &name);  // throws bad_plugin
+    void load_plugin_descriptor(const std::string &name);  // throws bad_plugin
 
-    /**
-     * Pointer to plugin structure.
-     *
-     * @note This pointer can be null, so remember to check it before
-     * using it.
-     *
-     * @todo Make this member private to avoid exposing the internal
-     * state.
-     */
-    void *handle;
-    Plugin *plugin;
+    const Plugin *plugin() const { return plugin_; }
+
+    const DynamicLibrary &library() const { return module_; }
 
    private:
-    class Impl;
-    Impl *impl_{nullptr};
+    DynamicLibrary module_;
+    const Plugin *plugin_{};
   };
 
   using PluginMap = std::map<std::string, PluginInfo>;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // must have this first, before #includes that rely on it
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest_prod.h>
 
 #include "my_config.h"
@@ -66,14 +67,14 @@
 
 ////////////////////////////////////////
 // Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 ////////////////////////////////////////
 // Standard include files
-#include <signal.h>
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -138,62 +139,51 @@ class TestLoader : public Loader {
     unittest_backdoor::set_shutdown_pending(false);
   }
 
-  // lifecycle plugin exposes all four lifecycle functions. But we can
-  // override any of them into nullptr using this struct in
-  // init_lifecycle_plugin()
-  struct ApiFunctionEnableSwitches {
-    bool init;
-    bool start;
-    bool stop;
-    bool deinit;
-  };
-
   void read(std::istream &stream) {
     config_.Config::read(stream);
     config_.fill_and_check();
   }
 
   // Loader::load_all() with ability to disable functions
-  void load_all(ApiFunctionEnableSwitches switches) {
+  void load_all(int switches) {
     Loader::load_all();
     init_lifecycle_plugin(switches);
   }
 
-  LifecyclePluginSyncBus &get_msg_bus_from_lifecycle_plugin(const char *key) {
-    return *lifecycle_plugin_itc_->get_bus_from_key(key);
+  LifecyclePluginSyncBus &get_msg_bus_from_lifecycle_plugin(
+      const std::string &key) {
+    return *lifecycle_get_bus_from_key_(key);
   }
 
  private:
-  void init_lifecycle_plugin(ApiFunctionEnableSwitches switches) {
-    Plugin *plugin = plugins_.at(kPluginNameLifecycle).plugin;
+  using lifecycle_init_type = void (*)(int);
+  using lifecycle_get_bus_from_key_type =
+      mysql_harness::test::LifecyclePluginSyncBus *(*)(const std::string &);
 
-#if !USE_DLCLOSE
-    // with address sanitizer we don't unload the plugin which means
-    // the overwritten plugin hooks don't get reset to their initial values
-    //
-    // we need to capture original pointers and reset them
-    // each time
-    static Plugin virgin_plugin = *plugin;
-    *plugin = virgin_plugin;
-#endif
+  void init_lifecycle_plugin(const int switches) {
+    auto const &plugin_info = plugins_.at(kPluginNameLifecycle);
 
-    // signal plugin to reset state and init our lifecycle_plugin_itc_
-    // (we use a special hack (tag the pointer with last bit=1) to tell it that
-    // this is not a normal init() call, but a special call meant to
-    // pre-initialize the plugin for the test). In next line, +1 = pointer tag
-    uintptr_t ptr = reinterpret_cast<uintptr_t>(&lifecycle_plugin_itc_) + 1;
-    plugin->init(reinterpret_cast<mysql_harness::PluginFuncEnv *>(ptr));
+    auto res = plugin_info.library().symbol("lifecycle_init");
+    if (!res) {
+      FAIL() << res.error() << ", " << plugin_info.library().error_msg();
+      return;
+    }
+    lifecycle_init_ = reinterpret_cast<lifecycle_init_type>(res.value());
+
+    res = plugin_info.library().symbol("lifecycle_get_bus_from_key");
+    if (!res) {
+      FAIL() << res.error() << ", " << plugin_info.library().error_msg();
+      return;
+    }
+    lifecycle_get_bus_from_key_ =
+        reinterpret_cast<lifecycle_get_bus_from_key_type>(res.value());
 
     // override plugin functions as requested
-    if (!switches.init) plugin->init = nullptr;
-    if (!switches.start) plugin->start = nullptr;
-    if (!switches.stop) plugin->stop = nullptr;
-    if (!switches.deinit) plugin->deinit = nullptr;
+    lifecycle_init_(switches);
   }
 
-  // struct to expose additional things we need from lifecycle plugin,
-  // pointer owner = lifecycle plugin
-  mysql_harness::test::LifecyclePluginITC *lifecycle_plugin_itc_;
+  lifecycle_init_type lifecycle_init_{};
+  lifecycle_get_bus_from_key_type lifecycle_get_bus_from_key_{};
 };  // class TestLoader
 
 class BasicConsoleOutputTest : public ::testing::Test {
@@ -206,7 +196,7 @@ class BasicConsoleOutputTest : public ::testing::Test {
   std::stringstream log;
 
  private:
-  void SetUp() {
+  void SetUp() override {
     std::ostream *log_stream =
         mysql_harness::logging::get_default_logger_stream();
 
@@ -214,7 +204,7 @@ class BasicConsoleOutputTest : public ::testing::Test {
     log_stream->rdbuf(log.rdbuf());
   }
 
-  void TearDown() {
+  void TearDown() override {
     if (orig_log_stream_) {
       std::ostream *log_stream =
           mysql_harness::logging::get_default_logger_stream();
@@ -258,9 +248,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
                         kPluginNameLifecycle + ":instance1]         \n";
   }
 
-  void init_test(std::istream &config_text,
-                 TestLoader::ApiFunctionEnableSwitches switches = {
-                     true, true, true, true}) {
+  void init_test(std::istream &config_text, int switches) {
     loader_.read(config_text);
     loader_.load_all(switches);
     clear_log();
@@ -289,7 +277,7 @@ class LifecycleTest : public BasicConsoleOutputTest {
   // because if we freeze_bus(), an attempt to pass another message from plugin
   // will block it, until we unfreeze_and_wait_for_msg().
 
-  LifecyclePluginSyncBus &msg_bus(const char *key) {
+  LifecyclePluginSyncBus &msg_bus(const std::string &key) {
     return loader_.get_msg_bus_from_lifecycle_plugin(key);
   }
 
@@ -432,7 +420,9 @@ TEST(StdLibrary, FutureWaitUntil) {
 //   }
 
 TEST_F(LifecycleTest, Simple_None) {
-  init_test(config_text_, {false, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(
+      init_test(config_text_, NoInit | NoDeinit | NoStart | NoStop));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -459,7 +449,7 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -504,7 +494,8 @@ TEST_F(LifecycleTest, Simple_AllFunctions) {
 
 TEST_F(LifecycleTest, Simple_Init) {
   config_text_ << "init = exit\n";
-  init_test(config_text_, {true, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -529,7 +520,9 @@ TEST_F(LifecycleTest, Simple_Init) {
 TEST_F(LifecycleTest, Simple_StartStop) {
   config_text_ << "start = exitonstop\n";
   config_text_ << "stop  = exit\n";
-  init_test(config_text_, {false, true, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -574,7 +567,9 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
 
   config_text_ << "start = exitonstop_s\n";  // <--- note the "_s" postfix
   config_text_ << "stop  = exit\n";
-  init_test(config_text_, {false, true, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -617,7 +612,9 @@ TEST_F(LifecycleTest, Simple_StartStopBlocking) {
 
 TEST_F(LifecycleTest, Simple_Start) {
   config_text_ << "start = exitonstop\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -658,7 +655,8 @@ TEST_F(LifecycleTest, Simple_Start) {
 
 TEST_F(LifecycleTest, Simple_Stop) {
   config_text_ << "stop = exit\n";
-  init_test(config_text_, {false, false, true, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -694,7 +692,8 @@ TEST_F(LifecycleTest, Simple_Stop) {
 
 TEST_F(LifecycleTest, Simple_Deinit) {
   config_text_ << "deinit = exit\n";
-  init_test(config_text_, {false, false, false, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   EXPECT_EQ(loader_.init_all(), nullptr);
   loader_.start_all();
@@ -746,7 +745,8 @@ TEST_F(LifecycleTest, ThreeInstances_NoError) {
                << "[" + kPluginNameLifecycle + ":instance3]\n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() { loader_.run(); });
@@ -843,7 +843,8 @@ TEST_F(LifecycleTest, BothLifecycles_NoError) {
                << "deinit = exit           \n"
                << "                        \n"
                << "[" + kPluginNameLifecycle2 + "]\n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() { loader_.run(); });
@@ -905,7 +906,8 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_NoError) {
                << "start  = exit           \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // Router should just shut down on it's own, since there's nothing to run
   // (all plugin start() functions just exit)
@@ -955,7 +957,8 @@ TEST_F(LifecycleTest, OneInstance_NothingPersists_StopFails) {
                << "start  = exit           \n"
                << "stop   = error          \n"
                << "deinit = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // Router should just shut down on it's own, since there's nothing to run
   // (all plugin start() functions just exit)
@@ -1021,7 +1024,8 @@ TEST_F(LifecycleTest, ThreeInstances_InitFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1071,7 +1075,8 @@ TEST_F(LifecycleTest, BothLifecycles_InitFails) {
                << "deinit = exit           \n"
                << "                        \n"
                << "[" + kPluginNameLifecycle2 + "]            \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1135,7 +1140,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start1Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1201,7 +1207,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start2Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1267,7 +1274,8 @@ TEST_F(LifecycleTest, ThreeInstances_Start3Fails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = error          \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1333,7 +1341,8 @@ TEST_F(LifecycleTest, ThreeInstances_2StartsFail) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = error          \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1400,7 +1409,8 @@ TEST_F(LifecycleTest, ThreeInstances_StopFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() {
@@ -1475,7 +1485,8 @@ TEST_F(LifecycleTest, ThreeInstances_DeinintFails) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = exit           \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // signal shutdown after 10ms, run() should block until then
   run_then_signal_shutdown([&]() {
@@ -1521,7 +1532,8 @@ TEST_F(LifecycleTest, ThreeInstances_StartStopDeinitFail) {
                << "[" + kPluginNameLifecycle + ":instance3]   \n"
                << "start  = exitonstop     \n"
                << "stop   = error          \n";
-  init_test(config_text_);
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
 
   // exception from start() should get propagated
   try {
@@ -1629,7 +1641,8 @@ TEST_F(LifecycleTest, EmptyErrorMessage) {
                << "start  = exit           \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, false, false, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   // null string should be replaced with '<empty message>'
   try {
@@ -1733,7 +1746,8 @@ TEST_F(LifecycleTest, send_signals) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1766,7 +1780,8 @@ TEST_F(LifecycleTest, send_signals2) {
                << "start  = exitonstop     \n"
                << "stop   = exit           \n"
                << "deinit = exit           \n";
-  init_test(config_text_, {true, true, true, true});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, 0));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1821,7 +1836,8 @@ TEST_F(LifecycleTest, wait_for_stop) {
   //   immediately, returing control back to stop(), which just exits after.
   config_text_ << "stop  = exitonstop_longtimeout\n";
 
-  init_test(config_text_, {false, true, true, false});
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoDeinit));
   LifecyclePluginSyncBus &bus = msg_bus("instance1");
 
   EXPECT_EQ(loader_.init_all(), nullptr);
@@ -1919,7 +1935,9 @@ TEST_F(LifecycleTest, wait_for_stop) {
                // case sensitive) will define it
 TEST_F(LifecycleTest, InitThrows) {
   config_text_ << "init = throw\n";
-  init_test(config_text_, {true, false, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1944,7 +1962,9 @@ TEST_F(LifecycleTest, InitThrows) {
 
 TEST_F(LifecycleTest, StartThrows) {
   config_text_ << "start = throw\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1968,7 +1988,9 @@ TEST_F(LifecycleTest, StartThrows) {
 
 TEST_F(LifecycleTest, StopThrows) {
   config_text_ << "stop = throw\n";
-  init_test(config_text_, {false, false, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -1992,7 +2014,9 @@ TEST_F(LifecycleTest, StopThrows) {
 
 TEST_F(LifecycleTest, DeinitThrows) {
   config_text_ << "deinit = throw\n";
-  init_test(config_text_, {false, false, false, true});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2020,7 +2044,9 @@ TEST_F(LifecycleTest, DeinitThrows) {
 // in Loader's code
 TEST_F(LifecycleTest, InitThrowsWeird) {
   config_text_ << "init = throw_weird\n";
-  init_test(config_text_, {true, false, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoStart | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2041,7 +2067,9 @@ TEST_F(LifecycleTest, InitThrowsWeird) {
 
 TEST_F(LifecycleTest, StartThrowsWeird) {
   config_text_ << "start = throw_weird\n";
-  init_test(config_text_, {false, true, false, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStop | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2064,7 +2092,9 @@ TEST_F(LifecycleTest, StartThrowsWeird) {
 
 TEST_F(LifecycleTest, StopThrowsWeird) {
   config_text_ << "stop = throw_weird\n";
-  init_test(config_text_, {false, false, true, false});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoDeinit));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2088,7 +2118,9 @@ TEST_F(LifecycleTest, StopThrowsWeird) {
 
 TEST_F(LifecycleTest, DeinitThrowsWeird) {
   config_text_ << "deinit = throw_weird\n";
-  init_test(config_text_, {false, false, false, true});
+
+  using namespace mysql_harness::test::PluginDescriptorFlags;
+  ASSERT_NO_FATAL_FAILURE(init_test(config_text_, NoInit | NoStart | NoStop));
 
   try {
     std::exception_ptr e = loader_.run();
@@ -2130,20 +2162,18 @@ TEST_F(LifecycleTest, LoadingNonExistentPlugin) {
     FAIL() << "Loader::start() should throw bad_plugin, but got: " << e.what();
   }
 
-  // Expect something like so:
-  // "2017-07-13 14:38:57 main ERROR [7ffff7fd5780]   plugin
-  // 'nonexistent_plugin' failed to load: <OS-specific error text>" "2017-07-13
-  // 14:38:57 main INFO [7ffff7fd5780] Unloading all plugins."
   refresh_log();
-  EXPECT_EQ(1,
-            count_in_log("]   plugin 'nonexistent_plugin' failed to load: "));
-  EXPECT_EQ(1, count_in_log("] Unloading all plugins."));
+
+  EXPECT_THAT(
+      log_lines_,
+      ::testing::Contains(::testing::HasSubstr("] Unloading all plugins.")));
 
   // Loader::load_all() should have stopped loading as soon as it encountered
   // 'nonexistent_plugin'. Therefore, it should not attempt to load the next
   // plugin, 'nonexistent_plugin_2', thus we should find no trace of such string
   // in the log.
-  EXPECT_EQ(0, count_in_log("nonexistent_plugin_2"));
+  EXPECT_THAT(log_lines_,
+              ::testing::Not(::testing::Contains("nonexistent_plugin_2")));
 }
 
 int main(int argc, char *argv[]) {
