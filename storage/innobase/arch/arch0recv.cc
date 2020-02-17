@@ -1,7 +1,7 @@
 /*****************************************************************************
 
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ dberr_t Arch_Page_Sys::recover() {
   err = arch_recv.fill_info(this);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Page archiver system's recovery failed";
+    ib::error(ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED);
     return (DB_OUT_OF_MEMORY);
   }
 
@@ -190,9 +190,7 @@ void Arch_Page_Sys::Recv::read_group_files(const std::string dir_path,
         std::stoi(file_path.substr(found + strlen(ARCH_PAGE_FILE))));
   } catch (const std::exception &) {
     ut_ad(0);
-    ib::error() << "Invalid archived file name format. The archived file"
-                << " is supposed to have the format " << ARCH_PAGE_FILE
-                << "+ [0-9]*.";
+    ib::error(ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT) << ARCH_PAGE_FILE;
     return;
   }
 
