@@ -1686,18 +1686,6 @@ eval $query;
 let $query=
 SELECT straight_join
  table1.pk, table2.pk, table3.pk
-FROM S AS table1
-  LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
-  LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
-
-eval explain format=tree $query;
---sorted_result
-eval $query;
-
-
-let $query=
-SELECT straight_join
- table1.pk, table2.pk, table3.pk
 FROM R AS table1
   LEFT JOIN G AS table2
     LEFT JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key
@@ -1751,6 +1739,145 @@ WHERE table1.col_int NOT IN (
     JOIN V AS table2s ON table1s.col_int = table2s.col_int AND
                          table1s.col_int_unique = table2s.col_int_unique
 );
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT STRAIGHT_JOIN
+  table1.pk, table2.pk, table3.pk
+FROM  B AS table1
+  LEFT JOIN Z AS table2
+    JOIN Z AS table3 ON table2.pk = table3.col_int_key
+    LEFT JOIN Q AS table4
+      LEFT JOIN B AS table5 ON table4.col_int = table5.col_int_key
+    ON table2.col_int_key = table5.col_int_unique AND
+       table2.col_int_unique = table4.col_int
+  ON table1.col_int_key = table2.col_int_key;
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+SELECT
+  table2.pk, table1.pk
+FROM P AS table2
+  JOIN O AS table1 ON table1.col_int = table2.col_int
+WHERE table1.col_int_key IN (
+  SELECT table2s.col_int_unique AS field3
+  FROM L AS table1s
+    JOIN H AS table2s ON table1s.col_int = table2s.col_int
+);
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk
+FROM I AS table1
+WHERE table1.col_int IN (
+  SELECT table1s.col_int
+  FROM Y AS table1s
+    JOIN Y AS table2s ON table1s.col_int_key = table2s.col_int_key
+);
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM J AS table1
+  JOIN Z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+  SELECT table1s.col_int_key AS field3 FROM U AS table1s
+)
+  and table1.pk in (1,2);
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM J AS table1
+  JOIN Z AS table2 ON table1.col_int_key = table2.col_int_key
+WHERE table1.col_int IN (
+  SELECT table1s.col_int_key AS field3 FROM U AS table1s
+)
+  and table1.pk in (4,5);
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM F AS table1
+  JOIN R AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM W AS table1s);
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT straight_join
+  table1.pk, table2.pk, table3.pk, table4.pk
+FROM J AS table1
+  LEFT JOIN A AS table2 ON table1.col_int_unique = table2.pk
+  LEFT JOIN M AS table3
+    LEFT JOIN O AS table4 ON table3.col_int_key = table4.col_int_key
+  ON table1.col_int = table3.col_int AND
+     table1.col_int_key = table3.col_int_key AND
+     table2.col_int_unique = table3.col_int_unique;
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM V AS table1
+   LEFT JOIN O table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+  SELECT *
+  FROM  M AS table2s
+  WHERE table2s.pk = table2.pk
+)
+  and table1.pk = 11;
+
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+let $query=
+SELECT
+  table1.pk, table2.pk
+FROM V AS table1
+   left JOIN O AS table2 ON table1.pk = table2.pk
+WHERE NOT EXISTS (
+  SELECT table1.col_int AS field4, table1s.col_char_16_key AS field5
+  FROM D AS table1s
+    JOIN M AS table2s ON table1s.col_char_16_key = table2s.col_char_16_key
+  WHERE table2s.pk = table2.pk
+)
+  and table1.pk = 11;
 
 eval explain format=tree $query;
 --sorted_result
