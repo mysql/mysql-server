@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 #ifdef _WIN32
 #define _CRT_SECURE_NO_WARNINGS 1
@@ -47,7 +48,8 @@ namespace mysql_harness {
 namespace win32 {
 // reverse of CommandLineToArgv()
 HARNESS_EXPORT std::string cmdline_quote_arg(const std::string &arg);
-HARNESS_EXPORT std::string cmdline_from_args(const char *const *args);
+HARNESS_EXPORT std::string cmdline_from_args(
+    const std::string &executable_path, const std::vector<std::string> &args);
 }  // namespace win32
 #endif
 
@@ -64,9 +66,10 @@ HARNESS_EXPORT std::string cmdline_from_args(const char *const *args);
  */
 class HARNESS_EXPORT SpawnedProcess {
  public:
-  SpawnedProcess(const char *pcmd_line, const char **pargs,
+  SpawnedProcess(const std::string &pexecutable_path,
+                 const std::vector<std::string> &pargs,
                  bool predirect_stderr = true)
-      : cmd_line{pcmd_line},
+      : executable_path{pexecutable_path},
         args{pargs},
 #ifdef _WIN32
         child_in_rd{INVALID_HANDLE_VALUE},
@@ -87,11 +90,11 @@ class HARNESS_EXPORT SpawnedProcess {
 
   virtual ~SpawnedProcess() {}
 
-  const std::string &get_cmd_line() { return cmd_line; }
+  std::string get_cmd_line() const;
 
  protected:
-  const std::string cmd_line;
-  const char **args;
+  const std::string executable_path;
+  const std::vector<std::string> args;
 #ifdef _WIN32
   HANDLE child_in_rd;
   HANDLE child_in_wr;
@@ -127,13 +130,13 @@ class HARNESS_EXPORT ProcessLauncher : public SpawnedProcess {
  public:
   /**
    * Creates a new process and launch it.
-   * Argument 'args' must have a last entry that is NULL.
    * If redirect_stderr is true, the child's stderr is redirected to the same
    * stream than child's stdout.
    */
-  ProcessLauncher(const char *pcmd_line, const char **pargs,
-                  bool predirect_stderr = true)
-      : SpawnedProcess(pcmd_line, pargs, predirect_stderr), is_alive{false} {}
+  ProcessLauncher(const std::string &pexecutable_path,
+                  std::vector<std::string> pargs, bool predirect_stderr = true)
+      : SpawnedProcess(pexecutable_path, std::move(pargs), predirect_stderr),
+        is_alive{false} {}
 
   // copying a Process results in multiple destructors trying
   // to kill the same alive process. Disable it.

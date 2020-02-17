@@ -114,11 +114,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router_bootstrapping, EXIT_SUCCESS));
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
-      "MySQL Router configured for the InnoDB Cluster 'mycluster'"))
-      << "bootstrap output: " << router_bootstrapping.get_full_output()
-      << std::endl
-      << "routing log: " << router_bootstrapping.get_full_logfile() << std::endl
-      << "server output: " << server_mock.get_full_output() << std::endl;
+      "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 }
 
 TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
@@ -248,8 +244,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   SCOPED_TRACE("// wait for Loader::main_loop() to start");
   EXPECT_TRUE(find_in_file(
       get_logging_dir().join("mysqlrouter.log").str(),
-      [](const auto &line) { return pattern_found(line, " Running."); }, 1s))
-      << router_static.get_full_logfile();
+      [](const auto &line) { return pattern_found(line, " Running."); }, 1s));
 
   SCOPED_TRACE("// reducing NPROC to 0");
   {
@@ -279,9 +274,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
         client1.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
       },
       "Router couldn't spawn a new thread to service new client connection "
-      "(1040)"))
-      << "mock: " << server_mock.get_full_logfile() << "\n"
-      << "router: " << router_static.get_full_logfile();
+      "(1040)"));
 
   SCOPED_TRACE("// restoring old NPROC.");
   // we need to restore the old limit, otherwise ASAN can't spawn the thread
@@ -290,9 +283,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
 
   SCOPED_TRACE("// stopping router and wait for shutdown.");
   EXPECT_EQ(router_static.send_clean_shutdown_event(), std::error_code{});
-  EXPECT_NO_THROW(EXPECT_EQ(router_static.wait_for_exit(), 0)
-                  << router_static.get_full_logfile())
-      << router_static.get_full_logfile();
+  EXPECT_NO_THROW(EXPECT_EQ(router_static.wait_for_exit(), 0));
 
   SCOPED_TRACE("// check for expected content.");
   EXPECT_THAT(router_static.get_full_logfile(),

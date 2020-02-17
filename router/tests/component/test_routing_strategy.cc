@@ -237,9 +237,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return router;
   }
 
-  void kill_server(ProcessWrapper *server) {
-    EXPECT_NO_THROW(server->kill()) << server->get_full_output();
-  }
+  void kill_server(ProcessWrapper *server) { EXPECT_NO_THROW(server->kill()); }
 
   TcpPortPool port_pool_;
   unsigned wait_for_cache_ready_timeout{1000};
@@ -331,8 +329,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   auto &router = launch_router(temp_test_dir.name(),
                                metadata_cache_section + monitoring_section,
                                routing_section);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port))
-      << router.get_full_output();
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
@@ -352,8 +349,8 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      std::chrono::milliseconds(wait_for_cache_ready_timeout), metadata_status))
-      << router.get_full_logfile();
+      std::chrono::milliseconds(wait_for_cache_ready_timeout),
+      metadata_status));
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order
@@ -716,8 +713,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidStrategyName) {
       router.expect_output("Configuration error: option routing_strategy in "
                            "[routing:test_default] is invalid; "
                            "valid are first-available, next-available, and "
-                           "round-robin (was 'round-robin-with-fallback'"))
-      << router.get_full_logfile();
+                           "round-robin (was 'round-robin-with-fallback'"));
 }
 
 TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
@@ -733,8 +729,7 @@ TEST_F(RouterRoutingStrategyStatic, InvalidMode) {
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(router.expect_output(
       "option routing_strategy in [routing:test_default] is invalid; valid are "
-      "first-available, next-available, and round-robin (was 'invalid')"))
-      << router.get_full_logfile();
+      "first-available, next-available, and round-robin (was 'invalid')"));
 }
 
 TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
@@ -750,8 +745,7 @@ TEST_F(RouterRoutingStrategyStatic, BothStrategyAndModeMissing) {
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
-                           "[routing:test_default] is required"))
-      << router.get_full_logfile();
+                           "[routing:test_default] is required"));
 }
 
 TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
@@ -767,8 +761,7 @@ TEST_F(RouterRoutingStrategyStatic, RoutingSrtategyEmptyValue) {
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option routing_strategy in "
-                           "[routing:test_default] needs a value"))
-      << router.get_full_logfile();
+                           "[routing:test_default] needs a value"));
 }
 
 TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
@@ -784,8 +777,7 @@ TEST_F(RouterRoutingStrategyStatic, ModeEmptyValue) {
   check_exit_code(router, EXIT_FAILURE);
   EXPECT_TRUE(
       router.expect_output("Configuration error: option mode in "
-                           "[routing:test_default] needs a value"))
-      << router.get_full_logfile();
+                           "[routing:test_default] needs a value"));
 }
 
 int main(int argc, char *argv[]) {

@@ -47,10 +47,6 @@
 
 using mysql_harness::Path;
 
-/** @brief maximum number of parameters that can be passed to the launched
- * process */
-constexpr size_t kMaxLaunchedProcessParams{30};
-
 /** @class ProcessManager
  *
  * Manages collecion of the processes
@@ -84,6 +80,8 @@ class ProcessManager {
   void check_exit_code(
       ProcessWrapper &process, int expected_exit_code = EXIT_SUCCESS,
       std::chrono::milliseconds timeout = kDefaultWaitForExitTimeout);
+
+  void dump_all();
 
   /**
    * ensures given port is ready for accepting connections, prints some debug
@@ -230,10 +228,6 @@ class ProcessManager {
       const std::map<std::string, std::string> *params) const;
 
  private:
-  void get_params(const std::string &command,
-                  const std::vector<std::string> &params_vec,
-                  const char *out_params[kMaxLaunchedProcessParams]) const;
-
   void check_port(bool should_be_ready, ProcessWrapper &process, uint16_t port,
                   std::chrono::milliseconds timeout,
                   const std::string &hostname);

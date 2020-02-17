@@ -213,8 +213,7 @@ TEST_F(RouterPidfileTest, PidFileRemovedAtExit) {
   UnsetEnvRouterPid();
 
   // expect PID output
-  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
 }
 
 //
@@ -240,8 +239,7 @@ TEST_F(RouterPidfileOptionTest, PidFileNone) {
   stop_router();
 
   // expect NO PID output
-  EXPECT_FALSE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_FALSE(router->expect_output("PID .* written to '.*'", true));
 }
 
 /**
@@ -259,8 +257,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwiceWithoutValue) {
 
   // expect error
   EXPECT_TRUE(router.expect_output(
-      "Error: option '--pid-file' expects a value, got nothing", true))
-      << router.get_full_output() << std::endl;
+      "Error: option '--pid-file' expects a value, got nothing", true));
 }
 
 /**
@@ -279,8 +276,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionTwice) {
 
   // expect error
   EXPECT_TRUE(router.expect_output(
-      "Error: Option --pid-file can only be given once", true))
-      << router.get_full_output() << std::endl;
+      "Error: Option --pid-file can only be given once", true));
 }
 
 /**
@@ -305,8 +301,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionCfgTwice) {
 
   // expect error
   EXPECT_TRUE(router.expect_output(
-      "Error: Configuration error: Option 'pid_file' already defined.", true))
-      << router.get_full_output() << std::endl;
+      "Error: Configuration error: Option 'pid_file' already defined.", true));
 }
 
 /**
@@ -340,8 +335,7 @@ TEST_F(RouterPidfileOptionTest, PidFileOptionEnvWhitespace) {
   UnsetEnvRouterPid();
 
   // expect PID output
-  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
 }
 
 /**
@@ -396,8 +390,7 @@ TEST_P(RouterPidfileOptionValueTest, PidFileOptionValueTest) {
   stop_router();
 
   // expect PID output
-  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -472,8 +465,7 @@ TEST_P(RouterPidfileOptionValueTestError, PidFileOptionValueTestError) {
   check_exit_code(router, EXIT_FAILURE, 1s);
 
   // expect error
-  EXPECT_TRUE(router.expect_output(test_params.pattern, true))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(test_params.pattern, true));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -545,8 +537,7 @@ TEST_P(RouterPidfileOptionCfgValueTest, PidFileOptionCfgValueTest) {
   stop_router();
 
   // expect PID output
-  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionCfgValueTest,
@@ -592,8 +583,7 @@ TEST_P(RouterPidfileOptionCfgValueTestError, PidFileOptionCfgValueTestError) {
 
   // expect error
   EXPECT_TRUE(
-      router.expect_output("^Error: PID filename '.*' is illegal", true))
-      << router.get_full_output() << std::endl;
+      router.expect_output("^Error: PID filename '.*' is illegal", true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionCfgValueTestError,
@@ -637,8 +627,7 @@ TEST_P(RouterPidfileOptionEnvValueTestError, PidFileOptionEnvValueTestError) {
 
   // expect error
   EXPECT_TRUE(
-      router.expect_output("^Error: PID filename '.*' is illegal", true))
-      << router.get_full_output() << std::endl;
+      router.expect_output("^Error: PID filename '.*' is illegal", true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionEnvValueTestError,
@@ -725,8 +714,7 @@ TEST_P(RouterPidfileOptionSupremacyTest, PidFileOptionSupremacyTest) {
   }
 
   // expect PID output
-  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true))
-      << router->get_full_output() << std::endl;
+  EXPECT_TRUE(router->expect_output("PID .* written to '.*'", true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionSupremacyTest,
@@ -777,8 +765,7 @@ TEST_P(RouterPidfileOptionSupremacyCornerCaseTest,
   check_exit_code(router, EXIT_FAILURE, 1s);
 
   // expect error
-  EXPECT_TRUE(router.expect_output(test_params.pattern, true))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(test_params.pattern, true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionSupremacyCornerCaseTest,
@@ -843,9 +830,8 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   }
 
   // expect error
-  EXPECT_TRUE(
-      router.expect_output("^Error: PID file .* found. Already running?", true))
-      << router.get_full_output() << std::endl;
+  EXPECT_TRUE(router.expect_output(
+      "^Error: PID file .* found. Already running?", true));
 }
 
 INSTANTIATE_TEST_CASE_P(PidFileOptionExistsTest, RouterPidfileOptionExistsTest,

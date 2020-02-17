@@ -408,8 +408,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
   }
 
   EXPECT_NO_FATAL_FAILURE(
-      fetch_and_validate_schema_and_resource(GetParam(), router_proc))
-      << router_proc.get_full_output();
+      fetch_and_validate_schema_and_resource(GetParam(), router_proc));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().methods == HttpMethod::Get &&

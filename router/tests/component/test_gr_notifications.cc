@@ -388,8 +388,8 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(test_params.router_uptime);
 
@@ -402,10 +402,7 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
   // there are not metadata refresh triggered by the notifications
   int md_queries_count =
       wait_for_md_queries(expected_md_queries_count, cluster_http_ports[0]);
-  ASSERT_EQ(expected_md_queries_count, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(expected_md_queries_count, md_queries_count);
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -674,10 +671,7 @@ TEST_P(GrNotificationNoXPortTest, GrNotificationNoXPort) {
   // we only expect initial ttl read (hence 1), because x-port is not valid
   // there are not metadata refresh triggered by the notifications
   int md_queries_count = wait_for_md_queries(1, cluster_http_ports[0]);
-  ASSERT_EQ(1, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(1, md_queries_count);
 
   // we expect that the router will not be able to connect to both nodes on
   // the x-port. that can take up to 2 * 10s as 10 seconds is a timeout we use
@@ -762,9 +756,7 @@ TEST_P(GrNotificationMysqlxWaitTimeoutUnsupportedTest,
   // Even tho the mysqlx_wait_timeout is not supported we still expect that
   // the GR notifications work fine
   int md_queries_count = wait_for_md_queries(2, cluster_http_port);
-  ASSERT_GT(md_queries_count, 1)
-      << "mock: " << cluster_node.get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_GT(md_queries_count, 1);
 
   // there should be no WARNINGs nor ERRORs in the log file
   const std::string log_content = router.get_full_logfile();
@@ -830,9 +822,7 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
   // There should be only single (initial) md refresh as there are no
   // notifications
   int md_queries_count = wait_for_md_queries(1, cluster_http_port);
-  ASSERT_EQ(md_queries_count, 1)
-      << "mock: " << cluster_node.get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(md_queries_count, 1);
 
   const bool found = wait_log_contains(
       router,
@@ -840,7 +830,7 @@ TEST_P(GrNotificationNoticesUnsupportedTest, GrNotificationNoticesUnsupported) {
       "MySQL server version does not support GR notifications.*",
       2s);
 
-  EXPECT_TRUE(found) << router.get_full_logfile();
+  EXPECT_TRUE(found);
 }
 
 INSTANTIATE_TEST_CASE_P(GrNotificationNoticesUnsupported,
@@ -905,8 +895,8 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
       router_port, "PRIMARY", "first-available");
 
   SCOPED_TRACE("// Launch ther router");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   std::this_thread::sleep_for(1s);
   EXPECT_TRUE(cluster_nodes[1]->kill() == 0)
@@ -916,10 +906,7 @@ TEST_P(GrNotificationXPortConnectionFailureTest,
   // we only xpect initial ttl read plus the one caused by the x-protocol
   // notifier connection to the node we killed
   int md_queries_count = wait_for_md_queries(2, cluster_http_ports[0]);
-  ASSERT_EQ(2, md_queries_count)
-      << "mock[0]: " << cluster_nodes[0]->get_full_output() << "\n"
-      << "mock[1]: " << cluster_nodes[1]->get_full_output() << "\n"
-      << "router: " << router.get_full_logfile();
+  ASSERT_EQ(2, md_queries_count);
 }
 
 INSTANTIATE_TEST_CASE_P(GrNotificationXPortConnectionFailure,
@@ -1072,12 +1059,10 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
       router_port_ro, "SECONDARY", "round-robin", "ro");
 
   SCOPED_TRACE("// Launch ther router");
-  auto &router =
-      launch_router(temp_test_dir.name(), metadata_cache_section,
-                    routing_section_rw + routing_section_ro, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section,
+                routing_section_rw + routing_section_ro, state_file);
 
-  EXPECT_TRUE(wait_for_md_queries(1, http_ports[0]))
-      << router.get_full_logfile();
+  EXPECT_TRUE(wait_for_md_queries(1, http_ports[0]));
   wait_for_new_md_query(http_ports[0], 1000ms);
   EXPECT_TRUE(wait_for_port_ready(router_port_ro));
 
@@ -1109,8 +1094,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
 
   // wait for the md update resulting from the GR notification that we have
   // scheduled
-  ASSERT_TRUE(wait_for_new_md_query(http_ports[0]))
-      << router.get_full_logfile();
+  ASSERT_TRUE(wait_for_new_md_query(http_ports[0]));
   wait_for_new_md_query(http_ports[0], 1000ms);
 
   SCOPED_TRACE("// Now let the metadata be consistent again");
@@ -1130,14 +1114,13 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   for (size_t i = 0; i < 2; i++) {
     MySQLSession client;
     ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port_ro,
-                                           "username", "password", "", ""))
-        << router.get_full_logfile();
+                                           "username", "password", "", ""));
 
     auto result{client.query_one("select @@port")};
     used_ports.insert(
         static_cast<uint16_t>(std::stoul(std::string((*result)[0]))));
   }
-  EXPECT_EQ(1u, used_ports.count(nodes_ports[2])) << router.get_full_logfile();
+  EXPECT_EQ(1u, used_ports.count(nodes_ports[2]));
 }
 
 int main(int argc, char *argv[]) {
