@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,9 @@
 #include "sql/dd/impl/types/entity_object_impl.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // Object_table
+#include "sql/debug_sync.h"             // DEBUG_SYNC
 #include "sql/log.h"
+#include "sql/sql_class.h"  // current_thd, THD
 
 namespace dd {
 
@@ -120,6 +122,8 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
     my_error(ER_UPDATING_DD_TABLE, MYF(0), obj_table.name().c_str());
     return true;
   }
+
+  DEBUG_SYNC(current_thd, "before_insert_into_dd");
 
   if (r->insert()) return true;
 
