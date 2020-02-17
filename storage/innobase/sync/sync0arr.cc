@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -197,7 +197,7 @@ static void sync_array_validate(sync_array_t *arr) /*!< in: sync wait array */
 
   sync_array_enter(arr);
 
-  for (ulint i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i < arr->next_free_slot; i++) {
     const sync_cell_t *cell;
 
     cell = &arr->cells[i];
@@ -565,9 +565,7 @@ static sync_cell_t *sync_array_find_thread(
     sync_array_t *arr,     /*!< in: wait array */
     os_thread_id_t thread) /*!< in: thread id */
 {
-  ulint i;
-
-  for (i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i <= arr->next_free_slot; i++) {
     sync_cell_t *cell;
 
     cell = sync_array_get_nth_cell(arr, i);
@@ -1004,7 +1002,7 @@ static bool sync_array_print_long_waits_low(
 #define SYNC_ARRAY_TIMEOUT 240
 #endif
 
-  for (ulint i = 0; i < arr->n_cells; i++) {
+  for (ulint i = 0; i < arr->next_free_slot; i++) {
     sync_cell_t *cell;
     void *latch;
 
