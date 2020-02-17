@@ -2193,12 +2193,18 @@ int ndb_pushed_builder_ctx::build_query() {
 
       if (table->is_sj_firstmatch()) {
         /**
-         * Is a Firstmatch'ed sj_nest:
-         * Entire nest has to be pushed in order for firstMatch elimination
-         * to be used as part of pushed join evaluation.
+         * Is a Firstmatch'ed semijoin_nest. In order to let SPJ API
+         * do firstMatch elimination of duplicated rows, we need to ensure:
+         *  1) The entire semijoined-nest has been pushed down.
+         *  2) There are no unpushed conditions in the above sj-nest.
+         *
+         * ... else we might end up returning a firstMatched'ed row,
+         *  which later turns out to be a non-match due to eiter 1) or 2).
          */
         const int last_sj_inner = table->get_last_sj_inner();
-        if (m_join_scope.contain(m_tables[last_sj_inner].m_sj_nest)) {
+        const ndb_table_access_map semijoin(m_tables[last_sj_inner].m_sj_nest);
+        if (m_join_scope.contain(semijoin) &&
+            !m_has_pending_cond.is_overlapping(semijoin)) {
           options.setMatchType(NdbQueryOptions::MatchFirst);
         }
       }
