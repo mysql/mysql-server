@@ -73,6 +73,8 @@ FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 #
 ADD_CUSTOM_COMMAND(OUTPUT
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
   --charset=${PROJECT_SOURCE_DIR}/share/charsets
@@ -91,6 +93,8 @@ ADD_CUSTOM_COMMAND(OUTPUT
 ADD_CUSTOM_TARGET(GenError ALL
   DEPENDS 
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
+  ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   ${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
   ${PROJECT_SOURCE_DIR}/share/messages_to_clients.txt)
