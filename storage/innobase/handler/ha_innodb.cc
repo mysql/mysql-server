@@ -3703,7 +3703,10 @@ static bool innobase_dict_set_server_version() {
   @retval 0 Success
   @retval other ER_* mysql error. Get error details from THD. */
 static int innobase_page_track_start(uint64_t *start_id) {
-  ut_ad(arch_page_sys);
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
+    return ER_READ_ONLY_MODE;
+  }
 
   Page_Arch_Client_Ctx *ctx = arch_page_sys->get_sys_client();
 
@@ -3718,7 +3721,10 @@ static int innobase_page_track_start(uint64_t *start_id) {
 @retval 0 Success
 @retval other ER_* mysql error. Get error details from THD. */
 static int innobase_page_track_stop(uint64_t *stop_id) {
-  ut_ad(arch_page_sys);
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
+    return ER_READ_ONLY_MODE;
+  }
 
   Page_Arch_Client_Ctx *ctx = arch_page_sys->get_sys_client();
 
@@ -3734,7 +3740,10 @@ needs to be purged and finally updated to until where it was actually purged
 @retval 0 Success
 @retval other ER_* mysql error. Get error details from THD. */
 static int innobase_page_track_purge(uint64_t *purge_id) {
-  ut_ad(arch_page_sys);
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
+    return ER_READ_ONLY_MODE;
+  }
 
   auto err = arch_page_sys->purge(purge_id);
 
@@ -3762,6 +3771,11 @@ static int innobase_page_track_get_page_ids(Page_Track_Callback cbk_func,
                                             uint64_t *stop_id,
                                             unsigned char *buffer,
                                             size_t buffer_len) {
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
+    return ER_READ_ONLY_MODE;
+  }
+
   auto err =
       arch_page_sys->get_pages(nullptr, cbk_func, cbk_ctx, *start_id, *stop_id,
                                buffer, static_cast<uint>(buffer_len));
@@ -3790,6 +3804,11 @@ querying will be updated.
 static int innobase_page_track_get_num_page_ids(uint64_t *start_id,
                                                 uint64_t *stop_id,
                                                 uint64_t *num_pages) {
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
+    return ER_READ_ONLY_MODE;
+  }
+
   auto err = arch_page_sys->get_num_pages(*start_id, *stop_id, num_pages);
 
   if (err != 0) {
@@ -3805,7 +3824,8 @@ static int innobase_page_track_get_num_page_ids(uint64_t *start_id,
 start/stop point and bool is true if the ID is a start point else false */
 static void innobase_page_track_get_status(
     std::vector<std::pair<lsn_t, bool>> &status) {
-  if (arch_page_sys == nullptr) {
+  if (srv_read_only_mode) {
+    my_error(ER_READ_ONLY_MODE, MYF(0));
     return;
   }
 

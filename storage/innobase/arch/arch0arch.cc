@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -135,9 +135,14 @@ dberr_t arch_init() {
     page_archiver_thread_event = os_event_create(nullptr);
   }
 
+  if (srv_read_only_mode) {
+    arch_page_sys->set_read_only_mode();
+    return DB_SUCCESS;
+  }
+
   arch_page_sys->recover();
 
-  return (DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Free Page and Log archiver system */
