@@ -11,6 +11,7 @@ local-infile=       true
 
 [mysqld.3]
 local-infile=       true
+group_replication_autorejoin_tries= 0
 
 [mysqld.4]
 local-infile=       true

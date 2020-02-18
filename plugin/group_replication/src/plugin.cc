@@ -4156,7 +4156,7 @@ static MYSQL_SYSVAR_UINT(autorejoin_tries,        /* name */
                          "procedure.",
                          check_autorejoin_tries,  /* check func */
                          update_autorejoin_tries, /* update func */
-                         0U,                      /* default */
+                         3U,                      /* default */
                          0U,                      /* min */
                          lv.MAX_AUTOREJOIN_TRIES, /* max */
                          0);                      /* block */
