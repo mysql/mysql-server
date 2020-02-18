@@ -69,7 +69,6 @@
 #include "typelib.h"
 
 class Alter_info;
-class Candidate_table_order;
 class Create_field;
 class Field;
 class Item;
@@ -2148,9 +2147,10 @@ using optimize_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
   far.
 
   @param thd thread context
-  @param join the JOIN to evaluate
-  @param table_order the ordering of the tables in the candidate plan
+  @param join the candidate plan to evaluate
   @param optimizer_cost the cost estimate calculated by the optimizer
+  @param[out] use_best_so_far true if the optimizer should stop searching for
+                      a better plan and use the best plan it has seen so far
   @param[out] cheaper true if the candidate is the best plan seen so far for
                       this JOIN (must be true if it is the first plan seen),
                       false otherwise
@@ -2158,9 +2158,11 @@ using optimize_secondary_engine_t = bool (*)(THD *thd, LEX *lex);
 
   @return false on success, or true if an error has been raised
 */
-using compare_secondary_engine_cost_t = bool (*)(
-    THD *thd, const JOIN &join, const Candidate_table_order &table_order,
-    double optimizer_cost, bool *cheaper, double *secondary_engine_cost);
+using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
+                                                 double optimizer_cost,
+                                                 bool *use_best_so_far,
+                                                 bool *cheaper,
+                                                 double *secondary_engine_cost);
 
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
