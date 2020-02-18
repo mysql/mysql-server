@@ -113,8 +113,8 @@ void cb_xcom_receive_data(synode_no message_id, node_set nodes, u_int size,
                           synode_no last_removed, char *data);
 void do_cb_xcom_receive_data(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
                              synode_no last_removed, u_int size, char *data);
-void cb_xcom_receive_local_view(synode_no message_id, node_set nodes);
-void do_cb_xcom_receive_local_view(synode_no message_id,
+void cb_xcom_receive_local_view(synode_no config_id, node_set nodes);
+void do_cb_xcom_receive_local_view(synode_no config_id,
                                    Gcs_xcom_nodes *xcom_nodes,
                                    synode_no max_synode);
 void cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
@@ -1518,8 +1518,8 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
     }
   });
 
-  if (!(xcom_control_if->xcom_receive_global_view(message_id, xcom_nodes,
-                                                  same_view, max_synode))) {
+  if (!(xcom_control_if->xcom_receive_global_view(
+          config_id, message_id, xcom_nodes, same_view, max_synode))) {
     // Copy node set and config id if the view is not rejected...
     last_accepted_xcom_config.update(config_id, *xcom_nodes, event_horizon);
   } else {
@@ -1532,8 +1532,8 @@ void do_cb_xcom_receive_global_view(synode_no config_id, synode_no message_id,
 
 int cb_xcom_match_port(xcom_port if_port) { return xcom_local_port == if_port; }
 
-void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
-  const site_def *site = find_site_def(message_id);
+void cb_xcom_receive_local_view(synode_no config_id, node_set nodes) {
+  const site_def *site = find_site_def(config_id);
   const synode_no max_synode = get_max_synode();
 
   if (site->nodeno == VOID_NODE_NO) {
@@ -1546,7 +1546,7 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
   free_node_set(&nodes);
 
   Gcs_xcom_notification *notification = new Local_view_notification(
-      do_cb_xcom_receive_local_view, message_id, xcom_nodes, max_synode);
+      do_cb_xcom_receive_local_view, config_id, xcom_nodes, max_synode);
   bool scheduled = gcs_engine->push(notification);
   if (!scheduled) {
     MYSQL_GCS_LOG_DEBUG(
@@ -1558,7 +1558,7 @@ void cb_xcom_receive_local_view(synode_no message_id, node_set nodes) {
   }
 }
 
-void do_cb_xcom_receive_local_view(synode_no message_id,
+void do_cb_xcom_receive_local_view(synode_no config_id,
                                    Gcs_xcom_nodes *xcom_nodes,
                                    synode_no max_synode) {
   Gcs_xcom_interface *gcs = nullptr;
@@ -1570,7 +1570,7 @@ void do_cb_xcom_receive_local_view(synode_no message_id,
             Gcs_xcom_interface::get_interface())))
     goto end;  // ignore this local view
 
-  if (!(destination = gcs->get_xcom_group_information(message_id.group_id))) {
+  if (!(destination = gcs->get_xcom_group_information(config_id.group_id))) {
     MYSQL_GCS_LOG_WARN("Rejecting this view. Group still not configured.")
     goto end;  // ignore this local view
   }
@@ -1586,7 +1586,7 @@ void do_cb_xcom_receive_local_view(synode_no message_id,
     goto end;  // ignore this local view
   }
 
-  xcom_ctrl->xcom_receive_local_view(xcom_nodes, max_synode);
+  xcom_ctrl->xcom_receive_local_view(config_id, xcom_nodes, max_synode);
 
 end:
   delete xcom_nodes;

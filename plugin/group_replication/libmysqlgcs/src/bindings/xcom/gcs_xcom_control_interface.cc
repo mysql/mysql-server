@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1066,7 +1066,8 @@ bool Gcs_xcom_control::is_killer_node(
   return ret;
 }
 
-bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
+bool Gcs_xcom_control::xcom_receive_local_view(synode_no const config_id,
+                                               Gcs_xcom_nodes *xcom_nodes,
                                                synode_no max_synode) {
   std::map<int, const Gcs_control_event_listener &>::const_iterator callback_it;
   std::vector<Gcs_member_identifier> members;
@@ -1171,8 +1172,9 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
 
     // Remove and add suspicions
     m_suspicions_manager->process_view(
-        xcom_nodes, alive_members, left_members, member_suspect_nodes,
-        non_member_suspect_nodes, is_killer_node(alive_members), max_synode);
+        config_id, xcom_nodes, alive_members, left_members,
+        member_suspect_nodes, non_member_suspect_nodes,
+        is_killer_node(alive_members), max_synode);
 
     MYSQL_GCS_TRACE_EXECUTE(
         unsigned int node_no = xcom_nodes->get_node_no();
@@ -1306,7 +1308,8 @@ bool Gcs_xcom_control::is_this_node_in(
   return is_in_vector;
 }
 
-bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
+bool Gcs_xcom_control::xcom_receive_global_view(synode_no const config_id,
+                                                synode_no message_id,
                                                 Gcs_xcom_nodes *xcom_nodes,
                                                 bool same_view,
                                                 synode_no max_synode) {
@@ -1386,7 +1389,7 @@ bool Gcs_xcom_control::xcom_receive_global_view(synode_no message_id,
 
   // Remove and add suspicions
   m_suspicions_manager->process_view(
-      xcom_nodes, alive_members, left_members, member_suspect_nodes,
+      config_id, xcom_nodes, alive_members, left_members, member_suspect_nodes,
       non_member_suspect_nodes, is_killer_node(alive_members), max_synode);
 
   /*
@@ -1910,11 +1913,13 @@ void Gcs_suspicions_manager::clear_suspicions() {
                         (*susp_it).get_member_id().get_member_id().c_str())
     m_suspicions.remove_node(*susp_it);
   }
+
+  m_expels_in_progress = Gcs_xcom_expels_in_progress();
   m_suspicions_mutex.unlock();
 }
 
 void Gcs_suspicions_manager::process_view(
-    Gcs_xcom_nodes *xcom_nodes,
+    synode_no const config_id, Gcs_xcom_nodes *xcom_nodes,
     std::vector<Gcs_member_identifier *> alive_nodes,
     std::vector<Gcs_member_identifier *> left_nodes,
     std::vector<Gcs_member_identifier *> member_suspect_nodes,
@@ -1926,9 +1931,36 @@ void Gcs_suspicions_manager::process_view(
 
   m_is_killer_node = is_killer_node;
 
-  m_has_majority =
-      2 * (member_suspect_nodes.size() + non_member_suspect_nodes.size()) <
-      xcom_nodes->get_nodes().size();
+  m_config_id = config_id;
+
+  m_expels_in_progress.forget_expels_that_have_taken_effect(config_id,
+                                                            left_nodes);
+  MYSQL_GCS_DEBUG_EXECUTE({
+    /* Sanity check: all members in `m_expels_in_progress` must still be in
+       `xcom_nodes` (the XCom view) at this point. Otherwise there is a bug in
+       the logic implemented by `remember_expels_issued` and
+       `forget_expels_that_have_taken_effect` that is creating uncollected
+       garbage in `m_expels_in_progress`.
+     */
+    assert(m_expels_in_progress.all_still_in_view(*xcom_nodes));
+  });
+
+  /* Count any node whose expel we issued, but whose expel has not yet taken
+     effect, as a suspected node for the purposes of deciding whether the view
+     has majority. */
+  auto const total_number_nodes = xcom_nodes->get_nodes().size();
+  auto const number_of_alive_members_expelled_but_not_yet_removed =
+      m_expels_in_progress.number_of_expels_not_about_suspects(
+          member_suspect_nodes, non_member_suspect_nodes);
+  auto const total_number_suspect_nodes =
+      (member_suspect_nodes.size() + non_member_suspect_nodes.size() +
+       number_of_alive_members_expelled_but_not_yet_removed);
+  m_has_majority = (2 * total_number_suspect_nodes < total_number_nodes);
+
+  MYSQL_GCS_LOG_DEBUG(
+      "%s: total_number_nodes=%u total_number_suspect_nodes=%u "
+      "m_has_majority=%d",
+      __func__, total_number_nodes, total_number_suspect_nodes, m_has_majority);
 
   /*
     Suspicions are removed for members that are alive. Therefore, the
@@ -2123,6 +2155,9 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
         "process_suspicions: Expelling suspects that timed out!");
     bool const removed =
         m_proxy->xcom_remove_nodes(nodes_to_remove, m_gid_hash);
+    if (removed) {
+      m_expels_in_progress.remember_expels_issued(m_config_id, nodes_to_remove);
+    }
     if (force_remove && !removed) {
       // Failed to remove myself from the group so will install leave view
       m_control_if->install_leave_view(Gcs_view::MEMBER_EXPELLED);

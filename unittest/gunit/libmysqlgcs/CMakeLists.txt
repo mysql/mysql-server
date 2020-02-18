@@ -78,6 +78,7 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_view_identifier
   xcom/gcs_message_stage_fragmentation
   xcom/gcs_xcom_site_def
+  xcom/gcs_xcom_expels_in_progress
   )
 
 ###

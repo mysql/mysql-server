@@ -133,7 +133,8 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
   ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
-  src/bindings/xcom/gcs_xcom_synode.cc)
+  src/bindings/xcom/gcs_xcom_synode.cc
+  src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
 
 MY_CHECK_C_COMPILER_FLAG("-Wcast-function-type" HAVE_CAST_FUNCTION_TYPE)
 IF(HAVE_CAST_FUNCTION_TYPE)
