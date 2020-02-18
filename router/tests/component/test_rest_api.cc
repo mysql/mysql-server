@@ -71,7 +71,7 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
 
   const std::string conf_file{create_config_file(
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
-  ProcessWrapper &http_server{launch_router({"-c", conf_file})};
+  launch_router({"-c", conf_file});
 
   IOContext io_ctx;
   RestClient rest_client(io_ctx, http_hostname, http_port_,
@@ -85,9 +85,7 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
   SCOPED_TRACE("// wait for REST endpoint: " + http_uri);
   ASSERT_TRUE(wait_for_rest_endpoint_ready(
       wait_for_uri, http_port_, GetParam().user_name, GetParam().user_password,
-      http_hostname))
-      << http_server.get_full_output() << "\n"
-      << http_server.get_full_logfile();
+      http_hostname));
 
   // walk all the bits
   for (HttpMethod::pos_type ndx = 0; ndx < HttpMethod::Pos::_LAST; ++ndx) {

@@ -76,13 +76,10 @@ Path ProcessManager::mysqlserver_mock_exec_;
 ProcessWrapper &ProcessManager::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     int expected_exit_code, bool catch_stderr) {
-  const char *params_arr[kMaxLaunchedProcessParams];
-  get_params(command, params, params_arr);
-
   if (command.empty())
     throw std::logic_error("path to launchable executable must not be empty");
 
-  ProcessWrapper process(command, params_arr, catch_stderr);
+  ProcessWrapper process(command, params, catch_stderr);
 
   processes_.emplace_back(std::move(process), expected_exit_code);
 
@@ -156,21 +153,6 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
                         expected_exit_code, true);
 }
 
-void ProcessManager::get_params(
-    const std::string &command, const std::vector<std::string> &params_vec,
-    const char *out_params[kMaxLaunchedProcessParams]) const {
-  out_params[0] = command.c_str();
-
-  size_t i = 1;
-  for (const auto &par : params_vec) {
-    if (i >= kMaxLaunchedProcessParams - 1) {
-      throw std::runtime_error("Too many parameters passed to the MySQLRouter");
-    }
-    out_params[i++] = par.c_str();
-  }
-  out_params[i] = nullptr;
-}
-
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()
     const {
   return {
@@ -240,10 +222,26 @@ std::string ProcessManager::create_state_file(const std::string &dir_name,
 }
 
 void ProcessManager::shutdown_all() {
-  // stop them all
+  // stop all the processes
   for (auto &proc : processes_) {
     std::get<0>(proc).send_shutdown_event();
   }
+}
+
+void ProcessManager::dump_all() {
+  std::stringstream ss;
+  for (auto &proc : processes_) {
+    ss << "# Process: \n"
+       << std::get<0>(proc).get_command_line() << "\n"
+       << "PID:\n"
+       << std::get<0>(proc).get_pid() << "\n"
+       << "Console output:\n"
+       << std::get<0>(proc).get_current_output() + "\n"
+       << "Log content:\n"
+       << std::get<0>(proc).get_full_logfile() + "\n";
+  }
+
+  FAIL() << ss.str();
 }
 
 void ProcessManager::ensure_clean_exit() {
@@ -255,17 +253,8 @@ void ProcessManager::ensure_clean_exit() {
 void ProcessManager::check_exit_code(ProcessWrapper &process,
                                      int expected_exit_code,
                                      std::chrono::milliseconds timeout) {
-  try {
-    ASSERT_EQ(expected_exit_code, process.wait_for_exit(timeout))
-        << process.get_command_line() << "\n"
-        << "output: " << process.get_full_output() << "\n"
-        << "log: " << process.get_full_logfile() << "\n";
-  } catch (const std::exception &e) {
-    FAIL() << process.get_command_line() << "\n"
-           << e.what() << "\n"
-           << "output: " << process.get_full_output() << "\n"
-           << "log: " << process.get_full_logfile() << "\n";
-  }
+  ASSERT_NO_FATAL_FAILURE(
+      ASSERT_EQ(expected_exit_code, process.wait_for_exit(timeout)));
 }
 
 void ProcessManager::check_port(bool should_be_ready, ProcessWrapper &process,

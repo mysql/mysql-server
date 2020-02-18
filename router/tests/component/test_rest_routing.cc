@@ -191,9 +191,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   for (size_t i = 3; i < kRoutesQty; ++i) {
     ASSERT_TRUE(wait_route_ready(5000ms, route_names[i], http_port_,
                                  "127.0.0.1", kRestApiUsername,
-                                 kRestApiPassword))
-        << http_server.get_full_output() << "\n"
-        << http_server.get_full_logfile();
+                                 kRestApiPassword));
   }
 
   // make 3 connections to route "ro"
@@ -215,9 +213,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
   // call wait_port_ready a few times on "123" to trigger blocked client
   // on that route (we set max_connect_errors to 2)
   for (size_t i = 0; i < 3; ++i) {
-    ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500ms))
-        << http_server.get_full_output() << "\n"
-        << http_server.get_full_logfile();
+    ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500ms));
   }
 
   // wait a bit until the routing plugin really closed the sockets
@@ -1116,9 +1112,8 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
     ASSERT_NO_FATAL_FAILURE(check_port_ready(*nodes[i], node_classic_ports[i]));
   }
 
-  ASSERT_TRUE(
-      MockServerRestClient(first_node_http_port).wait_for_rest_endpoint_ready())
-      << nodes[0]->get_full_output();
+  ASSERT_TRUE(MockServerRestClient(first_node_http_port)
+                  .wait_for_rest_endpoint_ready());
   set_mock_metadata(first_node_http_port, "", node_classic_ports);
 
   SCOPED_TRACE("// start the router with rest_routing enabled");
@@ -1180,9 +1175,7 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   for (size_t i = 0; i < 2; ++i) {
     ASSERT_TRUE(wait_route_ready(std::chrono::milliseconds(5000),
                                  route_names[i], http_port_, "127.0.0.1",
-                                 kRestApiUsername, kRestApiPassword))
-        << http_server.get_full_output() << "\n"
-        << http_server.get_full_logfile();
+                                 kRestApiUsername, kRestApiPassword));
   }
 
   // make 1 connection to route "rw"

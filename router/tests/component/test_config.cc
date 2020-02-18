@@ -43,8 +43,7 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
   check_exit_code(router, EXIT_FAILURE);
 
   EXPECT_TRUE(router.expect_output(
-      "Expected configuration file, got directory name: " + config_dir.name()))
-      << "router output: " << router.get_full_output() << std::endl;
+      "Expected configuration file, got directory name: " + config_dir.name()));
 }
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE
@@ -74,8 +73,7 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
 
   EXPECT_TRUE(
       router.expect_output("Expected configuration file, got directory name: " +
-                           extra_conf_dir.name()))
-      << "router output: " << router.get_full_output() << std::endl;
+                           extra_conf_dir.name()));
 }
 
 TEST_F(RouterConfigTest,

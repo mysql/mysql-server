@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,12 +81,10 @@ void KeyringInfo::init(mysql_harness::Config &config) {
 }
 
 bool KeyringInfo::read_master_key() noexcept {
-  std::array<const char *, 2> args = {master_key_reader_.c_str(), nullptr};
-
   auto timeout = std::chrono::steady_clock::now() + rw_timeout_;
 
   try {
-    ProcessLauncher process_launcher(master_key_reader_.c_str(), args.data());
+    ProcessLauncher process_launcher(master_key_reader_, {});
     process_launcher.start();
     while (std::chrono::steady_clock::now() < timeout) {
       char output[1024] = {0};
@@ -132,10 +130,8 @@ bool KeyringInfo::read_master_key() noexcept {
 }
 
 bool KeyringInfo::write_master_key() const noexcept {
-  std::array<const char *, 2> args = {master_key_writer_.c_str(), nullptr};
-
   try {
-    ProcessLauncher process_launcher(master_key_writer_.c_str(), args.data());
+    ProcessLauncher process_launcher(master_key_writer_, {});
     process_launcher.start();
     process_launcher.write(master_key_.c_str(), master_key_.size());
     process_launcher.end_of_write();

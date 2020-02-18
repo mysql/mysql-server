@@ -45,6 +45,10 @@ void RouterComponentTest::SetUp() {
 void RouterComponentTest::TearDown() {
   shutdown_all();
   ensure_clean_exit();
+
+  if (::testing::Test::HasFailure()) {
+    dump_all();
+  }
 }
 
 bool RouterComponentTest::wait_log_contains(const ProcessWrapper &router,

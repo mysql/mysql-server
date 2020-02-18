@@ -221,8 +221,7 @@ TEST_F(AsyncReplicasetTest, NoChange) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes a s a cluster "
@@ -285,8 +284,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes a s a cluster "
@@ -390,8 +388,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -492,8 +489,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -576,8 +572,7 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return all 3 nodes as a cluster "
@@ -652,8 +647,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return both nodes as a cluster "
@@ -748,8 +742,7 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return both nodes as a cluster "
@@ -864,8 +857,7 @@ TEST_F(AsyncReplicasetTest, MultipleChangesInTheCluster) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server to return first 3 nodes as a cluster "
@@ -941,8 +933,7 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE(
         "// Make our metadata server initially return all 3 nodes as a cluster "
@@ -1046,8 +1037,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id,
@@ -1143,8 +1133,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with all 3 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1236,8 +1225,7 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with all 3 members");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1332,8 +1320,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1430,8 +1417,7 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1521,8 +1507,7 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[nodes], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[nodes]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// All 4 nodes are in the metadata");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1615,8 +1600,7 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// All 3 nodes are in the metadata");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1706,8 +1690,7 @@ TEST_P(ClusterTypeMismatchTest, ClusterTypeMismatch) {
     ASSERT_NO_FATAL_FAILURE(
         check_port_ready(*cluster_nodes[i], cluster_nodes_ports[i]));
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
-                    .wait_for_rest_endpoint_ready())
-        << cluster_nodes[i]->get_full_output();
+                    .wait_for_rest_endpoint_ready());
 
     SCOPED_TRACE("// Let us start with 2 members (PRIMARY and SECONDARY)");
     set_mock_metadata(cluster_http_ports[i], cluster_id, cluster_nodes_ports,
@@ -1815,8 +1798,8 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
       routing_section_rw + "\n" + routing_section_ro;
 
   SCOPED_TRACE("// Launch the router with the initial state file");
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file);
+  launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
+                state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
@@ -1824,8 +1807,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
   MySQLSession client1, client2;
   ASSERT_NO_THROW(client1.connect("127.0.0.1", router_port_rw, "username",
-                                  "password", "", ""))
-      << router.get_full_logfile();
+                                  "password", "", ""));
   auto result{client1.query_one("select @@port")};
   EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
             cluster_nodes_ports[0]);
@@ -1845,8 +1827,8 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   }
 
   SCOPED_TRACE("// Both connections should get dropped");
-  EXPECT_TRUE(wait_connection_dropped(client1)) << router.get_full_logfile();
-  EXPECT_TRUE(wait_connection_dropped(client2)) << router.get_full_logfile();
+  EXPECT_TRUE(wait_connection_dropped(client1));
+  EXPECT_TRUE(wait_connection_dropped(client2));
   // check that the router did not crash (happens automatically)
 }
 

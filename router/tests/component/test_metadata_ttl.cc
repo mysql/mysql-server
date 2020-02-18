@@ -163,7 +163,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
         {"-c", conf_file}, expected_exitcode, true, false);
     if (wait_for_md_refresh_started) {
       bool ready = wait_for_refresh_thread_started(router, 5000ms);
-      EXPECT_TRUE(ready) << router.get_full_logfile();
+      EXPECT_TRUE(ready);
     }
 
     return router;
@@ -265,9 +265,9 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
     // it is timing based test so to decrease random failures chances let's
     // take some error marigin, we kverify that number of metadata queries
     // falls into <expected_count-1, expected_count+1>
-    EXPECT_THAT(ttl_count, IsBetween(test_params.expected_md_queries_count - 1,
-                                     test_params.expected_md_queries_count + 1))
-        << router.get_full_logfile();
+    EXPECT_THAT(ttl_count,
+                IsBetween(test_params.expected_md_queries_count - 1,
+                          test_params.expected_md_queries_count + 1));
   } else {
     // we only check that the TTL was queried at least N times
     EXPECT_GE(ttl_count, test_params.expected_md_queries_count);
@@ -521,11 +521,8 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
       "// Even though the metadata contains invalid mysqlx port we still "
       "should be able to connect on the classic port");
   MySQLSession client;
-  try {
-    client.connect("127.0.0.1", router_port, "username", "password", "", "");
-  } catch (...) {
-    FAIL() << router.get_full_logfile();
-  }
+  ASSERT_NO_FATAL_FAILURE(
+      client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -637,10 +634,9 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
       {md_server_port}, GetParam().cluster_type, GetParam().ttl);
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, "PRIMARY", "first-available");
-  auto &router =
-      launch_router(temp_test_dir.name(), conf_dir.name(),
-                    metadata_cache_section, routing_section, EXIT_SUCCESS,
-                    /*wait_for_md_refresh_started=*/true);
+  launch_router(temp_test_dir.name(), conf_dir.name(), metadata_cache_section,
+                routing_section, EXIT_SUCCESS,
+                /*wait_for_md_refresh_started=*/true);
 
   SCOPED_TRACE("// let the router run for about 10 ttl periods");
   std::this_thread::sleep_for(1s);
@@ -649,7 +645,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count) << router.get_full_logfile();
+  EXPECT_EQ(1, version_upd_count);
 
   SCOPED_TRACE(
       "// Let's check if the first query is starting a trasaction and the "
@@ -677,7 +673,7 @@ TEST_P(CheckRouterVersionUpdateOnceTest, CheckRouterVersionUpdateOnce) {
         MockServerRestClient(md_server_http_port).get_globals_as_json_string();
     const int last_check_in_upd_count =
         get_update_last_check_in_count(server_globals);
-    EXPECT_GE(1, last_check_in_upd_count) << router.get_full_logfile();
+    EXPECT_GE(1, last_check_in_upd_count);
   }
 }
 
@@ -760,7 +756,7 @@ TEST_P(PermissionErrorOnVersionUpdateTest, PermissionErrorOnVersionUpdate) {
   std::string server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int version_upd_count = get_update_version_count(server_globals);
-  EXPECT_EQ(1, version_upd_count) << router.get_full_logfile();
+  EXPECT_EQ(1, version_upd_count);
 
   SCOPED_TRACE(
       "// It should still not be fatal, the router should accept the "
@@ -825,8 +821,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   MySQLSession client;
   std::this_thread::sleep_for(500ms);
   ASSERT_NO_FATAL_FAILURE(
-      client.connect("127.0.0.1", router_port, "username", "password", "", ""))
-      << router.get_full_logfile();
+      client.connect("127.0.0.1", router_port, "username", "password", "", ""));
 
   SCOPED_TRACE("// let's mimmic start of the metadata update now");
   auto globals = mock_GR_metadata_as_json("", {md_server_port});
@@ -853,8 +848,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   server_globals =
       MockServerRestClient(md_server_http_port).get_globals_as_json_string();
   const int metadata_upd_count2 = get_ttl_queries_count(server_globals);
-  EXPECT_EQ(metadata_upd_count, metadata_upd_count2)
-      << router.get_full_logfile();
+  EXPECT_EQ(metadata_upd_count, metadata_upd_count2);
 
   SCOPED_TRACE(
       "// Even though the upgrade is in progress the existing connection "
@@ -949,8 +943,7 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   {
     MySQLSession client;
     ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
-                                           "password", "", ""))
-        << router.get_full_logfile();
+                                           "password", "", ""));
 
     auto result{client.query_one("select @@port")};
     EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
@@ -974,14 +967,12 @@ TEST_P(NodeRemovedTest, NodeRemoved) {
   SCOPED_TRACE(
       "// Connect to the router primary port, the connection should be ok and "
       "we should be connected to the new primary now");
-  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2))
-      << router.get_full_logfile();
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[1], 2));
   SCOPED_TRACE("// let us make some user connection via the router port");
   {
     MySQLSession client;
     ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_port, "username",
-                                           "password", "", ""))
-        << router.get_full_logfile();
+                                           "password", "", ""));
 
     auto result{client.query_one("select @@port")};
     EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),

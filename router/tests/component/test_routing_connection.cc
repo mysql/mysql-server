@@ -281,7 +281,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
            kRestApiUsername},
           EXIT_SUCCESS, true);
       cmd.register_response("Please enter password", kRestApiPassword + "\n");
-      EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
+      EXPECT_EQ(cmd.wait_for_exit(), 0);
     }
 #endif
 
@@ -485,8 +485,7 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
       wait_for_cache_ready_timeout, metadata_status,
       [](const RestMetadataClient::MetadataStatus &cur) {
         return cur.refresh_failed > 0;
-      }))
-      << router.get_full_output();
+      }));
 
   // testing
   //
@@ -617,29 +616,15 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_ready_timeout, metadata_status));
 
   SCOPED_TRACE("// connecting clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
 
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    try {
-      client.connect("127.0.0.1", router_rw_port_, "username", "password", "",
-                     "");
-    } catch (const std::exception &e) {
-      FAIL() << e.what() << "\n"
-             << "router: " << router.get_full_output() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
-             << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
-             << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
-             << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
-             << "\n";
-    }
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     client_and_port.second =
@@ -655,7 +640,7 @@ TEST_P(IsConnectionsClosedWhenPrimaryRemovedFromClusterTest,
   // verify that connections to PRIMARY are broken
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client));
   }
 }
 
@@ -706,10 +691,8 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
 
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    ASSERT_NO_THROW(client.connect("127.0.0.1", router_ro_port_, "username",
-                                   "password", "", ""))
-        << router.get_full_logfile() << "\n"
-        << cluster_nodes_[0]->get_full_output();
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_ro_port_,
+                                           "username", "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     client_and_port.second =
@@ -728,11 +711,10 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
     uint16_t port = client_and_port.second;
 
     if (port == cluster_nodes_ports_[1])
-      EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+      EXPECT_TRUE(wait_connection_dropped(client));
     else
       ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-          client.query_one("select @@port")})
-          << router.get_full_logfile();
+          client.query_one("select @@port")});
   }
 }
 
@@ -774,8 +756,7 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_ready_timeout, metadata_status));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
@@ -794,13 +775,12 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
                          server_globals().set_primary_failover());
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_updated(
-      wait_for_cache_update_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_update_timeout, metadata_status));
 
   // verify if RW connections to PRIMARY are closed
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client));
   }
 }
 
@@ -870,8 +850,7 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")})
-        << router.get_full_output();
+        client.query_one("select @@port")});
   }
 }
 
@@ -925,8 +904,7 @@ TEST_P(RouterRoutingConnectionPromotedTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(client.connect("127.0.0.1", router_ro_port_, "username",
-                                   "password", "", ""))
-        << router.get_full_output();
+                                   "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     client_and_port.second =
@@ -944,8 +922,7 @@ TEST_P(RouterRoutingConnectionPromotedTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")})
-        << router.get_full_output();
+        client.query_one("select @@port")});
   }
 }
 
@@ -1022,11 +999,10 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
     uint16_t port = client_and_port.second;
 
     if (port == cluster_nodes_ports_[1])
-      EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+      EXPECT_TRUE(wait_connection_dropped(client));
     else
       ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-          client.query_one("select @@port")})
-          << router.get_full_output();
+          client.query_one("select @@port")});
   }
 }
 
@@ -1070,8 +1046,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_ready_timeout, metadata_status));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1079,24 +1054,8 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   // connect clients to Primary
   for (size_t i = 0; i < 2; ++i) {
     auto &client = clients[i].first;
-    try {
-      client.connect("127.0.0.1", router_rw_port_, "username", "password", "",
-                     "");
-    } catch (const std::exception &e) {
-      FAIL() << e.what() << "\n"
-             << "router-stderr: " << router.get_full_output() << "\n"
-             << "router-log: " << router.get_full_logfile() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
-             << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
-             << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
-             << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
-             << "\n"
-             << "cluster[4]: " << cluster_nodes_.at(4)->get_full_output()
-             << "\n";
-    }
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_rw_port_,
+                                           "username", "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     clients[i].second =
@@ -1135,7 +1094,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
    */
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client));
   }
 }
 
@@ -1187,21 +1146,9 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
 
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    try {
-      client.connect("127.0.0.1", router_ro_port_, "username", "password", "",
-                     "");
-    } catch (const std::exception &e) {
-      FAIL() << e.what() << "\n"
-             << "router: " << router.get_full_logfile() << "\n"
-             << "cluster[0]: " << cluster_nodes_.at(0)->get_full_output()
-             << "\n"
-             << "cluster[1]: " << cluster_nodes_.at(1)->get_full_output()
-             << "\n"
-             << "cluster[2]: " << cluster_nodes_.at(2)->get_full_output()
-             << "\n"
-             << "cluster[3]: " << cluster_nodes_.at(3)->get_full_output()
-             << "\n";
-    }
+    ASSERT_NO_FATAL_FAILURE(client.connect("127.0.0.1", router_ro_port_,
+                                           "username", "password", "", ""));
+
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     client_and_port.second =
@@ -1221,7 +1168,7 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   // verify that all connections are closed
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
-    EXPECT_TRUE(wait_connection_dropped(client)) << router.get_full_output();
+    EXPECT_TRUE(wait_connection_dropped(client));
   }
 }
 
@@ -1265,8 +1212,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_ready_timeout, metadata_status));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -1274,8 +1220,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(client.connect("127.0.0.1", router_ro_port_, "username",
-                                   "password", "", ""))
-        << router.get_full_logfile();
+                                   "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     client_and_port.second =
@@ -1296,8 +1241,7 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")})
-        << router.get_full_output();
+        client.query_one("select @@port")});
   }
 }
 
@@ -1391,8 +1335,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
                                           kRestApiUsername, kRestApiPassword);
 
   ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
-      wait_for_cache_ready_timeout, metadata_status))
-      << router.get_full_logfile();
+      wait_for_cache_ready_timeout, metadata_status));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1410,8 +1353,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   for (size_t i = 2; i < 10; ++i) {
     auto &client = clients[i].first;
     ASSERT_NO_THROW(client.connect("127.0.0.1", router_ro_port_, "username",
-                                   "password", "", ""))
-        << router.get_full_logfile();
+                                   "password", "", ""));
     std::unique_ptr<MySQLSession::ResultRow> result{
         client.query_one("select @@port")};
     clients[i].second =
@@ -1428,8 +1370,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   for (auto &client_and_port : clients) {
     auto &client = client_and_port.first;
     ASSERT_NO_THROW(std::unique_ptr<MySQLSession::ResultRow> result{
-        client.query_one("select @@port")})
-        << router.get_full_logfile();
+        client.query_one("select @@port")});
   }
 }
 
