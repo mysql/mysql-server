@@ -546,7 +546,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   }
 
   if (table->part_info)
-    used_key_is_modified |= partition_key_modified(table, table->write_set);
+    used_key_is_modified |= table->part_info->num_partitions_used() > 1 &&
+                            partition_key_modified(table, table->write_set);
 
   const bool using_filesort = order && need_sort;
 
@@ -1804,6 +1805,9 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
     - Table is not joined to itself.
 
+    - Table is not partitioned, or a row may not move from a partition to
+    another.
+
     This function gets information about fields to be updated from
     the TABLE::write_set bitmap.
 
@@ -1823,6 +1827,12 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
                                TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
   if (unique_table(table_ref, all_tables, false)) return false;
+  if (table->part_info &&
+      // if there is risk for a row to move in a next partition:
+      table->part_info->num_partitions_used() > 1 &&
+      partition_key_modified(table, table->write_set))
+    return false;
+
   switch (join_tab->type()) {
     case JT_SYSTEM:
     case JT_CONST:

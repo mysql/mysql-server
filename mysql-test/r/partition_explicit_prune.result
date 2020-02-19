@@ -771,8 +771,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	2
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_update	1
 # 1 commit
 # 4 lock
@@ -810,8 +809,7 @@ WHERE a = 100;
 ERROR HY000: Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_rollback	1
 # 6 lock
 # 4 read key (1 index init + 1 index read + 1 rnd init + 1 rnd pos)
@@ -823,8 +821,7 @@ WHERE a = 100;
 Got one of the listed errors
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_rollback	1
 Handler_write	1
 # 4 read key
@@ -839,8 +836,7 @@ Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
 Handler_prepare	2
-Handler_read_key	2
-Handler_read_rnd	1
+Handler_read_key	1
 Handler_write	1
 # 1 commit
 # 1 delete
@@ -881,9 +877,8 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	19
 Handler_external_lock	65
 Handler_prepare	2
-Handler_read_key	34
+Handler_read_key	33
 Handler_read_next	16
-Handler_read_rnd	1
 Handler_update	1
 # + 4 read key
 # + 1 read rnd
@@ -894,9 +889,8 @@ Handler_commit	21
 Handler_delete	1
 Handler_external_lock	65
 Handler_prepare	4
-Handler_read_key	36
+Handler_read_key	34
 Handler_read_next	16
-Handler_read_rnd	2
 Handler_update	1
 Handler_write	1
 # + 1 delete
@@ -909,9 +903,8 @@ Handler_commit	21
 Handler_delete	1
 Handler_external_lock	66
 Handler_prepare	4
-Handler_read_key	36
+Handler_read_key	34
 Handler_read_next	16
-Handler_read_rnd	2
 Handler_update	1
 Handler_write	1
 #
