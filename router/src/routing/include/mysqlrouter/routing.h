@@ -107,10 +107,11 @@ extern const unsigned int kDefaultNetBufferLength;
 extern const std::chrono::seconds kDefaultClientConnectTimeout;
 
 #ifdef _WIN32
-const SOCKET kInvalidSocket =
-    INVALID_SOCKET;  // windows defines INVALID_SOCKET already
+using native_handle_type = SOCKET;
+const native_handle_type kInvalidSocket{INVALID_SOCKET};
 #else
-const int kInvalidSocket = -1;
+using native_handle_type = int;
+const native_handle_type kInvalidSocket{-1};
 #endif
 
 /** @brief Modes supported by Routing plugin */
@@ -192,9 +193,10 @@ std::string get_routing_strategy_name(
 class RoutingSockOpsInterface {
  public:
   virtual ~RoutingSockOpsInterface() = default;
-  virtual int get_mysql_socket(mysql_harness::TCPAddress addr,
-                               std::chrono::milliseconds connect_timeout_ms,
-                               bool log = true) noexcept = 0;
+  virtual routing::native_handle_type get_mysql_socket(
+      mysql_harness::TCPAddress addr,
+      std::chrono::milliseconds connect_timeout_ms,
+      bool log = true) noexcept = 0;
   virtual mysql_harness::SocketOperationsBase *so() const = 0;
 };
 
@@ -226,9 +228,9 @@ class RoutingSockOps : public RoutingSockOpsInterface {
    * @param log whether to log errors or not
    * @return a socket descriptor
    */
-  int get_mysql_socket(mysql_harness::TCPAddress addr,
-                       std::chrono::milliseconds connect_timeout,
-                       bool log = true) noexcept override;
+  routing::native_handle_type get_mysql_socket(
+      mysql_harness::TCPAddress addr, std::chrono::milliseconds connect_timeout,
+      bool log = true) noexcept override;
 
   /** @brief Returns SocketOperations implementation used by this class */
   mysql_harness::SocketOperationsBase *so() const override { return so_; }

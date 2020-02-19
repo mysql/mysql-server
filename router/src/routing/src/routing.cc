@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ RoutingSockOps *RoutingSockOps::instance(
   return &routing_sock_ops;
 }
 
-int RoutingSockOps::get_mysql_socket(
+routing::native_handle_type RoutingSockOps::get_mysql_socket(
     mysql_harness::TCPAddress addr,
     std::chrono::milliseconds connect_timeout_ms, bool log) noexcept {
   struct addrinfo *servinfo, *info, hints;
@@ -160,7 +160,7 @@ int RoutingSockOps::get_mysql_socket(
     if (servinfo) freeaddrinfo(servinfo);
   });
 
-  int sock = routing::kInvalidSocket;
+  routing::native_handle_type sock{routing::kInvalidSocket};
 
   for (info = servinfo; info != nullptr; info = info->ai_next) {
     auto sock_type = info->ai_socktype;
@@ -170,7 +170,7 @@ int RoutingSockOps::get_mysql_socket(
     sock_type |= SOCK_NONBLOCK;
 #endif
     if ((sock = ::socket(info->ai_family, sock_type, info->ai_protocol)) ==
-        -1) {
+        kInvalidSocket) {
       log_error("Failed opening socket: %s",
                 get_message_error(so_->get_errno()).c_str());
     } else {

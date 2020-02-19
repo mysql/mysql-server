@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -287,9 +287,9 @@ class MySQLRouting {
   int max_connections_;
 
   /** @brief Socket descriptor of the TCP service */
-  int service_tcp_;
+  routing::native_handle_type service_tcp_;
   /** @brief Socket descriptor of the named socket service */
-  int service_named_socket_;
+  routing::native_handle_type service_named_socket_;
 
   /** @brief used to unregister from subscription on allowed nodes changes */
   AllowedNodesChangeCallbacksListIterator allowed_nodes_list_iterator_;
