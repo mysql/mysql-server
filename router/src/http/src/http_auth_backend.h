@@ -43,6 +43,12 @@
  */
 class HTTP_AUTH_BACKEND_LIB_EXPORT HttpAuthBackend {
  public:
+  HttpAuthBackend() = default;
+  HttpAuthBackend(const HttpAuthBackend &) = default;
+  HttpAuthBackend(HttpAuthBackend &&) = default;
+  HttpAuthBackend &operator=(const HttpAuthBackend &) = default;
+  HttpAuthBackend &operator=(HttpAuthBackend &&) = default;
+
   /**
    * authentication username with authdata against backend.
    */
