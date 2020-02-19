@@ -234,7 +234,7 @@ Opt_hints_table *Opt_hints_qb::adjust_table_hints(TABLE_LIST *tr) {
   return tab;
 }
 
-bool Opt_hints_qb::semijoin_enabled(THD *thd) const {
+bool Opt_hints_qb::semijoin_enabled(const THD *thd) const {
   if (subquery_hint)  // SUBQUERY hint disables semi-join
     return false;
 

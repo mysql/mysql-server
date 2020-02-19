@@ -424,7 +424,6 @@ void LEX::reset() {
   set_var_list.empty();
   param_list.empty();
   prepared_stmt_params.empty();
-  subqueries = false;
   context_analysis_only = 0;
   safe_to_cache_query = true;
   insert_table = nullptr;
@@ -4369,7 +4368,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd, Item **new_where,
   return get_optimizable_join_conditions(thd, top_join_list);
 }
 
-Subquery_strategy SELECT_LEX::subquery_strategy(THD *thd) const {
+Subquery_strategy SELECT_LEX::subquery_strategy(const THD *thd) const {
   if (m_windows.elements > 0)
     /*
       A window function is in the SELECT list.
@@ -4395,7 +4394,7 @@ Subquery_strategy SELECT_LEX::subquery_strategy(THD *thd) const {
   return Subquery_strategy::SUBQ_EXISTS;
 }
 
-bool SELECT_LEX::semijoin_enabled(THD *thd) const {
+bool SELECT_LEX::semijoin_enabled(const THD *thd) const {
   return opt_hints_qb ? opt_hints_qb->semijoin_enabled(thd)
                       : thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN);
 }

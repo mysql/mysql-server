@@ -448,7 +448,7 @@ class Opt_hints_qb : public Opt_hints {
 
     @return true if semijoin is enabled
   */
-  bool semijoin_enabled(THD *thd) const;
+  bool semijoin_enabled(const THD *thd) const;
 
   /**
     Returns bit mask of which semi-join strategies are enabled for this query

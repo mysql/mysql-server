@@ -1271,7 +1271,7 @@ class SELECT_LEX {
     @retval SUBQ_EXISTS           In-to-exists execution should be used
     @retval CANDIDATE_FOR_IN2EXISTS_OR_MAT A cost-based decision should be made
   */
-  Subquery_strategy subquery_strategy(THD *thd) const;
+  Subquery_strategy subquery_strategy(const THD *thd) const;
 
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
@@ -2050,7 +2050,7 @@ class SELECT_LEX {
     @return true if semijoin is enabled,
             false otherwise
   */
-  bool semijoin_enabled(THD *thd) const;
+  bool semijoin_enabled(const THD *thd) const;
 
   bool resolve_table_value_constructor_values(THD *thd);
 
@@ -3611,7 +3611,6 @@ struct LEX : public Query_tables_list {
     expression is usable for partitioning.
   */
   bool safe_to_cache_query;
-  bool subqueries;
 
  private:
   bool ignore;

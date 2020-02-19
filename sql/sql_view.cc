@@ -1536,8 +1536,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   // Move nondeterminism information to whole query.
   old_lex->safe_to_cache_query &= view_lex->safe_to_cache_query;
 
-  old_lex->subqueries = true;
-
   Security_context *security_ctx;
 
   if (view_ref->view_suid) {

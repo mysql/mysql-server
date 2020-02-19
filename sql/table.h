@@ -3381,6 +3381,7 @@ struct TABLE_LIST {
   bool straight{false}; /* optimize with prev table */
   /**
     True for tables and views being changed in a data change statement.
+    Also true for tables subject to a SELECT ... FOR UPDATE.
     Also used by replication to filter out statements that can be ignored,
     especially important for multi-table UPDATE and DELETE.
   */
