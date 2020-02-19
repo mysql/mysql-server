@@ -320,21 +320,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
-  if (table->all_partitions_pruned_away || m_empty_query) {
-    /*
-      All partitions were pruned away during preparation. Shortcut further
-      processing by "no rows". If explaining, report the plan and bail out.
-    */
-    no_rows = true;
+  assert(!(table->all_partitions_pruned_away || m_empty_query));
 
-    if (lex->is_explain()) {
-      Modification_plan plan(thd, MT_UPDATE, table,
-                             "No matching rows after partition pruning", true,
-                             0);
-      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
-      return err;
-    }
-  }
   Item *conds = nullptr;
   ORDER *order = select_lex->order_list.first;
   if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
@@ -1612,12 +1599,23 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (select->apply_local_transforms(thd, true))
     return true; /* purecov: inspected */
 
-  if (!multitable && select->is_empty_query()) set_empty_query();
+  if (select->is_empty_query()) set_empty_query();
 
   return false;
 }
 
 bool Sql_cmd_update::execute_inner(THD *thd) {
+  if (is_empty_query()) {
+    if (lex->is_explain()) {
+      Modification_plan plan(thd, MT_UPDATE, /*table_arg=*/nullptr,
+                             "No matching rows after partition pruning", true,
+                             0);
+      return explain_single_table_modification(thd, thd, &plan,
+                                               lex->select_lex);
+    }
+    my_ok(thd);
+    return false;
+  }
   return multitable ? Sql_cmd_dml::execute_inner(thd)
                     : update_single_table(thd);
 }
