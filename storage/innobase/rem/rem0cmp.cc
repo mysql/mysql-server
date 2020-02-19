@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -302,7 +302,7 @@ static int cmp_gis_field(
     return (cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR, a, a_length, b,
                                b_length));
   } else {
-    return (rtree_key_cmp(mode, a, a_length, b, b_length, srs));
+    return (rtree_key_cmp(mode, a, a_length, b, b_length, srs) ? 0 : 1);
   }
 }
 

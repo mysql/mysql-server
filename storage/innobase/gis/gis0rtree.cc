@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1790,7 +1790,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
         case PAGE_CUR_WITHIN:
         case PAGE_CUR_MBR_EQUAL:
           if (rtree_key_cmp(PAGE_CUR_WITHIN, range_mbr_ptr, DATA_MBR_LEN, field,
-                            DATA_MBR_LEN, index->rtr_srs.get()) == 0) {
+                            DATA_MBR_LEN, index->rtr_srs.get())) {
             area += 1;
           }
 
@@ -1818,7 +1818,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
         case PAGE_CUR_WITHIN:
         case PAGE_CUR_MBR_EQUAL:
           if (rtree_key_cmp(PAGE_CUR_WITHIN, range_mbr_ptr, DATA_MBR_LEN, field,
-                            DATA_MBR_LEN, index->rtr_srs.get()) == 0) {
+                            DATA_MBR_LEN, index->rtr_srs.get())) {
             area += range_area / rec_area;
           }
 
