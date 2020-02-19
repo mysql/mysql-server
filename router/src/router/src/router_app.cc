@@ -81,11 +81,11 @@ using namespace std::string_literals;
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
+using mysql_harness::utility::wrap_string;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
 using mysqlrouter::SysUserOperations;
 using mysqlrouter::SysUserOperationsBase;
-using mysqlrouter::wrap_string;
 
 static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
