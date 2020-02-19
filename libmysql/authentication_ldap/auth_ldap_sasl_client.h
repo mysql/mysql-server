@@ -23,6 +23,8 @@
 #ifndef AUTH_LDAP_SASL_CLIENT_H_
 #define AUTH_LDAP_SASL_CLIENT_H_
 
+#include "my_config.h"
+
 #include "auth_ldap_sasl_mechanism.h"
 
 #include <mysql.h>

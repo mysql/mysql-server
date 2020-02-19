@@ -2989,8 +2989,10 @@ sub environment_setup {
   $ENV{'UBSAN_OPTIONS'} = "print_stacktrace=1,halt_on_error=1" if $opt_sanitize;
 
   # Make sure LeakSanitizer exits if leaks are found
+  # We may get "Suppressions used:" reports in .result files, do not print them.
   $ENV{'LSAN_OPTIONS'} =
     "exitcode=42,suppressions=${glob_mysql_test_dir}/lsan.supp"
+    .",print_suppressions=0"
     if $opt_sanitize;
 
   $ENV{'ASAN_OPTIONS'} = "suppressions=${glob_mysql_test_dir}/asan.supp"

@@ -290,6 +290,11 @@ MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
   COMPONENT SharedLibraries)
 TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
+IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+  ADD_DEPENDENCIES(libmysql ${kerberos_target})
+  ADD_DEPENDENCIES(mysqlclient ${kerberos_target})
+ENDIF()
+
 IF(WIN32)
   # So that libmysql_api_test below can find the .dll
   ADD_CUSTOM_COMMAND(TARGET libmysql POST_BUILD

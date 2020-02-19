@@ -388,8 +388,8 @@ FUNCTION(SET_PATH_TO_SSL target target_out_dir)
 ENDFUNCTION()
 
 
-# For standalone Linux build and -DWITH_LDAP -DWITH_SASL -DWITH_SSL
-# set to custom path.
+# For standalone Linux build and -DWITH_LDAP -DWITH_SASL -DWITH_SSL and
+# -DWITH_KERBEROS set to custom path.
 #
 # Move the custom shared library and symlinks to library_output_directory.
 # The subdir argument is typically empty, but set to "sasl2" for SASL plugins,
@@ -427,11 +427,11 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
   FIND_OBJECT_DEPENDENCIES(${library_full_filename} library_dependencies)
 
   MESSAGE(STATUS "CUSTOM library ${library_full_filename}")
-  MESSAGE(STATUS "CUSTOM version ${library_version}")
-  MESSAGE(STATUS "CUSTOM directory ${library_directory}")
-  MESSAGE(STATUS "CUSTOM name ${library_name}")
-  MESSAGE(STATUS "CUSTOM name_we ${library_name_we}")
-  MESSAGE(STATUS "CUSTOM soname ${library_soname}")
+# MESSAGE(STATUS "CUSTOM version ${library_version}")
+# MESSAGE(STATUS "CUSTOM directory ${library_directory}")
+# MESSAGE(STATUS "CUSTOM name ${library_name}")
+# MESSAGE(STATUS "CUSTOM name_we ${library_name_we}")
+# MESSAGE(STATUS "CUSTOM soname ${library_soname}")
 
   SET(COPIED_LIBRARY_NAME
     "${CMAKE_BINARY_DIR}/library_output_directory/${subdir}/${library_name}")
@@ -471,7 +471,7 @@ FUNCTION(COPY_CUSTOM_SHARED_LIBRARY library_full_filename subdir
 
   ADD_DEPENDENCIES(copy_linux_custom_dlls ${COPY_TARGET_NAME})
 
-  MESSAGE(STATUS "INSTALL ${library_name} to ${INSTALL_PRIV_LIBDIR}")
+  MESSAGE(STATUS "INSTALL ${library_name} to ${INSTALL_PRIV_LIBDIR}/${subdir}")
 
   # Cannot use INSTALL_PRIVATE_LIBRARY because these are not targets.
   INSTALL(FILES
