@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,14 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
+#include <system_error>
 
 #ifdef _WIN32
-#include <direct.h>  // getcwd
 #include <winsock2.h>
-#else
-#include <limits.h>  // PATH_MAX
-#include <unistd.h>  // getcwd
 #endif
 
 #include "dim.h"
@@ -39,13 +37,7 @@
 #include "mysql/harness/loader.h"
 #include "mysql/harness/loader_config.h"
 #include "mysql/harness/logging/registry.h"
-
-#ifndef PATH_MAX
-#ifdef _MAX_PATH
-// windows has _MAX_PATH instead
-#define PATH_MAX _MAX_PATH
-#endif
-#endif
+#include "mysql/harness/stdx/filesystem.h"
 
 constexpr unsigned kHelpScreenWidth = 72;
 constexpr unsigned kHelpScreenIndent = 8;
@@ -133,13 +125,14 @@ class MysqlServerMockFrontend {
     registry.set_ready();
 
     if (config_.module_prefix.empty()) {
-      char cwd[PATH_MAX];
+      std::error_code ec;
 
-      if (nullptr == getcwd(cwd, sizeof(cwd))) {
-        throw std::system_error(errno, std::generic_category());
+      auto cwd = stdx::filesystem::current_path(ec);
+      if (ec) {
+        throw std::system_error(ec);
       }
 
-      config_.module_prefix = cwd;
+      config_.module_prefix = cwd.native();
     }
 
     // log to stderr

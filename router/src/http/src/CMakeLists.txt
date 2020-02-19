@@ -173,7 +173,9 @@ ADD_HARNESS_PLUGIN(http_server
   http_server_plugin.cc
   static_files.cc
   tls_server_context.cc
-  REQUIRES router_lib;http_common;http_auth_realm;${LIBRT};${LIBEVENT_OPENSSL}
+  REQUIRES router_lib;http_common;http_auth_realm;
+    ${LIBRT};${LIBEVENT_OPENSSL};
+    harness_stdx_io;harness_stdx_filesystem
   DESTINATION "${ROUTER_INSTALL_PLUGINDIR}"
   )
 TARGET_INCLUDE_DIRECTORIES(http_server PRIVATE

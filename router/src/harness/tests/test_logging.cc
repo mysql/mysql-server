@@ -29,12 +29,6 @@
 #include <ctime>
 #include <stdexcept>
 
-#ifdef _WIN32
-#include <process.h>  // getpid()
-#else
-#include <unistd.h>  // unlink
-#endif
-
 ////////////////////////////////////////
 // Third-party include'files
 #include <gmock/gmock.h>
@@ -51,6 +45,8 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/stdx/process.h"
 #include "test/helpers.h"
 
 using mysql_harness::Path;
@@ -331,8 +327,8 @@ TEST(FunctionalTest, LogOnDanglingHandlerReference) {
   // Logger::handle() should deal with it properly - it should log
   // to all (still existing) handlers ("z_stayer" in this case).
   EXPECT_NO_THROW(
-      l.handle(Record{LogLevel::kWarning, getpid(), kDefaultTimepoint,
-                      "my_logger", "Test message"}));
+      l.handle(Record{LogLevel::kWarning, stdx::this_process::get_id(),
+                      kDefaultTimepoint, "my_logger", "Test message"}));
   std::string log = buffer.str();
 
   // log message should be something like:
@@ -372,8 +368,8 @@ TEST_F(LoggingTest, StreamHandler) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged after applying format (timestamp, etc)
@@ -391,17 +387,20 @@ TEST_F(LoggingTest, FileHandler) {
 
   // We do not use mktemp or friends since we want this to work on
   // Windows as well.
-  Path log_file(g_here.join("log4-" + std::to_string(getpid()) + ".log"));
-  std::shared_ptr<void> exit_guard(nullptr,
-                                   [&](void *) { unlink(log_file.c_str()); });
+  Path log_file(g_here.join(
+      "log4-" + std::to_string(stdx::this_process::get_id()) + ".log"));
+  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
+    std::error_code ec;
+    stdx::filesystem::remove(log_file.str(), ec);
+  });
 
   g_registry->add_handler("TestFileHandler",
                           std::make_shared<FileHandler>(log_file));
   logger.attach_handler("TestFileHandler");
 
   // Log one record
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
 
   // Open and read the entire file into memory.
   std::vector<std::string> lines;
@@ -514,8 +513,8 @@ TEST_F(LoggingTest, HandlerWithDisabledFormatting) {
 
   // A bunch of casts to int for tellp to avoid C2666 in MSVC
   ASSERT_THAT((int)buffer.tellp(), Eq(0));
-  logger.handle(Record{LogLevel::kInfo, getpid(), kDefaultTimepoint,
-                       "my_module", "Message"});
+  logger.handle(Record{LogLevel::kInfo, stdx::this_process::get_id(),
+                       kDefaultTimepoint, "my_module", "Message"});
   EXPECT_THAT((int)buffer.tellp(), Gt(0));
 
   // message should be logged verbatim
@@ -535,7 +534,7 @@ TEST_F(LoggingTest, Messages) {
   std::chrono::time_point<std::chrono::system_clock> now =
       std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   auto check_message = [this, &buffer, now, pid](const std::string &message,
                                                  LogLevel level,
@@ -586,7 +585,7 @@ TEST_F(LoggingTest, TimestampPrecision) {
   const auto nsec_part = std::chrono::duration_cast<std::chrono::nanoseconds>(
       now - std::chrono::system_clock::from_time_t(cur));
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   auto check_precision = [this, &buffer, now, pid, cur_localtime, nsec_part](
                              const std::string &message,
@@ -666,7 +665,7 @@ TEST_P(LogLevelTest, Level) {
   std::chrono::time_point<std::chrono::system_clock> now =
       std::chrono::system_clock::now();
 
-  auto pid = getpid();
+  const auto pid = stdx::this_process::get_id();
 
   // Set the log level of the logger.
   logger.set_level(logger_level);
