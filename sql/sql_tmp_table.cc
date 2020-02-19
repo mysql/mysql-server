@@ -881,10 +881,15 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   TABLE *table = new (&own_root) TABLE;
   if (table == nullptr || share == nullptr) return nullptr;
 
+  // NOTE: reg_field/default_field/from_field correspond 1:1 to each other,
+  // except that reg_field contains an extra nullptr marker at the end.
+  // (They should have been a struct, but we cannot, since the reg_field
+  // array ends up in the TABLE object, which expects a flat array.)
+  // blob_field is a separate array, which indexes into these.
   Field **reg_field = own_root.ArrayAlloc<Field *>(field_count + 2);
   Field **default_field = own_root.ArrayAlloc<Field *>(field_count + 1);
-  uint *blob_field = own_root.ArrayAlloc<uint>(field_count + 2);
   Field **from_field = own_root.ArrayAlloc<Field *>(field_count + 1);
+  uint *blob_field = own_root.ArrayAlloc<uint>(field_count + 2);
   if (reg_field == nullptr || default_field == nullptr ||
       from_field == nullptr || blob_field == nullptr)
     return nullptr;
@@ -938,7 +943,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint total_uneven_bit_length = 0;
   uint hidden_uneven_bit_length = 0;
 
-  Field **tmp_from_field = from_field;
   for (Item &refitem : fields) {
     Item *item = &refitem;
     Item::Type type = item->type();
@@ -1002,12 +1006,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         if (!arg->const_item()) {
           Field *new_field = create_tmp_field(
               thd, table, arg, arg->type(), param->items_to_copy,
-              tmp_from_field, &default_field[fieldnr], group != nullptr,
+              &from_field[fieldnr], &default_field[fieldnr], group != nullptr,
               not_all_columns, false, false, false);
           if (new_field == nullptr) return nullptr;  // Should be OOM
-          new_field->field_index = fieldnr++;
-          *(reg_field++) = new_field;
-          tmp_from_field++;
+          new_field->field_index = fieldnr;
+          reg_field[fieldnr++] = new_field;
           share->reclength += new_field->pack_length();
           if (new_field->is_flag_set(BLOB_FLAG)) {
             *blob_field++ = new_field->field_index;
@@ -1063,7 +1066,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           (e.g. it is Item_func). In that case we pass copy_result_field=true.
         */
         new_field = create_tmp_field(
-            thd, table, item, type, param->items_to_copy, tmp_from_field,
+            thd, table, item, type, param->items_to_copy, &from_field[fieldnr],
             &default_field[fieldnr],
             group != nullptr,  // (1)
             !param->force_copy_fields && (not_all_columns || group != nullptr),
@@ -1086,7 +1089,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       */
       if (not_all_columns && type == Item::SUM_FUNC_ITEM)
         down_cast<Item_sum *>(item)->set_result_field(new_field);
-      tmp_from_field++;
       share->reclength += new_field->pack_length();
       if (!new_field->is_flag_set(NOT_NULL_FLAG)) null_count++;
       if (new_field->type() == MYSQL_TYPE_BIT)
@@ -1110,8 +1112,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         group_null_items++;
         new_field->set_flag(GROUP_FLAG);
       }
-      new_field->field_index = fieldnr++;
-      *(reg_field++) = new_field;
+      new_field->field_index = fieldnr;
+      reg_field[fieldnr++] = new_field;
       /* InnoDB temp table doesn't allow field with empty_name */
       if (!new_field->field_name) {
         new_field->field_name = create_tmp_table_field_tmp_name(thd, item);
@@ -1154,10 +1156,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     }
   }  // end of for
 
-  DBUG_ASSERT(fieldnr == (uint)(reg_field - table->field));
-  DBUG_ASSERT(field_count >= (uint)(reg_field - table->field));
+  DBUG_ASSERT(field_count >= fieldnr);
 
-  *reg_field = nullptr;
+  reg_field[fieldnr] = nullptr;
   *blob_field = 0;  // End marker
   share->fields = fieldnr;
 
@@ -1314,8 +1315,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     // Mark hash_field as NOT NULL
     field->set_flag(NOT_NULL_FLAG);
     // Register hash_field as a hidden field.
-    register_hidden_field(table, default_field, from_field, share->blob_field,
-                          field);
+    register_hidden_field(table, &default_field[0], &from_field[0],
+                          share->blob_field, field);
     // Repoint arrays
     table->field--;
     default_field--;
