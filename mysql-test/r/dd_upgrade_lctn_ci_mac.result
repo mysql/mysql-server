@@ -91,9 +91,30 @@ lower_t_upper_p#P#lower_p0.ibd
 #
 ########################################################################
 # Copy zip file, unzip data directory.
-# TODO: Bug#30450918.
-# TODO: Bug#30450968.
-# TODO: Bug#30450979.
+# Upgrade server.
+Upper_fk_parent.frm
+Upper_fk_parent.ibd
+Upper_t.frm
+Upper_t.ibd
+Upper_t_Upper_p#P#Upper_p1.ibd
+Upper_t_Upper_p#P#lower_p0.ibd
+Upper_t_Upper_p.frm
+Upper_t_lower_p#P#lower_p0.ibd
+Upper_t_lower_p#P#lower_p1.ibd
+Upper_t_lower_p.frm
+db.opt
+lower_fk_child.frm
+lower_fk_child.ibd
+lower_t.frm
+lower_t.ibd
+lower_t_lower_p#P#lower_p0.ibd
+lower_t_lower_p#P#lower_p1.ibd
+lower_t_lower_p.frm
+lower_t_upper_p#P#Upper_p1.ibd
+lower_t_upper_p#P#lower_p0.ibd
+lower_t_upper_p.frm
+# Invalid names.
+Occurrences of 'not found in InnoDB dictionary' in the input file: 4
 # Upgrade server.
 Upper_fk_parent.ibd
 Upper_t.ibd
@@ -385,8 +406,11 @@ upper_t_upper_p#P#lower_p0.ibd
 #
 ########################################################################
 # Copy zip file, unzip data directory.
-# TODO: Bug#30450944.
 # Upgrade server.
+Upper_fk_parent.frm
+Upper_t.frm
+Upper_t_Upper_p.frm
+Upper_t_lower_p.frm
 db.opt
 lower_fk_child.frm
 lower_fk_child.ibd
@@ -424,7 +448,30 @@ upper_t_upper_p#P#lower_p0.ibd
 #
 ########################################################################
 # Copy zip file, unzip data directory.
-# TODO: Bug#30411118.
+# Upgrade server.
+db.opt
+lower_fk_child.frm
+lower_fk_child.ibd
+lower_t.frm
+lower_t.ibd
+lower_t_lower_p#p#lower_p0.ibd
+lower_t_lower_p#p#lower_p1.ibd
+lower_t_lower_p.frm
+lower_t_upper_p#p#lower_p0.ibd
+lower_t_upper_p#p#upper_p1.ibd
+lower_t_upper_p.frm
+upper_fk_parent.frm
+upper_fk_parent.ibd
+upper_t.frm
+upper_t.ibd
+upper_t_lower_p#p#lower_p0.ibd
+upper_t_lower_p#p#lower_p1.ibd
+upper_t_lower_p.frm
+upper_t_upper_p#p#lower_p0.ibd
+upper_t_upper_p#p#upper_p1.ibd
+upper_t_upper_p.frm
+# Invalid names.
+Occurrences of 'not found in InnoDB dictionary' in the input file: 4
 # Upgrade server.
 db.opt
 lower_fk_child.frm
@@ -463,7 +510,30 @@ upper_t_upper_p#p#upper_p1.ibd
 #
 ########################################################################
 # Copy zip file, unzip data directory.
-# TODO: Bug#30411118.
+# Upgrade server.
+db.opt
+lower_fk_child.frm
+lower_fk_child.ibd
+lower_t.frm
+lower_t.ibd
+lower_t_lower_p#p#lower_p0.ibd
+lower_t_lower_p#p#lower_p1.ibd
+lower_t_lower_p.frm
+lower_t_upper_p#p#lower_p0.ibd
+lower_t_upper_p#p#upper_p1.ibd
+lower_t_upper_p.frm
+upper_fk_parent.frm
+upper_fk_parent.ibd
+upper_t.frm
+upper_t.ibd
+upper_t_lower_p#p#lower_p0.ibd
+upper_t_lower_p#p#lower_p1.ibd
+upper_t_lower_p.frm
+upper_t_upper_p#p#lower_p0.ibd
+upper_t_upper_p#p#upper_p1.ibd
+upper_t_upper_p.frm
+# Invalid names.
+Occurrences of 'not found in InnoDB dictionary' in the input file: 4
 # Upgrade server.
 db.opt
 lower_fk_child.frm
@@ -526,7 +596,30 @@ upper_t_upper_p#p#lower_p0.ibd
 upper_t_upper_p#p#upper_p1.ibd
 # Invalid names.
 Occurrences of 'containing upper case characters' in the input file: 1
-# TODO: Bug#30411118.
+# Upgrade server.
+Upper_fk_parent.frm
+Upper_t.frm
+Upper_t_Upper_p.frm
+Upper_t_lower_p.frm
+db.opt
+lower_fk_child.frm
+lower_fk_child.ibd
+lower_t.frm
+lower_t.ibd
+lower_t_lower_p#p#lower_p0.ibd
+lower_t_lower_p#p#lower_p1.ibd
+lower_t_lower_p.frm
+lower_t_upper_p#p#lower_p0.ibd
+lower_t_upper_p#p#upper_p1.ibd
+lower_t_upper_p.frm
+upper_fk_parent.ibd
+upper_t.ibd
+upper_t_lower_p#p#lower_p0.ibd
+upper_t_lower_p#p#lower_p1.ibd
+upper_t_upper_p#p#lower_p0.ibd
+upper_t_upper_p#p#upper_p1.ibd
+# Invalid names.
+Occurrences of 'not found in InnoDB dictionary' in the input file: 2
 # Upgrade server.
 Upper_fk_parent.frm
 Upper_t.frm
@@ -582,7 +675,30 @@ upper_t_upper_p#p#upper_p1.ibd
 #
 ########################################################################
 # Copy zip file, unzip data directory.
-# TODO: Bug#30411118.
+# Upgrade server.
+Upper_fk_parent.frm
+Upper_t.frm
+Upper_t_Upper_p.frm
+Upper_t_lower_p.frm
+db.opt
+lower_fk_child.frm
+lower_fk_child.ibd
+lower_t.frm
+lower_t.ibd
+lower_t_lower_p#p#lower_p0.ibd
+lower_t_lower_p#p#lower_p1.ibd
+lower_t_lower_p.frm
+lower_t_upper_p#p#lower_p0.ibd
+lower_t_upper_p#p#upper_p1.ibd
+lower_t_upper_p.frm
+upper_fk_parent.ibd
+upper_t.ibd
+upper_t_lower_p#p#lower_p0.ibd
+upper_t_lower_p#p#lower_p1.ibd
+upper_t_upper_p#p#lower_p0.ibd
+upper_t_upper_p#p#upper_p1.ibd
+# Invalid names.
+Occurrences of 'not found in InnoDB dictionary' in the input file: 4
 # Upgrade with upper case table names fails when changing platform (InnoDB error in log file).
 # Upgrade server.
 db.opt
