@@ -23,19 +23,7 @@
 # cmake -DWITH_KERBEROS=system|<path/to/custom/installation>|none
 # system is the default
 # none will diable the kerberos build
-#
-# Following algorithm will be used to find kerberos library.
-# 1. If "WITH_KERBEROS" is set to system or not configured,
-#    we will search kerberos lib in system directory.
-#    System is used for unix alike OS.
-#    For windows we dont have system kerberos library.
-# 2. If kerberos library path is provided using "WITH_KERBEROS" option,
-#    we will search kerberos library in that path.
-#    This will be used to build MySQL with custom kerberos library.
-# 3. If kerberos library and header is found, kerberos library path,
-#    kerberos header path and KERBEROS_LIB_CONFIGURED will be set.
-# 4. For windows, we need to install kerberos library from web,
-#    https://web.mit.edu/kerberos/kfw-4.1/kfw-4.1.html.
+# Custom path is only supported for LINUX_STANDALONE.
 
 INCLUDE (CheckIncludeFile)
 INCLUDE (CheckIncludeFiles)
@@ -46,35 +34,78 @@ STRING_APPEND(WITH_KERBEROS_DOC ", \nnone (skip kerberos)>")
 
 STRING(REPLACE "\n" "| " WITH_KERBEROS_DOC_STRING "${WITH_KERBEROS_DOC}")
 
-MACRO(RESET_KERBEROS_VARIABLES)
-  UNSET(KERBEROS_INCLUDE_DIR)
-  UNSET(KERBEROS_INCLUDE_DIR CACHE)
-  UNSET(KERBEROS_SYSTEM_LIBRARY)
-  UNSET(KERBEROS_SYSTEM_LIBRARY CACHE)
-ENDMACRO()
-
-MACRO (FIND_SYSTEM_KERBEROS)
-  FIND_LIBRARY(KERBEROS_SYSTEM_LIBRARY NAMES "krb5")
-  IF(LINUX_DEBIAN OR LINUX_UBUNTU)
-    FIND_LIBRARY(KERBEROS_SYSTEM_LIBRARY
-      NAMES "krb5"
-      HINTS /usr/lib/x86_64-linux-gnu)
+FUNCTION(WARN_MISSING_SYSTEM_KERBEROS OUTPUT_WARNING)
+  IF(NOT KERBEROS_FOUND AND WITH_KERBEROS STREQUAL "system")
+    MESSAGE(WARNING "Cannot find KERBEROS development libraries. "
+      "You need to install the required packages:\n"
+      "  Debian/Ubuntu:              apt install libkrb5-dev\n"
+      "  RedHat/Fedora/Oracle Linux: yum install krb5-devel\n"
+      "  SuSE:                       zypper install krb5-devel\n"
+      )
+    SET(${OUTPUT_WARNING} 1 PARENT_SCOPE)
   ENDIF()
-  IF (KERBEROS_SYSTEM_LIBRARY)
-    SET(KERBEROS_LIBRARY_PATH ${KERBEROS_SYSTEM_LIBRARY})
-    MESSAGE(STATUS "KERBEROS_LIBRARY_PATH ${KERBEROS_LIBRARY_PATH}")
+ENDFUNCTION()
 
+MACRO(FIND_SYSTEM_KERBEROS)
+  # Typical result of running pkg-config is:
+  #   SYSTEM_KRB5_LDFLAGS      -lkrb5;-lk5crypto;-lcom_err
+  #   SYSTEM_KRB5_INCLUDE_DIRS ""
+  #   SYSTEM_KRB5_CFLAGS       ""
+  # DEBIAN/UBUNTU:
+  #   -L/usr/lib/x86_64-linux-gnu/mit-krb5;-lkrb5;-lk5crypto;-lcom_err
+  #   ""
+  #   -isystem;/usr/include/mit-krb5
+  # FREEBSD :
+  #   -L/usr/local/lib;-lkrb5;-lk5crypto;-lcom_err
+  #   /usr/local/include
+  #   -I/usr/local/include
+  IF(LINUX OR FREEBSD)
+    MYSQL_CHECK_PKGCONFIG()
+    PKG_CHECK_MODULES(SYSTEM_KRB5 krb5)
+
+    MESSAGE(STATUS "SYSTEM_KRB5_FOUND  ${SYSTEM_KRB5_FOUND}")
+    MESSAGE(STATUS "SYSTEM_KRB5_LIBRARIES  ${SYSTEM_KRB5_LIBRARIES}")
+    MESSAGE(STATUS "SYSTEM_KRB5_LIBRARY_DIRS  ${SYSTEM_KRB5_LIBRARY_DIRS}")
+    MESSAGE(STATUS "SYSTEM_KRB5_LDFLAGS  ${SYSTEM_KRB5_LDFLAGS}")
+    MESSAGE(STATUS "SYSTEM_KRB5_LDFLAGS_OTHER  ${SYSTEM_KRB5_LDFLAGS_OTHER}")
+    MESSAGE(STATUS "SYSTEM_KRB5_INCLUDE_DIRS  ${SYSTEM_KRB5_INCLUDE_DIRS}")
+    MESSAGE(STATUS "SYSTEM_KRB5_CFLAGS  ${SYSTEM_KRB5_CFLAGS}")
+    MESSAGE(STATUS "SYSTEM_KRB5_CFLAGS_OTHER  ${SYSTEM_KRB5_CFLAGS_OTHER}")
+
+    IF(SYSTEM_KRB5_FOUND)
+      SET(KERBEROS_LIBRARIES "${SYSTEM_KRB5_LDFLAGS}")
+    ELSE()
+      # Oracle Linux 6
+      FIND_PROGRAM(MY_KRB5_CONFIG krb5-config)
+      IF(MY_KRB5_CONFIG)
+        EXECUTE_PROCESS(COMMAND ${MY_KRB5_CONFIG} --libs
+          OUTPUT_VARIABLE MY_KRB5_LIBS
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+          RESULT_VARIABLE MY_KRB5_RESULT
+          )
+        MESSAGE(STATUS "${MY_KRB5_CONFIG} --libs: ${MY_KRB5_LIBS}")
+        STRING(REPLACE " " ";" MY_KRB5_LIBS "${MY_KRB5_LIBS}")
+        SET(KERBEROS_LIBRARIES "${MY_KRB5_LIBS}")
+      ENDIF()
+    ENDIF()
+  ELSEIF(SOLARIS OR APPLE)
+    # Solaris: /usr/lib/64/libkrb5.so
+    # Apple: /usr/lib/libkrb5.dylib   which depends on /System/..../Heimdal
+    FIND_LIBRARY(KERBEROS_SYSTEM_LIBRARY NAMES "krb5")
+    IF(KERBEROS_SYSTEM_LIBRARY)
+      SET(KERBEROS_LIBRARIES "${KERBEROS_SYSTEM_LIBRARY}")
+    ENDIF()
+  ENDIF()
+
+  IF(KERBEROS_LIBRARIES)
     CMAKE_PUSH_CHECK_STATE()
 
     IF(SOLARIS)
-      INCLUDE_DIRECTORIES(BEFORE SYSTEM /usr/include/kerberosv5)
       SET(CMAKE_REQUIRED_INCLUDES "/usr/include/kerberosv5")
     ELSEIF(FREEBSD)
-      # Do *not* INCLUDE_DIRECTORIES /usr/local/include here.
-      SET(CMAKE_REQUIRED_INCLUDES "/usr/local/include")
+      SET(CMAKE_REQUIRED_INCLUDES "${SYSTEM_KRB5_INCLUDE_DIRS}")
     ELSEIF(LINUX_DEBIAN OR LINUX_UBUNTU)
-      INCLUDE_DIRECTORIES(BEFORE SYSTEM /usr/include/mit-krb5)
-      SET(CMAKE_REQUIRED_INCLUDES "/usr/include/mit-krb5")
+      SET(CMAKE_REQUIRED_INCLUDES "${SYSTEM_KRB5_CFLAGS}")
     ENDIF()
 
     CHECK_INCLUDE_FILE(krb5/krb5.h HAVE_KRB5_KRB5_H)
@@ -84,68 +115,89 @@ MACRO (FIND_SYSTEM_KERBEROS)
         HINTS ${CMAKE_REQUIRED_INCLUDES}
         )
     ENDIF()
-
     CMAKE_POP_CHECK_STATE()
-
   ENDIF()
+
 ENDMACRO()
 
-# TODO: implement for standalone Linux and Windows.
-# Lookup, and copy: libgssapi_krb5.so.2 libkrb5.so.3 libkrb5support.so.0
-MACRO(FIND_CUSTOM_KERBEROS)
-  FIND_LIBRARY(KERBEROS_LIBRARY_PATH
-    NAMES "krb5"
-    PATHS ${WITH_KERBEROS} ${WITH_KERBEROS}/lib
-    NO_DEFAULT_PATH
-    NO_CMAKE_ENVIRONMENT_PATH
-    NO_SYSTEM_ENVIRONMENT_PATH)
+# Lookup and copy misc libraries, 'objdump -p xx | grep NEED' shows:
+# libkrb5.so depends on:
+#   NEEDED               libk5crypto.so.3
+#   NEEDED               libcom_err.so.3
+#   NEEDED               libkrb5support.so.0
+# libsasl2.so depends on:
+#   NEEDED               libgssapi_krb5.so.2
+#   NEEDED               libkrb5.so.3
+#   NEEDED               libk5crypto.so.3
+#   NEEDED               libcom_err.so.2
+SET(CUSTOM_KERBEROS_EXTRA_LIBRARIES
+  com_err
+  gssapi_krb5
+  k5crypto
+  krb5support
+  )
 
+MACRO(FIND_CUSTOM_KERBEROS)
   # Header file first search in WITH_KERBEROS.
   FIND_PATH(KERBEROS_ROOT_DIR
-    NAMES include/krb5.h
+    NAMES include/krb5/krb5.h
     NO_CMAKE_PATH
     NO_CMAKE_ENVIRONMENT_PATH
-    HINTS ${WITH_KERBEROS}
+    HINTS ${WITH_KERBEROS_PATH}
   )
-  # Header file search in standard places (if not found above).
+  # Then search in standard places (if not found above).
   FIND_PATH(KERBEROS_ROOT_DIR
     NAMES include/krb5/krb5.h
-  )
+    )
+
   FIND_PATH(KERBEROS_INCLUDE_DIR
-    NAMES krb5.h
+    NAMES krb5/krb5.h
     HINTS ${KERBEROS_ROOT_DIR}/include
-  )
-  IF(KERBEROS_INCLUDE_DIR AND KERBEROS_LIBRARY_PATH)
+    )
+
+  FIND_LIBRARY(KERBEROS_CUSTOM_LIBRARY
+    NAMES "krb5"
+    PATHS ${WITH_KERBEROS}/lib
+    NO_DEFAULT_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_SYSTEM_ENVIRONMENT_PATH
+    )
+
+  FOREACH(EXTRA_LIB ${CUSTOM_KERBEROS_EXTRA_LIBRARIES})
+    SET(VAR_NAME "KERBEROS_CUSTOM_LIBRARY_${EXTRA_LIB}")
+    FIND_LIBRARY(${VAR_NAME}
+      NAMES "${EXTRA_LIB}"
+      PATHS ${WITH_KERBEROS}/lib
+      NO_DEFAULT_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_SYSTEM_ENVIRONMENT_PATH
+      )
+  ENDFOREACH()
+
+  IF(KERBEROS_INCLUDE_DIR AND KERBEROS_CUSTOM_LIBRARY)
     MESSAGE(STATUS "KERBEROS_INCLUDE_DIR ${KERBEROS_INCLUDE_DIR}")
-    SET(CMAKE_REQUIRED_INCLUDES ${KERBEROS_INCLUDE_DIR})
-    ADD_DEFINITIONS(-DKERBEROS_LIB_CONFIGURED)
     SET(KERBEROS_FOUND 1)
+    SET(HAVE_KRB5_KRB5_H 1 CACHE INTERNAL "")
   ENDIF()
 
 ENDMACRO()
 
-MACRO (MYSQL_CHECK_KERBEROS)
-  # For standalone linux: custom KERBEROS must match custom builds of
-  # LDAP/SASL/SSL. This is not yet supported, so we disable Kerberos.
-  IF(LINUX_STANDALONE AND KNOWN_CUSTOM_LIBRARIES)
-    SET(WITH_KERBEROS "none")
-    SET(WITH_KERBEROS "none" CACHE INTERNAL "")
-    RESET_KERBEROS_VARIABLES()
-  ENDIF()
-
+MACRO(MYSQL_CHECK_KERBEROS)
   # No Kerberos support for Windows.
   IF(WIN32)
     SET(WITH_KERBEROS "none")
     SET(WITH_KERBEROS "none" CACHE INTERNAL "")
-    RESET_KERBEROS_VARIABLES()
   ENDIF()
 
   IF(NOT WITH_KERBEROS)
-    SET(WITH_KERBEROS "system" CACHE STRING "${WITH_KERBEROS_DOC_STRING}" FORCE)
+    IF(WITH_AUTHENTICATION_LDAP)
+      SET(WITH_KERBEROS "system" CACHE STRING "${WITH_KERBEROS_DOC_STRING}")
+    ELSE()
+      SET(WITH_KERBEROS "none" CACHE STRING "${WITH_KERBEROS_DOC_STRING}")
+    ENDIF()
   ENDIF()
 
   # See if WITH_KERBEROS is of the form </path/to/custom/installation>
-  # TODO: not implemented yet. Implement for STANDALONE_LINUX and Windows.
   FILE(GLOB WITH_KERBEROS_HEADER ${WITH_KERBEROS}/include/krb5/krb5.h)
   IF(WITH_KERBEROS_HEADER)
     FILE(TO_CMAKE_PATH "${WITH_KERBEROS}" WITH_KERBEROS)
@@ -155,11 +207,9 @@ MACRO (MYSQL_CHECK_KERBEROS)
   IF(WITH_KERBEROS STREQUAL "system")
     FIND_SYSTEM_KERBEROS()
   ELSEIF(WITH_KERBEROS STREQUAL "none")
-    MESSAGE(STATUS "KERBEROS_LIBRARY path is none, disabling kerberos support.")
-    SET(KERBEROS_LIBRARY_PATH "")
+    MESSAGE(STATUS "KERBEROS path is none, disabling kerberos support.")
     SET(WITH_KERBEROS 0)
     SET(KERBEROS_FOUND 0)
-    SET(WITH_KERBEROS_NOT_SET 1)
   ELSEIF(WITH_KERBEROS_PATH)
     IF(LINUX_STANDALONE)
       FIND_CUSTOM_KERBEROS()
@@ -171,7 +221,7 @@ MACRO (MYSQL_CHECK_KERBEROS)
     MESSAGE(FATAL_ERROR "Could not find KERBEROS")
   ENDIF()
 
-  IF(KERBEROS_SYSTEM_LIBRARY AND HAVE_KRB5_KRB5_H)
+  IF((KERBEROS_LIBRARIES OR KERBEROS_CUSTOM_LIBRARY) AND HAVE_KRB5_KRB5_H)
     SET(KERBEROS_FOUND 1)
   ELSE()
     SET(KERBEROS_FOUND 0)
@@ -182,7 +232,28 @@ MACRO (MYSQL_CHECK_KERBEROS)
   ENDIF()
 
   IF(KERBEROS_FOUND)
-    ADD_DEFINITIONS(-DKERBEROS_LIB_CONFIGURED)
+    SET(KERBEROS_LIB_CONFIGURED 1)
   ENDIF()
 
+ENDMACRO()
+
+MACRO(MYSQL_CHECK_KERBEROS_DLLS)
+  IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+    COPY_CUSTOM_SHARED_LIBRARY("${KERBEROS_CUSTOM_LIBRARY}" ""
+      KERBEROS_LIBRARIES kerberos_target
+      )
+    FOREACH(EXTRA_LIB ${CUSTOM_KERBEROS_EXTRA_LIBRARIES})
+      SET(COPIED_LIBRARY_NAME)
+      SET(COPIED_TARGET_NAME)
+      SET(VAR_NAME "KERBEROS_CUSTOM_LIBRARY_${EXTRA_LIB}")
+      COPY_CUSTOM_SHARED_LIBRARY("${${VAR_NAME}}" ""
+        COPIED_LIBRARY_NAME COPIED_TARGET_NAME
+        )
+      ADD_DEPENDENCIES(${kerberos_target} ${COPIED_TARGET_NAME})
+      # Append all which are NEEDED by libkrb5.so
+      IF(NOT COPIED_LIBRARY_NAME MATCHES "gssapi")
+        LIST(APPEND KERBEROS_LIBRARIES "${COPIED_LIBRARY_NAME}")
+      ENDIF()
+    ENDFOREACH()
+  ENDIF()
 ENDMACRO()

@@ -35,6 +35,10 @@ IF(FREEBSD AND KERBEROS_SYSTEM_LIBRARY)
   INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
 ENDIF()
 
+IF(FREEBSD AND SASL_INCLUDE_DIR)
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${SASL_INCLUDE_DIR})
+ENDIF()
+
 INCLUDE(CheckIncludeFiles)
 
 # Several sasl_() functions are deprecated
@@ -44,22 +48,20 @@ ENDIF()
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-IF (KERBEROS_FOUND)
-  IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
-    MESSAGE(STATUS "KERBEROS is not yet supported on this platform")
-    UNSET(KERBEROS_LIBRARY_PATH)
-    UNSET(KERBEROS_LIBRARY_PATH CACHE)
-  ELSE()
-    MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
-    SET(AUTH_LDAP_KERBEROS_CC auth_ldap_kerberos.cc)
-    # mysys is required to use my_free and my_strdup when getting Kerberos user name.
-    # Adding mysys only when build has Kerberos support
-    SET(MY_SYS "mysys")
+IF(KERBEROS_FOUND)
+  MESSAGE(STATUS
+    "Building authentication_ldap_sasl_client with Kerberos")
+  IF(KERBEROS_INCLUDE_DIR)
+    INCLUDE_DIRECTORIES(SYSTEM ${KERBEROS_INCLUDE_DIR})
   ENDIF()
+  SET(AUTH_LDAP_KERBEROS_CC auth_ldap_kerberos.cc)
+  # mysys is required to use my_free and my_strdup when getting
+  # Kerberos user name.
+  # Adding mysys only when build has Kerberos support
+  SET(MY_SYS "mysys")
 ELSE()
-  MESSAGE(STATUS "Without Kerberos")
-  UNSET(KERBEROS_LIBRARY_PATH)
-  UNSET(KERBEROS_LIBRARY_PATH CACHE)
+  MESSAGE(STATUS
+    "Building authentication_ldap_sasl_client WITHOUT Kerberos")
 ENDIF()
 
 MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
@@ -71,7 +73,7 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   ${SASL_LIBRARY}
   # Uncomment to verify that all symbols are found.
   # ${LINK_FLAG_NO_UNDEFINED}
-  ${KERBEROS_LIBRARY_PATH}
+  ${KERBEROS_LIBRARIES}
   ${SSL_LIBRARIES}
   ${LIBDL}
   ${MY_SYS}
@@ -83,7 +85,10 @@ IF(LINUX_STANDALONE AND SASL_CUSTOM_LIBRARY)
   TARGET_COMPILE_DEFINITIONS(authentication_ldap_sasl_client
     PRIVATE SASL_CUSTOM_LIBRARY)
   ADD_DEPENDENCIES(authentication_ldap_sasl_client ${sasl_target})
-  ADD_DEPENDENCIES(authentication_ldap_sasl_client ${scram_target})
+ENDIF()
+
+IF(LINUX_STANDALONE AND KERBEROS_CUSTOM_LIBRARY)
+  ADD_DEPENDENCIES(authentication_ldap_sasl_client ${kerberos_target})
 ENDIF()
 
 IF(WIN32)

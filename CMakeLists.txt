@@ -571,7 +571,7 @@ IF(NOT DEFINED WITH_INTERNAL)
 ENDIF()
 
 # On windows we need a non-standard package for SASL.
-IF(WITH_INTERNAL AND NOT WIN32)
+IF(WITH_INTERNAL AND (NOT WIN32 OR WITH_SASL))
   SET(WITH_AUTHENTICATION_LDAP_DEFAULT ON)
 ELSE()
   SET(WITH_AUTHENTICATION_LDAP_DEFAULT OFF)
@@ -1241,12 +1241,29 @@ IF(LINUX)
   SET(KNOWN_CUSTOM_LIBRARIES "" CACHE INTERNAL "" FORCE)
 ENDIF()
 
+# If all custom packages are in the same directory:
+IF(WITH_CUSTOM_LIBRARIES)
+  FILE(GLOB WITH_SSL      "${WITH_CUSTOM_LIBRARIES}/openssl*")
+  FILE(GLOB WITH_KERBEROS "${WITH_CUSTOM_LIBRARIES}/krb5*")
+  FILE(GLOB WITH_SASL     "${WITH_CUSTOM_LIBRARIES}/cyrus-sasl*")
+  FILE(GLOB WITH_LDAP     "${WITH_CUSTOM_LIBRARIES}/openldap*")
+  FOREACH(WITH_OPT WITH_SSL WITH_KERBEROS WITH_SASL WITH_LDAP)
+    IF(IS_DIRECTORY ${${WITH_OPT}})
+      SET(${WITH_OPT} ${${WITH_OPT}} CACHE INTERNAL "" FORCE)
+      MESSAGE(STATUS "${WITH_OPT} ${${WITH_SSL}}")
+    ELSE()
+      MESSAGE(WARNING "${WITH_OPT} not found") # This should be FATAL_ERROR
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
+
 # Add system/custom openssl.
 MYSQL_CHECK_SSL()
 MYSQL_CHECK_SSL_DLLS()
 
-# Add Kerberos library (custom DLLS not yet supported)
+# Add Kerberos library
 MYSQL_CHECK_KERBEROS()
+MYSQL_CHECK_KERBEROS_DLLS()
 
 # Add SASL library
 MYSQL_CHECK_SASL()
@@ -1279,12 +1296,13 @@ ENDIF()
 
 IF(WITH_AUTHENTICATION_LDAP)
   IF(LINUX AND KNOWN_CUSTOM_LIBRARIES)
-    # LDAP / SASL / SSL must all be "system" or "custom", not a mix.
+    # LDAP / SASL / KERBEROS / SSL must all be "system" or "custom", not a mix.
     IF(WITH_LDAP STREQUAL "system" OR
         WITH_SASL STREQUAL "system" OR
+#       WITH_KERBEROS STREQUAL "system" OR # enable this later
         WITH_SSL STREQUAL "system")
       MESSAGE(WARNING "-DWITH_AUTHENTICATION_LDAP=ON")
-      MESSAGE(FATAL_ERROR "Inconsistent options for LDAP/SASL/SSL")
+      MESSAGE(FATAL_ERROR "Inconsistent options for LDAP/SASL/KERBEROS/SSL")
     ENDIF()
   ELSEIF(WIN32)
     # system LDAP, but SASL needs to be explicitly added
@@ -1297,12 +1315,14 @@ IF(WITH_AUTHENTICATION_LDAP)
   ELSEIF(SOLARIS)
     # 11.3 has system LDAP and SASL, but there is no scram plugin.
   ELSE()
-    # We must have "system" LDAP and SASL (SSL is always required)
+    # We must have "system" LDAP, KERBEROS and SASL (SSL is always required)
     SET(LDAP_WARN_GIVEN)
     SET(SASL_WARN_GIVEN)
+    SET(KERBEROS_WARN_GIVEN)
     WARN_MISSING_SYSTEM_LDAP(LDAP_WARN_GIVEN)
     WARN_MISSING_SYSTEM_SASL(SASL_WARN_GIVEN)
-    IF(LDAP_WARN_GIVEN OR SASL_WARN_GIVEN)
+    WARN_MISSING_SYSTEM_KERBEROS(KERBEROS_WARN_GIVEN)
+    IF(LDAP_WARN_GIVEN OR SASL_WARN_GIVEN OR KERBEROS_WARN_GIVEN)
       # SUSE linux: may or may not have SCRAM, do not break the build.
       IF(LINUX_SUSE)
         MESSAGE(WARNING

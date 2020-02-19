@@ -794,6 +794,38 @@
    fun:ldap_initialize
 }
 
+# sasl_client_init will load all available plugins with _sasl_load_plugins().
+# It seems some of the SASL plugin have leaks.
+# We *do* call sasl_client_done, which calls _sasl_done_with_plugins
+# Both LSAN and Valgrind report leaks.
+{
+   Loading SASL plugins 1
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   ...
+   fun:sasl_client_add_plugin
+}
+
+{
+   Loading SASL plugins 2
+   Memcheck:Leak
+   match-leak-kinds: indirect
+   fun:malloc
+   ...
+   fun:sasl_client_add_plugin
+}
+
+{
+   Unloading SASL plugins
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:dlclose
+   fun:_sasl_done_with_plugins
+}
+
 {
    cyrus libsasl2 still reachable one
    Memcheck:Leak

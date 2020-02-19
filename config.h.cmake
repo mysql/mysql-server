@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -208,6 +208,7 @@
 #cmakedefine HAVE_UBSAN
 #cmakedefine HAVE_TSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
+#cmakedefine KERBEROS_LIB_CONFIGURED
 
 /* Lock Order */
 #cmakedefine WITH_LOCK_ORDER 1
