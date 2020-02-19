@@ -25,6 +25,8 @@
 #include "http_auth_method_basic.h"
 
 #include <algorithm>  // std::find
+#include <iterator>
+#include <system_error>
 #include <string>
 #include <vector>
 
