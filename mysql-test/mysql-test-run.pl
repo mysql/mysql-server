@@ -319,6 +319,9 @@ sub testcase_timeout ($) {
   if (exists $tinfo->{'case-timeout'}) {
     # Return test specific timeout if *longer* that the general timeout
     my $test_to = $tinfo->{'case-timeout'};
+    # Double the testcase timeout for sanitizer (ASAN/UBSAN) runs
+    $test_to *= 2 if $opt_sanitize;
+    # Multiply the testcase timeout by 10 for valgrind runs
     $test_to *= 10 if $opt_valgrind;
     return $test_to * 60 if $test_to > $opt_testcase_timeout;
   }
@@ -2015,6 +2018,14 @@ sub command_line_setup {
     $opt_valgrind = 1;
   } elsif ($opt_valgrind_secondary_engine) {
     mtr_report("Turning on valgrind for secondary engine server(s) only.");
+  }
+
+  if ($opt_sanitize) {
+    # Increase the timeouts when running with sanitizers (ASAN/UBSAN)
+    $opt_testcase_timeout   *= 2;
+    $opt_suite_timeout      *= 2;
+    $opt_start_timeout      *= 2;
+    $opt_debug_sync_timeout *= 2;
   }
 
   if ($opt_callgrind) {
