@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
   EventlogHandler(bool format_messages, mysql_harness::logging::LogLevel level,
                   bool create_registry_entries = true);
 
-  ~EventlogHandler();
+  ~EventlogHandler() override;
 
   // does nothing for the eventlog handler
   void reopen() override {}
