@@ -135,6 +135,7 @@ void request_application_shutdown() {
   request_application_shutdown(SHUTDOWN_REQUESTED);
 }
 
+#ifdef USE_POSIX_SIGNALS
 /**
  * notify a "log_reopen" is requested.
  *
@@ -147,6 +148,7 @@ static void request_log_reopen() {
   }
   log_reopen_cond.notify_one();
 }
+#endif
 
 namespace {
 #ifdef USE_POSIX_SIGNALS

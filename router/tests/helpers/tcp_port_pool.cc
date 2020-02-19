@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -206,6 +206,7 @@ UniqueId::UniqueId(UniqueId &&other) {
   other.lock_file_name_ = "";
 }
 
+#ifndef _WIN32
 /*
  * Check whether we can connect on a given port.
  * It returns false if the connect returns any error (ECONNREFUSED, ENETUNREACH,
@@ -270,6 +271,7 @@ static bool try_to_connect(uint16_t port,
 
   return false;
 }
+#endif
 
 uint16_t TcpPortPool::get_next_available(
     const std::chrono::milliseconds socket_probe_timeout) {
@@ -298,6 +300,7 @@ uint16_t TcpPortPool::get_next_available(
     std::cerr << "get_next_available(): port " << result
               << " seems busy, not using\n";
 #else
+    UNREFERENCED_PARAMETER(socket_probe_timeout);
     // On Windows we skip that as this introduces a big time overhead (500ms)
     // for each try. Windows' connect() will not fail right away but will block
     // for that long if the port is available (which is most of the cases we

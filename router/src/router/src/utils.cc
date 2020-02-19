@@ -523,7 +523,10 @@ void write_windows_event_log(const std::string &msg) {
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   bool result = true;
 
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(socket);
+  UNREFERENCED_PARAMETER(err_msg);
+#else
   result = socket.size() <= (sizeof(sockaddr_un().sun_path) - 1);
   err_msg = "Socket file path can be at most " +
             to_string(sizeof(sockaddr_un().sun_path) - 1) +

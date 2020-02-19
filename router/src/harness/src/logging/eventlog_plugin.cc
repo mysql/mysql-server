@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,6 @@ constexpr const char *kEventSourceName = "MySQL Router";
 
 constexpr const char *kRegistryPrefix =
     "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
-
-constexpr const char *kLogLevel = "level";
 
 static WORD logger_to_eventlog_severity(LogLevel level) {
   switch (level) {

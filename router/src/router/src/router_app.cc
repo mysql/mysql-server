@@ -94,6 +94,8 @@ static const char kProgramName[] = "mysqlrouter";
 /*static*/
 std::string MySQLRouter::find_full_path(const std::string &argv0) {
 #ifdef _WIN32
+  UNREFERENCED_PARAMETER(argv0);
+
   // the bin folder is not usually in the path, just the lib folder
   char szPath[MAX_PATH];
   if (GetModuleFileName(NULL, szPath, sizeof(szPath)) != 0)
