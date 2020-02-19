@@ -782,12 +782,16 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
           As this is binary compassion, mark all fields that they can't be
           transformed. Otherwise we would get into trouble with comparisons
           like:
-          WHERE col= 'j' AND col LIKE BINARY 'j'
-          which would be transformed to:
+          WHERE col= 'j' AND col = BINARY 'j'
+          which would be wrongly transformed to:
           WHERE col= 'j'
         */
-        (*left)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
-        (*right)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
+        if ((*left)->collation.collation != &my_charset_bin)
+          (*left)->walk(&Item::disable_constant_propagation, enum_walk::POSTFIX,
+                        nullptr);
+        if ((*right)->collation.collation != &my_charset_bin)
+          (*right)->walk(&Item::disable_constant_propagation,
+                         enum_walk::POSTFIX, nullptr);
       }
       break;
     }

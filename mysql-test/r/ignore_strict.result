@@ -372,9 +372,30 @@ Warnings:
 Warning	1369	CHECK OPTION failed 'test.v1'
 UPDATE v1 SET a=5 WHERE a=1;
 ERROR HY000: CHECK OPTION failed 'test.v1'
+SELECT * FROM t1;
+a
+1
+# Verify multi-table UPDATE too (Bug#30922503)
+UPDATE v1 STRAIGHT_JOIN (SELECT 1) AS dt SET a=5 WHERE a=1;
+ERROR HY000: CHECK OPTION failed 'test.v1'
+SELECT * FROM t1;
+a
+1
 UPDATE IGNORE v1 SET a=5 WHERE a=1;
 Warnings:
 Warning	1369	CHECK OPTION failed 'test.v1'
+SELECT * FROM t1;
+a
+1
+INSERT INTO t1 VALUES (1);
+UPDATE IGNORE v1 STRAIGHT_JOIN (SELECT 1) AS dt SET a=5 WHERE a=1;
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v1'
+Warning	1369	CHECK OPTION failed 'test.v1'
+SELECT * FROM t1;
+a
+1
+1
 DROP VIEW v1;
 DROP TABLE t1;
 

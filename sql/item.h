@@ -2465,7 +2465,8 @@ class Item : public Parse_tree_node {
   virtual Item *explain_subquery_propagator(uchar *) { return this; }
 
   virtual Item *equal_fields_propagator(uchar *) { return this; }
-  virtual bool set_no_const_sub(uchar *) { return false; }
+  // Mark the item to not be part of substitution.
+  virtual bool disable_constant_propagation(uchar *) { return false; }
   virtual Item *replace_equal_field(uchar *) { return this; }
   /*
     Check if an expression value has allowed arguments, like DATE/DATETIME
@@ -3635,7 +3636,9 @@ class Item_field : public Item_ident {
   // iterators.) The split is done because NDB expects the list to only
   // contain fields from the same join nest.
   Item_equal *item_equal_all_join_nests{nullptr};
-  bool no_const_subst;
+  /// If true, the optimizer's constant propagation will not replace this item
+  /// with an equal constant.
+  bool no_constant_propagation{false};
   /*
     if any_privileges set to true then here real effective privileges will
     be stored
@@ -3743,7 +3746,10 @@ class Item_field : public Item_ident {
     SELECT_LEX *new_block;
   };
   bool update_context(uchar *) override;
-  bool set_no_const_sub(uchar *) override;
+  bool disable_constant_propagation(uchar *) override {
+    no_constant_propagation = true;
+    return false;
+  }
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
   Item_field *field_for_view_update() override { return this; }

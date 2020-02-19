@@ -2360,8 +2360,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
       my_coll_agg_error(args, nargs, fname, item_sep);
       return true;
     }
-    if ((*arg)->type() == Item::FIELD_ITEM)
-      ((Item_field *)(*arg))->no_const_subst = true;
+    (*arg)->disable_constant_propagation(nullptr);
     /*
       If in statement prepare, then we create a converter for two
       constant items, do it once and then reuse it.
@@ -2453,7 +2452,6 @@ Item_field::Item_field(Field *f)
     : Item_ident(nullptr, NullS, *f->table_name, f->field_name),
       orig_field(nullptr),
       item_equal(nullptr),
-      no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
   if (f->table->pos_in_table_list != nullptr) {
@@ -2480,7 +2478,6 @@ Item_field::Item_field(THD *thd, Name_resolution_context *context_arg, Field *f)
                  f->field_name),
       orig_field(nullptr),
       item_equal(nullptr),
-      no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
   /*
@@ -2522,7 +2519,6 @@ Item_field::Item_field(Name_resolution_context *context_arg, const char *db_arg,
       field(nullptr),
       orig_field(nullptr),
       item_equal(nullptr),
-      no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
   SELECT_LEX *select = current_thd->lex->current_select();
@@ -2538,7 +2534,6 @@ Item_field::Item_field(const POS &pos, const char *db_arg,
       field(nullptr),
       orig_field(nullptr),
       item_equal(nullptr),
-      no_const_subst(false),
       have_privileges(0),
       any_privileges(false) {
   collation.set(DERIVATION_IMPLICIT);
@@ -2567,7 +2562,7 @@ Item_field::Item_field(THD *thd, Item_field *item)
       orig_field(item->orig_field),
       result_field(item->result_field),
       item_equal(item->item_equal),
-      no_const_subst(item->no_const_subst),
+      no_constant_propagation(item->no_constant_propagation),
       have_privileges(item->have_privileges),
       any_privileges(item->any_privileges) {
   collation.set(DERIVATION_IMPLICIT);
@@ -5439,7 +5434,7 @@ error:
 }
 
 Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
-  no_const_subst = true;
+  no_constant_propagation = true;
   return Item::safe_charset_converter(thd, tocs);
 }
 
@@ -5577,7 +5572,7 @@ static void convert_zerofill_number_to_string(Item **item,
 */
 
 Item *Item_field::equal_fields_propagator(uchar *arg) {
-  if (no_const_subst) return this;
+  if (no_constant_propagation) return this;
   item_equal = find_item_equal((COND_EQUAL *)arg);
   Item *item = nullptr;
   if (item_equal) item = item_equal->get_const();
@@ -5650,16 +5645,6 @@ bool Item_field::update_context(uchar *arg) {
   if (context->select_lex == info->old_block) {
     context = &info->new_block->context;
   }
-  return false;
-}
-
-/**
-  Mark the item to not be part of substitution if it's not a binary item.
-
-  See comments in Arg_comparator::set_compare_func() for details.
-*/
-bool Item_field::set_no_const_sub(uchar *) {
-  if (field->charset() != &my_charset_bin) no_const_subst = true;
   return false;
 }
 

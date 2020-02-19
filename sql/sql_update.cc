@@ -345,53 +345,16 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     static_cast<void>(substitute_gc(thd, select_lex, conds, nullptr, order));
 
   if (conds != nullptr) {
+    if (table_list->check_option) {
+      // See the explanation in multi-table UPDATE code path
+      // (Query_result_update::prepare).
+      table_list->check_option->walk(&Item::disable_constant_propagation,
+                                     enum_walk::POSTFIX, nullptr);
+    }
     COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
-    if (table_list->check_option) {
-      /*
-        If this UPDATE is on a view with CHECK OPTION, field references in
-        'conds' must not be replaced by constants. The reason is that when
-        'conds' is optimized, 'check_option' is also optimized (it is
-        part of 'conds'). Const replacement is fine for 'conds'
-        because it is evaluated on a read row, but 'check_option' is
-        evaluated on a row with updated fields and needs those updated
-        values to be correct.
-
-        Example:
-        CREATE VIEW v1 ... WHERE fld < 2 WITH CHECK_OPTION
-        UPDATE v1 SET fld=4 WHERE fld=1
-
-        check_option is  "(fld < 2)"
-        conds is         "(fld < 2) and (fld = 1)"
-
-        optimize_cond() would propagate fld=1 to the first argument of
-        the AND to create "(1 < 2) AND (fld = 1)". After this,
-        check_option would be "(1 < 2)". But for check_option to work
-        it must be evaluated with the *updated* value of fld: 4.
-        Otherwise it will evaluate to true even when it should be
-        false, which is the case for the UPDATE statement above.
-
-        Thus, if there is a check_option, we do only the "safe" parts
-        of optimize_cond(): Item_row -> Item_func_eq conversion (to
-        enable range access) and removal of always true/always false
-        predicates.
-
-        An alternative to restricting this optimization of 'conds' in
-        the presense of check_option: the Item-tree of 'check_option'
-        could be cloned before optimizing 'conds' and thereby avoid
-        const replacement. However, at the moment there is no such
-        thing as Item::clone().
-      */
-      if (build_equal_items(thd, conds, &conds, nullptr, false,
-                            select_lex->join_list, &cond_equal))
-        return true;
-      if (remove_eq_conds(thd, conds, &conds, &result))
-        return true; /* purecov: inspected */
-    } else {
-      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
-                        &result))
-        return true;
-    }
+    if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list, &result))
+      return true;
 
     if (result == Item::COND_FALSE) {
       no_rows = true;  // Impossible WHERE
@@ -1654,10 +1617,27 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
       table->read_set = &table->tmp_set;
       bitmap_clear_all(table->read_set);
     }
-    // Resolving may be needed for subsequent executions
-    if (tr->check_option && !tr->check_option->fixed &&
-        tr->check_option->fix_fields(thd, nullptr))
-      return true; /* purecov: inspected */
+
+    if (tr->check_option) {
+      // Resolving may be needed for subsequent executions
+      if (!tr->check_option->fixed &&
+          tr->check_option->fix_fields(thd, nullptr))
+        return true; /* purecov: inspected */
+      /*
+        Do not do cross-predicate column substitution in CHECK OPTION. Imagine
+        that the view's CHECK OPTION is "a<b" and the query's WHERE is "a=1".
+        By view merging, the former is injected into the latter, the total
+        WHERE is now "a=1 AND a<b". If the total WHERE is then changed, by
+        optimize_cond(), to "a=1 AND 1<b", this also changes the CHECK OPTION
+        to "1<b"; and if the query was: "UPDATE v SET a=300 WHERE a=1" then
+        "1<b" will pass, wrongly, while "a<b" maybe wouldn't have. The CHECK
+        OPTION must remain intact.
+        @todo When we can clone expressions, clone the CHECK OPTION, and
+        remove this de-optimization.
+      */
+      tr->check_option->walk(&Item::disable_constant_propagation,
+                             enum_walk::POSTFIX, nullptr);
+    }
   }
 
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
