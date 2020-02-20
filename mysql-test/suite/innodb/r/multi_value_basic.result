@@ -868,6 +868,19 @@ i	j
 SELECT * FROM t1 WHERE "MYSQL" MEMBER OF (j->'$[*]');
 i	j
 4	["HelloMySQL", "Hello", "hello", "mySQL", "MYSQL"]
+# Force a multi-table UPDATE, to test:
+# Bug #98691: Updating a multi-table view has problem if one sub-table is constant
+CREATE VIEW vv AS SELECT t1.* FROM t1 STRAIGHT_JOIN (SELECT 1) AS dt;
+EXPLAIN UPDATE vv SET i = 3 WHERE i = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
+1	PRIMARY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	update (`test`.`t1` straight_join (/* select#3 */ select 1 AS `1`) `dt`) set `test`.`t1`.`i` = 3 where true
+UPDATE vv SET i = 3 WHERE i = 4;
+UPDATE vv SET i = 4 WHERE i = 3;
+DROP VIEW vv;
 START TRANSACTION;
 UPDATE t1 SET i = 5 WHERE i = 4;
 ROLLBACK;

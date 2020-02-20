@@ -3353,8 +3353,8 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE) {
     const enum_sql_command sql_command = tab->join()->thd->lex->sql_command;
-    if (sql_command == SQLCOM_UPDATE_MULTI ||
-        sql_command == SQLCOM_DELETE_MULTI) {
+    if (sql_command == SQLCOM_UPDATE_MULTI || sql_command == SQLCOM_UPDATE ||
+        sql_command == SQLCOM_DELETE_MULTI || sql_command == SQLCOM_DELETE) {
       /*
         In a multi-UPDATE, if we represent "depends on" with "->", we have:
         "what columns to read (read_set)" ->
@@ -3446,8 +3446,13 @@ static int read_system(TABLE *table) {
   int error;
   if (!table->is_started())  // If first read
   {
-    if ((error = table->file->ha_read_first_row(table->record[0],
-                                                table->s->primary_key))) {
+    if (!(error = table->file->ha_rnd_init(true))) {
+      while ((error = table->file->ha_rnd_next(table->record[0])) ==
+             HA_ERR_RECORD_DELETED) {
+      }  // skip deleted row
+      // We leave the cursor open, see why in read_const()
+    }
+    if (error) {
       if (error != HA_ERR_END_OF_FILE)
         return report_handler_error(table, error);
       table->set_null_row();
@@ -3519,9 +3524,24 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
         construct_lookup_ref(table->in_use, table, ref))
       error = HA_ERR_KEY_NOT_FOUND;
     else {
-      error = table->file->ha_index_read_idx_map(
-          table->record[0], ref->key, ref->key_buff,
-          make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
+      error = table->file->ha_index_init(ref->key, false);
+      if (!error) {
+        error = table->file->ha_index_read_map(
+            table->record[0], ref->key_buff,
+            make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
+      }
+      /*
+        We leave the cursor open (no ha_index_end()).
+        Indeed, this may be a statement which wants to modify the constant table
+        (e.g. multi-table UPDATE/DELETE); then it will later call
+        update_row() and/or position()&rnd_pos() (the latter case would be
+        to get the row's id, store it in a temporary table and, in a second
+        pass, find the row again to update it).
+        For update_row() or position() to work, the cursor must still be
+        positioned on the row; it is logical and some engines
+        enforce it (see DBUG_ASSERT(m_table) in ha_perfschema::position()).
+        So we do not close it. It will be closed by JOIN::cleanup().
+      */
     }
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE) {

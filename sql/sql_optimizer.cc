@@ -524,7 +524,10 @@ bool JOIN::optimize() {
   if (const_tables && !thd->locked_tables_mode &&
       !(select_lex->active_options() & SELECT_NO_UNLOCK)) {
     TABLE *ct[MAX_TABLES];
-    for (uint i = 0; i < const_tables; i++) ct[i] = best_ref[i]->table();
+    for (uint i = 0; i < const_tables; i++) {
+      ct[i] = best_ref[i]->table();
+      ct[i]->file->ha_index_or_rnd_end();
+    }
     mysql_unlock_some_tables(thd, ct, const_tables);
   }
   if (!where_cond && select_lex->outer_join) {

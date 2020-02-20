@@ -306,13 +306,11 @@ FLUSH TABLES;
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd	3
 Handler_read_rnd_next	9
@@ -505,7 +503,6 @@ FLUSH TABLES;
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
@@ -1822,12 +1819,10 @@ FLUSH TABLES;
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -1849,12 +1844,10 @@ FLUSH TABLES;
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -2151,12 +2144,10 @@ FLUSH TABLES;
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
 

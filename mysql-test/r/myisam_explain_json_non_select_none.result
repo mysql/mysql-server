@@ -1244,13 +1244,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd	3
 Handler_read_rnd_next	9
@@ -1805,7 +1803,6 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1` where (NULL > 0) order by NULL
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
@@ -5863,12 +5860,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where true
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -6000,12 +5995,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,NULL AS `c1`,NULL AS `c2` from `test`.`t1` where (`test`.`t1`.`c3` = 10)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd_next	4
 
@@ -7031,12 +7024,10 @@ Warnings:
 Note	1003	/* select#1 */ select NULL AS `a` from `test`.`t1`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
 
