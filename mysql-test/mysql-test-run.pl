@@ -632,7 +632,7 @@ sub main {
   # Read definitions from include/plugin.defs
   read_plugin_defs("include/plugin.defs");
 
-  # Also read from any plugin local or suite specific plugin.defs
+  # Also read from plugin.defs files in internal and internal/cloud if they exist
 
   my $plugin_def = "$basedir/internal/mysql-test/include/plugin.defs"
     if (-e "$basedir/internal/mysql-test/include/plugin.defs");
