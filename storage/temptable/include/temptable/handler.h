@@ -455,13 +455,6 @@ class Handler : public ::handler {
   handler *clone(const char *, MEM_ROOT *) override;
 
   /** Not implemented.
-  @return false */
-  bool was_semi_consistent_read() override;
-
-  /** Not implemented. */
-  void try_semi_consistent_read(bool) override;
-
-  /** Not implemented.
   @return 0 */
   int index_first(uchar *) override;
 

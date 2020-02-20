@@ -772,6 +772,19 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       DBUG_ASSERT(!thd->is_error());
 
       if (table->file->was_semi_consistent_read())
+        /*
+          Reviewer: iterator is reading from the to-be-updated table or
+          from a tmp file.
+          In the latter case, if the condition of this if() is true,
+          it is wrong to "continue"; indeed this will pick up the _next_ row of
+          tempfile; it will not re-read-with-lock the current row of tempfile,
+          as tempfile is not an InnoDB table and not doing semi consistent read.
+          If that happens, we're potentially skipping a row which was found
+          matching! OTOH, as the rowid was written to the tempfile, it means it
+          matched and thus we have already re-read it in the tempfile-write loop
+          above and thus locked it. So we shouldn't come here. How about adding
+          an assertion that if reading from tmp file we shouldn't come here?
+        */
         continue; /* repeat the read of the same row if it still exists */
 
       table->clear_partial_update_diffs();
@@ -1934,6 +1947,14 @@ bool Query_result_update::optimize() {
           }
         }
       }
+      // As it's the first table in the join, and we're doing a nested loop
+      // join thanks to SELECT_NO_JOIN_CACHE, the table is the left argument
+      // of that NL join; thus, we can ask for semi-consistent read.
+      // It's a bit early to ask for it here, because we're before
+      // rnd_init/index_init; but cannot do it later, as we soon
+      // hand control over to iterators.
+      table->file->try_semi_consistent_read(true);
+
       if (safe_update_on_fly(join->best_ref[0], table_ref,
                              select->get_table_list())) {
         table->mark_columns_needed_for_update(
@@ -2081,11 +2102,18 @@ void Query_result_update::cleanup(THD *thd) {
 
   if (update_operations != nullptr)
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
+
+  if (main_table) main_table->file->try_semi_consistent_read(false);
 }
 
 bool Query_result_update::send_data(THD *thd, List<Item> &) {
   TABLE_LIST *cur_table;
   DBUG_TRACE;
+  if (main_table->file->was_semi_consistent_read()) {
+    // This will let the nested-loop iterator repeat the read of the same row if
+    // it still exists.
+    return false;
+  }
 
   for (cur_table = update_tables; cur_table;
        cur_table = cur_table->next_local) {
@@ -2326,6 +2354,9 @@ bool Query_result_update::do_updates(THD *thd) {
     return false;
   }
 
+  // All rows which we will now read must be updated and thus locked:
+  main_table->file->try_semi_consistent_read(false);
+
   // If we're updating based on an outer join, the executor may have left some
   // rows in NULL row state. Reset them before we start looking at rows,
   // so that generated fields don't inadvertedly get NULL inputs.
@@ -2458,6 +2489,9 @@ bool Query_result_update::do_updates(THD *thd) {
           This function does not call the fill_record_n_invoke_before_triggers
           which sets function defaults automagically. Hence calling
           set_function_defaults here explicitly to set the function defaults.
+          Note that, in fill_record_n_invoke_before_triggers, function defaults
+          are set before before-triggers are called; here, it's the opposite
+          order.
         */
         update_operations[offset]->set_function_defaults(table);
 

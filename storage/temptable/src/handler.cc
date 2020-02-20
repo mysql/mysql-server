@@ -969,17 +969,6 @@ handler *Handler::clone(const char *, MEM_ROOT *) {
   return nullptr;
 }
 
-bool Handler::was_semi_consistent_read() {
-  DBUG_TRACE;
-  DBUG_ABORT();
-  return true;
-}
-
-void Handler::try_semi_consistent_read(bool) {
-  DBUG_TRACE;
-  DBUG_ABORT();
-}
-
 int Handler::index_first(uchar *) {
   DBUG_TRACE;
   DBUG_ABORT();
