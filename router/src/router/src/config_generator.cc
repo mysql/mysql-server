@@ -2275,7 +2275,7 @@ void ConfigGenerator::throw_account_exists(const MySQLSession::Error &e,
   std::string msg = "Account(s) ";
 
   bool is_first{true};
-  for (const std::string a : accounts) {
+  for (const std::string &a : accounts) {
     if (is_first) {
       is_first = false;
     } else {

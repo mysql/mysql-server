@@ -1835,11 +1835,11 @@ class AccountReuseTestBase : public CommonBootstrapTest {
       }
     }
 
-    for (const std::string output : exp_output) {
+    for (const std::string &output : exp_output) {
       EXPECT_TRUE(router.expect_output(output)) << "-------- expected output:\n"
                                                 << output << std::endl;
     }
-    for (const std::string output : unexp_output) {
+    for (const std::string &output : unexp_output) {
       EXPECT_FALSE(router.expect_output(output))
           << "-------- unexpected output:\n"
           << output << std::endl;
