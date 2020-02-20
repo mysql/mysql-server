@@ -158,7 +158,7 @@ MockNG::MockNG(const std::string &user, const std::string &password,
  *
  * Disconnect and release the connection to the metadata node.
  */
-MockNG::~MockNG() {}
+MockNG::~MockNG() = default;
 
 /** @brief Returns relation between replicaset ID and list of servers
  *
@@ -191,11 +191,8 @@ bool MockNG::connect_and_setup_session(
   return true;
 }
 
-/** @brief Mock connect method.
- *
- * Mock connect method, does nothing.
- *
- * @return a boolean to indicate if the connection was successful.
+/**
+ * Mock disconnect method, does nothing.
  */
 void MockNG::disconnect() noexcept {}
 
