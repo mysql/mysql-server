@@ -171,6 +171,7 @@ bool mbr_intersect_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   } catch (...) {
     assert(false); /* purecov: inspected */
   }
+  return false; /* purecov: dead code */
 }
 
 bool mbr_disjoint_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
@@ -201,6 +202,7 @@ bool mbr_disjoint_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
   } catch (...) {
     assert(false); /* purecov: inspected */
   }
+  return false; /* purecov: dead code */
 }
 
 bool mbr_within_cmp(const dd::Spatial_reference_system *srs, rtr_mbr_t *a,
