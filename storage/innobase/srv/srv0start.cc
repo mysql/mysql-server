@@ -3047,7 +3047,7 @@ void srv_start_threads_after_ddl_recovery() {
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
   gtid_persistor.start();
 
-  DBUG_EXECUTE_IF("crash_before_purge_thread", ut_ad(false););
+  DBUG_EXECUTE_IF("crash_before_purge_thread", DBUG_SUICIDE(););
 
   /* Now the InnoDB Metadata and file system should be consistent.
   Start the Purge thread */
