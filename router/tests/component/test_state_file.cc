@@ -316,9 +316,23 @@ TEST_P(StateFileMetadataServersChangedInRuntimeTest,
     cluster_nodes.push_back(&ProcessManager::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], EXIT_SUCCESS, false,
         cluster_http_ports[i], 0, "", bind_address));
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(
-        *cluster_nodes[i], cluster_nodes_ports[i], kDefaultPortReadyTimeout,
-        param.ipv6 ? "::1" : "127.0.0.1"));
+    try {
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(
+          *cluster_nodes[i], cluster_nodes_ports[i], kDefaultPortReadyTimeout,
+          param.ipv6 ? "::1" : "127.0.0.1"));
+    } catch (const std::system_error &e) {
+      // the only expected system-error is "address-no-available" in case of
+      // trying to bind to ipv6 when ipv6 is disabled on the host
+      ASSERT_EQ(e.code(),
+                make_error_condition(std::errc::address_not_available));
+
+      // there is no good synchronization point for waiting for the mock's
+      // signal handler to be setup
+      //
+      // - nothing is written to the log
+      std::this_thread::sleep_for(100ms);
+      return;
+    }
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready());
 

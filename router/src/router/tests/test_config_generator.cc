@@ -179,8 +179,8 @@ static void common_pass_cluster_type(MySQLSessionReplayer *m) {
 
 static void common_pass_metadata_supported(MySQLSessionReplayer *m) {
   m->expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   m->then_return(1, {// has_one_gr_cluster
                      {m->string_or_null("1")}});
 }
@@ -319,11 +319,10 @@ TEST_F(ConfigGeneratorTest, metadata_checks_invalid_data) {
     common_pass_cluster_type(mock_mysql.get());
     // invalid number of values returned from query for metadata support
     mock_mysql->expect_query_one(
-        "select ((select count(*) from "
-        "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as "
-        "has_one_gr_cluster");
+        "select count(*) from "
+        "mysql_innodb_cluster_metadata.v2_gr_clusters");
     mock_mysql->then_return(0,
-                            {// [has_one_gr_cluster missing]
+                            {// [count(*) missing]
                              {}});
 
     ASSERT_THROW_LIKE(

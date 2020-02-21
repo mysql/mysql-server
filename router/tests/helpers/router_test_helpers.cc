@@ -280,6 +280,18 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
 #endif
     status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
     if (status < 0) {
+      // if the address is not available, it is a client side problem.
+#ifdef _WIN32
+      if (WSAGetLastError() == WSAEADDRNOTAVAIL) {
+        throw std::system_error(mysqlrouter::get_socket_errno(),
+                                std::system_category());
+      }
+#else
+      if (errno == EADDRNOTAVAIL) {
+        throw std::system_error(mysqlrouter::get_socket_errno(),
+                                std::generic_category());
+      }
+#endif
       const auto step = std::min(timeout, MSEC_STEP);
       std::this_thread::sleep_for(std::chrono::milliseconds(step));
       timeout -= step;

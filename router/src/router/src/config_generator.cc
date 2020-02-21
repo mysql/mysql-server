@@ -127,6 +127,7 @@ struct account_exists : public std::runtime_error {
 };
 }  // namespace
 
+#ifndef _WIN32
 // hint we offer to user when opening dir or file fails with "permission denied"
 const char kAppArmorMsg[] =
     "This may be caused by insufficient rights or AppArmor settings.\n"
@@ -136,6 +137,7 @@ const char kAppArmorMsg[] =
     "Example:\n\n"
     "  /path/to/your/output/dir rw,\n"
     "  /path/to/your/output/dir/** rw,";
+#endif
 
 static bool is_valid_name(const std::string &name) {
   if (!name.empty()) {
@@ -703,8 +705,9 @@ void ConfigGenerator::bootstrap_directory_deployment(
   }
 
   if (!Path(directory).is_directory()) {
-    throw std::runtime_error("Can't use " + directory +
-                             " for bootstrap, it is not directory.");
+    throw std::runtime_error("Expected bootstrap directory '" + directory +
+                             "' to be a directory, but its type is: " +
+                             mysqlrouter::to_string(Path(directory).type()));
   }
 
   set_file_owner(user_options, directory);
@@ -1220,7 +1223,11 @@ void ConfigGenerator::set_log_file_permissions(
     const std::map<std::string, std::string> &default_paths,
     const std::map<std::string, std::string> &user_options,
     const Options &options) {
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(default_paths);
+  UNREFERENCED_PARAMETER(user_options);
+  UNREFERENCED_PARAMETER(options);
+#else
   /* Currently at this point the logger is not yet initialized but while
    * bootstraping with the --user=<user> option we need to create a log file and
    * chown it to the <user>. Otherwise when the router gets launched later (not
@@ -2268,7 +2275,7 @@ void ConfigGenerator::throw_account_exists(const MySQLSession::Error &e,
   std::string msg = "Account(s) ";
 
   bool is_first{true};
-  for (const std::string a : accounts) {
+  for (const std::string &a : accounts) {
     if (is_first) {
       is_first = false;
     } else {
@@ -2778,7 +2785,10 @@ void ConfigGenerator::set_script_permissions(
     const std::string &script_path,
     const std::map<std::string, std::string> &options) {
 // we only call this method from unix-specific code
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(script_path);
+  UNREFERENCED_PARAMETER(options);
+#else
   if (::chmod(script_path.c_str(), kStrictDirectoryPerm) < 0) {
     std::cerr << "Could not change permissions for " << script_path << ": "
               << get_strerror(errno) << "\n";
@@ -2791,6 +2801,8 @@ void ConfigGenerator::create_start_script(
     const std::string &directory, bool interactive_master_key,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
+  UNREFERENCED_PARAMETER(interactive_master_key);
+  UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
   std::string script_path = directory + "/start.ps1";
@@ -2879,6 +2891,7 @@ void ConfigGenerator::create_stop_script(
     const std::string &directory,
     const std::map<std::string, std::string> &options) {
 #ifdef _WIN32
+  UNREFERENCED_PARAMETER(options);
 
   std::ofstream script;
   const std::string script_path = directory + "/stop.ps1";
@@ -2979,7 +2992,10 @@ bool ConfigGenerator::backup_config_file_if_different(
 void ConfigGenerator::set_file_owner(
     const std::map<std::string, std::string> &options,
     const std::string &file_path) {
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(options);
+  UNREFERENCED_PARAMETER(file_path);
+#else
   bool change_owner =
       (options.count("user") != 0) && (!options.at("user").empty());
   if (change_owner) {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -86,8 +86,7 @@ bool operator==(const Config &lhs, const Config &rhs) {
 std::list<std::string> section_names(
     const mysql_harness::Config::ConstSectionList &sections) {
   std::list<std::string> result;
-  for (auto &section : sections) result.push_back(section->name);
-  std::cerr << result << std::endl;
+  for (const auto *section : sections) result.push_back(section->name);
   return result;
 }
 
@@ -98,7 +97,7 @@ void PrintTo(const Config &config, std::ostream &out) {
 
 class ConfigTest : public ::testing::Test {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     std::vector<std::string> words;
     words.push_back("reserved");
     config.set_reserved(words);
@@ -240,18 +239,18 @@ TEST_F(ConfigTest, IsDefaultWhenOptionInDefault) {
 
 class GoodParseTestAllowKey : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     config = new Config(Config::allow_keys);
 
     std::vector<std::string> words;
-    words.push_back("reserved");
+    words.emplace_back("reserved");
     config->set_reserved(words);
 
     std::istringstream input(GetParam());
     config->read(input);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete config;
     config = nullptr;
   }
@@ -319,13 +318,13 @@ INSTANTIATE_TEST_CASE_P(TestParsing, GoodParseTestAllowKey,
 using Sample = std::pair<std::string, std::string>;
 class TestInterpolate : public TestWithParam<Sample> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     config_ = new Config(Config::allow_keys);
     config_->add("testing", "a_key");
     config_->set_default("datadir", "--path--");
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete config_;
     config_ = nullptr;
   }
@@ -383,7 +382,7 @@ TEST(TestConfig, RecursiveInterpolate) {
 
 class BadParseTestForbidKey : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     config = new Config;
 
     std::vector<std::string> words;
@@ -391,7 +390,7 @@ class BadParseTestForbidKey : public ::testing::TestWithParam<const char *> {
     config->set_reserved(words);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete config;
     config = nullptr;
   }
@@ -422,10 +421,6 @@ static const char *syntax_problems[] = {
     // Options before first section
     ("  foo: bar   \n"
      "[one]\n"),
-
-    // Unterminated last line
-    ("[one]\n"
-     "foo = bar"),
 
     // Repeated option
     ("[one]\n"
@@ -462,15 +457,15 @@ INSTANTIATE_TEST_CASE_P(TestParsingSyntaxError, BadParseTestForbidKey,
 
 class BadParseTestAllowKeys : public ::testing::TestWithParam<const char *> {
  protected:
-  virtual void SetUp() {
+  void SetUp() override {
     config = new Config(Config::allow_keys);
 
     std::vector<std::string> words;
-    words.push_back("reserved");
+    words.emplace_back("reserved");
     config->set_reserved(words);
   }
 
-  virtual void TearDown() {
+  void TearDown() override {
     delete config;
     config = nullptr;
   }
@@ -631,6 +626,62 @@ TEST(TestConfig, SectionRead) {
 
   EXPECT_THAT(config.get("empty", "").get_options(), IsEmpty());
   EXPECT_THAT(config.get("empty", "").get_options(), SizeIs(0));
+}
+
+TEST(TestConfig, CrLf) {
+  static const char *const config_string =
+      ("[example]\r\n"
+       "library = magic\r\n"
+       "message = Some kind of\r\n");
+
+  Config config(Config::allow_keys);
+  std::istringstream stream_input(config_string);
+  config.read(stream_input);
+
+  // Test that the sections command return the right sections
+  EXPECT_THAT(section_names(config.sections()),
+              UnorderedElementsAreArray({"example"}));
+
+  // Test that options for a section is correct
+  std::set<std::pair<std::string, std::string>> expected_options{
+      {"library", "magic"}, {"message", "Some kind of"}};
+
+  // ElementsAreArray() segfaults with Sun Studio compiler
+  //  EXPECT_THAT(config.get("example", "").get_options(),
+  //              ElementsAreArray(expected_options));
+  auto config_options = config.get("example", "").get_options();
+  for (const auto &op : config_options) {
+    EXPECT_EQ(1u, expected_options.count(op));
+  }
+  EXPECT_THAT(config_options, SizeIs(2));
+}
+
+TEST(TestConfig, CrLfUnterminatedLastLine) {
+  static const char *const config_string =
+      ("[example]\r\n"
+       "library = magic\r\n"
+       "message = Some kind of");
+
+  Config config(Config::allow_keys);
+  std::istringstream stream_input(config_string);
+  config.read(stream_input);
+
+  // Test that the sections command return the right sections
+  EXPECT_THAT(section_names(config.sections()),
+              UnorderedElementsAreArray({"example"}));
+
+  // Test that options for a section is correct
+  std::set<std::pair<std::string, std::string>> expected_options{
+      {"library", "magic"}, {"message", "Some kind of"}};
+
+  // ElementsAreArray() segfaults with Sun Studio compiler
+  //  EXPECT_THAT(config.get("example", "").get_options(),
+  //              ElementsAreArray(expected_options));
+  auto config_options = config.get("example", "").get_options();
+  for (const auto &op : config_options) {
+    EXPECT_EQ(1u, expected_options.count(op));
+  }
+  EXPECT_THAT(config_options, SizeIs(2));
 }
 
 int main(int argc, char *argv[]) {

@@ -103,47 +103,6 @@ void MockOfstream::open(const char *filename,
 #endif
 }
 
-std::vector<string> wrap_string(const string &to_wrap, size_t width,
-                                size_t indent_size) {
-  size_t curr_pos = 0;
-  size_t wrap_pos = 0;
-  size_t prev_pos = 0;
-  string work{to_wrap};
-  std::vector<string> res{};
-  auto indent = string(indent_size, ' ');
-  auto real_width = width - indent_size;
-
-  size_t str_size = work.size();
-  if (str_size < real_width) {
-    res.push_back(indent + work);
-  } else {
-    work.erase(std::remove(work.begin(), work.end(), '\r'), work.end());
-    std::replace(work.begin(), work.end(), '\t', ' '), work.end();
-    str_size = work.size();
-
-    do {
-      curr_pos = prev_pos + real_width;
-
-      // respect forcing newline
-      wrap_pos = work.find("\n", prev_pos);
-      if (wrap_pos == string::npos || wrap_pos > curr_pos) {
-        // No new line found till real_width
-        wrap_pos = work.find_last_of(" ", curr_pos);
-      }
-      if (wrap_pos != string::npos) {
-        res.push_back(indent + work.substr(prev_pos, wrap_pos - prev_pos));
-        prev_pos = wrap_pos + 1;  // + 1 to skip space
-      } else {
-        break;
-      }
-    } while (str_size - prev_pos > real_width ||
-             work.find("\n", prev_pos) != string::npos);
-    res.push_back(indent + work.substr(prev_pos));
-  }
-
-  return res;
-}
-
 bool my_check_access(const std::string &path) {
 #ifndef _WIN32
   return (access(path.c_str(), R_OK | X_OK) == 0);
@@ -523,7 +482,10 @@ void write_windows_event_log(const std::string &msg) {
 bool is_valid_socket_name(const std::string &socket, std::string &err_msg) {
   bool result = true;
 
-#ifndef _WIN32
+#ifdef _WIN32
+  UNREFERENCED_PARAMETER(socket);
+  UNREFERENCED_PARAMETER(err_msg);
+#else
   result = socket.size() <= (sizeof(sockaddr_un().sun_path) - 1);
   err_msg = "Socket file path can be at most " +
             to_string(sizeof(sockaddr_un().sun_path) - 1) +

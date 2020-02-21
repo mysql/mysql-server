@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ std::string get_strerror(int err) {
   return result;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && defined(_DEBUG)
 const DWORD MS_VC_EXCEPTION = 0x406D1388;
 #pragma pack(push, 8)
 typedef struct tagTHREADNAME_INFO {
@@ -121,6 +121,8 @@ void rename_thread(const char thread_name[16]) {
   } __except (EXCEPTION_EXECUTE_HANDLER) {
   }
 #pragma warning(pop)
+#else
+  UNREFERENCED_PARAMETER(thread_name);
 #endif  // #ifdef _DEBUG
 
 // other

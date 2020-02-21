@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,6 +63,7 @@ ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
   loader.cc
+  dynamic_loader.cc
   utilities.cc
   config_parser.cc
   designator.cc
@@ -104,13 +105,11 @@ IF(WIN32)
   LIST(APPEND harness_source
     filesystem-windows.cc
     utilities-windows.cc
-    loader-windows.cc
     logging/eventlog_plugin.cc)
 ELSE()
   LIST(APPEND harness_source
     filesystem-posix.cc
     utilities-posix.cc
-    loader-posix.cc
     logging/syslog_plugin.cc)
 ENDIF()
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <map>
 
 #include <iostream>  // cerr
+#include <stdexcept>
 
 #include <event2/util.h>
 
@@ -94,12 +95,14 @@ time_t time_from_rfc5322_fixdate(const char *date_buf) {
     throw std::out_of_range("invalid date");
   }
 
-  // throws out-of-range
-  std::map<std::string, decltype(t_m.tm_mon)>{
+  const std::map<std::string, decltype(t_m.tm_mon)> weekdays{
       {"Sun", 0}, {"Mon", 1}, {"Tue", 2}, {"Wed", 3},
       {"Thu", 4}, {"Fri", 5}, {"Sat", 6},
+  };
+
+  if (weekdays.find(wday) == weekdays.end()) {
+    throw std::out_of_range(wday);
   }
-      .at(wday);
 
   // throws out-of-range
   t_m.tm_mon =

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
+#include <system_error>
+#include <thread>
 
 #include <gmock/gmock.h>
 
@@ -244,16 +247,24 @@ TEST_P(HttpServerPlainTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   if (!has_port) {
     http_port = kHttpDefaultPort;
   }
 
+  // Add a DEBUG level to trigger the 'Running' message.
   std::string conf_file{create_config_file(
       conf_dir_.name(),
-      ConfigBuilder::build_section("http_server", http_section))};
+      mysql_harness::join(
+          std::vector<std::string>{
+              ConfigBuilder::build_section("http_server", http_section),
+              ConfigBuilder::build_section("logger",
+                                           {
+                                               {"level", "DEBUG"},
+                                           })},
+          "\n"))};
   ProcessWrapper &http_server{launch_router(
       {"-c", conf_file}, GetParam().expected_success ? 0 : EXIT_FAILURE)};
 
@@ -270,9 +281,29 @@ TEST_P(HttpServerPlainTest, ensure) {
     RestClient rest_client(io_ctx, GetParam().http_hostname, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
-                                             kDefaultPortReadyTimeout,
-                                             GetParam().http_hostname));
+    try {
+      ASSERT_NO_FATAL_FAILURE(check_port_ready(http_server, http_port,
+                                               kDefaultPortReadyTimeout,
+                                               GetParam().http_hostname))
+          << "http-server:\n"
+          << http_server.get_current_output();
+    } catch (const std::system_error &e) {
+      SCOPED_TRACE(
+          "// wait_for_port_ready() failed, waiting for process to startup "
+          "before we can kill it");
+      // if we tried to connect to an address we can't assign (like connect(::1)
+      // on a host IPv6 disabled), skip the test
+
+      ASSERT_EQ(e.code(),
+                make_error_condition(std::errc::address_not_available));
+
+      // wait a bit to let the process actually startup to not kill it too early
+      EXPECT_TRUE(wait_log_contains(http_server, "Running", 1000ms))
+          << "log: " << http_server.get_full_logfile();
+
+      // skip
+      return;
+    }
 
     SCOPED_TRACE("// requesting " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
@@ -1713,6 +1744,16 @@ TEST_P(HttpServerAuthFailTest, ensure) {
 }
 
 const HttpServerAuthFailParams http_server_auth_fail_params[]{
+    {"backend_no_section",
+     "",
+     {
+         ConfigBuilder::build_section(
+             "http_auth_backend",
+             {{"backend", "file"}, {"filename", "does-not-exists"}}),
+     },
+     false,
+     "The config section [http_auth_backend] requires a name, like "
+     "[http_auth_backend:example]"},
     {"backend_file_filename_not_exists",
      "WL12503::TS_FR6_1",
      {ConfigBuilder::build_section("http_auth_backend:local",
@@ -1748,7 +1789,21 @@ const HttpServerAuthFailParams http_server_auth_fail_params[]{
                                        {"require", "valid-user"}}),
      },
      false,
-     "unknown authentication backend for"},
+     "The option 'backend=doesnotexist' in [http_auth_realm:secure] does not "
+     "match any http_auth_backend. No [http_auth_backend:doesnotexist] "
+     "section defined."},
+    {"realm_no_section",
+     "WL12503::TS_FR6_1",
+     {
+         ConfigBuilder::build_section("http_auth_realm",
+                                      {{"backend", "doesnotexist"},
+                                       {"method", "basic"},
+                                       {"name", "API"},
+                                       {"require", "valid-user"}}),
+     },
+     false,
+     "The config section [http_auth_realm] requires a name, like "
+     "[http_auth_realm:example]"},
     {"multiple_backends",
      "WL12503::TS_2_7",
      {

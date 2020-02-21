@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,9 +33,6 @@
  */
 
 #include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-
-#include "utilities.h"
 
 #include <algorithm>
 #include <cassert>
@@ -45,8 +42,10 @@
 #include <stdexcept>
 #include <string>
 
+#include "mysql/harness/filesystem.h"
+#include "utilities.h"
+
 using std::ostringstream;
-using std::shared_ptr;
 
 using mysql_harness::utility::find_range_first;
 using mysql_harness::utility::matches_glob;
@@ -351,6 +350,7 @@ void Config::do_read_file(const Path &path) {
 
 void Config::do_read_stream(std::istream &input) {
   ConfigSection *current = nullptr;
+
   std::string line;
   while (getline(input, line)) {
     strip(&line);
@@ -434,8 +434,6 @@ void Config::do_read_stream(std::istream &input) {
       current->add(option, value);  // throws syntax_error, bad_section
     }
   }
-
-  if (line.size() > 0) throw syntax_error("Unterminated last line");
 }
 
 bool Config::empty() const { return sections_.empty(); }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -268,24 +268,6 @@ bool substitute_envvar(std::string &line) noexcept;
  */
 std::string substitute_variable(const std::string &s, const std::string &name,
                                 const std::string &value);
-
-/** @brief Wraps the given string
- *
- * Wraps the given string based on the spaces between words.
- * New lines are respected; carriage return and tab characters are
- * removed.
- *
- * The `width` specifies how much characters will in each line. It is also
- * possible to prefix each line with a number of spaces using the `indent_size`
- * argument.
- *
- * @param str string to wrap
- * @param width maximum line length
- * @param indent number of spaces to prefix each line with
- * @return vector of strings
- */
-std::vector<std::string> wrap_string(const std::string &str, size_t width,
-                                     size_t indent);
 
 bool my_check_access(const std::string &path);
 

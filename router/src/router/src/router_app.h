@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -495,7 +495,7 @@ class MySQLRouter {
   // throws std::runtime_error
   mysql_harness::LoaderConfig *make_config(
       const std::map<std::string, std::string> params,
-      ConfigFiles config_files);
+      const std::vector<std::string> &config_files);
 
   std::map<std::string, std::string> get_default_paths() const;
 
@@ -503,15 +503,12 @@ class MySQLRouter {
    * patch level **/
   std::tuple<const uint8_t, const uint8_t, const uint8_t> version_;
 
-  // TODO move these to class ConfigFiles
   /** @brief Vector with default configuration file locations as strings **/
   std::vector<std::string> default_config_files_;
-  // TODO move these to class ConfigFiles
   /** @brief Vector with extra configuration file locations as strings **/
   std::vector<std::string> extra_config_files_;
   /** @brief Vector with configuration files passed through command line
    * arguments **/
-  // TODO move these to class ConfigFiles
   std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;

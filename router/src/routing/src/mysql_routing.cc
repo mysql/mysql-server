@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -464,8 +464,9 @@ void MySQLRouting::create_connection(int client_socket,
 // throws std::runtime_error
 /*static*/ void MySQLRouting::set_unix_socket_permissions(
     const char *socket_file) {
-#ifndef _WIN32  // Windows doesn't have Unix sockets
-
+#ifdef _WIN32  // Windows doesn't have Unix sockets
+  UNREFERENCED_PARAMETER(socket_file);
+#else
   // make sure the socket is accessible to all users
   // NOTE: According to man 7 unix, only r+w access is required to connect to
   // socket, and indeed

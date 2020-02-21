@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ vector<string> wrap_string(const string &to_wrap, size_t width,
     res.push_back(indent + work);
   } else {
     work.erase(std::remove(work.begin(), work.end(), '\r'), work.end());
-    std::replace(work.begin(), work.end(), '\t', ' '), work.end();
+    std::replace(work.begin(), work.end(), '\t', ' ');
     str_size = work.size();
 
     do {

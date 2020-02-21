@@ -79,16 +79,16 @@ static MySQLSessionReplayer &q_cluster_type(MySQLSessionReplayer &m) {
 static MySQLSessionReplayer &q_metadata_has_one_cluster(
     MySQLSessionReplayer &m) {
   m.expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   return m;
 }
 
 static MySQLSessionReplayer &q_metadata_has_one_cluster(
     MySQLSessionReplayer &m, const char *single_cluster) {
   m.expect_query_one(
-      "select ((select count(*) from "
-      "mysql_innodb_cluster_metadata.v2_gr_clusters)=1) as has_one_gr_cluster");
+      "select count(*) from "
+      "mysql_innodb_cluster_metadata.v2_gr_clusters");
   m.then_return(1, {{m.string_or_null(single_cluster)}});
   return m;
 }
@@ -186,9 +186,9 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_1_0) {
       mysqlrouter::create_metadata(kNewSchemaVersion, &m));
 
   q_metadata_has_one_cluster(m, std::get<0>(GetParam()));
-  ASSERT_THROW_LIKE(
-      metadata->require_metadata_is_ok(), std::runtime_error,
-      "The provided server contains an unsupported cluster metadata.");
+  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
+                    "Expected the metadata server to contain configuration for "
+                    "one cluster, found none.");
 }
 
 TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
@@ -199,9 +199,9 @@ TEST_P(MetadataGroupMembers_2_0_Throws, metadata_unsupported_2_0_3) {
   const auto version = mysqlrouter::get_metadata_schema_version(&m);
   std::unique_ptr<mysqlrouter::ClusterMetadata> metadata(
       mysqlrouter::create_metadata(version, &m));
-  ASSERT_THROW_LIKE(
-      metadata->require_metadata_is_ok(), std::runtime_error,
-      "The provided server contains an unsupported cluster metadata.");
+  ASSERT_THROW_LIKE(metadata->require_metadata_is_ok(), std::runtime_error,
+                    "Expected the metadata server to contain configuration for "
+                    "one cluster, found none.");
 }
 
 INSTANTIATE_TEST_CASE_P(Quorum, MetadataGroupMembers_2_0_Throws,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -99,9 +99,9 @@ class MockRoutingSockOps : public routing::RoutingSockOpsInterface {
 
   MockSocketOperations *so() const override { return so_.get(); }
 
-  int get_mysql_socket(mysql_harness::TCPAddress addr,
-                       std::chrono::milliseconds,
-                       bool = true) noexcept override {
+  routing::native_handle_type get_mysql_socket(mysql_harness::TCPAddress addr,
+                                               std::chrono::milliseconds,
+                                               bool = true) noexcept override {
     get_mysql_socket_call_cnt_++;
     if (get_mysql_socket_fails_todo_) {
       so()->set_errno(ECONNREFUSED);

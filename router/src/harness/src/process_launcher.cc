@@ -55,11 +55,13 @@ using namespace std::string_literals;
 namespace mysql_harness {
 
 // performance tweaks
-constexpr auto kWaitPidCheckInterval = std::chrono::milliseconds(10);
 constexpr auto kTerminateWaitInterval = std::chrono::seconds(10);
+#ifndef _WIN32
 /** @brief maximum number of parameters that can be passed to the launched
  * process */
+constexpr auto kWaitPidCheckInterval = std::chrono::milliseconds(10);
 constexpr size_t kMaxLaunchedProcessParams{30};
+#endif
 
 std::string SpawnedProcess::get_cmd_line() const {
   std::string result = executable_path;
