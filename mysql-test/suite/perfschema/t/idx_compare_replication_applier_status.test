@@ -12,11 +12,16 @@ SET @old_slave_parallel_workers= @@global.slave_parallel_workers;
 SET GLOBAL slave_parallel_workers= 4;
 --source include/start_slave.inc
 
---connection slave
+ --connection slave
+
+SELECT COUNT_TRANSACTIONS_RETRIES INTO @old_count_transactions_retries FROM
+performance_schema.replication_applier_status;
 --source ../include/idx_compare_setup_index_test.inc
 
 # Debug
-select * from performance_schema.replication_applier_status;
+select CHANNEL_NAME, SERVICE_STATE, REMAINING_DELAY,
+COUNT_TRANSACTIONS_RETRIES -  @old_count_transactions_retries as should_be_zero FROM
+performance_schema.replication_applier_status;
 
 set @pfs_columns = "*";
 let $table = "replication_applier_status";
