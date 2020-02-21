@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,10 @@
   @file include/m_string.h
 */
 
+#include <fenv.h>
 #include <float.h>
 #include <limits.h>
+#include <math.h>
 #include <stdbool.h>  // IWYU pragma: keep
 #include <stdint.h>
 #include <stdio.h>
@@ -340,7 +342,7 @@ static inline const uchar *skip_trailing_space(const uchar *ptr, size_t len) {
 
   @note
     Sample output format: 42 1K 234M 2G
-    If we exceed ULLONG_MAX YiB we give up, and convert to "+INF".
+    If we exceed LLONG_MAX YiB we give up, and convert to "+INF".
 
   @todo Consider writing KiB GiB etc, since we use 1024 rather than 1000
  */
@@ -350,11 +352,15 @@ static inline void human_readable_num_bytes(char *buf, int buf_len,
   unsigned int i;
   for (i = 0; dbl_val > 1024 && i < sizeof(size) - 1; i++) dbl_val /= 1024;
   const char mult = size[i];
-  // 18446744073709551615 Yottabytes should be enough for most ...
-  if (dbl_val > ULLONG_MAX)
+
+  // 9223372036854775807 Yottabytes should be enough for most ...
+  feclearexcept(FE_INVALID);
+  long long int whole_val = llrint(dbl_val);
+  if (fetestexcept(FE_INVALID)) {
     snprintf(buf, buf_len, "+INF");
-  else
-    snprintf(buf, buf_len, "%llu%c", (unsigned long long)dbl_val, mult);
+  } else {
+    snprintf(buf, buf_len, "%lld%c", whole_val, mult);
+  }
 }
 
 static inline void lex_string_set(LEX_STRING *lex_str, char *c_str) {
