@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -430,7 +430,6 @@ extern bool fts_need_sync;
 /** Variable specifying the table that has Fulltext index to display its
 content through information schema table */
 extern char *fts_internal_tbl_name;
-extern char *fts_internal_tbl_name2;
 
 #define fts_que_graph_free(graph) \
   do {                            \
