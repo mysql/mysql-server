@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ PSI_thread_key KEY_thread_x_worker;
 
 static PSI_thread_info all_x_threads[] = {
     {&KEY_thread_x_acceptor, "acceptor_network", 0, 0, PSI_DOCUMENT_ME},
-    {&KEY_thread_x_worker, "worker", 0, 0, PSI_DOCUMENT_ME},
+    {&KEY_thread_x_worker, "worker", PSI_FLAG_USER, 0, PSI_DOCUMENT_ME},
 };
 
 PSI_mutex_key KEY_mutex_x_lock_list_access;
@@ -136,7 +136,6 @@ static PSI_socket_info all_x_sockets[] = {
     {&KEY_socket_x_unix, "unix_socket", 0, 0, PSI_DOCUMENT_ME},
     {&KEY_socket_x_client_connection, "client_connection", 0, 0,
      PSI_DOCUMENT_ME},
-
 };
 
 #endif  // HAVE_PSI_SOCKET_INTERFACE
