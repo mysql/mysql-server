@@ -2009,9 +2009,9 @@ dirty pages lower than this LSN in the BP.
 void fil_checkpoint(lsn_t lwm);
 
 /** Count how many truncated undo space IDs are still tracked in
-the buffer pool and the file_system cache..
+the buffer pool and the file_system cache.
 @param[in]  undo_num  undo tablespace number.
-@return number of undo tablespaces that are still in memory.*/
+@return number of undo tablespaces that are still in memory. */
 size_t fil_count_deleted(space_id_t undo_num);
 
 /** Check if a particular undo space_id for a page in the buffer pool has

@@ -801,10 +801,6 @@ class Fil_shard {
     mutex_release();
   }
 
-  /** Count how many truncated undo space IDs are still tracked in
-  the buffer pool and the file_system cache..
-  @param[in]  undo_num  undo tablespace number.
-  @return number of undo tablespaces that are still in memory.*/
   size_t count_deleted(space_id_t undo_num) {
     size_t count = 0;
 
@@ -1368,9 +1364,9 @@ class Fil_system {
   }
 
   /** Count how many truncated undo space IDs are still tracked in
-  the buffer pool and the file_system cache..
+  the buffer pool and the file_system cache.
   @param[in]  undo_num  undo tablespace number.
-  @return number of undo tablespaces that are still in memory.*/
+  @return number of undo tablespaces that are still in memory. */
   size_t count_deleted(space_id_t undo_num) {
     size_t count = 0;
 
