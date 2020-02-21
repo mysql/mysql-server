@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -647,6 +647,11 @@ int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
   int len = sizeof(buff);
   int ret = 0;
   const char *irla_dirs = value->val_str(value, buff, &len);
+
+  if (irla_dirs && (irla_dirs == buff)) {
+    irla_dirs = thd_strmake(thd, irla_dirs, len);
+  }
+
   /* Parse the variable contents. */
   const char *ptr = irla_dirs;
   while ((ptr != nullptr) && (*ptr != '\0')) {

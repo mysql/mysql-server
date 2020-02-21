@@ -285,7 +285,7 @@ static int match_valid_donor_address(MYSQL_THD thd, const char *host,
 @param[out]	save	possibly updated variable value
 @param[in]	value	current variable value
 @return error code */
-static int check_donor_addr_format(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+static int check_donor_addr_format(MYSQL_THD thd,
                                    SYS_VAR *var MY_ATTRIBUTE((unused)),
                                    void *save, struct st_mysql_value *value) {
   char temp_buffer[STRING_BUFFER_USUAL_SIZE];
@@ -293,11 +293,15 @@ static int check_donor_addr_format(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   auto addrs_cstring = value->val_str(value, temp_buffer, &buf_len);
 
+  if (addrs_cstring && (addrs_cstring == temp_buffer)) {
+    addrs_cstring = thd_strmake(thd, addrs_cstring, buf_len);
+  }
+
   if (addrs_cstring == nullptr) {
     /* purecov: begin deadcode */
     (*(const char **)save) = nullptr;
-    my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid Input Value NULL");
-    return (ER_INTERNAL_ERROR);
+    /* NULL is a valid value */
+    return (0);
     /* purecov: end */
   }
 
