@@ -1782,9 +1782,10 @@ ulint
 fts_get_table_flags2_for_aux_tables(
 	ulint	flags2)
 {
-	/* Extract the file_per_table flag & temporary file flag
-	from the main FTS table flags2 */
+	/* Extract the file_per_table flag, temporary file flag and
+	encryption flag from the main FTS table flags2 */
 	return((flags2 & DICT_TF2_USE_FILE_PER_TABLE) |
+               (flags2 & DICT_TF2_ENCRYPTION) |
 	       (flags2 & DICT_TF2_TEMPORARY));
 }
 
