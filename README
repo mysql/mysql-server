@@ -1,20 +1,63 @@
-Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+WarpSQL is a GPL v2 open source distribution of MySQL. WarpSQL is not 
+intended to be a hard fork of MySQL like MariaDB, but is more like 
+Percona Server, which is an enhanced MySQL server which strives to be 
+nearly 100% compatible with upstream MySQL.
 
-This is a release of MySQL, an SQL database server.
+WARP storage engine
+------------------------------------------------------------------------------------
+WarpSQL currently ships the WARP storage engine.  The WARP storage engine 
+is a columnar storage engine with compressed bitmap indexes, and is based
+on Fastbit 2.0.3, the latest version of Fastbit.  Fastbit is a mature
+NoSQL column store with a C++ interface with an lgpl license.  WarpSQL is 
+an adaptation of Fastbit to the MySQL database pluggable storage engine
+interface.  WARP both horizontally and vertically partitions data sets
+automatically.  Standard MySQL partitioning is not yet supported. 
+Data compression is not yet supported.
 
-License information can be found in the LICENSE file.
+WarpSQL parallel query
+------------------------------------------------------------------------------------
+Not yet released is generic parallel processing of queries using a pre-parse 
+rewrite plugin which in turn utilizes an internal SQL client interface which 
+is unique to WarpSQL.  Parallel query will be able to leverage processing of
+read queries on mulitple nodes in InnoDB cluster deployments.
 
-In test packages where this file is renamed README-test, the license
-file is renamed LICENSE-test.
+Distributed columnar storage
+------------------------------------------------------------------------------------
+Also not yet released, the WARP storage engine will support distributed 
+columnar storage using NDB cluster as a robust data layer for the 
+distribution of redundant columnar data to multiple nodes.
+
+Materialized views and change data capture
+------------------------------------------------------------------------------------
+Also not yet released, but avaiable in preview form as the lastest version of 
+Flexviews, are incrementally refreshable materialized views.  WarpSQL will
+leverage the group replication plugin interface to implement a change data
+capture plugin. The CDC plugin is prmarily just a collector of binary log 
+events which publishes those events to binlog consumer plugins.
+
+
+Binlog consumer plugins
+-------------------------------------------------------------------------------------
+This plugin interface will primarily be used to update materialized views immediately 
+after row changes are committed and to record row changes to materialized view log 
+tables for asynchronous view maintainance. As part of the requirements for materialized 
+views, binlog plugins provide an interface for processing binlog changes in real time.  
+Binlog plugins interface with and are executed by the change data capture plugin.  
+It is not hard to imagine how binlog plugins can be used to construct modules which 
+can do things like publish row changes to a message queue, or replicate to an external 
+data source, etc.  
+
+For further information on MySQL or additional documentation, visit
+http://dev.mysql.com/doc/
+
+For further information on Fasbit, visit
+https://sdm.lbl.gov/fastbit/
+
+License information can be found in the LICENSE or LICENSE-test file.
 
 This distribution may include materials developed by third parties.
 For license and attribution notices for these materials,
 please refer to the LICENSE file.
 
-For further information on MySQL or additional documentation, visit
-  http://dev.mysql.com/doc/
-
-For additional downloads and the source of MySQL, visit
-  http://dev.mysql.com/downloads/
-
-MySQL is brought to you by the MySQL team at Oracle.
+Portions (c) 2015,2020 Justin Swanhart
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
