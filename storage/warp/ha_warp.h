@@ -21,7 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef HA_WARP_HDR
 #define HA_WARP_HDR
+#define MYSQL_SERVER 1
 #include "sql/sql_class.h"
+#include "sql/item.h"
+#include "sql/item_cmpfunc.h"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -30,6 +34,9 @@
 #include "my_io.h"
 #include "sql/handler.h"
 #include "sql_string.h"
+#include "sql/dd/dd.h"
+#include "sql/dd/dd_table.h"
+#include "sql/dd/dd_schema.h"
 
 #include <fcntl.h>
 #include <mysql/plugin.h>
@@ -65,6 +72,8 @@
 #include "include/fastbit/resource.h"
 #include "include/fastbit/util.h"
 
+#include "sparse.hpp"
+
 /*
   Version for file format.
   1 - Initial Version. That is, the version when the metafile was introduced.
@@ -83,7 +92,7 @@ static MYSQL_SYSVAR_ULONGLONG(
   partition_max_rows,
   my_partition_max_rows,
   PLUGIN_VAR_RQCMDARG,
-  "Fastbit cache size",
+  "The maximum number of rows in a Fastbit partition.  An entire partition must fit in the cache.",
   NULL,
   NULL,
   1024 * 1024,
@@ -96,11 +105,11 @@ static MYSQL_SYSVAR_ULONGLONG(
   cache_size,
   my_cache_size,
   PLUGIN_VAR_RQCMDARG,
-  "The maximum number of rows in a Fastbit partition.  Default is reasonable.",
+  "Fastbit file cache size",
   NULL,
   NULL,
-  1024 * 1024 * 256,
-  1024 * 1024 * 256,
+  1024ULL * 1024 * 1024 * 4,
+  1024ULL * 1024 * 1024 * 4,
   1ULL<<63,
   0
 );
@@ -129,7 +138,7 @@ struct WARP_SHARE {
   std::string table_name;
   uint table_name_length, use_count;
   char data_dir_name[FN_REFLEN];
-    
+  uint64_t next_rowid = 0;  
   mysql_mutex_t mutex;
   THR_LOCK lock;
 };
@@ -153,36 +162,43 @@ class ha_warp : public handler {
   int set_column_set(uint32_t idxno);
   int find_current_row(uchar *buf, ibis::table::cursor* cursor);
   void create_writer(TABLE *table_arg);
-  static void background_write(ibis::tablex* writer,  char* datadir);
-
+  static void background_write(ibis::tablex* writer,  char* datadir, TABLE* table, ha_statistics* stats, WARP_SHARE* share);
+  bool append_column_filter(const Item* cond, std::string& push_where_clause); 
+  static void maintain_indexes(char* datadir, TABLE* table);
+  void open_deleted_bitmap(int lock_mode = LOCK_SH);
+  void close_deleted_bitmap();
+  bool is_deleted(uint64_t rowid);
+  void write_dirty_rows();
+  
   /* These objects are used to access the FastBit tables for tuple reads.*/ 
-  ibis::mensa*         base_table; 
-  ibis::table*         filtered_table;
-  ibis::table*         idx_filtered_table;
-  ibis::table::cursor* cursor;
-  ibis::table::cursor* idx_cursor;
+  ibis::mensa*         base_table         = NULL; 
+  ibis::table*         filtered_table     = NULL;
+  ibis::table*         idx_filtered_table = NULL;
+  ibis::table::cursor* cursor             = NULL;
+  ibis::table::cursor* idx_cursor         = NULL;
+  sparsebitmap*        deleted_bitmap     = NULL;       
+  
+  /* WHERE clause constructed from engine condition pushdown */
+  std::string          push_where_clause  = "";
 
   /* This object is used to append tuples to the table */
-  ibis::tablex* writer;
+  ibis::tablex* writer = NULL;
 
   /* A list of row numbers to delete (filled in by delete_row) */
   std::vector<uint64_t> deleted_rows;
 
   /* this is always the rowid of the current row */
-  uint64_t current_rowid;  
+  uint64_t current_rowid = 0;  
 
   /* a SELECT lists of the columns that have been fetched for the current query */
-  std::string column_set;
-  std::string index_column_set;
+  std::string column_set = "";
+  std::string index_column_set = "";
 
   /* temporary buffer populated with CSV of row for insertions*/
   String buffer;
 
   /* storage for BLOBS */
   MEM_ROOT blobroot; 
-
-  /* if MySQL asks us to sort an index, then it is using a disjunction */
-  bool index_merge = false;
 
  public:
   ha_warp(handlerton *hton, TABLE_SHARE *table_arg);
@@ -199,8 +215,8 @@ class ha_warp : public handler {
   }
  
   uint max_record_length() const { return HA_MAX_REC_LENGTH; }
-  uint max_keys() const { return 1000; }
-  uint max_key_parts() const { return 1000; }
+  uint max_keys() const { return 16384; }
+  uint max_key_parts() const { return 1; }
   uint max_key_length() const { return HA_MAX_REC_LENGTH; }
   uint max_supported_keys() const { return 16384; }
   uint max_supported_key_length() const { return 1024; }
@@ -213,8 +229,10 @@ class ha_warp : public handler {
      Called in test_quick_select to determine if indexes should be used.
    */
   virtual double scan_time() {
-    return (double)(stats.records + stats.deleted) / 20.0 + 10;
+    //return (double)(stats.records + stats.deleted) / 20.0 + 10;
+    return 1.0/(stats.records > 0 ? stats.records : 1);
   }
+
   /* The next method will never be called */
   virtual bool fast_key_read() { return 1; }
   ha_rows estimate_rows_upper_bound() { return HA_POS_ERROR; }
@@ -239,12 +257,12 @@ class ha_warp : public handler {
   void position(const uchar *record);
   int info(uint);
   int extra(enum ha_extra_function operation);
-  //int delete_all_rows(void);
+  int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *table_def);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int delete_table(const char *table_name, const dd::Table *);
-
+  //int truncate(dd::Table *);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);
 
@@ -265,9 +283,11 @@ class ha_warp : public handler {
   int index_end();
   int index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
   int index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag);
-  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno=0);
+  int make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause);
   void get_auto_increment(ulonglong, ulonglong, ulonglong, ulonglong *, ulonglong *);
 
+  const Item* cond_push(const Item *cond,	bool other_tbls_ok );
+	
   int rename_table(const char * from, const char * to, const dd::Table* , dd::Table* ) {
     DBUG_ENTER("ha_example::rename_table ");
     std::string cmd = "mv " + std::string(from) + ".data/ " + std::string(to) + ".data/";

@@ -89,7 +89,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(1);
+  ibis::util::setVerboseLevel(0);
 
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
@@ -107,6 +107,7 @@ static int warp_init_func(void *p) {
   warp_hton->file_extensions = ha_warp_exts;
   warp_hton->rm_tmp_tables = default_rm_tmp_tables;
 
+  
   DBUG_RETURN(0);
 }
 
@@ -127,9 +128,32 @@ ha_warp::ha_warp(handlerton *hton, TABLE_SHARE *table_arg)
       writer(NULL),
       current_rowid(0),
       blobroot(warp_key_memory_blobroot, BLOB_MEMROOT_ALLOC_SIZE)
-      { 
+      {  
         
       }
+
+void ha_warp::open_deleted_bitmap(int lock_mode) {
+  if(deleted_bitmap != NULL) {
+    return;
+  }
+  std::string deleted_rid_file = std::string(share->data_dir_name) + "/deleted.rids";
+  deleted_bitmap = new sparsebitmap(deleted_rid_file,lock_mode, 0);
+}
+
+void ha_warp::close_deleted_bitmap() {
+  if(deleted_bitmap == NULL) return;
+  if(deleted_bitmap->is_dirty()) {
+    deleted_bitmap->commit();
+  }
+  deleted_bitmap->close();
+  delete deleted_bitmap;
+  deleted_bitmap = NULL;
+}
+
+bool ha_warp::is_deleted(uint64_t rownum) {
+  open_deleted_bitmap(LOCK_SH);
+  return deleted_bitmap->is_set(rownum);
+}
 
 void ha_warp::get_auto_increment	(	
   ulonglong 	,
@@ -153,11 +177,11 @@ int ha_warp::encode_quote(uchar *) {
     const char *ptr;
     const char *end_ptr;
     
-    /* See the comment below about the NULL bitmap.  Note that
-       for both strings and numeric types, the value of a NULL
+    /* For both strings and numeric types, the value of a NULL
        column in the database is 0. This value isn't ever used
-       as it is just a placeholder. The associated NULL bitmap
-       is marked as 1 to indicate the actual value is garbage.
+       as it is just a placeholder. The associated NULL marker
+       is marked as 1.  There are no NULL markers for columns
+       which are NOT NULLable.
     */
     if((*field)->is_null()) {
       buffer.append("0,1,");
@@ -166,28 +190,49 @@ int ha_warp::encode_quote(uchar *) {
 
     /* Convert the value to string */
     bool no_quote = false;
+    attribute.length(0);
     switch((*field)->real_type()) {
+      
       case MYSQL_TYPE_DECIMAL:
-      case MYSQL_TYPE_NEWDECIMAL:    
+      case MYSQL_TYPE_NEWDECIMAL:
+        (*field)->val_str(&attribute, &attribute);
+        break;
+      
+
       case MYSQL_TYPE_YEAR:
-      case MYSQL_TYPE_DATE:
+        attribute.append((*field)->ptr[0]);
+        
+        no_quote = true;
+        break;
+
+      case MYSQL_TYPE_DATE: 
+        attribute.append(std::to_string((*field)->val_int()).c_str());
+        no_quote = true;
+        break;
+
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_TIMESTAMP:
       case MYSQL_TYPE_DATETIME:
       case MYSQL_TYPE_NEWDATE: 
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2: 
-      case MYSQL_TYPE_TIME2:  
-        attribute.length(0);
-        attribute.append(std::to_string((*field)->val_int()).c_str());
+      case MYSQL_TYPE_TIME2:  {
+        uint64_t tmp=0;
+        memcpy(&tmp, (*field)->ptr, (*field)->data_length());
+        attribute.append(std::to_string(tmp).c_str());
         no_quote = true;
-      break;
+      }
+        break;
       
       default:
         (*field)->val_str(&attribute, &attribute);
-      break; 
+       break; 
     }
     
+    /* MySQL is going to tell us that the date and time types need quotes
+       in string form, but they are being written into the storage engine
+       in integer format the quotes are not needed in this encapsulation.
+    */
     if ((*field)->str_needs_quotes() && !no_quote) {
       ptr = attribute.ptr();
       end_ptr = attribute.length() + ptr;
@@ -229,9 +274,10 @@ int ha_warp::encode_quote(uchar *) {
 
   }
   
-  // Remove that pesky trailing comma
-  buffer.length(buffer.length() - 1);
-
+  /* the RID column is at the end of every table */
+  mysql_mutex_lock(&share->mutex);
+  buffer.append(std::to_string(share->next_rowid).c_str());
+  mysql_mutex_unlock(&share->mutex);
   return (buffer.length());
 }
 
@@ -312,8 +358,6 @@ static int free_share(WARP_SHARE *share) {
   DBUG_RETURN(result_code);
 }
 
-
-
 /*
   Populates the comma separarted list of all the columns that need to be read from 
   the storage engine for this query.
@@ -340,15 +384,13 @@ int ha_warp::set_column_set() {
       column_set += ",";
     }    
   }
-  
-  if(count==0) {
-    column_set = "c0";
-    DBUG_PRINT("ha_warp::set_column_set", ("NOTE: forcing read of first column for scan..."));
-  } else {
-    //remove the trailing comma
-    column_set = column_set.substr(0,column_set.length()-1);
-  }
-  
+
+  /* The RID column needs to be read always in order to support UPDATE and DELETE.
+     For queries that neither SELECT nor PROJECT columns, the RID column will be
+     projected regardless.  The RID column is never included in the result set. 
+  */
+  column_set += "r";
+    
   DBUG_PRINT("ha_warp::set_column_set", ("column_list=%s", column_set.c_str()));
 
   DBUG_RETURN(count+1);
@@ -356,7 +398,10 @@ int ha_warp::set_column_set() {
 
 /*
   Populates the comma separarted list of all the columns that need to be read from 
-  the storage engine for this query for a given index.
+  the storage engine for this query for a given index.  
+  FIXME:
+  I don't think this version of the function ever needs to be used and may be 
+  eliminated in the future...
 */
 int ha_warp::set_column_set(uint32_t idxno) {
   DBUG_ENTER("ha_warp::set_column_set");
@@ -431,7 +476,8 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
       }  
       
       switch((*field)->real_type()) {
-        case MYSQL_TYPE_TINY: {
+        case MYSQL_TYPE_TINY:
+        case MYSQL_TYPE_YEAR: {
           if(is_unsigned) { 
             unsigned char tmp=0;
             rc = cursor->getColumnAsUByte(cname.c_str(),tmp);
@@ -547,9 +593,8 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         }
         break;
 
-        case MYSQL_TYPE_DECIMAL:
-        case MYSQL_TYPE_NEWDECIMAL:
-        case MYSQL_TYPE_YEAR:
+ 
+        
         case MYSQL_TYPE_NEWDATE:
         case MYSQL_TYPE_DATE:
         case MYSQL_TYPE_TIME:
@@ -557,7 +602,15 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
         case MYSQL_TYPE_TIMESTAMP2:
-        case MYSQL_TYPE_DATETIME2:
+        case MYSQL_TYPE_DATETIME2: {
+            uint64_t tmp;
+            rc = cursor->getColumnAsULong(cname.c_str(),tmp);
+            memcpy((*field)->ptr, &tmp, (*field)->data_length());
+        }
+        break;
+        /* the following are stored as strings in Fastbit */
+        case MYSQL_TYPE_DECIMAL:
+        case MYSQL_TYPE_NEWDECIMAL:
         case MYSQL_TYPE_NULL:
         case MYSQL_TYPE_BIT:
         case MYSQL_TYPE_ENUM:
@@ -597,6 +650,9 @@ err:
 
 int ha_warp::reset_table() {
   DBUG_ENTER("ha_warp::reset_table");
+  /* ECP is reset here */
+  push_where_clause = "";
+
   DBUG_RETURN(0);
 }
 
@@ -621,22 +677,33 @@ int ha_warp::open(const char *name, int, uint, const dd::Table *) {
   
   update_row_count();
   
-  /*
-    Init locking. Pass handler object to the locking routines,
-    so that they could save/update local_saved_data_file_length value
-    during locking. This is needed to enable concurrent inserts.
-
-    FIXME: support concurrent insert
-    -----------------------------------------------------------------
-  */
+  //  FIXME: support concurrent insert for LDI
   thr_lock_data_init(&share->lock, &lock, (void *)this);
   ref_length = sizeof(my_off_t);
 
-/*
-  share->lock.get_status = warp_get_status;
-  share->lock.update_status = warp_update_status;
-  share->lock.check_status = warp_check_status;
-*/
+  /* These closures are used to allow concurrent insert.  It isn't
+     working with LOAD DATA INFILE though.  LDI sends 0 for the
+     concurrent_insert parameter and requests a TL_WRITE lock.  
+     INSERT INTO ... however sends 1 and requests a 
+     TL_WRITE_CONCURRENT_INSERT lock and concurent insert works. I
+     need to figure out how to get MySQL to allow concurrent 
+     insert for LDI 
+  */
+  auto get_status = [](void*, int concurrent_insert) { 
+    return; 
+  };
+
+  auto update_status = [](void*) { 
+    return; 
+  };
+
+  auto check_status = [](void*) { 
+    return false; 
+  };
+
+  share->lock.get_status = get_status;
+  share->lock.update_status = update_status;
+  share->lock.check_status = check_status;
 
   /* reserve space for the buffer for INSERT statements */
   buffer.alloc(65535);
@@ -667,10 +734,35 @@ int ha_warp::close(void) {
 }
 
 /* write the rows in the background and destroy the writer*/
-void ha_warp::background_write(ibis::tablex* writer, char* datadir) {
-  writer->write(datadir);
+void ha_warp::background_write(ibis::tablex* writer, char* datadir, TABLE* table, ha_statistics *stats, WARP_SHARE* share) {
+  /* right now only one thread can be writing at a time */
+  mysql_mutex_lock(&share->mutex);
+  /* find a partition with room for insertions starting with p0 */
+  ibis::partList parts;
+  int partition_count = ibis::util::gatherParts(parts, datadir);
+      
+  /* The fastbit table name has to be the same as the partition number 
+     which is the directory name of the partition
+  */
+ std::string part_dir = "";
+ std::string part_name = "";
+  if(partition_count - 2 < 0) {
+    part_dir = std::string(datadir) + "/p0";
+    part_name = "p0";
+  } else {
+    part_dir = std::string(datadir) + "/p" + std::to_string(partition_count - 2);
+    part_name = "p" + std::to_string(partition_count - 2);
+  }
+  
+  uint rows = writer->write(part_dir.c_str(), part_name.c_str());
   writer->clearData();
+
   delete writer;
+  stats->records += rows;
+  
+  /* rebuild any indexed columns */
+  maintain_indexes(datadir, table);
+  mysql_mutex_unlock(&share->mutex);
 };
 
 /*
@@ -680,28 +772,53 @@ void ha_warp::background_write(ibis::tablex* writer, char* datadir) {
 */
 int ha_warp::write_row(uchar *buf) {
   DBUG_ENTER("ha_warp::write_row");
+  ha_statistic_increment(&System_status_var::ha_write_count);
 
+  /* This will return a cached writer unless a background
+     write was started on the last insert.  In that case
+     a new writer is constructed because the old one will
+     still be background writing.
+  */
   create_writer(table);
-  ibis::tablex* writing_writer;
+  mysql_mutex_lock(&share->mutex);
+  current_rowid = ++share->next_rowid;
+  mysql_mutex_unlock(&share->mutex);
+  /* The auto_increment value isn't being properly persisted between
+     restarts at the moment.  AUTO_INCREMENT should definitely be
+     considered and ALPHA level feature.
+  */
   if (table->next_number_field && buf == table->record[0]) {
     int error;
     if ((error = update_auto_increment())) DBUG_RETURN(error);
   }
-  ha_statistic_increment(&System_status_var::ha_write_count);
-  ha_warp::encode_quote(buf);
   
+  /* This encodes the data from the row buffer into a CSV string which
+     is processed by Fastbit...  It is probably faster to construct a
+     Fastbit row object but this is fast enough for now/ALPHA release.
+  */
+  ha_warp::encode_quote(buf);
   DBUG_PRINT("ha_warp::write_row", ("row_data=%s", buffer.c_ptr()));
+  
+  /* The writer object caches rows in memory.  Memory is reserved
+     for a given number of rows, which defaults to 1 million.  The
+     Fastbit cache size must be greater than or equal to this value
+     or an allocation failure will happen.
+  */
   writer->appendRow(buffer.c_ptr(), ",");
-  //assert(writer->write(share->data_dir_name) == 1);
-  //writer->clearData();
   stats.records++;
   
   /* spawn the background writer if the cache size is exceeded */
   if(writer->mRows() >= my_write_cache_size) {
-    writing_writer = writer;
+    ibis::tablex* writing_writer = writer;
     writer=NULL;
-    std::thread writer_thread(ha_warp::background_write, writing_writer, share->data_dir_name);
+    
+    /* Spawn a background thread using a static method ha_warp::background_write */
+    std::thread writer_thread(ha_warp::background_write, writing_writer, share->data_dir_name, table, &stats, share);
+    
+    /* Don't worry about reaping the thread.  It will complete work and then exit. */
     writer_thread.detach();
+    //writer->write(share->data_dir_name,"_"); 
+    //writer->clearData();
   }
   DBUG_RETURN(0);
 }
@@ -717,11 +834,10 @@ int ha_warp::write_row(uchar *buf) {
 */
 int ha_warp::update_row(const uchar *, uchar *new_data) {
   DBUG_ENTER("ha_warp::update_row");
-  my_error(ER_INTERNAL_ERROR, MYF(0), "Update is not supported");
-  *new_data+=0; /* to get rid of warning*/
-  DBUG_RETURN(-1);
-
+  deleted_rows.push_back(current_rowid);
+  write_row(new_data);
   ha_statistic_increment(&System_status_var::ha_update_count);
+  DBUG_RETURN(0);
 }
 
 /*
@@ -735,8 +851,7 @@ int ha_warp::update_row(const uchar *, uchar *new_data) {
 */
 int ha_warp::delete_row(const uchar *) {
   DBUG_ENTER("ha_warp::delete_row");
-  
-  deleted_rows.push_back(current_rowid);
+  deleted_bitmap->set_bit(current_rowid);
 
   ha_statistic_increment(&System_status_var::ha_delete_count);
   stats.records--;
@@ -754,6 +869,13 @@ int ha_warp::delete_table(const char *table_name, const dd::Table *) {
   int rc = system(cmdline.c_str());
   ha_statistic_increment(&System_status_var::ha_delete_count);
   DBUG_RETURN(rc != 0);
+}
+
+//int ha_warp::truncate(dd::Table *dd) {
+int ha_warp::delete_all_rows() {
+  int rc = delete_table(share->table_name.c_str(), NULL);
+  if(rc) return rc;
+  return create(share->table_name.c_str(), table, NULL, NULL);
 }
 
 /*
@@ -830,6 +952,25 @@ int ha_warp::info(uint) {
   DBUG_RETURN(0);
 }
 
+void ha_warp::maintain_indexes(char* datadir, TABLE* table) {
+  ibis::mensa::table* base_table = ibis::mensa::create(datadir);
+
+  for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
+     std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
+
+     // a field can have an index= comment that indicates an index spec.  
+     //See here: https://sdm.lbl.gov/fastbit/doc/indexSpec.html
+     std::string comment(table->key_info[idx].key_part[0].field->comment.str,
+       table->key_info[idx].key_part[0].field->comment.length);
+     if(comment != "" && comment.substr(0,6) != "index=") {
+       comment = "";
+     }
+     base_table->buildIndex(cname.c_str(),comment.c_str());
+  }
+  delete(base_table);
+  return;
+}
+
 /* The ::extra function is called a bunch of times before and after various
    storage engine operations. I think it is used as a hint for faster alter
    for example. Right now, in warp if there are any dirty rows buffered in 
@@ -837,103 +978,14 @@ int ha_warp::info(uint) {
    work.
 */
 int ha_warp::extra(enum ha_extra_function) {
-  if(deleted_rows.size() > 0) {
-    if(base_table) {
-      delete base_table;
-    }
-    base_table=new ibis::mensa(share->data_dir_name);
-    ibis::partList parts;
-    ibis::util::gatherParts(parts, share->data_dir_name);
-    
-    std::vector<uint32_t> rowids;
-     
-    /* skip through the partitions until we find the one containing the row */
-    uint64_t deleted_count = 0;
-    uint64_t cumulative_rowcount = 0;
-    /* i is used to iterate over the rows to delete. note the comment below 
-       about why i is initialized here and not inside the for loop where it
-       would usually be done.
-    */
-    uint64_t i=0;
-    for(auto itp = parts.begin();itp < parts.end();++itp) {
-      uint32_t part_rowcount = (*itp)->nRows();
-      cumulative_rowcount += part_rowcount;
-      /* This loop doesn't start from the beginning when it breaks out
-         and iterates the for loop.  Each row must be deleted just one
-         time, and it must be deleted from the proper partition.  Each
-         partition removes rows relative to the start of the partition      
-         but the cursor returns logical values greater than a the size
-         of a partition.  Thus the "current_rowid" values here must be 
-         adjusted to reconcile the difference between the two offsets.
-      */
-      while(i<deleted_rows.size()) {
-        if(deleted_rows[i] > cumulative_rowcount) { 
-          /* move on to the next partition*/
-          break;
-        }
-
-        uint32_t rowid = deleted_rows[i]+1;
-        rowids.push_back(rowid);
-        ++i;
-      }
-      
-      if(rowids.size() >0) {
-        (*itp)->deactivate(rowids);
-        deleted_count += rowids.size();
-        rowids.clear();  
-      }
-    }
-    
-    for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
-       std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
-
-       // a field can have an index= comment that indicates an index spec.  
-       //See here: https://sdm.lbl.gov/fastbit/doc/indexSpec.html
-        
-       std::string comment(table->key_info[idx].key_part[0].field->comment.str,
-         table->key_info[idx].key_part[0].field->comment.length);
-       if(comment != "" && comment.substr(0,6) != "index=") {
-         comment = "";
-       }
-       base_table->buildIndex(cname.c_str(),comment.c_str());
-    }
-
-    delete base_table;
-    base_table = NULL;
-    deleted_rows.clear();
-    stats.records -= deleted_count;
-  }
+  close_deleted_bitmap();
   
   if(writer != NULL && writer->mRows() > 0) {
-     int rowcount = writer->write(share->data_dir_name);
-     writer->clearData();
-     if(base_table == NULL) {
-       base_table=new ibis::mensa(share->data_dir_name);
-     }
-           
-     /* rebuild any indexed columns */
-     
-     for(uint16_t idx = 0; idx < table->s->keys ; ++idx) {
-       std::string cname = "c" + std::to_string(table->key_info[idx].key_part[0].field->field_index);
-
-       // a field can have an index= comment that indicates an index spec.  
-       //See here: https://sdm.lbl.gov/fastbit/doc/indexSpec.html
-        
-       std::string comment(table->key_info[idx].key_part[0].field->comment.str,
-         table->key_info[idx].key_part[0].field->comment.length);
-       if(comment != "" && comment.substr(0,6) != "index=") {
-         comment = "";
-       }
-       base_table->buildIndex(cname.c_str(),comment.c_str());
-     }
-     
-     //base_table->buildIndexes("");
-     delete base_table;
-     base_table = NULL;
-     stats.records += rowcount; 
+   /* foreground write actually... */
+   background_write(writer, share->data_dir_name, table, &stats, share);
+   writer = NULL;
   }
-  //}
- //DBUG_RETURN(0); 
+ 
  return 0;
 }
 
@@ -952,7 +1004,10 @@ int ha_warp::repair(THD *, HA_CHECK_OPT *) {
 THR_LOCK_DATA **ha_warp::store_lock(THD *, THR_LOCK_DATA **to,
                                     enum thr_lock_type lock_type) {
   DBUG_ENTER("ha_warp::store_lock");
-  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) lock.type = lock_type;
+  if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
+    lock.type = lock_type;
+  } 
+  
   *to++ = &lock;
   DBUG_RETURN(to);
 }
@@ -1057,19 +1112,22 @@ void ha_warp::create_writer(TABLE* table_arg) {
         break;
 
       case MYSQL_TYPE_YEAR:
-      case MYSQL_TYPE_DATE:
-      case MYSQL_TYPE_NEWDATE:
-      case MYSQL_TYPE_TIME:
-      case MYSQL_TYPE_TIME2:
-        datatype = ibis::TEXT;
+        datatype = ibis::UBYTE;
         break;
 
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_NEWDATE:
+        datatype = ibis::UINT;
+        break;
+
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_TIME2:
       case MYSQL_TYPE_TIMESTAMP:
       case MYSQL_TYPE_DATETIME:     
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2:
          
-        datatype = ibis::TEXT;
+        datatype = ibis::ULONG;
         break;
 
       case MYSQL_TYPE_ENUM:
@@ -1110,17 +1168,25 @@ void ha_warp::create_writer(TABLE* table_arg) {
     */
     if(is_nullable) {
       //writer->addColumn(nname.c_str(),ibis::BIT,"NULL bitmap the correspondingly numbered column");
-      writer->addColumn(nname.c_str(),ibis::UBYTE,"NULL bitmap the correspondingly numbered column");
+      writer->addColumn(nname.c_str(),ibis::UBYTE,"NULL marker for the correspondingly numbered column");
     }
 
   }
-
-  /* FIXME: this should be an SE variable */
-  writer->reserveBuffer(25000);
+  /* This is the psuedo-rowid which is used for deletes and updates */
+  writer->addColumn("r",ibis::ULONG,"r");
+  
+  /* This is the memory buffer for writes*/
+  writer->reserveBuffer(my_write_cache_size > my_partition_max_rows ? my_partition_max_rows : my_write_cache_size);
 
   /* FIXME: should be a table option and should be able to be set in size not just count*/
-  writer->setPartitionMax(1<<30);
-
+  writer->setPartitionMax(my_partition_max_rows);
+  mysql_mutex_lock(&share->mutex);
+  if(share->next_rowid == 0) {
+    auto tbl = new ibis::mensa(share->data_dir_name);
+    share->next_rowid = tbl->nRows()+1;
+    delete tbl;
+  }
+  mysql_mutex_unlock(&share->mutex);
 }
 
 /*
@@ -1130,7 +1196,7 @@ void ha_warp::create_writer(TABLE* table_arg) {
   Note that the internal Fastbit columns are named after the field numbers
   in the MySQL table.
 */
-int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
+int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *info,
                     dd::Table *) {
   DBUG_ENTER("ha_warp::create");
   int rc = 0;
@@ -1140,15 +1206,13 @@ int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *,
 
 	char errbuf[MYSYS_STRERROR_SIZE];
   DBUG_PRINT("ha_warp::create", ("creating table data directory=%s", share->data_dir_name));
-	if(!file_exists(share->data_dir_name)) {
-		if(mkdir(share->data_dir_name, S_IRWXU | S_IXOTH) == -1) {
-      my_error(ER_INTERNAL_ERROR, MYF(0), my_strerror(errbuf, sizeof(errbuf), errno));
-			DBUG_RETURN(-1);
-		}
-	} else {
-      my_error(ER_INTERNAL_ERROR, MYF(0), "on-disk table data already exists");
-      DBUG_RETURN(-1);
-	}
+	if(file_exists(share->data_dir_name)) {
+    delete_table(name, NULL);
+  }
+	if(mkdir(share->data_dir_name, S_IRWXU | S_IXOTH) == -1) {
+    my_error(ER_INTERNAL_ERROR, MYF(0), my_strerror(errbuf, sizeof(errbuf), errno));
+		DBUG_RETURN(-1);
+	} 
   
   /* Write the metadata to disk (returns 1 on success but this function returns 0 on success...)
      Be nice and try to clean up if metadata write failed (out of disk space for example)
@@ -1210,6 +1274,10 @@ mysql_declare_plugin(warp){
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
   current_rowid = 0;
+  /* This is a sparse (un)compressed (not WAH compressed) bitmap index
+     used for marking deleted rows.
+  */
+  open_deleted_bitmap();
 
   /* This is the a big part of the MAGIC (outside of bitmap indexes)...
      This figures out which columns this query is reading so we only read
@@ -1225,8 +1293,13 @@ int ha_warp::rnd_init(bool) {
   if(base_table == NULL) {
     base_table = new ibis::mensa(share->data_dir_name);
   }
+  
+  /* don't use condition pushdown for write operations */
+  if(push_where_clause == "") {
+    push_where_clause = "1=1";
+  }
 
-  filtered_table = base_table->select(column_set.c_str(), "1=1");
+  filtered_table = base_table->select(column_set.c_str(), push_where_clause.c_str());
   if(filtered_table != NULL) {
     /* Allocate a cursor for any queries that actually fetch columns */
     cursor = filtered_table->createCursor();
@@ -1243,11 +1316,15 @@ int ha_warp::rnd_next(uchar *buf) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   
+  fetch_again:
   if(cursor->fetch() != 0) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  current_rowid=cursor->getCurrentRowNumber();
-
+  cursor->getColumnAsULong("r", current_rowid);
+  if(is_deleted(current_rowid)) {
+    goto fetch_again;
+  }
+  
   find_current_row(buf, cursor);
 
   DBUG_RETURN(0);
@@ -1286,9 +1363,7 @@ int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
 
 /*
   Called after each table scan. In particular after deletes,
-  and updates. In the last case we employ chain of deleted
-  slots to clean up all of the dead space we have collected while
-  performing deletes/updates.
+  and updates. 
 */
 int ha_warp::rnd_end() {
   DBUG_ENTER("ha_warp::rnd_end");
@@ -1300,7 +1375,8 @@ int ha_warp::rnd_end() {
   filtered_table = NULL;
   delete base_table;
   base_table = NULL;
-  
+  push_where_clause = "";
+  close_deleted_bitmap();
   DBUG_RETURN(0);
 }
 
@@ -1314,303 +1390,610 @@ ulong ha_warp::index_flags(uint, uint, bool) const {
    over non-unique indexes.  Everything is going to be pushed down with ECP
    anyway...
 */
-  ha_rows ha_warp::records_in_range(uint , key_range *, key_range *) {
-  /* We want the optimizer to prefer hash joins because nested loop
-     joins are expensive and we pretty much always want hash joins. 
-     Right now, every index just returns the number of rows in the table, so the
-     optimizer should join tables purely based on table size.  Of course, indexes
-     may reduce the number of rows scanned but this is purely an estimate to get
-     the optimizer to join by table size right now.  
+ha_rows ha_warp::records_in_range(uint , key_range *, key_range *) {
+/* We want the optimizer to prefer hash joins because nested loop
+    joins are expensive and we pretty much always want hash joins. 
+    Right now, every index just returns the number of rows in the table, so the
+    optimizer should join tables purely based on table size.  Of course, indexes
+    may reduce the number of rows scanned but this is purely an estimate to get
+    the optimizer to join by table size right now.  
+*/
+  if(base_table == NULL) {
+    base_table = new ibis::mensa(share->data_dir_name);
+  }
+  auto cnt = base_table->nRows();
+  delete base_table;
+  base_table = NULL;
+  return cnt;
+  /*
+  this is a real implemenation that uses Fastbit's estimate function, but it 
+  appears to result in the same result as the fake implementation and is
+  more expensive 
+  key_range mintmp,maxtmp;
+  mintmp = *min;
+  mintmp.flag = HA_READ_KEY_OR_NEXT;
+  maxtmp = *max;
+  maxtmp.flag = HA_READ_KEY_OR_PREV;
+  std::string where_clause;
+  make_where_clause(mintmp.key, mintmp.keypart_map, mintmp.flag, where_clause);
+  make_where_clause(maxtmp.key, maxtmp.keypart_map, maxtmp.flag, where_clause);
+  uint64_t int_min, int_max;
+  if(base_table == NULL) {
+    base_table = new ibis::mensa(share->data_dir_name);
+  }
+  assert(base_table != NULL);
+  base_table->estimate(where_clause.c_str(), int_min, int_max);
+  return int_max;
   */
-    if(base_table == NULL) {
-      base_table = new ibis::mensa(share->data_dir_name);
-    }
-    return base_table->nRows();
-    /*
-    this is a real implemenation that uses Fastbit's estimate function, but it 
-    appears to result in the same result as the fake implementation and is
-    more expensive 
-    key_range mintmp,maxtmp;
-    mintmp = *min;
-    mintmp.flag = HA_READ_KEY_OR_NEXT;
-    maxtmp = *max;
-    maxtmp.flag = HA_READ_KEY_OR_PREV;
-    std::string where_clause;
-    make_where_clause(mintmp.key, mintmp.keypart_map, mintmp.flag, where_clause);
-    make_where_clause(maxtmp.key, maxtmp.keypart_map, maxtmp.flag, where_clause);
-    uint64_t int_min, int_max;
-    if(base_table == NULL) {
-      base_table = new ibis::mensa(share->data_dir_name);
-    }
-    assert(base_table != NULL);
-    base_table->estimate(where_clause.c_str(), int_min, int_max);
-    return int_max;
-    */
-    
-  }
-
-  void ha_warp::get_auto_increment	(	
-    ulonglong 	offset,
-    ulonglong 	increment,
-    ulonglong 	nb_desired_values,
-    ulonglong * 	first_value,
-    ulonglong * 	nb_reserved_values 
-  );
-
-  // bitmap indexes are not sorted 
   
-  int ha_warp::index_init(uint idxno, bool sorted) {
-    
-    DBUG_ENTER("ha_warp::index_init");
-    DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idxno, sorted));
-    DBUG_RETURN(index_init(idxno));
+}
+
+void ha_warp::get_auto_increment	(	
+  ulonglong 	offset,
+  ulonglong 	increment,
+  ulonglong 	nb_desired_values,
+  ulonglong * 	first_value,
+  ulonglong * 	nb_reserved_values 
+);
+
+
+
+int ha_warp::index_init(uint idxno, bool sorted) {
+  /*FIXME: bitmap indexes are not sorted so figure out what the sorted arg means...*/
+  assert(!sorted);
+  DBUG_ENTER("ha_warp::index_init");
+  DBUG_PRINT("ha_warp::index_init",("Key #%d, sorted:%d",idxno, sorted));
+  DBUG_RETURN(index_init(idxno));
+}
+
+
+int ha_warp::index_init(uint idxno) { 
+  active_index=idxno; 
+  if(base_table == NULL) {
+    base_table = new ibis::mensa(share->data_dir_name);
   }
   
-
-  int ha_warp::index_init(uint idxno) { 
-    active_index=idxno; 
-    if(base_table == NULL) {
-      base_table = new ibis::mensa(share->data_dir_name);
-    }
-    
-    if(column_set == "") { 
-      set_column_set();
-    }
-
-    return(0); 
-  }
-
-  int ha_warp::index_next(uchar * buf) {
-    DBUG_ENTER("ha_warp::index_next");
-    if(idx_cursor->fetch() != 0) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-    current_rowid = idx_cursor->getCurrentRowNumber();
-    find_current_row(buf, idx_cursor);
-    DBUG_RETURN(0);
-  }
-
-  int ha_warp::index_first(uchar * buf) {
-    DBUG_ENTER("ha_warp::index_first");
+  if(column_set == "") { 
     set_column_set();
-    idx_filtered_table = base_table->select(column_set.c_str(), "1=1");
-    if(idx_filtered_table == NULL) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-    idx_cursor = idx_filtered_table->createCursor();
-    if(idx_cursor->fetch() != 0) {
-      DBUG_RETURN(HA_ERR_END_OF_FILE);
-    }
-    current_rowid = idx_cursor->getCurrentRowNumber();
-    find_current_row(buf, idx_cursor);
-
-    DBUG_RETURN(0);
   }
+  open_deleted_bitmap();
+  return(0); 
+}
 
-  int ha_warp::index_end() {
-    DBUG_ENTER("ha_warp::index_end");
-    if(cursor) delete cursor;
-    idx_cursor = NULL;
-    if(idx_filtered_table) delete filtered_table;
-    idx_filtered_table = NULL;
-    if(base_table) delete base_table;
-    base_table = NULL;
-    DBUG_RETURN(0);
+int ha_warp::index_next(uchar * buf) {
+  DBUG_ENTER("ha_warp::index_next");
+  fetch_again:
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  if(idx_cursor->fetch() != 0) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(is_deleted(current_rowid)) {
+    goto fetch_again;
+  }
+  find_current_row(buf, idx_cursor);
+  DBUG_RETURN(0);
+}
 
-  int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause, uint32_t idxno) {
-    DBUG_ENTER("ha_warp::make_where_clause");
-        
-    /* If the bit is set, then the part is being used.  Unfortunately MySQL will only 
-       consider prefixes so we need to use ECP for magical performance.
+int ha_warp::index_first(uchar * buf) {
+  DBUG_ENTER("ha_warp::index_first");
+  ha_statistic_increment(&System_status_var::ha_read_first_count);
+  set_column_set();
+  std::string where_clause;
+  if(push_where_clause != "") {
+    where_clause = push_where_clause;
+  } else{
+    where_clause = "1=1";
+  }
+  idx_filtered_table = base_table->select(column_set.c_str(), where_clause.c_str());
+  if(idx_filtered_table == NULL) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  idx_cursor = idx_filtered_table->createCursor();
+  fetch_again:
+  if(idx_cursor->fetch() != 0) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(is_deleted(current_rowid)) {
+    goto fetch_again;
+  }
+  find_current_row(buf, idx_cursor);
+
+  DBUG_RETURN(0);
+}
+
+int ha_warp::index_end() {
+  DBUG_ENTER("ha_warp::index_end");
+  if(cursor) delete cursor;
+  idx_cursor = NULL;
+  if(idx_filtered_table) delete filtered_table;
+  idx_filtered_table = NULL;
+  if(base_table) delete base_table;
+  base_table = NULL;
+  push_where_clause = "";
+  close_deleted_bitmap();
+  DBUG_RETURN(0);
+}
+
+int ha_warp::make_where_clause(const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag, std::string& where_clause) {
+  DBUG_ENTER("ha_warp::make_where_clause");
+  where_clause.reserve(65535); 
+  where_clause = "";   
+  /* If the bit is set, then the part is being used.  Unfortunately MySQL will only 
+      consider prefixes so we need to use ECP for magical performance.
+  */
+  auto key_offset = key;
+  for (uint16_t partno = 0; partno < table->key_info[active_index].actual_key_parts; partno++ ) {
+    /* given index (a,b,c) and where a=1 quit when we reach the b key part
+        given a=1 and b=2 then quit when we reach the c part
     */
-    auto key_offset = key;
-    for (uint16_t partno = 0; partno < table->key_info[idxno].actual_key_parts; partno++ ) {
-      /* given index (a,b,c) and where a=1 quit when we reach the b key part
-         given a=1 and b=2 then quit when we reach the c part
-      */
-      if(!(keypart_map & (1<<partno))){
-        DBUG_RETURN(0);
-      }
-      /* What field is this? */
-      Field* f = table->key_info[idxno].key_part[partno].field;
+    if(!(keypart_map & (1<<partno))){
+      DBUG_RETURN(0);
+    }
+    /* What field is this? */
+    Field* f = table->key_info[active_index].key_part[partno].field;
+    
+    if(where_clause != "") where_clause += " AND ";
+
+    /* Which column number does this correspond to? */
+    where_clause += "c" + std::to_string(table->key_info[active_index].key_part[partno].field->field_index);
+    
+    switch(find_flag) {
+      case HA_READ_AFTER_KEY:
+        where_clause += " > ";
+        break;
+      case HA_READ_BEFORE_KEY:
+        where_clause += " < ";
+        break;
+      case HA_READ_KEY_EXACT:
+        where_clause += " = ";
+        break;
+      case HA_READ_KEY_OR_NEXT:
+        where_clause += ">=";
+        break;
+  
+      case HA_READ_KEY_OR_PREV:
+        where_clause += "<=";
+        break;
+  
+      case HA_READ_PREFIX:
+      case HA_READ_PREFIX_LAST:
+      case HA_READ_PREFIX_LAST_OR_PREV:
+      default:
+        DBUG_RETURN(-1);
+    }
+
+    bool is_unsigned = f->flags & UNSIGNED_FLAG;
+  
+    switch(f->real_type()) {
+      case MYSQL_TYPE_TINY:
+        if(is_unsigned) {
+          where_clause += std::to_string((uint8_t)(*key_offset));
+        } else {
+          where_clause += std::to_string((int8_t)(*key_offset));
+        }
+        key_offset += 1;
+        break;
       
-      if(where_clause != "") where_clause += " AND ";
-
-      /* Which column number does this correspond to? */
-      where_clause += "c" + std::to_string(table->key_info[idxno].key_part[partno].field->field_index);
+      case MYSQL_TYPE_SHORT:
       
-      switch(find_flag) {
-        case HA_READ_AFTER_KEY:
-          where_clause += " > ";
-          break;
-        case HA_READ_BEFORE_KEY:
-          where_clause += " < ";
-          break;
-        case HA_READ_KEY_EXACT:
-          where_clause += " = ";
-          break;
-        case HA_READ_KEY_OR_NEXT:
-          where_clause += ">=";
-          break;
-    
-        case HA_READ_KEY_OR_PREV:
-          where_clause += "<=";
-          break;
-    
-        case HA_READ_PREFIX:
-        case HA_READ_PREFIX_LAST:
-        case HA_READ_PREFIX_LAST_OR_PREV:
-        default:
-          DBUG_RETURN(-1);
+        if(is_unsigned) {
+          where_clause += std::to_string((uint16_t)(*(const uint16_t*)key_offset));
+        } else {
+          where_clause += std::to_string((int16_t)(*(const int16_t*)key_offset));
+        }
+        key_offset += 2;
+        break;
+      
+      case MYSQL_TYPE_LONG:
+        if(is_unsigned) {
+          where_clause += std::to_string((uint32_t)(*(const uint32_t*)key_offset));
+        } else {
+          where_clause += std::to_string((int32_t)(*(const int32_t*)key_offset));
+        }
+        key_offset += 4;
+        break;     
+      
+      case MYSQL_TYPE_LONGLONG:
+        if(is_unsigned) {
+          where_clause += std::to_string((uint64_t)(*(const uint64_t*)key_offset));
+        } else {
+          where_clause += std::to_string((int64_t)(*(const int64_t*)key_offset));
+        }
+        key_offset += 8;
+      
+      break;
+
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_JSON:
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET: {
+        // for strings, the key buffer is fixed width, and there is a two byte prefix
+        // which lists the string length
+        uint16_t strlen = (uint16_t)(*(const uint16_t*)key_offset);
+        std::string escaped;
+        for(unsigned int i = 0; i< strlen; ++i) {
+          char c = *(key_offset + 2 + i);
+          if(c == '\'') {
+            escaped += '\\';
+            escaped += '\'';
+          } else if(c == 0) {
+            escaped += '\\';
+            escaped += '0';
+          } else if(c == '\\') {
+            escaped += "\\\\";
+          } else {
+            escaped += c;
+          }
+        }
+        where_clause += "'" + escaped + "'";
+
+        key_offset += table->key_info[active_index].key_part[partno].store_length;
+        break;
       }
 
-      bool is_unsigned = f->flags & UNSIGNED_FLAG;
-    
-      switch(f->real_type()) {
-        case MYSQL_TYPE_TINY:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint8_t)(*key_offset));
-          } else {
-            where_clause += std::to_string((int8_t)(*key_offset));
-          }
-          key_offset += 1;
-          break;
-
-        case MYSQL_TYPE_SHORT:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint16_t)(*(const uint16_t*)key_offset));
-          } else {
-            where_clause += std::to_string((int16_t)(*(const int16_t*)key_offset));
-          }
-          key_offset += 2;
-          break;
-     
-        case MYSQL_TYPE_LONG:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint32_t)(*(const uint32_t*)key_offset));
-          } else {
-            where_clause += std::to_string((int32_t)(*(const int32_t*)key_offset));
-          }
-          key_offset += 4;
-          break;     
-        
-        case MYSQL_TYPE_LONGLONG:
-          if(is_unsigned) {
-            where_clause += std::to_string((uint64_t)(*(const uint64_t*)key_offset));
-          } else {
-            where_clause += std::to_string((int64_t)(*(const int64_t*)key_offset));
-          }
-          key_offset += 8;
-        
+      case MYSQL_TYPE_FLOAT:
+        where_clause += std::to_string((float_t)(*(const float_t*)key_offset));
+        key_offset += 4;
         break;
 
-        case MYSQL_TYPE_VAR_STRING:
-        case MYSQL_TYPE_VARCHAR:
-        case MYSQL_TYPE_STRING:
-        case MYSQL_TYPE_TINY_BLOB:
-        case MYSQL_TYPE_MEDIUM_BLOB:
-        case MYSQL_TYPE_LONG_BLOB:
-        case MYSQL_TYPE_BLOB:
-        case MYSQL_TYPE_JSON: {
-          // for strings, the key buffer is fixed width, and there is a two byte prefix
-          // which lists the string length
-          uint16_t strlen = (uint16_t)(*(const uint16_t*)key_offset);
-          
-          where_clause += "'" + std::string((const char*)key_offset+2, strlen) + "'";  
-          key_offset += table->key_info[idxno].key_part[partno].store_length;
-          break;
-        }
+      case MYSQL_TYPE_DOUBLE:
+        where_clause += std::to_string((double_t)(*(const float_t*)key_offset));
+        key_offset += 8;
+        break;
+      
+      // Support lookups for these types
+      
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_NEWDATE: 
+      case MYSQL_TYPE_TIMESTAMP2:
+      case MYSQL_TYPE_DATETIME2: 
+      case MYSQL_TYPE_TIME2: {
+        uint64_t tmp=0;
+        memcpy(&tmp, key_offset, f->data_length());
+        where_clause += std::to_string(tmp);
+        key_offset += f->data_length();
+      }
+      
+      break;
 
-        case MYSQL_TYPE_FLOAT:
-          where_clause += std::to_string((float_t)(*(const float_t*)key_offset));
-          key_offset += 4;
-          break;
-
-        case MYSQL_TYPE_DOUBLE:
-          where_clause += std::to_string((double_t)(*(const float_t*)key_offset));
-          key_offset += 8;
-          break;
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_NEWDECIMAL: 
+      case MYSQL_TYPE_BIT:
+      case MYSQL_TYPE_NULL:
+      case MYSQL_TYPE_GEOMETRY:
+      default:
+        /* FIXME: indexing these types doesn't work yet! */
+        assert(true);
+        key_offset += table->key_info[active_index].key_part[partno].store_length; 
         
-        // Support lookups for these types
-        case MYSQL_TYPE_DECIMAL:
-        case MYSQL_TYPE_NEWDECIMAL:        
-        case MYSQL_TYPE_DATE:
-        case MYSQL_TYPE_TIME:
-        case MYSQL_TYPE_TIMESTAMP:
-        case MYSQL_TYPE_DATETIME:
-        case MYSQL_TYPE_YEAR:
-        case MYSQL_TYPE_NEWDATE: 
-        case MYSQL_TYPE_BIT:
-        case MYSQL_TYPE_NULL:
-        case MYSQL_TYPE_TIMESTAMP2:
-        case MYSQL_TYPE_DATETIME2: 
-        case MYSQL_TYPE_TIME2:   
-        case MYSQL_TYPE_ENUM:
-        case MYSQL_TYPE_SET:
-        case MYSQL_TYPE_GEOMETRY:
-	default:
-          key_offset += table->key_info[idxno].key_part[partno].store_length; 
-          
-          break;
-      }
-
-      /* exclude NULL columns */
-      //if(f->real_maybe_null()) {
-      //  where_clause += " and n" + std::to_string(f->field_index) + " = 0";
-      //}
+        break;
     }
-    //std::cout << "MADE WHERE CLAUSE: " << where_clause << "\n";
-    DBUG_PRINT("ha_warp::make_where_clause",("WHERE CLAUSE: %s", where_clause.c_str()));
-    DBUG_RETURN(0);
+
+    /* exclude NULL columns */
+    //if(f->real_maybe_null()) {
+    //  where_clause += " and n" + std::to_string(f->field_index) + " = 0";
+    //}
+  }
+  DBUG_PRINT("ha_warp::make_where_clause",("WHERE CLAUSE: %s", where_clause.c_str()));
+  DBUG_RETURN(0);
+}
+
+int ha_warp::index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
+  DBUG_ENTER("ha_warp::index_read_map");
+  ha_statistic_increment(&System_status_var::ha_read_key_count);
+  //DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  std::string where_clause;
+  set_column_set();
+
+  make_where_clause(key, keypart_map, find_flag, where_clause);
+  if(push_where_clause != "") {
+    where_clause = push_where_clause + " AND (" + where_clause + ")";
+  }
+
+  if(idx_cursor) {
+    delete idx_cursor;
+    idx_cursor = NULL;
+    delete idx_filtered_table;
+    idx_filtered_table = NULL;       
   }
   
-  int ha_warp::index_read_map (uchar *buf, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
-      DBUG_ENTER("ha_warp::index_read_map");
-      //DBUG_RETURN(HA_ERR_WRONG_COMMAND);
-      std::string where_clause;
-      set_column_set();
+  if(base_table == NULL) {
+    base_table = new ibis::mensa(share->data_dir_name);
+  }
+  assert(base_table != NULL);
 
-      make_where_clause(key, keypart_map, find_flag, where_clause);
-      
-      if(idx_cursor) {
-        delete idx_cursor;
-        idx_cursor = NULL;
-        delete idx_filtered_table;
-        idx_filtered_table = NULL;       
-      }
-      assert(base_table != NULL);
+  idx_filtered_table = base_table->select(column_set.c_str(), where_clause.c_str());
+  if(idx_filtered_table == NULL) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 
-      idx_filtered_table = base_table->select(column_set.c_str(), where_clause.c_str());
-      if(idx_filtered_table == NULL) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
+  idx_cursor = idx_filtered_table->createCursor();
+  if(!idx_cursor) {
+    DBUG_RETURN(-1);
+  } 
+  fetch_again:
+  if(idx_cursor->fetch() != 0) {
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  
+  idx_cursor->getColumnAsULong("r", current_rowid);
+  if(is_deleted(current_rowid)) {
+    goto fetch_again;
+  }
 
-      idx_cursor = idx_filtered_table->createCursor();
-      if(!idx_cursor) {
-        DBUG_RETURN(-1);
+  find_current_row(buf, idx_cursor);
+  delete base_table;
+  base_table = NULL;
+  DBUG_RETURN(0);
+
+}
+
+int ha_warp::index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
+  DBUG_ENTER("ha_warp::index_read_idx_map");
+  std::string where_clause = "";
+  auto save_idx = active_index;
+  active_index = idxno;
+  int rc = index_read_map(buf, key, keypart_map, find_flag);
+  active_index = save_idx;
+  //index_end();
+  DBUG_RETURN(rc);
+}
+
+/* This is where the magic really happens from a MySQL standpoint, since it allows
+    index usage that MySQL would not normally support.  I really should put more 
+    care into this part of the code, but I'm incredibly depressed right now and I
+    just want to get something basically working for an initial public release. :/
+*/
+const Item* ha_warp::cond_push(const Item *cond,	bool other_tbls_ok) {
+  /* only pushdown for SELECT */
+  if(lock.type != TL_READ) return cond;
+
+  //return cond;
+  std::string where_clause;
+
+  /* A simple comparison without conjuction or disjunction */
+  if(cond->type() == Item::Type::FUNC_ITEM) {
+    if(!append_column_filter(cond, where_clause)) {
+      push_where_clause = "";
+      return cond;
+    }
+  /* List of connected simple conditions */
+  } else if(cond->type() == Item::Type::COND_ITEM) {
+    auto item_cond = (dynamic_cast<Item_cond*>(const_cast<Item*>(cond)));
+    List<Item> *items = item_cond->argument_list();
+    auto cnt = items->size();
+    
+    push_where_clause += '(';
+    for(uint i = 0; i < cnt; ++i) {
+      auto item = items->pop();
+      if(i > 0) {
+        if(item_cond->functype() == Item_func::Functype::COND_AND_FUNC) {
+          push_where_clause += ") AND (";
+        } else if(item_cond->functype() == Item_func::Functype::COND_OR_FUNC) {
+          push_where_clause += ") OR (";
+        } else {
+          push_where_clause = "";
+          /* not handled */
+          return cond;
+        }
+      }    
+      /*if(!append_column_filter(item,where_clause)) {
+        return cond;
+      } */
+      if(cond_push(item, other_tbls_ok) != NULL) {
+        return cond;
       } 
-      
-      if(idx_cursor->fetch() != 0) {
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
-      }
-      
-      current_rowid = idx_cursor->getCurrentRowNumber();
-      find_current_row(buf, idx_cursor);
+    }
+    push_where_clause += ")";
+  }
+  push_where_clause += where_clause;
+  //cond->print(current_thd, &str, QT_ORDINARY);
+  return NULL;
+}
 
-      DBUG_RETURN(0);
+/* return 1 if this clause could not be processed (will be processed by MySQL)*/
+bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_clause) { 
+  if(cond->type() == Item::Type::FUNC_ITEM) {
+    bool is_between = false;
+    bool is_in = false;
+    bool is_is_null = false;
+    bool is_isnot_null = false;
+    Item_func *tmp = dynamic_cast<Item_func*>(const_cast<Item*>(cond));
+    std::string op = "";
 
+    /* There are only a small number of options currently available for filtering
+       at the WARP SE level.  The basic numeric filters are presented here.
+    */
+    switch(tmp->functype()) {
+     /* when op = " " there is special handling below because the
+        syntax of the given function differs from the "regular"
+        functions.  
+     */ 
+     case Item_func::Functype::BETWEEN:
+        is_between = true;
+        break;
+
+      case Item_func::Functype::IN_FUNC:
+        is_in = true;
+        break;
+
+      case Item_func::Functype::ISNULL_FUNC:
+        is_is_null = true;
+        break;
+
+      case Item_func::Functype::ISNOTNULL_FUNC:
+        is_isnot_null = true;
+        break;
+
+      /* normal arg0 OP arg1 type operators */
+      case Item_func::Functype::EQ_FUNC:
+      case Item_func::Functype::EQUAL_FUNC:
+        op = " = ";
+        break;
+
+
+      case Item_func::Functype::LIKE_FUNC:
+        op = " LIKE ";
+        break;
+
+      case Item_func::Functype::LT_FUNC:
+        op = " < ";
+        break;
+      
+      case Item_func::Functype::GT_FUNC:
+        op = " > ";
+        break;
+      
+      case Item_func::Functype::GE_FUNC:
+        op = " >= ";
+        break;
+      
+      case Item_func::Functype::LE_FUNC:
+        op = " <= ";
+        break;
+      
+      case Item_func::Functype::NE_FUNC:
+        op = " != ";
+        break;
+      
+      default:
+        return false;
+    }
+      
+    Item** arg = tmp->arguments();
+    
+    if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM && arg[0]->type() == arg[1]->type()) {
+      /* can't push down joins just yet */
+      return false;
     }
 
-  int ha_warp::index_read_idx_map (uchar *buf, uint idxno, const uchar *key, key_part_map keypart_map, enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_warp::index_read_idx_map");
-    std::string where_clause = "";
-    auto save_idx = active_index;
-    active_index = idxno;
-    int rc = index_read_map(buf, key, keypart_map, find_flag);
-    active_index = save_idx;
-    //index_end();
-    DBUG_RETURN(rc);
-  }
+    for (uint i=0;i<tmp->arg_count;++i,++arg) {
+      if(i>0) {
+        if(!is_between && !is_in) { /* normal <, >, =, LIKE, etc */
+          push_where_clause += op;
+        } else {
+          if(is_between) {
+            if(i==1) {
+              push_where_clause += " BETWEEN ";
+            } else {
+              push_where_clause += " AND ";
+            }
+          } else {
+            if(is_in) {
+              if(i==1) {
+                push_where_clause += " IN (";
+              } else {
+                push_where_clause += ", ";
+              }
+            } 
+          }
+        }
+      }  
 
+      /* TODO:
+         While there are some Fastbit functions that could be pushed down
+         we don't handle that yet, but put this here as a reminder that it
+         can be done at some point, as it will speed things up.
+      */
+      if((*arg)->type() == Item::Type::FUNC_ITEM) {
+        return false;
+      }
+      
+      if((*arg)->type() == Item::Type::INT_ITEM) {
+        push_where_clause += std::to_string((*arg)->val_int());
+        continue;
+      }
+
+      if((*arg)->type() == Item::Type::NULL_ITEM) {
+        push_where_clause += " NULL ";
+        continue;
+      }
+
+      /* For most operators, only the column ordinal position is output here, 
+         but there is special handling for IS NULL and IS NOT NULL comparisons
+         here too, because those functions only have one argument which is the
+         field. These things only have meaning on NULLable columns of course,
+         so there is special handling if the column is NOT NULL.
+      */
+      if((*arg)->type() == Item::Type::FIELD_ITEM) {
+        auto field_index = ((Item_field*)(*arg))->field->field_index;
+        bool field_may_be_null = ((Item_field*)(*arg))->field->real_maybe_null();
+
+        /* this is the common case, where just the ordinal position is emitted */
+        if(!is_is_null && !is_isnot_null) {
+          push_where_clause += "c" + std::to_string(field_index);
+        } else {
+          /* Handle IS NULL and IS NOT NULL, depending on NULLability */
+          if(field_may_be_null) {
+            if(is_is_null) {
+              /* the NULL marker will be one if the value is NULL */
+              push_where_clause += "n" + std::to_string(field_index) + " = 1";
+            } else if (is_isnot_null) {
+              /* the NULL marker will be zero if the value is NOT NULL */
+              push_where_clause += "n" + std::to_string(field_index) + " = 0";
+            }
+          } else {
+            if(is_is_null) {
+              /* NOT NULL field is being compared with IS NULL so no rows can match */
+              push_where_clause += " 1=0 ";
+            } else if(is_isnot_null) {
+              /* NOT NULL field is being compared with IS NOT NULL so all rows match */
+              push_where_clause += " 1=1 ";
+            }
+          }
+        }
+        continue;
+      }
+
+      if((*arg)->type() == Item::Type::STRING_ITEM
+         || (*arg)->type() == Item::Type::DECIMAL_ITEM 
+         || (*arg)->type() == Item::Type::REAL_ITEM 
+         || (*arg)->type() == Item::Type::VARBIN_ITEM
+      ) {
+        String s;
+        String* val = (*arg)->val_str(&s);
+        std::string escaped;
+        char *ptr = val->ptr();
+        for(unsigned int i = 0; i< val->length(); ++i) {
+          char c = *(ptr + i);
+          if(c == '\'') {
+            escaped += '\\';
+            escaped += '\'';
+          } else if(c == 0) {
+            escaped += '\\';
+            escaped += '0';
+          } else if(c == '\\') {
+            escaped += "\\\\";
+          } else {
+            escaped += c;
+          }
+        }
+        push_where_clause += "'" + escaped + "'";
+        continue;
+      }
+      
+      return false;
+    }
+
+    if(is_in)  {
+      push_where_clause += ')';
+    } 
+    
+  }
   
+  return true;
+}  
+
+
