@@ -1805,6 +1805,8 @@ const Item* ha_warp::cond_push(const Item *cond,	bool other_tbls_ok) {
 
 /* return 1 if this clause could not be processed (will be processed by MySQL)*/
 bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_clause) { 
+  bool field_may_be_null = false;
+
   if(cond->type() == Item::Type::FUNC_ITEM) {
     bool is_between = false;
     bool is_in = false;
@@ -1929,10 +1931,17 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
       */
       if((*arg)->type() == Item::Type::FIELD_ITEM) {
         auto field_index = ((Item_field*)(*arg))->field->field_index;
-        bool field_may_be_null = ((Item_field*)(*arg))->field->real_maybe_null();
+        field_may_be_null = ((Item_field*)(*arg))->field->real_maybe_null();
 
         /* this is the common case, where just the ordinal position is emitted */
         if(!is_is_null && !is_isnot_null) {
+          /* If the field may be NULL it is necessary to check that that the NULL
+             marker is zero because otherwise searching for 0 in a NULLable field 
+             would return true for NULL rows...
+          */
+          if(field_may_be_null) {
+            push_where_clause += "(n" + std::to_string(field_index) + " = 0 AND ";
+          }
           push_where_clause += "c" + std::to_string(field_index);
         } else {
           /* Handle IS NULL and IS NOT NULL, depending on NULLability */
@@ -1990,6 +1999,10 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
     if(is_in)  {
       push_where_clause += ')';
     } 
+    
+    if(field_may_be_null) {
+      push_where_clause += ')';
+    }
     
   }
   
