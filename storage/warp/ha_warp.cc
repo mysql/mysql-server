@@ -744,16 +744,31 @@ void ha_warp::background_write(ibis::tablex* writer, char* datadir, TABLE* table
   /* The fastbit table name has to be the same as the partition number 
      which is the directory name of the partition
   */
+ ibis::part* found = NULL;
+ int partno = 0;
+ if(partition_count > 1) {
+   /* skip the first partition, which is just for metadata and is always empty */
+   for(auto it = parts.begin() + 1; it < parts.end(); ++it,++partno){
+     auto part = *it;
+     if(part->nRows() + writer->mRows() <= my_partition_max_rows) {
+       found = part;
+       break;
+     }
+   }
+ }
+ /* If the table is empty, then partno will be zero and found will be NULL.  
+    Otherwise, if found != NULL and partno <= partition_count then a partition
+    is fouund that will fit all the new rows.  
+ */
+ if(found == NULL) {
+    partno=partition_count-1;
+ } 
+
  std::string part_dir = "";
  std::string part_name = "";
-  if(partition_count - 2 < 0) {
-    part_dir = std::string(datadir) + "/p0";
-    part_name = "p0";
-  } else {
-    part_dir = std::string(datadir) + "/p" + std::to_string(partition_count - 2);
-    part_name = "p" + std::to_string(partition_count - 2);
-  }
-  
+ part_dir = std::string(datadir) + "/p" + std::to_string(partno);
+ part_name = "p" + std::to_string(partno);
+   
   uint rows = writer->write(part_dir.c_str(), part_name.c_str());
   writer->clearData();
 
@@ -1230,17 +1245,6 @@ int ha_warp::create(const char *name, TABLE *table_arg, HA_CREATE_INFO *info,
 
 int ha_warp::check(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("ha_warp::check");
-  //old_proc_info = thd_proc_info(thd, "Checking table");
-
-//  blobroot.Clear();
-
-  //thd_proc_info(thd, old_proc_info);
-
-  /*if ((rc != HA_ERR_END_OF_FILE) || count) {
-    share->crashed = true;
-    DBUG_RETURN(HA_ADMIN_CORRUPT);
-  }*/
-
   DBUG_RETURN(HA_ADMIN_OK);
 }
 
@@ -2003,7 +2007,7 @@ bool ha_warp::append_column_filter(const Item* cond, std::string &push_where_cla
     if(field_may_be_null) {
       push_where_clause += ')';
     }
-    
+
   }
   
   return true;

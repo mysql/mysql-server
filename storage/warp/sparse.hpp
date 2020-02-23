@@ -300,9 +300,11 @@ public:
     lock(LOCK_SH);
     int bit_offset;
     unsigned long long at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
-    fseek(fp, at_byte, SEEK_SET);
-    size_t sz = fread(&bits, 8, 1, fp);
-    if(sz == 0 || feof(fp)) return 0;
+    if(at_byte == 0 || at_byte != ftell(fp)) {
+      fseek(fp, at_byte, SEEK_SET);
+      size_t sz = fread(&bits, 8, 1, fp);
+      if(sz == 0 || feof(fp)) return 0;
+    }
     return (bits >> bit_offset) & 1; 
   }
 
@@ -313,6 +315,10 @@ public:
   inline int set_bit(unsigned long long bitnum, int mode = MODE_SET) {
     dbug("set_bit");
     if(!fp || have_lock != LOCK_EX) open(fname, LOCK_EX);
+    bool force_read = false;
+    if(dirty == 0) {
+      force_read = true;
+    }
     dirty = 1;
     // write-ahead-log (only write when not in recovery mode) 
     // sz2 will be <1 on write error
@@ -329,10 +335,12 @@ public:
     long int at_byte = (bitnum / MAX_BITS) + ((bit_offset = (bitnum % MAX_BITS)) != 0) - 1;
 
     /* read the bits into memory */
-    fseek(fp, at_byte, SEEK_SET);
-    sz = fread(&bits, BLOCK_SIZE, 1, fp);
-    if(ferror(fp)) return 0;
-    if(sz == 0 || feof(fp)) bits = 0;
+    if(force_read || at_byte != ftell(fp)) {
+      fseek(fp, at_byte, SEEK_SET);
+      sz = fread(&bits, BLOCK_SIZE, 1, fp);
+      if(ferror(fp)) return 0;
+      if(sz == 0 || feof(fp)) bits = 0;
+    }
     
     if(mode == MODE_SET)
       bits |= 1 << bit_offset; 
