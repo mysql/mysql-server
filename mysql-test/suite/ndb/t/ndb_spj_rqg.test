@@ -1781,6 +1781,7 @@ eval explain format=tree $query;
 eval $query;
 
 
+let $query=
 SELECT
   table2.pk, table1.pk
 FROM p AS table2
