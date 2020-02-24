@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,6 +115,8 @@ static bool ga_disable_indexes = false;
 static bool ga_rebuild_indexes = false;
 bool ga_skip_unknown_objects = false;
 bool ga_skip_broken_objects = false;
+bool ga_allow_pk_changes = false;
+bool ga_ignore_extended_pk_updates = false;
 BaseString g_options("ndb_restore");
 static int ga_num_slices = 1;
 static int ga_slice_id = 0;
@@ -326,6 +328,11 @@ static struct my_option my_long_options[] =
   { "skip-broken-objects", 256, "Skip broken object when parsing backup",
     (uchar**) &ga_skip_broken_objects, (uchar**) &ga_skip_broken_objects, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "allow-pk-changes", NDB_OPT_NOSHORT,
+    "Allow changes to the set of columns making up a table's primary key.",
+    (uchar**) &ga_allow_pk_changes, (uchar**) &ga_allow_pk_changes, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+
 #ifdef ERROR_INSERT
   { "error-insert", OPT_ERROR_INSERT,
     "Insert errors (testing option)",
@@ -358,6 +365,13 @@ static struct my_option my_long_options[] =
     0,
     0,
     0 },
+  { "ignore-extended-pk-updates", NDB_OPT_NOSHORT,
+    "Ignore log entries containing updates to columns now included in an "
+    "extended primary key.",
+    (uchar**) &ga_ignore_extended_pk_updates,
+    (uchar**) &ga_ignore_extended_pk_updates,
+    0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -972,6 +986,16 @@ o verify nodegroup mapping
   {
     g_tableCompabilityMask |= TCM_EXCLUDE_MISSING_COLUMNS;
   }
+
+  if (ga_allow_pk_changes)
+  {
+    g_tableCompabilityMask |= TCM_ALLOW_PK_CHANGES;
+  }
+  if(ga_ignore_extended_pk_updates)
+  {
+    g_tableCompabilityMask |= TCM_IGNORE_EXTENDED_PK_UPDATES;
+  }
+
   return true;
 }
 
@@ -1454,6 +1478,10 @@ main(int argc, char** argv)
                      ga_num_slices,
                      ga_slice_id);
   }
+  if (ga_allow_pk_changes)
+    g_options.append(" --allow-pk-changes");
+  if (ga_ignore_extended_pk_updates)
+    g_options.append(" --ignore-extended-pk-updates");
 
   init_progress();
 
