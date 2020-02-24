@@ -20,9 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <float.h>
 #include <gtest/gtest.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <limits>
@@ -32,54 +30,67 @@
 
 namespace m_string_unittest {
 
-std::string HumanReadable(double bytes) {
-  char buf[32];
-  human_readable_num_bytes(buf, sizeof(buf), bytes);
-  return buf;
-}
-
 TEST(MString, HumanReadableSize) {
-  EXPECT_EQ("1", HumanReadable(1.0));
-  EXPECT_EQ("1024", HumanReadable(1024.0));
-  EXPECT_EQ("1K", HumanReadable(1024.1));
-  EXPECT_EQ("1K", HumanReadable(1025.0));
+  char data_size_str[32];
+  double data_size = 1.0;
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1", data_size_str);
 
-  double data_size = 1025.0 * 1024;
-  EXPECT_EQ("1M", HumanReadable(data_size));
+  data_size = 1024.0;
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1024", data_size_str);
+
+  data_size = 1024.1;
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1K", data_size_str);
+
+  data_size = 1025.0;
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1K", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1G", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1M", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1T", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1G", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1P", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1T", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1E", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1P", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1Z", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1E", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1Y", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1Z", data_size_str);
+
   data_size *= 1024;
-  EXPECT_EQ("1025Y", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1Y", data_size_str);
+
+  data_size *= 1024;
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1025Y", data_size_str);
+
   data_size *= 1000;
-  EXPECT_EQ("1025000Y", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1025000Y", data_size_str);
+
   data_size *= 1000;
-  EXPECT_EQ("1025000000Y", HumanReadable(data_size));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("1025000000Y", data_size_str);
+
   data_size *= std::numeric_limits<unsigned long long>::max();
-  EXPECT_EQ("+INF", HumanReadable(data_size));
-
-  // Various edge cases.
-  EXPECT_EQ("1024", HumanReadable(nextafter(1024.0, -DBL_MAX)));
-  EXPECT_EQ("1K", HumanReadable(nextafter(1024.0, DBL_MAX)));
-
-  double yotta = pow(1024.0, 8.0);
-  EXPECT_EQ("9223372036854774784Y",
-            HumanReadable(nextafter(LLONG_MAX * yotta, -DBL_MAX)));
-  EXPECT_EQ("+INF", HumanReadable(LLONG_MAX * yotta));
-  EXPECT_EQ("+INF", HumanReadable(nextafter(LLONG_MAX * yotta, DBL_MAX)));
-
-  EXPECT_EQ("+INF", HumanReadable(nextafter(ULLONG_MAX * yotta, -DBL_MAX)));
-  EXPECT_EQ("+INF", HumanReadable(ULLONG_MAX * yotta));
-  EXPECT_EQ("+INF", HumanReadable(nextafter(ULLONG_MAX * yotta, DBL_MAX)));
+  human_readable_num_bytes(data_size_str, 32, data_size);
+  EXPECT_STREQ("+INF", data_size_str);
 }
 
 static void BM_longlong10_to_str(size_t num_iterations) {
