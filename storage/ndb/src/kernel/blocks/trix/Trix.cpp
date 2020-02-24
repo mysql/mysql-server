@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -641,9 +641,12 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   SubscriptionRecord* subRec;
   SectionHandle handle(this, signal);
 
-  if (ERROR_INSERTED_CLEAR(18000))
+  if (ERROR_INSERTED(18000) ||
+      ERROR_INSERTED(18003))
   {
-    sendSignalWithDelay(reference(), GSN_BUILD_INDX_IMPL_REQ, signal, 1000,
+    const Uint32 delay = (ERROR_INSERTED(18003)? 20000 : 1000);
+    CLEAR_ERROR_INSERT_VALUE;
+    sendSignalWithDelay(reference(), GSN_BUILD_INDX_IMPL_REQ, signal, delay,
                         signal->getLength(), &handle);
     DBUG_VOID_RETURN;
   }
