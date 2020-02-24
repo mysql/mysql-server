@@ -11,7 +11,7 @@
 --disable_query_log
 --disable_warnings
 
-CREATE TABLE `A` (
+CREATE TABLE a (
   `col_datetime_unique` datetime DEFAULT NULL,
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_char_16_unique` char(16) COLLATE latin1_bin DEFAULT NULL,
@@ -41,9 +41,9 @@ CREATE TABLE `A` (
   KEY `col_int_key` (`col_int_key`)
 ) ENGINE=ndbcluster;
 
-# Table A is intentionally empty
+# Table a is intentionally empty
 
-CREATE TABLE `B` (
+CREATE TABLE b (
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_int` int DEFAULT NULL,
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
@@ -73,10 +73,10 @@ CREATE TABLE `B` (
   KEY `col_datetime_key` (`col_datetime_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `B` VALUES ('tefqsdksjijcszxw',1,'efqsdksjijcszx','his',13,'we','say','hey',NULL,'fqsdksjijcszxwbj','the',1,'the','2003-12-25 15:33:21',NULL,1);
+INSERT INTO b VALUES ('tefqsdksjijcszxw',1,'efqsdksjijcszx','his',13,'we','say','hey',NULL,'fqsdksjijcszxwbj','the',1,'the','2003-12-25 15:33:21',NULL,1);
 
 
-CREATE TABLE `C` (
+CREATE TABLE c (
   `pk` int NOT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -106,14 +106,14 @@ CREATE TABLE `C` (
   KEY `ix1` (`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `C` VALUES (1,'qsdksjijcs','sdksjijcsz','or','me','dksjijcszxwbjjvv','out','2007-10-10 21:18:40','ksjijcszxwbjjvvkymaluk',8,NULL,NULL,0,2,'sjijcszxwbj','jijcszxwbj'),
+INSERT INTO c VALUES (1,'qsdksjijcs','sdksjijcsz','or','me','dksjijcszxwbjjvv','out','2007-10-10 21:18:40','ksjijcszxwbjjvvkymaluk',8,NULL,NULL,0,2,'sjijcszxwbj','jijcszxwbj'),
 (3,'szxwbj','so','tell','zxwbjjvvkymalukq','out','xwbjjvvkym',NULL,'wbjjvvkym',40,'2005-09-12 16:35:00','2009-05-21 14:19:45',0,0,'bjjvvkymalukqu','jjvvkymalu'),
 (5,'lukqukkoeiwsgpmfyv','tell','my','hey','how','ukqukkoe',NULL,'kqukkoeiwsgpmf',23,'2008-01-28 16:47:00','2002-07-16 16:31:18',2,2,'qukkoeiwsgpmf','from'),
 (2,'ijcszxwbjjvvkymalukqukkoe','she','do','some','come','jcszxwbjjv','2008-04-12 17:03:52','cszxwbjjvvkymalukq',NULL,NULL,'2000-12-06 07:11:43',2,2,'him','well'),
 (4,'just','jvvkymaluk','vvkymalukqukko','vkymalukqukkoeiw','kymalukqukkoeiws','mean',NULL,'ymalukquk',13,'2000-05-23 05:01:33','2002-04-19 18:28:34',0,3,'malukqukkoeiwsgp','alukqukkoe');
 
 
-CREATE TABLE `D` (
+CREATE TABLE d (
   `col_datetime_unique` datetime DEFAULT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_int_key` int DEFAULT NULL,
@@ -143,7 +143,7 @@ CREATE TABLE `D` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `D` VALUES ('2004-10-25 03:34:36','something',0,1,'what',NULL,7,'from','lhtrovamzqrdcen','2006-09-06 08:49:41','why','she','htrovamzqr','me','trovamzqrd',NULL),
+INSERT INTO d VALUES ('2004-10-25 03:34:36','something',0,1,'what',NULL,7,'from','lhtrovamzqrdcen','2006-09-06 08:49:41','why','she','htrovamzqr','me','trovamzqrd',NULL),
 ('2004-04-27 09:07:20','mfyvvuqvtjncdsvqhlhtrovamzqrdcen',NULL,3,'something',NULL,3,'go','fyvvuqvtjncdsvqhlhtrovam',NULL,'yvvuqvtjncdsvqhl','vvuqvtjncd','vuqvtjncds','uqvtjncdsvqhlhtrovamz','qvtjncdsvq',90),
 ('2004-07-28 05:54:12','can',3,1,'ncdsvqhlht',NULL,5,'it','he\'s','2000-01-06 20:32:48','cdsvqhlhtr','as','dsvqhlhtro','svqhlhtro','here',2),
 (NULL,'ukkoeiwsgpmfyvvuqvtjn',3,3,'kkoeiwsgpmfyvvuq',NULL,1,'got','I\'m',NULL,'her','koeiwsgpmf','oeiwsgpmfy','eiwsgpmfyvvuqvt','I\'m',5),
@@ -154,7 +154,7 @@ INSERT INTO `D` VALUES ('2004-10-25 03:34:36','something',0,1,'what',NULL,7,'fro
 ('2006-09-21 17:54:01','oh',2,1,'because','2001-07-22 08:21:06',6,'got','vqhlhtrovamzqrdcenchyhuoowi','2003-10-23 07:39:27','qhlh','time','hlhtrovamz','say','know',11),
 ('2007-02-06 00:58:19','rovamzqrdcenchyhuoowi',3,NULL,'ovamzqrdcen','2006-05-20 14:32:39',8,'vamzqrdcenchyhuo','my','2003-05-04 01:51:45','now','amzqrdce','who','mz','zqrdcenchy',58);
 
-CREATE TABLE `E` (
+CREATE TABLE e (
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_unique` datetime DEFAULT NULL,
   `col_int_unique` int DEFAULT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE `E` (
   KEY `col_datetime_key` (`col_datetime_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `E` VALUES ('from','2002-05-13 00:09:55',20,'about','you\'re','well',0,10,'xqxnvgqmwcidtumx','qxnvgqmwcidtumxwcftedx','xnvgq','nvgqmwcidtumxwcf','on','2006-11-26 04:25:48',2,NULL),
+INSERT INTO e VALUES ('from','2002-05-13 00:09:55',20,'about','you\'re','well',0,10,'xqxnvgqmwcidtumx','qxnvgqmwcidtumxwcftedx','xnvgq','nvgqmwcidtumxwcf','on','2006-11-26 04:25:48',2,NULL),
 ('his','2004-03-01 14:16:54',46,'okay','rvqlzsvasurqdhuc','vql',3,7,'qlzsvasurqdhucjx','right','lzsvasurqdhucj','zsvasurqd','svasurqdhu','2003-09-16 10:44:08',1,NULL),
 ('so','2007-06-12 12:16:07',NULL,'vasurqdhucjxdoyg','asurqdhucj','all',0,8,'or','of','surqdhucjxd','urq','right',NULL,0,NULL),
 ('oh',NULL,21,'yeah','can\'t','cidtumxwcf',1,12,'idtumxwcfted','dtumxwcf','tumxwcftedxqyciakhxptzfpjw','will','they',NULL,1,NULL),
@@ -203,7 +203,7 @@ INSERT INTO `E` VALUES ('from','2002-05-13 00:09:55',20,'about','you\'re','well'
 ('ptzfpjwrge','2007-10-20 02:54:44',9,'here','for','of',1,17,'tzf','back','zfpjw','fpjwrgeozxnbycjz','pjwrgeozxn',NULL,0,'2001-01-20 23:22:32'),
 ('good','2001-07-09 00:44:58',24,'umxwcftedxqyci','mx','xwcftedxqy',0,13,'hey','wcftedxqyciakhxptzfpjwr','know','no','do',NULL,0,NULL);
 
-CREATE TABLE `F` (
+CREATE TABLE f (
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_256` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -233,7 +233,7 @@ CREATE TABLE `F` (
   KEY `ix1` (`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `F` VALUES ('dnozrhhcxsxwujulpjdzvkpaijurs','nozrhhcxsxwuju','ozrhhcxsxw','well','her',16,'she','his','zrhhcx',3,NULL,NULL,'that\'s',0,48,NULL),
+INSERT INTO f VALUES ('dnozrhhcxsxwujulpjdzvkpaijurs','nozrhhcxsxwuju','ozrhhcxsxw','well','her',16,'she','his','zrhhcx',3,NULL,NULL,'that\'s',0,48,NULL),
 ('dnkiwsrsxndolpujdnozrhhcx','up','nkiw','kiwsr','have',12,'iwsrsxndol','get','wsrsxndolp',1,NULL,'2006-05-01 04:47:33','I\'ll',0,9,'2004-11-08 11:25:23'),
 ('nsmujjjbldnkiwsrsxndolpu','smujjjbldnkiwsrsxndolpujdnozrhh','that','that\'s','mujjjb',10,'are','uj','but',1,NULL,NULL,'but',2,77,NULL),
 ('tell','bycjzxiecurgmh','ycjzxiecu','cjzxiecurgmhbubpi','jzxiecurgmhbubpi',3,'he\'s','say','zxiecurgmh',3,'2005-01-03 10:07:54',NULL,'some',1,15,'2003-02-26 07:57:11'),
@@ -252,7 +252,7 @@ INSERT INTO `F` VALUES ('dnozrhhcxsxwujulpjdzvkpaijurs','nozrhhcxsxwuju','ozrhhc
 ('was','all','look','yeah','jjjbldnkiwsrsxnd',11,'jjb','jbldnkiwsrsxndol','bldnkiwsrs',1,NULL,NULL,'ldnkiwsrsx',1,51,'2001-03-11 13:58:35');
 
 
-CREATE TABLE `G` (
+CREATE TABLE g (
   `col_int` int DEFAULT NULL,
   `col_varchar_256` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
@@ -282,7 +282,7 @@ CREATE TABLE `G` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `G` VALUES (0,'what','2008-02-18 23:51:12','qsxmhjwagewclcfy',51,2,'2003-08-08 16:07:39','2007-12-24 22:23:49','back','sxmhjw',8,'xmhjwagewc','as','m','hjwagewclcfykywlcnem','good'),
+INSERT INTO g VALUES (0,'what','2008-02-18 23:51:12','qsxmhjwagewclcfy',51,2,'2003-08-08 16:07:39','2007-12-24 22:23:49','back','sxmhjw',8,'xmhjwagewc','as','m','hjwagewclcfykywlcnem','good'),
 (2,'got',NULL,'rifnhuu',36,1,'2006-03-20 22:09:42','2008-06-17 16:52:03','had','he',15,'ifnhu','all','know','no','fnhuuf'),
 (3,'I\'m','2003-02-13 10:09:49','p',34,3,NULL,NULL,'would','tell',18,'vasdqkxbwp','it\'s','got','asdqkxbwptigbpnesqigwegcn','sdqkxbw'),
 (2,'gbpnesqigwegcnfeuvrgnec',NULL,'one',70,2,NULL,NULL,'bpnesqigwe','pnesqig',19,'nesqigwegc','yeah','esqigwegcnfeuvrg','out','sqig'),
@@ -302,7 +302,7 @@ INSERT INTO `G` VALUES (0,'what','2008-02-18 23:51:12','qsxmhjwagewclcfy',51,2,'
 (2,'back',NULL,'grpquarwkazzjeiw',21,2,'2007-07-03 16:09:05','2000-09-03 23:20:32','look','or',3,'like','my','that','r','no'),
 (2,'so','2009-08-08 23:58:43','but',92,NULL,NULL,NULL,'kywlcnemiu','ywlcnemiuaabrrifnhuufzasu',12,'I\'ll','wlcnemiuaabrr','ok','yeah','lcn');
 
-CREATE TABLE `H` (
+CREATE TABLE h (
   `col_int_key` int DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -332,7 +332,7 @@ CREATE TABLE `H` (
   KEY `col_datetime_key` (`col_datetime_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `H` VALUES (2,'you\'re','vbitxqjxdz','good','bitxqjxdzdytunqvvrmpyxrencqhu','itxqjxdzdytunqvv','the',73,19,0,'some',NULL,NULL,'can\'t','know',NULL),
+INSERT INTO h VALUES (2,'you\'re','vbitxqjxdz','good','bitxqjxdzdytunqvvrmpyxrencqhu','itxqjxdzdytunqvv','the',73,19,0,'some',NULL,NULL,'can\'t','know',NULL),
 (1,'tqvbjiklcekxqyox','qvbjiklcek','a','vbjiklcekxqyoxsolbx','he','yeah',80,12,0,'bjiklcekx',NULL,'2004-03-05 23:35:38','jiklcekxqy','iklce',NULL),
 (3,'jwpukqub','wpukqubzpo','so','pukqub','him','ukqubzpomntrddrw',4,7,3,'kqub',NULL,NULL,'qu','is','2009-05-24 12:06:47'),
 (0,'euvrgnecpt','uvrgnecpth','vrgnecpthm','rgnecpthmhffqbythjwpukqu','gn','necpthmhffqbythj',17,3,0,'ec',NULL,'2007-07-22 21:19:18','cpthmh','is','2002-09-22 18:17:25'),
@@ -355,7 +355,7 @@ INSERT INTO `H` VALUES (2,'you\'re','vbitxqjxdz','good','bitxqjxdzdytunqvvrmpyxr
 (3,'ubzpomntrdd','me','bzpomntrdd','zpomntrdd','tell','out',75,8,1,'don\'t','2009-08-20 02:03:54','2009-07-07 07:00:21','back','pom',NULL);
 
 
-CREATE TABLE `I` (
+CREATE TABLE i (
   `col_varchar_10` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
@@ -385,7 +385,7 @@ CREATE TABLE `I` (
   KEY `ix3` (`col_int`,`col_int_key`,`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `I` VALUES ('then','2003-10-20 10:34:07',NULL,'or',12,'wtqrebgj','tqrebgjzbyce',2,'qrebgjzbycekyjgb','rebgjzbyceky',NULL,47,0,'oh','ebgjzbycek','b'),
+INSERT INTO i VALUES ('then','2003-10-20 10:34:07',NULL,'or',12,'wtqrebgj','tqrebgjzbyce',2,'qrebgjzbycekyjgb','rebgjzbyceky',NULL,47,0,'oh','ebgjzbycek','b'),
 ('qbzsoxvill','2000-11-18 10:20:56',NULL,'bzsoxvillooqx',8,'zsoxvillooqxuvoxcg','that',1,'soxvilloo','with',NULL,16,0,'oxvillooqx','xvillooqxu','villooqxuvoxcg'),
 ('xrencqhuyr','2008-07-07 16:45:29','2006-05-10 03:29:39','oh',3,'it','not',3,'rencqhuyrfluezqe','of','2001-08-25 07:50:24',5,1,'be','encqhuyrfl','ncqhuyrfluezqekm'),
 ('what','2004-03-03 02:03:18',NULL,'to',1,'q','tell',2,'ok','vvrmpyxrencqhu','2000-01-19 12:46:53',68,1,'vrmpyxrenc','her','rmp'),
@@ -400,7 +400,7 @@ INSERT INTO `I` VALUES ('then','2003-10-20 10:34:07',NULL,'or',12,'wtqrebgj','tq
 ('xhrd','2007-09-14 10:21:50',NULL,'I',13,'to','hrdodxqqjwasfkve',NULL,'mean','will',NULL,28,3,'rdodxqqjwa','one','I\'ll'),
 ('got','2007-01-11 22:10:47','2004-09-06 13:12:32','it',4,'rfluezqekmqpwu','fluezqekmqpwutxn',3,'luezqekmqpwut','uezqekmqpwutxnzddrbjycyoy',NULL,0,0,'my','was','ezqekmqpwutxnzdd');
 
-CREATE TABLE `J` (
+CREATE TABLE j (
   `col_datetime` datetime DEFAULT NULL,
   `pk` int NOT NULL,
   `col_varchar_256` varchar(256) COLLATE latin1_bin DEFAULT NULL,
@@ -430,7 +430,7 @@ CREATE TABLE `J` (
   KEY `col_varchar_256_key` (`col_varchar_256_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `J` VALUES (NULL,16,'wblfenfpetwejamgeef',NULL,'me','blfenfpetw','up','get',NULL,'didn\'t',15,'he\'s','2001-01-17 08:26:07',0,'ok','lfenfpetwejamgeefplsksusq'),
+INSERT INTO j VALUES (NULL,16,'wblfenfpetwejamgeef',NULL,'me','blfenfpetw','up','get',NULL,'didn\'t',15,'he\'s','2001-01-17 08:26:07',0,'ok','lfenfpetwejamgeefplsksusq'),
 (NULL,7,'on',NULL,'did','mmszwpoglv','mszwpoglvar','szwp',3,'my',31,'him','2006-02-27 13:50:39',1,'can','zwpoglvarsfiljrzimq'),
 (NULL,1,'got','2000-02-09 07:02:52','xqqjwasfkv','qqjwasfkve','want','it',3,'qjwasfkvetfobocg',77,'jwasfkvetfobocgp','2006-09-18 04:16:45',0,'wasfkvetfob','look'),
 ('2001-04-11 12:07:24',5,'gp',NULL,'pftrhvxugm','ftrhvxugmm','I\'m','there',2,'trhvxugmmszwpogl',87,'rhvxugmmszwpoglv','2001-04-06 12:45:11',0,'hvxugmmszwpoglva','for'),
@@ -452,7 +452,7 @@ INSERT INTO `J` VALUES (NULL,16,'wblfenfpetwejamgeef',NULL,'me','blfenfpetw','up
 ('2000-04-04 13:42:09',3,'etfobocgpftrhvxugmmszwpogl',NULL,'all','tfobocgpft','at','fobocg',2,'do',63,'had','2009-01-20 11:59:46',2,'is','obocgpftrhvxugmmsz'),
 (NULL,13,'dhepkhcfrahc',NULL,'time','hepkhcfrah','epkhcfrahcpjjvhkkwblfenfpetw','pkhcfrahcp',1,'no',21,'be',NULL,0,'khcfra','but');
 
-CREATE TABLE `K` (
+CREATE TABLE k (
   `col_int` int DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
   `col_char_16_key` char(16) COLLATE latin1_bin DEFAULT NULL,
@@ -482,7 +482,7 @@ CREATE TABLE `K` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `K` VALUES (1,NULL,'about','2009-04-25 08:51:38','when','at','his','mean',0,'2006-12-16 07:07:19',21,'then','say','tell',47,'cjrxxihtvz'),
+INSERT INTO k VALUES (1,NULL,'about','2009-04-25 08:51:38','when','at','his','mean',0,'2006-12-16 07:07:19',21,'then','say','tell',47,'cjrxxihtvz'),
 (2,'2006-02-12 14:52:19','hnp','2004-12-16 06:03:27','there','in','her','like',3,NULL,11,'my','npgthoms','pgt',33,'he\'s'),
 (0,'2008-05-10 20:43:37','hey','2001-01-12 03:04:26','yeqtfopugfcdfubqoeujfhnpgthomsfu','eqtfopug','qtfopugfcdfubqoeu','tfopugfcdf',0,'2005-05-04 06:55:10',6,'do','say','her',5,'fopugfcdfu'),
 (0,NULL,'her','2000-09-26 18:50:46','him','ergshgvtqekglkhi','was','rgs',2,'2000-09-10 21:54:02',2,'and','gshgvtqekglkhirmzlqyeqtfopugfcdf','shgvtqe',17,'hgvtqekglk'),
@@ -506,7 +506,7 @@ INSERT INTO `K` VALUES (1,NULL,'about','2009-04-25 08:51:38','when','at','his','
 (1,'2000-12-20 05:01:46','bqoeujfhn','2007-07-24 10:40:08','as','why','qoeujfhnpgt','oeujfhnpgt',NULL,'2007-04-13 02:31:19',9,'eujfhnpgthomsfus','ujfhnpgthoms','can',70,'there'),
 (2,NULL,'sbhugmvurbryqq',NULL,'hey','have','all','didn\'t',0,NULL,13,'yes','then','bhugmvurbr',78,'hugmvurbry');
 
-CREATE TABLE `L` (
+CREATE TABLE l (
   `col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -536,7 +536,7 @@ CREATE TABLE `L` (
   KEY `ix3` (`col_int`,`col_int_key`,`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `L` VALUES ('come','get','sqdkfykpra',1,'qdkfykpraagyrwsw',3,'had',3,'for','that\'s','dkfykpraagy','kfykpraagy',7,NULL,'2001-05-03 23:02:37',NULL),
+INSERT INTO l VALUES ('come','get','sqdkfykpra',1,'qdkfykpraagyrwsw',3,'had',3,'for','that\'s','dkfykpraagy','kfykpraagy',7,NULL,'2001-05-03 23:02:37',NULL),
 ('hey','odxuroztqc','I\'m',50,'dxuroztqcmuxmpji',3,'xuroztqcmuxmpjisqdk',0,'u','r','oztqcmuxmpj','go',3,NULL,NULL,'2003-04-19 11:03:55'),
 ('fykpraagyr','ykpraagyrwswotqllacxf','really',58,'just',2,'kpraagyrwswotqllacx',2,'not','go','praagyrwswotqlla','raagyrwswo',8,NULL,NULL,'2002-09-10 00:24:17'),
 ('me','you\'re','really',64,'ztqcm',0,'think',1,'when','didn\'t','tqcm','I',4,'2009-01-23 19:23:36','2006-04-18 23:09:29','2007-12-26 01:13:46'),
@@ -557,7 +557,7 @@ INSERT INTO `L` VALUES ('come','get','sqdkfykpra',1,'qdkfykpraagyrwsw',3,'had',3
 ('right','wswo','swotqllacx',36,'wotqllacxf',2,'all',2,'be','otq','think','tqllacx',10,'2005-08-19 19:29:23','2008-11-20 18:52:24','2008-01-06 15:47:10'),
 ('then','go','tdnhiudzno',96,'your',0,'for',1,'dnhiudzn','nhiudznoasbvoavr','hiudz','iudznoasbv',17,NULL,'2005-10-15 06:30:22',NULL);
 
-CREATE TABLE `M` (
+CREATE TABLE m (
   `col_int` int DEFAULT NULL,
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
@@ -587,7 +587,7 @@ CREATE TABLE `M` (
   KEY `col_datetime_key` (`col_datetime_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `M` VALUES (2,'I','ufce',14,'fce','come','c','I\'ll',0,'at',7,NULL,'come',NULL,'are',NULL),
+INSERT INTO m VALUES (2,'I','ufce',14,'fce','come','c','I\'ll',0,'at',7,NULL,'come',NULL,'are',NULL),
 (3,'vakahjtesmgifltnefitzufcefqqm','a',55,'kahjte','ahjtesmgifltnefi','could','from',2,'hjtesmgi',3,NULL,'jtesmgifltnefitzuf','2002-07-27 15:24:53','really','2003-09-26 02:16:56'),
 (NULL,'whvkgcladdlzomdicuhzmfpxix','yes',88,'hvkgcladdlzomdic','vkgcladdlzomdi','kgcla','I',1,'one',19,'2009-06-19 22:00:23','your',NULL,'back','2004-11-09 11:01:18'),
 (2,'vsjghsldzxndyqrnlbdgwcjxy','don\'t',5,'something','sjghsldz','jghsldzxndyqrnlb','ghsldzxndy',3,'be',12,NULL,'I\'m',NULL,'no','2003-01-19 19:36:01'),
@@ -611,7 +611,7 @@ INSERT INTO `M` VALUES (2,'I','ufce',14,'fce','come','c','I\'ll',0,'at',7,NULL,'
 (2,'are','t',18,'not','esmgifltnefi','then','smgifltnef',2,'get',4,NULL,'mgifltnefitzufcefqqm',NULL,'gifltnefit',NULL),
 (0,'why','well',85,'efq','fqqmfo','qqmfokivsitbedsj','qmfokivsit',1,'mfokivsitb',8,NULL,'back','2000-12-15 16:17:19','go','2009-08-13 04:03:40');
 
-CREATE TABLE `N` (
+CREATE TABLE n (
   `col_datetime_unique` datetime DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin NOT NULL,
@@ -641,7 +641,7 @@ CREATE TABLE `N` (
   KEY `col_int_key` (`col_int_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `N` VALUES ('2007-03-13 01:18:00','2003-09-01 20:10:59','his',NULL,5,4,'there','can','odmcpxdtsv','d','for','mcpxdtsvrlvdhodxjipyqduobnyhd','cpxdtsvrlv','pxdtsvrlv',2,3),
+INSERT INTO n VALUES ('2007-03-13 01:18:00','2003-09-01 20:10:59','his',NULL,5,4,'there','can','odmcpxdtsv','d','for','mcpxdtsvrlvdhodxjipyqduobnyhd','cpxdtsvrlv','pxdtsvrlv',2,3),
 ('2009-04-16 11:03:59','2004-06-08 00:05:54','have','2001-11-20 23:11:02',20,50,'i','when','emdi','mdikmhcaqjd','were','there','dikmhcaqjd','ikmhc',0,1),
 ('2001-04-24 11:20:52',NULL,'out',NULL,22,24,'lgdxxagtpkbaohozyxxgt','a','were','gdxxagtpkbaohozyx','dxxagtpkbaoh','do','xxagtpkb','all',2,NULL),
 (NULL,NULL,'vdhodxjipyqduobn',NULL,8,9,'dhodxjipyqduobny','so','hodxjipyqd','odxjipyqduobnyhdvauikwsdbjdm','he','dxjipyqduobnyhdvauikwsdbjdmv','will','got',2,1),
@@ -664,7 +664,7 @@ INSERT INTO `N` VALUES ('2007-03-13 01:18:00','2003-09-01 20:10:59','his',NULL,5
 ('2002-10-10 16:57:45','2008-07-13 05:31:14','go','2009-09-06 23:41:54',16,96,'be','this','oejtbuilkp','ejtbu','what','jtbuilkp','tbuilkp','builkphmpa',1,3),
 (NULL,NULL,'in','2001-01-27 21:08:32',9,48,'xjipyqduobnyhdvauikwsd','is','oh','jipyqduobny','to','just','ipyqduobny','pyq',1,1);
 
-CREATE TABLE `O` (
+CREATE TABLE o (
   `col_int_unique` int DEFAULT NULL,
   `col_char_16_unique` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
@@ -694,7 +694,7 @@ CREATE TABLE `O` (
   KEY `ix3` (`col_int`,`col_int_key`,`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `O` VALUES (6,'ckh','khsczypxpbbl',2,NULL,'2002-08-21 17:38:23',2,'hsc','because','how','sczypxp','2007-10-05 10:23:52','czypxpbblogsxtwkvtbqscgcbnjzle','zypxp','who',24),
+INSERT INTO o VALUES (6,'ckh','khsczypxpbbl',2,NULL,'2002-08-21 17:38:23',2,'hsc','because','how','sczypxp','2007-10-05 10:23:52','czypxpbblogsxtwkvtbqscgcbnjzle','zypxp','who',24),
 (63,'could','ra',3,'2009-09-13 00:46:54',NULL,2,'avwfckhsczypxp','no','about','vwfckhsczyp',NULL,'wfckhsczypxpbblogsxtwkvtb','got','fckhsczypx',23),
 (NULL,'he','didn\'t',1,NULL,'2002-03-08 10:15:21',3,'cwehcwvfusmtftlevhiavzbkf','on','wehcwvfusm','him','2008-09-01 04:13:00','ehcwvfu','hcwvfusmtftlevhia','something',7),
 (20,'gtaqlmew','taqlme',3,NULL,'2008-04-04 08:43:47',3,'aqlmewibfkxcjaxcwehcw','will','as','qlm','2002-02-02 20:50:14','lmewibfkxcjaxcwehc','did','mewibfkxcj',3),
@@ -719,7 +719,7 @@ INSERT INTO `O` VALUES (6,'ckh','khsczypxpbbl',2,NULL,'2002-08-21 17:38:23',2,'h
 (27,'zic','icaravwfckhsczyp',2,'2008-02-17 21:24:29','2005-06-04 07:02:51',3,'go','all','caravwfckh','it','2005-02-17 21:36:20','one','up','aravwfckhs',22),
 (10,'wxga','or',0,'2004-09-18 09:08:33','2008-09-16 04:32:34',0,'xgaispoifyxosozwaevslluevgxt','gaispoifyx','my','aispo',NULL,'know','been','ispoifyxos',16);
 
-CREATE TABLE `P` (
+CREATE TABLE p (
   `col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   `col_char_16_key` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_int_unique` int DEFAULT NULL,
@@ -750,7 +750,7 @@ CREATE TABLE `P` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `P` VALUES ('you','this',54,19,'had',3,'2003-07-05 08:15:56','get','it','no','2001-08-26 20:34:52',NULL,'dnnac','no',NULL,'there'),
+INSERT INTO p VALUES ('you','this',54,19,'had',3,'2003-07-05 08:15:56','get','it','no','2001-08-26 20:34:52',NULL,'dnnac','no',NULL,'there'),
 ('wbhxogpkk','from',6,12,'bhxogpkkvjhxzkjxgrcyqi',1,NULL,'hxogpkkvjhxzkjxgrcyqilgwelf','I\'ll','xogpk',NULL,0,'ogpkkvj','how',NULL,'gpkkvjhxzk'),
 ('going','going',80,7,'ywwmshhimsbqljcfstzgruojzffwbhxo',2,'2009-12-18 13:36:00','wwmshhimsbqljcf','in','wmshhimsbq','2004-06-19 18:18:52',0,'mshhimsbqljcfstzgruojzffwbhxogp','her',NULL,'back'),
 ('don\'t','this',17,3,'vtb',1,'2007-10-27 05:43:49','don\'t','tbqscgcbnjzlelnh','bqscgcbnjz',NULL,2,'could','qscgcbnjzlelnhsm','2000-11-08 15:50:29','scgcbnjzl'),
@@ -772,7 +772,7 @@ INSERT INTO `P` VALUES ('you','this',54,19,'had',3,'2003-07-05 08:15:56','get','
 ('it','cgcbnj',99,4,'ok',1,NULL,'are','not','gcbnjzleln',NULL,3,'you','his','2007-04-07 17:32:03','cbnjzlelnh'),
 ('yes','get',57,8,'imsbqljcfstzgruojzffwbhxogpkk',2,NULL,'I\'ll','it\'s','msbqljcfst',NULL,0,'did','sbqljcfstzgruojz','2006-07-23 16:35:56','to');
 
-CREATE TABLE `Q` (
+CREATE TABLE q (
   `col_int_unique` int DEFAULT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
@@ -803,7 +803,7 @@ CREATE TABLE `Q` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `Q` VALUES (0,'fuaiiyufnngmlsudti',NULL,3,'for','so','2002-11-02 07:01:00',NULL,2,'uaiiyufnng',7,'come','have','it\'s','something','aiiyufnn'),
+INSERT INTO q VALUES (0,'fuaiiyufnngmlsudti',NULL,3,'for','so','2002-11-02 07:01:00',NULL,2,'uaiiyufnng',7,'come','have','it\'s','something','aiiyufnn'),
 (41,'icqcjhvtmfnumoxifzchbfuaiiy',NULL,0,'see','he\'s',NULL,'2004-04-03 09:17:02',1,'cqcjhvt',3,'qcjhvtmfnum','my','cjhvtmfnumoxifzc','jhvtmfnumo','not'),
 (33,'him','2001-02-26 03:06:18',0,'uegjyzyykqjnzabvesmothzhafnndu','egjyzyykqjnzabvesmo',NULL,NULL,1,'gjyzyykqjn',19,'he','are','that\'s','jyzyykqjnz','yzyykqjnzabvesmo'),
 (19,'hey',NULL,1,'is','really','2009-09-05 01:47:35',NULL,3,'bn',12,'ndgzuawtnjnpizfj','d','right','gzuawtnjnp','I\'m'),
@@ -829,7 +829,7 @@ INSERT INTO `Q` VALUES (0,'fuaiiyufnngmlsudti',NULL,3,'for','so','2002-11-02 07:
 (4,'hvtm','2009-06-17 08:46:07',0,'vtmfnumoxi','if',NULL,'2008-05-27 07:43:38',1,'tmfnumoxif',4,'they','were','my','mfnumoxifz','some'),
 (67,'there','2007-08-28 19:48:34',1,'have','ngmlsudtiazkktlpuf',NULL,'2007-01-11 06:21:50',0,'gmlsudtiaz',8,'will','mlsudtiazk','lsudtiazkk','all','really');
 
-CREATE TABLE `R` (
+CREATE TABLE r (
   `col_int_key` int DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10_unique` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -860,7 +860,7 @@ CREATE TABLE `R` (
   KEY `ix2` (`col_int_key`,`col_int_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `R` VALUES (3,'got','her','2009-05-22 23:19:01','wzhozhnrshnjxesj',0,'know',93,'zh','2005-08-21 13:53:39','hozhnrshnjxesjspsjsviykvijznlsye','ozhnrshnjx',3,'zhnrshnjxesjspsj','hnrshnjxesjspsjsviykvijz',NULL),
+INSERT INTO r VALUES (3,'got','her','2009-05-22 23:19:01','wzhozhnrshnjxesj',0,'know',93,'zh','2005-08-21 13:53:39','hozhnrshnjxesjspsjsviykvijznlsye','ozhnrshnjx',3,'zhnrshnjxesjspsj','hnrshnjxesjspsjsviykvijz',NULL),
 (2,'from','nxkfxmpoln',NULL,'xkfxmpolnznauhaq',3,'did',10,'kfxmpolnznauha',NULL,'mean','fxmpolnz',11,'xmpolnznauhaqurg','mpo','2008-07-12 13:13:34'),
 (NULL,'jnspiweumfgpewta','you','2008-05-21 09:54:27','I',2,'think',94,'are',NULL,'nspiweumfgpewtalxwkfurakqzrksf','spiweumfgp',23,'piweumfgpewtalxw','iweum',NULL),
 (1,'so','want',NULL,'now',1,'nrshnjxesj',37,'have','2001-02-02 07:55:35','she','know',4,'on','rshnjxesjspsjsviykvi','2003-08-03 14:10:00'),
@@ -886,7 +886,7 @@ INSERT INTO `R` VALUES (3,'got','her','2009-05-22 23:19:01','wzhozhnrshnjxesj',0
 (2,'tskxolqddojnspiw','skxolqddoj',NULL,'kxolqddojnspiweu',0,'who',19,'xolqddojn',NULL,'olqd','lqddojnsp',22,'qddojnspiweumfgp','back',NULL),
 (2,'want','y',NULL,'exihxfeaarjpqklb',3,'xihxfeaarj',12,'you',NULL,'here','with',13,'ihxfeaarjpqklbmz','hxfeaarjpqklb','2000-08-20 17:28:48');
 
-CREATE TABLE `S` (
+CREATE TABLE s (
   `col_int_key` int DEFAULT NULL,
   `pk` int NOT NULL AUTO_INCREMENT,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
@@ -917,7 +917,7 @@ CREATE TABLE `S` (
   KEY `col_varchar_256_key` (`col_varchar_256_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `S` VALUES (3,7,'gffennzvqftxqwqb','2002-03-17 05:29:29','ffennzvqftxqwqbtrydwypawey','fennzvqft','did','want','ennzvqf',0,NULL,'this','me',50,NULL,'will'),
+INSERT INTO s VALUES (3,7,'gffennzvqftxqwqb','2002-03-17 05:29:29','ffennzvqftxqwqbtrydwypawey','fennzvqft','did','want','ennzvqf',0,NULL,'this','me',50,NULL,'will'),
 (2,3,'kqzrksfzju','2004-10-27 12:28:42','hey','no','mean','qzrks','get',NULL,'2009-05-07 08:59:45','zrks','rksfzjudicvgffennzvqft',4,NULL,'see'),
 (1,19,'hwndqxyljmtxhhla',NULL,'and','wndqxyljmtxhhlai','is','it','ndqxylj',2,'2006-02-03 02:47:25','will','with',5,'2009-07-03 09:14:28','dqxyljmtxh'),
 (2,12,'ypaweyyyadktqffy','2006-02-10 11:15:12','paweyyyadktqffyzmxkjbc','aweyyyadktqff','all','the','weyy',0,NULL,'the','eyyyadkt',2,NULL,'some'),
@@ -941,7 +941,7 @@ INSERT INTO `S` VALUES (3,7,'gffennzvqftxqwqb','2002-03-17 05:29:29','ffennzvqft
 (0,4,'just','2001-01-19 08:03:10','ksfzjudicvgffennzvqftxqw','know','sfzjudicvg','do','fzjudi',2,NULL,'zjudi','be',46,'2007-11-04 21:44:23','judicvgffe'),
 (0,8,'with',NULL,'good','come','they','want','nnzvqftxqwqbtr',3,'2009-06-06 11:48:13','his','up',15,'2004-03-22 05:43:36','nzvqftxqwq');
 
-CREATE TABLE `T` (
+CREATE TABLE t (
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
@@ -972,7 +972,7 @@ CREATE TABLE `T` (
   KEY `col_char_16_key` (`col_char_16_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `T` VALUES ('out','xzhggqur',NULL,'it','2006-09-07 00:49:43',1,'zhggquryww','hggqurywwm',16,0,'ggqurywwmd',94,'from','gqurywwmdp','qur','2009-07-19 06:37:29'),
+INSERT INTO t VALUES ('out','xzhggqur',NULL,'it','2006-09-07 00:49:43',1,'zhggquryww','hggqurywwm',16,0,'ggqurywwmd',94,'from','gqurywwmdp','qur','2009-07-19 06:37:29'),
 ('oh','avmbuahklgrl',NULL,'vmbuahklgrlhcjwj','2003-06-05 16:45:46',1,'mbuahklgrl','buahklgrlh',3,0,'uahklgrlhcjwjnal',18,'all','ahklgrlhcj','know',NULL),
 ('was','hpkrprnmduavmbua','2009-07-05 16:04:43','pkrprnmduavmbuah',NULL,1,'how','a',1,0,'krprnmduavm',4,'don\'t','back','going','2000-07-12 05:14:49'),
 ('look','could',NULL,'jpdyfruvhqeaokia','2006-01-17 14:48:31',3,'but','now',8,0,'pdyfruvhqeaokiad',NULL,'was','and','think','2002-02-05 18:27:09'),
@@ -998,7 +998,7 @@ INSERT INTO `T` VALUES ('out','xzhggqur',NULL,'it','2006-09-07 00:49:43',1,'zhgg
 ('pvvydityzspegmxmbsivg','vvydityzspegmx',NULL,'vydityz','2003-04-28 15:17:35',1,'ydityzs','dityzspegm',19,2,'look',3,'ityzspegmxmbsivgvkp','it\'s','tyz',NULL),
 ('can','rprnmduavmbua',NULL,'prnmduavmbuahklg',NULL,3,'you\'re','rnmduavmbu',2,0,'nmduavmbuahklgrl',72,'mduavmbuahklgrlhcjwjnalelgvcdzr','duavmbuahk','uavmb',NULL);
 
-CREATE TABLE `U` (
+CREATE TABLE u (
   `col_varchar_256` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_datetime_key` datetime DEFAULT NULL,
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
@@ -1028,7 +1028,7 @@ CREATE TABLE `U` (
   KEY `ix2` (`col_varchar_256`,`col_varchar_10_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `U` VALUES ('nolvsksxmpasedzhrzzzxrttuw',NULL,'olvsksx',NULL,12,'or','he',0,'lvsksxmpas','vsksxmpasedzhrzz','2005-02-13 21:36:17',71,1,'sk','that\'s','some'),
+INSERT INTO u VALUES ('nolvsksxmpasedzhrzzzxrttuw',NULL,'olvsksx',NULL,12,'or','he',0,'lvsksxmpas','vsksxmpasedzhrzz','2005-02-13 21:36:17',71,1,'sk','that\'s','some'),
 ('I\'ll',NULL,'wueubyoecglvgomtgvrwuvifq','2002-08-05 20:59:24',15,'for','ueubyoecglvgomtg',3,'say','when',NULL,31,2,'eubyoecglv','we','it\'s'),
 ('how',NULL,'ybedjnxftusxqctk','2007-02-10 08:20:57',26,'bedjn','yeah',1,'right','see','2001-05-05 15:35:37',33,0,'edjnxftu','do','djnxftusxqctkllpocmuysgpzg'),
 ('are',NULL,'can','2003-12-08 09:50:39',1,'ibarsh','it',2,'would','barshpzcjdepvfru','2000-03-19 17:37:21',89,1,'how','arshpzcjde','not'),
@@ -1056,7 +1056,7 @@ INSERT INTO `U` VALUES ('nolvsksxmpasedzhrzzzxrttuw',NULL,'olvsksx',NULL,12,'or'
 ('well',NULL,'then','2006-12-05 01:12:44',3,'now','say',2,'p','are',NULL,15,2,'zcjdepvfru','I\'m','cjde'),
 ('ihvhoteaenolvs',NULL,'you','2007-04-11 02:13:10',10,'up','yes',1,'hvhoteaeno','vhoteaenolvsksxm','2006-09-23 14:57:47',13,0,'hoteaenolv','oteaenolvs','you');
 
-CREATE TABLE `V` (
+CREATE TABLE v (
   `col_int` int DEFAULT NULL,
   `col_int_unique` int DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -1086,7 +1086,7 @@ CREATE TABLE `V` (
   KEY `col_int_key` (`col_int_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `V` VALUES (3,25,'who','2003-12-01 01:22:54','like','gqcaqouifkvuimek','qcaqouifkvuimekskfco','why',5,'can\'t',0,'how',NULL,'the','ca','2001-11-26 14:11:36'),
+INSERT INTO v VALUES (3,25,'who','2003-12-01 01:22:54','like','gqcaqouifkvuimek','qcaqouifkvuimekskfco','why',5,'can\'t',0,'how',NULL,'the','ca','2001-11-26 14:11:36'),
 (1,65,'cuwxudsmsk','2000-03-15 09:03:52','uwxudsmskrimoadw','know','wxudsmskrimoadwvvkxjkrzhwmtlspk','you',15,'xudsmskrim',3,'udsmskrimoa',NULL,'dsmskrimoa','you\'re','2006-11-10 02:31:00'),
 (1,4,'had','2002-05-16 17:01:34','g','he\'s','mgqzynfxjjja','gqzynfxjjjasvygjlxwgvskswhwjqzi',22,'have',3,'qzynfxjjjasvygjl',NULL,'from','zynfxjjjasvygjlxwgvskswhwjqzidj',NULL),
 (2,73,'iibnncuwxu',NULL,'ibnncuwxudsmsk','bnnc','my','because',14,'nncuwxudsm',0,'ncuwxudsmskrimoa',NULL,'not','could','2008-12-23 17:21:25'),
@@ -1116,7 +1116,7 @@ INSERT INTO `V` VALUES (3,25,'who','2003-12-01 01:22:54','like','gqcaqouifkvuime
 (0,83,'from',NULL,'wnxzelmeigzwelou','who','nxzelmeigzweloudxofoxhxls','xzelmeigzweloudxofoxhxls',9,'now',3,'zelmeigzwelou',NULL,'elmeigzwel','then',NULL),
 (3,79,'wrd',NULL,'rd','duehoibv','his','up',28,'come',1,'uehoibvlmjcxhife',NULL,'were','me',NULL);
 
-CREATE TABLE `W` (
+CREATE TABLE w (
   `col_int` int DEFAULT NULL,
   `col_varchar_256_unique` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
@@ -1146,7 +1146,7 @@ CREATE TABLE `W` (
   KEY `col_char_16_key` (`col_char_16_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `W` VALUES (0,'rfhtjqxgsukwlv','they','fhtjqxgsukwlvqez',7,'htjqxgsukw',0,'tjqxgsukwl','2009-08-06 14:26:25','and',NULL,'if',97,'or',NULL,'jqxgsukwlv'),
+INSERT INTO w VALUES (0,'rfhtjqxgsukwlv','they','fhtjqxgsukwlvqez',7,'htjqxgsukw',0,'tjqxgsukwl','2009-08-06 14:26:25','and',NULL,'if',97,'or',NULL,'jqxgsukwlv'),
 (0,'to','ifezhocchh','fezho',3,'me',3,'ezhocchhsq',NULL,'zhocchhsqnixfbl',NULL,'why',18,'hocchh',NULL,'occhhsqnixfbljhfrfhtj'),
 (2,'then','ohodqkxyxk','hodqkxyxkmolcfwk',19,'odqkxy',NULL,'tell','2008-11-04 10:19:35','that\'s',NULL,'like',23,'dqkx',NULL,'some'),
 (2,'look','back','oyekglwzqqkglgti',12,'are',1,'a','2000-03-19 18:51:22','yekglwzqqkglgtib','2009-11-25 16:36:02','ekglwzqqkg',32,'yeah',NULL,'it'),
@@ -1177,7 +1177,7 @@ INSERT INTO `W` VALUES (0,'rfhtjqxgsukwlv','they','fhtjqxgsukwlvqez',7,'htjqxgsu
 (0,'cchhsqnixfbljhfrfhtj','about','chhsqnix',4,'well',NULL,'hhsqnixfbl','2006-05-11 02:10:33','hsqnixfbljhfrfht','2002-04-09 02:26:00','sqnixfbljh',31,'would','2008-07-21 05:30:39','me'),
 (0,'I\'m','didn\'t','qxgsu',8,'is',0,'go','2009-02-15 07:07:40','get',NULL,'xgsukw',17,'gsukwlv',NULL,'to');
 
-CREATE TABLE `X` (
+CREATE TABLE x (
   `col_varchar_256` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_varchar_256_key` varchar(256) COLLATE latin1_bin DEFAULT NULL,
   `col_int_unique` int DEFAULT NULL,
@@ -1207,7 +1207,7 @@ CREATE TABLE `X` (
   KEY `ix2` (`col_varchar_256`,`col_varchar_10_unique`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `X` VALUES ('up','ybqvctokjtidvfak',3,1,'could','think',NULL,'bqvctokjtidvfakc','qvctokjtidvfak',2,'2002-07-15 06:57:12','vctokjtidv','ctokjtidvfakcuir','2003-04-01 09:26:13','been',17),
+INSERT INTO x VALUES ('up','ybqvctokjtidvfak',3,1,'could','think',NULL,'bqvctokjtidvfakc','qvctokjtidvfak',2,'2002-07-15 06:57:12','vctokjtidv','ctokjtidvfakcuir','2003-04-01 09:26:13','been',17),
 ('fpjnohwpiacuyexxwaj','pjnohwpiacuyexxwajoiigpdgjjw',97,2,'say','he\'s','2001-09-20 17:33:41','jnoh','n',2,'2008-06-17 17:52:13','ohw','was',NULL,'hwpiacuyex',23),
 ('he\'s','is',16,0,'gjbftejxbh','yeah',NULL,'yes','up',3,'2004-05-04 05:19:18','jbftej','bftejxbhhoznusuq','2008-01-03 22:56:12','can\'t',7),
 ('fd','dihivchsgfw',52,1,'out','but','2006-04-01 17:05:30','he','ihivchsgfw',0,NULL,'hivchsg','ivc','2000-05-08 07:18:59','vchsgfwivl',3),
@@ -1235,7 +1235,7 @@ INSERT INTO `X` VALUES ('up','ybqvctokjtidvfak',3,1,'could','think',NULL,'bqvcto
 ('ftejxbhhoznusuqcyenreawhb','yes',57,0,'tejxbhhozn','ejxbhhozn',NULL,'me','see',1,'2007-11-01 20:13:42','jxbhhoznus','it',NULL,'ok',8),
 ('chsgfwivl','hsgfwivlyfg',51,0,'had','sgfwivlyfgiue','2006-09-20 10:37:06','gfwivlyfgiuelupgjbftejxbhh','fwiv',2,'2001-11-17 13:46:45','wivlyfgiue','ivlyfgiuelupgjbf',NULL,'if',4);
 
-CREATE TABLE `Y` (
+CREATE TABLE y (
   `col_int_key` int DEFAULT NULL,
   `col_datetime` datetime DEFAULT NULL,
   `col_char_16` char(16) COLLATE latin1_bin DEFAULT NULL,
@@ -1265,7 +1265,7 @@ CREATE TABLE `Y` (
   KEY `col_varchar_10_key` (`col_varchar_10_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `Y` VALUES (2,NULL,'r','mean','one','tv',NULL,NULL,10,'it','there','vzfjeyyvsx',2,'zfjeyyvsxefucefu',56,'fjeyyv'),
+INSERT INTO y VALUES (2,NULL,'r','mean','one','tv',NULL,NULL,10,'it','there','vzfjeyyvsx',2,'zfjeyyvsxefucefu',56,'fjeyyv'),
 (2,'2007-02-22 07:13:22','sanplcdpcztoqnto','anplcdpcztoqntoo','you','nplcdpczto',NULL,NULL,16,'plcdpczt','lcdpcztoq','cdpcztoqnt',0,'dpcztoqntooevmwx',52,'look'),
 (1,'2006-12-08 23:09:03','here','look','would','he','2001-10-19 23:39:08',NULL,21,'the','of','gqyphbhbhz',2,'qyphbhbh',NULL,'was'),
 (2,NULL,'jeyyvsxefucefumu','mean','tell','eyyvsxefuc','2001-08-16 00:48:47',NULL,11,'be','what','is',0,'yyvsxefucefumupy',1,'yvsxefucefumupythocu'),
@@ -1299,7 +1299,7 @@ INSERT INTO `Y` VALUES (2,NULL,'r','mean','one','tv',NULL,NULL,10,'it','there','
 (1,'2006-04-24 17:19:22','didn\'t','qef','how','efyfdkxerr',NULL,NULL,3,'fyfdk','we','yfdkxerr',2,'fd',93,'dkxerrmvayghw'),
 (0,NULL,'is','xsklhospfzlryxrr','sklhospfzlryxrrtvzfjeyyvsxe','klhospfzlr',NULL,'2002-06-06 02:06:00',7,'lhospf','hospfzlryx','from',3,'os',6,'ok');
 
-CREATE TABLE `Z` (
+CREATE TABLE z (
   `col_int_unique` int DEFAULT NULL,
   `col_varchar_10_key` varchar(10) COLLATE latin1_bin DEFAULT NULL,
   `col_int` int DEFAULT NULL,
@@ -1329,7 +1329,7 @@ CREATE TABLE `Z` (
   KEY `col_varchar_256_key` (`col_varchar_256_key`)
 ) ENGINE=ndbcluster;
 
-INSERT INTO `Z` VALUES (23,'about',NULL,19,NULL,'aurwrurjcqcmbfes','urwrurjcqcmb',1,NULL,'rwrurjcqcmbfeska','wrurjcqcmb','say','2008-10-02 05:22:55','one','rurjcqcmbf','see'),
+INSERT INTO z VALUES (23,'about',NULL,19,NULL,'aurwrurjcqcmbfes','urwrurjcqcmb',1,NULL,'rwrurjcqcmbfeska','wrurjcqcmb','say','2008-10-02 05:22:55','one','rurjcqcmbf','see'),
 (12,'she',3,12,'2005-08-09 16:53:39','or','yokptuplfukamiwt',0,'2008-06-04 14:05:54','his','with','one','2008-05-16 16:14:36','okp','my','would'),
 (NULL,'think',NULL,7,'2008-02-06 09:53:37','midxalztdtgbwvcj','could',2,'2005-11-01 12:50:50','idxalztdtgbwvcj','dxalztdtgb','xalztdtgbwvcjraczxgmmi','2004-10-18 12:55:12','alztdtgbwvcjraczxgmmiyokptupl','it','why'),
 (4,'there',3,3,NULL,'ibpkgiyshfsuypvw','bpkgiyshfsuypvwa',1,NULL,'say','good','okay','2005-07-17 13:02:46','p','been','kgiyshfsuypvwazxvmi'),
@@ -1386,7 +1386,7 @@ INSERT INTO `Z` VALUES (23,'about',NULL,19,NULL,'aurwrurjcqcmbfes','urwrurjcqcmb
 (67,'you',2,8,'2002-08-21 18:38:51','would','lztdtgbwvcjraczx',3,'2007-06-28 17:25:57','ztdtgbwvcjraczxg','you','tdtgbwvcjraczx','2003-06-16 05:22:11','here','dtgbwvcjra','who');
 
 
-ANALYZE TABLE A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z;
+ANALYZE TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
 
 ##################################################
 ############### Captured queries #################
@@ -1412,11 +1412,12 @@ ANALYZE TABLE A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z;
 let $query=
 SELECT STRAIGHT_JOIN
   table1.pk, table2.pk, table3.pk
-FROM N AS table1
-  LEFT JOIN W AS table2
-    LEFT JOIN W AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
+FROM n AS table1
+  LEFT JOIN w AS table2
+    LEFT JOIN w AS table3 ON table2.col_varchar_256_unique = table3.col_char_16_unique
   ON table1.col_int = table2.col_int_key AND table3.col_int IS NULL;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1463,16 +1464,17 @@ eval $query;
 let $query=
 SELECT
   table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
-FROM M AS table1
-  JOIN R AS table2
-    LEFT JOIN C AS table3 ON table2.col_int_unique = table3.col_int_unique
-    LEFT JOIN R AS table4 ON table2.pk = table4.col_int_key
-    LEFT JOIN E AS table5 ON table3.col_int_unique = table5.col_int_unique
+FROM m AS table1
+  JOIN r AS table2
+    LEFT JOIN c AS table3 ON table2.col_int_unique = table3.col_int_unique
+    LEFT JOIN r AS table4 ON table2.pk = table4.col_int_key
+    LEFT JOIN e AS table5 ON table3.col_int_unique = table5.col_int_unique
   ON table1.col_int_key = table2.pk
-  LEFT JOIN S AS table6 ON table1.col_int = table6.col_int
+  LEFT JOIN s AS table6 ON table1.col_int = table6.col_int
                        AND table5.col_int_unique = table6.col_int_unique
 where table2.pk between 2 and 3;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1485,17 +1487,18 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table3.pk, table4.pk
-FROM E AS table1
-  JOIN W AS table3
-    JOIN W AS table4 ON table3.col_int = table4.col_int
+FROM e AS table1
+  JOIN w AS table3
+    JOIN w AS table4 ON table3.col_int = table4.col_int
                     AND table3.col_int_key = table4.col_int_key
   ON table1.col_int_unique = table3.col_int_key
 WHERE table4.col_int IN (
   SELECT table2s.col_int AS field3
-  FROM O AS table1s
-    LEFT JOIN X AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
+  FROM o AS table1s
+    LEFT JOIN x AS table2s ON table1s.col_varchar_256_key = table2s.col_varchar_256_unique
 ) and table1.pk between 3 and 3;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1510,17 +1513,18 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM F AS table1
-  LEFT JOIN Y AS table2 ON table1.col_int NOT IN (1, 9)
+FROM f AS table1
+  LEFT JOIN y AS table2 ON table1.col_int NOT IN (1, 9)
   WHERE EXISTS (
     SELECT table2s.pk, table1s.pk, table3s.pk
-    FROM R AS table1s
-      JOIN C AS table2s ON table1s.col_int = table2s.col_int_key
-      JOIN G AS table3s ON table2s.col_int = table3s.col_int AND #   <<- unpushed
+    FROM r AS table1s
+      JOIN c AS table2s ON table1s.col_int = table2s.col_int_key
+      JOIN g AS table3s ON table2s.col_int = table3s.col_int AND #   <<- unpushed
                            table1s.col_int_unique = table3s.col_int_unique
   )
   and table1.pk < 3;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1536,12 +1540,12 @@ eval $query;
 let $query=
 SELECT
   table3.pk, table2.pk, table1.pk, table4.pk, table5.pk
-FROM U AS table1
-  JOIN Q AS table2
-    JOIN H AS table3 ON table2.col_int = table3.col_int
+FROM u AS table1
+  JOIN q AS table2
+    JOIN h AS table3 ON table2.col_int = table3.col_int
   ON table1.col_int_key = table2.col_int_key
-  LEFT JOIN N AS table4
-    LEFT JOIN Q AS table5 ON table4.col_int = table5.col_int
+  LEFT JOIN n AS table4
+    LEFT JOIN q AS table5 ON table4.col_int = table5.col_int
   ON table2.col_int = table4.col_int AND
      table1.col_int_key = table4.col_int_key AND
      table2.col_int_unique = table4.col_int_unique
@@ -1549,6 +1553,7 @@ FROM U AS table1
 where table3.pk between 0 and 1
   and table2.pk between 4 and 5;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1557,16 +1562,17 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM X AS table1
-  JOIN Y AS table2 ON table1.col_int = table2.col_int 
+FROM x AS table1
+  JOIN y AS table2 ON table1.col_int = table2.col_int
                   AND table1.col_int_unique = table2.col_int_unique
 WHERE table1.pk IN (
   SELECT
     table1s.pk AS field3
-  FROM D AS table1s
-    JOIN M AS table2s ON table1s.pk = table2s.col_int_key
+  FROM d AS table1s
+    JOIN m AS table2s ON table1s.pk = table2s.col_int_key
 );
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1575,13 +1581,14 @@ eval $query;
 let $query=
 SELECT straight_join
   table1.pk, table3.pk, table2.pk, table4.pk
-FROM T AS table1
-  LEFT JOIN (Q AS table3
-    INNER JOIN M AS table2 ON table2.col_int = table3.col_int_key)
-    LEFT JOIN R AS table4 ON table2.col_int_key = table4.col_int
+FROM t AS table1
+  LEFT JOIN (q AS table3
+    INNER JOIN m AS table2 ON table2.col_int = table3.col_int_key)
+    LEFT JOIN r AS table4 ON table2.col_int_key = table4.col_int
   ON table1.col_int_unique = table3.col_int_key
 where table1.pk between 14 and 14;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1590,11 +1597,12 @@ eval $query;
 let $query=
 SELECT STRAIGHT_JOIN
   table1.pk, table2.pk, table3.pk
-FROM R AS table1
-  LEFT JOIN Z AS table2
-    LEFT JOIN F AS table3 ON table2.col_int_key = table3.col_int_unique
+FROM r AS table1
+  LEFT JOIN z AS table2
+    LEFT JOIN f AS table3 ON table2.col_int_key = table3.col_int_unique
   ON table1.col_int_unique = table3.col_int_unique;
   
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1603,11 +1611,12 @@ eval $query;
 let $query=
 SELECT
 table2.pk AS field1, table2.col_int_unique AS field2
-FROM V AS table1
-  LEFT JOIN G AS table2
-    LEFT JOIN U AS table3 ON table2.col_int_unique = table3.col_int_key
+FROM v AS table1
+  LEFT JOIN g AS table2
+    LEFT JOIN u AS table3 ON table2.col_int_unique = table3.col_int_key
   ON table1.col_int_key = table2.col_int_unique;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1616,14 +1625,15 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk, table4.pk, table3.pk
-FROM T AS table1
-  LEFT JOIN F AS table2
+FROM t AS table1
+  LEFT JOIN f AS table2
     INNER JOIN
-      (R AS table3 inner JOIN I AS table4 ON table3.col_int_key = table4.col_int_key)
+      (r AS table3 inner JOIN i AS table4 ON table3.col_int_key = table4.col_int_key)
     ON table2.col_int_unique = table4.col_int
   ON table1.col_int = table2.col_int_unique
 where table1.pk > 8 and table1.pk < 11;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1632,14 +1642,15 @@ eval $query;
 let $query=
 SELECT
  table1.pk, table2.pk, table4.pk, table3.pk
-FROM I AS table1
-  LEFT JOIN J AS table2
-    LEFT JOIN D AS table3
-      JOIN E AS table4 ON table3.col_int_key = table4.col_int_unique
+FROM i AS table1
+  LEFT JOIN j AS table2
+    LEFT JOIN d AS table3
+      JOIN e AS table4 ON table3.col_int_key = table4.col_int_unique
     ON table2.col_int_key = table4.col_int_unique
   ON table1.col_int_key = table2.col_int_key
 where table1.pk > 2 and table1.pk < 5;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1648,12 +1659,13 @@ eval $query;
 let $query=
 SELECT straight_join
   table1.pk, table2.pk, table3.pk, table4.pk
-FROM S AS table1
-  LEFT JOIN T AS table2
-    LEFT JOIN Q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
-    LEFT JOIN O AS table4 ON table2.pk = table4.col_int
+FROM s AS table1
+  LEFT JOIN t AS table2
+    LEFT JOIN q AS table3 ON table2.col_int_key = table3.col_int_unique AND table2.col_int_unique = table3.col_int_unique
+    LEFT JOIN o AS table4 ON table2.pk = table4.col_int
   ON table4.col_int IS NULL AND table1.col_int_unique = table2.col_int_key;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1662,10 +1674,11 @@ eval $query;
 let $query=
 SELECT straight_join
   table1.pk, table2.pk, table3.pk
-FROM C AS table1
-  INNER JOIN X AS table2 ON table1.col_int_unique = table2.col_int_unique
-  LEFT  JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key;
+FROM c AS table1
+  INNER JOIN x AS table2 ON table1.col_int_unique = table2.col_int_unique
+  LEFT  JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1674,10 +1687,11 @@ eval $query;
 let $query=
 SELECT straight_join
  table1.pk, table2.pk, table3.pk
-FROM S AS table1
-  LEFT OUTER JOIN C AS table2 ON table1.col_int = table2.pk
-  LEFT OUTER JOIN W AS table3 ON table2.col_int = table3.col_int_key;
+FROM s AS table1
+  LEFT OUTER JOIN c AS table2 ON table1.col_int = table2.pk
+  LEFT OUTER JOIN w AS table3 ON table2.col_int = table3.col_int_key;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1686,12 +1700,13 @@ eval $query;
 let $query=
 SELECT straight_join
  table1.pk, table2.pk, table3.pk
-FROM R AS table1
-  LEFT JOIN G AS table2
-    LEFT JOIN J AS table3 ON table2.col_int_unique = table3.col_int_key
+FROM r AS table1
+  LEFT JOIN g AS table2
+    LEFT JOIN j AS table3 ON table2.col_int_unique = table3.col_int_key
   ON table1.pk = table2.col_int_unique
 WHERE table1.pk < 3;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1700,10 +1715,11 @@ eval $query;
 let $query=
 SELECT straight_join
   table1.pk, table2.pk, table3.pk
-FROM C AS table1
-  INNER JOIN P AS table2 ON table1.pk = table2.pk
-  LEFT OUTER JOIN I AS table3 ON table2.col_int_unique = table3.col_int;
+FROM c AS table1
+  INNER JOIN p AS table2 ON table1.pk = table2.pk
+  LEFT OUTER JOIN i AS table3 ON table2.col_int_unique = table3.col_int;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1712,14 +1728,15 @@ eval $query;
 let $query=
 SELECT
   table2.col_int_key AS field2
-FROM Z AS table2
+FROM z AS table2
 WHERE NOT table2.col_int_unique IN (
   SELECT table1s.col_int_key AS field3
-  FROM F AS table1s
-    left JOIN U AS table2s ON table2s.col_int IN (6, 6, 7)
+  FROM f AS table1s
+    left JOIN u AS table2s ON table2s.col_int IN (6, 6, 7)
   WHERE table2.pk = 9 OR table2s.col_int = 1
 ) IS TRUE ;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1732,14 +1749,15 @@ eval $query;
 let $query=
 SELECT
   table1.col_int_key AS field1
-FROM T AS table1
+FROM t AS table1
 WHERE table1.col_int NOT IN (
   SELECT table1s.pk AS field2
-  FROM Z AS table1s
-    JOIN V AS table2s ON table1s.col_int = table2s.col_int AND
+  FROM z AS table1s
+    JOIN v AS table2s ON table1s.col_int = table2s.col_int AND
                          table1s.col_int_unique = table2s.col_int_unique
 );
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1748,15 +1766,16 @@ eval $query;
 let $query=
 SELECT STRAIGHT_JOIN
   table1.pk, table2.pk, table3.pk
-FROM  B AS table1
-  LEFT JOIN Z AS table2
-    JOIN Z AS table3 ON table2.pk = table3.col_int_key
-    LEFT JOIN Q AS table4
-      LEFT JOIN B AS table5 ON table4.col_int = table5.col_int_key
+FROM b AS table1
+  LEFT JOIN z AS table2
+    JOIN z AS table3 ON table2.pk = table3.col_int_key
+    LEFT JOIN q AS table4
+      LEFT JOIN b AS table5 ON table4.col_int = table5.col_int_key
     ON table2.col_int_key = table5.col_int_unique AND
        table2.col_int_unique = table4.col_int
   ON table1.col_int_key = table2.col_int_key;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1764,13 +1783,15 @@ eval $query;
 
 SELECT
   table2.pk, table1.pk
-FROM P AS table2
-  JOIN O AS table1 ON table1.col_int = table2.col_int
+FROM p AS table2
+  JOIN o AS table1 ON table1.col_int = table2.col_int
 WHERE table1.col_int_key IN (
   SELECT table2s.col_int_unique AS field3
-  FROM L AS table1s
-    JOIN H AS table2s ON table1s.col_int = table2s.col_int
+  FROM l AS table1s
+    JOIN h AS table2s ON table1s.col_int = table2s.col_int
 );
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1779,13 +1800,14 @@ eval $query;
 let $query=
 SELECT
   table1.pk
-FROM I AS table1
+FROM i AS table1
 WHERE table1.col_int IN (
   SELECT table1s.col_int
-  FROM Y AS table1s
-    JOIN Y AS table2s ON table1s.col_int_key = table2s.col_int_key
+  FROM y AS table1s
+    JOIN y AS table2s ON table1s.col_int_key = table2s.col_int_key
 );
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1794,13 +1816,14 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM J AS table1
-  JOIN Z AS table2 ON table1.col_int_key = table2.col_int_key
+FROM j AS table1
+  JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
 WHERE table1.col_int IN (
-  SELECT table1s.col_int_key AS field3 FROM U AS table1s
+  SELECT table1s.col_int_key AS field3 FROM u AS table1s
 )
   and table1.pk in (1,2);
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1809,13 +1832,14 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM J AS table1
-  JOIN Z AS table2 ON table1.col_int_key = table2.col_int_key
+FROM j AS table1
+  JOIN z AS table2 ON table1.col_int_key = table2.col_int_key
 WHERE table1.col_int IN (
-  SELECT table1s.col_int_key AS field3 FROM U AS table1s
+  SELECT table1s.col_int_key AS field3 FROM u AS table1s
 )
   and table1.pk in (4,5);
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1824,10 +1848,11 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM F AS table1
-  JOIN R AS table2 ON table1.col_int_unique = table2.col_int_key
-WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM W AS table1s);
+FROM f AS table1
+  JOIN r AS table2 ON table1.col_int_unique = table2.col_int_key
+WHERE table1.col_int IN (SELECT table1s.col_int_key AS field3 FROM w AS table1s);
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1836,14 +1861,15 @@ eval $query;
 let $query=
 SELECT straight_join
   table1.pk, table2.pk, table3.pk, table4.pk
-FROM J AS table1
-  LEFT JOIN A AS table2 ON table1.col_int_unique = table2.pk
-  LEFT JOIN M AS table3
-    LEFT JOIN O AS table4 ON table3.col_int_key = table4.col_int_key
+FROM j AS table1
+  LEFT JOIN a AS table2 ON table1.col_int_unique = table2.pk
+  LEFT JOIN m AS table3
+    LEFT JOIN o AS table4 ON table3.col_int_key = table4.col_int_key
   ON table1.col_int = table3.col_int AND
      table1.col_int_key = table3.col_int_key AND
      table2.col_int_unique = table3.col_int_unique;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1852,15 +1878,16 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM V AS table1
-   LEFT JOIN O table2 ON table1.pk = table2.pk
+FROM v AS table1
+   LEFT JOIN o table2 ON table1.pk = table2.pk
 WHERE NOT EXISTS (
   SELECT *
-  FROM  M AS table2s
+  FROM m AS table2s
   WHERE table2s.pk = table2.pk
 )
   and table1.pk = 11;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
@@ -1869,20 +1896,21 @@ eval $query;
 let $query=
 SELECT
   table1.pk, table2.pk
-FROM V AS table1
-   left JOIN O AS table2 ON table1.pk = table2.pk
+FROM v AS table1
+   left JOIN o AS table2 ON table1.pk = table2.pk
 WHERE NOT EXISTS (
   SELECT table1.col_int AS field4, table1s.col_char_16_key AS field5
-  FROM D AS table1s
-    JOIN M AS table2s ON table1s.col_char_16_key = table2s.col_char_16_key
+  FROM d AS table1s
+    JOIN m AS table2s ON table1s.col_char_16_key = table2s.col_char_16_key
   WHERE table2s.pk = table2.pk
 )
   and table1.pk = 11;
 
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
 eval explain format=tree $query;
 --sorted_result
 eval $query;
 
 
 ######################################################
-DROP TABLE A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z;
+DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
