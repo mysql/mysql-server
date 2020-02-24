@@ -9,6 +9,7 @@
 #	- Other aux tables created for FTS index
 #  to see if they are encrypted.
 ################################################################################
+--source include/have_debug.inc
 # Disable in valgrind because of timeout, cf. Bug#22760145
 --source include/not_valgrind.inc
 # Waiting time when (re)starting the server
