@@ -777,16 +777,15 @@ for each api function.
 static ib_cb_t innodb_api_cb[] = {
     FOR_EACH_API_METHOD_NAME_STEM(INNODB_API_CB_ARRAY_ELEMENT_TRANSFORM)};
 
-/** Check whether valid argument given to innodb_ft_*_stopword_table.
- This function is registered as a callback with MySQL.
- @return 0 for valid stopword table */
-static int innodb_stopword_table_validate(
-    THD *thd,                      /*!< in: thread handle */
-    SYS_VAR *var,                  /*!< in: pointer to system
-                                                   variable */
-    void *save,                    /*!< out: immediate result
-                                   for update function */
-    struct st_mysql_value *value); /*!< in: incoming string */
+/**Check whether valid argument given to innobase_*_stopword_table.
+This function is registered as a callback with MySQL.
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	save		immediate result for update function
+@param[in]	value		incoming string
+@return 0 for valid stopword table */
+static int innodb_stopword_table_validate(THD *thd, SYS_VAR *var, void *save,
+                                          struct st_mysql_value *value);
 
 /** Validate passed-in "value" is a valid directory name.
 This function is registered as a callback with MySQL.
@@ -19918,7 +19917,6 @@ exit:
   return;
 }
 
-#ifdef _WIN32
 /** Validate if passed-in "value" is a valid value for
 innodb_buffer_pool_filename. On Windows, file names with colon (:)
 are not allowed.
@@ -19938,27 +19936,30 @@ static int innodb_srv_buf_dump_filename_validate(THD *thd, SYS_VAR *var,
 
   const char *buf_name = value->val_str(value, buff, &len);
 
-  if (buf_name != NULL) {
-    if (buf_name == buff) {
-      /* Allocate from thd's memroot */
-      buf_name = thd_strmake(thd, buf_name, len);
-    }
-
-    if (is_filename_allowed(buf_name, len, FALSE)) {
-      *static_cast<const char **>(save) = buf_name;
-      return (0);
-    } else {
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          "InnoDB: innodb_buffer_pool_filename"
-                          " cannot have colon (:) in the file name.");
-    }
+  if (buf_name == NULL) {
+    return (1);
   }
 
-  return (1);
-}
+  if (buf_name == buff) {
+    /* Allocate from thd's memroot */
+    buf_name = thd_strmake(thd, buf_name, len);
+  }
+
+#ifdef _WIN32
+  if (is_filename_allowed(buf_name, len, FALSE)) {
+    *static_cast<const char **>(save) = buf_name;
+    return (0);
+  } else {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "InnoDB: innodb_buffer_pool_filename"
+                        " cannot have colon (:) in the file name.");
+    return (1);
+  }
 #else /* _WIN32 */
-#define innodb_srv_buf_dump_filename_validate NULL
-#endif /* _WIN32 */
+  *static_cast<const char **>(save) = buf_name;
+  return (0);
+#endif
+}
 
 #ifdef UNIV_DEBUG
 static char *srv_buffer_pool_evict;

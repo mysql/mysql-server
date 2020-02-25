@@ -26,13 +26,12 @@ drop table user_stopword_1, user_stopword_2;
 #Test innodb_buffer_pool_filename (global variable)
 
 select @@innodb_buffer_pool_filename;
-set global innodb_buffer_pool_filename="hello";
+
+set @blah='hello';
+set global innodb_buffer_pool_filename = @blah;
 select @@innodb_buffer_pool_filename;
 
 set global innodb_buffer_pool_filename="bye";
-select @@innodb_buffer_pool_filename;
-
-set global innodb_buffer_pool_filename=NULL;
 select @@innodb_buffer_pool_filename;
 
 set global innodb_buffer_pool_filename=default;

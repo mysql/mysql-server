@@ -28,7 +28,8 @@ drop table user_stopword_1, user_stopword_2;
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
 ib_buffer_pool
-set global innodb_buffer_pool_filename="hello";
+set @blah='hello';
+set global innodb_buffer_pool_filename = @blah;
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
 hello
@@ -36,10 +37,6 @@ set global innodb_buffer_pool_filename="bye";
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
 bye
-set global innodb_buffer_pool_filename=NULL;
-select @@innodb_buffer_pool_filename;
-@@innodb_buffer_pool_filename
-NULL
 set global innodb_buffer_pool_filename=default;
 select @@innodb_buffer_pool_filename;
 @@innodb_buffer_pool_filename
