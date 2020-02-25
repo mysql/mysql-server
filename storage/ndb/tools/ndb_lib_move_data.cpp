@@ -353,15 +353,6 @@ Ndb_move_data::check_tables()
         {
           continue;
         }
-
-        /* OK if columns just differ by being part of the PK */
-        a1ColCopy.setPrimaryKey(false);
-        a2ColCopy.setPrimaryKey(false);
-
-        if ((attr1.equal = attr2.equal = a1ColCopy.equal(a2ColCopy)))
-        {
-          continue;
-        }
       }
 
       if (attr1.type == Attr::TypeArray &&

@@ -641,12 +641,9 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   SubscriptionRecord* subRec;
   SectionHandle handle(this, signal);
 
-  if (ERROR_INSERTED(18000) ||
-      ERROR_INSERTED(18003))
+  if (ERROR_INSERTED_CLEAR(18000))
   {
-    const Uint32 delay = (ERROR_INSERTED(18003)? 20000 : 1000);
-    CLEAR_ERROR_INSERT_VALUE;
-    sendSignalWithDelay(reference(), GSN_BUILD_INDX_IMPL_REQ, signal, delay,
+    sendSignalWithDelay(reference(), GSN_BUILD_INDX_IMPL_REQ, signal, 1000,
                         signal->getLength(), &handle);
     DBUG_VOID_RETURN;
   }
