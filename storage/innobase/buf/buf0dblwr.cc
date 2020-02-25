@@ -1420,7 +1420,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
 #endif /* UNIV_DEBUG */
   }
 
-  srv_stats.dblwr_writes.add(m_buf_pages.size());
+  srv_stats.dblwr_writes.inc();
 
   m_buf_pages.clear();
 
