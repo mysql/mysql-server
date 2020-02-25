@@ -1208,6 +1208,26 @@
 }
 
 {
+   OpenSSL leak 1 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:CRYPTO_malloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
+   OpenSSL leak 2 static SSL pthread_once_slow
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:CRYPTO_realloc
+   ...
+   fun:__pthread_once_slow
+}
+
+{
    OpenSSL leak 3 static SSL
    Memcheck:Leak
    match-leak-kinds: reachable
