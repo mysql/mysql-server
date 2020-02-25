@@ -38,6 +38,7 @@
 #include <cassert>
 #include <fstream>
 #include <ios>
+#include <iterator>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -366,39 +367,54 @@ void Config::do_read_stream(std::istream &input) {
         throw syntax_error(message);
       }
 
-      // Remove leading and trailing brackets
-      line.erase(0, 1);
-      line.erase(line.size() - 1);
-
       // Extract the key, if configured to allow keys. Otherwise, the
       // key will be the empty string and the section name is all
       // within the brackets.
-      std::string section_name(line);
+      std::string section_name(std::next(line.begin()), std::prev(line.end()));
       std::string section_key;
       if (flags_ & allow_keys) {
         // Split line at first colon
-        auto pos = line.find_last_of(':');
-        if (pos != std::string::npos) {
-          section_key = std::string(line, pos + 1);
+        const auto colon_pos = section_name.find_first_of(':');
 
-          // Check that the section key is correct
-          if (section_key.size() == 0 ||
-              !std::all_of(section_key.begin(), section_key.end(), isident)) {
-            std::string message("Invalid section key '" + section_key + "'");
+        // found a colon
+        if (colon_pos != std::string::npos) {
+          section_key = std::string(section_name, colon_pos + 1);
+
+          if (section_key.empty()) {
+            const std::string message("section key in config-section '" + line +
+                                      "' may not be empty.");
             throw syntax_error(message);
           }
 
-          section_name.erase(pos);
+          // Check that the section key is correct
+          const auto invalid_char_pos =
+              std::find_if_not(section_key.begin(), section_key.end(), isident);
+          if (section_key.end() != invalid_char_pos) {
+            const std::string message(
+                "config-section '" + line + "' contains invalid character '" +
+                *invalid_char_pos + "' in section key '" + section_key +
+                "'. Only alpha-numeric characters and _ are valid.");
+            throw syntax_error(message);
+          }
+
+          section_name.erase(colon_pos);
         }
       }
 
+      if (section_name.empty()) {
+        const std::string message("section name in config-section '" + line +
+                                  "' may not be empty.");
+        throw syntax_error(message);
+      }
+
       // Check that the section name consists of allowable characters only
-      if (!std::all_of(section_name.begin(), section_name.end(), isident)) {
-        std::string message("Invalid section name '" + section_name + "'");
-        if (!(flags_ & allow_keys) &&
-            line.find_last_of(':') != std::string::npos) {
-          message += " (keys not configured)";
-        }
+      const auto invalid_char_pos =
+          std::find_if_not(section_name.begin(), section_name.end(), isident);
+      if (section_name.end() != invalid_char_pos) {
+        std::string message(
+            "config-section '" + line + "' contains invalid character '" +
+            *invalid_char_pos + "' in section name '" + section_name +
+            "'. Only alpha-numeric characters and _ are valid.");
         throw syntax_error(message);
       }
 
