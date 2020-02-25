@@ -1855,7 +1855,7 @@ sub command_line_setup {
   if (!$opt_tmpdir) {
     $opt_tmpdir = "$opt_vardir/tmp" unless $opt_tmpdir;
 
-    my $res = check_socket_path_length("$opt_tmpdir/mysql_testsocket.sock",
+    my $res = check_socket_path_length("$opt_tmpdir/mysqld.NN.sock",
                                        $opt_parallel);
 
     if ($res) {
@@ -3117,7 +3117,7 @@ sub setup_vardir() {
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX. Don't allow that
   # to happen.
-  my $res = check_socket_path_length("$opt_tmpdir/mysql_testsocket.sock",
+  my $res = check_socket_path_length("$opt_tmpdir/mysqld.NN.sock",
                                      $opt_parallel);
   if ($res) {
     mtr_error("Socket path '$opt_tmpdir' too long, it would be ",

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -169,7 +169,7 @@ sub fix_socket {
 
   # Make sure the socket path does not become longer then the path
   # which mtr uses to test if a new tmpdir should be created.
-  if (length($socket) > length("$dir/mysql_testsocket.sock")) {
+  if (length($socket) > length("$dir/mysql*.NN.sock")) {
     # Too long socket path, generate shorter based on port
     my $port = $group->value('port');
     my $group_prefix = substr($group_name, 0, index($group_name, '.'));
