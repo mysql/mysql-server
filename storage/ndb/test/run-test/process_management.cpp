@@ -27,12 +27,14 @@
 
 bool ProcessManagement::startAllProcesses() {
   if (clusterProcessesStatus == ProcessesStatus::RUNNING) {
+    g_logger.debug("All processes already RUNNING. No action required");
     return true;
   }
 
   if (clusterProcessesStatus == ProcessesStatus::ERROR) {
+    g_logger.debug("Processes in ERROR status. Stopping all processes first");
     if (!stopAllProcesses()) {
-      g_logger.warning("Failure to stop processes while in error state");
+      g_logger.warning("Failure to stop processes while in ERROR status");
       return false;
     }
   }
@@ -42,37 +44,53 @@ bool ProcessManagement::startAllProcesses() {
     g_logger.warning("Failed to setup hosts filesystem");
     return false;
   }
+
   if (!startClusters()) {
+    clusterProcessesStatus = ProcessesStatus::ERROR;
+    g_logger.warning("Unable to start all processes: ERROR status");
+    g_logger.debug("Trying to stop all processes to recover from failure");
+
     if (!stopAllProcesses()) {
-      g_logger.warning("Failure to stop processes");
+      g_logger.warning("Failed to stop all processes during recovery");
     }
     return false;
   }
+
   clusterProcessesStatus = ProcessesStatus::RUNNING;
+  g_logger.debug("All processes RUNNING");
   return true;
 }
 
 bool ProcessManagement::stopAllProcesses() {
   if (clusterProcessesStatus == ProcessesStatus::STOPPED) {
+    g_logger.debug("All processes already STOPPED. No action required");
     return true;
   }
 
   if (!shutdownProcesses(atrt_process::AP_ALL)) {
     clusterProcessesStatus = ProcessesStatus::ERROR;
+    g_logger.debug("Unable to stop all processes: ERROR status");
     return false;
   }
 
   clusterProcessesStatus = ProcessesStatus::STOPPED;
+  g_logger.debug("All processes STOPPED");
   return true;
 }
 
 bool ProcessManagement::startClientProcesses() {
-  return startProcesses(ProcessManagement::P_CLIENTS);
+  if (!startProcesses(ProcessManagement::P_CLIENTS)) {
+    clusterProcessesStatus = ProcessesStatus::ERROR;
+    g_logger.debug("Unable to start client processes: ERROR status");
+    return false;
+  }
+  return true;
 }
 
 bool ProcessManagement::stopClientProcesses() {
   if (!shutdownProcesses(P_CLIENTS)) {
     clusterProcessesStatus = ProcessesStatus::ERROR;
+    g_logger.debug("Unable to stop client processes: ERROR status");
     return false;
   }
   return true;

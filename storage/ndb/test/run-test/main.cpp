@@ -48,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 7
+#define ATRT_VERSION_NUMBER 8
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -120,6 +120,10 @@ TestResult run_test_case(ProcessManagement& processManagement,
                          const atrt_testcase& testcase,
                          bool is_last_testcase,
                          bool next_testcase_forces_restart);
+int test_case_init(ProcessManagement &, const atrt_testcase &);
+int test_case_execution_loop(ProcessManagement &, const time_t, const time_t);
+void test_case_results(TestResult *, const atrt_testcase &);
+
 bool do_command(ProcessManagement& processManagement,
                 atrt_config& config);
 bool setup_test_case(ProcessManagement& processManagement,
@@ -783,98 +787,133 @@ TestResult run_test_case(ProcessManagement &processManagement,
                     testcase.m_max_retries);
     }
 
-    if (!processManagement.startAllProcesses()) {
-        g_logger.critical("Cluster could not be started");
-        test_result.result = ERR_CRITICAL;
-        continue;
+    test_result.result = test_case_init(processManagement, testcase);
+
+    if (test_result.result == ERR_OK) {
+      const time_t start = time(0);
+      test_result.result = test_case_execution_loop(processManagement, start,
+                                                    testcase.m_max_time);
+      test_result.elapsed = time(0) - start;
     }
 
-    g_logger.info("All servers are running and ready");
+    if (!processManagement.stopClientProcesses()) {
+      g_logger.critical("Failed to stop client processes");
+      test_result.result = ERR_CRITICAL;
+    }
 
-    {
-      // Assign processes to programs
-      if (!setup_test_case(processManagement, g_config, testcase)) {
-        g_logger.critical("Failed to setup test case");
+    test_case_results(&test_result, testcase);
+
+    bool configuration_reset = reset_config(processManagement, g_config);
+    bool restart_on_error = test_result.result != ERR_TEST_SKIPPED &&
+                      test_result.result != ERR_OK &&
+                      testcase.m_behaviour_on_failure == FailureMode::Restart;
+    bool stop_cluster = is_last_testcase ||
+                        next_testcase_forces_restart ||
+                        configuration_reset ||
+                        restart_on_error;
+    if (stop_cluster) {
+      g_logger.debug("Stopping all cluster processes on condition(s):");
+      if (is_last_testcase) g_logger.debug("- Last test case");
+      if (next_testcase_forces_restart)
+        g_logger.debug("- Next test case forces restart");
+      if (configuration_reset) g_logger.debug("- Configuration forces reset");
+      if (restart_on_error) g_logger.debug("- Restart on test error");
+
+      if (!processManagement.stopAllProcesses()) {
+        g_logger.critical("Failed to stop all processes");
         test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      if (!processManagement.startClientProcesses()) {
-        g_logger.critical("Failed to start client processes");
-        test_result.result = ERR_CRITICAL;
-        continue;
-      }
-
-      const time_t start = time(0);
-      time_t now = start;
-      do {
-        test_result.result = processManagement.updateProcessesStatus();
-        if (test_result.result) {
-          g_logger.critical("Failed to get updated status for all processes");
-          break;
-        }
-
-        if (!is_client_running(g_config)) {
-          break;
-        }
-
-        if (!do_command(processManagement, g_config)) {
-          test_result.result = ERR_COMMAND_FAILED;
-          g_logger.critical("Failure on client command execution");
-          break;
-        }
-
-        now = time(0);
-        if (now > (start + testcase.m_max_time)) {
-          g_logger.info("Timeout '%s' after %ld seconds",
-                        testcase.m_name.c_str(), testcase.m_max_time);
-          test_result.result = ERR_MAX_TIME_ELAPSED;
-          break;
-        }
-        NdbSleep_SecSleep(1);
-      } while (true);
-
-      test_result.elapsed = time(0) - start;
-
-      if (!processManagement.stopClientProcesses()) {
-        g_logger.critical("Failed to stop client processes");
-        test_result.result = ERR_CRITICAL;
-      }
-
-      bool stop_cluster = is_last_testcase ||
-                          next_testcase_forces_restart ||
-                          reset_config(processManagement, g_config) ||
-                          (test_result.result != ERR_OK &&
-                          testcase.m_behaviour_on_failure == FailureMode::Restart);
-      if (stop_cluster) {
-        if (!processManagement.stopAllProcesses()) {
-          g_logger.critical("Failed to stop all processes");
-          test_result.result = ERR_CRITICAL;
-        }
       }
     }
   }
 
-  int tmp, *rp = test_result.result ? &tmp : &test_result.result;
+  return test_result;
+}
+
+int test_case_init(ProcessManagement &processManagement,
+                         const atrt_testcase &testcase) {
+  g_logger.debug("Starting test case initialization");
+
+  if (!processManagement.startAllProcesses()) {
+      g_logger.critical("Cluster could not be started");
+      return ERR_CRITICAL;
+  }
+
+  g_logger.info("All servers are running and ready");
+
+  // Assign processes to programs
+  if (!setup_test_case(processManagement, g_config, testcase)) {
+    g_logger.critical("Failed to setup test case");
+    return ERR_CRITICAL;
+  }
+
+  if (!processManagement.startClientProcesses()) {
+    g_logger.critical("Failed to start client processes");
+    return ERR_CRITICAL;
+  }
+
+  g_logger.debug("Successful test case initialization");
+
+  return ERR_OK;
+}
+
+int test_case_execution_loop(ProcessManagement &processManagement,
+                             const time_t start_time,
+                             const time_t max_execution_time) {
+  g_logger.debug("Starting test case execution loop");
+
+  const time_t stop_time = start_time + max_execution_time;
+  int result = ERR_OK;
+
+  do {
+    result = processManagement.updateProcessesStatus();
+    if (result != ERR_OK) {
+      g_logger.critical("Failed to get updated status for all processes");
+      return result;
+    }
+
+    if (!is_client_running(g_config)) {
+      g_logger.debug("Finished test case execution loop");
+      return result;
+    }
+
+    if (!do_command(processManagement, g_config)) {
+      g_logger.critical("Failure on client command execution");
+      return ERR_COMMAND_FAILED;
+    }
+
+    time_t now = time(0);
+    if (now > stop_time) {
+      g_logger.info("Timeout after %ld seconds", max_execution_time);
+      return ERR_MAX_TIME_ELAPSED;
+    }
+    NdbSleep_SecSleep(1);
+  } while (true);
+}
+
+void test_case_results(TestResult *test_result, const atrt_testcase &testcase) {
+  int tmp, *rp = test_result->result != ERR_OK ? &tmp : &(test_result->result);
+  g_logger.debug("Starting result gathering");
+
   if (!gather_result(g_config, rp)) {
     g_logger.critical("Failed to gather result after test run");
-    test_result.result = ERR_CRITICAL;
+    test_result->result = ERR_CRITICAL;
   }
 
   BaseString res_dir;
   res_dir.assfmt("result.%d", testcase.test_no);
   remove_dir(res_dir.c_str(), true);
 
-  if (testcase.m_report || test_result.result != ERR_OK) {
+  if (testcase.m_report || test_result->result != ERR_OK) {
     if (rename("result", res_dir.c_str()) != 0) {
       g_logger.critical("Failed to rename %s as %s", "result", res_dir.c_str());
-      test_result.result = ERR_CRITICAL;
+      remove_dir("result", true);
+      test_result->result = ERR_CRITICAL;
     }
   } else {
     remove_dir("result", true);
   }
 
-  return test_result;
+  g_logger.debug("Finished result gathering");
 }
 
 void update_atrt_result_code(const TestResult &test_result,
