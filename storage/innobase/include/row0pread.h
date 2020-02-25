@@ -158,7 +158,8 @@ class Parallel_reader {
     belongs to a partitioned table.
     @param[in] read_ahead       If true then start read ahead threads. */
     Config(const Scan_range &scan_range, dict_index_t *index,
-           size_t read_level = 0, size_t partition_id = 0,
+           size_t read_level = 0,
+           size_t partition_id = std::numeric_limits<size_t>::max(),
            bool read_ahead = false)
         : m_scan_range(scan_range),
           m_index(index),
