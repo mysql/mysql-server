@@ -1990,8 +1990,12 @@ static void buf_flush_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  if (!srv_read_only_mode && dblwr::enabled) {
-    dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
+  if (!srv_read_only_mode) {
+    if (dblwr::enabled) {
+      dblwr::force_flush(flush_type, buf_pool_index(buf_pool));
+    } else {
+      buf_flush_sync_datafiles();
+    }
   } else {
     os_aio_simulated_wake_handler_threads();
   }
