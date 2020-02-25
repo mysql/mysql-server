@@ -37,7 +37,7 @@ Next SUMA 13054
 Next LGMAN 15002
 Next TSMAN 16002
 Next DBSPJ 17000
-Next TRIX 18004
+Next TRIX 18000
 Next DBUTIL 19001
 
 TESTING NODE FAILURE, ARBITRATION
@@ -846,10 +846,8 @@ ACC bug#34348
 TRIX
 ----
 Index stats:
-18000: delay BUILD_INDX_IMPL_REQ for 1s : Test behaviour while building
 18001: fail to seize statOp
 18002: fail to seize associated subRec
-18003: delay BUILD_INDX_IMPL_REQ for 20s : Test behaviour while building
 18011: fail HEAD read - simulate UtilExecuteRef::AllocationError
 18012: fail HEAD insert/update/delete - as in 18011
 18021: fail RT_CLEAN_NEW - simulate TC error 626
