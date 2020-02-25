@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -153,14 +153,16 @@ class Parallel_reader {
     @param[in] scan_range       Range to scan.
     @param[in] index            Cluster index to scan.
     @param[in] read_level       Btree level from which records need to be read.
+    @param[in] read_ahead       If true then start read ahead threads.
   */
     Config(const Scan_range &scan_range, dict_index_t *index,
-           size_t read_level = 0)
+           size_t read_level = 0, bool read_ahead = false)
         : m_scan_range(scan_range),
           m_index(index),
           m_is_compact(dict_table_is_comp(index->table)),
           m_page_size(dict_tf_to_fsp_flags(index->table->flags)),
-          m_read_level(read_level) {}
+          m_read_level(read_level),
+          m_read_ahead(read_ahead) {}
 
     /** Copy constructor.
     @param[in] config           Instance to copy from. */
@@ -169,7 +171,8 @@ class Parallel_reader {
           m_index(config.m_index),
           m_is_compact(config.m_is_compact),
           m_page_size(config.m_page_size),
-          m_read_level(config.m_read_level) {}
+          m_read_level(config.m_read_level),
+          m_read_ahead(config.m_read_ahead) {}
 
     /** Range to scan. */
     const Scan_range m_scan_range;
@@ -183,11 +186,11 @@ class Parallel_reader {
     /** Tablespace page size. */
     const page_size_t m_page_size;
 
-    /** if true then enable separate read ahead threads. */
-    bool m_read_ahead{true};
-
     /** Btree level from which records need to be read. */
     size_t m_read_level{0};
+
+    /** if true then enable separate read ahead threads. */
+    bool m_read_ahead{false};
   };
 
   /** Constructor.
