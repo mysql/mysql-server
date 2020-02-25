@@ -26,5 +26,10 @@ The rapidjson library included in this directory is based on
 https://github.com/Tencent/rapidjson/,
 commit 418331e99f859f00bdc8306f69eba67e8693c55e
 
+There is one change made to the library:
+
+1) Rapidjson-specific changes in commit 91153f3385c4917a215aa4c7818b3f6265608286
+   have been applied, so that negative zero is handled properly (bug#19504183).
+
 We only include the contents of the folder "include/" so that we don't include
 any code licensed under the JSON License.

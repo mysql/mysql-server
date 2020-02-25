@@ -2470,7 +2470,7 @@ public:
     bool Uint(unsigned i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
     bool Int64(int64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
     bool Uint64(uint64_t i) { new (stack_.template Push<ValueType>()) ValueType(i); return true; }
-    bool Double(double d) { new (stack_.template Push<ValueType>()) ValueType(d); return true; }
+    bool Double(double d, bool is_int = false) { new (stack_.template Push<ValueType>()) ValueType(d); return true; }
 
     bool RawNumber(const Ch* str, SizeType length, bool copy) { 
         if (copy) 
