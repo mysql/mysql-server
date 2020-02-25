@@ -1093,8 +1093,15 @@ void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
 dberr_t Parallel_reader::read_ahead() {
   ut_a(!m_scan_ctxs.empty());
 
-  auto n_read_ahead_threads =
-      std::min(m_scan_ctxs.size(), MAX_READ_AHEAD_THREADS);
+  size_t n_read_ahead_threads{};
+
+  for (auto &scan_ctx : m_scan_ctxs) {
+    if (scan_ctx->m_config.m_read_ahead) {
+      ++n_read_ahead_threads;
+    }
+  }
+
+  n_read_ahead_threads = std::min(n_read_ahead_threads, MAX_READ_AHEAD_THREADS);
 
   dberr_t err{DB_SUCCESS};
 
@@ -1110,11 +1117,11 @@ dberr_t Parallel_reader::read_ahead() {
     }
   }
 
-  if (m_sync && err == DB_SUCCESS) {
+  if (n_read_ahead_threads > 0 && m_sync && err == DB_SUCCESS) {
     read_ahead_worker(FSP_EXTENT_SIZE);
   }
 
-  return (err);
+  return err;
 }
 
 void Parallel_reader::parallel_read() {
