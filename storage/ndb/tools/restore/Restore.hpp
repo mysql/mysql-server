@@ -60,7 +60,17 @@ enum TableChangesMask
   /**
    * Allow attribute type demotion and integral signed/unsigned type changes.
    */
-  TCM_ATTRIBUTE_DEMOTION = 0x4
+  TCM_ATTRIBUTE_DEMOTION = 0x4,
+
+  /**
+   * Allow changes to the set of keys in the primary key
+   */
+  TCM_ALLOW_PK_CHANGES = 0x8,
+
+  /**
+   * Ignore log entries updating an extended pk column
+   */
+  TCM_IGNORE_EXTENDED_PK_UPDATES = 0x10
 };
 
 typedef NdbDictionary::Table NDBTAB;
@@ -332,6 +342,9 @@ public:
   BaseString m_stagingName;
   NdbDictionary::Table* m_stagingTable;
   int m_stagingFlags;
+
+  bool m_pk_extended;
+  const NdbDictionary::Index* m_pk_index;
 }; // TableS;
 
 class RestoreLogIterator;

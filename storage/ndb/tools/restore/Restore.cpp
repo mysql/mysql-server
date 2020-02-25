@@ -832,6 +832,9 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   m_staging = false;
   m_stagingTable = NULL;
   m_stagingFlags = 0;
+
+  m_pk_extended = false;
+  m_pk_index = NULL;
 }
 
 TableS::~TableS()

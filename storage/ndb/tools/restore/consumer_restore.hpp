@@ -92,6 +92,7 @@ public:
     m_tableChangesMask = 0;
     m_preserve_trailing_spaces = false;
     m_transactions = 0;
+    m_pk_update_warning_count = 0;
     m_cache.m_old_table = 0;
     m_disable_indexes = false;
     m_rebuild_indexes = false;
@@ -142,6 +143,10 @@ public:
   Uint32 map_ng(Uint32 ng) const;
   bool translate_frm(NdbDictionary::Table *table) const;
   bool isMissingTable(const TableS& table);
+  bool getPkMappingIndex(TableS* table);
+  bool tryCreatePkMappingIndex(TableS* table,
+                               const char* table_name);
+  bool dropPkMappingIndex(const TableS* table);
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
@@ -259,6 +264,7 @@ public:
   restore_callback_t *m_callback;
   restore_callback_t *m_free_callback;
   bool m_temp_error;
+  Uint64 m_pk_update_warning_count;
 
   /**
    * m_new_table_ids[X] = Y;
