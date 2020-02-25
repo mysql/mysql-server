@@ -11216,7 +11216,7 @@ void Table_map_log_event::print(FILE *,
    return the string name of a type.
 
    @param[in] type  type of a column
-   @param[in|out] meta_ptr  the meta_ptr of the column. If the type doesn't have
+   @param[in,out] meta_ptr  the meta_ptr of the column. If the type doesn't have
                             metadata, it will not change  meta_ptr, otherwise
                             meta_ptr will be moved to the end of the column's
                             metadat.

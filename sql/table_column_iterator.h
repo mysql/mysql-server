@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,12 +149,12 @@ class Table_columns_view {
    */
   Table_columns_view &set_filter(ExclusionFilter rhs);
 
-  //--> Deleted constructors and methods to remove default move/copy semantics
+  // --> Deleted constructors and methods to remove default move/copy semantics
   Table_columns_view(const Table_columns_view &rhs) = delete;
   Table_columns_view(Table_columns_view &&rhs) = delete;
   Table_columns_view &operator=(const Table_columns_view &rhs) = delete;
   Table_columns_view &operator=(Table_columns_view &&rhs) = delete;
-  //<--
+  // <--
 
   /**
     Iterator class to allow iterating over the replicatable fields in a TABLE

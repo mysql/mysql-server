@@ -1607,7 +1607,6 @@ class SELECT_LEX {
     @param      thd          Thread handler
     @param[out] str          String of output
 
-    @return
     @retval false   If there is no error
     @retval true    else
   */
@@ -2582,9 +2581,8 @@ class Query_tables_list {
     @param accessed_table Enumeration type that defines the type of table,
            e.g. temporary, transactional, non-transactional.
 
-    @return
-      @retval true  if the type of the table is about to be accessed
-      @retval false otherwise
+    @retval true  if the type of the table is about to be accessed
+    @retval false otherwise
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
     DBUG_TRACE;

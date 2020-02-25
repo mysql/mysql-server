@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,12 +103,11 @@ class Rpl_info_table : public Rpl_info_handler {
   /**
     Flushes and syncs in-memory information into a stable storage.
 
-    @param[in]  force  If enabled ignore syncing after flushing options such as
-                       relay-log-info-sync and master-info-sync and always sync
+    @param[in] force  If enabled ignore syncing after flushing options such as
+                      relay-log-info-sync and master-info-sync and always sync
 
-    @return
-      @retval 0       Success
-      @retval nonzero Failure  This can happen if there is an error writing the
+    @retval 0         Success
+    @retval nonzero   Failure  This can happen if there is an error writing the
                                table, or if slave_preserve_commit_order is
                                enabled and a previous transaction has failed. In
                                both cases, the error has been reported already.

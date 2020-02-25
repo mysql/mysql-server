@@ -7122,12 +7122,9 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   @param bitmap         Bitmap over fields to update
   @param table          the TABLE object
 
-  @return
-    @retval
-      false  - Success
-    @retval
-      true   - Error occurred during the generation/calculation of a generated
-               field value
+  @retval false  Success
+  @retval true   Error occurred during the generation/calculation of a generated
+                 field value
  */
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   DBUG_TRACE;

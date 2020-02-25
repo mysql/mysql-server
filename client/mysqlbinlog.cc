@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1303,7 +1303,7 @@ static bool shall_skip_gtids(const Log_event *ev) {
   - At the end of mysqlbinlog, just after printing all log files(binlog or
     relaylog).
 
-  @param[in|out] print_event_info Context state determining how to print.
+  @param[in,out] print_event_info Context state determining how to print.
 */
 void end_binlog(PRINT_EVENT_INFO *print_event_info) {
   if (in_transaction) {

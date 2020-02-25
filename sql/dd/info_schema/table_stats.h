@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,8 +128,6 @@ class Table_statistics {
     @param table_name       - Table name.
     @param partition_name   - Partition name.
     @param file             - Handler object for the table.
-
-    @return void
   */
   void cache_stats_in_mem(const String &db_name, const String &table_name,
                           const char *partition_name, handler *file) {
@@ -151,8 +149,6 @@ class Table_statistics {
     @param table_name       - Table name.
     @param partition_name   - Partition name.
     @param stats            - ha_statistics of the table.
-
-    @return void
   */
   void cache_stats_in_mem(const String &db_name, const String &table_name,
                           const char *partition_name, ha_statistics &stats) {
@@ -242,8 +238,6 @@ class Table_statistics {
         processed.
 
      2. We will not see junk values for statistics in results.
-
-    @return void
   */
   void store_error_message(const String &db_name, const String &table_name,
                            const char *partition_name,
@@ -334,8 +328,6 @@ class Table_statistics {
     @param db_name             - Database name.
     @param table_name          - Table name.
     @param partition_name      - Partition name.
-
-    @returns void.
   */
   void set_stat_cached(const String &db_name, const String &table_name,
                        const char *partition_name) {

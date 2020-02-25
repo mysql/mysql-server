@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -401,7 +401,7 @@ struct trx_undo_t {
 Commit and Rollback to write XA prepare GTID to disk table
 before updating undo log GTID with commit/rollback GTID.
 @param[in]	trx	transaction
-@return innodb error code. */
+*/
 void trx_undo_gtid_flush_prepare(trx_t *trx);
 
 /** For saving GTID add update undo slot, if required.

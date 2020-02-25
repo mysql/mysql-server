@@ -300,7 +300,7 @@ inline Type get(const Shards<COUNT> &shards, size_t id) noexcept {
 /** Iterate over the shards.
 @param[in] shards               Shards to iterate over
 @param[in] f                    Callback function
-@return total value. */
+*/
 template <size_t COUNT>
 inline void for_each(const Shards<COUNT> &shards, Function &&f) noexcept {
   for (const auto &shard : shards) {

@@ -110,12 +110,11 @@ class ACL_internal_table_access {
     to save_priv.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
-    @return
-      @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
+    @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
-      @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
+    @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
       privileges was denied.
-      @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
+    @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
       was denied, and grant should be checked for at least one
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.
@@ -144,12 +143,11 @@ class ACL_internal_schema_access {
     Check access to an internal schema.
     @param want_access the privileges requested
     @param [in, out] save_priv the privileges granted
-    @return
-      @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
+    @retval ACL_INTERNAL_ACCESS_GRANTED All the requested privileges
       are granted, and saved in save_priv.
-      @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
+    @retval ACL_INTERNAL_ACCESS_DENIED At least one of the requested
       privileges was denied.
-      @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
+    @retval ACL_INTERNAL_ACCESS_CHECK_GRANT No requested privilege
       was denied, and grant should be checked for at least one
       privilege. Requested privileges that are granted, if any, are saved
       in save_priv.

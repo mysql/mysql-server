@@ -1756,7 +1756,7 @@ bool Field::send_to_protocol(Protocol *protocol) const {
    destination).
 
    The comparison is made so that if the source data (from the master)
-   is less than the target data (on the slave), -1 is returned in @c
+   is less than the target data (on the slave), -1 is returned in
    <code>*order_var</code>. This implies that a conversion is
    necessary, but that it is lossy and can result in truncation of the
    value.

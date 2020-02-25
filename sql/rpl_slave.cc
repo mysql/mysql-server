@@ -619,9 +619,8 @@ bool start_slave(THD *thd) {
    Used in Multisource replication.
    @param[in]        thd           THD object of the client.
 
-   @return
-    @retval           0            success
-    @retval           1           error
+   @retval           0             success
+   @retval           1             error
 
     @todo  It is good to continue to stop other channels
            when a slave start failed for other channels.
@@ -670,9 +669,8 @@ int stop_slave(THD *thd) {
 
   @param[in]   thd        the client thread carrying the command.
 
-  @return
-    @retval      false      ok
-    @retval      true       not ok.
+  @retval      false      ok
+  @retval      true       not ok.
 */
 bool start_slave_cmd(THD *thd) {
   DBUG_TRACE;
@@ -755,9 +753,8 @@ err:
 
   @param[in]     thd         the client thread.
 
-  @return
-   @retval       false            ok
-   @retval       true             not ok.
+  @retval        false       ok
+  @retval        true        not ok.
 */
 bool stop_slave_cmd(THD *thd) {
   DBUG_TRACE;
@@ -837,6 +834,12 @@ bool stop_slave_cmd(THD *thd) {
   return res;
 }
 
+enum enum_read_rotate_from_relay_log_status {
+  FOUND_ROTATE,
+  NOT_FOUND_ROTATE,
+  ERROR
+};
+
 /**
    Parse the given relay log and identify the rotate event from the master.
    Ignore the Format description event, Previous_gtid log event, ignorable
@@ -863,12 +866,6 @@ bool stop_slave_cmd(THD *thd) {
    @retval NOT_FOUND_ROTATE: When rotate event is not found in the relay log
    @retval ERROR: On error
  */
-enum enum_read_rotate_from_relay_log_status {
-  FOUND_ROTATE,
-  NOT_FOUND_ROTATE,
-  ERROR
-};
-
 static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
     char *filename, char *master_log_file, my_off_t *master_log_pos) {
   DBUG_TRACE;
@@ -2268,6 +2265,11 @@ static bool is_network_error(uint errorno) {
          errorno == ER_NET_WRITE_INTERRUPTED;
 }
 
+enum enum_command_status {
+  COMMAND_STATUS_OK,
+  COMMAND_STATUS_ERROR,
+  COMMAND_STATUS_ALLOWED_ERROR
+};
 /**
   Execute an initialization query for the IO thread.
 
@@ -2276,7 +2278,7 @@ static bool is_network_error(uint errorno) {
   there is an error other than allowed_error, then this function
   prints a message and returns -1.
 
-  @param mysql MYSQL object.
+  @param mi Master_info object.
   @param query Query string.
   @param allowed_error Allowed error code, or 0 if no errors are allowed.
   @param[out] master_res If this is not NULL and there is no error, then
@@ -2290,11 +2292,6 @@ static bool is_network_error(uint errorno) {
   @retval COMMAND_STATUS_ERROR There was an error and the error code
   was not 'allowed_error'.
 */
-enum enum_command_status {
-  COMMAND_STATUS_OK,
-  COMMAND_STATUS_ERROR,
-  COMMAND_STATUS_ALLOWED_ERROR
-};
 static enum_command_status io_thread_init_command(
     Master_info *mi, const char *query, int allowed_error,
     MYSQL_RES **master_res = nullptr, MYSQL_ROW *master_row = nullptr) {
@@ -3289,9 +3286,8 @@ static void show_slave_status_metadata(List<Item> &field_list,
                                           for each channel.
     @param[in]     sql_gtid_set_buffer   buffer related to Executed GTID set
                                            for each channel.
-    @return
-     @retval        0     success
-     @retval        1     Error
+    @retval        0     success
+    @retval        1     Error
 */
 
 static bool show_slave_status_send_data(THD *thd, Master_info *mi,
@@ -3567,9 +3563,8 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
 
    @param[in]       thd        the client thread
 
-   @return
-     @retval        0           success
-     @retval        1           Error
+   @retval          0           success
+   @retval          1           Error
 
 */
 bool show_slave_status(THD *thd) {
@@ -3765,9 +3760,8 @@ bool show_slave_status(THD *thd, Master_info *mi) {
 
   @param[in]       thd          the client thread.
 
-  @return
-    @retval        false          ok
-    @retval        true          not ok
+  @retval          false        ok
+  @retval          true         not ok
 */
 bool show_slave_status_cmd(THD *thd) {
   Master_info *mi = nullptr;
@@ -8272,10 +8266,9 @@ end:
                              channel.
   @param[in]         thd     the client thread carrying the command.
 
-  @return
-    @retval          1     fail
-    @retval          0     ok
-    @retval          -1    deferred flush
+  @retval            1       fail
+  @retval            0       ok
+  @retval            -1      deferred flush
 */
 int flush_relay_logs(Master_info *mi, THD *thd) {
   DBUG_TRACE;
@@ -8319,9 +8312,8 @@ int flush_relay_logs(Master_info *mi, THD *thd) {
 
    @param[in]         thd              the client thread carrying the command.
 
-   @return
-     @retval           true                fail
-     @retval           false              success
+   @retval            true             fail
+   @retval            false            success
 */
 bool flush_relay_logs_cmd(THD *thd) {
   DBUG_TRACE;
@@ -9006,9 +8998,8 @@ err:
 
   @param[in]           thd          the client thread with the command.
 
-  @return
-    @retval            false            OK
-    @retval            true            not OK
+  @retval              false        OK
+  @retval              true         not OK
 */
 bool reset_slave_cmd(THD *thd) {
   DBUG_TRACE;
@@ -10060,9 +10051,8 @@ static bool is_invalid_change_master_for_group_replication_applier(
 
   @param[in]        thd        the client thread that issued the command.
 
-  @return
-    @retval         true        fail
-    @retval         false       success.
+  @retval           true       fail
+  @retval           false      success.
 */
 bool change_master_cmd(THD *thd) {
   DBUG_TRACE;

@@ -10075,9 +10075,8 @@ static const char *get_relative_path(const char *path) {
 
   @param path null terminated character string
 
-  @return
-    @retval true The path is secure
-    @retval false The path isn't secure
+  @retval true The path is secure
+  @retval false The path isn't secure
 */
 
 bool is_secure_file_path(const char *path) {

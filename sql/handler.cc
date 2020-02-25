@@ -5592,6 +5592,24 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache) {
   return 0;
 }
 
+struct st_discover_args {
+  const char *db;
+  const char *name;
+  uchar **frmblob;
+  size_t *frmlen;
+};
+
+static bool discover_handlerton(THD *thd, plugin_ref plugin, void *arg) {
+  st_discover_args *vargs = (st_discover_args *)arg;
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->discover &&
+      (!(hton->discover(hton, thd, vargs->db, vargs->name, vargs->frmblob,
+                        vargs->frmlen))))
+    return true;
+
+  return false;
+}
+
 /**
   Try to discover one table from handler(s).
 
@@ -5613,24 +5631,6 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache) {
     >0   error.  frmblob and frmlen may not be set
 
 */
-struct st_discover_args {
-  const char *db;
-  const char *name;
-  uchar **frmblob;
-  size_t *frmlen;
-};
-
-static bool discover_handlerton(THD *thd, plugin_ref plugin, void *arg) {
-  st_discover_args *vargs = (st_discover_args *)arg;
-  handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (hton->state == SHOW_OPTION_YES && hton->discover &&
-      (!(hton->discover(hton, thd, vargs->db, vargs->name, vargs->frmblob,
-                        vargs->frmlen))))
-    return true;
-
-  return false;
-}
-
 static int ha_discover(THD *thd, const char *db, const char *name,
                        uchar **frmblob, size_t *frmlen) {
   int error = -1;  // Table does not exist in any handler

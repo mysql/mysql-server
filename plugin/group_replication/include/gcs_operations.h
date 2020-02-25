@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,9 +178,8 @@ class Gcs_operations {
   /**
     Checks if the view modification is a injected one.
 
-    @return
-      @retval true  if the current view modification is a injected one
-      @retval false otherwise
+    @retval true  if the current view modification is a injected one
+    @retval false otherwise
    */
   bool is_injected_view_modification();
 

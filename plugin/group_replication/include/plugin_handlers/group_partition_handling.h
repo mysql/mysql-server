@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,8 @@ class Group_partition_handling {
   /**
     The thread handler.
 
-    @return
-      @retval 0      OK
-      @retval !=0    Error
+    @retval 0      OK
+    @retval !=0    Error
   */
   int partition_thread_handler();
 

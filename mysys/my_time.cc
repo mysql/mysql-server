@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -251,9 +251,8 @@ bool check_time_range_quick(const MYSQL_TIME &my_time) {
 /**
   Check datetime, date, or normalized time (i.e. time without days) range.
   @param my_time  Datetime value.
-  @returns
-  @retval   false on success
-  @retval   true  on error
+  @retval false on success
+  @retval true  on error
 */
 bool check_datetime_range(const MYSQL_TIME &my_time) {
   /*

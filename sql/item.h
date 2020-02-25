@@ -1991,15 +1991,15 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     Transformation is performed as follows:
 
+    @code
     transform()
     {
       transform children if any;
       return this->*some_transformer(...);
     }
+    @endcode
 
     Note that unlike Item::compile(), transform() does not support an analyzer
     function, ie. all children are unconditionally invoked.
@@ -2022,10 +2022,9 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     The process of this transformation is assumed to be as follows:
 
+    @code
     compile()
     {
       if (this->*some_analyzer(...))
@@ -2036,6 +2035,7 @@ class Item : public Parse_tree_node {
       else
         return this;
     }
+    @endcode
 
     i.e. analysis is performed top-down while transformation is done
     bottom-up. If no transformation is applied, the item is returned unchanged.

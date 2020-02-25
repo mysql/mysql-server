@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,6 +71,8 @@ int sha256_password_deinit(void) {
   return 0;
 }
 
+static RSA *g_public_key = nullptr;
+
 /**
   Reads and parse RSA public key data from a file.
 
@@ -78,9 +80,6 @@ int sha256_password_deinit(void) {
 
   @return Pointer to the RSA public key storage buffer
 */
-
-static RSA *g_public_key = nullptr;
-
 static RSA *rsa_init(MYSQL *mysql) {
   RSA *key = nullptr;
 
@@ -431,6 +430,10 @@ static bool is_secure_transport(MYSQL *mysql) {
   return false;
 }
 
+static char request_public_key = '\2';
+static char fast_auth_success = '\3';
+static char perform_full_authentication = '\4';
+
 /**
   Authenticate the client using the RSA or TLS and a SHA2 salted password.
 
@@ -441,11 +444,6 @@ static bool is_secure_transport(MYSQL *mysql) {
     @retval CR_ERROR An error occurred.
     @retval CR_OK Authentication succeeded.
 */
-
-static char request_public_key = '\2';
-static char fast_auth_success = '\3';
-static char perform_full_authentication = '\4';
-
 int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   bool uses_password = mysql->passwd[0] != 0;
   unsigned char encrypted_password[MAX_CIPHER_LENGTH];

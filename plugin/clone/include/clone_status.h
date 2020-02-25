@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,8 +162,7 @@ class Table_pfs {
   @return error code. */
   static int create_proxy_tables();
 
-  /** Drop PFS proxy tables.
-  @return error code. */
+  /** Drop PFS proxy tables. */
   static void drop_proxy_tables();
 
  private:

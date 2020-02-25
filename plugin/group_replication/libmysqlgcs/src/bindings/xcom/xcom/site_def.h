@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,9 +81,8 @@ static inline bool_t is_local_node(node_no n, site_def const *site) {
   @param[in]     s    Pointer to site definition
   @param[in]     i    Node number
 
-  @return
-    @retval Pointer to server if success
-    @retval 0 if failure
+  @retval Pointer to server if success
+  @retval 0 if failure
 */
 static inline server *get_server(site_def const *s, node_no i) {
   if (s && i != VOID_NODE_NO && i < s->nodes.node_list_len)

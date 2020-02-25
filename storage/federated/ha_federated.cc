@@ -1630,9 +1630,8 @@ int ha_federated::close(void) {
   @details This method will construct the INSERT statement and appends it to
   the supplied query string buffer.
 
-  @return
-    @retval false       No error
-    @retval true        Failure
+  @retval false       No error
+  @retval true        Failure
 */
 
 bool ha_federated::append_stmt_insert(String *query) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -203,9 +203,8 @@ bool thd_is_error(const THD *thd);
 
   @param path null terminated character string
 
-  @return
-    @retval true The path is different from mysql data directory.
-    @retval false The path is same as mysql data directory.
+  @retval true The path is different from mysql data directory.
+  @retval false The path is same as mysql data directory.
 */
 bool is_mysql_datadir_path(const char *path);
 

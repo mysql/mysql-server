@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -410,7 +410,7 @@ class Client {
 
   /** Check if network error
   @param[in]	err		error code
-  @param[in]	prtocol_error	include protocol error
+  @param[in]	protocol_error	include protocol error
   @return true if network error */
   static bool is_network_error(int err, bool protocol_error);
 

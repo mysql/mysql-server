@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -702,9 +702,8 @@ std::pair<bool, bool> Security_context::has_global_grant(
                                     true  - consider as privilege exists
                                     false - consider as privilege do not exist
 
-  @return
-    @retval true    auth_id has the privilege but the current_auth does not
-    @retval false   Otherwise
+  @retval true    auth_id has the privilege but the current_auth does not
+  @retval false   Otherwise
 */
 bool Security_context::can_operate_with(const Auth_id &auth_id,
                                         const std::string &privilege,

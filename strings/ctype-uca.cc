@@ -961,9 +961,8 @@ const uint16 *my_uca_contraction2_weight(
   @param flags    Pointer to UCA contraction flag data
   @param wc       Code point
 
-  @return
-  @retval   false - cannot be previous context head
-  @retval   true  - can be previous context head
+  @retval false - cannot be previous context head
+  @retval true  - can be previous context head
 */
 
 static inline bool my_uca_can_be_previous_context_head(const char *flags,
@@ -977,9 +976,8 @@ static inline bool my_uca_can_be_previous_context_head(const char *flags,
   @param flags    Pointer to UCA contraction flag data
   @param wc       Code point
 
-  @return
-  @retval   false - cannot be contraction tail
-  @retval   true - can be contraction tail
+  @retval false - cannot be contraction tail
+  @retval true - can be contraction tail
 */
 
 static inline bool my_uca_can_be_previous_context_tail(const char *flags,
@@ -2530,7 +2528,6 @@ static void my_coll_lexem_init(MY_COLL_LEXEM *lexem, const char *str,
   @param pattern     string
   @param patternlen  string length
 
-  @return
   @retval            0 if lexem is equal to string, non-0 otherwise.
 */
 
@@ -2981,7 +2978,6 @@ static int my_coll_parser_too_long_error(MY_COLL_RULE_PARSER *p,
   @param  p        Collation customization parser
   @param  term     Which lexem is expected.
 
-  @return
   @retval          0 if the required term was not found.
   @retval          1 if the required term was found.
 */
@@ -3018,7 +3014,6 @@ static int my_coll_parser_scan_term(MY_COLL_RULE_PARSER *p,
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if setting was scanned.
   @retval          1 if setting was not scanned.
 */
@@ -3046,7 +3041,6 @@ static int my_coll_parser_scan_setting(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if no settings were scanned.
   @retval          1 if one or more settings were scanned.
 */
@@ -3064,7 +3058,6 @@ static int my_coll_parser_scan_settings(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if reset option was not scanned.
   @retval          1 if reset option was scanned.
 */
@@ -3097,7 +3090,6 @@ static int my_coll_parser_scan_reset_before(MY_COLL_RULE_PARSER *p) {
   @param  pwc      Wide string to add code to
   @param  limit    The result string cannot be longer than 'limit' characters
 
-  @return
   @retval          0 if logical position was not scanned.
   @retval          1 if logical position was scanned.
 */
@@ -3157,7 +3149,6 @@ static int my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
   @param  limit    The result string cannot be longer than 'limit' characters
   @param  name     E.g. "contraction", "expansion"
 
-  @return
   @retval          0 if character sequence was not scanned.
   @retval          1 if character sequence was scanned.
 */
@@ -3190,7 +3181,6 @@ static int my_coll_parser_scan_character_list(MY_COLL_RULE_PARSER *p,
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if reset sequence was not scanned.
   @retval          1 if reset sequence was scanned.
 */
@@ -3260,7 +3250,6 @@ static int my_coll_parser_scan_reset_sequence(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if shift sequence was not scanned.
   @retval          1 if shift sequence was scanned.
 */
@@ -3324,7 +3313,6 @@ static int my_coll_parser_scan_shift_sequence(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if shift operator was not scanned.
   @retval          1 if shift operator was scanned.
 */
@@ -3346,7 +3334,6 @@ static int my_coll_parser_scan_shift(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if rule was not scanned.
   @retval          1 if rule was scanned.
 */
@@ -3378,7 +3365,6 @@ static int my_coll_parser_scan_rule(MY_COLL_RULE_PARSER *p) {
 
   @param  p        Collation customization parser
 
-  @return
   @retval          0 if collation customization expression was not scanned.
   @retval          1 if collation customization expression was scanned.
 */
@@ -3402,7 +3388,6 @@ static int my_coll_parser_exec(MY_COLL_RULE_PARSER *p) {
   @param str_end         End of the string.
   @param col_name        Collation name
 
-  @return
   @retval                0 on success
   @retval                1 on error
 */
@@ -3728,9 +3713,8 @@ static size_t my_char_weight_put(MY_UCA_INFO *dst, uint16 *to, size_t to_stride,
   @param dst      UCA data to copy weights to
   @param page     page number
 
-  @return
-  @retval         false on success
-  @retval         true  on error
+  @retval false on success
+  @retval true  on error
 */
 static bool my_uca_copy_page(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                              const MY_UCA_INFO *src, MY_UCA_INFO *dst,

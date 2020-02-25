@@ -3840,7 +3840,6 @@ String *Item_sum_udf_str::val_str(String *str) {
                   [ASC | DESC] [,col_name ...]]
               [SEPARATOR str_val])
 
-  @return
   @retval -1 : key1 < key2
   @retval  0 : key1 = key2
   @retval  1 : key1 > key2

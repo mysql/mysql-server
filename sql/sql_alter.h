@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -420,7 +420,11 @@ class Alter_info {
   /// ALTER TABLE [db.]table [ RENAME [TO|AS|=] [new_db.]new_table ]
   LEX_CSTRING new_db_name;
 
-  /// New table name in the "RENAME [TO] <table_name>" clause or NULL_STR
+  /// New table name in the
+  /// \code
+  /// RENAME [TO] <table_name>
+  /// \endcode
+  /// clause or NULL_STR
   LEX_CSTRING new_table_name;
 
   explicit Alter_info(MEM_ROOT *mem_root)

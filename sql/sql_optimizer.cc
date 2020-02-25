@@ -5593,7 +5593,7 @@ void JOIN::set_semijoin_embedding() {
 /**
   @brief Check if semijoin's compared types allow materialization.
 
-  @param[inout] sj_nest Semi-join nest containing information about correlated
+  @param[in,out] sj_nest Semi-join nest containing information about correlated
          expressions. Set nested_join->sjm.scan_allowed to true if
          MaterializeScan strategy allowed. Set nested_join->sjm.lookup_allowed
          to true if MaterializeLookup strategy allowed
@@ -7754,9 +7754,6 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
 
   @param join
   @param join_tab
-
-  @return
-    None
 */
 
 static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,

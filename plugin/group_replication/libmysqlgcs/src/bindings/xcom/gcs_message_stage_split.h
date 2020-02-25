@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -367,7 +367,6 @@ class Gcs_message_stage_split_v2 : public Gcs_message_stage {
    Insert a sender into the mapping that keeps track of sliced packets.
 
    @param sender_id Source identification
-   @return Whether the new sender was inserted or not.
    */
   void insert_sender(const Gcs_sender_id &sender_id);
 

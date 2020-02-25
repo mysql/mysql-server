@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -408,9 +408,8 @@ bool channel_is_stopping(const char *channel, enum_channel_thread_types type);
 
   @param channel  The channel name
 
-  @return
-    @retval true    If relaylog contains partial transcation.
-    @retval false   If relaylog does not contain partial transaction.
+  @retval true    If relaylog contains partial transcation.
+  @retval false   If relaylog does not contain partial transaction.
 */
 bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
@@ -419,9 +418,8 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
   @param[in]        thread_mask       type of slave thread- IO/SQL or any
 
-  @return
-    @retval          true               atleast one channel threads are running.
-    @retval          false              none of the the channels are running.
+  @retval          true               atleast one channel threads are running.
+  @retval          false              none of the the channels are running.
 */
 bool is_any_slave_channel_running(int thread_mask);
 

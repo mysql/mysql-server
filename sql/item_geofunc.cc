@@ -5065,7 +5065,7 @@ enum class ConvertUnitResult {
 ///  @param[in] srs The spatial reference system the length is assumed to come
 /// from.
 ///  @param[in] function_name Name of the SQL function to report errors as.
-///  @param[inout] length The length to convert to another unit.
+///  @param[in,out] length The length to convert to another unit.
 ///
 ///  @retval kError An error has occurred, this could be overflows, unsupported
 /// units, srs without unit (SRID 0), conversion errors.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1122,9 +1122,9 @@ static void parse_page(const byte *page, FILE *file) {
   }
 }
 /**
-@param [in/out] file_name	name of the filename
+@param [in,out] file_name	name of the filename
 
-@retval FILE pointer if successfully created else NULL when error occurred.
+@returns FILE pointer if successfully created else NULL when error occurred.
 */
 static FILE *create_file(char *file_name) {
   FILE *file = nullptr;

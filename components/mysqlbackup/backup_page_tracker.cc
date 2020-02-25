@@ -57,8 +57,6 @@ bool Backup_page_tracker::backup_id_update() {
 
 /**
    Make a list of the UDFs exposed by mysqlbackup page_tracking.
-
-   @return None
 */
 void Backup_page_tracker::initialize_udf_list() {
   m_udf_list.push_back(new udf_data_t(
@@ -165,8 +163,6 @@ bool Backup_page_tracker::set_page_tracking_init(UDF_INIT *, UDF_ARGS *,
 
 /**
    Callback method for initialization of UDF "mysqlbackup_page_track_set".
-
-   @return None
 */
 void Backup_page_tracker::set_page_tracking_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -220,8 +216,6 @@ bool Backup_page_tracker::page_track_get_start_lsn_init(UDF_INIT *, UDF_ARGS *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_start_lsn"
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_start_lsn_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -266,8 +260,6 @@ bool Backup_page_tracker::page_track_get_changed_page_count_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_page_count".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_page_count_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
@@ -319,8 +311,6 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 /**
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
-
-   @return None
 */
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {

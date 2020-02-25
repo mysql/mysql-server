@@ -283,7 +283,7 @@ typedef int (*rnd_pos_t)(PSI_table_handle *handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_init_t)(PSI_table_handle *table, unsigned int idx,
+typedef int (*index_init_t)(PSI_table_handle *handle, unsigned int idx,
                             bool sorted, PSI_index_handle **index);
 /**
   API to read keys in index.
@@ -307,7 +307,7 @@ typedef int (*index_read_t)(PSI_index_handle *index, PSI_key_reader *reader,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_next_t)(PSI_table_handle *table);
+typedef int (*index_next_t)(PSI_table_handle *handle);
 
 /**
   API to reset cursor position
@@ -338,7 +338,7 @@ typedef int (*read_column_value_t)(PSI_table_handle *handle, PSI_field *field,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*write_column_value_t)(PSI_table_handle *handle, PSI_field *fields,
+typedef int (*write_column_value_t)(PSI_table_handle *handle, PSI_field *field,
                                     unsigned int index);
 /**
   API to write a record in table.
@@ -356,8 +356,8 @@ typedef int (*write_row_values_t)(PSI_table_handle *handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*update_column_value_t)(PSI_table_handle *handle,
-                                     PSI_field *fields, unsigned int index);
+typedef int (*update_column_value_t)(PSI_table_handle *handle, PSI_field *field,
+                                     unsigned int index);
 /**
   API to write a record in table.
   @param handle Table handle having updated record to be updated.

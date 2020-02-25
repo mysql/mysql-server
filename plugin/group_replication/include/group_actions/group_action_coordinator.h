@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,6 @@ class Group_action_coordinator : public Group_event_observer {
 
   /**
     The main thread process for the action execution process
-    @return
   */
   int execute_group_action_handler();
 

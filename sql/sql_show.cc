@@ -2866,7 +2866,6 @@ enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table) {
  *
  * @param thd           Thread handle
  * @param tables        Table to fill with data
- * @return
  */
 
 static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {

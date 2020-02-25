@@ -197,9 +197,8 @@ void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
   @param l1 A LEX_USER element
   @param l2 A LEX_USER element
 
-  @return
-    @retval 1 if n1 &gt; n2
-    @retval 0 if n1 &lt;= n2
+  @retval 1 if n1 &gt; n2
+  @retval 0 if n1 &lt;= n2
 */
 int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
   size_t length = std::min(l1->user.length, l2->user.length);
@@ -226,9 +225,8 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
                          rewriter.
   @param[in,out] rlb     Buffer to return the rewritten query in.
                          Will be empty if no rewriting happened.
-  @return
-    @retval      true    If the Query is re-written.
-    @retval      false   Otherwise
+  @retval        true    If the Query is re-written.
+  @retval        false   Otherwise
 */
 bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
                    String &rlb) {
@@ -953,9 +951,8 @@ Rewriter_set::Rewriter_set(THD *thd, Consumer_type type)
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
-  @return
-    @retval      true    the query was rewritten
-    @retval      false   otherwise
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
 bool Rewriter_set::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
@@ -984,9 +981,8 @@ Rewriter_set_password::Rewriter_set_password(THD *thd, Consumer_type type,
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
-  @return
-    @retval      true    the query was rewritten
-    @retval      false   otherwise
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
 bool Rewriter_set_password::rewrite(String &rlb) const {
   bool ret_val = false;
@@ -1233,9 +1229,8 @@ Rewriter_change_master::Rewriter_change_master(THD *thd, Consumer_type type)
 
   @param[in,out] rlb     Buffer to return the rewritten query in.
 
-  @return
-    @retval      true    the query was rewritten
-    @retval      false   otherwise
+  @retval        true    the query was rewritten
+  @retval        false   otherwise
 */
 bool Rewriter_change_master::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;

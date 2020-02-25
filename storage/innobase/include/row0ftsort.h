@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -168,9 +168,9 @@ typedef struct fts_psort_insert fts_psort_insert_t;
 /** Create a temporary "fts sort index" used to merge sort the
  tokenized doc string. The index has three "fields":
 
- 1) Tokenized word,
- 2) Doc ID
- 3) Word's position in original 'doc'.
+ 1. Tokenized word,
+ 2. Doc ID
+ 3. Word's position in original 'doc'.
 
  @return dict_index_t structure for the fts sort index */
 dict_index_t *row_merge_create_fts_sort_index(
@@ -220,12 +220,14 @@ void row_fts_start_parallel_merge(
     fts_psort_t *merge_info); /*!< in: parallel sort info */
 /** Propagate a newly added record up one level in the selection tree
  @return parent where this value propagated to */
-int row_merge_fts_sel_propagate(int propogated, /*<! in: tree node propagated */
-                                int *sel_tree,  /*<! in: selection tree */
-                                ulint level,    /*<! in: selection tree level */
-                                const mrec_t **mrec,  /*<! in: sort record */
-                                ulint **offsets,      /*<! in: record offsets */
-                                dict_index_t *index); /*<! in: FTS index */
+int row_merge_fts_sel_propagate(
+    int propogated,      /*!< [in] tree node propagated */
+    int *sel_tree,       /*!< [in] selection tree */
+    ulint level,         /*!< [in] selection tree level */
+    const mrec_t **mrec, /*!< [in] sort record */
+    ulint **offsets,     /*!< [in] record offsets */
+    dict_index_t *index  /*!< [in] FTS index */
+);
 
 /** Read sorted file containing index data tuples and insert these data
 tuples to the index
