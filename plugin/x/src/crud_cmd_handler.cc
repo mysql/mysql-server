@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
+
+#include <string>
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
@@ -47,8 +49,7 @@ namespace xpl {
 template <typename B, typename M>
 ngs::Error_code Crud_command_handler::execute(
     const B &builder, const M &msg, iface::Resultset &resultset,
-    Status_variable variable,
-    bool (iface::Protocol_encoder::*send_ok)()) {
+    Status_variable variable, bool (iface::Protocol_encoder::*send_ok)()) {
   m_session->update_status(variable);
   m_qb.clear();
   try {
@@ -68,9 +69,9 @@ ngs::Error_code Crud_command_handler::execute(
 }
 
 template <typename B, typename M>
-void Crud_command_handler::notice_handling(
-    const iface::Resultset::Info &info, const B & /*builder*/,
-    const M & /*msg*/) const {
+void Crud_command_handler::notice_handling(const iface::Resultset::Info &info,
+                                           const B & /*builder*/,
+                                           const M & /*msg*/) const {
   notice_handling_common(info);
 }
 
@@ -124,15 +125,12 @@ ngs::Error_code Crud_command_handler::error_handling(
                         msg.collection().name().c_str());
 
     case ER_DUP_ENTRY:
+    case ER_X_BAD_UPSERT_DATA:
       return ngs::Error(
-          ER_X_DOC_ID_DUPLICATE,
+          ER_X_DUPLICATE_ENTRY,
           "Document contains a field value that is not unique but "
           "required to be");
 
-    case ER_X_BAD_UPSERT_DATA:
-      return ngs::Error(ER_X_BAD_UPSERT_DATA,
-                        "Unable upsert data in document collection '%s'",
-                        msg.collection().name().c_str());
     case ER_CHECK_CONSTRAINT_VIOLATED:
       return get_detailed_validation_error(m_session->data_context());
   }
@@ -141,8 +139,7 @@ ngs::Error_code Crud_command_handler::error_handling(
 
 template <>
 void Crud_command_handler::notice_handling(
-    const iface::Resultset::Info &info,
-    const Insert_statement_builder &builder,
+    const iface::Resultset::Info &info, const Insert_statement_builder &builder,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(info);
   m_session->proto().send_notice_rows_affected(info.affected_rows);

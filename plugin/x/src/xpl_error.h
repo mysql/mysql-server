@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@
 #define ER_X_BAD_TABLE 5113
 #define ER_X_BAD_PROJECTION 5114
 #define ER_X_DOC_ID_MISSING 5115
-#define ER_X_DOC_ID_DUPLICATE 5116
+#define ER_X_DUPLICATE_ENTRY 5116
 #define ER_X_DOC_REQUIRED_FIELD_MISSING 5117
 
 #define ER_X_PROJ_BAD_KEY_NAME 5120
