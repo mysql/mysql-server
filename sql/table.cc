@@ -4571,8 +4571,6 @@ static bool merge_join_conditions(THD *thd, TABLE_LIST *table, Item **pcond) {
   filtering condition be treated as WITH CASCADED CHECK OPTION; this is for
   recursive calls; user code should omit this argument.
 
-  @details
-
   This function builds check option condition for use in regular execution or
   subsequent SP/PS executions.
 

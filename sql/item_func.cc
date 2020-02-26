@@ -4265,8 +4265,7 @@ my_decimal *udf_handler::val_decimal(bool *null_value, my_decimal *dec_buf) {
   @param [out] str The input result string passed to the udf() method
   @param [out] save_str Keeps copy of the returned String
 
-  @returns
-    @retval A pointer to either the str or save_str that points
+  @returns A pointer to either the str or save_str that points
             to final result String
 */
 String *udf_handler::result_string(const char *res, size_t res_length,
@@ -4306,9 +4305,8 @@ void udf_handler::get_string(uint index) {
 
   @param [in] index of the argument to be looked in the arguments array
 
-  @returns
-    @retval false Able to fetch the argument details
-    @retval true  Otherwise
+  @retval false Able to fetch the argument details
+  @retval true  Otherwise
 */
 bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
@@ -8859,8 +8857,6 @@ longlong Item_func_internal_index_column_cardinality::val_int() {
                          - Tablespace_se_private_data
 
   @param[out] null_value Marked true indicating NULL, if there is no value.
-
-  @returns void
 */
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value) {
@@ -9059,12 +9055,9 @@ Item_func_version::Item_func_version(const POS &pos)
                               strlen(server_version), system_charset_info,
                               DERIVATION_SYSCONST) {}
 
-/**
-  @brief
-
+/*
     Syntax:
       string get_dd_char_length()
-
 */
 longlong Item_func_internal_dd_char_length::val_int() {
   DBUG_TRACE;

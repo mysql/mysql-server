@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3841,7 +3841,6 @@ static inline Gis_polygon::inner_container_type *inner_rings(
 
   @param g a geometry that must be a polygon.
   @param inns
-  @return the polygon's inner rings object.
  */
 // SUPPRESS_UBSAN Wrong downcast. FIXME
 static inline void set_inner_rings(
@@ -4572,7 +4571,6 @@ Gis_wkb_vector<T> &Gis_wkb_vector<T>::operator=(const Gis_wkb_vector<T> &rhs) {
   into locations in the geo.m_ptr buffer. In such situations call this
   function.
   @param g   The Geometry object to push into vec.
-  @return The address of the Geometry object stored in vec.
  */
 template <typename T>
 void Gis_wkb_vector<T>::shallow_push(const Geometry *g) {

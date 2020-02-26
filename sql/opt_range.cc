@@ -6477,7 +6477,6 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
   Factory function to build a SEL_TREE from a JSON_OVERLAPS or JSON_CONTAINS
   functions
 
-  @details
   \verbatim
     This function builds SEL_TREE out of JSON_OEVRLAPS() of form:
       JSON_OVERLAPS(typed_array_field, "[<val>,...,<val>]")

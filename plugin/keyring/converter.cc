@@ -60,7 +60,8 @@ size_t Converter::get_width(Arch arch) {
   (static) calculates native unsigned integer (size_t) value of binary buffer
   - buffer has to provide for at least sizeof(size_t) bytes
 
-  @param length  - pointer to native binary representation of unsigned value
+  @param binary_value - pointer to native binary representation of unsigned
+  value
 
   @return        - unsigned integer (size_t) value of binary buffer value
 */

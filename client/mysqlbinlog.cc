@@ -216,7 +216,7 @@ class Database_rewrite {
       This member function SHALL decompress, rewrite the contents of the
       payload event, compress it again and then re-encode it.
 
-      @param the buffer holding this event encoded.
+      @param buffer the buffer holding this event encoded.
       @param buffer_capacity the capacity of the buffer.
       @param fde The format description event to decode this event.
 

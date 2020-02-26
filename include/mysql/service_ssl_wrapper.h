@@ -41,7 +41,7 @@ int MY_ATTRIBUTE((visibility("default")))
   placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
+void ssl_wrapper_version(Vio *vio, char *buffer, const size_t buffer_size);
 
 /**
   Return cipher used in current connection
@@ -51,7 +51,7 @@ void ssl_wrapper_version(Vio *vio, char *version, const size_t version_size);
   be placed
   @param buffer_size      Size of the character buffer
 */
-void ssl_wrapper_cipher(Vio *vio, char *cipher, const size_t cipher_size);
+void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size);
 
 /**
   Return cipher list that can be used for SSL

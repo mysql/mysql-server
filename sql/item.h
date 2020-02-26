@@ -1271,7 +1271,7 @@ class Item : public Parse_tree_node {
   /**
     Determine correct string field type, based on string length
 
-    @param max_bytes Maximum string size, in number of bytes @todo
+    @param max_bytes Maximum string size, in number of bytes
   */
   static enum_field_types string_field_type(uint32 max_bytes) {
     if (max_bytes >= 16777216)

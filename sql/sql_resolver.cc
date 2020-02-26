@@ -2488,12 +2488,11 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
 
   @returns false if success, true if error
 
-  @details
-
   The following transformations are performed:
 
   1. IN/=ANY predicates on the form:
 
+  @code
   SELECT ...
   FROM ot1 ... otN
   WHERE (oe1, ... oeM) IN (SELECT ie1, ..., ieM
@@ -2501,15 +2500,18 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
                           [WHERE inner-cond])
    [AND outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   are transformed into:
 
+  @code
   SELECT ...
   FROM (ot1 ... otN) SJ (it1 ... itK)
                      ON (oe1, ... oeM) = (ie1, ..., ieM)
                         [AND inner-cond]
   [WHERE outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   Notice that the inner-cond may contain correlated and non-correlated
   expressions. Further transformations will analyze and break up such
@@ -2517,6 +2519,7 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
 
   2. EXISTS predicates on the form:
 
+  @code
   SELECT ...
   FROM ot1 ... otN
   WHERE EXISTS (SELECT expressions
@@ -2524,17 +2527,21 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
                 [WHERE inner-cond])
    [AND outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   are transformed into:
 
+  @code
   SELECT ...
   FROM (ot1 ... otN) SJ (it1 ... itK)
                      [ON inner-cond]
   [WHERE outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   3. Negated EXISTS predicates on the form:
 
+  @code
   SELECT ...
   FROM ot1 ... otN
   WHERE NOT EXISTS (SELECT expressions
@@ -2542,14 +2549,17 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
                 [WHERE inner-cond])
    [AND outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   are transformed into:
 
+  @code
   SELECT ...
   FROM (ot1 ... otN) AJ (it1 ... itK)
                      [ON inner-cond]
   [WHERE outer-cond AND is-null-cond(it1)]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   where AJ means "antijoin" and is like a LEFT JOIN; and is-null-cond is
   false if the row of it1 is "found" and "not_null_compl" (i.e. matches
@@ -2557,6 +2567,7 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
 
   4. Negated IN predicates on the form:
 
+  @code
   SELECT ...
   FROM ot1 ... otN
   WHERE (oe1, ... oeM) NOT IN (SELECT ie1, ..., ieM
@@ -2564,15 +2575,18 @@ bool walk_join_list(mem_root_deque<TABLE_LIST *> &list,
                                [WHERE inner-cond])
    [AND outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   are transformed into:
 
+  @code
   SELECT ...
   FROM (ot1 ... otN) AJ (it1 ... itK)
                      ON (oe1, ... oeM) = (ie1, ..., ieM)
                         [AND inner-cond]
   [WHERE outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+  @endcode
 
   5. The cases 1/2 (respectively 3/4) above also apply when the predicate is
   decorated with IS TRUE or IS NOT FALSE (respectively IS NOT TRUE or IS
@@ -3397,49 +3411,53 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
 }
 
 /**
-  Convert semi-join subquery predicates into semi-join join nests
+  Convert semi-join subquery predicates into semi-join join nests.
 
-  @details
+  Convert candidate subquery predicates into semi-join join nests. This
+  transformation is performed once in query lifetime and is irreversible.
 
-    Convert candidate subquery predicates into semi-join join nests. This
-    transformation is performed once in query lifetime and is irreversible.
+  Conversion of one subquery predicate
+  ------------------------------------
 
-    Conversion of one subquery predicate
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    We start with a query block that has a semi-join subquery predicate:
+  We start with a query block that has a semi-join subquery predicate:
 
-      SELECT ...
-      FROM ot, ...
-      WHERE oe IN (SELECT ie FROM it1 ... itN WHERE subq_where) AND outer_where
+  @code
+  SELECT ...
+  FROM ot, ...
+  WHERE oe IN (SELECT ie FROM it1 ... itN WHERE subq_where) AND outer_where
+  @endcode
 
-    and convert the predicate and subquery into a semi-join nest:
+  and convert the predicate and subquery into a semi-join nest:
 
-      SELECT ...
-      FROM ot SEMI JOIN (it1 ... itN), ...
-      WHERE outer_where AND subq_where AND oe=ie
+  @code
+  SELECT ...
+  FROM ot SEMI JOIN (it1 ... itN), ...
+  WHERE outer_where AND subq_where AND oe=ie
+  @endcode
 
-    that is, in order to do the conversion, we need to
+  that is, in order to do the conversion, we need to
 
-     * Create the "SEMI JOIN (it1 .. itN)" part and add it into the parent
-       query block's FROM structure.
-     * Add "AND subq_where AND oe=ie" into parent query block's WHERE (or ON if
-       the subquery predicate was in an ON condition)
-     * Remove the subquery predicate from the parent query block's WHERE
+   * Create the "SEMI JOIN (it1 .. itN)" part and add it into the parent
+     query block's FROM structure.
+   * Add "AND subq_where AND oe=ie" into parent query block's WHERE (or ON if
+     the subquery predicate was in an ON condition)
+   * Remove the subquery predicate from the parent query block's WHERE
 
-    Considerations when converting many predicates
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    A join may have at most MAX_TABLES tables. This may prevent us from
-    flattening all subqueries when the total number of tables in parent and
-    child selects exceeds MAX_TABLES. In addition, one slot is reserved per
-    semi-join nest, in case the subquery needs to be materialized in a
-    temporary table.
-    We deal with this problem by flattening children's subqueries first and
-    then using a heuristic rule to determine each subquery predicate's
-    priority, which is calculated in this order:
+  Considerations when converting many predicates
+  ----------------------------------------------
 
-    1. Prefer dependent subqueries over non-dependent ones
-    2. Prefer subqueries with many tables over those with fewer tables
-    3. Prefer early subqueries over later ones (to make sort deterministic)
+  A join may have at most MAX_TABLES tables. This may prevent us from
+  flattening all subqueries when the total number of tables in parent and
+  child selects exceeds MAX_TABLES. In addition, one slot is reserved per
+  semi-join nest, in case the subquery needs to be materialized in a
+  temporary table.
+  We deal with this problem by flattening children's subqueries first and
+  then using a heuristic rule to determine each subquery predicate's
+  priority, which is calculated in this order:
+
+  1. Prefer dependent subqueries over non-dependent ones
+  2. Prefer subqueries with many tables over those with fewer tables
+  3. Prefer early subqueries over later ones (to make sort deterministic)
 
   @returns false if success, true if error
 */

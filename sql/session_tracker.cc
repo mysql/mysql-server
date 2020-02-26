@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1518,8 +1518,6 @@ bool Session_tracker::changed_any() {
   @param thd                The thd handle.
   @param [out] buf          Reference to the string buffer to which the state
                             change data needs to be written.
-
-  @return                   void
 */
 
 void Session_tracker::store(THD *thd, String &buf) {

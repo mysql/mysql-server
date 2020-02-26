@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -461,15 +461,14 @@ static my_time_t add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
   @param    i_type        type of interval to add (SECOND, MINUTE, HOUR, WEEK
   ...)
 
-  @retval returns 0 on success, 1 on error.
+  @retval 0 on success
+  @retval 1 on error.
 
   @note
-
-  NOTES
-    1) If the interval is conversible to SECOND, like MINUTE, HOUR, DAY, WEEK.
+    1. If the interval is conversible to SECOND, like MINUTE, HOUR, DAY, WEEK.
        Then we use TIMEDIFF()'s implementation as underlying and number of
        seconds as resolution for computation.
-    2) In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
+    2. In all other cases - MONTH, QUARTER, YEAR we use MONTH as resolution
        and PERIOD_DIFF()'s implementation
 */
 

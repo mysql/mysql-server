@@ -6650,7 +6650,6 @@ static void warn_index_not_applicable(THD *thd, const Field *field,
   be updated to point beyond the last Key_field written.
 
   @param thd                session context
-  @param[in,out] key_fields is incremented if a key was stored in the array
   @param and_level          And level, to be stored in Key_field
   @param cond               Condition predicate
   @param item_field         Field used in comparison

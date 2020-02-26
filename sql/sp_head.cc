@@ -1617,8 +1617,6 @@ static void reset_start_time_for_sp(THD *thd) {
     dependant on time of life of elements from source hash. It also
     won't touch lists linking elements in source and destination
     hashes.
-
-    @return Error status.
 */
 
 static void sp_update_sp_used_routines(

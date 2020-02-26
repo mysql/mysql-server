@@ -276,7 +276,8 @@ typedef int (*rnd_pos_t)(PSI_table_handle *handle);
   @param handle Table handle.
   @param idx    Index of the index to be initialized (in case of multiple
                 indexes on table)
-  @param sorted
+  @param sorted True if he index is sorted (typically a BTREE), false if not
+  sorted (typically a HASH)
   @param index  Initialized index handle.
 
   @return Operation status

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,7 +226,7 @@ class Fake_TABLE : public TABLE {
   /**
     Creates a fake TABLE and stores the values in their corresponding Fields.
 
-    @param column_value The column values to be stored.
+    @param column_values The column values to be stored.
     @param are_nullable Whether the columns are nullable.
   */
   Fake_TABLE(std::initializer_list<int> column_values, bool are_nullable = true)

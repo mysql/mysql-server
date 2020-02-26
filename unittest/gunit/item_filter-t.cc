@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,6 @@ class ItemFilterTest : public ::testing::Test {
     without creating indexes.
 
     @param  nbr_columns       The number of columns in the table
-    @param  columns_nullable  Whether or not columns in the table can be NULL
   */
   void create_table(int nbr_columns) { create_table(nbr_columns, false); }
 
