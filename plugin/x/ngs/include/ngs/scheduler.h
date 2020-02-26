@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <atomic>
 #include <functional>
 #include <list>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -52,7 +53,8 @@ class Scheduler_dynamic {
 
   typedef std::function<void()> Task;
 
-  Scheduler_dynamic(const char *name, PSI_thread_key thread_key);
+  Scheduler_dynamic(const char *name, PSI_thread_key thread_key,
+                    std::unique_ptr<Monitor_interface> monitor = {});
   virtual ~Scheduler_dynamic();
 
   virtual void launch();
@@ -61,12 +63,9 @@ class Scheduler_dynamic {
   void set_idle_worker_timeout(unsigned long long milliseconds);
   bool post(Task *task);
   bool post(const Task &task);
-  bool post_and_wait(const Task &task);
 
   virtual bool thread_init() { return true; }
   virtual void thread_end();
-
-  void set_monitor(Monitor_interface *monitor);
 
   bool is_worker_thread(my_thread_t thread_id);
   bool is_running();
@@ -152,7 +151,7 @@ class Scheduler_dynamic {
   lock_list<Task *> m_tasks;
   lock_list<Thread_t> m_threads;
   lock_list<my_thread_t> m_terminating_workers;
-  Memory_instrumented<Monitor_interface>::Unique_ptr m_monitor;
+  std::unique_ptr<Monitor_interface> m_monitor;
   PSI_thread_key m_thread_key;
 };
 }  // namespace ngs

@@ -111,7 +111,7 @@ class Sql_data_context : public iface::Sql_session {
   bool kill();
   bool is_acl_disabled();
   void switch_to_local_user(const std::string &username);
-  bool wait_api_ready(std::function<bool()> exiting);
+  static bool wait_api_ready(std::function<bool()> exiting);
 
  private:
   Sql_data_context(const Sql_data_context &) = delete;
@@ -119,7 +119,7 @@ class Sql_data_context : public iface::Sql_session {
 
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
 
-  bool is_api_ready() const;
+  static bool is_api_ready();
   // Get data which are parts of the string printed by
   // USER() function
   std::string get_user_name() const;

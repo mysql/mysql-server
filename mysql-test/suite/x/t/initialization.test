@@ -6,6 +6,14 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+# Following error might be visible in error log, because when connection timeouts on
+# client-side then on server queues the connection in acceptance backlog.
+#
+# Thus server processes all connections stored in the backlog
+# after reseting "xplugin_init_wait", which causes the error message.
+#
+CALL mtr.add_suppression("Error initializing session for connection: Too many connections");
+
 ## Test starts here
 
 --echo
@@ -35,7 +43,7 @@ EOF
 --echo #
 --echo # I.1
 
-let $restart_parameters = restart: --debug="+d,xplugin_init_wait" --max_connections=1;
+let $restart_parameters = restart: --debug="+d,xplugin_init_wait" --max_connections=1 --loose-mysqlx_cache_cleaner=0;
 --let $wait_for_tcpsocket_status=no_wait
 --let $wait_for_unixsocket_status=no_wait
 --source include/restart_mysqld.inc
@@ -52,7 +60,7 @@ sleep 1;
 
 --error 1
 exec $MYSQLXTEST
-   -ux_root --password=''
+   -ux_root --password='' --timeout=20000
    --file=$xtest_file >/dev/null 2>&1;
 
 --echo
@@ -68,6 +76,8 @@ exec $MYSQLXTEST
 # two connections
 connect(g2_conn,localhost,root,,test);
 
+disconnect g2_conn;
+connection default;
 
 --echo
 --echo #
@@ -79,9 +89,6 @@ connect(g2_conn,localhost,root,,test);
 --let $wait_for_tcpsocket_status=valid_value
 --let $wait_for_unixsocket_status=valid_value
 --source include/xplugin_preamble.inc
-
-disconnect g2_conn;
-connection default;
 
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 

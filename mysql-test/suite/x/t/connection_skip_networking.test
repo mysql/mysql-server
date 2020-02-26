@@ -45,6 +45,7 @@ let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
  call mtr.add_suppression("Plugin mysqlx reported: .+ is set to empty text");
  let $restart_parameters = $restart_parameters --loose-mysqlx-socket=;
 --replace_regex /restart: .+--loose-mysqlx-socket=/restart: --skip-networking --loose-mysqlx-socket=/
+
 --let $wait_for_tcpsocket_status = undefined_value
 --let $wait_for_unixsocket_status = undefined_value
 --source include/restart_mysqld.inc

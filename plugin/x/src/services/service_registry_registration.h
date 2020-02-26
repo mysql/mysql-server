@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,33 +20,31 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/x/src/services/service_registrator.h"
+#ifndef PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRY_REGISTRATION_H_
+#define PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRY_REGISTRATION_H_
 
-#include <mysql/service_plugin_registry.h>
-#include <stdexcept>
-#include <string>
+#include "plugin/x/src/interface/service_register_service.h"
+#include "plugin/x/src/interface/service_registry.h"
 
 namespace xpl {
 
-Service_registrator::Service_registrator()
-    : m_registry{mysql_plugin_registry_acquire()},
-      m_registrator{"registry_registration", m_registry} {}
+class Service_registry_registration
+    : public iface::Service_registry_registration {
+ public:
+  explicit Service_registry_registration(iface::Service_registry *registry);
+  ~Service_registry_registration() override;
 
-Service_registrator::~Service_registrator() {
-  mysql_plugin_registry_release(m_registry);
-}
+  bool register_service(const char *service_implementation_name,
+                        my_h_service ptr) override;
+  bool unregister(const char *service_implementation_name) override;
 
-void Service_registrator::register_service(const Service &s) {
-  if (!m_registrator.is_valid() ||
-      m_registrator->register_service(s.m_name, s.m_service))
-    throw std::runtime_error(std::string("Can't register '") + s.m_name +
-                             "' service");
-}
+  bool is_valid() override;
 
-void Service_registrator::unregister_service(const char *name) {
-  if (!m_registrator.is_valid() || m_registrator->unregister(name))
-    throw std::runtime_error(std::string("Can't unregister '") + name +
-                             "' service");
-}
+ private:
+  iface::Service_registry *m_registry;
+  SERVICE_TYPE_NO_CONST(registry_registration) * m_registry_registration;
+};
 
 }  // namespace xpl
+
+#endif  // PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRY_REGISTRATION_H_

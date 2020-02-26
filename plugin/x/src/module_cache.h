@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +22,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_PROPERTIES_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_PROPERTIES_H_
+#ifndef PLUGIN_X_SRC_MODULE_CACHE_H_
+#define PLUGIN_X_SRC_MODULE_CACHE_H_
 
-#include <map>
-#include <string>
+#include "mysql/plugin.h"
+#include "mysql/plugin_audit.h"
 
-namespace ngs {
+namespace modules {
 
-enum class Server_property_ids {
-  k_was_prepared,
-  k_number_of_interfaces,
-  k_tcp_port,
-  k_tcp_bind_address,
-  k_unix_socket
+class Module_cache {
+ public:
+  static int initialize(MYSQL_PLUGIN p);
+  static int deinitialize(MYSQL_PLUGIN p);
+  static struct st_mysql_audit *get_audit_plugin_descriptor();
+
+  static volatile bool m_is_sha256_password_cache_enabled;
 };
 
-using Server_properties = std::map<Server_property_ids, std::string>;
+}  // namespace modules
 
-const char *const PROPERTY_NOT_CONFIGURED = "UNDEFINED";
-
-}  // namespace ngs
-
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_PROPERTIES_H_
+#endif  // PLUGIN_X_SRC_MODULE_CACHE_H_

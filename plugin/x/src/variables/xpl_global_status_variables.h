@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_
-#define PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_
+#ifndef PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
+#define PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
 
 #include "plugin/x/ngs/include/ngs/common_status_variables.h"
 
@@ -38,7 +38,11 @@ class Global_status_variables : public ngs::Common_status_variables {
   }
 
   Global_status_variables &operator=(const Global_status_variables &) = default;
-  void reset() { *this = Global_status_variables(); }
+
+  static void initialize(const int64 worker_count = 0) {
+    instance() = Global_status_variables();
+    instance().m_worker_thread_count += worker_count;
+  }
 
   Variable m_sessions_count;
   Variable m_worker_thread_count;
@@ -64,4 +68,4 @@ class Global_status_variables : public ngs::Common_status_variables {
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_
+#endif  // PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_

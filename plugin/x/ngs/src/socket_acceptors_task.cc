@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,18 +32,21 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/module_mysqlx.h"
+#include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
 Socket_acceptors_task::Socket_acceptors_task(
-    xpl::iface::Listener_factory &listener_factory,
+    const xpl::iface::Listener_factory &listener_factory,
     const std::string &tcp_bind_address, const std::string &network_namespace,
     const uint16_t tcp_port, const uint32_t tcp_port_open_timeout,
     const std::string &unix_socket_file, const uint32_t backlog,
     const std::shared_ptr<xpl::iface::Socket_events> &event)
     : m_event(event),
       m_bind_address(tcp_bind_address),
+      m_unix_socket_file(unix_socket_file),
       m_tcp_socket(listener_factory.create_tcp_socket_listener(
           &m_bind_address, network_namespace, tcp_port, tcp_port_open_timeout,
           m_event.get(), backlog)),
@@ -58,7 +61,11 @@ Socket_acceptors_task::Socket_acceptors_task(
 
 bool Socket_acceptors_task::prepare_impl(
     xpl::iface::Server_task::Task_context *context) {
-  if (context->m_skip_networking) {
+  const bool skip_networking =
+      xpl::Plugin_system_variables::get_system_variable("skip_networking") ==
+      "ON";
+
+  if (skip_networking) {
     m_tcp_socket->close_listener();
     m_tcp_socket->report_properties(
         [context](const Server_property_ids id, const std::string &value) {
@@ -66,6 +73,18 @@ bool Socket_acceptors_task::prepare_impl(
         });
 
     m_tcp_socket.reset();
+  }
+
+  if (xpl::Plugin_system_variables::get_system_variable("socket") ==
+      m_unix_socket_file) {
+    log_warning(ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER);
+    m_unix_socket->close_listener();
+    m_unix_socket->report_properties(
+        [context](const Server_property_ids id, const std::string &value) {
+          (*context->m_properties)[id] = value;
+        });
+
+    m_unix_socket.reset();
   }
 
   Listener_interfaces listeners = get_array_of_listeners();
@@ -193,14 +212,18 @@ void Socket_acceptors_task::log_listener_state(xpl::iface::Listener *listener) {
 }
 
 void Socket_acceptors_task::pre_loop() {
+  log_debug("Socket_acceptors_task::pre_loop");
   m_time_and_event_state.set(xpl::iface::Listener::State::k_running);
   auto listeners = get_array_of_listeners();
 
-  for (auto &listener : listeners)
+  for (auto &listener : listeners) {
+    listener->pre_loop();
     listener->get_state().set(xpl::iface::Listener::State::k_running);
+  }
 }
 
 void Socket_acceptors_task::post_loop() {
+  log_debug("Socket_acceptors_task::post_loop");
   auto listeners = get_array_of_listeners();
 
   m_time_and_event_state.set(xpl::iface::Listener::State::k_stopped);

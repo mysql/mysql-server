@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,6 @@
 
 #include <string>
 
-#include "crypt_genhash_impl.h"
-#include "mysql_com.h"
-
 #include "plugin/x/src/interface/account_verification.h"
 #include "plugin/x/src/interface/sha256_password_cache.h"
 
@@ -40,20 +37,15 @@ namespace xpl {
 */
 class Challenge_response_verification : public iface::Account_verification {
  public:
-  explicit Challenge_response_verification(iface::SHA256_password_cache *cache)
-      : k_salt(generate_salt()), m_sha256_password_cache(cache) {}
+  explicit Challenge_response_verification(iface::SHA256_password_cache *cache);
 
-  const std::string &get_salt() const override { return k_salt; }
+  const std::string &get_salt() const override;
 
  protected:
   const std::string k_salt;
   iface::SHA256_password_cache *m_sha256_password_cache;
 
-  std::string generate_salt() {
-    std::string salt(SCRAMBLE_LENGTH, '\0');
-    ::generate_user_salt(&salt[0], static_cast<int>(salt.size()));
-    return salt;
-  }
+  std::string generate_salt();
 };
 
 }  // namespace xpl

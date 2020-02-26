@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 #include <cstdint>
 
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/src/operations_factory.h"
+#include "plugin/x/src/variables/system_variables.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -65,7 +67,14 @@ class Protocol_decoder_test_suite : public ::testing::Test {
     EXPECT_CALL(*m_mock_vio, get_mysql_socket())
         .WillRepeatedly(ReturnRef(m_socket));
     EXPECT_CALL(*m_mock_vio, set_timeout_in_ms(_, _)).Times(AtLeast(1));
+    m_config_global->m_timeouts.m_wait_timeout = k_max_wait_timeout_in_sec;
+    m_config_global->m_timeouts.m_read_timeout = k_max_read_timeout_in_sec;
+
+    m_sut.reset(new ngs::Protocol_decoder(&m_mock_dispatcher, m_mock_vio,
+                                          &m_mock_protocol_monitor, m_config));
   }
+
+  void TearDown() override { m_config_global->m_timeouts = {}; }
 
   MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
   const std::vector<unsigned char> m_msg{
@@ -81,10 +90,7 @@ class Protocol_decoder_test_suite : public ::testing::Test {
   Strict_Mock_wait_for_io m_mock_wait_for_io;
   Mock_message_dispatcher m_mock_dispatcher;
 
-  ngs::Protocol_decoder m_sut{
-      &m_mock_dispatcher,        m_mock_vio,
-      &m_mock_protocol_monitor,  m_config,
-      k_max_wait_timeout_in_sec, k_max_read_timeout_in_sec};
+  std::unique_ptr<ngs::Protocol_decoder> m_sut;
 };
 
 /*
@@ -104,7 +110,7 @@ TEST_F(Protocol_decoder_test_suite, no_need_for_idle_reporting_read_msg) {
     EXPECT_CALL(m_mock_protocol_monitor, on_receive(_));
   }
 
-  m_sut.read_and_decode(&m_mock_wait_for_io);
+  m_sut->read_and_decode(&m_mock_wait_for_io);
 }
 
 /*
@@ -124,7 +130,7 @@ TEST_F(Protocol_decoder_test_suite, need_idle_reporting_read_msg) {
     EXPECT_CALL(m_mock_protocol_monitor, on_receive(_));
   }
 
-  m_sut.read_and_decode(&m_mock_wait_for_io);
+  m_sut->read_and_decode(&m_mock_wait_for_io);
 }
 
 /*
@@ -158,7 +164,7 @@ TEST_F(Protocol_decoder_test_suite,
         .RetiresOnSaturation();
   }
 
-  m_sut.read_and_decode(&m_mock_wait_for_io);
+  m_sut->read_and_decode(&m_mock_wait_for_io);
 }
 
 }  // namespace test

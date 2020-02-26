@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/document_id_aggregator.h"
 #include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 
@@ -102,8 +102,7 @@ void Session::on_kill() {
   on_close(true);
 }
 
-void Session::on_auth_success(
-    const iface::Authentication::Response &response) {
+void Session::on_auth_success(const iface::Authentication::Response &response) {
   proto().send_notice_client_id(m_client->client_id_num());
   ngs::Session::on_auth_success(response);
 

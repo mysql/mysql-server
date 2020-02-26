@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,12 @@
 namespace xpl {
 namespace test {
 
-using namespace ::testing;  // NOLINT(build/namespaces)
+using ::testing::_;
+using ::testing::InSequence;
+using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::StrictMock;
+using ::testing::Test;
 
 using Notice_type = ngs::Notice_type;
 using Notice_descriptor = ngs::Notice_descriptor;
@@ -61,7 +66,7 @@ class Broker_input_queue_testsuite : public Test {
   StrictMock<Mock_notice_output_queue> mock_notice_out_queue;
 
   ngs::Client_list m_client_list;
-  Task_context m_sut_context{Task_context::On_connection(), false, nullptr,
+  Task_context m_sut_context{Task_context::On_connection(), nullptr,
                              &m_client_list};
   Notice_input_queue m_sut_queue;
   std::unique_ptr<iface::Server_task> sut_task{

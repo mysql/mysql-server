@@ -468,7 +468,7 @@ XError Session_impl::set_mysql_option(
                   ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING};
 
   Argument_array array;
-  for (const auto value : values_list) {
+  for (const auto &value : values_list) {
     array.push_back(Argument_value{value});
   }
 
@@ -1022,7 +1022,7 @@ Session_impl::validate_and_adjust_auth_methods(
 
   std::vector<std::string> auth_method_string_list;
 
-  for (const auto auth_method :
+  for (const auto &auth_method :
        auto_sequence.empty() ? auth_methods : auto_sequence) {
     if (0 < m_server_supported_auth_methods.count(auth_method))
       auth_method_string_list.push_back(get_method_from_auth(auth_method));
@@ -1168,31 +1168,10 @@ Session_impl::Session_connect_timeout_scope_guard::
       (write_timeout < 0) ? -1 : write_timeout / 1000));
 }
 
-static void initialize_xmessages() {
-  /* Workaround for initialization of protobuf data.
-     Call default_instance for first msg from every
-     protobuf file.
-
-     This should have be changed to a proper fix.
-   */
-  Mysqlx::ServerMessages::default_instance();
-  Mysqlx::Sql::StmtExecute::default_instance();
-  Mysqlx::Session::AuthenticateStart::default_instance();
-  Mysqlx::Resultset::ColumnMetaData::default_instance();
-  Mysqlx::Notice::Warning::default_instance();
-  Mysqlx::Expr::Expr::default_instance();
-  Mysqlx::Expect::Open::default_instance();
-  Mysqlx::Datatypes::Any::default_instance();
-  Mysqlx::Crud::Update::default_instance();
-  Mysqlx::Connection::Capabilities::default_instance();
-}
-
 std::unique_ptr<XSession> create_session(const char *socket_file,
                                          const char *user, const char *pass,
                                          const char *schema,
                                          XError *out_error) {
-  initialize_xmessages();
-
   auto result = create_session();
   auto error = result->connect(socket_file, user, pass, schema);
 
@@ -1208,8 +1187,6 @@ std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
                                          const char *user, const char *pass,
                                          const char *schema,
                                          XError *out_error) {
-  initialize_xmessages();
-
   auto result = create_session();
   auto error = result->connect(host, port, user, pass, schema);
 
@@ -1222,8 +1199,6 @@ std::unique_ptr<XSession> create_session(const char *host, const uint16_t port,
 }
 
 std::unique_ptr<XSession> create_session() {
-  initialize_xmessages();
-
   std::unique_ptr<XSession> result{new Session_impl()};
 
   return result;

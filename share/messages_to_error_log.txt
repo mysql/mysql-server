@@ -10821,6 +10821,9 @@ ER_IB_ERR_PAGE_ARCH_RECOVERY_FAILED
 ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
   eng "Invalid archived file name format. The archived file is supposed to have the format %s + [0-9]*."
 
+ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
+  eng "X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

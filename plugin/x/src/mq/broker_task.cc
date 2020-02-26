@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 
 namespace xpl {
 

@@ -105,6 +105,9 @@ ngs::Error_code Sql_data_context::init(const bool is_admin) {
     if (ER_CON_COUNT_ERROR == m_last_sql_errno)
       return ngs::Error_code(m_last_sql_errno, m_last_sql_error);
 
+    if (ER_CON_COUNT_ERROR == m_last_sql_errno)
+      return ngs::Error_code(m_last_sql_errno, m_last_sql_error);
+
     log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
@@ -424,7 +427,7 @@ bool Sql_data_context::is_killed() const {
   return srv_session_info_killed(m_mysql_session);
 }
 
-bool Sql_data_context::is_api_ready() const {
+bool Sql_data_context::is_api_ready() {
   return 0 != srv_session_server_is_available();
 }
 

@@ -9,8 +9,8 @@ call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 #
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE from information_schema.plugins where PLUGIN_NAME LIKE '%mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE
-mysqlx	1.0	ACTIVE	DAEMON
 mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT
+mysqlx	1.0	ACTIVE	DAEMON
 0 rows affected
 RUN create user xplugin@localhost identified by 'xplugin'
 

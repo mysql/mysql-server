@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,14 @@ namespace xpl {
 
 namespace test {
 
-using namespace ::testing;
+using ::testing::_;
+using ::testing::Return;
+using ::testing::ReturnRef;
+using ::testing::SetArgPointee;
+using ::testing::StrictMock;
+using ::testing::Test;
+using ::testing::WithParamInterface;
+using xpl::test::Mock_authentication_container;
 
 class CapabilityHanderTlsTestSuite : public Test {
  public:
@@ -241,15 +248,15 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name) {
 }
 
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
-  std::vector<std::string> names;
+  std::vector<std::string> names{};
   ::Mysqlx::Datatypes::Any any;
+  Mock_authentication_container mock_auth;
 
-  // EXPECT_CALL(mock_connection,
-  // is_option_set(Connection::Option_active_tls)).WillOnce(Return(true));
-  EXPECT_CALL(*mock_server,
-              get_authentication_mechanisms_void(_, Ref(mock_client)))
-      .WillOnce(DoAll(SetArgReferee<0>(names), Return(true)));
+  EXPECT_CALL(*mock_server, get_authentications())
+      .WillOnce(ReturnRef(mock_auth));
 
+  EXPECT_CALL(mock_auth, get_authentication_mechanisms(&mock_client))
+      .WillOnce(Return(names));
   sut.get(&any);
 
   ASSERT_EQ(::Mysqlx::Datatypes::Any::ARRAY, any.type());
@@ -258,15 +265,16 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
 
 TEST_F(CapabilityHanderAuthMechTestSuite,
        get_returnAuthMethodsFromServer_always) {
-  std::vector<std::string> names;
+  std::vector<std::string> names{"first", "second"};
   ::Mysqlx::Datatypes::Any any;
 
-  names.push_back("first");
-  names.push_back("second");
+  StrictMock<Mock_authentication_container> mock_auth;
 
-  EXPECT_CALL(*mock_server,
-              get_authentication_mechanisms_void(_, Ref(mock_client)))
-      .WillOnce(DoAll(SetArgReferee<0>(names), Return(true)));
+  EXPECT_CALL(*mock_server, get_authentications())
+      .WillOnce(ReturnRef(mock_auth));
+
+  EXPECT_CALL(mock_auth, get_authentication_mechanisms(_))
+      .WillOnce(Return(names));
 
   sut.get(&any);
 
