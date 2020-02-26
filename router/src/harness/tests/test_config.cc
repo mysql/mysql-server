@@ -22,6 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+////////////////////////////////////////
+// Standard include files
+#include <algorithm>  // std::sort
+#include <array>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+////////////////////////////////////////
+// Third-party include files
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/plugin.h"
@@ -29,18 +43,6 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
-
-////////////////////////////////////////
-// Third-party include files
-#include "gmock/gmock.h"
-#include "gtest/gtest.h"
-
-////////////////////////////////////////
-// Standard include files
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
-#include <string>
 
 using mysql_harness::bad_option;
 using mysql_harness::bad_section;
@@ -99,7 +101,7 @@ class ConfigTest : public ::testing::Test {
  protected:
   void SetUp() override {
     std::vector<std::string> words;
-    words.push_back("reserved");
+    words.emplace_back("reserved");
     config.set_reserved(words);
   }
 
@@ -341,10 +343,10 @@ TEST_P(TestInterpolate, CheckExpected) {
   EXPECT_THAT(section.get("option_name"), Eq(expect));
 }
 
-Sample interpolate_examples[] = {
+const Sample interpolate_examples[] = {
     {"foo", "foo"},
-    {"c:\\foo\\bar\\{datadir}", "c:\\foo\\bar\\--path--"},
-    {"c:\\foo\\bar\\{undefined}", "c:\\foo\\bar\\{undefined}"},
+    {R"(c:\foo\bar\{datadir})", R"(c:\foo\bar\--path--)"},
+    {R"(c:\foo\bar\{undefined})", R"(c:\foo\bar\{undefined})"},
     {"{datadir}\\foo", "--path--\\foo"},
     {"{datadir}", "--path--"},
     {"foo{datadir}bar", "foo--path--bar"},
@@ -353,8 +355,8 @@ Sample interpolate_examples[] = {
     {"{{datadir}", "{--path--"},
     {"{{{datadir}}}", "{{--path--}}"},
     {"{datadir", "{datadir"},
-    {"c:\\foo\\bar\\{425432-5425432-5423534253-542342}",
-     "c:\\foo\\bar\\{425432-5425432-5423534253-542342}"},
+    {R"(c:\foo\bar\{425432-5425432-5423534253-542342})",
+     R"(c:\foo\bar\{425432-5425432-5423534253-542342})"},
 };
 
 INSTANTIATE_TEST_CASE_P(TestParsing, TestInterpolate,
@@ -386,7 +388,7 @@ class BadParseTestForbidKey : public ::testing::TestWithParam<const char *> {
     config = new Config;
 
     std::vector<std::string> words;
-    words.push_back("reserved");
+    words.emplace_back("reserved");
     config->set_reserved(words);
   }
 
@@ -658,9 +660,9 @@ TEST(TestConfig, CrLf) {
 
 TEST(TestConfig, CrLfUnterminatedLastLine) {
   static const char *const config_string =
-      ("[example]\r\n"
-       "library = magic\r\n"
-       "message = Some kind of");
+      R"([example]
+library = magic
+message = Some kind of)";
 
   Config config(Config::allow_keys);
   std::istringstream stream_input(config_string);
@@ -683,6 +685,50 @@ TEST(TestConfig, CrLfUnterminatedLastLine) {
   }
   EXPECT_THAT(config_options, SizeIs(2));
 }
+
+struct InvalidConfigParam {
+  std::string test_name;
+  std::string input;
+  std::string expected_error_msg;
+};
+
+class InvalidConfigTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<InvalidConfigParam> {};
+
+TEST_P(InvalidConfigTest, ensure_fails) {
+  Config config(Config::allow_keys);
+  std::istringstream stream_input(GetParam().input);
+  try {
+    config.read(stream_input);
+    FAIL() << "expected to throw an exception, did not throw.";
+  } catch (const std::exception &e) {
+    EXPECT_EQ(e.what(), GetParam().expected_error_msg);
+  } catch (...) {
+    FAIL() << "expected a std::exception, caught some other exception";
+  }
+}
+
+static const std::array<InvalidConfigParam, 4> invalid_config_params = {{
+    {"invalid_char_in_section_key", "[example:abc:def]",
+     "config-section '[example:abc:def]' contains invalid "
+     "character ':' in section key 'abc:def'. Only alpha-numeric "
+     "characters and _ are valid."},
+    {"empty_section_key", "[example:]",
+     "section key in config-section '[example:]' may not be empty."},
+    {"empty_section_name", "[:example]",
+     "section name in config-section '[:example]' may not be empty."},
+    {"invalid_char_in_section_name", "[foo-bar:foo]",
+     "config-section '[foo-bar:foo]' contains invalid "
+     "character '-' in section name 'foo-bar'. Only alpha-numeric "
+     "characters and _ are valid."},
+}};
+
+INSTANTIATE_TEST_CASE_P(Spec, InvalidConfigTest,
+                        ::testing::ValuesIn(invalid_config_params),
+                        [](auto const &test_params) {
+                          return test_params.param.test_name;
+                        });
 
 int main(int argc, char *argv[]) {
   g_here = Path(argv[0]).dirname();
