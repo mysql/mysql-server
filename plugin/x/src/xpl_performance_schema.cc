@@ -41,7 +41,6 @@ PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
 PSI_mutex_key KEY_mutex_x_document_id_generate;
 PSI_mutex_key KEY_mutex_x_notice_output_queue;
-PSI_mutex_key KEY_mutex_x_xpl_server_accepting;
 PSI_mutex_key KEY_mutex_x_client_session_exit;
 PSI_mutex_key KEY_mutex_x_socket_events_timers;
 PSI_mutex_key KEY_mutex_x_scheduler_post;
@@ -63,8 +62,6 @@ static PSI_mutex_info all_x_mutexes[] = {
     {&KEY_mutex_x_document_id_generate, "document_id_generate", 0, 0,
      PSI_DOCUMENT_ME},
     {&KEY_mutex_x_notice_output_queue, "notice_output_queue", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&KEY_mutex_x_xpl_server_accepting, "xpl_server_accepting", 0, 0,
      PSI_DOCUMENT_ME},
     {&KEY_mutex_x_client_session_exit, "client_session_exit", 0, 0,
      PSI_DOCUMENT_ME},
@@ -155,7 +152,9 @@ static PSI_memory_info all_x_memory[] = {
 
 #endif  // HAVE_PSI_INTERFACE
 
-void xpl_init_performance_schema() {
+namespace xpl {
+
+void init_performance_schema() {
 #ifdef HAVE_PSI_INTERFACE
 
   const char *const category = "mysqlx";
@@ -174,3 +173,5 @@ void xpl_init_performance_schema() {
                         static_cast<int>(array_elements(all_x_memory)));
 #endif  // HAVE_PSI_INTERFACE
 }
+
+}  // namespace xpl

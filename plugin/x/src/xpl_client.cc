@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,26 +32,27 @@
 #include <cstdint>
 #include <vector>
 
-// needed for ip_to_hostname(), should probably be turned into a service
 #include "my_dbug.h"     // NOLINT(build/include_subdir)
 #include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
+
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/capabilities/configurator.h"
 #include "plugin/x/src/capabilities/handler_expired_passwords.h"
 #include "plugin/x/src/capabilities/handler_readonly_value.h"
 #include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/mysql_variables.h"
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/ssl_session_options.h"
+#include "plugin/x/src/variables/system_variables.h"
 #include "plugin/x/src/xpl_session.h"
 #include "sql/hostname_cache.h"  // ip_to_hostname
 
 namespace xpl {
 
 Client::Client(std::shared_ptr<iface::Vio> connection, iface::Server &server,
-               Client_id client_id, Protocol_monitor *pmon,
-               const Global_timeouts &timeouts)
-    : ngs::Client(connection, server, client_id, pmon, timeouts) {
+               Client_id client_id, Protocol_monitor *pmon)
+    : ngs::Client(connection, server, client_id, pmon) {
   if (pmon) pmon->init(this);
 }
 
@@ -79,12 +80,14 @@ void Client::set_is_interactive(const bool flag) {
   if (nullptr == thd) return;
 
   if (!m_session->data_context().attach()) {
-    auto global_timeouts = get_global_timeouts();
+    auto &global_timeouts = m_config->m_global->m_timeouts;
 
-    const auto timeout = m_is_interactive ? global_timeouts.interactive_timeout
-                                          : global_timeouts.wait_timeout;
+    const auto timeout = m_is_interactive
+                             ? global_timeouts.m_interactive_timeout
+                             : global_timeouts.m_wait_timeout;
     m_decoder.set_wait_timeout(timeout);
-    set_session_wait_timeout(thd, timeout);
+
+    Plugin_system_variables::set_thd_wait_timeout(thd, timeout);
 
     m_session->data_context().detach();
   }

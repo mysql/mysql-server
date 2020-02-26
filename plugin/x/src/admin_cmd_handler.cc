@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,15 @@
 #include "plugin/x/src/helper/get_system_variable.h"
 #include "plugin/x/src/helper/sql_commands.h"
 #include "plugin/x/src/helper/string_case.h"
+#include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_configuration.h"
+#include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/mysql_function_names.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 
@@ -222,19 +224,17 @@ ngs::Error_code Admin_command_handler::list_clients(Command_arguments *args) {
 
   std::vector<Client_data_> clients;
   {
-    Server::Server_ptr server(Server::get_instance());
-    if (server) {
-      MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-      std::vector<std::shared_ptr<iface::Client>> client_list;
+    auto &server = m_session->client().server();
 
-      (*server)->server().get_client_list().get_all_clients(client_list);
+    MUTEX_LOCK(lock, server.get_client_exit_mutex());
+    std::vector<std::shared_ptr<xpl::iface::Client>> client_list;
 
-      clients.reserve(client_list.size());
+    server.get_client_list().get_all_clients(&client_list);
 
-      for (const auto &c : client_list)
-        get_client_data(&clients, *m_session, m_session->data_context(),
-                        c.get());
-    }
+    clients.reserve(client_list.size());
+
+    for (const auto &c : client_list)
+      get_client_data(&clients, *m_session, m_session->data_context(), c.get());
   }
 
   auto &proto = m_session->proto();
@@ -291,10 +291,9 @@ ngs::Error_code Admin_command_handler::kill_client(Command_arguments *args) {
       args->uint_arg({"id"}, &cid, Argument_appearance::k_obligatory).end();
   if (error) return error;
 
-  {
-    auto server(Server::get_instance());
-    if (server) error = (*server)->kill_client(cid, *m_session);
-  }
+  auto &server = m_session->client().server();
+  error = server.kill_client(cid, m_session);
+
   if (error) return error;
 
   m_session->proto().send_exec_ok();

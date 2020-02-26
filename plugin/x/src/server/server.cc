@@ -22,10 +22,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "plugin/x/ngs/include/ngs/server.h"
+#include "plugin/x/src/server/server.h"
 
 #include <time.h>
+#include <stdexcept>
+#include <utility>
 
+#include "mysql/service_ssl_wrapper.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs/document_id_generator.h"
 #include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
@@ -39,21 +42,26 @@
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/vio.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/server/builder/ssl_context_builder.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/variables/system_variables.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
-#include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
+#include "my_systime.h"   // my_sleep() NOLINT(build/include_subdir)
+#include "scope_guard.h"  // NOLINT(build/include_subdir)
 
 namespace ngs {
 
 Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
                std::shared_ptr<Scheduler_dynamic> work_scheduler,
-               xpl::iface::Server_delegate *delegate,
                std::shared_ptr<Protocol_global_config> config,
                Server_properties *properties, const Server_task_vector &tasks,
                std::shared_ptr<xpl::iface::Timeout_callback> timeout_callback)
     : m_timer_running(false),
-      m_skip_name_resolve(false),
+      m_stop_called(false),
       m_errors_while_accepting(0),
       m_accept_scheduler(accept_scheduler),
       m_worker_scheduler(work_scheduler),
@@ -61,43 +69,11 @@ Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
       m_id_generator(new Document_id_generator()),
       m_state(State_initializing, KEY_mutex_x_server_state_sync,
               KEY_cond_x_server_state_sync),
-      m_delegate(delegate),
       m_client_exit_mutex(KEY_mutex_x_server_client_exit),
       m_properties(properties),
       m_tasks(tasks),
+      m_factory(new xpl::Server_factory()),
       m_timeout_callback(timeout_callback) {}
-
-bool Server::prepare(std::unique_ptr<xpl::iface::Ssl_context> ssl_context,
-                     const bool skip_networking, const bool skip_name_resolve) {
-  xpl::iface::Listener::On_connection on_connection =
-      [this](xpl::iface::Connection_acceptor &acceptor) {
-        on_accept(acceptor);
-      };
-
-  Task_context context(on_connection, skip_networking, m_properties,
-                       &m_client_list);
-  m_skip_name_resolve = skip_name_resolve;
-  m_ssl_context = std::move(ssl_context);
-
-  bool result = true;
-
-  for (auto &task : m_tasks) {
-    result = result && task->prepare(&context);
-  }
-
-  if (result) {
-    m_state.set(State_running);
-
-    m_timeout_callback->add_callback(1000, [this]() -> bool {
-      this->on_check_terminated_workers();
-      return true;
-    });
-
-    return true;
-  }
-
-  return false;
-}
 
 void Server::run_task(std::shared_ptr<xpl::iface::Server_task> handler) {
   handler->pre_loop();
@@ -118,31 +94,102 @@ void Server::start_failed() {
 }
 
 bool Server::is_running() {
-  return m_state.is(State_running) && !m_delegate->is_terminating();
+  return m_state.is(State_running) && !mysqld::is_terminating() &&
+         !m_stop_called;
 }
 
 bool Server::is_terminating() {
-  return m_state.is(State_failure) || m_state.is(State_terminating) ||
-         m_delegate->is_terminating();
+  State expected_states[] = {State_failure, State_terminating};
+  return m_state.is(expected_states) || mysqld::is_terminating() ||
+         m_stop_called;
 }
 
-void Server::start() {
-  if (m_tasks.empty()) return;
+void Server::delayed_start_tasks() {
+  m_accept_scheduler->post([this]() {
+    srv_session_init_thread(xpl::plugin_handle);
+    auto guard_of_server_start = create_scope_guard([]() {
+      srv_session_deinit_thread();
+      ssl_wrapper_thread_cleanup();
+    });
 
-  auto task_to_run_in_new_thread = ++m_tasks.begin();
+    /* Wait until SQL api is ready,
+       server shouldn't handle any client before that. */
+    if (xpl::Sql_data_context::wait_api_ready(
+            [this]() { return is_terminating(); })) {
+#ifndef DBUG_OFF
+      while (DBUG_EVALUATE_IF("xplugin_init_wait", true, false)) {
+        my_sleep(100000);
+      }
+#endif  // DBUG_OFF
 
-  while (task_to_run_in_new_thread != m_tasks.end()) {
-    std::shared_ptr<xpl::iface::Server_task> task =
-        *(task_to_run_in_new_thread++);
+      xpl::Sql_data_context sql_context;
+      const bool admin_session = true;
+      ngs::Error_code error = sql_context.init(admin_session);
 
-    m_accept_scheduler->post([this, task]() { run_task(task); });
+      if (error) {
+        log_error(ER_XPLUGIN_STARTUP_FAILED, error.message.c_str());
+        return;
+      }
+      sql_context.switch_to_local_user(MYSQL_SESSION_USER);
+      sql_context.attach();
+
+      /* This method is executed inside a worker thread, thus
+         its better not to swap another thread, this one can handle
+         a task. */
+      start_tasks();
+    }
+  });
+}
+
+void Server::start_tasks() {
+  // We can't fetch the servers ssl config at plugin-load
+  // this method allows to setup it at better time.
+  m_ssl_context = xpl::Ssl_context_builder().get_result_context();
+
+  if (m_state.exchange(State::State_initializing, State_running)) {
+    for (auto task : m_tasks) {
+      m_accept_scheduler->post([this, task]() { run_task(task); });
+    }
+  }
+}
+
+bool Server::prepare() {
+  xpl::iface::Listener::On_connection on_connection =
+      [this](xpl::iface::Connection_acceptor &acceptor) {
+        on_accept(&acceptor);
+      };
+  Task_context context(on_connection, m_properties, &m_client_list);
+
+  m_worker_scheduler->launch();
+  m_accept_scheduler->launch();
+
+  bool result = true;
+
+  for (auto &task : m_tasks) {
+    result = result && task->prepare(&context);
   }
 
-  run_task(*m_tasks.begin());
+  if (!result) {
+    start_failed();
+
+    return false;
+  }
+
+  m_timeout_callback->add_callback(1000, [this]() -> bool {
+    this->on_check_terminated_workers();
+    return true;
+  });
+
+  return true;
 }
 
 /** Stop the network acceptor loop */
 void Server::stop(const bool is_called_from_timeout_handler) {
+  m_stop_called = true;
+  if (m_state.exchange(State::State_initializing, State_failure)) {
+    start_failed();
+  }
+
   const State allowed_values[] = {State_failure, State_running,
                                   State_terminating};
 
@@ -165,47 +212,55 @@ void Server::stop(const bool is_called_from_timeout_handler) {
     m_worker_scheduler->stop();
     m_worker_scheduler.reset();
   }
+
+  if (m_accept_scheduler && !is_called_from_timeout_handler) {
+    m_accept_scheduler->stop();
+    m_accept_scheduler.reset();
+  }
 }
 
 struct Copy_client_not_closed {
-  Copy_client_not_closed(
-      std::vector<std::shared_ptr<xpl::iface::Client>> &client_list)
+  explicit Copy_client_not_closed(
+      std::vector<std::shared_ptr<xpl::iface::Client>> *client_list)
       : m_client_list(client_list) {}
 
   bool operator()(std::shared_ptr<xpl::iface::Client> &client) {
     if (xpl::iface::Client::State::k_closed != client->get_state())
-      m_client_list.push_back(client);
+      m_client_list->push_back(client);
 
     // Continue enumerating
     return false;
   }
 
-  std::vector<std::shared_ptr<xpl::iface::Client>> &m_client_list;
+  std::vector<std::shared_ptr<xpl::iface::Client>> *m_client_list;
 };
 
 void Server::go_through_all_clients(
     std::function<void(std::shared_ptr<xpl::iface::Client>)> callback) {
   MUTEX_LOCK(lock_client_exit, m_client_exit_mutex);
-  std::vector<std::shared_ptr<xpl::iface::Client>> client_list;
-  Copy_client_not_closed matcher(client_list);
+  std::vector<std::shared_ptr<xpl::iface::Client>> not_closed_clients_list;
+  Copy_client_not_closed matcher(&not_closed_clients_list);
 
   // Prolong life of clients when there are already in
   // Closing state. Client::close could access m_client_list
   // causing a deadlock thus we copied all elements
-  m_client_list.enumerate(matcher);
+  m_client_list.enumerate(&matcher);
 
-  std::for_each(client_list.begin(), client_list.end(), callback);
+  for (auto client : not_closed_clients_list) {
+    callback(client);
+  }
 }
 
 void Server::close_all_clients() {
-  go_through_all_clients(std::bind(&xpl::iface::Client::on_server_shutdown,
-                                   std::placeholders::_1));
+  using Client_ptr = std::shared_ptr<xpl::iface::Client>;
+  go_through_all_clients(
+      [](Client_ptr client) { client->on_server_shutdown(); });
 }
 
 void Server::wait_for_clients_closure() {
   size_t num_of_retries = 4 * 5;
 
-  // TODO(bob): For now lets pull the list, it should be rewriten
+  // For now lets pull the list, it should be rewritten
   // after implementation of Client timeout in closing state
   while (m_client_list.size() > 0) {
     if (0 == --num_of_retries) {
@@ -239,8 +294,6 @@ void Server::restart_client_supervision_timer() {
 }
 
 bool Server::timeout_for_clients_validation() {
-  log_debug("Supervision timeout - started client state verification");
-
   const xpl::chrono::Time_point time_oldest =
       xpl::chrono::now() - get_config()->connect_timeout;
   const xpl::chrono::Time_point time_to_release =
@@ -249,8 +302,9 @@ bool Server::timeout_for_clients_validation() {
   Server_client_timeout client_validator(time_to_release);
 
   go_through_all_clients(
-      std::bind(&Server_client_timeout::validate_client_state,
-                &client_validator, std::placeholders::_1));
+      [&client_validator](std::shared_ptr<xpl::iface::Client> client) {
+        client_validator.validate_client_state(client);
+      });
 
   if (xpl::chrono::is_valid(client_validator.get_oldest_client_accept_time())) {
     start_client_supervision_timer(
@@ -262,15 +316,40 @@ bool Server::timeout_for_clients_validation() {
   return false;
 }
 
-void Server::on_accept(xpl::iface::Connection_acceptor &connection_acceptor) {
+std::shared_ptr<xpl::iface::Client> Server::will_accept_client(::Vio *vio) {
+  auto clients = m_client_list.direct_access();
+  auto connection = ngs::allocate_shared<Vio_wrapper>(vio);
+  auto client = m_factory->create_client(this, connection);
+
+  log_debug("num_of_connections: %i, max_num_of_connections: %i",
+            static_cast<int>(clients->size()),
+            static_cast<int>(xpl::Plugin_system_variables::m_max_connections));
+
+  if (is_terminating()) return {};
+
+  if (static_cast<int>(clients->size()) >=
+      xpl::Plugin_system_variables::m_max_connections) {
+    log_warning(ER_XPLUGIN_UNABLE_TO_ACCEPT_CONNECTION);
+    ++xpl::Global_status_variables::instance().m_rejected_connections_count;
+    return {};
+  }
+
+  clients->push_back(client);
+
+  ++xpl::Global_status_variables::instance().m_accepted_connections_count;
+
+  return client;
+}
+
+void Server::on_accept(xpl::iface::Connection_acceptor *connection_acceptor) {
   // That means that the event loop was just break in the stop()
   if (m_state.is(State_terminating)) return;
 
-  ::Vio *vio = connection_acceptor.accept();
+  ::Vio *vio = connection_acceptor->accept();
 
   if (nullptr == vio) {
-    m_delegate->did_reject_client(
-        xpl::iface::Server_delegate::Reject_reason::k_accept_error);
+    ++xpl::Global_status_variables::instance().m_connection_errors_count;
+    ++xpl::Global_status_variables::instance().m_connection_accept_errors_count;
 
     if (0 == (m_errors_while_accepting++ & 255)) {
       // error accepting client
@@ -283,20 +362,15 @@ void Server::on_accept(xpl::iface::Connection_acceptor &connection_acceptor) {
     return;
   }
 
-  std::shared_ptr<xpl::iface::Vio> connection(
-      allocate_shared<Vio_wrapper>(vio));
-  std::shared_ptr<xpl::iface::Client> client(
-      m_delegate->create_client(connection));
+  auto client = will_accept_client(vio);
 
-  if (m_delegate->will_accept_client(*client)) {
-    m_delegate->did_accept_client(*client);
-
+  if (client) {
     // connection accepted, add to client list and start handshake etc
     client->reset_accept_time();
-    m_client_list.add(client);
 
-    Scheduler_dynamic::Task *task = allocate_object<Scheduler_dynamic::Task>(
-        std::bind(&xpl::iface::Client::run, client, m_skip_name_resolve));
+    Scheduler_dynamic::Task *task =
+        ngs::allocate_object<Scheduler_dynamic::Task>(
+            std::bind(&xpl::iface::Client::run, client));
 
     const uint64_t client_id = client->client_id_num();
     client.reset();
@@ -309,10 +383,6 @@ void Server::on_accept(xpl::iface::Connection_acceptor &connection_acceptor) {
     }
 
     restart_client_supervision_timer();
-  } else {
-    m_delegate->did_reject_client(
-        xpl::iface::Server_delegate::Reject_reason::k_too_many_connections);
-    log_warning(ER_XPLUGIN_UNABLE_TO_ACCEPT_CONNECTION);
   }
 }
 
@@ -329,69 +399,18 @@ std::shared_ptr<xpl::iface::Session> Server::create_session(
     const int session_id) {
   if (is_terminating()) return std::shared_ptr<xpl::iface::Session>();
 
-  return m_delegate->create_session(client, proto, session_id);
+  return m_factory->create_session(client, proto, session_id);
 }
 
 void Server::on_client_closed(const xpl::iface::Client &client) {
   log_debug("%s: on_client_close", client.client_id());
+  ++xpl::Global_status_variables::instance().m_closed_connections_count;
   // Lets first remove it, and then decrement the counters
   // in m_delegate.
   m_client_list.remove(client.client_id_num());
-  m_delegate->on_client_closed(client);
 }
 
-void Server::add_authentication_mechanism(
-    const std::string &name, xpl::iface::Authentication::Create initiator,
-    const bool allowed_only_with_secure_connection) {
-  Authentication_key key(name, allowed_only_with_secure_connection);
-
-  m_auth_handlers[key] = initiator;
-}
-
-void Server::add_sha256_password_cache(
-    xpl::iface::SHA256_password_cache *cache) {
-  m_sha256_password_cache = cache;
-}
-
-std::unique_ptr<xpl::iface::Authentication> Server::get_auth_handler(
-    const std::string &name, xpl::iface::Session *session) {
-  xpl::Connection_type type = session->client().connection().get_type();
-
-  Authentication_key key(name,
-                         xpl::Connection_type_helper::is_secure_type(type));
-
-  Auth_handler_map::const_iterator auth_handler = m_auth_handlers.find(key);
-
-  if (auth_handler == m_auth_handlers.end())
-    return std::unique_ptr<xpl::iface::Authentication>();
-
-  return auth_handler->second(session, m_sha256_password_cache);
-}
-
-void Server::get_authentication_mechanisms(std::vector<std::string> *auth_mech,
-                                           const xpl::iface::Client &client) {
-  const xpl::Connection_type type = client.connection().get_type();
-  const bool is_secure = xpl::Connection_type_helper::is_secure_type(type);
-
-  auth_mech->clear();
-
-  auth_mech->reserve(m_auth_handlers.size());
-
-  Auth_handler_map::const_iterator i = m_auth_handlers.begin();
-
-  while (m_auth_handlers.end() != i) {
-    if (i->first.must_be_secure_connection == is_secure)
-      auth_mech->push_back(i->first.name);
-    ++i;
-  }
-}
-
-void Server::add_callback(const std::size_t delay_ms,
-                          std::function<bool()> callback) {
-  m_timeout_callback->add_callback(delay_ms, callback);
-}
-
-bool Server::reset_globals() {
+bool Server::reset() {
   if (m_client_list.size() != 0) return false;
 
   const State allowed_values[] = {State_failure, State_running,
@@ -401,13 +420,76 @@ bool Server::reset_globals() {
 
   m_ssl_context->reset();
   m_id_generator.reset(new Document_id_generator());
+  m_factory.reset(new xpl::Server_factory());
 
   return true;
 }
 
+Error_code Server::kill_client(const uint64_t client_id,
+                               xpl::iface::Session *requester) {
+  std::unique_ptr<Mutex_lock> lock(
+      new Mutex_lock(get_client_exit_mutex(), __FILE__, __LINE__));
+  auto found_client = get_client_list().find(client_id);
+
+  // Locking exit mutex of ensures that the client wont exit Client::run until
+  // the kill command ends, and shared_ptr (found_client) will be released
+  // before the exit_lock is released. Following ensures that the final instance
+  // of Clients will be released in its thread (Scheduler, Client::run).
+
+  if (found_client &&
+      xpl::iface::Client::State::k_closed != found_client->get_state()) {
+    if (client_id == requester->client().client_id_num()) {
+      lock.reset();
+      found_client->kill();
+      return ngs::Success();
+    }
+
+    bool is_session = false;
+    uint64_t mysql_session_id = 0;
+
+    {
+      MUTEX_LOCK(lock_session_exit, found_client->get_session_exit_mutex());
+      auto session = found_client->session_shared_ptr();
+
+      is_session = (nullptr != session.get());
+
+      if (is_session)
+        mysql_session_id = session->data_context().mysql_session_id();
+    }
+
+    if (is_session) {
+      // try to kill the MySQL session
+      ngs::Error_code error =
+          requester->data_context().execute_kill_sql_session(mysql_session_id);
+      if (error) {
+        return error;
+      }
+
+      bool is_killed = false;
+      {
+        MUTEX_LOCK(lock_session_exit, found_client->get_session_exit_mutex());
+        auto session = found_client->session_shared_ptr();
+
+        if (session) is_killed = session->data_context().is_killed();
+      }
+
+      if (is_killed) {
+        found_client->kill();
+        return ngs::Success();
+      }
+    }
+
+    return ngs::Error(ER_KILL_DENIED_ERROR, "Cannot kill client %s",
+                      std::to_string(client_id).c_str());
+  }
+
+  return ngs::Error(ER_NO_SUCH_THREAD, "Unknown MySQLx client id %s",
+                    std::to_string(client_id).c_str());
+}
+
 std::shared_ptr<xpl::iface::Client> Server::get_client(const THD *thd) {
   std::vector<std::shared_ptr<xpl::iface::Client>> clients;
-  get_client_list().get_all_clients(clients);
+  get_client_list().get_all_clients(&clients);
 
   for (auto &c : clients)
     if (c->is_handler_thd(thd)) return c;

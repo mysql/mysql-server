@@ -35,8 +35,7 @@
 #include <functional>
 #include <sstream>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
-
+#include "my_dbug.h"     // NOLINT(build/include_subdir)
 #include "my_macros.h"   // NOLINT(build/include_subdir)
 #include "my_systime.h"  // my_sleep NOLINT(build/include_subdir)
 
@@ -59,9 +58,8 @@
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/operations_factory.h"
+#include "plugin/x/src/variables/xpl_global_status_variables.h"
 #include "plugin/x/src/xpl_error.h"
-#include "plugin/x/src/xpl_global_status_variables.h"
-#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
@@ -79,15 +77,13 @@ class No_idle_processing : public xpl::iface::Waiting_for_io {
 
 Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
                xpl::iface::Server &server, Client_id client_id,
-               xpl::iface::Protocol_monitor *pmon,
-               const Global_timeouts &timeouts)
+               xpl::iface::Protocol_monitor *pmon)
     : m_client_id(client_id),
       m_server(server),
       m_connection(connection),
       m_config(std::make_shared<Protocol_config>(m_server.get_config())),
       m_dispatcher(this),
-      m_decoder(&m_dispatcher, m_connection, pmon, m_config,
-                timeouts.wait_timeout, timeouts.read_timeout),
+      m_decoder(&m_dispatcher, m_connection, pmon, m_config),
       m_client_addr("n/c"),
       m_client_port(0),
       m_state(State::k_invalid),
@@ -98,9 +94,12 @@ Client::Client(std::shared_ptr<xpl::iface::Vio> connection,
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {
   snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
-  m_decoder.set_wait_timeout(timeouts.wait_timeout);
-  m_decoder.set_read_timeout(m_read_timeout = timeouts.read_timeout);
-  m_write_timeout = timeouts.write_timeout;
+
+  const auto &timeouts = m_config->m_global->m_timeouts;
+
+  set_wait_timeout(timeouts.m_wait_timeout);
+  set_write_timeout(timeouts.m_write_timeout);
+  set_read_timeout(timeouts.m_read_timeout);
 }
 
 Client::~Client() {
@@ -114,10 +113,7 @@ xpl::chrono::Time_point Client::get_accept_time() const {
   return m_accept_time;
 }
 
-void Client::reset_accept_time() {
-  m_accept_time = xpl::chrono::now();
-  m_server.restart_client_supervision_timer();
-}
+void Client::reset_accept_time() { m_accept_time = xpl::chrono::now(); }
 
 void Client::activate_tls() {
   log_debug("%s: enabling TLS for client", client_id());
@@ -364,7 +360,7 @@ void Client::remove_client_from_server() {
   }
 }
 
-void Client::on_client_addr(const bool skip_resolve) {
+void Client::on_client_addr() {
   m_client_addr.resize(INET6_ADDRSTRLEN);
 
   switch (m_connection->get_type()) {
@@ -382,6 +378,8 @@ void Client::on_client_addr(const bool skip_resolve) {
   }
 
   // turn IP to hostname for auth uses
+  const bool skip_resolve = xpl::Plugin_system_variables::get_system_variable(
+                                "skip_name_resolve") == "ON";
   if (skip_resolve) return;
 
   m_client_host = "";
@@ -528,9 +526,9 @@ Error_code Client::read_one_message_and_dispatch() {
   return decode_error.get_logic_error();
 }
 
-void Client::run(const bool skip_name_resolve) {
+void Client::run() {
   try {
-    on_client_addr(skip_name_resolve);
+    on_client_addr();
     on_accept();
 
     while (m_state != State::k_closing && m_session) {
@@ -559,7 +557,10 @@ void Client::run(const bool skip_name_resolve) {
 }
 
 void Client::set_write_timeout(const uint32_t write_timeout) {
-  m_encoder->get_flusher()->set_write_timeout(write_timeout);
+  if (m_encoder) {
+    m_encoder->get_flusher()->set_write_timeout(write_timeout);
+  }
+  m_write_timeout = write_timeout;
 }
 
 void Client::set_read_timeout(const uint32_t read_timeout) {

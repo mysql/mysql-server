@@ -1,4 +1,4 @@
-// Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,20 @@
 const uint32_t k_on_idle_timeout_value = 500;
 
 namespace ngs {
+
+Protocol_decoder::Protocol_decoder(
+    Message_dispatcher_interface *dispatcher,
+    std::shared_ptr<xpl::iface::Vio> vio,
+    xpl::iface::Protocol_monitor *protocol_monitor,
+    std::shared_ptr<Protocol_config> config)
+    : m_vio(std::move(vio)),
+      m_protocol_monitor(protocol_monitor),
+      m_vio_input_stream(m_vio),
+      m_config(std::move(config)),
+      m_message_decoder(dispatcher, m_protocol_monitor, m_config) {
+  set_wait_timeout(m_config->m_global->m_timeouts.m_wait_timeout);
+  set_read_timeout(m_config->m_global->m_timeouts.m_read_timeout);
+}
 
 bool Protocol_decoder::read_header(uint8_t *message_type,
                                    uint32_t *message_size,

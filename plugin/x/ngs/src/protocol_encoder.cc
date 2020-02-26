@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,8 +34,7 @@
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/src/interface/vio.h"
-
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/module_mysqlx.h"
 
 #undef ERROR  // Needed to avoid conflict with ERROR in mysqlx.pb.h
 
@@ -147,7 +146,8 @@ void Protocol_encoder::send_auth_continue(const std::string &data) {
   DBUG_EXECUTE_IF("authentication_timeout", {
     int i = 0;
     int max_iterations = 1000;
-    while ((*xpl::Server::get_instance())->server().is_running() &&
+
+    while (modules::Module_mysqlx::get_instance_server()->is_running() &&
            i < max_iterations) {
       my_sleep(10000);
       ++i;

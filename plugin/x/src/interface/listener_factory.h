@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,11 +41,11 @@ class Listener_factory {
 
   virtual std::unique_ptr<Listener> create_unix_socket_listener(
       const std::string &unix_socket_path, Socket_events *event,
-      const uint32_t backlog) = 0;
+      const uint32_t backlog) const = 0;
   virtual std::unique_ptr<Listener> create_tcp_socket_listener(
       std::string *bind_address, const std::string &network_namespace,
       const unsigned short port, const uint32_t port_open_timeout,
-      Socket_events *event, const uint32_t backlog) = 0;
+      Socket_events *event, const uint32_t backlog) const = 0;
 };
 
 }  // namespace iface

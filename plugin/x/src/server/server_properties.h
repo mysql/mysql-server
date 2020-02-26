@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,26 +22,26 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_SRC_GLOBAL_TIMEOUTS_H_
-#define PLUGIN_X_SRC_GLOBAL_TIMEOUTS_H_
+#ifndef PLUGIN_X_SRC_SERVER_SERVER_PROPERTIES_H_
+#define PLUGIN_X_SRC_SERVER_SERVER_PROPERTIES_H_
 
-#include <mysql/plugin.h>
+#include <map>
+#include <string>
 
-struct Global_timeouts {
-  enum Default {
-    k_interactive_timeout = 28800,
-    k_wait_timeout = 28800,
-    k_read_timeout = 30,
-    k_write_timeout = 60
-  };
+namespace ngs {
 
-  uint32_t interactive_timeout;
-  uint32_t wait_timeout;
-  uint32_t read_timeout;
-  uint32_t write_timeout;
+enum class Server_property_ids {
+  k_was_prepared,
+  k_number_of_interfaces,
+  k_tcp_port,
+  k_tcp_bind_address,
+  k_unix_socket
 };
 
-Global_timeouts get_global_timeouts();
-void set_session_wait_timeout(THD *thd, const uint32_t wait_timeout);
+using Server_properties = std::map<Server_property_ids, std::string>;
 
-#endif  // PLUGIN_X_SRC_GLOBAL_TIMEOUTS_H_
+const char *const PROPERTY_NOT_CONFIGURED = "UNDEFINED";
+
+}  // namespace ngs
+
+#endif  // PLUGIN_X_SRC_SERVER_SERVER_PROPERTIES_H_

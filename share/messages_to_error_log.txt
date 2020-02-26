@@ -10830,6 +10830,9 @@ ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT
 ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN
   eng "Undo Truncation is occurring too often. Consider increasing --innodb-max-undo-log-size."
 
+ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
+  eng "X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

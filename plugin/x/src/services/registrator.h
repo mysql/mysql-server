@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRATOR_H_
-#define PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRATOR_H_
+#ifndef PLUGIN_X_SRC_SERVICES_REGISTRATOR_H_
+#define PLUGIN_X_SRC_SERVICES_REGISTRATOR_H_
 
-#include <mysql/components/my_service.h>
+#include <memory>
+
+#include "plugin/x/src/interface/service_register_service.h"
+#include "plugin/x/src/services/service_registry.h"
 
 #define SERVICE_ID(component, service) #service "." #component
 
@@ -43,18 +46,15 @@ class Service_registrator {
   };
 
   Service_registrator();
-  ~Service_registrator();
+
   void register_service(const Service &service);
   void unregister_service(const char *name);
 
  private:
-  Service_registrator(const Service_registrator &) = delete;
-  const Service_registrator &operator==(const Service_registrator &) = delete;
-
-  SERVICE_TYPE(registry) * m_registry;
-  my_service<SERVICE_TYPE(registry_registration)> m_registrator;
+  Service_registry m_registry;
+  std::unique_ptr<iface::Service_registry_registration> m_registration;
 };
 
 }  // namespace xpl
 
-#endif  // PLUGIN_X_SRC_SERVICES_SERVICE_REGISTRATOR_H_
+#endif  // PLUGIN_X_SRC_SERVICES_REGISTRATOR_H_

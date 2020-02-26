@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <utility>
 
 #include "my_psi_config.h"  // NOLINT(build/include_subdir)
 #include "my_rdtsc.h"       // NOLINT(build/include_subdir)
@@ -40,7 +42,8 @@ const uint64_t MILLI_TO_NANO = 1000000;
 const ulonglong TIME_VALUE_NOT_VALID = 0;
 
 Scheduler_dynamic::Scheduler_dynamic(const char *name,
-                                     PSI_thread_key thread_key)
+                                     PSI_thread_key thread_key,
+                                     std::unique_ptr<Monitor_interface> monitor)
     : m_name(name),
       m_worker_pending_mutex(KEY_mutex_x_scheduler_dynamic_worker_pending),
       m_worker_pending_cond(KEY_cond_x_scheduler_dynamic_worker_pending),
@@ -52,6 +55,7 @@ Scheduler_dynamic::Scheduler_dynamic(const char *name,
       m_workers_count(0),
       m_tasks_count(0),
       m_idle_worker_timeout(60 * 1000),
+      m_monitor(std::move(monitor)),
       m_thread_key(thread_key) {}
 
 Scheduler_dynamic::~Scheduler_dynamic() { stop(); }
@@ -160,11 +164,6 @@ bool Scheduler_dynamic::post(const Task &task) {
   free_object(copy_task);
 
   return false;
-}
-
-// NOTE: Scheduler takes ownership of monitor.
-void Scheduler_dynamic::set_monitor(Monitor_interface *monitor) {
-  m_monitor.reset(monitor);
 }
 
 void *Scheduler_dynamic::worker_proxy(void *data) {

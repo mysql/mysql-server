@@ -22,10 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/services/mysqlx_maintenance.h"
 
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/module_mysqlx.h"
 
 DEFINE_BOOL_METHOD(reset_global_status_variables, ()) {
-  return xpl::Server::reset();
+  return modules::Module_mysqlx::reset();
 }
 
 SERVICE_TYPE_NO_CONST(mysqlx_maintenance)

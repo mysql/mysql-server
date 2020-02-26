@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -146,22 +146,22 @@ class Mock_socket_events : public iface::Socket_events {
 
 class Mock_listener_factory_interface : public iface::Listener_factory {
  public:
-  MOCK_METHOD3(create_unix_socket_listener_ptr,
-               iface::Listener *(const std::string &unix_socket_path,
-                                 iface::Socket_events &event,
-                                 const uint32_t backlog));
+  MOCK_CONST_METHOD3(create_unix_socket_listener_ptr,
+                     iface::Listener *(const std::string &unix_socket_path,
+                                       const iface::Socket_events &event,
+                                       const uint32_t backlog));
 
-  MOCK_METHOD6(create_tcp_socket_listener_ptr,
-               iface::Listener *(std::string &bind_address,
-                                 const std::string &network_namespace,
-                                 const unsigned short port,
-                                 const uint32_t port_open_timeout,
-                                 iface::Socket_events &event,
-                                 const uint32_t backlog));
+  MOCK_CONST_METHOD6(create_tcp_socket_listener_ptr,
+                     iface::Listener *(const std::string &bind_address,
+                                       const std::string &network_namespace,
+                                       const unsigned short port,
+                                       const uint32_t port_open_timeout,
+                                       const iface::Socket_events &event,
+                                       const uint32_t backlog));
 
   std::unique_ptr<iface::Listener> create_unix_socket_listener(
       const std::string &unix_socket_path, iface::Socket_events *event,
-      const uint32_t backlog) {
+      const uint32_t backlog) const override {
     return std::unique_ptr<iface::Listener>{
         create_unix_socket_listener_ptr(unix_socket_path, *event, backlog)};
   }
@@ -169,7 +169,7 @@ class Mock_listener_factory_interface : public iface::Listener_factory {
   std::unique_ptr<iface::Listener> create_tcp_socket_listener(
       std::string *bind_address, const std::string &network_namespace,
       const unsigned short port, const uint32_t port_open_timeout,
-      iface::Socket_events *event, const uint32_t backlog) {
+      iface::Socket_events *event, const uint32_t backlog) const override {
     return std::unique_ptr<iface::Listener>{
         create_tcp_socket_listener_ptr(*bind_address, network_namespace, port,
                                        port_open_timeout, *event, backlog)};

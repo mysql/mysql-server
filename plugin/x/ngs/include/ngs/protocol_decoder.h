@@ -1,4 +1,4 @@
-// Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -51,16 +51,7 @@ class Protocol_decoder {
   Protocol_decoder(Message_dispatcher_interface *dispatcher,
                    std::shared_ptr<xpl::iface::Vio> vio,
                    xpl::iface::Protocol_monitor *protocol_monitor,
-                   std::shared_ptr<Protocol_config> config,
-                   const uint32_t wait_timeout_in_seconds,
-                   const uint32_t read_timeout_in_seconds)
-      : m_vio(vio),
-        m_protocol_monitor(protocol_monitor),
-        m_vio_input_stream(m_vio),
-        m_config(config),
-        m_message_decoder(dispatcher, m_protocol_monitor, config),
-        m_wait_timeout_in_ms(wait_timeout_in_seconds * 1000),
-        m_read_timeout_in_ms(read_timeout_in_seconds * 1000) {}
+                   std::shared_ptr<Protocol_config> config);
 
   Decode_error read_and_decode(xpl::iface::Waiting_for_io *wait_for_io);
 

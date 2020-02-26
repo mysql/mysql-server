@@ -49,6 +49,7 @@ GRANT SELECT ON xtest.* TO user2@'127.0.0.1';
 -->assert_eq %EXPECTED_CLIENT_ID%	%ACTIVE_CLIENT_ID%
 EOF
 
+
 --echo
 --echo ############################################################
 --echo ## Verify mysqlxtests variables at first connection

@@ -25,24 +25,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/module_mysqlx.h"
 
 DEFINE_BOOL_METHOD(notify_view_change, (const char *view_id)) {
-  auto server = xpl::Server::get_instance();
+  auto queue = modules::Module_mysqlx::get_instance_notice_queue();
 
-  if (server) {
-    (*server)->get_broker_input_queue().emplace(
-        ngs::Notice_type::k_group_replication_view_changed, view_id);
+  if (queue.container()) {
+    queue->emplace(ngs::Notice_type::k_group_replication_view_changed, view_id);
   }
 
   return false;
 }
 
 DEFINE_BOOL_METHOD(notify_quorum_loss, (const char *view_id)) {
-  auto server = xpl::Server::get_instance();
-  if (server) {
-    (*server)->get_broker_input_queue().emplace(
-        ngs::Notice_type::k_group_replication_quorum_loss, view_id);
+  auto queue = modules::Module_mysqlx::get_instance_notice_queue();
+  if (queue.container()) {
+    queue->emplace(ngs::Notice_type::k_group_replication_quorum_loss, view_id);
   }
 
   return false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,11 @@
 #include <gtest/gtest.h>
 
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
-#include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/operations_factory.h"
+#include "plugin/x/src/variables/system_variables.h"
+#include "plugin/x/src/variables/system_variables_defaults.h"
+#include "plugin/x/src/variables/timeout_config.h"
 #include "plugin/x/src/xpl_client.h"
-#include "plugin/x/src/xpl_server.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -46,11 +47,16 @@ using ::testing::StrictMock;
 class Timers_test_suite : public ::testing::Test {
  public:
   void SetUp() {
+    config->m_timeouts.m_interactive_timeout =
+        defaults::timeout::k_interactive_timeout;
+    config->m_timeouts.m_read_timeout = defaults::timeout::k_read_timeout;
+    config->m_timeouts.m_write_timeout = defaults::timeout::k_write_timeout;
+
     EXPECT_CALL(mock_server, get_config()).WillRepeatedly(Return(config));
     EXPECT_CALL(*mock_vio, get_mysql_socket())
         .WillRepeatedly(ReturnRef(m_socket));
-    sut.reset(new StrictMock<Mock_ngs_client>(
-        mock_vio, mock_server, /* id */ 1, &mock_protocol_monitor, timeouts));
+    sut.reset(new StrictMock<Mock_ngs_client>(mock_vio, mock_server, /* id */ 1,
+                                              &mock_protocol_monitor));
   }
 
   void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
@@ -59,10 +65,6 @@ class Timers_test_suite : public ::testing::Test {
   std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};
   StrictMock<Mock_server> mock_server;
   StrictMock<Mock_protocol_monitor> mock_protocol_monitor;
-  Global_timeouts timeouts{Global_timeouts::Default::k_interactive_timeout,
-                           Global_timeouts::Default::k_wait_timeout,
-                           Global_timeouts::Default::k_read_timeout,
-                           Global_timeouts::Default::k_write_timeout};
 
   std::shared_ptr<ngs::Protocol_global_config> config{
       new ngs::Protocol_global_config()};
@@ -86,12 +88,12 @@ TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_default_wait_timeout) {
   // Client holds only the timeout value which must be used.
   // It doesn't hold interactive or non-interactive timeout values.
-  // The timeout value is set from outsie thus the test uses
+  // The timeout value is set from outside thus the test uses
   // k_interactive_timeout
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio, set_timeout_in_ms(
-                     iface::Vio::Direction::k_read,
-                     Global_timeouts::Default::k_interactive_timeout * 1000));
+      *mock_vio,
+      set_timeout_in_ms(iface::Vio::Direction::k_read,
+                        defaults::timeout::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
       .After(set_timeout_exp)
@@ -108,9 +110,9 @@ TEST_F(Timers_test_suite,
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_default_interactive_timeout) {
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio, set_timeout_in_ms(
-                     iface::Vio::Direction::k_read,
-                     Global_timeouts::Default::k_interactive_timeout * 1000));
+      *mock_vio,
+      set_timeout_in_ms(iface::Vio::Direction::k_read,
+                        defaults::timeout::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
       .After(set_timeout_exp)
@@ -126,14 +128,14 @@ TEST_F(Timers_test_suite,
 
 TEST_F(Timers_test_suite,
        read_one_message_interactive_client_custom_interactive_timer) {
-  timeouts.interactive_timeout = 11;
+  config->m_timeouts.m_interactive_timeout = 11;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
 
   StrictMock<Mock_ssl_context> mock_ssl_context;
   Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor, timeouts);
+                         &mock_protocol_monitor);
 
-  client.set_wait_timeout(timeouts.interactive_timeout);
+  client.set_wait_timeout(config->m_timeouts.m_interactive_timeout);
 
   EXPECT_CALL(*temp_vio,
               set_timeout_in_ms(iface::Vio::Direction::k_read, 11 * 1000));
@@ -152,10 +154,10 @@ TEST_F(Timers_test_suite,
 
 TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_custom_wait_timer) {
-  timeouts.wait_timeout = 22;
+  config->m_timeouts.m_wait_timeout = 22;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor, timeouts);
+                         &mock_protocol_monitor);
 
   EXPECT_CALL(*temp_vio,
               set_timeout_in_ms(iface::Vio::Direction::k_read, 22 * 1000));
@@ -173,10 +175,9 @@ TEST_F(Timers_test_suite,
 }
 
 TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
-  EXPECT_CALL(*mock_vio,
-              set_timeout_in_ms(
-                  iface::Vio::Direction::k_read,
-                  Global_timeouts::Default::k_interactive_timeout * 1000));
+  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
+                             iface::Vio::Direction::k_read,
+                             defaults::timeout::k_interactive_timeout * 1000));
 
   // Expected to be called twice - once for header and once for payload
   EXPECT_CALL(*mock_vio, read(_, _))
@@ -192,23 +193,22 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
   auto conf = std::make_shared<ngs::Protocol_global_config>();
   EXPECT_CALL(mock_server, get_config()).WillRepeatedly(ReturnPointee(&conf));
 
-  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
-                             iface::Vio::Direction::k_read,
-                             Global_timeouts::Default::k_read_timeout * 1000));
+  EXPECT_CALL(*mock_vio,
+              set_timeout_in_ms(iface::Vio::Direction::k_read,
+                                defaults::timeout::k_read_timeout * 1000));
 
   sut->read_one_message_and_dispatch();
 }
 
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
-  timeouts.read_timeout = 33;
+  config->m_timeouts.m_read_timeout = 33;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor, timeouts);
+                         &mock_protocol_monitor);
 
-  EXPECT_CALL(*temp_vio,
-              set_timeout_in_ms(
-                  iface::Vio::Direction::k_read,
-                  Global_timeouts::Default::k_interactive_timeout * 1000));
+  EXPECT_CALL(*temp_vio, set_timeout_in_ms(
+                             iface::Vio::Direction::k_read,
+                             defaults::timeout::k_interactive_timeout * 1000));
   EXPECT_CALL(*temp_vio,
               set_timeout_in_ms(iface::Vio::Direction::k_read, 33 * 1000));
   EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
@@ -232,10 +232,9 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
 }
 
 TEST_F(Timers_test_suite, read_one_message_failed_read) {
-  EXPECT_CALL(*mock_vio,
-              set_timeout_in_ms(
-                  iface::Vio::Direction::k_read,
-                  Global_timeouts::Default::k_interactive_timeout * 1000));
+  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
+                             iface::Vio::Direction::k_read,
+                             defaults::timeout::k_interactive_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, read(_, _))
       .WillRepeatedly(SetSocketErrnoAndReturn(SOCKET_ETIMEDOUT, -1));
@@ -262,9 +261,8 @@ TEST_F(Timers_test_suite, read_one_message_failed_read) {
 TEST_F(Timers_test_suite, send_message_default_write_timeout) {
   EXPECT_CALL(*mock_vio, get_fd());
   Expectation set_timeout_exp = EXPECT_CALL(
-      *mock_vio,
-      set_timeout_in_ms(iface::Vio::Direction::k_write,
-                        Global_timeouts::Default::k_write_timeout * 1000));
+      *mock_vio, set_timeout_in_ms(iface::Vio::Direction::k_write,
+                                   defaults::timeout::k_write_timeout * 1000));
 
   EXPECT_CALL(*mock_vio, write(_, _)).After(set_timeout_exp);
 
@@ -277,10 +275,10 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
 }
 
 TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
-  timeouts.write_timeout = 44;
+  config->m_timeouts.m_write_timeout = 44;
   std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
-                         &mock_protocol_monitor, timeouts);
+                         &mock_protocol_monitor);
 
   EXPECT_CALL(*temp_vio, get_fd());
   Expectation set_timeout_exp = EXPECT_CALL(
@@ -300,9 +298,9 @@ TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
 
 TEST_F(Timers_test_suite, send_message_failed_write) {
   EXPECT_CALL(*mock_vio, get_fd());
-  EXPECT_CALL(*mock_vio, set_timeout_in_ms(
-                             iface::Vio::Direction::k_write,
-                             Global_timeouts::Default::k_write_timeout * 1000));
+  EXPECT_CALL(*mock_vio,
+              set_timeout_in_ms(iface::Vio::Direction::k_write,
+                                defaults::timeout::k_write_timeout * 1000));
 
   ON_CALL(*mock_vio, write(_, _)).WillByDefault(Return(-1));
   EXPECT_CALL(*mock_vio, write(_, _));

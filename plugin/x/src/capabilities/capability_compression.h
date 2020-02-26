@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "plugin/x/src/capabilities/handler.h"
 #include "plugin/x/src/capabilities/set_variable_adaptor.h"
 #include "plugin/x/src/helper/optional_value.h"
-#include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/variables/system_variables.h"
 
 namespace xpl {
 namespace iface {

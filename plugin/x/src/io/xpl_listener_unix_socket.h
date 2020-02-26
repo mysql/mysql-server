@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -51,11 +51,12 @@ class Listener_unix_socket : public iface::Listener {
   void report_properties(On_report_properties on_prop) override;
   Sync_variable_state &get_state() override;
   std::string get_name_and_configuration() const override;
-  std::string get_last_error() override;
+  std::string get_last_error() const override;
   std::vector<std::string> get_configuration_variables() const override;
 
   bool setup_listener(On_connection on_connection) override;
   void close_listener() override;
+  void pre_loop() override;
   void loop() override;
 
  private:
