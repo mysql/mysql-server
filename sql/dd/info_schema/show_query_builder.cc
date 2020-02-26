@@ -73,10 +73,8 @@ bool Select_lex_builder::add_to_select_item_list(Item *expr) {
 
 // Add item representing star in "SELECT '*' ...".
 bool Select_lex_builder::add_star_select_item() {
-  const LEX_CSTRING star = {STRING_WITH_LEN("*")};
-
-  PTI_simple_ident_ident *ident_star =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, star);
+  Item_asterisk *ident_star =
+      new (m_thd->mem_root) Item_asterisk(*m_pos, nullptr, nullptr);
   if (ident_star == nullptr) return true;
 
   return add_to_select_item_list(ident_star);
