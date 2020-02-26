@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -99,8 +99,8 @@ void meb_apply_log_recs(void);
 
 /** Applies log records in the hash table to a backup using a callback
 functions.
-@param[in]	function		function for apply
-@param[in]	wait_till_finished	function for wait */
+@param[in]	apply_log_record_function  function for apply
+@param[in]	wait_till_done_function    function for wait */
 void meb_apply_log_recs_via_callback(
     void (*apply_log_record_function)(recv_addr_t *),
     void (*wait_till_done_function)());

@@ -2984,8 +2984,7 @@ static void row_merge_copy_blobs_func(trx_t *trx, const dict_index_t *index,
 stored fields are not copied to heap.
 @param[in,out]	index	index on the table
 @param[in]	mtuple	merge record
-@param[in]	dtuple	data tuple of records
-@return	index entry built. */
+@param[in]	dtuple	data tuple of records */
 static void row_merge_mtuple_to_dtuple(dict_index_t *index, dtuple_t *dtuple,
                                        const mtuple_t *mtuple) {
   ut_ad(!dict_index_is_ibuf(index));

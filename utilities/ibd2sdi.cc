@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -531,7 +531,7 @@ class ib_tablespace {
   }
 
   /** Add the SDI root page numbers to tablespace.
-  @param[in]	copy	root page number of SDI */
+  @param[in]	root	root page number of SDI */
   inline void add_sdi(page_no_t root) { m_sdi_root = root; }
 
   /** @return SDI root page number */
@@ -632,7 +632,7 @@ class ib_tablespace {
 
  private:
   /** Return the SDI Root page number stored in a page.
-  @param[in]	byte		Page read from buffer
+  @param[in]	buf		Page read from buffer
   @return SDI root page number */
   inline page_no_t get_sdi_root_page_num(byte *buf);
 
@@ -765,8 +765,7 @@ class tablespace_creator {
  public:
   /** Constructor
   @param[in]	num_files	number of ibd files
-  @param[in]	ibd_files	array of ibd file names
-  @param[in]	map		tablespaces map */
+  @param[in]	ibd_files	array of ibd file names */
   tablespace_creator(uint32_t num_files, char **ibd_files)
       : m_num_files(num_files), m_ibd_files(ibd_files), m_tablespace(nullptr) {}
 

@@ -1316,8 +1316,7 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 }
 
 /** Mark the point in which the undo tablespaces in the construction list
-are fully constructed and ready to use.
-@return DB_SUCCESS or error code */
+are fully constructed and ready to use. */
 static void srv_undo_tablespaces_mark_construction_done() {
   /* Remove the truncate log files if they exist. */
   for (auto space_id : undo::s_under_construction) {
@@ -1389,8 +1388,7 @@ cleanup:
 }
 
 /** Downgrade undo tablespaces by deleting the new undo tablespaces which
-are not referenced by the TRX_SYS page.
-@return error code */
+are not referenced by the TRX_SYS page. */
 static void srv_undo_tablespaces_downgrade() {
   ut_ad(srv_downgrade_logs);
 

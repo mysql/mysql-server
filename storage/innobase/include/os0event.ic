@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 of spin-delay and event.
 
 @remarks
-
 First it uses a spin loop with PAUSE instructions. In each spin iteration
 it checks the condition and stops as soon as it returned true.
 
@@ -50,8 +49,6 @@ Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
 @param[in,out]	event			event on which function may wait
 @param[in]	spins_limit		maximum spin iterations
 @param[in]	timeout			initial timeout value
-@param[in]	timeout_mul2_every	timeout is multiplied by two every
-                                        that many waits on event
 @param[in]	condition		returns true when condition is
                                         satisfied
 

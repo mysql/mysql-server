@@ -907,8 +907,7 @@ class Arch_Group {
   }
 
   /** Attach a client to the archive group.
-  @param[in]	is_durable	true, if durable tracking is requested
-  @return	number of client references */
+  @param[in]	is_durable	true, if durable tracking is requested */
   void attach(bool is_durable) {
     ut_ad(mutex_own(m_arch_mutex));
     ++m_num_active;

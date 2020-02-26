@@ -1013,8 +1013,7 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
                              `d1/d2\d3`.`t3\t4/t5`
                             should look like:
                             d1@002fd2@005cd3/t3@005ct4@002ft5
-                            both on Windows and on Linux.
-@return None. */
+                            both on Windows and on Linux. */
 static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
                                             dd::String_type new_space_name) {
   ut_ad(std::count(new_space_name.begin(), new_space_name.end(),

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -316,8 +316,7 @@ class Clone_Snapshot {
   /** Decrypt tablespace key in header page with master key.
   @param[in]		space		tablespace
   @param[in]		page_size	page size descriptor
-  @param[in,out]	page_data	page data to update
-  @return true, if successful. */
+  @param[in,out]	page_data	page data to update */
   void decrypt_key_in_header(fil_space_t *space, const page_size_t &page_size,
                              byte *&page_data);
 

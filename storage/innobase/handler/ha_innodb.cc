@@ -130,6 +130,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "my_compare.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_io.h"
@@ -1425,14 +1426,16 @@ static void innodb_enable_monitor_at_startup(
     char *str); /*!< in: monitor counter enable list */
 
 /** Fill handlerton based INFORMATION_SCHEMA tables.
-@param[in]	-	(unused) Handle to the handlerton structure
-@param[in]	thd	Thread/connection descriptor
-@param[in,out]	tables	Information Schema tables to fill
-@param[in]	-	(unused) Intended for conditional pushdown
-@param[in]	idx	Table id that indicates which I_S table to fill
+@param[in]	hton		(unused) Handle to the handlerton structure
+@param[in]	thd		Thread/connection descriptor
+@param[in,out]	tables		Information Schema tables to fill
+@param[in]	idx_cond	(unused) Intended for conditional pushdown
+@param[in]	idx		Table id that indicates which I_S table to fill
 @return Operation status */
-static int innobase_fill_i_s_table(handlerton *, THD *thd, TABLE_LIST *tables,
-                                   Item *, enum_schema_tables idx) {
+static int innobase_fill_i_s_table(handlerton *hton MY_ATTRIBUTE((unused)),
+                                   THD *thd, TABLE_LIST *tables,
+                                   Item *idx_cond MY_ATTRIBUTE((unused)),
+                                   enum_schema_tables idx) {
   DBUG_ASSERT(idx == SCH_TABLESPACES);
 
   /** InnoDB does not implement I_S.TABLESPACES */
@@ -2817,8 +2820,7 @@ char *innobase_convert_name(
 }
 
 /** A wrapper function of innobase_convert_name(), convert a table name
- to the MySQL system_charset_info (UTF-8) and quote it if needed.
- @return pointer to the end of buf */
+ to the MySQL system_charset_info (UTF-8) and quote it if needed. */
 void innobase_format_name(
     char *buf,        /*!< out: buffer for converted identifier */
     ulint buflen,     /*!< in: length of buf, in bytes */

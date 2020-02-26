@@ -186,7 +186,7 @@ fatal::~fatal() {
 
 /** Check that a page_size is correct for InnoDB. If correct, set the
 associated page_size_shift which is the power of 2 for this page size.
-@param[in]	page_isze	page size to evaluate
+@param[in]	page_size	page size to evaluate
 @return an associated page_size_shift if valid, 0 if invalid. */
 static int innodb_page_size_validate(ulong page_size) {
   ulong n;

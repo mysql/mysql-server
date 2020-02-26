@@ -1602,8 +1602,7 @@ class Fixup_data {
   size_t get_num_tasks() const { return (m_num_tasks); }
 
   /** Calculate and set number of new tasks to spawn.
-  @param[in]	num_entries	number of entries to handle
-  @param[in]	concurrent	allow multiple threads */
+  @param[in]	num_entries	number of entries to handle */
   void set_num_tasks(size_t num_entries) {
     /* Check if we are allowed to spawn multiple threads. Disable
     multithreading while dropping objects for now. We need more

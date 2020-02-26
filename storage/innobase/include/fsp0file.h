@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -368,7 +368,7 @@ class Datafile {
   }
 
   /** Set th tablespace flags
-  @param[in]	fsp_flags	Tablespace flags */
+  @param[in]	flags	Tablespace flags */
   void set_flags(uint32_t flags) { m_flags = flags; }
 #endif /* UNIV_HOTBACKUP */
 
