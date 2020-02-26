@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,7 +303,7 @@ end:
   }
 
   if (!election_process_aborted && !error) {
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_PRIMARY_MEM);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_PRIMARY_MEM);
   }
 
   stage_handler->end_stage();

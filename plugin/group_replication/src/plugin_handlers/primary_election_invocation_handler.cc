@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,13 +181,13 @@ int Primary_election_handler::execute_primary_election(
             "Enabling conflict detection until the new primary applies all "
             "relay logs.");
 
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(), message.c_str());
       internal_primary_election(primary_uuid, mode);
     } else {
       // retain the old message
-      LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
+      LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_NEW_PRIMARY_ELECTED,
                    primary_member_info->get_hostname().c_str(),
                    primary_member_info->get_port(),
                    "Enabling conflict detection until the new primary applies "
@@ -322,7 +322,7 @@ int Primary_election_handler::legacy_primary_election(
     internal_primary_election(primary_uuid, LEGACY_ELECTION_PRIMARY);
   } else {
     set_election_running(false);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SRV_SECONDARY_MEM,
                  primary_member_info->get_hostname().c_str(),
                  primary_member_info->get_port());
   }

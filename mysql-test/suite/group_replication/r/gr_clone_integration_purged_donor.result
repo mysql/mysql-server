@@ -48,7 +48,7 @@ DROP TABLE t1;
 include/gtid_utils_end.inc
 include/rpl_sync.inc
 set session sql_log_bin=0;
-call mtr.add_suppression("As no ONLINE member has the missing data for recovering in its binary logs,*");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs.");
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
 set session sql_log_bin=1;

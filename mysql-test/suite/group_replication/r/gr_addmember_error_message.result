@@ -1,0 +1,29 @@
+
+############################################################
+# 0. Start 2 servers
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Bootstrap group replication on first server
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 2. Add second server to the group
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 3. Verify that messages are logged with SYSTEM level
+include/assert_grep.inc [Found message informing that group replication plugin has started.]
+include/assert_grep.inc [Found message informing that `super_read_only` is ON.]
+include/assert_grep.inc [Found message informing the strategy for distributed recovery.]
+include/assert_grep.inc [Found message informing that group membership has changed.]
+include/assert_grep.inc [Found message informing that server was declared online withing the replication group.]
+include/assert_grep.inc [Found message informing that `super_read_only` is OFF.]
+include/assert_grep.inc [Found message informing that member was declared online withing the group.]
+include/group_replication_end.inc

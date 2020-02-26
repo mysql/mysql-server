@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,16 +157,16 @@ long Sql_service_commands::internal_set_super_read_only(
 
   Sql_resultset rset;
   long srv_err = sql_interface->execute_query("SET GLOBAL super_read_only= 1;");
-  if (srv_err == 0) {
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
 #ifndef DBUG_OFF
+  if (srv_err == 0) {
     long err;
     err =
         sql_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
 
     DBUG_ASSERT(err || (!err && rset.get_rows() > 0 && rset.getLong(0) == 1));
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
-#endif
   }
+#endif
 
   return srv_err;
 }
@@ -197,6 +197,7 @@ long Sql_service_commands::internal_reset_super_read_only(
 
   const char *query = "SET GLOBAL super_read_only= 0";
   long srv_err = sql_interface->execute_query(query);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
 #ifndef DBUG_OFF
   if (srv_err == 0) {
     long err;
@@ -204,7 +205,6 @@ long Sql_service_commands::internal_reset_super_read_only(
     err = sql_interface->execute_query(query, &rset);
 
     DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   }
 #endif
   return srv_err;
@@ -235,6 +235,7 @@ long Sql_service_commands::internal_reset_read_only(
 
   const char *query = "SET GLOBAL read_only= 0";
   long srv_err = sql_interface->execute_query(query);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
 
 #ifndef DBUG_OFF
   if (srv_err == 0) {
@@ -243,7 +244,6 @@ long Sql_service_commands::internal_reset_read_only(
     err = sql_interface->execute_query(query, &rset);
 
     DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
   }
 #endif
 

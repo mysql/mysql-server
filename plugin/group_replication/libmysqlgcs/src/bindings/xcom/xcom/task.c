@@ -1470,8 +1470,8 @@ result announce_tcp(xcom_port port) {
     init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
     if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
       int err = to_errno(GET_OS_ERR);
-      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
-                port, fd.val, err);
+      G_ERROR("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
+              port, fd.val, err);
       goto err;
     }
   }

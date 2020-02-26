@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -499,7 +499,7 @@ int Gcs_operations::force_members(const char *members) {
       goto end;
       /* purecov: end */
     }
-    LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
+    LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET, members);
     if (view_change_notifier.wait_for_view_modification()) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_TIME_OUT,

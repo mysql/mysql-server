@@ -1,0 +1,1 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_add_member_error_message.2.err

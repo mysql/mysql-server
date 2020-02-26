@@ -467,6 +467,8 @@ int plugin_group_replication_start(char **) {
     goto err;
   }
 
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STARTING);
+
   DBUG_EXECUTE_IF("register_gms_listener_example",
                   { register_listener_service_gr_example(); });
 
@@ -1039,7 +1041,7 @@ int plugin_group_replication_stop(char **error_message) {
                   { unregister_listener_service_gr_example(); });
 
   shared_plugin_stop_lock->release_write_lock();
-  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPED);
+  LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_IS_STOPPED);
 
   // Enable super_read_only.
   if (!lv.server_shutdown_status && !lv.plugin_is_being_uninstalled &&

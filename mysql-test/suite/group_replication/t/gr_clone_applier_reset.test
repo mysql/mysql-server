@@ -116,7 +116,7 @@ START GROUP_REPLICATION;
 
 --source include/clean_monitoring_process.inc
 SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will start distributed recovery using clone.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
 call mtr.add_suppression("Clone removing all user data for provisioning: *");
 SET SESSION sql_log_bin = 1;
 

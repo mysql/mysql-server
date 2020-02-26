@@ -4952,7 +4952,7 @@ ER_GRP_RPL_UNABLE_TO_CERTIFY_PLUGIN_TRANS
 ER_GRP_RPL_UNBLOCK_CERTIFIED_TRANS
   eng "Error when trying to unblock non certified or consistent transactions. Check for consistency errors when restarting the service"
 
-ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
+OBSOLETE_ER_GRP_RPL_SERVER_WORKING_AS_SECONDARY
   eng "This server is working as secondary member with primary member address %s:%u."
 
 ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID
@@ -10480,10 +10480,10 @@ ER_GRP_RPL_CANT_KILL_THREAD
   eng "The group replication plugin could not kill the plugin routine for %s. %s"
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD
-  eng "Due to the number of missing transactions being higher than the configured threshold of %llu, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of %llu."
 
 ER_GRP_RPL_RECOVERY_STRAT_CLONE_PURGED
-  eng "As no ONLINE member has the missing data for recovering in its binary logs, this member will start distributed recovery using clone."
+  eng "This member will start distributed recovery using clone. It is due to no ONLINE member has the missing data for recovering in its binary logs."
 
 ER_GRP_RPL_RECOVERY_STRAT_CHOICE
   eng "Distributed recovery will transfer data using: %s"
@@ -10832,6 +10832,9 @@ ER_IB_MSG_UNDO_TRUNCATION_TOO_OFTEN
 
 ER_INVALID_XPLUGIN_SOCKET_SAME_AS_SERVER
   eng "X Plugins UNIX socket must use different file than MySQL server. X Plugin won't be accessible through UNIX socket"
+
+ER_GRP_RPL_IS_STARTING
+  eng "Plugin 'group_replication' is starting."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
