@@ -9318,6 +9318,15 @@ ER_WARN_DEPRECATED_FOUND_ROWS
 ER_WARN_CLIENT_DEPRECATED_PARTITION_PREFIX_KEY
   eng "Usage of column '%.64s.%.64s.%.64s' having prefix key part '%.64s(%u)' in the PARTITION BY KEY() clause is deprecated and will be removed in a future release."
 
+ER_GROUP_REPLICATION_USER_EMPTY_MSG
+  eng "The START GROUP_REPLICATION command failed since the username provided for recovery channel is empty."
+
+ER_GROUP_REPLICATION_USER_MANDATORY_MSG
+  eng "The START GROUP_REPLICATION command failed since the USER option was not provided with PASSWORD for recovery channel."
+
+ER_GROUP_REPLICATION_PASSWORD_LENGTH
+  eng "The START GROUP_REPLICATION command failed since the password provided for the recovery channel exceeds the maximum length of 32 characters."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

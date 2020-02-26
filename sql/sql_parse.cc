@@ -3202,6 +3202,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
                  "SUPER or GROUP_REPLICATION_ADMIN");
         goto error;
       }
+      if (lex->slave_connection.password && !lex->slave_connection.user) {
+        my_error(ER_GROUP_REPLICATION_USER_MANDATORY_MSG, MYF(0));
+        goto error;
+      }
 
       /*
         If the client thread has locked tables, a deadlock is possible.
@@ -3229,7 +3233,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       }
 
       char *error_message = nullptr;
-      res = group_replication_start(&error_message);
+      res = group_replication_start(&error_message, thd);
 
       // To reduce server dependency, server errors are not used here
       switch (res) {

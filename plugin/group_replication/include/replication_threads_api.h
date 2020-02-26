@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -329,6 +329,18 @@ class Replication_thread_api {
       @retval 0      OK
   */
   static int rpl_binlog_dump_thread_kill();
+
+  /**
+    Interface to remove stored credentials from thread api.
+    Removes credentials for the channel from thread api.
+
+    @param channel_name  Credential associated channel name
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  static int delete_credential(const char *channel_name);
 
   /**
     Method to get the credentials configured for a channel

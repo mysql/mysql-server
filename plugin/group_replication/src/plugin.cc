@@ -1011,7 +1011,9 @@ int plugin_group_replication_stop(char **error_message) {
   transaction_consistency_manager->plugin_is_stopping();
 
   DBUG_EXECUTE_IF("group_replication_hold_stop_before_leave_the_group", {
-    const char act[] = "now wait_for signal.resume_stop_before_leave_the_group";
+    const char act[] =
+        "now signal signal.stopping_before_leave_the_group wait_for "
+        "signal.resume_stop_before_leave_the_group";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
@@ -1027,6 +1029,8 @@ int plugin_group_replication_stop(char **error_message) {
 
   int error = leave_group_and_terminate_plugin_modules(gr_modules::all_modules,
                                                        error_message);
+  /* Delete of credentials is safe now from recovery thread. */
+  Replication_thread_api::delete_credential("group_replication_recovery");
 
   lv.group_replication_running = false;
   lv.group_member_mgr_configured = false;

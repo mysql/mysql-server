@@ -286,6 +286,9 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
     case SQLCOM_PREPARE:
       rw.reset(new Rewriter_prepare(thd, type));
       break;
+    case SQLCOM_START_GROUP_REPLICATION:
+      rw.reset(new Rewriter_start_group_replication(thd, type));
+      break;
     case SQLCOM_CLONE: {
       rw.reset(new Rewriter_clone(thd, type));
       break;
@@ -1530,4 +1533,41 @@ Rewriter_clone::Rewriter_clone(THD *thd, Consumer_type type)
 bool Rewriter_clone::rewrite(String &rlb) const {
   auto clone_cmd = dynamic_cast<Sql_cmd_clone *>(m_thd->lex->m_sql_cmd);
   return (clone_cmd->rewrite(m_thd, rlb));
+}
+
+Rewriter_start_group_replication::Rewriter_start_group_replication(
+    THD *thd, Consumer_type type)
+    : I_rewriter(thd, type) {}
+
+/**
+  Rewrite the query for the START GROUP_REPLICATION command.
+
+  @param[in,out] rlb     Buffer to return the rewritten query in.
+
+  @retval true  the query is rewritten
+*/
+bool Rewriter_start_group_replication::rewrite(String &rlb) const {
+  LEX *lex = m_thd->lex;
+  bool comma = false;
+
+  rlb.append(STRING_WITH_LEN("START GROUP_REPLICATION"));
+
+  if (lex->slave_connection.user) {
+    comma = append_str(&rlb, comma, " USER =", lex->slave_connection.user);
+  }
+
+  if (lex->slave_connection.password) {
+    comma = append_str(&rlb, comma, " PASSWORD =", "<secret>");
+  }
+
+  if (lex->slave_connection.plugin_auth) {
+    comma = append_str(&rlb, comma,
+                       " DEFAULT_AUTH =", lex->slave_connection.plugin_auth);
+  }
+
+  if (lex->slave_connection.plugin_dir) {
+    comma = append_str(&rlb, comma,
+                       " PLUGIN_DIR =", lex->slave_connection.plugin_dir);
+  }
+  return true;
 }

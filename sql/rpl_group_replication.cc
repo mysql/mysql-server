@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 #include <sys/types.h>
+#include <atomic>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -41,9 +42,12 @@
 #include "sql/mysqld.h"              // mysqld_port
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/replication.h"         // Trans_context_info
+#include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_channel_service_interface.h"
-#include "sql/rpl_gtid.h"    // gtid_mode_lock
-#include "sql/rpl_slave.h"   // report_host
+#include "sql/rpl_gtid.h"   // gtid_mode_lock
+#include "sql/rpl_slave.h"  // report_host
+#include "sql/sql_class.h"  // THD
+#include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql/sql_plugin_ref.h"
 #include "sql/ssl_acceptor_context.h"
@@ -53,6 +57,7 @@ class THD;
 
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;
+std::atomic_flag start_stop_executing = ATOMIC_FLAG_INIT;
 
 /*
   Struct to share server ssl variables
@@ -110,12 +115,25 @@ bool is_group_replication_plugin_loaded() {
   return result;
 }
 
-int group_replication_start(char **error_message) {
+int group_replication_start(char **error_message, THD *thd) {
+  LEX *lex = thd->lex;
   int result = 1;
+  bool gtid_locked = false;
+  plugin_ref plugin = nullptr;
 
-  plugin_ref plugin =
-      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
-                             MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (start_stop_executing.test_and_set()) {
+    std::string msg;
+    msg.assign(
+        "Another instance of START/STOP GROUP_REPLICATION command is "
+        "executing.");
+    *error_message =
+        (char *)my_malloc(PSI_NOT_INSTRUMENTED, msg.size() + 1, MYF(0));
+    strcpy(*error_message, msg.c_str());
+    result = 8;
+    return result;
+  }
+  plugin = my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                                  MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     /*
       We need to take global_sid_lock because
@@ -131,25 +149,73 @@ int group_replication_start(char **error_message) {
       gtid_mode_lock.
     */
     gtid_mode_lock->rdlock();
+    gtid_locked = true;
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
-    result = plugin_handle->start(error_message);
-    gtid_mode_lock->unlock();
+    /*
+      is_running check is required below before storing credentials.
+      Check makes sure runing instance of START GR is not impacted by
+      temporary storage of credentials or if storing credential failed
+      message is meaningful.
+      e.g. of credential conflict blocked by below check
+      1: START GROUP_REPLICATION;
+         START GROUP_REPLICATION USER="abc" , PASSWORD="xyz";
+      2: START GROUP_REPLICATION USER="abc" , PASSWORD="xyz";
+         START GROUP_REPLICATION USER="user" , PASSWORD="pass";
+     */
+    if (plugin_handle->is_running()) {
+      result = 2;
+      goto err;
+    }
+    if (lex != nullptr &&
+        (lex->slave_connection.user || lex->slave_connection.plugin_auth ||
+         lex->slave_connection.plugin_dir)) {
+      if (Rpl_channel_credentials::get_instance().store_credentials(
+              "group_replication_recovery", lex->slave_connection.user,
+              lex->slave_connection.password, lex->slave_connection.plugin_auth,
+              lex->slave_connection.plugin_dir)) {
+        // Parallel START/STOP GR is blocked.
+        // So by now START GR command should fail if running or stop should have
+        // cleared credentials. Post UNINSTALL we should not reach here.
+        /* purecov: begin inspected */
+        DBUG_ASSERT(false);
+        result = 2;
+        goto err;
+        /* purecov: end */
+      }
+    }
 
-    plugin_unlock(nullptr, plugin);
+    result = plugin_handle->start(error_message);
+    if (result)
+      Rpl_channel_credentials::get_instance().delete_credentials(
+          "group_replication_recovery");
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
-
+err:
+  if (gtid_locked) gtid_mode_lock->unlock();
+  if (plugin != nullptr) plugin_unlock(nullptr, plugin);
+  start_stop_executing.clear();
   return result;
 }
 
 int group_replication_stop(char **error_message) {
   int result = 1;
+  plugin_ref plugin = nullptr;
 
-  plugin_ref plugin =
-      my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
-                             MYSQL_GROUP_REPLICATION_PLUGIN);
+  if (start_stop_executing.test_and_set()) {
+    std::string msg;
+    msg.assign(
+        "Another instance of START/STOP GROUP_REPLICATION command is "
+        "executing.");
+    *error_message =
+        (char *)my_malloc(PSI_NOT_INSTRUMENTED, msg.size() + 1, MYF(0));
+    strcpy(*error_message, msg.c_str());
+    result = 8;
+    return result;
+  }
+  plugin = my_plugin_lock_by_name(nullptr, group_replication_plugin_name_str,
+                                  MYSQL_GROUP_REPLICATION_PLUGIN);
   if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
@@ -158,7 +224,7 @@ int group_replication_stop(char **error_message) {
   } else {
     LogErr(ERROR_LEVEL, ER_GROUP_REPLICATION_PLUGIN_NOT_INSTALLED);
   }
-
+  start_stop_executing.clear();
   return result;
 }
 

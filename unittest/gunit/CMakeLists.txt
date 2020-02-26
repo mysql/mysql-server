@@ -353,6 +353,16 @@ FOREACH(test ${SERVER_TESTS})
     )
 ENDFOREACH()
 
+ADD_LIBRARY(rpl_channel_credentials_lib STATIC
+  ${CMAKE_SOURCE_DIR}/sql/rpl_channel_credentials.cc
+)
+
+MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
+  ENABLE_EXPORTS
+  ADD_TEST rpl_channel_credentials
+  LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
+)
+
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)

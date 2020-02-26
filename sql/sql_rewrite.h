@@ -319,4 +319,12 @@ class Rewriter_clone final : public I_rewriter {
   Rewriter_clone(THD *thd, Consumer_type type);
   bool rewrite(String &rlb) const override;
 };
+
+/** Rewrites the START GROUP_REPLICATION command.*/
+class Rewriter_start_group_replication final : public I_rewriter {
+ public:
+  Rewriter_start_group_replication(THD *thd, Consumer_type type);
+  bool rewrite(String &rlb) const override;
+};
+
 #endif /* SQL_REWRITE_INCLUDED */

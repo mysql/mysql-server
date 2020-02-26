@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -313,23 +313,17 @@ bool Replication_thread_api::get_retrieved_gtid_set(std::string &retrieved_set,
 bool Replication_thread_api::get_channel_credentials(std::string &username,
                                                      std::string &password,
                                                      const char *channel_name) {
-  DBUG_ENTER("Replication_thread_api::get_channel_credentials");
-
+  DBUG_TRACE;
   const char *name = channel_name ? channel_name : interface_channel;
-  const char *user_arg = nullptr;
-  char user_pass[MAX_PASSWORD_LENGTH + 1];
-  char *user_pass_pointer = user_pass;
-  size_t password_size = sizeof(user_pass);
 
   int error;
-  error = channel_get_credentials(name, &user_arg, &user_pass_pointer,
-                                  &password_size);
-  if (!error) {
-    username.assign(user_arg);
-    password.assign(user_pass, password_size);
+  error = channel_get_credentials(name, username, password);
+  if (error) {
+    username.clear();
+    password.clear();
   }
 
-  DBUG_RETURN((error != 0));
+  return (error != 0);
 }
 
 bool Replication_thread_api::is_partial_transaction_on_relay_log() {
@@ -358,4 +352,9 @@ int Replication_thread_api::rpl_channel_stop_all(int threads_to_stop,
 int Replication_thread_api::rpl_binlog_dump_thread_kill() {
   DBUG_TRACE;
   return binlog_dump_thread_kill();
+}
+
+int Replication_thread_api::delete_credential(const char *channel_name) {
+  DBUG_TRACE;
+  return channel_delete_credentials(channel_name);
 }

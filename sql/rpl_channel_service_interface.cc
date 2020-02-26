@@ -53,6 +53,7 @@
 #include "sql/mysqld.h"              // opt_mts_slave_parallel_workers
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
+#include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
 #include "sql/rpl_info_handler.h"
@@ -400,6 +401,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   ulong thread_start_id = 0;
   bool thd_created = false;
   THD *thd = current_thd;
+  String_set user, pass, auth, dir;
 
   /* Service channels are not supposed to use sql_slave_skip_counter */
   mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
@@ -429,6 +431,18 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
 
   LEX_SLAVE_CONNECTION lex_connection;
   lex_connection.reset();
+
+  if (!Rpl_channel_credentials::get_instance().get_credentials(
+          channel, user, pass, auth, dir)) {
+    lex_connection.user =
+        (user.first ? const_cast<char *>(user.second.c_str()) : nullptr);
+    lex_connection.password =
+        (pass.first ? const_cast<char *>(pass.second.c_str()) : nullptr);
+    lex_connection.plugin_auth =
+        (auth.first ? const_cast<char *>(auth.second.c_str()) : nullptr);
+    lex_connection.plugin_dir =
+        (dir.first ? const_cast<char *>(dir.second.c_str()) : nullptr);
+  }
 
   if (connection_info->until_condition != CHANNEL_NO_UNTIL_CONDITION) {
     switch (connection_info->until_condition) {
@@ -1031,28 +1045,38 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
   return error;
 }
 
-int channel_get_credentials(const char *channel, const char **user, char **pass,
-                            size_t *pass_size) {
-  DBUG_ENTER("channel_get_credentials(channel,user,password, pass_size)");
+int channel_get_credentials(const char *channel, std::string &username,
+                            std::string &password) {
+  DBUG_TRACE;
+  String_set user_store, pass_store, auth_store, dir_store;
+
+  if (!Rpl_channel_credentials::get_instance().get_credentials(
+          channel, user_store, pass_store, auth_store, dir_store)) {
+    if (user_store.first) username = user_store.second;
+    if (pass_store.first) password = pass_store.second;
+    return 0;
+  }
 
   channel_map.rdlock();
-
   Master_info *mi = channel_map.get_mi(channel);
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
   channel_map.unlock();
 
-  *user = mi->get_user();
-  mi->get_password(*pass, pass_size);
+  char pass[MAX_PASSWORD_LENGTH + 1];
+  size_t pass_size;
+  mi->get_password(pass, &pass_size);
+  username.assign(mi->get_user());
+  password.assign(pass, pass_size);
 
   mi->dec_reference();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool channel_is_stopping(const char *channel,
@@ -1185,4 +1209,10 @@ has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
     return SLAVE_CHANNEL_APPLIER_IS_RUNNING;
 
   return SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE;
+}
+
+int channel_delete_credentials(const char *channel_name) {
+  DBUG_TRACE;
+  return Rpl_channel_credentials::get_instance().delete_credentials(
+      channel_name);
 }
