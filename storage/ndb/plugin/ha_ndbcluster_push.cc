@@ -931,7 +931,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
      * ::optimize_query_plan() to use these tables as (grand-)parents
      */
     const uint first_inner = m_tables[tab_no].m_first_inner;
-    // Only interested in the nest-level dependencies:
+    // Only interested in the upper-nest-level dependencies:
     depend_parents.intersect(m_tables[first_inner].embedding_nests());
 
     // Can these outer parent dependencies co-exists with existing
@@ -1229,6 +1229,24 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
       return false;
     }
+    if (table->get_first_sj_inner() == (int)tab_no) {
+      /**
+       * In order to do correct firstmatch duplicate elimination in
+       * SPJ, we need to ensure that the table to eliminate duplicates
+       * from is the parent of the firstmast-sj-nest -> enforce it
+       * as a mandatory ancestor of the sj-nest.
+       */
+      const int firstmatch_return = table->get_firstmatch_return();
+      if (!all_parents.contain(firstmatch_return)) {
+        EXPLAIN_NO_PUSH(
+            "Can't push table '%s' as child of '%s', "
+            "the FirstMatch-return '%s' can not be made the parent of sj-nest",
+            table->get_table()->alias, m_join_root->get_table()->alias,
+            m_plan.get_table_access(firstmatch_return)->get_table()->alias);
+        return false;
+      }
+      m_tables[tab_no].m_ancestors.add(firstmatch_return);
+    }
   } else if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
     if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {
       // Semi-joined relative to some other tables in join_scope
@@ -1340,11 +1358,18 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
      */
     if (parent_no < first_inner) {
       // referred nest is not embedded within current inner_nest
-      m_tables[first_inner].m_upper_nests.add(
-          full_inner_nest(parent_no, tab_no));
-      m_tables[first_inner].m_upper_nests.add(
-          m_tables[parent_no].m_upper_nests);
-      m_tables[tab_no].m_upper_nests.add(m_tables[first_inner].m_upper_nests);
+      DBUG_ASSERT(m_tables[parent_no].m_last_inner < tab_no);
+
+      /**
+       * Referring the outer-joined parent, introduce the requirement
+       * that all our upper_nest table either has to be in the same
+       * inner_nest as the parent, or be in the parents upper_nest.
+       * Rebuild our upper_nests to reflect this.
+       */
+      ndb_table_access_map new_upper_nests(m_tables[parent_no].m_upper_nests);
+      new_upper_nests.add(full_inner_nest(parent_no, tab_no));
+      m_tables[first_inner].m_upper_nests = new_upper_nests;
+      m_tables[tab_no].m_upper_nests = new_upper_nests;
     }
   }
   return true;
@@ -1398,12 +1423,12 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
     ndb_table_access_map filter_cond;
 
     /**
-     * Check conditions inside nest(s) for possible FOUND_MATCH-triggers.
+     * Check conditions inside nest(s) for possible trigger conditions.
      * These are effectively evaluated 'higher up' in the nest structure
-     * when we have found a join-match for all 'used_tables()' in the
-     * trigger condition.
+     * when we have found a join-match, or created a null-extension
+     * for all 'used_tables()' in the trigger condition.
      * So we collect the aggregated map of tables possibly affected by
-     * these MATCH-filters in 'filter_cond'
+     * such trigger conditions in 'filter_cond'
      *
      * Example: select straight_join *
      *          from
@@ -1416,13 +1441,13 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
      *
      * The where condition refers columns from the outer joined nest (t2,t3)
      * which are possibly NULL extended. Thus, the where cond is encapsulated in
-     * a FOUND_MATCH(t2,t3), effectively forcing the cond. to be evaluated only
-     * when we have a non-NULL extended match for t2,t3. For some (legacy?)
-     * reason the optimizer will attach the where condition to table t2
-     * in the query plan 't1,t2,t3', as all referred tables(t1,t2) are available
-     * at this point.
-     * However, this ignores the encapsulating FOUND_MATCH(t2,t3) trigger,
-     * which require the condition to also have a matching t3 row. The
+     * a triggered-FOUND_MATCH(t2,t3), effectively forcing the cond. to be
+     * evaluated only when we have a non-NULL extended match for t2,t3.
+     * For some (legacy?) reason the optimizer will attach the trigger condition
+     * to table t2 in the query plan 't1,t2,t3', as all referred tables(t1,t2)
+     * are available at this point.
+     * However, this ignores the encapsulating (t2,t3) trigger, which require
+     * the condition to be evaluated after t2 & t3 rows are produced. The
      * WalkItem below will identify such triggers and calculate the real table
      * coverage of them.
      *
@@ -1455,11 +1480,9 @@ void ndb_pushed_builder_ctx::validate_join_nest(ndb_table_access_map inner_nest,
                      if (func_item->functype() == Item_func::TRIG_COND_FUNC) {
                        const Item_func_trig_cond *func_trig =
                            static_cast<const Item_func_trig_cond *>(func_item);
-                       if (func_trig->get_trig_type() ==
-                           Item_func_trig_cond::FOUND_MATCH) {
-                         filtered_tables |= func_trig->used_tables();
-                         return true;  // break out of WalkItem
-                       }
+                       // is a FOUND_MATCH or IS_NOT_NULL_COMPL trigger
+                       // Trigger is evaluated 'on top' of the inner_tables
+                       filtered_tables |= func_trig->get_inner_tables();
                      }
                    }
                    return false;  // continue WalkItem
@@ -1558,8 +1581,8 @@ void ndb_pushed_builder_ctx::remove_pushable(const AQP::Table_access *table) {
           }
         }
       }
-      m_tables[tab_no].m_ancestors.intersect(m_join_scope);
     }
+    m_tables[tab_no].m_ancestors.intersect(m_join_scope);
   }
   // Remove 'pending_cond' and 'scan_operations' not pushed any longer
   m_has_pending_cond.intersect(m_join_scope);
@@ -2170,12 +2193,18 @@ int ndb_pushed_builder_ctx::build_query() {
 
       if (table->is_sj_firstmatch()) {
         /**
-         * Is a Firstmatch'ed sj_nest:
-         * Entire nest has to be pushed in order for firstMatch elimination
-         * to be used as part of pushed join evaluation.
+         * Is a Firstmatch'ed semijoin_nest. In order to let SPJ API
+         * do firstMatch elimination of duplicated rows, we need to ensure:
+         *  1) The entire semijoined-nest has been pushed down.
+         *  2) There are no unpushed conditions in the above sj-nest.
+         *
+         * ... else we might end up returning a firstMatched'ed row,
+         *  which later turns out to be a non-match due to eiter 1) or 2).
          */
         const int last_sj_inner = table->get_last_sj_inner();
-        if (m_join_scope.contain(m_tables[last_sj_inner].m_sj_nest)) {
+        const ndb_table_access_map semijoin(m_tables[last_sj_inner].m_sj_nest);
+        if (m_join_scope.contain(semijoin) &&
+            !m_has_pending_cond.is_overlapping(semijoin)) {
           options.setMatchType(NdbQueryOptions::MatchFirst);
         }
       }

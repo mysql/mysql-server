@@ -603,6 +603,16 @@ public:
      *
      * Bit 0 has a special usage as a 'skip bit' for the row. If set the row
      * should be ignored.
+     *
+     * Note that there are no children with an m_internalOpNo of 0, so using
+     * bit-0 as a skip bit should not interfere with matching of child rows.
+     *
+     * There is also a special skip-firstMatch usage of m_matchingChild, where
+     * all bits are set. (Also include the normal bit-0 skip). Using the normal
+     * interpretation of the bits, that translate into: 'Skip the root tuple itself,
+     * even if all 31 children had a match'.
+     * That is an impossible contradiction of the join semantics,
+     * so this special all-set bit pattern could not happen elsewhere.
      */
     SpjTreeNodeMask m_hasMatchingChild;
 
@@ -722,6 +732,25 @@ private:
 
   bool isSkipped(Uint16 tupleNo) const
   { return m_tupleSet[tupleNo].m_hasMatchingChild.get(0U); }
+
+  /**
+   * The skip methods above are a 'one time'-skip, where the tuples are
+   * skipped for this result batch only, and the skip recalculated for the
+   * next batch. For FirstMatch we need to skip the matched row for multiple
+   * batches, so we have a special variant for doing firstMatch-skip.
+   * (Also see comment for the 'm_matchingChild' member variable).
+   *
+   * Note that a firstMatch-skip also implies a 'normal' skip, but not the
+   * other way around.
+   */
+  void setSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.set(); }
+
+  void clearSkippedFirstMatch(Uint16 tupleNo)
+  { m_tupleSet[tupleNo].m_hasMatchingChild.clear(); }
+
+  bool isSkippedFirstMatch(Uint16 tupleNo) const
+  { return m_tupleSet[tupleNo].m_hasMatchingChild.is_set(); }
 
   /** No copying.*/
   NdbResultStream(const NdbResultStream&);
@@ -1072,7 +1101,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
   }
 
   SpjTreeNodeMask firstMatchedNodes;
-  const NdbResultStream *joinType = nullptr;
 
   for (int childNo=m_operation.getNoOfChildOperations()-1; childNo>=0; childNo--)
   {
@@ -1082,10 +1110,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
     {
       // childStream got new result rows
       childStream.prepareResultSet(expectingResults,stillActive);
-
-      // The 'highest order' child treeNode decides whether firstMatch
-      // elimination should be done in result set or not.
-      joinType = &childStream;
     }
     else if (traceSignals)
     {
@@ -1104,6 +1128,10 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
     }
   }
 
+  // The 'highest order' child treeNode in expectingResults decides
+  // whether firstMatch elimination should be done in result set or not.
+  const uint firstInExpected = expectingResults.find_first();
+
   // Prepare rows from the NdbQueryOperation's accessible now
   if (m_tupleSet != nullptr)
   {
@@ -1118,9 +1146,12 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
       if (!firstMatchedNodes.isclear() &&    // Some childrens are semi-joins
           m_tupleSet[tupleNo].m_hadMatchingChild.contains(firstMatchedNodes))
       {
-        if (joinType->useFirstMatch())
+        // We have already found a match for (all of) our firstMatchedNodes.
+        // Should we skip potentially duplicates now? :
+
+        if (firstMatchedNodes.get(firstInExpected))
         {
-          // Get a new set of firstMatch'ed rows, starting with semi-joined tables.
+          // Got a new set of firstMatch'ed rows, starting with semi-joined tables.
           // Skip parent rows which already had its 'firstMatch'
           if (traceSignals) {
             ndbout << "prepareResultSet, useFirstMatch"
@@ -1131,21 +1162,21 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           }
 
           // Done with this tupleNo
-          setSkipped(tupleNo);
+          setSkippedFirstMatch(tupleNo);
           continue;  // Skip further processing of this row
         }
         else if (!firstMatchedNodes.overlaps(expectingResults))
         {
-          // No semi joined tables affect, do nothing.
-          // (Keep isSkipped if already set)
+          // No semi joined tables affected by the 'expecting'.
+          // Do nothing, except keeping 'isSkipped' if already set.
           if (traceSignals) {
             ndbout << "prepareResultSet, Join doesn't overlaps FirstMatchNodes"
                    << ", opNo: " << getInternalOpNo()
                    << ", row: "  << tupleNo
-                   << ", isSkipped?: " << isSkipped(tupleNo)
+                   << ", isSkipped?: " << isSkippedFirstMatch(tupleNo)
                    << endl;
           }
-          if (isSkipped(tupleNo))  // already had a firstMatch
+          if (isSkippedFirstMatch(tupleNo))  // already had a firstMatch
             continue;
         }
         else
@@ -1153,7 +1184,6 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
           // Set of new children rows start with a full-join. Thus, the
           // firstMatch handling is reset as part of preparing the new
           // joined result set.
-          DBUG_ASSERT(joinType->isInnerJoin() || joinType->isOuterJoin());
           if (traceSignals) {
             ndbout << "prepareResultSet, Join-useFirstMatch"
                    << ", cleared 'hadMatching'-> un-skip"
@@ -1162,7 +1192,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
                    << endl;
           }
           m_tupleSet[tupleNo].m_hadMatchingChild.bitANDC(firstMatchedNodes);
-          clearSkipped(tupleNo);  //un-skip this row
+          clearSkippedFirstMatch(tupleNo);
         }
       } // FirstMatch
 

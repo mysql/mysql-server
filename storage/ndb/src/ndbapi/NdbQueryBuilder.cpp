@@ -472,7 +472,8 @@ NdbQueryOptions::setMatchType(MatchType matchType)
       return Err_MemoryAlloc;
     }
   }
-  m_pimpl->m_matchType = matchType;
+  m_pimpl->m_matchType =
+      static_cast<MatchType>(m_pimpl->m_matchType | matchType);
   return 0;
 }
 
