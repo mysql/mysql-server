@@ -106,7 +106,7 @@ class Server : public xpl::iface::Server {
   }
   Client_list &get_client_list() override { return m_client_list; }
   xpl::Mutex &get_client_exit_mutex() override { return m_client_exit_mutex; }
-  std::shared_ptr<xpl::iface::Client> get_client(const THD *thd);
+  std::shared_ptr<xpl::iface::Client> get_client(const THD *thd) override;
   Error_code kill_client(const uint64_t client_id,
                          xpl::iface::Session *requester) override;
 
@@ -135,7 +135,7 @@ class Server : public xpl::iface::Server {
   std::shared_ptr<xpl::iface::Client> will_accept_client(::Vio *vio);
   void start_client_supervision_timer(
       const xpl::chrono::Duration &oldest_object_time_ms);
-  void restart_client_supervision_timer();
+  void restart_client_supervision_timer() override;
   bool on_check_terminated_workers();
 
  private:

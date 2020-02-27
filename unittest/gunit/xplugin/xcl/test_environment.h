@@ -32,7 +32,7 @@ namespace xcl {
 
 class Environment : public ::testing::Environment {
  public:
-  virtual ~Environment() {}
+  ~Environment() override = default;
 
   void SetUp() override { testing::DefaultValue<XError>::Set(XError()); }
 
