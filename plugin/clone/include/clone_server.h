@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ class Server {
   @param[in]	key_str	string key
   @param[in]	val_str	string value
   @return error code */
-  int send_key_value(Command_Response rcmd, String_Key &kay_str,
+  int send_key_value(Command_Response rcmd, String_Key &key_str,
                      String_Key &val_str);
 
   /** Configuration parameters to be validated by remote. */

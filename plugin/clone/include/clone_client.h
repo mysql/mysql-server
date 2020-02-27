@@ -618,9 +618,10 @@ class Client {
                       bool skip_loc, bool &is_last);
 
   /** Handle error and check if needs to exit
-  @param[in]	current_error	error number
-  @param[in,out]	first_err	first error that has occurred
-  @param[in,out]	first_err_time	time for first error in milliseconds
+  @param[in]	current_err			error number
+  @param[in,out]	first_error		first error that has occurred
+  @param[in,out]	first_error_time	time for first error in
+  milliseconds
   @return true if the caller needs to exit */
   bool handle_error(int current_err, int &first_error,
                     ulonglong &first_error_time);

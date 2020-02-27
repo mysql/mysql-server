@@ -219,7 +219,7 @@ class Status_pfs : public Table_pfs {
 
     /** Set PFS table data while starting Clone operation.
     @param[in]	id		clone ID
-    @param[in]	THD		session THD
+    @param[in]	thd		session THD
     @param[in]	host		clone source host
     @param[in]	port		clone source port
     @param[in]	destination	clone destination directory or host */
