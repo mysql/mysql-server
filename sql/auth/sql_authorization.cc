@@ -729,9 +729,8 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   @param defaults_table
   @param user_name
 
-  @returns
-    @retval true An error occurred
-    @retval false Success
+  @retval true An error occurred
+  @retval false Success
 */
 bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
                                 TABLE *defaults_table, LEX_USER *user_name) {
@@ -6119,8 +6118,6 @@ void get_active_roles(const THD *thd, List_of_granted_roles *roles) {
   Helper function for Item_func_current_role.
   @param thd Thread handler
   @param active_role [out] Comma separated list of auth ids
-
-  @returns pointer to a string with all active roles or "NONE" if none found
  */
 
 void func_current_role(const THD *thd, String *active_role) {
@@ -6865,8 +6862,6 @@ bool grant_dynamic_privileges_to_auth_id(
 
   @param id            auth id from which privileges needs to be revoked
   @param priv_list     List of privileges to be removed for internal auth id
-
-  @return None
 */
 void revoke_dynamic_privileges_from_auth_id(
     const Role_id &id, const std::vector<std::string> &priv_list) {
