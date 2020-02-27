@@ -199,6 +199,7 @@ static STATUS status;
 static ulong select_limit, max_join_size, opt_connect_timeout = 0;
 static char mysql_charsets_dir[FN_REFLEN + 1];
 static char *opt_plugin_dir = nullptr, *opt_default_auth = nullptr;
+static char *opt_load_data_local_dir = nullptr;
 #ifdef HAVE_SETNS
 static char *opt_network_namespace = nullptr;
 #endif
@@ -1917,6 +1918,10 @@ static struct my_option my_long_options[] = {
      "inclusive. Default is 3.",
      &opt_zstd_compress_level, &opt_zstd_compress_level, nullptr, GET_UINT,
      REQUIRED_ARG, 3, 1, 22, nullptr, 0, nullptr},
+    {"load_data_local_dir", OPT_LOAD_DATA_LOCAL_DIR,
+     "Directory path safe for LOAD DATA LOCAL INFILE to read from.",
+     &opt_load_data_local_dir, &opt_load_data_local_dir, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
@@ -3042,6 +3047,7 @@ static void get_current_db() {
 static int mysql_real_query_for_lazy(const char *buf, size_t length) {
   for (uint retry = 0;; retry++) {
     int error;
+
     if (!mysql_real_query(&mysql, buf, (ulong)length)) return 0;
     error = put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
@@ -4635,6 +4641,11 @@ static bool init_connection_options(MYSQL *mysql) {
 
   if (opt_plugin_dir && *opt_plugin_dir)
     mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_load_data_local_dir &&
+      mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR,
+                    opt_load_data_local_dir))
+    return true;
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);

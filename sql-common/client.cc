@@ -129,6 +129,7 @@
 #else
 #include "libmysql/client_settings.h"
 #endif
+#include "client_extensions_macros.h"
 #include "sql/log_event.h"     /* Log_event_type */
 #include "sql/rpl_constants.h" /* mysql_binlog_XXX() */
 
@@ -2011,41 +2012,6 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd) {
   return 0;
 }
 
-#define ALLOCATE_EXTENSIONS(OPTS)                                          \
-  (OPTS)->extension = (struct st_mysql_options_extention *)my_malloc(      \
-      key_memory_mysql_options, sizeof(struct st_mysql_options_extention), \
-      MYF(MY_WME | MY_ZEROFILL))
-
-#define ENSURE_EXTENSIONS_PRESENT(OPTS)                \
-  do {                                                 \
-    if (!(OPTS)->extension) ALLOCATE_EXTENSIONS(OPTS); \
-  } while (0)
-
-#define EXTENSION_SET_STRING(OPTS, X, STR)                            \
-  do {                                                                \
-    if ((OPTS)->extension)                                            \
-      my_free((OPTS)->extension->X);                                  \
-    else                                                              \
-      ALLOCATE_EXTENSIONS(OPTS);                                      \
-    (OPTS)->extension->X =                                            \
-        ((STR) != NULL)                                               \
-            ? my_strdup(key_memory_mysql_options, (STR), MYF(MY_WME)) \
-            : NULL;                                                   \
-  } while (0)
-
-#define SET_OPTION(opt_var, arg)                                            \
-  do {                                                                      \
-    if (mysql->options.opt_var) my_free(mysql->options.opt_var);            \
-    mysql->options.opt_var =                                                \
-        arg ? my_strdup(key_memory_mysql_options, arg, MYF(MY_WME)) : NULL; \
-  } while (0)
-
-#define EXTENSION_SET_SSL_STRING(OPTS, X, STR, mode)               \
-  do {                                                             \
-    EXTENSION_SET_STRING(OPTS, X, static_cast<const char *>(STR)); \
-    if ((OPTS)->extension->X) (OPTS)->extension->ssl_mode = mode;  \
-  } while (0)
-
 static char *set_ssl_option_unpack_path(const char *arg) {
   char *opt_var = nullptr;
   if (arg) {
@@ -3279,6 +3245,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     my_free(mysql->options.extension->ssl_crl);
     my_free(mysql->options.extension->ssl_crlpath);
     my_free(mysql->options.extension->tls_ciphersuites);
+    my_free(mysql->options.extension->load_data_dir);
   }
   mysql->options.ssl_key = nullptr;
   mysql->options.ssl_cert = nullptr;
@@ -3293,6 +3260,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
     mysql->options.extension->ssl_mode = SSL_MODE_DISABLED;
     mysql->options.extension->ssl_fips_mode = SSL_FIPS_MODE_OFF;
     mysql->options.extension->tls_ciphersuites = nullptr;
+    mysql->options.extension->load_data_dir = nullptr;
   }
   mysql->connector_fd = nullptr;
 }
@@ -4038,21 +4006,29 @@ static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
   NET *net = &mysql->net;
   char *end;
   uchar *buff_p = (uchar *)buff;
+  /*
+    Always send CLIENT_LOCAL_FILES to the server.
+    This needs to be done since the client can always decide to support
+    local files even if this option is disabled by enabling the directory.
+    But we can't turn it on in the client flag since it's used throughout the
+    code base if the option is enabled or not.
+  */
+  unsigned long client_flag = mysql->client_flag | CLIENT_LOCAL_FILES;
 
-  if (mysql->client_flag & CLIENT_PROTOCOL_41) {
+  if (client_flag & CLIENT_PROTOCOL_41) {
     /* 4.1 server and 4.1 client has a 32 byte option flag */
     DBUG_ASSERT(buff_size >= 32);
 
-    int4store(buff_p, mysql->client_flag);
+    int4store(buff_p, client_flag);
     int4store(buff_p + 4, net->max_packet_size);
     buff[8] = (char)mysql->charset->number;
     memset(buff + 9, 0, 32 - 9);
     end = buff + 32;
   } else {
     DBUG_ASSERT(buff_size >= 5);
-    DBUG_ASSERT(mysql->client_flag <= UINT_MAX16);
+    DBUG_ASSERT(client_flag <= UINT_MAX16);
 
-    int2store(buff_p, (uint16)mysql->client_flag);
+    int2store(buff_p, (uint16)client_flag);
     int3store(buff_p + 2, net->max_packet_size);
     end = buff + 5;
   }
@@ -7028,11 +7004,6 @@ get_info:
 
     MYSQL_TRACE_STAGE(mysql, FILE_REQUEST);
 
-    if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES)) {
-      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
-      return true;
-    }
-
     error = handle_local_infile(mysql, (char *)pos);
 
     MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
@@ -7611,6 +7582,43 @@ ulong *STDCALL mysql_fetch_lengths(MYSQL_RES *res) {
   return res->lengths;
 }
 
+/**
+  Validates, makes into an absolute path and sets @ref
+  MYSQL_OPT_LOAD_DATA_LOCAL_DIR value
+
+  @param mysql connection handle
+  @param arg the value to set. Can be null
+
+  @retval true failed
+  @retval false success
+*/
+static bool set_load_data_local_infile_option(MYSQL *mysql, const char *arg) {
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+
+  ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+
+  // NULL is a valid argument
+  if (arg == nullptr || !arg[0]) {
+    EXTENSION_SET_STRING(&mysql->options, load_data_dir, nullptr);
+    return false;
+  }
+
+  // make fully qualified name
+  if (my_realpath(buff1, arg, 0)) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    set_mysql_extended_error(
+        mysql, CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL, unknown_sqlstate,
+        ER_CLIENT(CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL), arg, my_errno(),
+        my_strerror(errbuf, sizeof(errbuf), my_errno()));
+    return true;
+  }
+
+  // with uniform directory separators
+  convert_dirname(buff2, buff1, NullS);
+  EXTENSION_SET_STRING(&mysql->options, load_data_dir, buff2);
+  return false;
+}
+
 int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
                           const void *arg) {
   DBUG_TRACE;
@@ -7884,6 +7892,12 @@ int STDCALL mysql_options(MYSQL *mysql, enum mysql_option option,
           *static_cast<const unsigned int *>(arg);
       break;
 
+    case MYSQL_OPT_LOAD_DATA_LOCAL_DIR:
+      if (set_load_data_local_infile_option(mysql,
+                                            static_cast<const char *>(arg)))
+        return 1;
+      break;
+
     default:
       return 1;
   }
@@ -8097,6 +8111,11 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
       *(const_cast<bool *>(static_cast<const bool *>(arg))) =
           (mysql->options.client_flag & CLIENT_OPTIONAL_RESULTSET_METADATA) !=
           0;
+      break;
+    case MYSQL_OPT_LOAD_DATA_LOCAL_DIR:
+      *(static_cast<char **>(const_cast<void *>(arg))) =
+          mysql->options.extension ? mysql->options.extension->load_data_dir
+                                   : nullptr;
       break;
 
     case MYSQL_OPT_NAMED_PIPE:          /* This option is deprecated */

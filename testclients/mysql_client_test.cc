@@ -20598,6 +20598,35 @@ static void test_bug30032302() {
   check_warning(mysql);
 }
 
+static void test_wl13168() {
+  int rc;
+  MYSQL *l_mysql;
+  myheader("test_wl13168");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(nullptr);
+  DIE_UNLESS(l_mysql != nullptr);
+
+  const char *opt_my = ".", *opt_before, *opt_after;
+
+  rc = mysql_get_option(l_mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, &opt_before);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(opt_before == nullptr);
+
+  rc = mysql_options(l_mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, opt_my);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_get_option(l_mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, &opt_after);
+  DIE_UNLESS(rc == 0);
+
+  /* the result must contain the current directory expanded */
+  DIE_UNLESS(opt_after != nullptr);
+  DIE_UNLESS(*opt_after != '.');
+
+  /* clean up */
+  mysql_close(l_mysql);
+}
 static struct my_tests_st my_tests[] = {
     {"disable_query_logs", disable_query_logs},
     {"test_view_sp_list_fields", test_view_sp_list_fields},
@@ -20884,6 +20913,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl11772", test_wl11772},
     {"test_wl12475", test_wl12475},
     {"test_bug30032302", test_bug30032302},
+    {"test_wl13168", test_wl13168},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

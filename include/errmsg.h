@@ -126,7 +126,9 @@ extern const char *client_errors[]; /* Error messages */
 #define CR_COMPRESSION_NOT_SUPPORTED 2065
 #define CR_COMPRESSION_WRONGLY_CONFIGURED 2066
 #define CR_KERBEROS_USER_NOT_FOUND 2067
-#define CR_ERROR_LAST /*Copy last error nr:*/ 2067
+#define CR_LOAD_DATA_LOCAL_INFILE_REJECTED 2068
+#define CR_LOAD_DATA_LOCAL_INFILE_REALPATH_FAIL 2069
+#define CR_ERROR_LAST /*Copy last error nr:*/ 2069
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 /* Visual Studio requires '__inline' for C code */

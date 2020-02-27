@@ -88,9 +88,11 @@
 
 #include <memory>
 
+#include "../sql-common/client_extensions_macros.h"
 #include "client_settings.h"
 #include "mysql_trace.h"
 #include "sql_common.h"
+
 #ifdef KERBEROS_LIB_CONFIGURED
 #include "authentication_ldap/auth_ldap_kerberos.h"
 #endif
@@ -378,6 +380,44 @@ void read_user_name(char *name) {
 
 #endif
 
+/**
+  Checks if the file name supplied by the server is a valid name.
+
+  Name is valid if it's either equal to or starts with the value stored
+  in the mysql options.
+  If the value in the options is NULL then no name is valid.
+
+  Note that we rely that the options name, if supplied, is normalized before
+  being stored.
+
+  @note Will allocate the extension if not already allocated
+
+  @param options the options to read the load_data_file_from.
+  @param net_filename the path to check
+  @retval true the name is valid
+  @retval false the name is invalid
+*/
+static bool is_valid_local_infile_name(st_mysql_options *options,
+                                       const char *net_filename) {
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+
+  ENSURE_EXTENSIONS_PRESENT(options);
+
+  // null load_data_dir means no exceptions (compatibility)
+  if (options->extension->load_data_dir == nullptr) return false;
+
+  // make fully qualified name
+  if (my_realpath(buff1, net_filename, 0)) return false;
+
+  // with uniform directory separators
+  convert_dirname(buff2, buff1, NullS);
+
+  /* if the name supplied starts with load_data_dir accept it */
+  int ret = strncmp(options->extension->load_data_dir, buff2,
+                    strlen(options->extension->load_data_dir));
+  return ret == 0;
+}
+
 bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   bool result = true;
   uint packet_length = MY_ALIGN(mysql->net.max_packet - 16, IO_SIZE);
@@ -387,6 +427,23 @@ bool handle_local_infile(MYSQL *mysql, const char *net_filename) {
   char *buf;    /* buffer to be filled by local_infile_read */
   struct st_mysql_options *options = &mysql->options;
   DBUG_TRACE;
+
+  /*
+    Throw an error if --local-infile is not specified and the
+    file requested is not "safe" (i.e. within the supplied directory
+    to MYSQL_OPT_LOAD_DATA_LOCAL_DIR.
+    If --local-infile is specified then no need to check the file name.
+  */
+  if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES) &&
+      !is_valid_local_infile_name(&(mysql->options), net_filename)) {
+    MYSQL_TRACE(SEND_FILE, mysql, (0, nullptr));
+    (void)my_net_write(net, (const uchar *)"", 0); /* Server needs one packet */
+    net_flush(net);
+    MYSQL_TRACE(PACKET_SENT, mysql, (0));
+    set_mysql_error(mysql, CR_LOAD_DATA_LOCAL_INFILE_REJECTED,
+                    unknown_sqlstate);
+    return true;
+  }
 
   /* check that we've got valid callback functions */
   if (!(options->local_infile_init && options->local_infile_read &&

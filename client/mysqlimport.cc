@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,6 +378,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
       fprintf(stdout, "Loading data from SERVER file: %s into %s\n", hard_path,
               tablename);
   }
+  mysql_options(mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, filename);
   mysql_real_escape_string_quote(mysql, escaped_name, hard_path,
                                  (unsigned long)strlen(hard_path), '\'');
   sprintf(sql_statement, "LOAD DATA %s %s INFILE '%s'",

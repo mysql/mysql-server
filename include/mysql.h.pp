@@ -357,7 +357,7 @@ void init_client_errs(void);
 void finish_client_errs(void);
 extern const char *client_errors[];
 static inline const char *ER_CLIENT(int client_errno) {
-  if (client_errno >= 2000 && client_errno <= 2067)
+  if (client_errno >= 2000 && client_errno <= 2069)
     return client_errors[client_errno - 2000];
   return client_errors[2000];
 }
@@ -444,7 +444,8 @@ enum mysql_option {
   MYSQL_OPT_SSL_FIPS_MODE,
   MYSQL_OPT_TLS_CIPHERSUITES,
   MYSQL_OPT_COMPRESSION_ALGORITHMS,
-  MYSQL_OPT_ZSTD_COMPRESSION_LEVEL
+  MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
+  MYSQL_OPT_LOAD_DATA_LOCAL_DIR
 };
 struct st_mysql_options_extention;
 struct st_mysql_options {
