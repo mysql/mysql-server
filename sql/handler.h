@@ -1907,8 +1907,8 @@ typedef bool (*get_index_column_cardinality_t)(
   Retrieve ha_tablespace_statistics from SE.
 
   @param tablespace_name          Tablespace_name
+  @param file_name                Tablespace file name.
   @param ts_se_private_data       Tablespace SE private data.
-  @param tbl_se_private_data      Table SE private data.
   @param[out] stats               Contains tablespace
                                   statistics read from SE.
 
