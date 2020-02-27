@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ class Protobuf_encoder : public Primitives_encoder {
       If the current buffer page has less data the needed,
       then next page should be acquired.
 
-      @param size   required number of bytes
+      @tparam size   required number of bytes
     */
   template <uint32_t size>
   void ensure_buffer_size() {
