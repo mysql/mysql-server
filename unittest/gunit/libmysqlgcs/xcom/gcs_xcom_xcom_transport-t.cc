@@ -248,5 +248,7 @@ TEST_F(XcomTransport, GcsSnapshotOpCrossVersionSerialization) {
   ASSERT_EQ(p_received->gcs_snap->cfg.configs_val[0]->event_horizon,
             event_horizon);
   ASSERT_EQ(strcmp(p_received->gcs_snap->app_snap.data.data_val, as_str), 0);
+
+  delete_pax_msg(p_received);
 }
 }  // namespace xcom_transport_unittest
