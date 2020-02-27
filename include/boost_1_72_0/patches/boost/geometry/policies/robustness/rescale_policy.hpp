@@ -5,8 +5,8 @@
 // Copyright (c) 2014-2015 Mateusz Loskot, London, UK.
 // Copyright (c) 2014-2015 Adam Wulkiewicz, Lodz, Poland.
 
-// This file was modified by Oracle on 2015, 2018.
-// Modifications copyright (c) 2015-2018, Oracle and/or its affiliates.
+// This file was modified by Oracle on 2015, 2018, 2020.
+// Modifications copyright (c) 2015-2020, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
@@ -28,8 +28,6 @@
 #include <boost/geometry/policies/robustness/robust_point_type.hpp>
 
 #include <boost/geometry/util/math.hpp>
-
-#include <boost/multiprecision/cpp_int.hpp>
 
 namespace boost { namespace geometry
 {
@@ -79,25 +77,6 @@ template <typename Point, typename FpPoint, typename IntPoint, typename Calculat
 struct robust_point_type<Point, detail::robust_policy<FpPoint, IntPoint, CalculationType> >
 {
     typedef IntPoint type;
-};
-
-// Meta function for rescaling, if rescaling is done segment_ratio is based on long long
-template <typename Point, typename FpPoint, typename IntPoint, typename CalculationType>
-struct segment_ratio_type<Point, detail::robust_policy<FpPoint, IntPoint, CalculationType> >
-{
-    typedef boost::multiprecision::number
-        <
-            boost::multiprecision::cpp_int_backend
-                <
-                    64, 256,
-                    boost::multiprecision::signed_magnitude,
-                    boost::multiprecision::unchecked,
-                    void
-                >
-        > numeric_type;
-
-    //typedef segment_ratio<boost::long_long_type> type;
-    typedef segment_ratio<numeric_type> type;
 };
 
 

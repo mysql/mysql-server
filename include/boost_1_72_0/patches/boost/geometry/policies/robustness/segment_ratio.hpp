@@ -2,8 +2,8 @@
 
 // Copyright (c) 2013 Barend Gehrels, Amsterdam, the Netherlands.
 
-// This file was modified by Oracle on 2016-2018.
-// Modifications copyright (c) 2016, 2018 Oracle and/or its affiliates.
+// This file was modified by Oracle on 2016-2020.
+// Modifications copyright (c) 2016-2020 Oracle and/or its affiliates.
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
 // Use, modification and distribution is subject to the Boost Software License,
@@ -20,7 +20,7 @@
 #include <boost/geometry/util/math.hpp>
 #include <boost/geometry/util/promote_floating_point.hpp>
 
-#include <boost/multiprecision/cpp_int.hpp>
+#include <boost/geometry/policies/robustness/robust_type.hpp>
 
 namespace boost { namespace geometry
 {
@@ -29,11 +29,21 @@ namespace boost { namespace geometry
 namespace detail { namespace segment_ratio
 {
 
+
+// It seems boost::is_integral is not specialized for boost::multiprecision::number
+template <typename Type>
+struct use_rational
+{
+    static const bool value = (boost::is_integral<Type>::type::value
+                                && std::numeric_limits<Type>::is_specialized)
+                            || boost::is_same<Type, robust_signed_integral_type>::value;
+};
+
+
 template
 <
     typename Type,
-    bool UseRational = boost::is_integral<Type>::type::value
-                    && std::numeric_limits<Type>::is_specialized
+    bool UseRational = use_rational<Type>::value
 >
 struct less {};
 
@@ -56,16 +66,17 @@ struct less<Type, false>
     {
         BOOST_GEOMETRY_ASSERT(lhs.denominator() != 0);
         BOOST_GEOMETRY_ASSERT(rhs.denominator() != 0);
-        return lhs.numerator() * rhs.denominator()
-             < rhs.numerator() * lhs.denominator();
+        Type const a = lhs.numerator() / lhs.denominator();
+        Type const b = rhs.numerator() / rhs.denominator();
+        return ! geometry::math::equals(a, b)
+            && a < b;
     }
 };
 
 template
 <
     typename Type,
-    bool UseRational = boost::is_integral<Type>::type::value
-                    && std::numeric_limits<Type>::is_specialized
+    bool UseRational = use_rational<Type>::value
 >
 struct equal {};
 
@@ -88,11 +99,9 @@ struct equal<Type, false>
     {
         BOOST_GEOMETRY_ASSERT(lhs.denominator() != 0);
         BOOST_GEOMETRY_ASSERT(rhs.denominator() != 0);
-        return geometry::math::equals
-            (
-                lhs.numerator() * rhs.denominator(),
-                rhs.numerator() * lhs.denominator()
-            );
+        Type const a = lhs.numerator() / lhs.denominator();
+        Type const b = rhs.numerator() / rhs.denominator();
+        return geometry::math::equals(a, b);
     }
 };
 
@@ -107,7 +116,7 @@ struct mul_fp_impl
     }
 };
 
-#if !defined(BOOST_HAS_INT128) || defined(BOOST_GEOMETRY_DISABLE_INT128_TYPE)
+
 template <typename Backend, typename F>
 struct mul_fp_impl<boost::multiprecision::number<Backend>, F>
 {
@@ -119,7 +128,6 @@ struct mul_fp_impl<boost::multiprecision::number<Backend>, F>
                 / denominator.template convert_to<F>();
     }
 };
-#endif
 
 
 }}

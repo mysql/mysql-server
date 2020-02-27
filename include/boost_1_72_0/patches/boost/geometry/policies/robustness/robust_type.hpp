@@ -5,6 +5,10 @@
 // Copyright (c) 2014 Mateusz Loskot, London, UK.
 // Copyright (c) 2014 Adam Wulkiewicz, Lodz, Poland.
 
+// This file was modified by Oracle on 2020.
+// Modifications copyright (c) 2020 Oracle and/or its affiliates.
+// Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
+
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -16,13 +20,45 @@
 #include <boost/config.hpp>
 #include <boost/type_traits/is_floating_point.hpp>
 
+
+#define BOOST_GEOMETRY_ROBUST_TYPE_USE_MULTIPRECISION
+
+
+//#ifdef BOOST_GEOMETRY_ROBUST_TYPE_USE_MULTIPRECISION
+
 #include <boost/multiprecision/cpp_int.hpp>
+
+//#endif
 
 
 namespace boost { namespace geometry
 {
 
 #ifndef DOXYGEN_NO_DETAIL
+
+namespace detail
+{
+
+#ifndef BOOST_GEOMETRY_ROBUST_TYPE_USE_MULTIPRECISION
+
+typedef boost::long_long_type robust_signed_integral_type;
+
+#else
+
+typedef boost::multiprecision::number
+    <
+        boost::multiprecision::cpp_int_backend
+            <
+                64, 256,
+                boost::multiprecision::signed_magnitude,
+                boost::multiprecision::unchecked,
+                void
+            >
+    > robust_signed_integral_type;
+
+#endif
+
+}
 
 namespace detail_dispatch
 {
@@ -41,7 +77,7 @@ struct robust_type<CoordinateType, boost::false_type>
 template <typename CoordinateType>
 struct robust_type<CoordinateType, boost::true_type>
 {
-    typedef boost::long_long_type type;
+    typedef geometry::detail::robust_signed_integral_type type;
 };
 
 } // namespace detail_dispatch

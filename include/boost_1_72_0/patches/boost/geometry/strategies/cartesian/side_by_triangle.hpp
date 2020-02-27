@@ -4,8 +4,8 @@
 // Copyright (c) 2008-2015 Bruno Lalande, Paris, France.
 // Copyright (c) 2009-2015 Mateusz Loskot, London, UK.
 
-// This file was modified by Oracle on 2015, 2017, 2018.
-// Modifications copyright (c) 2015-2018, Oracle and/or its affiliates.
+// This file was modified by Oracle on 2015, 2017, 2018, 2019.
+// Modifications copyright (c) 2015-2019, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Menelaos Karavelas, on behalf of Oracle
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
@@ -73,6 +73,8 @@ class side_by_triangle
     };
 
 public :
+    typedef cartesian_tag cs_tag;
+
     typedef strategy::envelope::cartesian<CalculationType> envelope_strategy_type;
 
     static inline envelope_strategy_type get_envelope_strategy()
