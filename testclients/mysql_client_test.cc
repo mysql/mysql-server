@@ -10786,8 +10786,8 @@ static void test_bug4231() {
 
 static void test_bug5399() {
 /*
-  Ascii 97 is 'a', which gets mapped to Ascii 65 'A' unless internal
-  statement id hash in the server uses binary collation.
+        Ascii 97 is 'a', which gets mapped to Ascii 65 'A' unless internal
+        statement id hash in the server uses binary collation.
 */
 #define NUM_OF_USED_STMT 97
   MYSQL_STMT *stmt_list[NUM_OF_USED_STMT];

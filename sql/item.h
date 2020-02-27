@@ -4422,7 +4422,7 @@ class Item_float : public Item_num {
     DBUG_ASSERT(fixed == 1);
     if (value <= (double)LLONG_MIN) {
       return LLONG_MIN;
-    } else if (value >= (double)(ulonglong)LLONG_MAX) {
+    } else if (value > LLONG_MAX_DOUBLE) {
       return LLONG_MAX;
     }
     return (longlong)rint(value);
@@ -4880,13 +4880,11 @@ class Item_result_field : public Item {
   }
 
   longlong llrint_with_overflow_check(double realval) {
-    if (realval < LLONG_MIN || realval > LLONG_MAX) {
+    if (realval < LLONG_MIN || realval > LLONG_MAX_DOUBLE) {
       raise_integer_overflow();
       return error_int();
     }
-    // Rounding error, llrint() may return LLONG_MIN.
-    const longlong retval = realval == LLONG_MAX ? LLONG_MAX : llrint(realval);
-    return retval;
+    return llrint(realval);
   }
 
   void raise_numeric_overflow(const char *type_name);

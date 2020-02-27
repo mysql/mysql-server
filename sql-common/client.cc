@@ -7599,7 +7599,7 @@ static bool set_load_data_local_infile_option(MYSQL *mysql, const char *arg) {
 
   // NULL is a valid argument
   if (arg == nullptr || !arg[0]) {
-    EXTENSION_SET_STRING(&mysql->options, load_data_dir, NULL);
+    EXTENSION_SET_STRING(&mysql->options, load_data_dir, nullptr);
     return false;
   }
 

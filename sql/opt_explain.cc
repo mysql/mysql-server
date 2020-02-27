@@ -46,6 +46,7 @@
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
+#include "my_double2ulonglong.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sqlcommand.h"
@@ -1462,9 +1463,7 @@ bool Explain_join::explain_rows_and_filtered() {
     // Print cost-related info
     double prefix_rows = pos->prefix_rowcount;
     ulonglong prefix_rows_ull =
-        prefix_rows >= std::numeric_limits<ulonglong>::max()
-            ? std::numeric_limits<ulonglong>::max()
-            : static_cast<ulonglong>(prefix_rows);
+        static_cast<ulonglong>(std::min(prefix_rows, ULLONG_MAX_DOUBLE));
     fmt->entry()->col_prefix_rows.set(prefix_rows_ull);
     double const cond_cost = join->cost_model()->row_evaluate_cost(prefix_rows);
     fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);

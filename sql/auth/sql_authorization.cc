@@ -1064,14 +1064,14 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
       */
       Mem_root_array<std::pair<std::string, ulong>> restrictions_array(
           thd->mem_root);
-      for (const auto rl_itr : restrictions.get()) {
+      for (const auto &rl_itr : restrictions.get()) {
         restrictions_array.push_back({rl_itr.first, rl_itr.second});
       }
       std::sort(restrictions_array.begin(), restrictions_array.end(),
                 [](const auto &p1, const auto &p2) -> bool {
                   return (p1.first.compare(p2.first) <= 0);
                 });
-      for (const auto rl_itr : restrictions_array) {
+      for (const auto &rl_itr : restrictions_array) {
         String db;
         db.length(0);
         db.append(STRING_WITH_LEN("REVOKE "));

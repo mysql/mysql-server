@@ -47,7 +47,7 @@ extern PSI_memory_key key_memory_mysql_options;
     else                                                              \
       ALLOCATE_EXTENSIONS(OPTS);                                      \
     (OPTS)->extension->X =                                            \
-        ((STR) != NULL)                                               \
+        ((STR) != nullptr)                                            \
             ? my_strdup(key_memory_mysql_options, (STR), MYF(MY_WME)) \
             : NULL;                                                   \
   } while (0)

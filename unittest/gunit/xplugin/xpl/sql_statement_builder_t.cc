@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ template <typename T>
 class Sql_statement_builder_test_base : public testing::TestWithParam<T> {
  public:
   Query_string_builder m_qb;
-  Sql_statement_builder m_builder{{&m_qb}};
+  Sql_statement_builder m_builder{&m_qb};
 };
 
 struct Param_sql_statement_builder {

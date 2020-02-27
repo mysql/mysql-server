@@ -64,7 +64,8 @@ TEST(MString, HumanReadableSize) {
   EXPECT_EQ("1025000Y", HumanReadable(data_size));
   data_size *= 1000;
   EXPECT_EQ("1025000000Y", HumanReadable(data_size));
-  data_size *= std::numeric_limits<unsigned long long>::max();
+  data_size *=
+      static_cast<double>(std::numeric_limits<unsigned long long>::max());
   EXPECT_EQ("+INF", HumanReadable(data_size));
 
   // Various edge cases. We don't care much which way they round,
@@ -75,15 +76,20 @@ TEST(MString, HumanReadableSize) {
 
   double yotta = pow(1024.0, 8.0);
   EXPECT_EQ("9223372036854774784Y",
-            HumanReadable(nextafter(LLONG_MAX * yotta, -DBL_MAX)));
-  EXPECT_EQ("9223372036854775808Y", HumanReadable(LLONG_MAX * yotta));
+            HumanReadable(
+                nextafter(static_cast<double>(LLONG_MAX) * yotta, -DBL_MAX)));
+  EXPECT_EQ("9223372036854775808Y",
+            HumanReadable(static_cast<double>(LLONG_MAX) * yotta));
   EXPECT_EQ("9223372036854777856Y",
-            HumanReadable(nextafter(LLONG_MAX * yotta, DBL_MAX)));
+            HumanReadable(
+                nextafter(static_cast<double>(LLONG_MAX) * yotta, DBL_MAX)));
 
   EXPECT_EQ("18446744073709549568Y",
-            HumanReadable(nextafter(ULLONG_MAX * yotta, -DBL_MAX)));
-  EXPECT_EQ("+INF", HumanReadable(ULLONG_MAX * yotta));
-  EXPECT_EQ("+INF", HumanReadable(nextafter(ULLONG_MAX * yotta, DBL_MAX)));
+            HumanReadable(
+                nextafter(static_cast<double>(ULLONG_MAX) * yotta, -DBL_MAX)));
+  EXPECT_EQ("+INF", HumanReadable(static_cast<double>(ULLONG_MAX) * yotta));
+  EXPECT_EQ("+INF", HumanReadable(nextafter(
+                        static_cast<double>(ULLONG_MAX) * yotta, DBL_MAX)));
 }
 
 static void BM_longlong10_to_str(size_t num_iterations) {

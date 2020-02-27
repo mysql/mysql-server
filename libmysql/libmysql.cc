@@ -3136,6 +3136,41 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   }
 }
 
+// Convert an integer (signed or unsigned) to float/double, with checking
+// for loss of precision in the conversion. (double can represent all integers
+// up to 2^53 exactly, but only certain integers above this limit. For instance,
+// 2^53 + 1 is rounded off, while 2^53 + 2 is exact.)
+template <class Int, class Float>
+static inline Float convert_with_inexact_check(Int i, bool *is_inexact) {
+  /*
+    We need to mark the local variable volatile to
+    workaround Intel FPU executive precision feature.
+    (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
+   */
+  volatile Float f = static_cast<Float>(i);
+
+  // If i is positive, it is possible for it to have been rounded outside
+  // Int's range. If so, converting back to check is undefined behavior,
+  // and UBSan will complain. Thus, we need to check before we convert.
+  // Rounding of 2^64 - 1 (and similarly for int64_t) to float/double is
+  // platform-dependent, so we need a bit of trickery to get the right
+  // value in a safe manner.
+  //
+  // For both int64_t and uint64_t, the minimum possible value is a
+  // (negative) power of two, which is exact, so the test is applicable
+  // for max() only.
+  constexpr Float out_of_range =
+      static_cast<Float>(1ULL << (std::numeric_limits<Int>::digits - 1)) *
+      (std::numeric_limits<Int>::is_signed ? 1.0 : 2.0);
+  if (f >= out_of_range) {
+    // Obviously inexact.
+    *is_inexact = true;
+  } else {
+    *is_inexact = static_cast<Int>(f) != i;
+  }
+  return f;
+}
+
 /*
   Convert integer value to client buffer of any type.
 
@@ -3173,31 +3208,24 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
       *param->error = param->is_unsigned != is_unsigned && value < 0;
       break;
     case MYSQL_TYPE_FLOAT: {
-      /*
-        We need to mark the local variable volatile to
-        workaround Intel FPU executive precision feature.
-        (See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=323 for details)
-      */
-      volatile float data;
+      float data;
       if (is_unsigned) {
-        data = (float)ulonglong2double(value);
-        *param->error = ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, float>(value, param->error);
       } else {
-        data = (float)value;
-        *param->error = value != ((longlong)data);
+        data = convert_with_inexact_check<longlong, float>(value, param->error);
       }
       floatstore(buffer, data);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
-      volatile double data;
+      double data;
       if (is_unsigned) {
-        data = ulonglong2double(value);
-        *param->error =
-            data >= ULLONG_MAX || ((ulonglong)value) != ((ulonglong)data);
+        data =
+            convert_with_inexact_check<ulonglong, double>(value, param->error);
       } else {
-        data = (double)value;
-        *param->error = value != ((longlong)data);
+        data =
+            convert_with_inexact_check<longlong, double>(value, param->error);
       }
       doublestore(buffer, data);
       break;
