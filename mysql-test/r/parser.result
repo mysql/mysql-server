@@ -2642,3 +2642,12 @@ Warning	3962	The INTO clause is deprecated inside query blocks of query expressi
 #
 SELECT 1 UNION (SELECT 1 FROM DUAL INTO @var);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var)' at line 1
+#
+# Bug#30871301: CTE CAN FAIL WITH A PARSE ERROR ON PSEUDO-COMMENTS
+#
+WITH cte AS (SELECT 0 /*! ) */ SELECT * FROM cte a, cte b;
+0	0
+0	0
+WITH cte AS /*! ( */ SELECT 0) SELECT * FROM cte a, cte b;
+0	0
+0	0

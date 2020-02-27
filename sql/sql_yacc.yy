@@ -11644,11 +11644,11 @@ common_table_expr:
           ident opt_derived_column_list AS table_subquery
           {
             LEX_STRING subq_text;
-            subq_text.length= @4.raw.length();
-            subq_text.str= YYTHD->strmake(@4.raw.start, subq_text.length);
+            subq_text.length= @4.cpp.length();
+            subq_text.str= YYTHD->strmake(@4.cpp.start, subq_text.length);
             if (subq_text.str == NULL)
               MYSQL_YYABORT;   /* purecov: inspected */
-            uint subq_text_offset= @4.raw.start - YYLIP->get_buf();
+            uint subq_text_offset= @4.cpp.start - YYLIP->get_cpp_buf();
             $$= NEW_PTN PT_common_table_expr($1, subq_text, subq_text_offset,
                                              $4, &$2, YYTHD->mem_root);
             if ($$ == NULL)
