@@ -182,6 +182,11 @@ int ha_warp::encode_quote(uchar *) {
        as it is just a placeholder. The associated NULL marker
        is marked as 1.  There are no NULL markers for columns
        which are NOT NULLable.
+
+       This side effect must be handled by condition pushdown
+       because comparisons for the value zero must take into
+       account the NULL marker and it is also used to handle
+       IS NULL/IS NOT NULL too.
     */
     if((*field)->is_null()) {
       buffer.append("0,1,");
@@ -260,11 +265,11 @@ int ha_warp::encode_quote(uchar *) {
       buffer.append(attribute);
     }
     
-    /* A NULL bitmap (for example the column n0 for column c0) is 
-       marked as zero when the value is not NULL. The NULL bitmap 
+    /* A NULL marker (for example the column n0 for column c0) is 
+       marked as zero when the value is not NULL. The NULL marker 
        column is always included in a fetch for the corresponding
        cX column. NOT NULL columns do not have an associated NULL
-       bitmap.  Note the trailing comma (also above).
+       marker.  Note the trailing comma (also above).
     */
     if((*field)->real_maybe_null()) {
       buffer.append(",0,");
@@ -839,14 +844,6 @@ int ha_warp::write_row(uchar *buf) {
 }
 
 
-/*
-  This is called for an update.
-  Make sure you put in code to increment the auto increment.
-  Currently auto increment is not being
-  fixed since autoincrements have yet to be added to this table handler.
-  This will be called in a table scan right before the previous ::rnd_next()
-  call.
-*/
 int ha_warp::update_row(const uchar *, uchar *new_data) {
   DBUG_ENTER("ha_warp::update_row");
   deleted_rows.push_back(current_rowid);
@@ -967,6 +964,9 @@ int ha_warp::info(uint) {
   DBUG_RETURN(0);
 }
 
+/* Fastbit will normally maintain the indexes automatically, but if the type
+   of bitmap index is to be set manually, the comment on the field will be
+   taken into account. */
 void ha_warp::maintain_indexes(char* datadir, TABLE* table) {
   ibis::mensa::table* base_table = ibis::mensa::create(datadir);
 
@@ -1274,7 +1274,27 @@ mysql_declare_plugin(warp){
 
 
 #include "storage/warp/ha_warp.h"
+/* This is where table scans happen.  While most storage engines
+   scan ALL rows in this function, the WARP engine supports 
+   engine condition pushdown.  This means that the WHERE clause in
+   the SQL statement is made available to the WARP engine for 
+   processing during the scan.  
+   
+   This has MAJOR performance implications.
 
+   Fastbit can evaluate and satisfy with indexes many complex 
+   conditions that MySQL itself can not support efficiently
+   (or at all) with btree or hash indexes.  
+   
+   These include conditions such as:
+   col1 = 1 OR col2 = 1
+   col1 < 10 and col2 between 1 and 2
+   (col1 = 1 or col2 = 1) and col3 = 1
+
+   Fastbit evaluation will bitmap intersect the index results
+   for each evaluated column.  Fastbit will automatically
+   construct indexes for these evaluations when appropriate.
+*/
 int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
   current_rowid = 0;
@@ -1283,22 +1303,30 @@ int ha_warp::rnd_init(bool) {
   */
   open_deleted_bitmap();
 
-  /* This is the a big part of the MAGIC (outside of bitmap indexes)...
-     This figures out which columns this query is reading so we only read
-     the necesssary columns from disk.  This is the primary advantage
-     of a column store...
+  /* This is the a big part of the performance advantage of WARP outside of 
+     the bitmap indexes.  This figures out which columns this query is reading 
+     so we only read the necesssary columns from disk.  
+     
+     This is the primary advantage of a column store.
   */
   set_column_set();
   
-  /* This second table object is a new relation which is a projection of all
-     the rows and columns in the table.  It may already be initialized if
-     an index read is going to call position a row after an index scan.
+  /* This second table object is a new relation which the projection of all
+     the rows and columns in the table.  
+     
+     base_table may already be initialized if an index read is going to 
+     call position a row after an index scan.
   */
   if(base_table == NULL) {
     base_table = new ibis::mensa(share->data_dir_name);
   }
   
-  /* don't use condition pushdown for write operations */
+  /* push_where_clause is populated in ha_warp::cond_push() which is the
+     handler function invoked by engine condition pushdown.  When ECP is
+     used, then push_where_clause will be a non-empty string.  If it
+     isn't used, then the WHERE clause is set such that Fastbit will
+     return all rows.
+  */
   if(push_where_clause == "") {
     push_where_clause = "1=1";
   }
@@ -1312,6 +1340,16 @@ int ha_warp::rnd_init(bool) {
   DBUG_RETURN(0);
 }
 
+/* Moves to the next row in the current cursor which is either the whole table
+   or a subset of rows based on a pushed WHERE condition.  
+
+   Returns HA_ERR_END_OF_FILE when there are no rows remaining in the cursor.
+
+   This function (and also other functions which populate rows) must check that
+   the fetched row is visible.  In the future this will include transaction
+   visibility, but right now it only involves checking that the row is not
+   deleted.  If the row is deleted, another fetch must be attempted.
+*/
 int ha_warp::rnd_next(uchar *buf) {
   DBUG_ENTER("ha_warp::rnd_next");
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
@@ -1336,32 +1374,34 @@ int ha_warp::rnd_next(uchar *buf) {
 }
 
 /*
-  In the case of an order by rows will need to be sorted.
-  ::position() is called after each call to ::rnd_next(),
-  the data it stores is to a byte array. You can store this
-  data via my_store_ptr(). ref_length is a variable defined to the
-  class that is the sizeof() of position being stored. In our case
-  its just a position. Look at the bdb code if you want to see a case
-  where something other then a number is stored.
+  This records the current position *in the active cursor* for the current row.
+  This is a logical reference to the row which doesn't have any meaning outside
+  of this scan because scans will have different row numbers when the pushed 
+  conditions are different.  
+
+  For similar reasons, deletions must mark the physical rowid of the row in the
+  deleted RID map.
 */
 void ha_warp::position(const uchar *) {
   DBUG_ENTER("ha_warp::position");
-  my_store_ptr(ref, ref_length, current_rowid);
+  uint64_t rownum = 0;
+  assert(cursor);
+  rownum = cursor->getCurrentRowNumber();
+  my_store_ptr(ref, ref_length, rownum);
   DBUG_VOID_RETURN;
 }
 
 /*
-  Used to fetch a row from a posiion stored with ::position().
-  my_get_ptr() retrieves the data for you.
+  Used to seek to a logical posiion stored with ::position().
 */
-
 int ha_warp::rnd_pos(uchar *buf, uchar *pos) {
   int rc;
   DBUG_ENTER("ha_warp::rnd_pos");
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
-  current_rowid = my_get_ptr(pos, ref_length);
-  cursor->fetch(current_rowid);
+  auto current_rownum = my_get_ptr(pos, ref_length);
+  cursor->fetch(current_rownum);
   rc = find_current_row(buf, cursor);
+  cursor->getColumnAsULong("r", current_rowid);
   DBUG_RETURN(rc);
 }
 
@@ -1793,17 +1833,19 @@ const Item* ha_warp::cond_push(const Item *cond,	bool other_tbls_ok) {
           return cond;
         }
       }    
-      /*if(!append_column_filter(item,where_clause)) {
-        return cond;
-      } */
+      /* recurse to print the field and other items.  This should be a FUNC_ITEM. 
+         if it isn't, then the item will be returned by this function and pushdown
+         evaluation will be abandoned.
+      */
       if(cond_push(item, other_tbls_ok) != NULL) {
+        push_where_clause = "";
         return cond;
       } 
     }
     push_where_clause += ")";
   }
   push_where_clause += where_clause;
-  //cond->print(current_thd, &str, QT_ORDINARY);
+  
   return NULL;
 }
 
