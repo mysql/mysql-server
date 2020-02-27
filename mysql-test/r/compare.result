@@ -148,3 +148,33 @@ ROW(a, '1') > ROW('1', '1')
 1
 DROP TABLE t1;
 SET NAMES default;
+#
+# Bug#30961924 AND OF TWO PREDICATES WITH DIFFERENT COLLATION ON SAME COLUMN GIVES WRONG RESULT
+#
+CREATE TABLE t1(
+firstname CHAR(20),
+lastname CHAR(20)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+INSERT INTO t1 VALUES("john","doe"), ("John","Doe");
+SELECT * FROM t1 WHERE firstname = 'john';
+firstname	lastname
+john	doe
+John	Doe
+SELECT * FROM t1 WHERE firstname = 'john' COLLATE utf8mb4_0900_ai_ci;
+firstname	lastname
+john	doe
+John	Doe
+SELECT * FROM t1 WHERE firstname = 'john' COLLATE utf8mb4_0900_as_cs;
+firstname	lastname
+john	doe
+SELECT * FROM t1
+WHERE firstname = 'john' COLLATE utf8mb4_0900_ai_ci AND
+firstname = 'john' COLLATE utf8mb4_0900_as_cs;
+firstname	lastname
+john	doe
+SELECT * FROM t1
+WHERE firstname = 'john' COLLATE utf8mb4_0900_as_cs AND
+firstname = 'john' COLLATE utf8mb4_0900_ai_ci;
+firstname	lastname
+john	doe
+DROP TABLE t1;
