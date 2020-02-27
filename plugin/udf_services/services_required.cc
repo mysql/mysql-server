@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -127,9 +127,8 @@ SERVICE_TYPE(mysql_string_converter) * Character_set_converter::get() {
   @param [in] out_buffer_length Max size that output buffer can return
   @param [out] out_buffer Output buffer which is converted in the charset
                           specified
-  @returns
-    @retval false Buffer is converted into the charset
-    @retval true  Otherwise
+  @retval false Buffer is converted into the charset
+  @retval true  Otherwise
 */
 bool Character_set_converter::convert(const std::string &out_charset_name,
                                       const std::string &in_charset_name,
