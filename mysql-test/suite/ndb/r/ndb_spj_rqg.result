@@ -187,14 +187,13 @@ pk	pk	pk
 9	24	NULL
 9	29	NULL
 9	9	NULL
-explain format=tree SELECT
+explain format=tree SELECT straight_join
 table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
-FROM m AS table1
-JOIN r AS table2
+FROM r AS table2
 LEFT JOIN c AS table3 ON table2.col_int_unique = table3.col_int_unique
+INNER JOIN m AS table1 ON table1.col_int_key = table2.pk
 LEFT JOIN r AS table4 ON table2.pk = table4.col_int_key
 LEFT JOIN e AS table5 ON table3.col_int_unique = table5.col_int_unique
-ON table1.col_int_key = table2.pk
 LEFT JOIN s AS table6 ON table1.col_int = table6.col_int
 AND table5.col_int_unique = table6.col_int_unique
 where table2.pk between 2 and 3;
@@ -213,14 +212,13 @@ EXPLAIN
 
 Warnings:
 Note	1003	Can't push table 'table6' as child of 'table2', as it would make the parent table 'table5' depend on table(s) outside of its join-nest
-SELECT
+SELECT straight_join
 table2.pk, table3.pk, table1.pk, table4.pk, table5.pk, table6.pk
-FROM m AS table1
-JOIN r AS table2
+FROM r AS table2
 LEFT JOIN c AS table3 ON table2.col_int_unique = table3.col_int_unique
+INNER JOIN m AS table1 ON table1.col_int_key = table2.pk
 LEFT JOIN r AS table4 ON table2.pk = table4.col_int_key
 LEFT JOIN e AS table5 ON table3.col_int_unique = table5.col_int_unique
-ON table1.col_int_key = table2.pk
 LEFT JOIN s AS table6 ON table1.col_int = table6.col_int
 AND table5.col_int_unique = table6.col_int_unique
 where table2.pk between 2 and 3;
