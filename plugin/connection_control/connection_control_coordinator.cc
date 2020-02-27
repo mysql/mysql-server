@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,6 @@ void Connection_event_coordinator::reset() {
     3. Set of stats for which subscriber would like to send update
 
   @param [in] subscriber    Handle to Connection_event_observers
-  @param [in] events        Event mask supplied by subscriber
   @param [in] sys_vars      opt_connection_control vector
   @param [in] status_vars   stats_connection_control vector
 
@@ -176,8 +175,8 @@ void Connection_event_coordinator::notify_event(
 
   Note : If we receive error from a subscriber, we log it and move on.
 
-  @param [in] error_hanlder          Error handler class
-  @param [in] opt_connection_control Variable information
+  @param [in] error_handler          Error handler class
+  @param [in] variable               Variable information
   @param [in] new_value              New value for variable
 */
 

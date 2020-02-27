@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,10 +265,6 @@ bool Connection_delay_event::match_entry(const Sql_string &s, void *value) {
 
 /**
   Delete all entries from hash and free memory
-
-  @returns Reset was successful or not
-    @retval true All entries removed.
-    @retval false Failed to remove some entries
 */
 
 void Connection_delay_event::reset_all() {
@@ -599,8 +595,7 @@ bool Connection_delay_action::notify_event(
   @param [in] coordinator        Handle to coordinator
   @param [in] variable           Enum of variable
   @param [in] new_value          New value for variable
-  @param [out] error_buffer      Buffer to log error message if any
-  @param [in] error_buffer_size  Size of error buffer
+  @param [in] error_handler      Error handler object
 
   @returns processing status
     @retval false  Change in variable value processed successfully
