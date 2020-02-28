@@ -1273,6 +1273,21 @@ class SELECT_LEX {
   */
   Subquery_strategy subquery_strategy(const THD *thd) const;
 
+  /**
+    Returns whether semi-join is enabled for this query block
+
+    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
+    affect this decision.  If there are no hints for this query block,
+    optimizer_switch setting determines whether semi-join is used.
+
+    @param thd  Pointer to THD object for session.
+                Used to access optimizer_switch
+
+    @return true if semijoin is enabled,
+            false otherwise
+  */
+  bool semijoin_enabled(const THD *thd) const;
+
   void set_sj_candidates(Mem_root_array<Item_exists_subselect *> *sj_cand) {
     sj_candidates = sj_cand;
   }
@@ -2036,21 +2051,6 @@ class SELECT_LEX {
                            TABLE_LIST *new_derived_table);
   void update_join_cond_context(SELECT_LEX *new_context,
                                 mem_root_deque<TABLE_LIST *> *join_list);
-
-  /**
-    Returns whether semi-join is enabled for this query block
-
-    @see @c Opt_hints_qb::semijoin_enabled for details on how hints
-    affect this decision.  If there are no hints for this query block,
-    optimizer_switch setting determines whether semi-join is used.
-
-    @param thd  Pointer to THD object for session.
-                Used to access optimizer_switch
-
-    @return true if semijoin is enabled,
-            false otherwise
-  */
-  bool semijoin_enabled(const THD *thd) const;
 
   bool resolve_table_value_constructor_values(THD *thd);
 

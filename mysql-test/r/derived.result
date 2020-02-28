@@ -3765,22 +3765,22 @@ INSERT INTO t1 VALUES(1, 10), (2, 20);
 explain DELETE FROM t1
 WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	4	func	2	100.00	Using index
+1	DELETE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.id	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1003	delete from `test`.`t1` where <in_optimizer>(`test`.`t1`.`id`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`id`) in dt on <auto_key0>)))
+Note	1003	delete from `test`.`t1` where (`dt`.`id` = `test`.`t1`.`id`)
 DELETE FROM t1
 WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
 INSERT INTO t1 VALUES(1, 10), (2, 20);
 explain UPDATE t1 SET d= NULL
 WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	4	func	2	100.00	Using index
+1	UPDATE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.id	2	100.00	Using index; FirstMatch(t1)
 3	DERIVED	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`d` = NULL where <in_optimizer>(`test`.`t1`.`id`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`id`) in dt on <auto_key0>)))
+Note	1003	update `test`.`t1` set `test`.`t1`.`d` = NULL where (`dt`.`id` = `test`.`t1`.`id`)
 UPDATE t1 SET d= NULL
 WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
 explain INSERT INTO t1 SELECT id+10, d FROM t1;

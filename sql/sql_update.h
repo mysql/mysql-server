@@ -44,6 +44,9 @@ struct TABLE_LIST;
 
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
+bool should_switch_to_multi_table_if_subqueries(const THD *thd,
+                                                const SELECT_LEX *select,
+                                                const TABLE_LIST *table_list);
 
 class Query_result_update final : public Query_result_interceptor {
   /// Number of tables being updated

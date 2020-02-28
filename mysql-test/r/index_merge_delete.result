@@ -276,10 +276,10 @@ COUNT(*)
 INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
 EXPLAIN DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	#	#	#	#	#	#	#
 1	DELETE	t2	NULL	#	#	#	#	#	#	#	#
-2	SUBQUERY	t1	NULL	#	#	#	#	#	#	#	#
 Warnings:
-Note	1003	delete from `test`.`t2` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key3` < 7)))
+Note	1003	delete from `test`.`t2` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key3` < 7))
 SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
 COUNT(*)
 2053
@@ -580,10 +580,10 @@ COUNT(*)
 INSERT INTO t1 VALUES (2,2,2,2,2,2,2,2),(5,5,5,5,5,5,5,5);
 EXPLAIN DELETE FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	#	#	#	#	#	#	#	#
 1	DELETE	t2	NULL	#	#	#	#	#	#	#	#
-2	SUBQUERY	t1	NULL	#	#	#	#	#	#	#	#
 Warnings:
-Note	1003	delete from `test`.`t2` where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key3` < 7)))
+Note	1003	delete from `test`.`t2` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key3` < 7))
 SELECT COUNT(*) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key1<5 OR key3<7);
 COUNT(*)
 2053

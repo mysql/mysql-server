@@ -98,18 +98,16 @@ WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM (SELECT * FROM t2 LIMIT 1) it
                          WHERE it.a+3=ot.a+1);
 eval EXPLAIN $query;
 
-# Single-table UPDATE: we cannot transform the subquery to derived, just like
-# single-table UPDATE doesn't do semijoin; when WL#6057 is in, it will change.
+# Single-table UPDATE: we can transform the subquery to derived, by first
+# converting to multi-table UPDATE.
 
 BEGIN;
 
-# This will fall back to IN-to-EXISTS and fail:
 let $query=
 UPDATE t1 ot SET a=a*100
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval EXPLAIN $query;
-#eval $query;
+eval $query;
 
 SELECT * FROM t1;
 
@@ -137,9 +135,8 @@ BEGIN;
 let $query=
 DELETE FROM t1 ot
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
---error ER_SUBQUERY_TRANSFORM_REJECTED
 eval EXPLAIN $query;
-#eval $query;
+eval $query;
 
 SELECT * FROM t1;
 ROLLBACK;

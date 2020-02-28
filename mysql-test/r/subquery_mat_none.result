@@ -1658,7 +1658,7 @@ a
 2
 4
 4
-# Not used for single-table UPDATE, DELETE:
+# Used for single-table UPDATE, DELETE, by converting to multi-table
 EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where

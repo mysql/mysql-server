@@ -61,6 +61,7 @@
 #include "sql/handler.h"
 #include "sql/item.h"            // Item
 #include "sql/item_json_func.h"  // Item_json_func
+#include "sql/item_subselect.h"  // Item_subselect
 #include "sql/key.h"             // is_key_used
 #include "sql/key_spec.h"
 #include "sql/locked_tables_list.h"
@@ -1269,6 +1270,50 @@ static bool prepare_partial_update(Opt_trace_context *trace, List<Item> *fields,
   return false;
 }
 
+/**
+  Decides if a single-table UPDATE/DELETE statement should switch to the
+  multi-table code path, if there are subqueries which might benefit from
+  semijoin or subquery materialization, and if no feature specific to the
+  single-table path are used.
+
+  @param thd         Thread handler
+  @param select      Query block
+  @param table_list  Table to modify
+  @returns true if we should switch
+ */
+bool should_switch_to_multi_table_if_subqueries(const THD *thd,
+                                                const SELECT_LEX *select,
+                                                const TABLE_LIST *table_list) {
+  TABLE *t = table_list->updatable_base_table()->table;
+  handler *h = t->file;
+  // Secondary engine is never the target of updates here (updates are done
+  // to the primary engine and then propagated):
+  DBUG_ASSERT((h->ht->flags & HTON_IS_SECONDARY_ENGINE) == 0);
+  // LIMIT, ORDER BY and read-before-write removal are not supported in
+  // multi-table UPDATE/DELETE.
+  if (select->is_ordered() || select->has_limit() ||
+      (h->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+    return false;
+  /*
+    Search for subqueries. Subquery hints and optimizer_switch are taken into
+    account. They can serve as a solution is a user really wants to use the
+    single-table path, e.g. in case of regression.
+  */
+  for (SELECT_LEX_UNIT *unit = select->first_inner_unit(); unit;
+       unit = unit->next_unit()) {
+    if (unit->item && (unit->item->substype() == Item_subselect::IN_SUBS ||
+                       unit->item->substype() == Item_subselect::EXISTS_SUBS)) {
+      auto sub_select = unit->first_select();
+      Subquery_strategy subq_mat = sub_select->subquery_strategy(thd);
+      if (subq_mat == Subquery_strategy::CANDIDATE_FOR_IN2EXISTS_OR_MAT ||
+          subq_mat == Subquery_strategy::SUBQ_MATERIALIZATION)
+        return true;
+      if (sub_select->semijoin_enabled(thd)) return true;
+    }
+  }
+  return false;
+}
+
 bool Sql_cmd_update::prepare_inner(THD *thd) {
   DBUG_TRACE;
 
@@ -1285,32 +1330,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   DBUG_ASSERT(update_fields->elements == update_value_list->elements);
 
-  bool apply_semijoin;
-
   Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_prepare(trace, "update_preparation");
   trace_prepare.add_select_number(select->select_number);
-
-  if (multitable) {
-    /*
-      A view's CHECK OPTION is incompatible with semi-join.
-      @note We could let non-updated views do semi-join, and we could let
-            updated views without CHECK OPTION do semi-join.
-            But since we resolve derived tables before we know this context,
-            we cannot use semi-join in any case currently.
-            The problem is that the CHECK OPTION condition serves as
-            part of the semi-join condition, and a standalone condition
-            to be evaluated as part of the UPDATE, and those two uses are
-            incompatible.
-    */
-    apply_semijoin = false;
-    select->set_sj_candidates(&sj_candidates_local);
-  } else {
-    apply_semijoin = false;
-  }
 
   if (!select->top_join_list.empty())
     propagate_nullability(&select->top_join_list, false);
@@ -1322,7 +1347,19 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   enum enum_mark_columns mark_used_columns_saved = thd->mark_used_columns;
   thd->mark_used_columns = MARK_COLUMNS_READ;
   if (select->derived_table_count || select->table_func_count) {
-    if (select->resolve_placeholder_tables(thd, apply_semijoin)) return true;
+    /*
+      A view's CHECK OPTION is incompatible with semi-join.
+      @note We could let non-updated views do semi-join, and we could let
+            updated views without CHECK OPTION do semi-join.
+            But since we resolve derived tables before we know this context,
+            we cannot use semi-join in any case currently.
+            The problem is that the CHECK OPTION condition serves as
+            part of the semi-join condition, and a standalone condition
+            to be evaluated as part of the UPDATE, and those two uses are
+            incompatible.
+    */
+    if (select->resolve_placeholder_tables(thd, /*apply_semijoin=*/false))
+      return true;
     /*
       @todo - This check is a bit primitive and ad-hoc. We have not yet analyzed
       the list of tables that are updated. Perhaps we should wait until that
@@ -1355,6 +1392,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     if (table_list->is_multiple_tables()) multitable = true;
   }
 
+  if (!multitable && select->first_inner_unit() != nullptr &&
+      should_switch_to_multi_table_if_subqueries(thd, select, table_list))
+    multitable = true;
+
+  if (multitable) select->set_sj_candidates(&sj_candidates_local);
+
   if (select->leaf_table_count >= 2 &&
       setup_natural_join_row_types(thd, select->join_list, &select->context))
     return true;
@@ -1366,6 +1409,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
     single_table_updated = table_list->updatable_base_table();
   } else {
     // At this point the update is known to be a multi-table operation.
+    // Join buffering and hash join cannot be used as the update operations
+    // assume nested loop join (see logic in safe_update_on_fly()).
     select->make_active_options(SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
                                 OPTION_BUFFER_RESULT);
 
@@ -1828,7 +1873,9 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
     case JT_SYSTEM:
     case JT_CONST:
     case JT_EQ_REF:
-      return true;  // At most one matching row
+      // At most one matching row, with a constant lookup value as this is the
+      // first table: this row won't be seen a second time.
+      return true;
     case JT_REF:
     case JT_REF_OR_NULL:
       return !is_key_used(table, join_tab->ref().key, table->write_set);
@@ -1843,8 +1890,10 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
           table->s->primary_key < MAX_KEY)
         return !is_key_used(table, table->s->primary_key, table->write_set);
       return true;
+    case JT_INDEX_SCAN:
+      DBUG_ASSERT(false);  // cannot happen, due to "no_keyread" instruction.
     default:
-      break;  // Avoid compler warning
+      break;  // Avoid compiler warning
   }
   return false;
 }
@@ -1907,6 +1956,9 @@ bool Query_result_update::optimize() {
         Due to how the nested loop join algorithm works, when collecting
         we can ignore the condition attached to t1 - a row of t1 is read
         only one time.
+
+        Fields are collected in main_table->tmp_set, which is then checked in
+        safe_update_on_fly().
       */
       if (update_tables->next_local) {
         for (uint i = 1; i < join->tables; ++i) {

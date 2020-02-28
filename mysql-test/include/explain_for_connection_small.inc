@@ -281,7 +281,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
   INSERT INTO t3 VALUES (1,1) ;
   let $point=   before_reset_query_plan;let $query=  SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic) ;
   --source include/explain_for_connection.inc
-  let $point=   planned_single_delete;let $query=  DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) ;
+  let $point=   before_reset_query_plan;let $query=  DELETE FROM t1 WHERE topic IN (SELECT DISTINCT topic FROM t2 WHERE NOT EXISTS(SELECT * FROM t3 WHERE numeropost=topic)) ;
   --source include/explain_for_connection.inc
   drop table t1, t2, t3 ;
 

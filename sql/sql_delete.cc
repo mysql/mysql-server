@@ -66,7 +66,8 @@
 #include "sql/sql_optimizer.h"  // optimize_cond, substitute_gc
 #include "sql/sql_resolver.h"   // setup_order
 #include "sql/sql_select.h"
-#include "sql/sql_view.h"  // check_key_in_view
+#include "sql/sql_update.h"  // switch_to_multi_table_if_subqueries
+#include "sql/sql_view.h"    // check_key_in_view
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
@@ -631,29 +632,11 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
   Opt_trace_array trace_steps(trace, "steps");
 
   if (multitable) {
-    if (!select->top_join_list.empty())
-      propagate_nullability(&select->top_join_list, false);
-
-    Prepared_stmt_arena_holder ps_holder(thd);
-    result = new (thd->mem_root) Query_result_delete();
-    if (result == nullptr) return true; /* purecov: inspected */
-
-    // The former is for the pre-iterator executor; the latter is for the
-    // iterator executor.
-    // TODO(sgunders): Get rid of this when we remove Query_result.
-    select->set_query_result(result);
-    select->master_unit()->set_query_result(result);
-
-    select->make_active_options(SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
-                                OPTION_BUFFER_RESULT);
     apply_semijoin = true;
-    select->set_sj_candidates(&sj_candidates_local);
   } else {
     table_list->updating = true;
-    select->make_active_options(0, 0);
     apply_semijoin = false;
   }
-
   if (select->setup_tables(thd, table_list, false))
     return true; /* purecov: inspected */
 
@@ -715,6 +698,31 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
          tr = tr->referencing_view) {
       tr->updating = true;
     }
+  }
+
+  if (!multitable && select->first_inner_unit() != nullptr &&
+      should_switch_to_multi_table_if_subqueries(thd, select, table_list))
+    multitable = true;
+
+  if (multitable) {
+    if (!select->top_join_list.empty())
+      propagate_nullability(&select->top_join_list, false);
+
+    Prepared_stmt_arena_holder ps_holder(thd);
+    result = new (thd->mem_root) Query_result_delete();
+    if (result == nullptr) return true; /* purecov: inspected */
+
+    // The former is for the pre-iterator executor; the latter is for the
+    // iterator executor.
+    // TODO(sgunders): Get rid of this when we remove Query_result.
+    select->set_query_result(result);
+    select->master_unit()->set_query_result(result);
+
+    select->make_active_options(SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK,
+                                OPTION_BUFFER_RESULT);
+    select->set_sj_candidates(&sj_candidates_local);
+  } else {
+    select->make_active_options(0, 0);
   }
 
   // Precompute and store the row types of NATURAL/USING joins.

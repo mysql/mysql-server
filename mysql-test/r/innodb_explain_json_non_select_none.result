@@ -1262,13 +1262,13 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,'1' AS `1` from `test`.`t1` `t11`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_first	2
+Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	5
 Handler_write	1
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	2
+Handler_read_first	1
 Handler_read_key	5
 Handler_read_rnd	3
 Handler_read_rnd_next	9

@@ -1242,7 +1242,7 @@ INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 --sorted_result
 SELECT * FROM t2;
 
---echo # Not used for single-table UPDATE, DELETE:
+--echo # Used for single-table UPDATE, DELETE, by converting to multi-table
 # a) all different tables
 EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);

@@ -1665,7 +1665,7 @@ a
 2
 4
 4
-# Not used for single-table UPDATE, DELETE:
+# Used for single-table UPDATE, DELETE, by converting to multi-table
 EXPLAIN SELECT * FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
@@ -1674,10 +1674,10 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary
 Warnings:
-Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 1) where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 1) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a
@@ -1690,10 +1690,10 @@ a
 4
 EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Start temporary
+1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where; End temporary
 Warnings:
-Note	1003	delete from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a

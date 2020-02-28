@@ -129,12 +129,19 @@ Note	1003	/* select#1 */ select `test`.`ot`.`a` AS `a`,`test`.`ot`.`b` AS `b` fr
 BEGIN;
 EXPLAIN UPDATE t1 ot SET a=a*100
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	update `test`.`t1` `ot` set `test`.`ot`.`a` = (`test`.`ot`.`a` * 100) where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+UPDATE t1 ot SET a=a*100
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 SELECT * FROM t1;
 a	b
 1	10
-2	20
-3	30
+200	20
+300	30
 ROLLBACK;
 BEGIN;
 EXPLAIN UPDATE t1 ot, (SELECT 1) AS dummy
@@ -160,19 +167,24 @@ ROLLBACK;
 BEGIN;
 EXPLAIN DELETE FROM t1 ot
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
-ERROR HY000: Statement requires a transform of a subquery to a non-SET operation (like IN2EXISTS, or subquery-to-LATERAL-derived-table). This is not allowed with optimizer switch 'subquery_to_derived' on
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
+2	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
+Warnings:
+Note	1003	delete from `test`.`t1` `ot` where ((`test`.`ot`.`b` < 0) or (`derived_1_2`.`Name_exp_1` is not null))
+DELETE FROM t1 ot
+WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 SELECT * FROM t1;
 a	b
 1	10
-2	20
-3	30
 ROLLBACK;
 BEGIN;
 EXPLAIN DELETE ot.* FROM t1 ot, (SELECT 1) AS dummy
 WHERE ot.b<0 OR ot.a IN (SELECT it.a+1 FROM t2 it);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	ot	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	DELETE	ot	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	9	test.ot.a	2	100.00	Using where; Using index
 3	DERIVED	it	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using temporary
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
