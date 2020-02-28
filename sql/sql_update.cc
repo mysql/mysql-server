@@ -1662,20 +1662,8 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
 
   const table_map tables_to_update = get_table_map(fields);
 
-  /*
-    We gather the set of columns read during evaluation of SET expression in
-    TABLE::tmp_set by pointing TABLE::read_set to it and then restore it after
-    setup_fields().
-  */
   for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
     DBUG_ASSERT(tr->updating == ((tables_to_update & tr->map()) != 0));
-    if (tables_to_update & tr->map()) {
-      TABLE *const table = tr->table;
-      DBUG_ASSERT(table->read_set == &table->def_read_set);
-      table->read_set = &table->tmp_set;
-      bitmap_clear_all(table->read_set);
-    }
-
     if (tr->check_option) {
       // Resolving may be needed for subsequent executions
       if (!tr->check_option->fixed &&
@@ -1695,15 +1683,6 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
       */
       tr->check_option->walk(&Item::disable_constant_propagation,
                              enum_walk::POSTFIX, nullptr);
-    }
-  }
-
-  for (TABLE_LIST *tr = leaves; tr; tr = tr->next_leaf) {
-    if (tables_to_update & tr->map()) {
-      TABLE *const table = tr->table;
-      table->read_set = &table->def_read_set;
-      bitmap_union(table->read_set, &table->tmp_set);
-      bitmap_clear_all(&table->tmp_set);
     }
   }
 
@@ -1818,74 +1797,68 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   return false;
 }
 
-/*
-  Check if table is safe to update on fly
+/**
+  Check if table is safe to update on the fly
 
-  SYNOPSIS
-    safe_update_on_fly()
-    join_tab            How table is used in join
-    all_tables          List of tables
+  @param join_tab   Table (always the first one in the JOIN plan)
+  @param table_ref  Table reference for 'join_tab'
+  @param all_tables List of tables (updated or not)
 
-  NOTES
-    We can update the first table in join on the fly if we know that
-    a row in this table will never be read twice. This is true under
-    the following conditions:
+  We can update the first table in join on the fly if we know that:
+  - a row in this table will never be read twice (that depends, among other
+  things, on the access method), and
+  - updating this row won't influence the selection of rows in next tables.
 
-    - No column is both written to and read in SET expressions.
+  This function gets information about fields to be updated from the
+  TABLE::write_set bitmap. And it gets information about which fields influence
+  the selection of rows in next tables, from the TABLE::tmp_set bitmap.
 
-    - We are doing a table scan and the data is in a separate file (MyISAM) or
-      if we don't update a clustered key.
-
-    - We are doing a range scan and we don't update the scan key or
-      the primary key for a clustered table handler.
-
-    - Table is not joined to itself.
-
-    - Table is not partitioned, or a row may not move from a partition to
-    another.
-
-    This function gets information about fields to be updated from
-    the TABLE::write_set bitmap.
-
-  WARNING
-    This code is a bit dependent of how make_join_readinfo() works.
-
-    The field table->tmp_set is used for keeping track of which fields are
-    read during evaluation of the SET expression.
-    See Query_result_update::prepare.
-
-  RETURN
-    0		Not safe to update
-    1		Safe to update
+  @returns true if it is safe to update on the fly.
 */
 
 static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
                                TABLE_LIST *all_tables) {
   TABLE *table = join_tab->table();
+
+  // Check that the table is not joined to itself:
   if (unique_table(table_ref, all_tables, false)) return false;
   if (table->part_info &&
-      // if there is risk for a row to move in a next partition:
+      // if there is risk for a row to move in a next partition, in which case
+      // it may be read twice:
       table->part_info->num_partitions_used() > 1 &&
       partition_key_modified(table, table->write_set))
     return false;
+
+  // If updating the table influences the selection of rows in next tables:
+  if (bitmap_is_overlapping(&table->tmp_set, table->write_set)) return false;
 
   switch (join_tab->type()) {
     case JT_SYSTEM:
     case JT_CONST:
     case JT_EQ_REF:
       // At most one matching row, with a constant lookup value as this is the
-      // first table: this row won't be seen a second time.
+      // first table. So this row won't be seen a second time; the iterator
+      // won't even try a second read.
       return true;
     case JT_REF:
     case JT_REF_OR_NULL:
+      // If the key is updated, it may change from non-NULL-constant to NULL,
+      // so with JT_REF_OR_NULL, the row would be read twice.
+      // For JT_REF, let's be defensive as we do not know how the engine behaves
+      // if doing an index lookup on a changing index.
       return !is_key_used(table, join_tab->ref().key, table->write_set);
+    case JT_RANGE:
+    case JT_INDEX_MERGE:
+      DBUG_ASSERT(join_tab->quick() != nullptr);
+      // When scanning a range, it's possible to read a row twice if it moves
+      // within the range:
+      if (join_tab->quick()->is_keys_used(table->write_set)) return false;
+      // If the index access is using some secondary key(s), and if the table
+      // has a clustered primary key, modifying that key might affect the
+      // functioning of the the secondary key(s), so fall through to check that.
     case JT_ALL:
-      if (bitmap_is_overlapping(&table->tmp_set, table->write_set))
-        return false;
-      /* If range search on index */
-      if (join_tab->quick())
-        return !join_tab->quick()->is_keys_used(table->write_set);
-      /* If scanning in clustered key */
+      DBUG_ASSERT(join_tab->type() != JT_ALL || join_tab->quick() == nullptr);
+      // If using the clustered key under the cover:
       if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
           table->s->primary_key < MAX_KEY)
         return !is_key_used(table, table->s->primary_key, table->write_set);
@@ -1961,6 +1934,8 @@ bool Query_result_update::optimize() {
         safe_update_on_fly().
       */
       if (update_tables->next_local) {
+        // Verify it's not used
+        DBUG_ASSERT(bitmap_is_clear_all(&main_table->tmp_set));
         for (uint i = 1; i < join->tables; ++i) {
           JOIN_TAB *tab = join->best_ref[i];
           if (tab->condition())
@@ -2009,12 +1984,14 @@ bool Query_result_update::optimize() {
 
       if (safe_update_on_fly(join->best_ref[0], table_ref,
                              select->get_table_list())) {
+        bitmap_clear_all(&main_table->tmp_set);
         table->mark_columns_needed_for_update(
             thd, true /*mark_binlog_columns=true*/);
         if (table->setup_partial_update()) return true; /* purecov: inspected */
         table_to_update = table;  // Update table on the fly
         continue;
       }
+      bitmap_clear_all(&main_table->tmp_set);
     }
     table->mark_columns_needed_for_update(thd,
                                           true /*mark_binlog_columns=true*/);
