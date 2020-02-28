@@ -33,6 +33,7 @@
 #include "unicode/gregocal.h"
 #include "unicode/smpdtfmt.h"
 
+#include "cmemory.h"
 #include "gregoimp.h"
 #include "umutex.h"
 
@@ -177,7 +178,7 @@ void SimpleTimeZone::construct(int32_t rawOffsetGMT,
 
     decodeRules(status);
 
-    if (savingsDST <= 0) {
+    if (savingsDST == 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
     }
 }
@@ -242,7 +243,7 @@ SimpleTimeZone::operator==(const TimeZone& that) const
 // -------------------------------------
 
 // Called by TimeZone::createDefault() inside a Mutex - be careful.
-TimeZone*
+SimpleTimeZone*
 SimpleTimeZone::clone() const
 {
     return new SimpleTimeZone(*this);
@@ -686,7 +687,7 @@ SimpleTimeZone::setRawOffset(int32_t offsetMillis)
 void 
 SimpleTimeZone::setDSTSavings(int32_t millisSavedDuringDST, UErrorCode& status) 
 {
-    if (millisSavedDuringDST <= 0) {
+    if (millisSavedDuringDST == 0) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
     }
     else {
@@ -1077,13 +1078,13 @@ SimpleTimeZone::deleteTransitionRules(void) {
  *         allocate it in the constructors. This would be a more intrusive change, but doable
  *         if performance turns out to be an issue.
  */
-static UMutex gLock = U_MUTEX_INITIALIZER;
 
 void
 SimpleTimeZone::checkTransitionRules(UErrorCode& status) const {
     if (U_FAILURE(status)) {
         return;
     }
+    static UMutex gLock;
     umtx_lock(&gLock);
     if (!transitionRulesInitialized) {
         SimpleTimeZone *ncThis = const_cast<SimpleTimeZone*>(this);

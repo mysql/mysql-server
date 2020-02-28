@@ -147,7 +147,7 @@ static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeSt
     char asciiBCP47Tag[LOCALE_NAME_MAX_LENGTH] = {};
 
     // Convert from names like "en_CA" and "de_DE@collation=phonebook" to "en-CA" and "de-DE-u-co-phonebk".
-    int32_t length = uloc_toLanguageTag(locale.getName(), asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, &status);
+    (void) uloc_toLanguageTag(locale.getName(), asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), FALSE, &status);
 
     if (U_SUCCESS(status))
     {
@@ -294,22 +294,22 @@ Win32NumberFormat &Win32NumberFormat::operator=(const Win32NumberFormat &other)
     return *this;
 }
 
-Format *Win32NumberFormat::clone(void) const
+Win32NumberFormat *Win32NumberFormat::clone() const
 {
     return new Win32NumberFormat(*this);
 }
 
-UnicodeString& Win32NumberFormat::format(double number, UnicodeString& appendTo, FieldPosition& pos) const
+UnicodeString& Win32NumberFormat::format(double number, UnicodeString& appendTo, FieldPosition& /* pos */) const
 {
     return format(getMaximumFractionDigits(), appendTo, L"%.16f", number);
 }
 
-UnicodeString& Win32NumberFormat::format(int32_t number, UnicodeString& appendTo, FieldPosition& pos) const
+UnicodeString& Win32NumberFormat::format(int32_t number, UnicodeString& appendTo, FieldPosition& /* pos */) const
 {
     return format(getMinimumFractionDigits(), appendTo, L"%I32d", number);
 }
 
-UnicodeString& Win32NumberFormat::format(int64_t number, UnicodeString& appendTo, FieldPosition& pos) const
+UnicodeString& Win32NumberFormat::format(int64_t number, UnicodeString& appendTo, FieldPosition& /* pos */) const
 {
     return format(getMinimumFractionDigits(), appendTo, L"%I64d", number);
 }

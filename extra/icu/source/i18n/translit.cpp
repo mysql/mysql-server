@@ -91,7 +91,7 @@ static const char RB_RULE_BASED_IDS[] = "RuleBasedTransliteratorIDs";
 /**
  * The mutex controlling access to registry object.
  */
-static UMutex registryMutex = U_MUTEX_INITIALIZER;
+static icu::UMutex registryMutex;
 
 /**
  * System transliterator registry; non-null when initialized.
@@ -158,7 +158,7 @@ Transliterator::Transliterator(const Transliterator& other) :
 
     if (other.filter != 0) {
         // We own the filter, so we must have our own copy
-        filter = (UnicodeFilter*) other.filter->clone();
+        filter = other.filter->clone();
     }
 }
 
@@ -175,7 +175,7 @@ Transliterator& Transliterator::operator=(const Transliterator& other) {
     ID.getTerminatedBuffer();
 
     maximumContextLength = other.maximumContextLength;
-    adoptFilter((other.filter == 0) ? 0 : (UnicodeFilter*) other.filter->clone());
+    adoptFilter((other.filter == 0) ? 0 : other.filter->clone());
     return *this;
 }
 
@@ -923,13 +923,15 @@ Transliterator::createInstance(const UnicodeString& ID,
         return NULL;
     }
 
-    UnicodeSet* globalFilter;
+    UnicodeSet* globalFilter = nullptr;
     // TODO add code for parseError...currently unused, but
     // later may be used by parsing code...
     if (!TransliteratorIDParser::parseCompoundID(ID, dir, canonID, list, globalFilter)) {
         status = U_INVALID_ID;
+        delete globalFilter;
         return NULL;
     }
+    LocalPointer<UnicodeSet> lpGlobalFilter(globalFilter);
     
     TransliteratorIDParser::instantiateList(list, status);
     if (U_FAILURE(status)) {
@@ -953,8 +955,8 @@ Transliterator::createInstance(const UnicodeString& ID,
     // Check null pointer
     if (t != NULL) {
         t->setID(canonID);
-        if (globalFilter != NULL) {
-            t->adoptFilter(globalFilter);
+        if (lpGlobalFilter.isValid()) {
+            t->adoptFilter(lpGlobalFilter.orphan());
         }
     }
     else if (U_SUCCESS(status)) {
@@ -1101,6 +1103,10 @@ Transliterator::createFromRules(const UnicodeString& ID,
                 UnicodeString* idBlock = (UnicodeString*)parser.idBlockVector.elementAt(i);
                 if (!idBlock->isEmpty()) {
                     Transliterator* temp = createInstance(*idBlock, UTRANS_FORWARD, parseError, status);
+                    if (U_FAILURE(status)) {
+                        delete temp;
+                        return nullptr;
+                    }
                     if (temp != NULL && typeid(*temp) != typeid(NullTransliterator))
                         transliterators.addElement(temp, status);
                     else
@@ -1114,8 +1120,10 @@ Transliterator::createFromRules(const UnicodeString& ID,
                         data, TRUE);
                 // Check if NULL before adding it to transliterators to avoid future usage of NULL pointer.
                 if (temprbt == NULL) {
-                	status = U_MEMORY_ALLOCATION_ERROR;
-                	return t;
+                    if (U_SUCCESS(status)) {
+                        status = U_MEMORY_ALLOCATION_ERROR;
+                    }
+                    return t;
                 }
                 transliterators.addElement(temprbt, status);
             }

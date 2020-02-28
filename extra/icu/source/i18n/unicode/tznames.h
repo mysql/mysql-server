@@ -15,6 +15,8 @@
  */
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/uloc.h"
@@ -291,14 +293,12 @@ public:
     virtual UnicodeString& getDisplayName(const UnicodeString& tzID, UTimeZoneNameType type, UDate date, UnicodeString& name) const;
 
     /**
-     * @internal For specific users only until proposed publicly.
-     * @deprecated This API is ICU internal only.
+     * @internal ICU internal only, for specific users only until proposed publicly.
      */
     virtual void loadAllDisplayNames(UErrorCode& status);
 
     /**
-     * @internal For specific users only until proposed publicly.
-     * @deprecated This API is ICU internal only.
+     * @internal ICU internal only, for specific users only until proposed publicly.
      */
     virtual void getDisplayNames(const UnicodeString& tzID, const UTimeZoneNameType types[], int32_t numTypes, UDate date, UnicodeString dest[], UErrorCode& status) const;
 
@@ -413,4 +413,7 @@ public:
 U_NAMESPACE_END
 
 #endif
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

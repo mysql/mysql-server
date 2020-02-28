@@ -12,6 +12,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_NORMALIZATION
 
 #include "unicode/uobject.h"
@@ -153,13 +155,13 @@ private:
 
     /**
      * Copy constructor. Private for now.
-     * @internal
+     * @internal (private)
      */
     CanonicalIterator(const CanonicalIterator& other);
 
     /**
      * Assignment operator. Private for now.
-     * @internal
+     * @internal (private)
      */
     CanonicalIterator& operator=(const CanonicalIterator& other);
 
@@ -206,5 +208,7 @@ private:
 U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_NORMALIZATION */
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif

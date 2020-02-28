@@ -16,6 +16,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 /**
  * \file
  * \brief C++ API: Date/Time interval patterns for formatting date/time interval
@@ -149,11 +151,8 @@ U_NAMESPACE_BEGIN
  * calendar; non-Gregorian calendars are supported from ICU 4.4.1.
  * @stable ICU 4.0
 **/
-
 class U_I18N_API DateIntervalInfo U_FINAL : public UObject {
 public:
-    // Do not enclose the protected default constructor with #ifndef U_HIDE_INTERNAL_API
-    // or else the compiler will create a public default constructor.
     /**
      * Default constructor.
      * It does not initialize any interval patterns except
@@ -198,7 +197,7 @@ public:
      * @return   a copy of the object
      * @stable ICU 4.0
      */
-    virtual DateIntervalInfo* clone(void) const;
+    virtual DateIntervalInfo* clone() const;
 
     /**
      * Destructor.
@@ -517,6 +516,8 @@ DateIntervalInfo::operator!=(const DateIntervalInfo& other) const {
 U_NAMESPACE_END
 
 #endif
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif
 
