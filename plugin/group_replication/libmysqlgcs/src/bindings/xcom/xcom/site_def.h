@@ -78,9 +78,8 @@ static inline bool_t is_local_node(node_no n, site_def const *site) {
   @param[in]     s    Pointer to site definition
   @param[in]     i    Node number
 
-  @return
-    @retval Pointer to server if success
-    @retval 0 if failure
+  @retval Pointer to server if success
+  @retval 0 if failure
 */
 static inline server *get_server(site_def const *s, node_no i) {
   if (s && i != VOID_NODE_NO && i < s->nodes.node_list_len)

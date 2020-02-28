@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,8 @@ class Validator {
 
       @param value      'variant' value to be checked
 
-      @return
-        @retval == true   value is correct
-        @retval == false  value is incorrect
+      @retval true   value is correct
+      @retval false  value is incorrect
     */
   virtual bool valid_value(const Argument_value &value) { return true; }
 

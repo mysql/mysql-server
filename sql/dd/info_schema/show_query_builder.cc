@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,9 @@ bool Select_lex_builder::add_select_expr(Item *select_list_item,
 
 /**
   Add item representing a FROM clause table as,
-  "SELECT ... FROM <schema_name>.<table_name> ...".
+  @code
+  SELECT ... FROM <schema_name>.<table_name> ...
+  @endcode
 */
 bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
                                        const LEX_CSTRING &table_name) {
@@ -157,7 +159,9 @@ bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
 
 /**
   Add item representing a FROM clause table as,
-  "SELECT ... FROM <sub query or derived table> ...".
+  @code
+  SELECT ... FROM <sub query or derived table> ...
+  @endcode
  */
 bool Select_lex_builder::add_from_item(PT_derived_table *dt) {
   if (m_table_reference_list.push_back(dt)) return true;

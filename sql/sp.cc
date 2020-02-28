@@ -1519,9 +1519,8 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   @param is_proc  Indicates whether routines in the list are procedures
                   or functions.
 
-  @return
-    @retval false Found.
-    @retval true  Not found
+  @retval false Found.
+  @retval true  Not found
 */
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {

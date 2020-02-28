@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -349,8 +349,9 @@ err:
    Delete all info from Worker info tables to render them useless in
    future MTS recovery, and indicate that in Coordinator info table.
 
-   @return false on success, true when a failure in deletion or writing
-           to Coordinator table fails.
+   @retval false on success
+   @retval true when a failure in deletion or writing to Coordinator table
+   fails.
 */
 bool Rpl_info_factory::reset_workers(Relay_log_info *rli) {
   bool error = true;
@@ -1054,16 +1055,14 @@ bool Rpl_info_factory::configure_channel_replication_filters(
         is handled in the upgrade script as usual.
 
 
-  @param[in]        mi_option        the user provided master_info_repository
+  @param[in]       mi_option         the user provided master_info_repository
   @param[in]       rli_option        the user provided relay_log_info_repository
   @param[in]       thread_mask       thread mask
   @param[in]       pchannel_map          the pointer to the multi source map
                                      (see, rpl_msr.h)
 
-  @return
-   @retval         false              success
-   @retval         true               fail
-
+  @retval          false             success
+  @retval          true              fail
 */
 
 bool Rpl_info_factory::create_slave_info_objects(
@@ -1249,9 +1248,8 @@ Master_info *Rpl_info_factory::create_mi_and_rli_objects(
                                 Value filled with true if default channel
                                 existed previously. False if it is not.
 
-   @return
-     @retval        true             fail
-     @retval        false            success
+   @retval      true            fail
+   @retval      false           success
 
 */
 

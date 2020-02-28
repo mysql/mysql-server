@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -623,13 +623,13 @@ class Replicated_columns_view : public Table_columns_view<> {
    */
   bool outbound_filtering(TABLE const *table, size_t column_index);
 
-  //--> Deleted constructors and methods to remove default move/copy semantics
+  // --> Deleted constructors and methods to remove default move/copy semantics
   Replicated_columns_view(const Replicated_columns_view &rhs) = delete;
   Replicated_columns_view(Replicated_columns_view &&rhs) = delete;
   Replicated_columns_view &operator=(const Replicated_columns_view &rhs) =
       delete;
   Replicated_columns_view &operator=(Replicated_columns_view &&rhs) = delete;
-  //<--
+  // <--
 
  private:
   /**
@@ -2915,7 +2915,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @param is_after_image Should be true if this is an after-image,
     false if it is a before-image.
 
-    @param only_seek @see unpack_row()
+    @param only_seek unpack_row()
 
     @retval 0 Success
 

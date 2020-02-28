@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -778,7 +778,7 @@ uses a general tablespace.
 Try to read it from the fil_system_t first, then from DD.
 @param[in]	table		Table object
 @param[in]	dd_table	Global DD table or partition object
-@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+@param[in]	dict_mutex_own 	true if dict_sys->mutex is owned already */
 template <typename Table>
 void dd_get_and_save_space_name(dict_table_t *table, const Table *dd_table,
                                 bool dict_mutex_own);
@@ -936,11 +936,11 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id, bool is_system_cs,
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-/* Create metadata for specified tablespace, acquiring exlcusive MDL first
+/** Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
 @param[in,out]	dd_space_name	dd tablespace name
-@param[in]	space		InnoDB tablespace ID
+@param[in]	space_id	InnoDB tablespace ID
 @param[in]	flags		InnoDB tablespace flags
 @param[in]	filename	filename of this tablespace
 @param[in]	discarded	true if this tablespace was discarded
@@ -1061,7 +1061,7 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table);
 @param[in]	charset		fts index charset
 @return true on success, false on failure */
 bool dd_create_fts_index_table(const dict_table_t *parent_table,
-                               dict_table_t *fts_table,
+                               dict_table_t *table,
                                const CHARSET_INFO *charset);
 
 /** Create dd table for fts aux common table
@@ -1069,7 +1069,7 @@ bool dd_create_fts_index_table(const dict_table_t *parent_table,
 @param[in,out]	table		fts table
 @param[in]	is_config	flag whether it's fts aux configure table
 @return true on success, false on failure */
-bool dd_create_fts_common_table(const dict_table_t *parent_talbe,
+bool dd_create_fts_common_table(const dict_table_t *parent_table,
                                 dict_table_t *table, bool is_config);
 
 /** Drop dd table & tablespace for fts aux table

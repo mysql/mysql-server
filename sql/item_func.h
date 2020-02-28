@@ -538,9 +538,8 @@ class Item_func : public Item_result_field {
 
     @param arg  the arg to cache
 
-    @returns
-      true   arg can be cached
-      false  otherwise
+    @retval true   arg can be cached
+    @retval false  otherwise
   */
   virtual enum_const_item_cache can_cache_json_arg(
       Item *arg MY_ATTRIBUTE((unused))) {
@@ -2928,7 +2927,6 @@ class user_var_entry {
     @param from    Value
     @param length  Size of the value
     @param type    type
-    @return
     @retval        false on success
     @retval        true on memory allocation error
   */
@@ -2961,7 +2959,6 @@ class user_var_entry {
     @param cs           Character set and collation of the value
     @param dv           Collation derivation of the value
     @param unsigned_arg Signess of the value
-    @return
     @retval        false on success
     @retval        true on memory allocation error
   */

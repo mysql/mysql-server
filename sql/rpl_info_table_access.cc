@@ -93,9 +93,8 @@ void Rpl_info_table_access::before_open(THD *thd) {
   any user transaction and if not finished, there would be pending
   changes.
 
-  @return
-    @retval false Success
-    @retval true  Failure
+  @retval false Success
+  @retval true  Failure
 */
 bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
                                         Open_tables_backup *backup,
@@ -127,10 +126,9 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
   @param[in,out]  field_values The sequence of values
   @param[in,out]  table        Table
 
-  @return
-    @retval FOUND     The row was found.
-    @retval NOT_FOUND The row was not found.
-    @retval ERROR     There was a failure.
+  @retval FOUND     The row was found.
+  @retval NOT_FOUND The row was not found.
+  @retval ERROR     There was a failure.
 */
 enum enum_return_id Rpl_info_table_access::find_info(
     Rpl_info_values *field_values, TABLE *table) {
@@ -187,10 +185,9 @@ enum enum_return_id Rpl_info_table_access::find_info(
   error because this implies that someone has manualy and
   concurrently changed something.
 
-  @return
-    @retval FOUND     The row was found.
-    @retval NOT_FOUND The row was not found.
-    @retval ERROR     There was a failure.
+  @retval FOUND     The row was found.
+  @retval NOT_FOUND The row was not found.
+  @retval ERROR     There was a failure.
 */
 enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
                                                      uint instance) {
@@ -243,9 +240,8 @@ enum enum_return_id Rpl_info_table_access::scan_info(TABLE *table,
   @param[in]  table   Table
   @param[out] counter Registers the number of entries.
 
-  @return
-    @retval false No error
-    @retval true  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
   bool end = false;
@@ -288,9 +284,8 @@ bool Rpl_info_table_access::count_info(TABLE *table, uint *counter) {
   @param[in] fields        The sequence of fields
   @param[in] field_values  The sequence of values
 
-  @return
-    @retval false No error
-    @retval true  Failure
+  @retval false No error
+  @retval true  Failure
 */
 bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
                                              Rpl_info_values *field_values) {
@@ -327,9 +322,8 @@ bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
   @param[in] fields        The sequence of fields
   @param[in] field_values  The sequence of values
 
-  @return
-    @retval false No error
-    @retval true  Failure
+  @retval false No error
+  @retval true  Failure
  */
 bool Rpl_info_table_access::store_info_values(uint max_num_field,
                                               Field **fields,
@@ -362,8 +356,7 @@ bool Rpl_info_table_access::store_info_values(uint max_num_field,
   the mysqld startup, a thread is created in order to be able to
   access a table. Otherwise, the current thread is used.
 
-  @return
-    @retval THD* Pointer to thread structure
+  @returns THD* Pointer to thread structure
 */
 THD *Rpl_info_table_access::create_thd() {
   THD *thd = current_thd;

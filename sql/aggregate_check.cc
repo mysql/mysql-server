@@ -852,7 +852,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
 
 /**
   @returns an element of 'fd' array equal to 'item', or nullptr if not found.
-  @param 'item' Item to search for.
+  @param item Item to search for.
 */
 Item *Group_check::get_fd_equal(Item *item) {
   for (uint j = 0; j < fd.size(); j++) {

@@ -4105,6 +4105,13 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
   return error;
 }
 
+enum enum_read_gtids_from_binlog_status {
+  GOT_GTIDS,
+  GOT_PREVIOUS_GTIDS,
+  NO_GTIDS,
+  ERROR,
+  TRUNCATED
+};
 /**
   Reads GTIDs from the given binlog file.
 
@@ -4120,6 +4127,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
   of the Gtid_log_event. If lock is needed in the sid_map, the caller
   must hold it.
   @param verify_checksum Set to true to verify event checksums.
+  @param is_relay_log
 
   @retval GOT_GTIDS The file was successfully read and it contains
   both Gtid_log_events and Previous_gtids_log_events.
@@ -4137,13 +4145,6 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
   @retval TRUNCATED The file was truncated before the end of the
   first Previous_gtids_log_event.
 */
-enum enum_read_gtids_from_binlog_status {
-  GOT_GTIDS,
-  GOT_PREVIOUS_GTIDS,
-  NO_GTIDS,
-  ERROR,
-  TRUNCATED
-};
 static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
     const char *filename, Gtid_set *all_gtids, Gtid_set *prev_gtids,
     Gtid *first_gtid, Sid_map *sid_map, bool verify_checksum,

@@ -1271,7 +1271,7 @@ class Item : public Parse_tree_node {
   /**
     Determine correct string field type, based on string length
 
-    @param max_bytes Maximum string size, in number of bytes @todo
+    @param max_bytes Maximum string size, in number of bytes
   */
   static enum_field_types string_field_type(uint32 max_bytes) {
     if (max_bytes >= 16777216)
@@ -1993,15 +1993,15 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     Transformation is performed as follows:
 
+    @code
     transform()
     {
       transform children if any;
       return this->*some_transformer(...);
     }
+    @endcode
 
     Note that unlike Item::compile(), transform() does not support an analyzer
     function, ie. all children are unconditionally invoked.
@@ -2024,10 +2024,9 @@ class Item : public Parse_tree_node {
 
     @returns Returned item tree after transformation, NULL if error
 
-    @details
-
     The process of this transformation is assumed to be as follows:
 
+    @code
     compile()
     {
       if (this->*some_analyzer(...))
@@ -2038,6 +2037,7 @@ class Item : public Parse_tree_node {
       else
         return this;
     }
+    @endcode
 
     i.e. analysis is performed top-down while transformation is done
     bottom-up. If no transformation is applied, the item is returned unchanged.

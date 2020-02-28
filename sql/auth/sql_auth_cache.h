@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -593,7 +593,6 @@ class Acl_cache {
     different than the acl map object's version.
 
     @param uid
-    @return
   */
   Acl_map *checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                             List_of_auth_id_refs &active_roles);
@@ -622,7 +621,6 @@ class Acl_cache {
 
     @param version The version of the new map
     @param sctx The associated security context
-    @return
   */
   Acl_map *create_acl_map(uint64 version, Security_context *sctx);
   /** Role graph version counter */

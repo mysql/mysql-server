@@ -206,7 +206,7 @@ class OptRangeTest : public ::testing::Test {
 
     @param type            The type of range predicate operator requested
     @param fld             The field used in the range predicate
-    @param val1            The value used in the range predicate
+    @param value           The value used in the range predicate
 
     @return Item for the specified range predicate
   */

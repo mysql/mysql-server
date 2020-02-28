@@ -2053,8 +2053,7 @@ static void print_comment(FILE *sql_file, bool is_error, const char *format,
   @param[in]  object_name   object name list (concatenated string)
   @param[out] freemem       should buffer be released after usage
 
-  @return
-    @retval                 pointer to a string with prefixed objects
+  @returns                  pointer to a string with prefixed objects
 */
 static char const *fix_identifier_with_newline(char const *object_name,
                                                bool *freemem) {
@@ -2534,11 +2533,10 @@ static inline bool replication_metadata_tables(const char *db,
 /**
   Check if the table is innodb stats table in mysql database.
 
-   @param [in] db           Database name
-   @param [in] table        Table name
+  @param [in] db           Database name
+  @param [in] table        Table name
 
-  @return
-    @retval true if it is innodb stats table else false
+  @retval true if it is innodb stats table else false
 */
 static inline bool innodb_stats_tables(const char *db, const char *table) {
   return (!my_strcasecmp(charset_info, db, "mysql")) &&
@@ -2552,11 +2550,10 @@ static inline bool innodb_stats_tables(const char *db, const char *table) {
   Check if the command line option includes innodb stats table
   or in any way mysql database.
 
-   @param [in] argc         Total count of positional arguments
-   @param [in] argv         Pointer to positional arguments
+  @param [in] argc         Total count of positional arguments
+  @param [in] argv         Pointer to positional arguments
 
-  @return
-    @retval true if dump contains innodb stats table or else false
+  @retval true if dump contains innodb stats table or else false
 */
 static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
   if (opt_alldbs) return true;

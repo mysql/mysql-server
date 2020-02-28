@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,9 +155,8 @@ class Handler_applier_configuration_action : public Pipeline_action {
    Informs if this is a action with configurations for initialization or just
    timeout configurations.
 
-   @return
-     @retval true    if initialization action
-     @retval false   if timeout configuration action
+   @retval true    if initialization action
+   @retval false   if timeout configuration action
   */
   bool is_initialization_conf() { return initialization_conf; }
 

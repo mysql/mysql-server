@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ fatal::~fatal() {
 
 /** Check that a page_size is correct for InnoDB. If correct, set the
 associated page_size_shift which is the power of 2 for this page size.
-@param[in]	page_isze	page size to evaluate
+@param[in]	page_size	page size to evaluate
 @return an associated page_size_shift if valid, 0 if invalid. */
 static int innodb_page_size_validate(ulong page_size) {
   ulong n;
@@ -1122,9 +1122,9 @@ static void parse_page(const byte *page, FILE *file) {
   }
 }
 /**
-@param [in/out] file_name	name of the filename
+@param [in,out] file_name	name of the filename
 
-@retval FILE pointer if successfully created else NULL when error occurred.
+@returns FILE pointer if successfully created else NULL when error occurred.
 */
 static FILE *create_file(char *file_name) {
   FILE *file = nullptr;

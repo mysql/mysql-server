@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -430,11 +430,10 @@ void Sql_formatter::format_sql_objects_definer(
 /**
   Check if the table is innodb stats table in mysql database.
 
-   @param [in] db           Database name
-   @param [in] table        Table name
+  @param [in] db           Database name
+  @param [in] table        Table name
 
-  @return
-    @retval true if it is innodb stats table else false
+  @retval true if it is innodb stats table else false
 */
 bool Sql_formatter::innodb_stats_tables(std::string db, std::string table) {
   return ((db == "mysql") &&

@@ -118,7 +118,7 @@ mysql_declare_plugin(test_udf_services){
 
   Must be present otherwise the server refuses to load
 
-  @param      initrd    Return value from xxxx_init
+  @param      initid    Return value from xxxx_init
   @param      args      Array of arguments
   @param[out] message   Error message in case of error.
   @retval     false     success
@@ -134,7 +134,7 @@ PLUGIN_EXPORT bool test_udf_services_udf_init(
 /**
   A UDF function returning 0.
 
-  @param      initrd    Return value from xxxx_init
+  @param      initid    Return value from xxxx_init
   @param      args      Array of arguments
   @param[out] is_null   If the result is null, store 1 here
   @param[out] error     On error store 1 here
@@ -226,9 +226,8 @@ end:
   Plugin init function that registers a UDF.
   A newly created UDF must be registered here.
 
-  @returns
-    @retval false UDF registered successfully.
-    @retval true  Otherwise.
+  @retval false UDF registered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_init(MYSQL_PLUGIN /*p */) {
   bool ret = true;
@@ -367,9 +366,8 @@ end:
 /**
   Plugin deinit function that unregisters a UDF
 
-  @returns
-    @retval false UDF unregistered successfully.
-    @retval true  Otherwise.
+  @retval false UDF unregistered successfully.
+  @retval true  Otherwise.
 */
 static int test_udf_extension_deinit(MYSQL_PLUGIN /* p */) {
   bool ret = true;

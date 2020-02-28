@@ -1561,7 +1561,7 @@ static const uchar *get_quote_table() {
   Control characters are displayed as hex sequence, e.g. \x00
 
   @param[in] file              IO cache
-  @param[in] prt               Pointer to string
+  @param[in] ptr               Pointer to string
   @param[in] length            String length
 
   @retval false Success
@@ -1624,8 +1624,8 @@ static size_t my_b_write_quoted_with_length(IO_CACHE *file, const uchar *ptr,
   Prints a 32-bit number in both signed and unsigned representation
 
   @param[in] file              IO cache
-  @param[in] sl                Signed number
-  @param[in] ul                Unsigned number
+  @param[in] si                Signed number
+  @param[in] ui                Unsigned number
 */
 static void my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui) {
   my_b_printf(file, "%d", si);
@@ -11222,7 +11222,7 @@ void Table_map_log_event::print(FILE *,
    return the string name of a type.
 
    @param[in] type  type of a column
-   @param[in|out] meta_ptr  the meta_ptr of the column. If the type doesn't have
+   @param[in,out] meta_ptr  the meta_ptr of the column. If the type doesn't have
                             metadata, it will not change  meta_ptr, otherwise
                             meta_ptr will be moved to the end of the column's
                             metadat.

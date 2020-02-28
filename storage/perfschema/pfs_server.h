@@ -322,8 +322,7 @@ void pre_initialize_performance_schema();
   @param [out] error_bootstrap Error instrumentation service bootstrap
   @param [out] data_lock_bootstrap Data Lock instrumentation service bootstrap
   @param [out] system_bootstrap System instrumentation service bootstrap
-  @returns
-    @retval 0 success
+  @retval 0 success
 */
 int initialize_performance_schema(
     PFS_global_param *param, PSI_thread_bootstrap **thread_bootstrap,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,10 +61,9 @@ class System_table_access {
     @param[out] table         We will store the open table here
     @param[out] backup        Save the lock info. here
 
-    @return
-      @retval true open and lock failed - an error message is pushed into the
+    @retval true open and lock failed - an error message is pushed into the
                                           stack
-      @retval false success
+    @retval false success
   */
   bool open_table(THD *thd, const LEX_CSTRING dbstr, const LEX_CSTRING tbstr,
                   uint max_num_field, enum thr_lock_type lock_type,
@@ -88,9 +87,9 @@ class System_table_access {
     @param[in] need_commit Need to commit current transaction
                            if it is true.
 
-    @return
-      @retval  true   failed
-      @retval  false  success
+    @retval  true   failed
+    @retval  false  success
+
     If there is an error, rolls back the current statement. Otherwise,
     commits it. However, if a new thread was created and there is an
     error, the transaction must be rolled back. Otherwise, it must be
@@ -104,8 +103,7 @@ class System_table_access {
     Creates a new thread in the bootstrap process or in the mysqld startup,
     a thread is created in order to be able to access a table.
 
-    @return
-      @retval THD* Pointer to thread structure
+    @return THD* Pointer to thread structure
   */
   THD *create_thd();
   /**

@@ -5602,7 +5602,7 @@ void JOIN::set_semijoin_embedding() {
 /**
   @brief Check if semijoin's compared types allow materialization.
 
-  @param[inout] sj_nest Semi-join nest containing information about correlated
+  @param[in,out] sj_nest Semi-join nest containing information about correlated
          expressions. Set nested_join->sjm.scan_allowed to true if
          MaterializeScan strategy allowed. Set nested_join->sjm.lookup_allowed
          to true if MaterializeLookup strategy allowed
@@ -6659,7 +6659,6 @@ static void warn_index_not_applicable(THD *thd, const Field *field,
   be updated to point beyond the last Key_field written.
 
   @param thd                session context
-  @param[in,out] key_fields is incremented if a key was stored in the array
   @param and_level          And level, to be stored in Key_field
   @param cond               Condition predicate
   @param item_field         Field used in comparison
@@ -7763,9 +7762,6 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
 
   @param join
   @param join_tab
-
-  @return
-    None
 */
 
 static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,

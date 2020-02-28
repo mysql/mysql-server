@@ -128,9 +128,8 @@ std::pair<bool, std::string> SHA256_password_cache::get_entry(
   @param [in] host Hostname which will be used as a part of the cache entry key
   @param [in] value Value used as base for a hash which will be searched for
 
-  @return
-    @retval true Value hash is stored in the cache
-    @retval false Value hash is not in the cache
+  @retval true Value hash is stored in the cache
+  @retval false Value hash is not in the cache
 */
 bool SHA256_password_cache::contains(const std::string &user,
                                      const std::string &host,

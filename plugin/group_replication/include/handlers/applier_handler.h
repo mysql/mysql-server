@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,9 +111,9 @@ class Applier_handler : public Event_handler {
 
   /**
     Checks if the channel's relay log contains partial transaction.
-    @return
-      @retval true  If relaylog contains partial transaction.
-      @retval false If relaylog does not contain partial transaction.
+
+    @retval true  If relaylog contains partial transaction.
+    @retval false If relaylog does not contain partial transaction.
   */
   int is_partial_transaction_on_relay_log();
 

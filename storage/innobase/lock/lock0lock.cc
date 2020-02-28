@@ -1321,8 +1321,7 @@ lock_t *lock_rec_find_similar_on_page(uint32_t type_mode, size_t heap_no,
 @param[in]      index             index of record
 @param[in,out]  trx               transaction
 @param[in]      we_own_trx_mutex  true iff the caller own trx->mutex (optional).
-                                  Defaults to false.
-@return lock where the bit was set */
+                                  Defaults to false. */
 static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
                                   const ulint heap_no, dict_index_t *index,
                                   trx_t *trx,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ bool clone_os_supports_zero_copy() { return (s_zero_copy); }
 @param[in]	buffer		buffer for reading data
 @param[in]	request_size	length of data to read
 @param[in]	src_name	source file name
-@param[out]	actual_size	length of data actually read
+@param[out]	read_size	length of data actually read
 @return error code */
 static int read_from_file(Ha_clone_file from_file, uchar *buffer,
                           uint request_size, const char *src_name,

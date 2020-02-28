@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ class List;
 @endverbatim
   SELECT terminates after executing the first subquery if the related IN
   predicate is false, so we won't see @c JOIN::optimize() tracing for subq2;
-  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of @c
+  whereas EXPLAIN SELECT analyzes all subqueries (see loop at the end of
   @c select_describe()).
 
   @section USER_SELECT_TRACING_STATEMENTS How a user traces only certain
@@ -932,31 +932,31 @@ class Opt_trace_disable_I_S {
 
 //@{
 
-/**
-  Instantiate this class to start tracing a THD's actions (generally at a
-  statement's start), and to set the "original" query (not transformed, as
-  sent by client) for the new trace. Destructor will end the trace.
-
-  If in a routine's instruction, there is no "query". To be helpful to the
-  user, we craft a query using the instruction's print(). We don't leave this
-  to the caller, because it would be inefficient if tracing is off.
-
-  @param  thd          the THD
-  @param  tbl          list of tables read/written by the statement.
-  @param  sql_command  SQL command being prepared or executed
-  @param  set_vars     what variables are set by this command (only used if
-                       sql_command is SQLCOM_SET_OPTION)
-  @param  query        query
-  @param  length       query's length
-  @param  instr        routine's instruction, if applicable; if so, 'query'
-                       and 'query_length' above are ignored
-  @param  charset      charset which was used to encode this query
-
-  @note Each sub-statement is responsible for ending the trace which it
-  has started; this class achieves this by keeping some memory inside.
-*/
 class Opt_trace_start {
  public:
+  /**
+    Instantiate this class to start tracing a THD's actions (generally at a
+    statement's start), and to set the "original" query (not transformed, as
+    sent by client) for the new trace. Destructor will end the trace.
+
+    If in a routine's instruction, there is no "query". To be helpful to the
+    user, we craft a query using the instruction's print(). We don't leave this
+    to the caller, because it would be inefficient if tracing is off.
+
+    @param  thd_arg       the THD
+    @param  tbl           list of tables read/written by the statement.
+    @param  sql_command   SQL command being prepared or executed
+    @param  set_vars      what variables are set by this command (only used if
+                          sql_command is SQLCOM_SET_OPTION)
+    @param  query         query
+    @param  query_length  query's length
+    @param  instr         routine's instruction, if applicable; if so, 'query'
+                          and 'query_length' above are ignored
+    @param  query_charset charset which was used to encode this query
+
+    @note Each sub-statement is responsible for ending the trace which it
+    has started; this class achieves this by keeping some memory inside.
+  */
   Opt_trace_start(THD *thd_arg, TABLE_LIST *tbl,
                   enum enum_sql_command sql_command,
                   List<set_var_base> *set_vars, const char *query,

@@ -274,8 +274,7 @@ class Replication_thread_api {
                     last GNO of group's already certified transactions
                     on relay log.
 
-    @return
-      @retval       GNO value
+    @retval       GNO value
   */
   rpl_gno get_last_delivered_gno(rpl_sidno sidno);
 
@@ -292,18 +291,17 @@ class Replication_thread_api {
     @param[out] retrieved_set the set in string format.
     @param channel_name the name of the channel to get the information.
 
-    @return
-      @retval true there was an error.
-      @retval false the operation has succeeded.
+    @retval true there was an error.
+    @retval false the operation has succeeded.
   */
   bool get_retrieved_gtid_set(std::string &retrieved_set,
                               const char *channel_name = nullptr);
 
   /**
     Checks if the channel's relay log contains partial transaction.
-    @return
-      @retval true  If relaylog contains partial transaction.
-      @retval false If relaylog does not contain partial transaction.
+
+    @retval true  If relaylog contains partial transaction.
+    @retval false If relaylog does not contain partial transaction.
   */
   bool is_partial_transaction_on_relay_log();
 

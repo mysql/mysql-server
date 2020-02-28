@@ -3736,8 +3736,8 @@ bool SELECT_LEX_UNIT::union_needs_tmp_table(LEX *lex) {
 /**
   Include a query expression below a query block.
 
-  @param lex:   Containing LEX object
-  @param outer: The query block that this query expression is included below.
+  @param lex   Containing LEX object
+  @param outer The query block that this query expression is included below.
 */
 void SELECT_LEX_UNIT::include_down(LEX *lex, SELECT_LEX *outer) {
   if ((next = outer->slave)) next->prev = &next;

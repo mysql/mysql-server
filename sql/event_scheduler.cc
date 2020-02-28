@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -433,9 +433,8 @@ Event_scheduler::~Event_scheduler() {
   @param[out] err_no - errno indicating type of error which caused
                        failure to start scheduler thread.
 
-  @return
-    @retval false Success.
-    @retval true  Error.
+  @retval false Success.
+  @retval true  Error.
 */
 
 bool Event_scheduler::start(int *err_no) {

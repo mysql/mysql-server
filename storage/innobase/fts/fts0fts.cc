@@ -1251,8 +1251,7 @@ bool fts_drop_dd_tables(const aux_name_vec_t *aux_vec, bool file_per_table) {
 }
 
 /** Free FTS AUX table names in vector
-@param[in]	aux_vec		aux table name vector
-@return true on success, false on failure. */
+@param[in]	aux_vec		aux table name vector */
 void fts_free_aux_names(aux_name_vec_t *aux_vec) {
   if (aux_vec == nullptr || aux_vec->aux_name.size() == 0) {
     return;
@@ -5569,9 +5568,8 @@ ulint fts_savepoint_lookup(ib_vector_t *savepoints, /*!< in: savepoints */
   return (ULINT_UNDEFINED);
 }
 
-/** Release the savepoint data identified by  name. All savepoints created
- after the named savepoint are kept.
- @return DB_SUCCESS or error code */
+/** Release the savepoint data identified by name. All savepoints created
+ after the named savepoint are kept. */
 void fts_savepoint_release(trx_t *trx,       /*!< in: transaction */
                            const char *name) /*!< in: savepoint name */
 {
@@ -5669,8 +5667,7 @@ static void fts_undo_last_stmt(
   }
 }
 
-/** Rollback to savepoint indentified by name.
- @return DB_SUCCESS or error code */
+/** Rollback to savepoint indentified by name. */
 void fts_savepoint_rollback_last_stmt(trx_t *trx) /*!< in: transaction */
 {
   ib_vector_t *savepoints;
@@ -5710,8 +5707,7 @@ void fts_savepoint_rollback_last_stmt(trx_t *trx) /*!< in: transaction */
   }
 }
 
-/** Rollback to savepoint indentified by name.
- @return DB_SUCCESS or error code */
+/** Rollback to savepoint indentified by name. */
 void fts_savepoint_rollback(trx_t *trx,       /*!< in: transaction */
                             const char *name) /*!< in: savepoint name */
 {

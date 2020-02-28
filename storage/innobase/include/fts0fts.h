@@ -578,7 +578,7 @@ bool fts_drop_dd_tables(const aux_name_vec_t *aux_vec, bool file_per_table);
 
 /** Free FTS AUX table names in vector
 @param[in]	aux_vec		aux table name vector
-@return true on success, false on failure. */
+*/
 void fts_free_aux_names(aux_name_vec_t *aux_vec);
 
 /** The given transaction is about to be committed; do whatever is necessary

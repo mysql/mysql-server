@@ -4270,7 +4270,6 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
   Check if engine substitution is allowed in the current thread context.
 
   @param thd         thread context
-  @return
   @retval            true if engine substitution is allowed
   @retval            false otherwise
 */
@@ -4282,9 +4281,8 @@ inline bool is_engine_substitution_allowed(const THD *thd) {
 /**
   Returns if the user of the session has the SYSTEM_USER privilege or not.
 
-  @returns
-    @retval true  User has SYSTEM_USER privilege
-    @retval false Otherwise
+  @retval true  User has SYSTEM_USER privilege
+  @retval false Otherwise
 */
 inline bool THD::is_system_user() {
   return m_is_system_user.load(std::memory_order_seq_cst);

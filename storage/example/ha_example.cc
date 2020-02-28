@@ -177,9 +177,8 @@ static st_handler_tablename ha_example_system_tables[] = {
   @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
                                     layer system table.
 
-  @return
-    @retval true   Given db.table_name is supported system table.
-    @retval false  Given db.table_name is not a supported system table.
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
 */
 static bool example_is_supported_system_table(const char *db,
                                               const char *table_name,

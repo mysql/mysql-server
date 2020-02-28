@@ -2677,7 +2677,6 @@ void Item_func_add_time::print(const THD *thd, String *str,
   t and s: time_or_datetime_expression
   @param[out]  l_time3   Result is stored here.
 
-  @returns
   @retval   false  On succes
   @retval   true   On error
 */

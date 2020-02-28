@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -127,8 +127,9 @@ class Message_decoder {
     point a success.
 
     @param message_type   message that should be deserialized
+    @param message_size   number of bytes which must be read from the stream to
+    deserialize message
     @param stream        object wrapping IO operations
-    @param out_msg   returns message that is result of parsing
 
     @return Error_code is used only to pass logic error.
   */

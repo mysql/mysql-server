@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ struct Test_data_set {
 
     @param source_ref_arg The buffer to be encrypted.
     @param stream_size_arg The size of the buffer to be encrypted.
-    @param encrypted_reg_arg A buffer with the source_ref_arg buffer encrypted.
+    @param encrypted_ref_arg A buffer with the source_ref_arg buffer encrypted.
     @param key_arg The key that shall be used to open the ciphers.
   */
   Test_data_set(const unsigned char *source_ref_arg, const int stream_size_arg,

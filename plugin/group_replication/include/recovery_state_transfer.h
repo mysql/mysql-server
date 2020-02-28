@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -328,9 +328,8 @@ class Recovery_state_transfer {
   /**
     Initializes the connection parameters for the donor connection.
 
-    @return
-      @retval false Everything OK
-      @retval true  In case of the selected donor is not available
+    @retval false Everything OK
+    @retval true  In case of the selected donor is not available
   */
   bool initialize_connection_parameters();
 

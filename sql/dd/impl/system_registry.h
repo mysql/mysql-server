@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,9 +62,9 @@ class Object_table;
 template <typename K, typename T, typename P, const char *F(P), bool D>
 class Entity_element {
  private:
-  const K m_key;       //< The key associated with the entity object.
-  const T *m_entity;   //< Entity object pointer, e.g. an Object_table instance.
-  const P m_property;  //< Property of some kind, e.g. an enumeration.
+  const K m_key;      //!< The key associated with the entity object.
+  const T *m_entity;  //!< Entity object pointer, like an Object_table instance.
+  const P m_property;  //!< Property of some kind, like an enumeration.
 
  public:
   Entity_element(const K &key, const T *entity, const P property)
@@ -122,8 +122,8 @@ class Entity_registry {
   typedef std::vector<Entity_element_type *> Entity_list_type;
   typedef std::map<K, Entity_element_type *> Entity_map_type;
 
-  Entity_list_type m_entity_list;  //< List for ordered access.
-  Entity_map_type m_entity_map;    //< Map for direct key based lookup.
+  Entity_list_type m_entity_list;  //!< List for ordered access.
+  Entity_map_type m_entity_map;    //!< Map for direct key based lookup.
 
  public:
   // Externally available iteration is based on the order of inserts.

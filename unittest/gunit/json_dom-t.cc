@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1244,10 +1244,10 @@ TEST_F(JsonDomTest, ApplyJsonDiffs_CollectBinaryDiffs) {
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
   a wrapper that wraps a Json_dom.
 
-  @param num_iterations  the number of iterations to run
-  @param path            the JSON path to search for
-  @param need_only_one   true if the search should stop after the first match
-  @param expected_hits   the number of expected matches
+  @param num_iterations   the number of iterations to run
+  @param path             the JSON path to search for
+  @param need_only_one    true if the search should stop after the first match
+  @param expected_matches the number of expected matches
 */
 static void benchmark_dom_seek(size_t num_iterations, const Json_path &path,
                                bool need_only_one, size_t expected_matches) {
@@ -1302,10 +1302,10 @@ BENCHMARK(BM_JsonDomSearchKey)
   Run a microbenchmarks that tests how fast Json_wrapper::seek() is on
   a wrapper that wraps a binary JSON value.
 
-  @param num_iterations  the number of iterations to run
-  @param path            the JSON path to search for
-  @param need_only_one   true if the search should stop after the first match
-  @param expected_hits   the number of expected matches
+  @param num_iterations   the number of iterations to run
+  @param path             the JSON path to search for
+  @param need_only_one    true if the search should stop after the first match
+  @param expected_matches the number of expected matches
 */
 static void benchmark_binary_seek(size_t num_iterations, const Json_path &path,
                                   bool need_only_one, size_t expected_matches) {

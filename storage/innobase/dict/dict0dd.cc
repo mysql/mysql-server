@@ -1013,8 +1013,7 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
                              `d1/d2\d3`.`t3\t4/t5`
                             should look like:
                             d1@002fd2@005cd3/t3@005ct4@002ft5
-                            both on Windows and on Linux.
-@return None. */
+                            both on Windows and on Linux. */
 static void replace_space_name_in_file_name(dd::Tablespace_file *dd_file,
                                             dd::String_type new_space_name) {
   ut_ad(std::count(new_space_name.begin(), new_space_name.end(),
@@ -3934,7 +3933,7 @@ uses a general tablespace.
 Try to read it from the fil_system_t first, then from DD.
 @param[in]	table		Table object
 @param[in]	dd_table	Global DD table or partition object
-@param[in]	dict_mutex_own)	true if dict_sys->mutex is owned already */
+@param[in]	dict_mutex_own 	true if dict_sys->mutex is owned already */
 template <typename Table>
 void dd_get_and_save_space_name(dict_table_t *table, const Table *dd_table,
                                 bool dict_mutex_own) {

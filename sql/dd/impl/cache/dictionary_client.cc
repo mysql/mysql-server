@@ -319,9 +319,9 @@ class MDL_checker {
   /**
     Private helper function for asserting MDL for column statistics.
 
-    @param   thd              Thread context.
-    @param   s Column statistic object.
-    @param   lock_type        Weakest lock type accepted.
+    @param   thd               Thread context.
+    @param   column_statistics Column statistic object.
+    @param   lock_type         Weakest lock type accepted.
 
     @return true if we have the required lock, otherwise false.
   */

@@ -57,8 +57,6 @@ typedef enum {
 } mysql_event_message_value_type_t;
 
 /**
-  @struct mysql_event_message_key_value
-
   Structure that stores key-value pair of the MYSQL_AUDIT_MESSAGE_CLASS
   event class.
 */

@@ -697,7 +697,7 @@ for each entry.
 @param[in]	is_drop		attempt to drop the directory after scan
 @return true if call succeeds, false on error */
 bool os_file_scan_directory(const char *path, os_dir_cbk_t scan_cbk,
-                            bool is_delete);
+                            bool is_drop);
 
 /** NOTE! Use the corresponding macro os_file_create_simple(), not directly
 this function!
@@ -1577,7 +1577,6 @@ segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that
 @param[in]	n_readers	number of reader threads
 @param[in]	n_writers	number of writer threads
-@param[in]	n_slots_sync	number of slots in the sync aio array
 @param[in]	n_slots_sync	number of slots in the dblwr aio array */
 
 bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync);

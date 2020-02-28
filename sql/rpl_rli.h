@@ -2251,7 +2251,7 @@ class Applier_security_context_guard {
    */
   virtual ~Applier_security_context_guard();
 
-  //--> Deleted constructors and methods to remove default move/copy semantics
+  // --> Deleted constructors and methods to remove default move/copy semantics
   Applier_security_context_guard(const Applier_security_context_guard &) =
       delete;
   Applier_security_context_guard(Applier_security_context_guard &&) = delete;
@@ -2259,7 +2259,7 @@ class Applier_security_context_guard {
       const Applier_security_context_guard &) = delete;
   Applier_security_context_guard &operator=(Applier_security_context_guard &&) =
       delete;
-  //<--
+  // <--
 
   /**
     Returns whether or not privilege checks may be skipped within the current

@@ -671,9 +671,8 @@ static const char *ha_myisam_exts[] = {".MYI", ".MYD", NullS};
         database, then please see reference implementation in
         ha_example.cc.
 
-  @return
-    @retval true   Given db.table_name is supported system table.
-    @retval false  Given db.table_name is not a supported system table.
+  @retval true   Given db.table_name is supported system table.
+  @retval false  Given db.table_name is not a supported system table.
 */
 
 static bool myisam_is_supported_system_table(const char *,

@@ -430,7 +430,8 @@ SYS_VAR *connection_control_system_variables[OPT_LAST + 1] = {
   @returns Always returns success.
 */
 
-static int show_delay_generated(MYSQL_THD, SHOW_VAR *var, char *buff) {
+static int show_delay_generated(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONGLONG;
   var->value = buff;
   longlong *value = reinterpret_cast<longlong *>(buff);

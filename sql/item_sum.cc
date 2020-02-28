@@ -3831,14 +3831,14 @@ String *Item_sum_udf_str::val_str(String *str) {
 
 /**
   Compares the values for fields in expr list of GROUP_CONCAT.
-  @note
 
+  @code
      GROUP_CONCAT([DISTINCT] expr [,expr ...]
               [ORDER BY {unsigned_integer | col_name | expr}
                   [ASC | DESC] [,col_name ...]]
               [SEPARATOR str_val])
+  @endcode
 
-  @return
   @retval -1 : key1 < key2
   @retval  0 : key1 = key2
   @retval  1 : key1 > key2

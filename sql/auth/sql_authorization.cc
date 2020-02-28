@@ -491,9 +491,8 @@ bool Grant_validator::validate() {
 
   @param [in] privilege Privilege to be checked in the dynamic privilege map
 
-  @return
-    @retval true Privilege is registered
-    @retval false Otherwise
+  @retval true Privilege is registered
+  @retval false Otherwise
 */
 bool is_dynamic_privilege_registered(const std::string &privilege) {
   if (get_dynamic_privilege_register()->find(privilege) !=
@@ -730,9 +729,8 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
   @param defaults_table
   @param user_name
 
-  @returns
-    @retval true An error occurred
-    @retval false Success
+  @retval true An error occurred
+  @retval false Success
 */
 bool revoke_all_roles_from_user(THD *thd, TABLE *edge_table,
                                 TABLE *defaults_table, LEX_USER *user_name) {
@@ -811,8 +809,6 @@ bool is_role_id(LEX_USER *authid) {
   @param user A pointer to the user which will be granted
   @param with_admin_opt True if the user should have the ability to pass on the
     granted role to another authorization id.
-
-  @return
 */
 void grant_role(ACL_USER *role, const ACL_USER *user, bool with_admin_opt) {
   DBUG_TRACE;
@@ -900,9 +896,8 @@ void create_role_vertex(ACL_USER *role_acl_user) {
 
   @see mysql_rename_user
 
-  @return
-    @retval true An error occurred
-    @retval false Success
+  @retval true An error occurred
+  @retval false Success
 */
 
 bool roles_rename_authid(THD *thd, TABLE *edge_table, TABLE *defaults_table,
@@ -2092,9 +2087,8 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table) {
   @param definer_user         Definer username
   @param definer_host         Definer host
 
-  @return
-    @retval false   no full access.
-    @retval true    has full access.
+  @retval false   no full access.
+  @retval true    has full access.
 */
 bool has_full_view_routine_access(THD *thd, const char *db,
                                   const char *definer_user,
@@ -2120,9 +2114,8 @@ bool has_full_view_routine_access(THD *thd, const char *db,
   @param is_proc              True if this routine is a stored procedure, rather
   than a stored function.
 
-  @return
-    @retval false   no access.
-    @retval true    has partial access.
+  @retval false   no access.
+  @retval true    has partial access.
 */
 
 bool has_partial_view_routine_access(THD *thd, const char *db,
@@ -2389,9 +2382,8 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   (the latter should be either 0 or point to next_global member
   of one of elements of this table list).
 
-  @return
-    @retval false OK
-    @retval true  Access denied; But column or routine privileges might need to
+  @retval false OK
+  @retval true  Access denied; But column or routine privileges might need to
       be checked also.
 */
 
@@ -2494,9 +2486,8 @@ bool check_table_encryption_admin_access(THD *thd) {
   @param required_acl The privileges which are required to continue
   @param table An initialized, single TABLE_LIST object
 
-  @return
-    @retval true Access is granted
-    @retval false Access denied
+  @retval true Access is granted
+  @retval false Access denied
 */
 
 bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table) {
@@ -2899,9 +2890,8 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   @param revoke_grant Is this is a REVOKE command?
   @param write_to_binlog True if this statement should be written to binlog
 
-  @return
-    @retval false Success.
-    @retval true An error occurred.
+  @retval false Success.
+  @retval true An error occurred.
 */
 
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
@@ -4130,9 +4120,8 @@ bool has_any_routine_acl(Security_context *sctx, const LEX_CSTRING &db) {
   @param thd The thread handler
   @param db The name of the database
 
-  @return
-    @retval 1 Access is denied
-    @retval 0 Otherwise
+  @retval 1 Access is denied
+  @retval 0 Otherwise
 */
 bool check_grant_db(THD *thd, const char *db) {
   DBUG_TRACE;
@@ -5248,9 +5237,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   @param      sp_name              Name of the stored procedure
   @param      is_proc              True if this is a SP rather than a function
 
-  @return
-    @retval false Success
-    @retval true An error occurred. Error message not yet sent.
+  @retval false Success
+  @retval true An error occurred. Error message not yet sent.
 */
 
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
@@ -5938,9 +5926,8 @@ bool check_fk_parent_table_access(THD *thd, HA_CREATE_INFO *create_info,
   Examines if a user\@host authid is connected to a role\@role_host authid by
   comparing all out-edges if the user\@host vertex in the global role graph.
 
-  @return
-    @retval true the two vertices are connected (role is granted)
-    @retval false not connected (role is not granted)
+  @retval true the two vertices are connected (role is granted)
+  @retval false not connected (role is not granted)
 */
 bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                            LEX_CSTRING role_host) {
@@ -6131,8 +6118,6 @@ void get_active_roles(const THD *thd, List_of_granted_roles *roles) {
   Helper function for Item_func_current_role.
   @param thd Thread handler
   @param active_role [out] Comma separated list of auth ids
-
-  @returns pointer to a string with all active roles or "NONE" if none found
  */
 
 void func_current_role(const THD *thd, String *active_role) {
@@ -6209,9 +6194,8 @@ bool lock_and_get_mandatory_roles(std::vector<Role_id> *mandatory_roles) {
   @param user_auth_id A reference to the authorization ID to clear
   @param [out] default_roles The vector to which the removed roles are copied.
 
-  @return
-   @retval true An error occurred.
-   @retval false Success
+  @retval true An error occurred.
+  @retval false Success
 */
 bool clear_default_roles(THD *thd, TABLE *table,
                          const Auth_id_ref &user_auth_id,
@@ -6274,9 +6258,8 @@ bool drop_default_role_policy(THD *thd, TABLE *table,
   @param users      Users for whom the default roles are set.
   @param roles      list of default roles to be set.
 
-  @return
-    @retval true An error occurred and DA is set
-    @retval false Successful
+  @retval true An error occurred and DA is set
+  @retval false Successful
 */
 bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
                                         const List<LEX_USER> *users,
@@ -6410,9 +6393,8 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
   @param def_role_table Default role table
   @param user The user whose default roles are set.
 
-  @return
-    @retval true An error occurred and DA is set
-    @retval false Successful
+  @retval true An error occurred and DA is set
+  @retval false Successful
 */
 
 bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
@@ -6455,9 +6437,9 @@ bool alter_user_set_default_roles_all(THD *thd, TABLE *def_role_table,
   @param table         Table handle to an open table
   @param user          AST component for the user for which we set def roles
   @param new_auth_ids  Default roles to set
-  @return
-   @retval true  Operation failed
-   @retval false Operation was successful.
+
+  @retval true  Operation failed
+  @retval false Operation was successful.
 */
 
 bool alter_user_set_default_roles(THD *thd, TABLE *table, LEX_USER *user,
@@ -6674,9 +6656,8 @@ bool is_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
   @param role_host           Host name of role.
   @param[out] is_mandatory   Pointer to boolean hold status of check.
 
-  @return
-    @retval true if failed to determine. e.g., ACL lock acquire failed.
-    @retval false otherwise.
+  @retval true if failed to determine. e.g., ACL lock acquire failed.
+  @retval false otherwise.
 */
 bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
                        bool *is_mandatory) {
@@ -6856,9 +6837,8 @@ bool revoke_grant_option_for_all_dynamic_privileges(
   @param id            auth id to which privileges needs to be granted
   @param priv_list     List of privileges to be added to internal auth id
 
-  @return
-    True    In case privilege is not registered
-    False   Success
+  @retval True    In case privilege is not registered
+  @retval False   Success
 */
 bool grant_dynamic_privileges_to_auth_id(
     const Role_id &id, const std::vector<std::string> &priv_list) {
@@ -6882,8 +6862,6 @@ bool grant_dynamic_privileges_to_auth_id(
 
   @param id            auth id from which privileges needs to be revoked
   @param priv_list     List of privileges to be removed for internal auth id
-
-  @return None
 */
 void revoke_dynamic_privileges_from_auth_id(
     const Role_id &id, const std::vector<std::string> &priv_list) {

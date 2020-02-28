@@ -150,7 +150,7 @@ typedef int (*mysql_sys_var_check_func)(MYSQL_THD thd, SYS_VAR *var, void *save,
   @sa mysql_sys_var_check_func, mysql_service_component_sys_variable_register_t
 */
 typedef void (*mysql_sys_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
-                                          void *var_ptr, const void *save);
+                                          void *val_ptr, const void *save);
 
 #define COPY_MYSQL_PLUGIN_VAR_HEADER(sys_var_type, type, sys_var_check, \
                                      sys_var_update)                    \

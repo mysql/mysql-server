@@ -2005,9 +2005,8 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
   Check if server has valid public key/private key
   pair for RSA communication.
 
-  @return
-    @retval false RSA support is available
-    @retval true RSA support is not available
+  @retval false RSA support is available
+  @retval true RSA support is not available
 */
 bool sha256_rsa_auth_status() {
   return (!g_sha256_rsa_keys->get_private_key() ||
@@ -4370,9 +4369,8 @@ typedef std::string Sql_string_t;
   @param [in,out] content string handle
   @param [in] size New size
 
-  @returns
-    @retval false  Error
-    @retval true  Successfully resized
+  @retval false  Error
+  @retval true  Successfully resized
 */
 static bool resize_no_exception(Sql_string_t &content, size_t size) {
   try {
@@ -5109,9 +5107,8 @@ end:
   @param [out] ssl_key pointer to the generated key file
   @param [out] ssl_cert pointer to the generated certificate file.
 
-  @returns
-    @retval true i Generation is successful or skipped
-    @retval false Generation failed.
+  @retval true i Generation is successful or skipped
+  @retval false Generation failed.
 */
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
                              const char **ssl_ca, const char **ssl_key,

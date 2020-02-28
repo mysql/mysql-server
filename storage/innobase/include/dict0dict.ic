@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1069,8 +1069,8 @@ bool dict_table_is_table_buffer(const dict_table_t *table) {
 #endif /* !UNIV_HOTBACKUP */
 
 /** Check if the table is in a shared tablespace (System or General).
-@param[in]	id	Space ID to check
-@return true if id is a shared tablespace, false if not. */
+@param[in]	table	table to check
+@return true if table is in shared tablespace, false if not. */
 UNIV_INLINE
 bool dict_table_in_shared_tablespace(const dict_table_t *table) {
   return (fsp_is_system_or_temp_tablespace(table->space) ||
@@ -1272,7 +1272,7 @@ inline bool dict_table_has_temp_general_tablespace_name(
 /** Update the persisted autoinc counter to specified one, we should hold
 autoinc_persisted_mutex.
 @param[in,out]	table	table
-@param[in]	counter	set autoinc_persisted to this value */
+@param[in]	autoinc	set autoinc_persisted to this value */
 UNIV_INLINE
 void dict_table_autoinc_persisted_update(dict_table_t *table,
                                          ib_uint64_t autoinc) {

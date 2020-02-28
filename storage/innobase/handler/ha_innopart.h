@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -33,6 +33,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 
 #include "ha_innodb.h"
+#include "my_compiler.h"
 #include "partitioning/partition_handler.h"
 #include "row0mysql.h"
 #include "ut0bitset.h"
@@ -698,9 +699,9 @@ class ha_innopart : public ha_innobase,
   /** Set the autoinc column max value.
   This should only be called once from ha_innobase::open().
   Therefore there's no need for a covering lock.
-  @param[in]	-	If locking should be skipped. Not used!
+  @param[in]	no_lock	If locking should be skipped. Not used!
   @return 0 on success else error code. */
-  int initialize_auto_increment(bool /* no_lock */) override;
+  int initialize_auto_increment(bool no_lock MY_ATTRIBUTE((unused))) override;
 
   /** Save currently highest auto increment value.
   @param[in]	nr	Auto increment value to save. */

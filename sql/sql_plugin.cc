@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3163,9 +3163,8 @@ bool get_one_plugin_option(int, const struct my_option *, char *) {
   shorter form '--&lt;plugin-name&gt;'. There is also space allocated for
   terminating NULL pointers.
 
-  @return
-    @retval -1 An error occurred
-    @retval 0 Success
+  @retval -1 An error occurred
+  @retval 0 Success
 */
 
 static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,

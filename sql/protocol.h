@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,10 +72,9 @@ class Protocol {
   /**
     Read packet from client
 
-    @returns
-      -1  fatal error
-       0  ok
-       1 non-fatal error
+    @retval -1  fatal error
+    @retval  0  ok
+    @retval  1 non-fatal error
   */
   virtual int read_packet() = 0;
 
@@ -151,9 +150,8 @@ class Protocol {
     @note In most cases one should use store(from, length, cs) instead of
     this function
 
-    @returns
-      false   ok
-      true    error
+    @retval false   ok
+    @retval true    error
   */
   inline bool store(const char *from, const CHARSET_INFO *fromcs) {
     return from ? store_string(from, strlen(from), fromcs) : store_null();
@@ -174,9 +172,8 @@ class Protocol {
     Checks if the client capabilities include the one
     specified as parameter.
 
-    @returns
-      true    if it includes the specified capability
-      false   otherwise
+    @retval true    if it includes the specified capability
+    @retval false   otherwise
   */
   virtual bool has_client_capability(unsigned long client_capability) = 0;
 
@@ -184,9 +181,8 @@ class Protocol {
      Checks if the protocol's connection with the client is still alive.
      It should always return true unless the protocol closed the connection.
 
-     @returns
-      true    if the connection is still alive
-      false   otherwise
+     @retval true    if the connection is still alive
+     @retval false   otherwise
    */
   virtual bool connection_alive() const = 0;
 
@@ -229,33 +225,29 @@ class Protocol {
   /**
     Returns the read/writing status
 
-    @return
-      @retval 1       Read
-      @retval 2       Write
-      @retval 0       Other(Idle, Killed)
+    @retval 1       Read
+    @retval 2       Write
+    @retval 0       Other(Idle, Killed)
   */
   virtual uint get_rw_status() = 0;
   /**
     Returns if the protocol is compressed or not.
 
-    @return
-      @retval false   Not compressed
-      @retval true    Compressed
+    @retval false   Not compressed
+    @retval true    Compressed
   */
   virtual bool get_compression() = 0;
   /**
     Returns compression algorithm name.
 
-    @return
-     @retval string    compression method name
-     @retval NULL      if no compression is enabled
+    @retval string    compression method name
+    @retval NULL      if no compression is enabled
   */
   virtual char *get_compression_algorithm() = 0;
   /**
     Returns compression level.
 
-    @return
-     @retval uint compression level
+    @returns compression level
   */
   virtual uint get_compression_level() = 0;
   /**
@@ -268,9 +260,8 @@ class Protocol {
                                    SEND_NUM_ROWS, SEND_DEFAULTS, SEND_EOF
     @param resultcs                Charset to convert to
 
-    @return
-      @retval false   Ok
-      @retval true    An error occurred
+    @retval false   Ok
+    @retval true    An error occurred
   */
 
   virtual bool start_result_metadata(uint num_cols, uint flags,
@@ -284,9 +275,8 @@ class Protocol {
                                    be used to convert the value to
                                    the connection's charset
 
-    @return
-      @retval false   The metadata was successfully sent
-      @retval true    An error occurred
+    @retval false   The metadata was successfully sent
+    @retval true    An error occurred
   */
 
   virtual bool send_field_metadata(Send_field *field,
@@ -295,9 +285,8 @@ class Protocol {
     Signals the client that the metadata sending is done.
     Clears the server after sending the metadata.
 
-    @return
-      @retval false   Ok
-      @retval true    An error occurred
+    @retval false   Ok
+    @retval true    An error occurred
   */
   virtual bool end_result_metadata() = 0;
 
@@ -311,9 +300,8 @@ class Protocol {
                                    row if used)
     @param message                 Message to send to the client
 
-    @return
-      @retval false The message was successfully sent
-      @retval true An error occurred and the messages wasn't sent properly
+    @retval false The message was successfully sent
+    @retval true An error occurred and the messages wasn't sent properly
   */
   virtual bool send_ok(uint server_status, uint statement_warn_count,
                        ulonglong affected_rows, ulonglong last_insert_id,
@@ -324,9 +312,8 @@ class Protocol {
     @param server_status          The server status
     @param statement_warn_count   Total number of warnings
 
-    @return
-      @retval false The message was successfully sent
-      @retval true An error occurred and the messages wasn't sent properly
+    @retval false The message was successfully sent
+    @retval true An error occurred and the messages wasn't sent properly
   */
   virtual bool send_eof(uint server_status, uint statement_warn_count) = 0;
   /**
@@ -336,9 +323,8 @@ class Protocol {
     @param err_msg      A pointer to the error message
     @param sql_state    SQL state
 
-    @return
-      @retval false The message was successfully sent
-      @retval true An error occurred and the messages wasn't sent properly
+    @retval false The message was successfully sent
+    @retval true An error occurred and the messages wasn't sent properly
   */
 
   virtual bool send_error(uint sql_errno, const char *err_msg,
@@ -348,9 +334,8 @@ class Protocol {
     Used for the classic protocol.
     Makes the protocol send the messages/data to the client.
 
-    @return
-      @retval false The flush was successful.
-      @retval true An error occurred.
+    @retval false The flush was successful.
+    @retval true An error occurred.
   */
   virtual bool flush() = 0;
 

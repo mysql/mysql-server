@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1027,7 +1027,7 @@ class Clone_Sys {
   @param[in]	is_alert	print alert message
   @param[out]	result		true, if condition is satisfied
   @return error code */
-  using Wait_Cond_Cbk_Func = std::function<int(bool, bool &)>;
+  using Wait_Cond_Cbk_Func = std::function<int(bool is_alert, bool &result)>;
 
   /** Wait till the condition is satisfied or timeout.
   @param[in]	sleep_time	sleep time in milliseconds

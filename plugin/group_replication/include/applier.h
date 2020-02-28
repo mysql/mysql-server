@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -632,9 +632,8 @@ class Applier_module : public Applier_module_interface {
 
     @param[out] retrieved_set the set in string format.
 
-    @return
-      @retval true there was an error.
-      @retval false the operation has succeeded.
+    @retval true there was an error.
+    @retval false the operation has succeeded.
   */
   virtual bool get_retrieved_gtid_set(std::string &retrieved_set);
 

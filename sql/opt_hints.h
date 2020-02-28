@@ -700,9 +700,6 @@ class Sys_var_hint {
     Find variable in hint list.
 
     @param thd   Pointer to thread object
-
-    @return true if variable is found,
-            false otherwise
   */
   void update_vars(THD *thd);
   /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -65,6 +65,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "lex_string.h"
 #include "lock0lock.h"
 #include "my_byteorder.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -592,8 +593,7 @@ const char *partition_get_tablespace(const char *tablespace,
 
 /** Construct ha_innopart handler.
 @param[in]	hton		Handlerton.
-@param[in]	table_arg	MySQL Table.
-@return	a new ha_innopart handler. */
+@param[in]	table_arg	MySQL Table. */
 ha_innopart::ha_innopart(handlerton *hton, TABLE_SHARE *table_arg)
     : ha_innobase(hton, table_arg),
       Partition_helper(this),
@@ -638,9 +638,10 @@ int ha_innopart::innobase_initialize_autoinc() {
 /** Set the autoinc column max value.
 This should only be called once from ha_innobase::open().
 Therefore there's no need for a covering lock.
-@param[in]	-	If locking should be skipped. Not used!
+@param[in]	no_lock	If locking should be skipped. Not used!
 @return	0 for success or error code. */
-inline int ha_innopart::initialize_auto_increment(bool /* no_lock */) {
+inline int ha_innopart::initialize_auto_increment(
+    bool no_lock MY_ATTRIBUTE((unused))) {
   int error = 0;
   ulonglong auto_inc = 0;
   const Field *field = table->found_next_number_field;
@@ -4080,8 +4081,7 @@ int ha_innopart::external_lock(THD *thd, int lock_type) {
 @param[in]	increment		Table auto-inc increment.
 @param[in]	nb_desired_values	Number of required values.
 @param[out]	first_value		The auto increment value.
-@param[out]	nb_reserved_values	Number of reserved values.
-@return	Auto increment value, or ~0 on failure. */
+@param[out]	nb_reserved_values	Number of reserved values. */
 void ha_innopart::get_auto_increment(ulonglong offset, ulonglong increment,
                                      ulonglong nb_desired_values,
                                      ulonglong *first_value,

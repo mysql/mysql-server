@@ -133,10 +133,10 @@ namespace {
   @tparam Function_class The class that implements the function. Does not need
   to inherit Item_func.
 
-  @tparam Min_argcount The minimum number of arguments. Not used in this
+  @tparam Min_argc The minimum number of arguments. Not used in this
   general case.
 
-  @tparam Max_argcount The maximum number of arguments. Not used in this
+  @tparam Max_argc The maximum number of arguments. Not used in this
   general case.
 */
 
@@ -958,7 +958,7 @@ namespace {
   number of arguments is correct, then calls upon the instantiator function to
   instantiate the function object.
 
-  @tparam Instantiator A class that is expected to contain the following:
+  @tparam Instantiator_fn A class that is expected to contain the following:
 
   - Min_argcount: The minimal number of arguments required to call the
   function. If the parameter count is less, an SQL error is raised and nullptr
@@ -1051,7 +1051,7 @@ Even_argcount_function_factory<Instantiator_fn>
   Factory for internal functions that should be invoked from the system views
   only.
 
-  @tparam Instantiator See Function_factory.
+  @tparam Instantiator_fn See Function_factory.
 */
 template <typename Instantiator_fn>
 class Internal_function_factory : public Create_func {

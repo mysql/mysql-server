@@ -251,9 +251,8 @@ bool check_time_range_quick(const MYSQL_TIME &my_time) {
 /**
   Check datetime, date, or normalized time (i.e. time without days) range.
   @param my_time  Datetime value.
-  @returns
-  @retval   false on success
-  @retval   true  on error
+  @retval false on success
+  @retval true  on error
 */
 bool check_datetime_range(const MYSQL_TIME &my_time) {
   /*

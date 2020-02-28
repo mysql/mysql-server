@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -391,9 +391,8 @@ done:
 /**
   Write the page data being synchronized to the disk.
 
-  @return
-    @retval false   Success
-    @retval true    Failure
+  @retval false   Success
+  @retval true    Failure
 */
 bool TC_LOG_MMAP::sync() {
   /*

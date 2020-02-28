@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -604,9 +604,9 @@ bool Protocol_classic::net_store_data_with_conversion(
   @param sql_errno The error code to send
   @param err A pointer to the error message
 
-  @return
-    @retval false The message was sent to the client
-    @retval true An error occurred and the message wasn't sent properly
+
+  @retval false The message was sent to the client
+  @retval true An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err) {
@@ -644,9 +644,8 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
   @param sql_errno  The error code to send
   @param err        A pointer to the error message
 
-  @return
-    @retval false The message was sent to the client
-    @retval true  An error occurred and the message wasn't sent properly
+  @retval false The message was sent to the client
+  @retval true  An error occurred and the message wasn't sent properly
 */
 
 bool net_send_error(NET *net, uint sql_errno, const char *err) {
@@ -853,9 +852,8 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
   @param eof_identifier          when true [FE] will be set in OK header
                                  else [00] will be used
 
-  @return
-    @retval false The message was successfully sent
-    @retval true An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true An error occurred and the messages wasn't sent properly
 */
 
 static bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
@@ -1046,9 +1044,8 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
   @param server_status          The server status
   @param statement_warn_count   Total number of warnings
 
-  @return
-    @retval false The message was successfully sent
-    @retval true An error occurred and the message wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true An error occurred and the message wasn't sent properly
 */
 
 static bool net_send_eof(THD *thd, uint server_status,
@@ -1079,9 +1076,8 @@ static bool net_send_eof(THD *thd, uint server_status,
   @param statement_warn_count The number of warnings
 
 
-  @return
-    @retval false The message was sent successfully
-    @retval true An error occurred and the messages wasn't sent properly
+  @retval false The message was sent successfully
+  @retval true An error occurred and the messages wasn't sent properly
 */
 
 static bool write_eof_packet(THD *thd, NET *net, uint server_status,
@@ -1167,9 +1163,8 @@ static bool write_eof_packet(THD *thd, NET *net, uint server_status,
   @param err          A pointer to the error message
   @param sqlstate     SQL state
 
-  @return
-   @retval false The message was successfully sent
-   @retval true  An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */
@@ -1192,9 +1187,8 @@ static bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   @param client_capabilities    Client capabilities flag
   @param character_set_results  Char set info
 
-  @return
-   @retval false The message was successfully sent
-   @retval true  An error occurred and the messages wasn't sent properly
+  @retval false The message was successfully sent
+  @retval true  An error occurred and the messages wasn't sent properly
 
   See also @ref page_protocol_basic_err_packet
 */

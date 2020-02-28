@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -331,8 +331,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
   return (DB_SUCCESS);
 }
 
-/** Builds an index definition
- @return DB_SUCCESS or error code */
+/** Builds an index definition */
 void dict_build_index_def(const dict_table_t *table, /*!< in: table */
                           dict_index_t *index,       /*!< in/out: index */
                           trx_t *trx) /*!< in/out: InnoDB transaction handle */

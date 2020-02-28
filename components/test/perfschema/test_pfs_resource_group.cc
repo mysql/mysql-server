@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,6 @@ void session_disconnect_callback(const PSI_thread_attrs *thread_attrs) {
 /**
   Test the Resource Group service.
   Log messages are written to the console and log file.
-  @return NULL for success
 */
 void session_event(const Event_info &event) {
   PSI_thread_attrs attrs = event.m_attrs;

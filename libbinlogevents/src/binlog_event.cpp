@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -283,7 +283,7 @@ void Binary_log_event::print_long_info(std::ostream &) {}
   Please note this is different from the print_event_info methods
   used by mysqlbinlog.cc.
 
-  @param std output stream to which the event data is appended.
+  @param info std output stream to which the event data is appended.
 */
 void Stop_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;

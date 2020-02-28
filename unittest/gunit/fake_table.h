@@ -227,7 +227,7 @@ class Fake_TABLE : public TABLE {
   /**
     Creates a fake TABLE and stores the values in their corresponding Fields.
 
-    @param column_value The column values to be stored.
+    @param column_values The column values to be stored.
     @param are_nullable Whether the columns are nullable.
   */
   Fake_TABLE(std::initializer_list<int> column_values, bool are_nullable = true)

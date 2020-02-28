@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,9 +380,8 @@ class Certifier : public Certifier_interface {
     @note when set, the stable set will cause the garbage collection
           process to be invoked
 
-    @returns
-      @retval False  if adds successfully,
-      @retval True   otherwise.
+    @retval False  if adds successfully,
+    @retval True   otherwise.
    */
   bool set_group_stable_transactions_set(Gtid_set *executed_gtid_set);
 
@@ -410,9 +409,8 @@ class Certifier : public Certifier_interface {
   /**
     Check if conflict detection is enable.
 
-    @returns
-      @retval True   conflict detection is enable
-      @retval False  otherwise
+    @retval True   conflict detection is enable
+    @retval False  otherwise
   */
   bool is_conflict_detection_enable();
 
@@ -681,7 +679,6 @@ class Certifier : public Certifier_interface {
                                  The previous parallel applier sequence number
                                  for this item.
 
-    @return
     @retval     False       successfully added to the map.
                 True        otherwise.
   */

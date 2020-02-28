@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,7 +45,7 @@ external tools. */
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap	memory heap where string is allocated
-@param[in]	str)	string to be copied
+@param[in]	str	string to be copied
 @return own: a copy of the string */
 char *mem_heap_strdup(mem_heap_t *heap, const char *str) {
   return (static_cast<char *>(mem_heap_dup(heap, str, strlen(str) + 1)));

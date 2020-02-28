@@ -6838,7 +6838,7 @@ static bool meb_has_back_link(const std::string &path) {
 /** Parse a file name retrieved from a MLOG_FILE_* record,
 and return the absolute file path corresponds to backup dir
 as well as in the form of database/tablespace
-@param[in]	file_name	path emitted by the redo log
+@param[in]	name		path emitted by the redo log
 @param[in]	flags		flags emitted by the redo log
 @param[in]	space_id	space_id emmited by the redo log
 @param[out]	absolute_path	absolute path of tablespace

@@ -4766,7 +4766,7 @@ String *Item_func_get_dd_index_private_data::val_str(String *str) {
   Get collation by name, send error to client on failure.
   @param name     Collation name
   @param name_cs  Character set of the name string
-  @return
+
   @retval         NULL on error
   @retval         Pointter to CHARSET_INFO with the given name on success
 */

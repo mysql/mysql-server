@@ -2621,15 +2621,12 @@ static inline void binlog_gtid_end_transaction(THD *thd) {
   @param thd                       Thread handle
   @param first_level
 
-  @todo
-    @todo: this is workaround. right way will be move invalidating in
+  @todo this is workaround. right way will be move invalidating in
     the unlock procedure.
-    - TODO: use check_change_password()
+  @todo use check_change_password()
 
-  @retval
-    false       OK
-  @retval
-    true        Error
+  @retval false       OK
+  @retval true        Error
 */
 
 int mysql_execute_command(THD *thd, bool first_level) {

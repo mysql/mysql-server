@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3612,9 +3612,8 @@ size_t Acl_restrictions::size() const { return m_restrictions_map.size(); }
 
   @param [in] thd THD handle
 
-  @returns
-   @retval  true  Partial revokes exists
-   @retval  false Otherwise
+  @retval  true  Partial revokes exists
+  @retval  false Otherwise
 */
 bool is_partial_revoke_exists(THD *thd) {
   bool partial_revoke = false;
