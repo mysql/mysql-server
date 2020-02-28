@@ -20,7 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/** @file helper macros to deal with MYSQL options */
+/**
+  @file
+  helper macros to deal with MYSQL options
+*/
 
 #ifndef MYSQL_CLIENT_EXTENSIONS_MACROS_H_INCLUDED
 #define MYSQL_CLIENT_EXTENSIONS_MACROS_H_INCLUDED
