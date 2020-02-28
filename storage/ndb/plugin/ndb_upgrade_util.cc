@@ -42,6 +42,13 @@ extern bool opt_ndb_schema_dist_upgrade_allowed;
 bool ndb_allow_ndb_schema_upgrade() {
   DBUG_TRACE;
 
+  if (DBUG_EVALUATE_IF("ndb_simulate_upgrade_from_non_dd_version", true,
+                       false)) {
+    // Simulate an ongoing upgrade from a version that doesn't have support
+    // for MySQL Data Dictionary
+    return false;
+  }
+
   // Find out the minimum API version connected to cluster.
   const unsigned int min_api_version =
       g_ndb_cluster_connection->get_min_api_version();
@@ -62,4 +69,32 @@ bool ndb_allow_ndb_schema_upgrade() {
   // on 8.0.19 and the ndb-schema-dist-upgrade-allowed option is enabled
   return (min_api_version >= NDB_VERSION_8_0_19) &&
          opt_ndb_schema_dist_upgrade_allowed;
+}
+
+/**
+   @brief Check if all the nodes connected to cluster have support for
+          MySQL Data Dictionary
+   @return true if all nodes have support for DD, false otherwise
+ */
+bool ndb_all_nodes_support_mysql_dd() {
+  DBUG_TRACE;
+
+  if (DBUG_EVALUATE_IF("ndb_simulate_upgrade_from_non_dd_version", true,
+                       false)) {
+    // Simulate an ongoing upgrade from a version that doesn't have support
+    // for MySQL Data Dictionary
+    return false;
+  }
+
+  // Find out the minimum node version connected to cluster.
+  const unsigned int min_db_version =
+      g_ndb_cluster_connection->get_min_db_version();
+  const unsigned int min_api_version =
+      g_ndb_cluster_connection->get_min_api_version();
+  const unsigned int min_node_version =
+      (min_db_version < min_api_version) ? min_db_version : min_api_version;
+
+  // All nodes support MySQL Data Dictionary if the lowest connected version is
+  // atleast 8.0.19, which has the support for MySQL DD.
+  return min_node_version >= NDB_VERSION_8_0_19;
 }

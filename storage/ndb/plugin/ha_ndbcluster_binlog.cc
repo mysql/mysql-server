@@ -965,6 +965,10 @@ class Ndb_binlog_setup {
     Mutex_guard injector_mutex_g(injector_data_mutex);
     ndb_binlog_tables_inited = true;
 
+    // During upgrade from a non DD version, the DDLs are blocked until all
+    // nodes run a version that has support for the Data Dictionary.
+    Ndb_schema_dist_client::block_ddl(!ndb_all_nodes_support_mysql_dd());
+
     return true;  // Setup completed OK
   }
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
+#include "storage/ndb/plugin/ndb_upgrade_util.h"
 
 // Temporarily use a fixed string on the form "./mysql/ndb_schema" as key
 // for retrieving the NDB_SHARE for mysql.ndb_schema. This will subsequently
@@ -71,6 +72,8 @@ bool Ndb_schema_dist::is_ready(void *requestor) {
   NDB_SHARE::release_reference(schema_share, reference.c_str());
   return true;
 }
+
+bool Ndb_schema_dist_client::m_ddl_blocked = true;
 
 bool Ndb_schema_dist_client::is_schema_dist_table(const char *db,
                                                   const char *table_name) {
@@ -122,6 +125,7 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   // Acquire reference on mysql.ndb_schema
   m_share = NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
                                                 m_share_reference.c_str());
+
   if (m_share == nullptr || m_share->have_event_operation() == false ||
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
     // The NDB_SHARE for mysql.ndb_schema hasn't been created or not setup
@@ -129,6 +133,31 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
     push_warning(m_thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
                  "Schema distribution is not ready");
     return false;
+  }
+
+  if (unlikely(m_ddl_blocked)) {
+    // If a data node gets upgraded after this MySQL Server is upgraded, this
+    // MySQL Server will not be aware of the upgrade due to Bug#30930132.
+    // So as a workaround, re-evaluate again if the DDL needs to be blocked
+    if (ndb_all_nodes_support_mysql_dd()) {
+      // All nodes connected to cluster support MySQL DD.
+      // No need to continue blocking the DDL.
+      m_ddl_blocked = false;
+    } else {
+      // Non database DDLs are blocked in plugin due to an ongoing upgrade.
+      // Database DDLs are allowed as they are actually executed in the Server
+      // layer and ndbcluster is only responsible for distributing the change to
+      // other MySQL Servers.
+      if (strlen(tabname) != 0) {
+        // If the tablename is not empty, it is a non database DDL. Block it.
+        my_printf_error(
+            ER_DISALLOWED_OPERATION,
+            "DDLs are disallowed on NDB SE as there is atleast one node "
+            "without MySQL DD support connected to the cluster.",
+            MYF(0));
+        return false;
+      }
+    }
   }
 
   // Save the prepared "keys"(which are used when communicating with

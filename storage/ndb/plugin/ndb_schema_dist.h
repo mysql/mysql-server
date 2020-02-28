@@ -149,6 +149,8 @@ class Ndb_schema_dist_client {
   };
   std::vector<Schema_op_result> m_schema_op_results;
 
+  static bool m_ddl_blocked;
+
   void push_and_clear_schema_op_results();
 
   bool log_schema_op_impl(Ndb *ndb, const char *query, int query_length,
@@ -197,6 +199,9 @@ class Ndb_schema_dist_client {
   Ndb_schema_dist_client(class THD *thd);
 
   ~Ndb_schema_dist_client();
+
+  static void block_ddl(bool ddl_blocked) { m_ddl_blocked = ddl_blocked; }
+  static bool is_ddl_blocked() { return m_ddl_blocked; }
 
   /*
     @brief Generate unique id for distribution of objects which doesn't have

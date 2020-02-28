@@ -26,5 +26,6 @@
 #define NDB_UPGRADE_UTIL_H
 
 bool ndb_allow_ndb_schema_upgrade();
+bool ndb_all_nodes_support_mysql_dd();
 
 #endif
