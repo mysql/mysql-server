@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -272,8 +272,12 @@ NOTE: we compare the fields as binary strings!
 @param[in]	index		index of the record
 @param[in]	update		update vector for the row; NOTE: the
                                 field numbers in this MUST be clustered index
-                                positions!
-@param[in]	thr		query thread, or NULL
+                                positions! */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	thr		query thread, or NULL */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	row		old value of row, or NULL if the
                                 row and the data values in update are not
                                 known when this function is called, e.g., at

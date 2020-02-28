@@ -1069,8 +1069,12 @@ int trx_undo_page_truncate_offset(trx_undo_t *undo, page_t *undo_page,
 }
 
 /** Truncates an undo log from the end. This function is used during a rollback
- to free space from an undo log.
-@param[in]  trx    transaction for this undo log
+ to free space from an undo log. */
+#ifdef UNIV_DEBUG
+/**
+@param[in]  trx    transaction for this undo log */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]  undo   undo log
 @param[in]  limit  all undo records with undo number;
                    This value should be truncated. */

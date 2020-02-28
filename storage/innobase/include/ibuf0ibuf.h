@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -211,9 +211,13 @@ ibool ibuf_bitmap_page(const page_id_t &page_id, const page_size_t &page_size);
 /** Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages.
 Must not be called when recv_no_ibuf_operations==true.
 @param[in]	page_id		page id
-@param[in]	page_size	page size
+@param[in]	page_size	page size */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	x_latch		FALSE if relaxed check (avoid latching the
-bitmap page)
+bitmap page) */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in,out]	mtr		mtr which will contain an x-latch to the

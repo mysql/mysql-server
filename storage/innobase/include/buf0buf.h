@@ -569,9 +569,13 @@ void buf_block_modify_clock_inc(buf_block_t *block);
 UNIV_INLINE
 uint64_t buf_block_get_modify_clock(const buf_block_t *block);
 
-/** Increments the bufferfix count.
+/** Increments the bufferfix count. */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	file	file name
-@param[in]	line	line
+@param[in]	line	line */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	block	block to bufferfix */
 UNIV_INLINE
 void buf_block_buf_fix_inc_func(

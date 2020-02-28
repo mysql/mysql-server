@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -177,9 +177,13 @@ ulint btr_height_get(dict_index_t *index, /*!< in: index tree */
 @param[in]	page_size	page size
 @param[in]	mode		latch mode
 @param[in]	file		file name
-@param[in]	line		line where called
+@param[in]	line		line where called */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	index		index tree, may be NULL if it is not an insert
-                                buffer tree
+                                buffer tree */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	mtr		mini-transaction
 @return block */
 UNIV_INLINE

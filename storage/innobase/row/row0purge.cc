@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1064,8 +1064,12 @@ try_again:
 
 /** Purges the parsed record.
 @param[in,out]	node		row purge node
-@param[in]	undo_rec	undo record to purge
-@param[in,out]	thr		query thread
+@param[in]	undo_rec	undo record to purge */
+#ifdef UNIV_DEBUG
+/**
+@param[in,out]	thr		query thread */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	updated_extern	whether external columns were updated
 @param[in,out]	thd		current thread
 @return true if purged, false if skipped */

@@ -2356,9 +2356,13 @@ static void recv_data_copy_to_buf(byte *buf, recv_t *recv) {
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
-read in, or also for a page already in the buffer pool.
+read in, or also for a page already in the buffer pool. */
+#ifndef UNIV_HOTBACKUP
+/**
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
-                                read page
+                                read page */
+#endif /* !UNIV_HOTBACKUP */
+/**
 @param[in,out]	block		Buffer block */
 void recv_recover_page_func(
 #ifndef UNIV_HOTBACKUP

@@ -1780,9 +1780,13 @@ void srv_shutdown_all_bg_threads() {
 #endif /* UNIV_DEBUG */
 
 /** Innobase start-up aborted. Perform cleanup actions.
-@param[in]	create_new_db	TRUE if new db is  being created
+@param[in]	create_new_db	TRUE if new db is  being created */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	file		File name
-@param[in]	line		Line number
+@param[in]	line		Line number */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	err		Reason for aborting InnoDB startup
 @return DB_SUCCESS or error code. */
 static dberr_t srv_init_abort_low(bool create_new_db,

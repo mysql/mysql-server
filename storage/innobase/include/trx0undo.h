@@ -191,8 +191,12 @@ void trx_undo_free_last_page_func(
 #endif /* UNIV_DEBUG */
 
 /** Truncates an undo log from the end. This function is used during
-a rollback to free space from an undo log.
-@param[in]  trx    transaction for this undo log
+a rollback to free space from an undo log. */
+#ifdef UNIV_DEBUG
+/**
+@param[in]  trx    transaction for this undo log */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]  undo   undo log
 @param[in]  limit  all undo records with undo number;
                    This value should be truncated. */

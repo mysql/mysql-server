@@ -142,9 +142,13 @@ direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
 @param[in,out]	mtr			mini-transaction
 @param[in,out]	init_mtr		mtr or another mini-transaction in
 which the page should be initialized. If init_mtr != mtr, but the page is
-already latched in mtr, do not initialize the page
+already latched in mtr, do not initialize the page */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	has_done_reservation	TRUE if the space has already been
-reserved, in this case we will never return NULL
+reserved, in this case we will never return NULL */
+#endif /* UNIV_DEBUG */
+/**
 @retval NULL	if no page could be allocated
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
@@ -2674,9 +2678,13 @@ direction they go alphabetically: FSP_DOWN, FSP_UP, FSP_NO_DIR
 @param[in,out]	mtr			mini-transaction
 @param[in,out]	init_mtr		mtr or another mini-transaction in
 which the page should be initialized. If init_mtr != mtr, but the page is
-already latched in mtr, do not initialize the page
+already latched in mtr, do not initialize the page */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	has_done_reservation	TRUE if the space has already been
-reserved, in this case we will never return NULL
+reserved, in this case we will never return NULL */
+#endif /* UNIV_DEBUG */
+/**
 @retval NULL	if no page could be allocated
 @retval block	rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)

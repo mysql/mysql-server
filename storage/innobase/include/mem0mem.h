@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -142,9 +142,13 @@ contains two areas of no mans lands before and after the buffer requested. */
 NOTE: Use the corresponding macros instead of this function.
 A single user buffer of 'size' will fit in the block.
 0 creates a default size block.
-@param[in]	size		Desired start block size.
+@param[in]	size		Desired start block size. */
+#ifdef UNIV_DEBUG
+/**
 @param[in]	file_name	File name where created
-@param[in]	line		Line where created
+@param[in]	line		Line where created */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */

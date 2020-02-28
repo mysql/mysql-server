@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -985,8 +985,12 @@ containing also the reference to the external part
 @param[in]	local_len	length of data, in bytes
 @param[in]	page_size	BLOB page size
 @param[in,out]	len		input - length of prefix to
-fetch; output: fetched length of the prefix
-@param[in]	is_sdi		true for SDI indexes
+fetch; output: fetched length of the prefix */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		heap where to allocate
 @return BLOB prefix */
 static byte *row_upd_ext_fetch_func(dict_index_t *clust_index, const byte *data,
@@ -1015,8 +1019,12 @@ the given index entry field.
 @param[in]	col		field->col
 @param[in]	uf		update field
 @param[in,out]	heap		memory heap for allocating and copying
-the new value
-@param[in]	is_sdi		true for SDI indexes
+the new value */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	page_size	page size */
 static void row_upd_index_replace_new_col_val_func(
     const dict_index_t *index, dfield_t *dfield, const dict_field_t *field,

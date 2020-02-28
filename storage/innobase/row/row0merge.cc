@@ -417,8 +417,12 @@ void row_merge_buf_free(
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
 @param[in]	page_size	compressed BLOB page size,
-                                zero for uncompressed BLOBs
-@param[in]	is_sdi		true for SDI indexes
+                                zero for uncompressed BLOBs */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		memory heap where to allocate data when
                                 converting to ROW_FORMAT=REDUNDANT, or NULL
                                 when not to invoke
@@ -2920,8 +2924,12 @@ dberr_t row_merge_sort(trx_t *trx, const row_merge_dup_t *dup,
                                 or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
 @param[in]	page_size	compressed page size in bytes, or 0
-@param[in,out]	tuple		data tuple
-@param[in]	is_sdi		true for SDI Indexes
+@param[in,out]	tuple		data tuple */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		memory heap */
 static void row_merge_copy_blobs_func(trx_t *trx, const dict_index_t *index,
                                       const mrec_t *mrec, const ulint *offsets,

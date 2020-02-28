@@ -86,8 +86,12 @@ uint64 calc_hash(ulong algorithm, type T, size_t len) {
   This function is meant to be only called by add_pke() function, some
   conditions are check there for performance optimization.
 
-  @param[in] table - TABLE object
-  @param[in] thd - THD object pointing to current thread.
+  @param[in] table - TABLE object */
+#ifndef DBUG_OFF
+/**
+  @param[in] thd - THD object pointing to current thread. */
+#endif
+/**
 
   @param[out] foreign_key_map - a standard map which keeps track of the
                                 foreign key fields.
@@ -466,10 +470,13 @@ static void debug_check_for_write_sets(
   Function to generate the hash of the string passed to this function.
 
   @param[in] pke - the string to be hashed.
-  @param[in] thd - THD object pointing to current thread.
+  @param[in] thd - THD object pointing to current thread. */
+#ifndef DBUG_OFF
+/**
   @param[in] write_sets - list of all write sets
   @param[in] hash_list - list of all hashes
 */
+#endif
 
 static void generate_hash_pke(const std::string &pke, THD *thd
 #ifndef DBUG_OFF
@@ -498,10 +505,13 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 
   @param[in] prefix_pke  - stringified non-multi-valued prefix of key
   @param[in] thd         - THD object pointing to current thread.
-  @param[in] fld         - multi-valued keypart's field
+  @param[in] fld         - multi-valued keypart's field */
+#ifndef DBUG_OFF
+/**
   @param[in] write_sets  - DEBUG ONLY, vector of added PKEs
   @param[in] hash_list   - DEBUG ONLY, list of all hashes
 */
+#endif
 
 static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
                                  Field *fld

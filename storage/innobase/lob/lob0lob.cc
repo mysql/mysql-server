@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -669,8 +669,12 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 @param[in]	offsets		array returned by rec_get_offsets()
 @param[in]	page_size	BLOB page size
 @param[in]	no		field number
-@param[out]	len		length of the field
-@param[in]	is_sdi		true for SDI Indexes
+@param[out]	len		length of the field */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
 byte *btr_rec_copy_externally_stored_field_func(
@@ -840,8 +844,12 @@ The clustered index record must be protected by a lock or a page latch.
 @param[in]	data		'internally' stored part of the field
                                 containing also the reference to the external
                                 part; must be protected by a lock or a page
-                                latch.
-@param[in]	is_sdi		true for SDI indexes
+                                latch. */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
@@ -935,8 +943,12 @@ The clustered index record must be protected by a lock or a page latch.
                                 part; must be protected by a lock or a page
                                 latch.
 @param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data
-@param[in]	is_sdi		true for SDI Indexes
+@param[in]	local_len	length of data */
+#ifdef UNIV_DEBUG
+/**
+@param[in]	is_sdi		true for SDI Indexes */
+#endif /* UNIV_DEBUG */
+/**
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(
