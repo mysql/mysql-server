@@ -2439,7 +2439,7 @@ bool SELECT_LEX::decorrelate_condition(TABLE_LIST *const sj_nest,
       if (join_nest == nullptr)
         set_where_cond(nullptr);
       else  // Join conditions cannot be empty so install a TRUE value
-        join_nest->set_join_cond(new Item_int(1));
+        join_nest->set_join_cond(new Item_func_true());
     }
   } else if (base_cond->type() == Item::COND_ITEM &&
              (cond = down_cast<Item_cond *>(base_cond)) &&
@@ -2460,7 +2460,7 @@ bool SELECT_LEX::decorrelate_condition(TABLE_LIST *const sj_nest,
       if (join_nest == nullptr)
         set_where_cond(nullptr);
       else  // Join conditions cannot be empty so install a TRUE value
-        join_nest->set_join_cond(new Item_int(1));
+        join_nest->set_join_cond(new Item_func_true());
     }
   }
   return false;
