@@ -43,7 +43,7 @@ NumberParserImpl::createSimpleParser(const Locale& locale, const UnicodeString& 
     IgnorablesMatcher& ignorables = parser->fLocalMatchers.ignorables;
 
     DecimalFormatSymbols dfs(locale, status);
-    dfs.setSymbol(DecimalFormatSymbols::kCurrencySymbol, u"IU$");
+    dfs.setSymbol(DecimalFormatSymbols::kCurrencySymbol, u"IU\u0024");
     dfs.setSymbol(DecimalFormatSymbols::kIntlCurrencySymbol, u"ICU");
     CurrencySymbols currencySymbols({u"ICU", status}, locale, dfs, status);
 
@@ -69,7 +69,7 @@ NumberParserImpl::createSimpleParser(const Locale& locale, const UnicodeString& 
     parser->addMatcher(parser->fLocalMatchers.permille = {symbols});
     parser->addMatcher(parser->fLocalMatchers.nan = {symbols});
     parser->addMatcher(parser->fLocalMatchers.infinity = {symbols});
-    parser->addMatcher(parser->fLocalMatchers.padding = {u"@"});
+    parser->addMatcher(parser->fLocalMatchers.padding = {u"\u0040"});
     parser->addMatcher(parser->fLocalMatchers.scientific = {symbols, grouper});
     parser->addMatcher(parser->fLocalMatchers.currency = {currencySymbols, symbols, parseFlags, status});
     parser->addMatcher(parser->fLocalValidators.number = {});

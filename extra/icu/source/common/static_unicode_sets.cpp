@@ -99,21 +99,21 @@ class ParseDataSink : public ResourceSink {
                             saveSet(PLUS_SIGN, str, status);
                         } else if (str.indexOf(u'-') != -1) {
                             saveSet(MINUS_SIGN, str, status);
-                        } else if (str.indexOf(u'$') != -1) {
+                        } else if (str.indexOf(u'\u0024') != -1) {
                             saveSet(DOLLAR_SIGN, str, status);
-                        } else if (str.indexOf(u'£') != -1) {
+                        } else if (str.indexOf(u'\u00A3') != -1) {
                             saveSet(POUND_SIGN, str, status);
-                        } else if (str.indexOf(u'₹') != -1) {
+                        } else if (str.indexOf(u'\u20B9') != -1) {
                             saveSet(RUPEE_SIGN, str, status);
-                        } else if (str.indexOf(u'¥') != -1) {
+                        } else if (str.indexOf(u'\u00A5') != -1) {
                             saveSet(YEN_SIGN, str, status);
-                        } else if (str.indexOf(u'₩') != -1) {
+                        } else if (str.indexOf(u'\u20A9') != -1) {
                             saveSet(WON_SIGN, str, status);
                         } else if (str.indexOf(u'%') != -1) {
                             saveSet(PERCENT_SIGN, str, status);
-                        } else if (str.indexOf(u'‰') != -1) {
+                        } else if (str.indexOf(u'\u2030') != -1) {
                             saveSet(PERMILLE_SIGN, str, status);
-                        } else if (str.indexOf(u'’') != -1) {
+                        } else if (str.indexOf(u'\u2019') != -1) {
                             saveSet(APOSTROPHE_SIGN, str, status);
                         } else {
                             // Unknown class of parse lenients
@@ -172,7 +172,7 @@ void U_CALLCONV initNumberParseUniSets(UErrorCode& status) {
     U_ASSERT(gUnicodeSets[APOSTROPHE_SIGN] != nullptr);
 
     LocalPointer<UnicodeSet> otherGrouping(new UnicodeSet(
-        u"[٬‘\\u0020\\u00A0\\u2000-\\u200A\\u202F\\u205F\\u3000]",
+        u"[\u066C\u2018\\u0020\\u00A0\\u2000-\\u200A\\u202F\\u205F\\u3000]",
         status
     ), status);
     if (U_FAILURE(status)) { return; }
@@ -187,7 +187,7 @@ void U_CALLCONV initNumberParseUniSets(UErrorCode& status) {
     U_ASSERT(gUnicodeSets[PERCENT_SIGN] != nullptr);
     U_ASSERT(gUnicodeSets[PERMILLE_SIGN] != nullptr);
 
-    gUnicodeSets[INFINITY_SIGN] = new UnicodeSet(u"[∞]", status);
+    gUnicodeSets[INFINITY_SIGN] = new UnicodeSet(u"[\u221E]", status);
     if (U_FAILURE(status)) { return; }
 
     U_ASSERT(gUnicodeSets[DOLLAR_SIGN] != nullptr);

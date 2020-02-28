@@ -68,14 +68,14 @@ static UBool U_CALLCONV umtx_cleanup() {
     pInitFlag = new(&initFlag) std::once_flag();
     return true;
 }
+U_CDECL_END
+
 
 static void U_CALLCONV umtx_init() {
     initMutex = STATIC_NEW(std::mutex);
     initCondition = STATIC_NEW(std::condition_variable);
     ucln_common_registerCleanup(UCLN_COMMON_MUTEX, umtx_cleanup);
 }
-U_CDECL_END
-
 
 std::mutex *UMutex::getMutex() {
     std::mutex *retPtr = fMutex.load(std::memory_order_acquire);

@@ -658,14 +658,14 @@ void toUpper(uint32_t options,
                 int32_t i2 = i + 2;
                 if ((data & HAS_EITHER_DIALYTIKA) != 0) {
                     change |= (i2 + 2) > nextIndex ||
-                            src[i2] != (uint8_t)u8"\u0308"[0] ||
-                            src[i2 + 1] != (uint8_t)u8"\u0308"[1];
+                            src[i2] != (uint8_t)"\xCC\x88"[0] ||
+                            src[i2 + 1] != (uint8_t)"\xCC\x88"[1];
                     i2 += 2;
                 }
                 if (addTonos) {
                     change |= (i2 + 2) > nextIndex ||
-                            src[i2] != (uint8_t)u8"\u0301"[0] ||
-                            src[i2 + 1] != (uint8_t)u8"\u0301"[1];
+                            src[i2] != (uint8_t)"\xCC\x81"[0] ||
+                            src[i2 + 1] != (uint8_t)"\xCC\x81"[1];
                     i2 += 2;
                 }
                 int32_t oldLength = nextIndex - i;
@@ -687,13 +687,13 @@ void toUpper(uint32_t options,
             if (change) {
                 ByteSinkUtil::appendTwoBytes(upper, sink);
                 if ((data & HAS_EITHER_DIALYTIKA) != 0) {
-                    sink.Append(u8"\u0308", 2);  // restore or add a dialytika
+                    sink.Append("\xCC\x88", 2);  // restore or add a dialytika
                 }
                 if (addTonos) {
-                    sink.Append(u8"\u0301", 2);
+                    sink.Append("\xCC\x81", 2);
                 }
                 while (numYpogegrammeni > 0) {
-                    sink.Append(u8"\u0399", 2);
+                    sink.Append("\xCE\x99", 2);
                     --numYpogegrammeni;
                 }
             }

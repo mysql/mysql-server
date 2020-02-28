@@ -41,7 +41,7 @@ static constexpr int32_t kMaxIntFracSig = 999;
 static constexpr RoundingMode kDefaultMode = RoundingMode::UNUM_FOUND_HALFEVEN;
 
 // ICU4J Equivalent: Padder.FALLBACK_PADDING_STRING
-static constexpr char16_t kFallbackPaddingString[] = u" ";
+static const char16_t kFallbackPaddingString[] = u" ";
 
 // Forward declarations:
 

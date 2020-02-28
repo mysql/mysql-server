@@ -781,9 +781,9 @@ UnicodeString& Edits::Iterator::toString(UnicodeString& sb) const {
     sb.append(u"..", -1);
     ICU_Utility::appendNumber(sb, srcIndex + oldLength_);
     if (changed) {
-        sb.append(u"] ⇝ dest[", -1);
+        sb.append(u"] \u21DD dest[", -1);
     } else {
-        sb.append(u"] ≡ dest[", -1);
+        sb.append(u"] \u2261 dest[", -1);
     }
     ICU_Utility::appendNumber(sb, destIndex);
     sb.append(u"..", -1);

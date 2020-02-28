@@ -20,7 +20,7 @@
 #include "uinvchar.h"
 #include "charstr.h"
 
-static constexpr char16_t kDefaultCurrency[] = u"XXX";
+static const char16_t kDefaultCurrency[] = u"XXX";
 static constexpr char kDefaultCurrency8[] = "XXX";
 
 U_NAMESPACE_BEGIN
@@ -115,7 +115,7 @@ CurrencyUnit* CurrencyUnit::clone() const {
 
 CurrencyUnit::~CurrencyUnit() {
 }
-    
+
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(CurrencyUnit)
 
 U_NAMESPACE_END

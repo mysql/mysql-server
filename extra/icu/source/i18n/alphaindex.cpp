@@ -739,9 +739,9 @@ void AlphabeticIndex::addIndexExemplars(const Locale &locale, UErrorCode &status
         // cut down to small list
         // make use of the fact that Ethiopic is allocated in 8's, where
         // the base is 0 mod 8.
-        UnicodeSet ethiopic(UnicodeString(u"[ሀለሐመሠረሰሸቀቈቐቘበቨተቸኀኈነኘአከኰኸዀወዐዘዠየደዸጀገጐጘጠጨጰጸፀፈፐፘ]"), status);
+        UnicodeSet ethiopic(UnicodeString(u"[\u1200\u1208\u1210\u1218\u1220\u1228\u1230\u1238\u1240\u1248\u1250\u1258\u1260\u1268\u1270\u1278\u1280\u1288\u1290\u1298\u12A0\u12A8\u12B0\u12B8\u12C0\u12C8\u12D0\u12D8\u12E0\u12E8\u12F0\u12F8\u1300\u1308\u1310\u1318\u1320\u1328\u1330\u1338\u1340\u1348\u1350\u1358]"), status);
         ethiopic.retainAll(exemplars);
-        exemplars.remove(u'ሀ', 0x137F).addAll(ethiopic);
+        exemplars.remove(u'\u1200', 0x137F).addAll(ethiopic);
     }
 
     // Upper-case any that aren't already so.

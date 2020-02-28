@@ -560,7 +560,7 @@ skeleton::parseStem(const StringSegment& segment, const UCharsTrie& stemTrie, Se
         CHECK_NULL(seen, precision, status);
             blueprint_helpers::parseFractionStem(segment, macros, status);
             return STATE_FRACTION_PRECISION;
-        case u'@':
+        case u'\u0040':
         CHECK_NULL(seen, precision, status);
             blueprint_helpers::parseDigitsStem(segment, macros, status);
             return STATE_NULL;
@@ -1050,12 +1050,12 @@ blueprint_helpers::generateFractionStem(int32_t minFrac, int32_t maxFrac, Unicod
 
 void
 blueprint_helpers::parseDigitsStem(const StringSegment& segment, MacroProps& macros, UErrorCode& status) {
-    U_ASSERT(segment.charAt(0) == u'@');
+    U_ASSERT(segment.charAt(0) == u'\u0040');
     int offset = 0;
     int minSig = 0;
     int maxSig;
     for (; offset < segment.length(); offset++) {
-        if (segment.charAt(offset) == u'@') {
+        if (segment.charAt(offset) == u'\u0040') {
             minSig++;
         } else {
             break;
@@ -1093,7 +1093,7 @@ blueprint_helpers::parseDigitsStem(const StringSegment& segment, MacroProps& mac
 
 void
 blueprint_helpers::generateDigitsStem(int32_t minSig, int32_t maxSig, UnicodeString& sb, UErrorCode&) {
-    appendMultiple(sb, u'@', minSig);
+    appendMultiple(sb, u'\u0040', minSig);
     if (maxSig == -1) {
         sb.append(u'+');
     } else {
@@ -1103,14 +1103,14 @@ blueprint_helpers::generateDigitsStem(int32_t minSig, int32_t maxSig, UnicodeStr
 
 bool blueprint_helpers::parseFracSigOption(const StringSegment& segment, MacroProps& macros,
                                            UErrorCode& status) {
-    if (segment.charAt(0) != u'@') {
+    if (segment.charAt(0) != u'\u0040') {
         return false;
     }
     int offset = 0;
     int minSig = 0;
     int maxSig;
     for (; offset < segment.length(); offset++) {
-        if (segment.charAt(offset) == u'@') {
+        if (segment.charAt(offset) == u'\u0040') {
             minSig++;
         } else {
             break;

@@ -68,7 +68,7 @@ class NumberRangeDataSink : public ResourceSink {
 
     void fillInDefaults(UErrorCode& status) {
         if (!hasRangeData()) {
-            fData.rangePattern = {u"{0}–{1}", status};
+            fData.rangePattern = {u"{0}\u2013{1}", status};
         }
         if (!hasApproxData()) {
             fData.approximatelyPattern = {u"~{0}", status};

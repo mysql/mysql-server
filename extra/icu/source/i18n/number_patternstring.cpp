@@ -204,7 +204,7 @@ void ParsedPatternInfo::consumeAffix(Endpoints& endpoints, UErrorCode& status) {
     while (true) {
         switch (state.peek()) {
             case u'#':
-            case u'@':
+            case u'\u0040':
             case u';':
             case u'*':
             case u'.':
@@ -228,11 +228,11 @@ void ParsedPatternInfo::consumeAffix(Endpoints& endpoints, UErrorCode& status) {
                 currentSubpattern->hasPercentSign = true;
                 break;
 
-            case u'‰':
+            case u'\u2030':
                 currentSubpattern->hasPerMilleSign = true;
                 break;
 
-            case u'¤':
+            case u'\u00A4':
                 currentSubpattern->hasCurrencySign = true;
                 break;
 
@@ -316,14 +316,14 @@ void ParsedPatternInfo::consumeIntegerFormat(UErrorCode& status) {
                 result.integerTotal += 1;
                 break;
 
-            case u'@':
+            case u'\u0040':
                 if (result.integerNumerals > 0) {
-                    state.toParseException(u"Cannot mix 0 and @");
+                    state.toParseException(u"Cannot mix 0 and \u0040");
                     status = U_UNEXPECTED_TOKEN;
                     return;
                 }
                 if (result.integerTrailingHashSigns > 0) {
-                    state.toParseException(u"Cannot nest # inside of a run of @");
+                    state.toParseException(u"Cannot nest # inside of a run of \u0040");
                     status = U_UNEXPECTED_TOKEN;
                     return;
                 }
@@ -344,7 +344,7 @@ void ParsedPatternInfo::consumeIntegerFormat(UErrorCode& status) {
             case u'8':
             case u'9':
                 if (result.integerAtSigns > 0) {
-                    state.toParseException(u"Cannot mix @ and 0");
+                    state.toParseException(u"Cannot mix \u0040 and 0");
                     status = U_UNEXPECTED_TOKEN;
                     return;
                 }
@@ -708,7 +708,7 @@ UnicodeString PatternStringUtils::propertiesToPatternString(const DecimalFormatP
     if (maxSig != uprv_min(dosMax, -1)) {
         // Significant Digits.
         while (digitsString.length() < minSig) {
-            digitsString.append(u'@');
+            digitsString.append(u'\u0040');
         }
         while (digitsString.length() < maxSig) {
             digitsString.append(u'#');
@@ -871,7 +871,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
     int localIdx = toLocalized ? 1 : 0;
     table[0][standIdx] = u"%";
     table[0][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kPercentSymbol);
-    table[1][standIdx] = u"‰";
+    table[1][standIdx] = u"\u2030";
     table[1][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kPerMillSymbol);
     table[2][standIdx] = u".";
     table[2][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kDecimalSeparatorSymbol);
@@ -883,7 +883,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
     table[5][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kPlusSignSymbol);
     table[6][standIdx] = u";";
     table[6][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kPatternSeparatorSymbol);
-    table[7][standIdx] = u"@";
+    table[7][standIdx] = u"\u0040";
     table[7][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kSignificantDigitSymbol);
     table[8][standIdx] = u"E";
     table[8][localIdx] = symbols.getConstSymbol(DecimalFormatSymbols::kExponentialSymbol);
@@ -899,7 +899,7 @@ PatternStringUtils::convertLocalized(const UnicodeString& input, const DecimalFo
     // Special case: quotes are NOT allowed to be in any localIdx strings.
     // Substitute them with '’' instead.
     for (int32_t i = 0; i < LEN; i++) {
-        table[i][localIdx].findAndReplace(u'\'', u'’');
+        table[i][localIdx].findAndReplace(u'\'', u'\u2019');
     }
 
     // Iterate through the string and convert.
@@ -1059,7 +1059,7 @@ void PatternStringUtils::patternInfoToStringBuilder(const AffixPatternProvider& 
             candidate = u'+';
         }
         if (perMilleReplacesPercent && candidate == u'%') {
-            candidate = u'‰';
+            candidate = u'\u2030';
         }
         output.append(candidate);
     }
