@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "log0test.h"
 #include "log0types.h"
+#include "my_compiler.h"
 
 /** Prefix for name of log file, e.g. "ib_logfile" */
 constexpr const char *const ib_logfile_basename = "ib_logfile";
@@ -578,8 +579,14 @@ NOTE that the link is added after data is written to the reserved
 space in the log buffer. It is very critical to do all these steps
 as fast as possible, because very likely the log writer thread is
 waiting for the link.
-
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_reserve
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log	redo log
 @param[in]	len	number of data bytes to reserve for write
 @return handle that represents the reservation */
@@ -594,7 +601,14 @@ overflow it. If it does not cover, then returned value should be used
 to start the next write operation. Note that finally we must use exactly
 all the reserved space.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_write
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space
 @param[in]	str		memory to write data from
@@ -616,7 +630,14 @@ After the link is added, the log writer may write the data to disk.
 NOTE that still dirty pages for the [start_lsn, end_lsn) are not added
 to flush lists when this function is called.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_buf_add_links_to_recent_written
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space
 @param[in]	start_lsn	start_lsn of the link to add
@@ -650,7 +671,14 @@ This is called after all dirty pages related to [start_lsn, end_lsn)
 have been added to corresponding flush lists.
 For detailed explanation - @see log0write.cc.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_add_link_to_recent_closed
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space */
 void log_buffer_close(log_t &log, const Log_handle &handle);
@@ -724,14 +752,28 @@ are added to flush lists. That's because we need to guarantee,
 that the delay until dirty page is added to flush list is limited.
 For detailed explanation - @see log0write.cc.
 
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_add_dirty_pages
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log   redo log
 @param[in]      lsn   lsn on which we wait (for any link: lsn -> x) */
 void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn);
 
 /** Waits until there is free space in the log buffer. The free space has to be
 available for range of sn values ending at the provided sn.
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_waiting_for_writer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in]     log     redo log
 @param[in]     end_sn  end of the range of sn values */
 void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn);
@@ -757,7 +799,14 @@ lsn_t log_get_max_modified_age_async(const log_t &log);
 /** Waits until there is free space in log files which includes
 concurrency margin required for all threads. You should rather
 use log_free_check().
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_reclaim_space
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in]     log   redo log */
 void log_free_check_wait(log_t &log);
 
@@ -1051,32 +1100,74 @@ void log_wake_threads(log_t &log);
 void log_sys_close();
 
 /** The log writer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_writer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_writer(log_t *log_ptr);
 
 /** The log flusher thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_flusher
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_flusher(log_t *log_ptr);
 
 /** The log flush notifier thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_flush_notifier
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_flush_notifier(log_t *log_ptr);
 
 /** The log write notifier thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_write_notifier
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_write_notifier(log_t *log_ptr);
 
 /** The log closer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_closer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_closer(log_t *log_ptr);
 
 /** The log checkpointer thread co-routine.
+ */
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_checkpointer
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
 @param[in,out]	log_ptr		pointer to redo log */
 void log_checkpointer(log_t *log_ptr);
 

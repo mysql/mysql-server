@@ -2565,6 +2565,11 @@ int Protocol_classic::read_packet() {
 
   Fetches the requested amount of rows from
   a resultset produced by ::COM_STMT_EXECUTE
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
+  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
   @return @ref sect_protocol_com_stmt_fetch_response
   <table>
@@ -2581,11 +2586,16 @@ int Protocol_classic::read_packet() {
       <td>max number of rows to return</td></tr>
   </table>
 
-  @sa ::mysqld_stmt_fetch, ::mysql_stmt_fetch
+  @sa @ref mysqld_stmt_fetch
+  @sa @ref mysql_stmt_fetch
+*/
+MY_COMPILER_DIAGNOSTIC_POP()
+/**
+  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
   @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
 
-  ::COM_STMT_FETCH may return one of:
+  @ref COM_STMT_FETCH may return one of:
     - @ref sect_protocol_command_phase_sp_multi_resultset
     - @ref page_protocol_basic_err_packet
 */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -48,6 +48,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <mutex>
 #include <string>
 
+#include "my_compiler.h"
 #include "os0event.h"
 #include "os0file.h"
 #include "sync0sharded_rw.h"
@@ -148,15 +149,17 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Log archiver (Clone plugin) acquires x-lock. */
   mutable Sharded_rw_lock sn_lock;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
-
-      /** Current sn value. Used to reserve space in the redo log,
-      and used to acquire an exclusive access to the log buffer.
-      Represents number of data bytes that have ever been reserved.
-      Bytes of headers and footers of log blocks are not included.
-      Protected by: sn_lock.
-      @see @ref subsect_redo_log_sn */
-      atomic_sn_t sn;
+  /** Current sn value. Used to reserve space in the redo log,
+  and used to acquire an exclusive access to the log buffer.
+  Represents number of data bytes that have ever been reserved.
+  Bytes of headers and footers of log blocks are not included.
+  Protected by: sn_lock. */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+  /**
+  @see @ref subsect_redo_log_sn */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  alignas(INNOBASE_CACHE_LINE_SIZE) atomic_sn_t sn;
 
   /** Padding after the _sn to avoid false sharing issues for
   constants below (due to changes of sn). */
@@ -208,12 +211,14 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
       Protected by: writer_mutex (writes). */
       atomic_sn_t buf_limit_sn;
 
-  alignas(INNOBASE_CACHE_LINE_SIZE)
-
-      /** Up to this lsn, data has been written to disk (fsync not required).
-      Protected by: writer_mutex (writes).
-      @see @ref subsect_redo_log_write_lsn */
-      atomic_lsn_t write_lsn;
+  /** Up to this lsn, data has been written to disk (fsync not required).
+  Protected by: writer_mutex (writes). */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+  /*
+  @see @ref subsect_redo_log_write_lsn */
+  MY_COMPILER_DIAGNOSTIC_POP()
+  alignas(INNOBASE_CACHE_LINE_SIZE) atomic_lsn_t write_lsn;
 
   alignas(INNOBASE_CACHE_LINE_SIZE)
 
@@ -544,8 +549,12 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Read by: user threads when requesting fuzzy checkpoint
   Read by: log_print() (printing status of redo)
   Updated by: log_checkpointer
-  Protected by: limits_mutex.
+  Protected by: limits_mutex. */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+  /**
   @see @ref subsect_redo_log_available_for_checkpoint_lsn */
+  MY_COMPILER_DIAGNOSTIC_POP()
   lsn_t available_for_checkpoint_lsn;
 
   /** When this is larger than the latest checkpoint, the log checkpointer
@@ -625,8 +634,12 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   Read by: user threads, log_print (no protection)
   Read by: log_writer (under writer_mutex)
   Updated by: log_checkpointer (under both mutexes)
-  Protected by (updates only): checkpointer_mutex + writer_mutex.
+  Protected by (updates only): checkpointer_mutex + writer_mutex. */
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+  /**
   @see @ref subsect_redo_log_last_checkpoint_lsn */
+  MY_COMPILER_DIAGNOSTIC_POP()
   atomic_lsn_t last_checkpoint_lsn;
 
   /** Next checkpoint number.

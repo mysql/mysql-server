@@ -435,9 +435,15 @@ This is used by assertions only.
                                         added to flush list earlier
 @param[in]	new_added_lsn		oldest_modification of page which is
                                         being added to flush list
-@return true iff the order is valid
+@retval true if the order is valid
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
 @see @ref sect_redo_log_reclaim_space
 @see @ref sect_redo_log_add_dirty_pages */
+MY_COMPILER_DIAGNOSTIC_POP()
+
 MY_ATTRIBUTE((unused))
 static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
                                                  lsn_t new_added_lsn) {

@@ -26,13 +26,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/audit_api_connection_service.h>
 
+#include "my_compiler.h"
+
 /**
   @class mysql_audit_api_connection_imp
 
   Audit API connection service implementation.
-
+*/
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+/**
   @sa @ref s_mysql_mysql_audit_api_connection
 */
+MY_COMPILER_DIAGNOSTIC_POP()
 class mysql_audit_api_connection_imp {
  public:
   static DEFINE_METHOD(int, emit,

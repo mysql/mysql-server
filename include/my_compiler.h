@@ -289,11 +289,11 @@ inline bool unlikely(bool expr) { return expr; }
 #endif
 
 /**
- * ignore -Wdocumentation compiler warning.
+ * ignore -Wdocumentation compiler warnings for \@tparam.
  *
  * @code
  * MY_COMPILER_DIAGNOSTIC_PUSH()
- * MY_COMPILER_IGNORE_WDOCUMENTATION()
+ * MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
  * ...
  * MY_COMPILER_DIAGNOSTIC_POP()
  * @endcode
@@ -308,6 +308,30 @@ inline bool unlikely(bool expr) { return expr; }
  *
  */
 #define MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG() \
+  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+
+/**
+ * ignore -Wdocumentation compiler warnings for \@see \@ref
+ *
+ * @code
+ * MY_COMPILER_DIAGNOSTIC_PUSH()
+ * MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
+ * ...
+ * MY_COMPILER_DIAGNOSTIC_POP()
+ * @endcode
+ *
+ * @see MY_COMPILER_DIAGNOSTIC_PUSH()
+ * @see MY_COMPILER_DIAGNOSTIC_POP()
+ *
+ * allows to work around false positives -Wdocumentation warnings like:
+ *
+ * - \@sa \@ref
+ * - \@see \@ref
+ * - \@return \@ref
+ *   https://bugs.llvm.org/show_bug.cgi?id=38905
+ *
+ */
+#define MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG() \
   MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
 
 #endif /* MY_COMPILER_INCLUDED */
