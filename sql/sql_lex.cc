@@ -536,6 +536,36 @@ SELECT_LEX *LEX::new_empty_query_block() {
   return select;
 }
 
+SELECT_LEX_UNIT *LEX::create_query_expr_and_block(THD *thd,
+                                                  SELECT_LEX *current_select,
+                                                  Item *where, Item *having,
+                                                  enum_parsing_context ctx) {
+  if (current_select != nullptr &&
+      current_select->nest_level >= (int)MAX_SELECT_NESTING) {
+    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
+             MAX_SELECT_NESTING);
+    return nullptr;
+  }
+
+  auto *const new_expression = new (thd->mem_root) SELECT_LEX_UNIT(ctx);
+  if (new_expression == nullptr) return nullptr;
+
+  auto *const new_select =
+      new (thd->mem_root) SELECT_LEX(thd->mem_root, where, having);
+  if (new_select == nullptr) return nullptr;
+
+  // Link the new query expression below the current query block, if any
+  if (current_select != nullptr)
+    new_expression->include_down(this, current_select);
+
+  new_select->include_down(this, new_expression);
+
+  new_select->parent_lex = this;
+  new_select->include_in_global(&this->all_selects_list);
+
+  return new_expression;
+}
+
 /**
   Create new select_lex_unit and select_lex objects for a query block,
   which can be either a top-level query or a subquery.
@@ -550,31 +580,15 @@ SELECT_LEX *LEX::new_empty_query_block() {
 SELECT_LEX *LEX::new_query(SELECT_LEX *curr_select) {
   DBUG_TRACE;
 
-  if (curr_select != nullptr &&
-      curr_select->nest_level >= (int)MAX_SELECT_NESTING) {
-    my_error(ER_TOO_HIGH_LEVEL_OF_NESTING_FOR_SELECT, MYF(0),
-             MAX_SELECT_NESTING);
-    return nullptr;
-  }
-
   Name_resolution_context *outer_context = current_context();
-
-  SELECT_LEX *const select = new_empty_query_block();
-  if (!select) return nullptr; /* purecov: inspected */
 
   enum_parsing_context parsing_place =
       curr_select ? curr_select->parsing_place : CTX_NONE;
 
-  SELECT_LEX_UNIT *const sel_unit =
-      new (thd->mem_root) SELECT_LEX_UNIT(parsing_place);
-  if (!sel_unit) return nullptr; /* purecov: inspected */
-
-  // Link the new "unit" below the current select_lex, if any
-  if (curr_select != nullptr) sel_unit->include_down(this, curr_select);
-
-  select->include_down(this, sel_unit);
-
-  select->include_in_global(&all_selects_list);
+  SELECT_LEX_UNIT *const sel_unit = create_query_expr_and_block(
+      thd, curr_select, nullptr, nullptr, parsing_place);
+  if (sel_unit == nullptr) return nullptr;
+  SELECT_LEX *const select = sel_unit->first_select();
 
   if (select->set_context(nullptr)) return nullptr; /* purecov: inspected */
   /*
@@ -2488,14 +2502,15 @@ bool SELECT_LEX::setup_base_ref_items(THD *thd) {
     prepared statement
   */
   Query_arena *arena = thd->stmt_arena;
-  const uint n_elems =
-      (n_sum_items + n_child_sum_items + item_list.elements +
-       select_n_having_items + select_n_where_fields + order_group_num);
+  const uint n_elems = (n_sum_items + n_child_sum_items + item_list.elements +
+                        select_n_having_items + select_n_where_fields +
+                        order_group_num + n_scalar_subqueries);
   DBUG_PRINT("info",
-             ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u", this,
+             ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u %4u", this,
               n_elems,  // :
               n_sum_items, n_child_sum_items, item_list.elements,
-              select_n_having_items, select_n_where_fields, order_group_num));
+              select_n_having_items, select_n_where_fields, order_group_num,
+              n_scalar_subqueries));
   if (!base_ref_items.is_null()) {
     /*
       We need to take 'n_sum_items' into account when allocating the array,
@@ -4577,7 +4592,9 @@ void SELECT_LEX_UNIT::accumulate_used_tables(table_map map) {
 
 enum_parsing_context SELECT_LEX_UNIT::place() const {
   DBUG_ASSERT(outer_select());
-  return item ? item->place() : CTX_DERIVED;
+  if (item != nullptr) return item->place();
+  if (m_place_before_transform != CTX_NONE) return m_place_before_transform;
+  return CTX_DERIVED;
 }
 
 bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -929,8 +929,11 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
 
   if (init_lex_with_single_table(thd, table, &lex)) goto end;
 
-  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                  (uchar *)&lex.select_lex->context);
+  {
+    Item_ident::Change_context ctx(&lex.select_lex->context);
+    func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
+                    (uchar *)&ctx);
+  }
   thd->where = "partition function";
   /*
     In execution we must avoid the use of thd->change_item_tree since
@@ -993,7 +996,9 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
 end:
   end_lex_with_single_table(thd, table, old_lex);
 #if !defined(DBUG_OFF)
-  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX, nullptr);
+  Item_ident::Change_context nul_ctx(nullptr);
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
+                  (uchar *)&nul_ctx);
 #endif
   return result;
 }

@@ -3408,6 +3408,7 @@ table_found:
   table->reginfo.lock_type = TL_READ; /* Assume read */
 
 reset:
+  table->reset();
   table->set_created();
   /*
     Check that there is no reference to a condition from an earlier query
@@ -6417,11 +6418,6 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
     return false;
 
-  // Don't open the secondary engine tables for a PREPARE command. Use
-  // of secondary engines is not decided until the optimization phase
-  // of the execution, so only open them when a statement is executed.
-  if (thd->stmt_arena->is_stmt_prepare()) return false;
-
   // If the user has requested the use of a secondary storage engine
   // for this statement, skip past the initial optimization for the
   // primary storage engine and go straight to the secondary engine.
@@ -6431,6 +6427,11 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     thd->set_secondary_engine_optimization(
         Secondary_engine_optimization::SECONDARY);
   }
+
+  // Don't open the secondary engine tables for a PREPARE command. Use
+  // of secondary engines is not decided until the optimization phase
+  // of the execution, so only open them when a statement is executed.
+  if (thd->stmt_arena->is_stmt_prepare()) return false;
 
   // Only open secondary engine tables if use of a secondary engine
   // has been requested.
@@ -7084,6 +7085,7 @@ bool open_temporary_table(THD *thd, TABLE_LIST *tl) {
 
   tl->table = table;
 
+  table->reset();
   table->init(thd, tl);
 
   DBUG_PRINT("info", ("Using temporary table"));
@@ -7430,6 +7432,17 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                uint *cached_field_index_ptr,
                                bool register_tree_change,
                                TABLE_LIST **actual_table) {
+  if (table_list->m_was_scalar_subquery) {
+    // We may get here during EXECUTE if a scalar subquery has been transformed
+    // into a derived table (table_list) during PREPARE. When resolving a GROUP
+    // BY in the transformed query block (in the case where we do not transform
+    // grouping into a separate derived table, i.e. we group on a scalar
+    // subquery's alias), table_list hasn't yet been set up for materialization
+    // so we cannot resolve against it, and in any case, no GROUP BY column
+    // should be resolved against it (but rather against the scalar subquery's
+    // alias, so just return. Remove after WL#6570.
+    return nullptr;
+  }
   Field *fld;
   DBUG_TRACE;
   DBUG_ASSERT(table_list->alias);

@@ -337,9 +337,10 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   }
   for (ORDER *order = fake_select_lex->order_list.first; order;
        order = order->next) {
+    Item_ident::Change_context ctx(&fake_select_lex->context);
     (*order->item)
         ->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-               (uchar *)&fake_select_lex->context);
+               (uchar *)&ctx);
   }
   fake_select_lex->set_query_result(query_result());
 

@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -521,70 +521,6 @@ class THD;
 struct TABLE_LIST;
 template <class T>
 class List;
-
-/**
-   Re-usable shortcut, when it does not make sense to do copy objects of a
-   class named "myclass"; add this to a private section of the class. The
-   implementations are intentionally not created, so if someone tries to use
-   them like in "myclass A= B" there will be a linker error.
-*/
-#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
-  myclass(myclass const &);                     \
-  void operator=(myclass const &)
-
-/**
-   Utility mixin class to be able to walk() only parts of item trees.
-
-   Used with PREFIX+POSTFIX walk: in the prefix call of the Item
-   processor, we process the item X, may decide that its children should not
-   be processed (just like if they didn't exist): processor calls stop_at(X)
-   for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
-   which returns true, so processor sees that it must not do any processing
-   and returns immediately. Finally, the postfix call to the processor on X
-   tests is_stopped(X) which returns "true" and understands that the
-   not-to-be-processed children have been skipped so calls restart(). Thus,
-   any sibling of X, any part of the Item tree not under X, can then be
-   processed.
-*/
-class Item_tree_walker {
- protected:
-  Item_tree_walker() : stopped_at_item(nullptr) {}
-  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
-
-  /// Stops walking children of this item
-  void stop_at(const Item *i) {
-    DBUG_ASSERT(!stopped_at_item);
-    stopped_at_item = i;
-  }
-
-  /**
-     @returns if we are stopped. If item 'i' is where we stopped, restarts the
-     walk for next items.
-  */
-  bool is_stopped(const Item *i) {
-    if (stopped_at_item) {
-      /*
-        Walking was disabled for a tree part rooted a one ancestor of 'i' or
-        rooted at 'i'.
-      */
-      if (stopped_at_item == i) {
-        /*
-          Walking was disabled for the tree part rooted at 'i'; we have now just
-          returned back to this root (POSTFIX call), left the tree part:
-          enable the walk again, for other tree parts.
-        */
-        stopped_at_item = nullptr;
-      }
-      // No further processing to do for this item:
-      return true;
-    }
-    return false;
-  }
-
- private:
-  const Item *stopped_at_item;
-  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
-};
 
 /**
    Checks for queries which have DISTINCT.

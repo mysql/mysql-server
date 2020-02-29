@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -323,6 +323,7 @@ bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
 bool PTI_singlerow_subselect::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) || subselect->contextualize(pc)) return true;
   *res = new (pc->mem_root) Item_singlerow_subselect(subselect->value());
+  pc->select->n_scalar_subqueries++;
   return *res == nullptr;
 }
 

@@ -413,6 +413,7 @@ class Item_change_record : public ilink<Item_change_record> {
   Item **place;
   Item *old_value;
   Item *new_value;
+  bool m_cancel{false};
 };
 
 typedef I_List<Item_change_record> Item_change_list;
@@ -2500,6 +2501,29 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
+  /**
+     Used by some transformations that need Item:transform to make a permanent
+     transform. Will be voided by WL#6570.
+  */
+  bool m_permanent_transform{false};
+
+  /**
+     RAII class to push m_permanent_transform in a scope
+  */
+  class Permanent_transform {
+   private:
+    bool m_old_value;
+    THD *m_thd;
+
+   public:
+    Permanent_transform(THD *thd) {
+      m_thd = thd;
+      m_old_value = thd->m_permanent_transform;
+      thd->m_permanent_transform = true;
+    }
+    ~Permanent_transform() { m_thd->m_permanent_transform = m_old_value; }
+  };
+
   THD(bool enable_plugins = true);
 
   /*
@@ -2924,6 +2948,18 @@ class THD : public MDL_context_owner,
   const CHARSET_INFO *charset() const { return variables.character_set_client; }
   void update_charset();
 
+  /**
+    Update the place with new_value.
+    If THD::m_permanent_transform is false:
+      - Use a plain assignment (iff THD::stmt_area->is_regular())
+        or assign and register place for rollback.
+    If THD::m_permanent_transform is true:
+      - we a) remove any rollback requests for this location and b) do the
+        assignment without registering any rollback request.
+
+    @param place     The location at which we want set a new value
+    @param new_value The new value
+  */
   void change_item_tree(Item **place, Item *new_value);
 
   /**
@@ -2950,9 +2986,24 @@ class THD : public MDL_context_owner,
                       the new value, but which need to be rolled back to
                       the old value.
                       This location must also contain the new value.
+    @returns old_value if one was found, else nullptr
   */
-  void replace_rollback_place(Item **new_place);
+  Item *replace_rollback_place(Item **new_place);
 
+  /**
+    Place has an alias of a new value which should possibly be rolled back.
+    If so, this location should be rolled back as well.
+    The value will already be registered with a rollback value in another
+    place. Find that rollback value, and register a rollback record for this
+    place as well, using the same rollback value.
+
+    @param place the location of the alias
+  */
+  void alias_rollback(Item **place);
+
+  void update_ident_context(SELECT_LEX *orig_block, SELECT_LEX *new_block);
+  void cancel_rollback(Item *new_item);
+  void cancel_rollback_at(Item **place);
   /**
     Restore locations set by calls to nocheck_register_item_tree_change().  The
     value to be restored depends on whether replace_rollback_place()

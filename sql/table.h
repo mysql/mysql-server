@@ -1662,6 +1662,7 @@ struct TABLE {
   uint tmp_table_seq_id{0};
 #endif
  public:
+  void reset();
   void init(THD *thd, TABLE_LIST *tl);
   bool init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
                       CHARSET_INFO *charset, const char *alias, Field **fld,
@@ -2681,9 +2682,6 @@ struct TABLE_LIST {
   /// Merge tables from a query block into a nested join structure
   bool merge_underlying_tables(SELECT_LEX *select);
 
-  /// Reset table
-  void reset();
-
   /// Evaluate the check option of a view
   int view_check_option(THD *thd) const;
 
@@ -3442,6 +3440,20 @@ struct TABLE_LIST {
       qualified name (@<db_name@>.@<table_name@>).
   */
   bool is_fqtn{false};
+  /**
+    If true, this table is a derived (materialized) table which was created
+    from a scalar subquery, cf.
+    SELECT_LEX::transform_scalar_subqueries_to_derived
+  */
+  bool m_was_scalar_subquery{false};
+  /**
+    If true, this is a derived table for grouping which was made for a query
+    block which also has one or more derived tables created from a scalar
+    subquery, cf.  m_was_scalar_subquery. m_is_grouped2derived implies
+    m_was_scalar_subquery holds for at least one other local table but not the
+    other way around.  See SELECT_LEX::transform_grouped_to_derived.
+  */
+  bool m_was_grouped2derived{false};
 
   /* View creation context. */
 

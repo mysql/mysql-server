@@ -765,6 +765,13 @@ void Item_ident::cleanup() {
   field_name = orig_field_name;
 }
 
+bool Item_ident::update_depended_from(uchar *arg) {
+  auto *info = pointer_cast<Item_ident::Depended_change *>(arg);
+  if (depended_from == info->old_depended_from)
+    depended_from = info->new_depended_from;
+  return false;
+}
+
 /**
   Store the pointer to this item field into a list if not already there.
 
@@ -793,6 +800,19 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
     if (curr_item->eq(this, true)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
+  return false;
+}
+
+bool Item_field::collect_item_field_or_view_ref_processor(uchar *arg) {
+  auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
+  if (info->is_stopped(this)) return false;
+
+  List_iterator<Item> item_list_it(*info->m_item_fields_or_view_refs);
+  Item *curr_item;
+  while ((curr_item = item_list_it++)) {
+    if (curr_item->eq(this, true)) return false; /* Already in the set. */
+  }
+  info->m_item_fields_or_view_refs->push_back(this);
   return false;
 }
 
@@ -1822,6 +1842,21 @@ class Item_aggregate_ref : public Item_ref {
       Item_ident::print(thd, str, query_type);
   }
   Ref_Type ref_type() const override { return AGGREGATE_REF; }
+
+  /**
+    Walker processor used by SELECT_LEX::transform_grouped_to_derived to replace
+    an aggregate's reference to one in the new derived table's (hidden) select
+    list.
+
+    @param  arg  An info object of type Item::Aggregate_ref_update
+    @returns false
+  */
+  bool update_aggr_refs(uchar *arg) override {
+    auto *info = pointer_cast<Item::Aggregate_ref_update *>(arg);
+    if (*ref != info->m_target) return false;
+    ref = info->m_owner->add_hidden_item(info->m_target);
+    return false;
+  }
 };
 
 /**
@@ -5553,6 +5588,51 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
 }
 
 /**
+  If this field is the target is the target of replacement, replace it with
+  the info object's item or, if the item is found inside a subquery, the target
+  is an outer reference, so we create a new Item_field, mark it accordingly
+  and replace with that instead.
+
+  @param arg  An info object of type Item::Item_field_replacement.
+  @returns the resulting item, replaced or not, or nullptr if error
+*/
+Item *Item_field::replace_item_field(uchar *arg) {
+  auto *info = pointer_cast<Item::Item_field_replacement *>(arg);
+
+  if (field == info->m_target) {
+    if (info->m_curr_block == info->m_trans_block) return info->m_item;
+
+    // The field is an outer reference, so we cannot reuse transformed query
+    // block's Item_field; make a new one for this query block
+    THD *const thd = current_thd;
+    Item_field *outer_field = new (thd->mem_root) Item_field(thd, info->m_item);
+    if (outer_field == nullptr) return nullptr; /* purecov: inspected */
+    outer_field->depended_from = info->m_trans_block;
+    outer_field->context = &info->m_curr_block->context;
+    return outer_field;
+  }
+
+  return this;
+}
+
+/**
+  Update the name resolution context for the field if its existing
+  context stems from Context_info::old_block to that of
+  Context_info::new_block. Also update any the context of original fields
+  the current one may have replaced.
+
+  @param  arg   pointer to an object of type Item_field::Context_info
+  @returns  false (no error possible)
+*/
+bool Item_field::update_context(uchar *arg) {
+  auto *info = pointer_cast<Item_field::Context_info *>(arg);
+  if (context->select_lex == info->old_block) {
+    context = &info->new_block->context;
+  }
+  return false;
+}
+
+/**
   Mark the item to not be part of substitution if it's not a binary item.
 
   See comments in Arg_comparator::set_compare_func() for details.
@@ -7584,7 +7664,7 @@ Item *Item_ref::transform(Item_transformer transformer, uchar *arg) {
 
   /* Transform the item ref object. */
   Item *transformed_item = (this->*transformer)(arg);
-  DBUG_ASSERT(transformed_item == this);
+  // DBUG_ASSERT(transformed_item == this);
   return transformed_item;
 }
 
@@ -7960,6 +8040,66 @@ type_conversion_status Item_view_ref::save_in_field_inner(Field *field,
     return set_field_to_null_with_conversions(field, no_conversions);
 
   return super::save_in_field_inner(field, no_conversions);
+}
+
+bool Item_view_ref::change_context_processor(uchar *arg) {
+  context = pointer_cast<Change_context *>(arg)->m_context;
+
+  if (pointer_cast<Change_context *>(arg)->m_permanent) {
+    // We need to change context for any item that will get rolled back as well
+    I_List_iterator<Item_change_record> it(current_thd->change_list);
+    Item_change_record *change;
+
+    while ((change = it++)) {
+      if (change->new_value == this) {
+        if (change->old_value->walk(&Item::change_context_processor,
+                                    enum_walk::POSTFIX, arg))
+          return true; /* purecov: inspected */
+      }
+    }
+  }
+
+  return false;
+}
+
+bool Item_view_ref::collect_item_field_or_view_ref_processor(uchar *arg) {
+  auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
+  if (info->is_stopped(this)) return false;
+  if (context->select_lex == info->m_transformed_block)
+    info->m_item_fields_or_view_refs->push_back(this);
+  info->stop_at(this);
+  return false;
+}
+
+Item *Item_view_ref::replace_item_view_ref(uchar *arg) {
+  auto *info = pointer_cast<Item::Item_view_ref_replacement *>(arg);
+  Item *real_item = Item_ref::real_item();
+  if (real_item == info->m_target) {
+    Item_field *new_field =
+        new (current_thd->mem_root) Item_field(info->m_field);
+    if (new_field == nullptr) return nullptr;
+    new_field->set_orig_names();
+    // Set correct metadata for the new field incl. any alias.
+    if (orig_name.length() != 0) {
+      // The one moved to new_derived has its orig_name set
+      new_field->item_name.set(orig_name.ptr());
+      new_field->orig_name.set(orig_name.ptr());
+    } else {
+      // this is a duplicated view reference, not touched yet.
+      new_field->item_name.set(item_name.ptr());
+      new_field->orig_name.set(item_name.ptr());
+    }
+    if (info->m_curr_block == info->m_trans_block) {
+      return new_field;
+    }
+
+    // The is an outer reference, so we cannot reuse transformed query
+    // block's Item_field; make a new one for this query block
+    new_field->depended_from = info->m_trans_block;
+    new_field->context = &info->m_curr_block->context;
+    return new_field;
+  }
+  return this;
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {

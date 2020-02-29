@@ -415,6 +415,7 @@ bool Item_func_not_all::empty_underlying_subquery() {
    subselect->engine unusable.
   */
   if (subselect && subselect->substype() != Item_subselect::ANY_SUBS &&
+      subselect->unit->item != nullptr &&
       !subselect->unit->item->is_evaluated())
     subselect->unit->item->exec(current_thd);
   return ((test_sum_item && !test_sum_item->any_value()) ||
@@ -697,6 +698,13 @@ bool Item_func_like::resolve_type(THD *) {
   args[1]->cmp_context = STRING_RESULT;
 
   return false;
+}
+
+Item *Item_func_like::replace_scalar_subquery(uchar *) { return this; }
+
+Item *Item_bool_func2::replace_scalar_subquery(uchar *) {
+  (void)set_cmp_func();
+  return this;
 }
 
 bool Item_bool_func2::cast_incompatible_args(uchar *) {

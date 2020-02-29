@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,8 @@ class mem_root_deque : public std::deque<T, Mem_root_allocator<T>> {
 
   mem_root_deque(std::initializer_list<T> init, MEM_ROOT *mem_root)
       : super(std::move(init), Mem_root_allocator<T>(mem_root)) {}
+
+  mem_root_deque &operator=(const mem_root_deque &__c) = default;
 };
 
 #endif  // MEM_ROOT_DEQUE_H
