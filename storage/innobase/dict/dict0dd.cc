@@ -1493,12 +1493,6 @@ void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table) {
 #endif /* UNIV_DEBUG */
 }
 
-/** Copy the engine-private parts of a table or partition definition
-when the change does not affect InnoDB. This mainly copies the common
-private data between dd::Table and dd::Partition
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	new_table	Copy of old table or partition definition
-@param[in]	old_table	Old table or partition definition */
 template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table) {
   uint64 autoinc = 0;
@@ -1982,11 +1976,6 @@ template void dd_write_index<dd::Partition_index>(dd::Object_id,
                                                   dd::Partition_index *,
                                                   const dict_index_t *);
 
-/** Write metadata of a table to dd::Table
-@tparam		Table		dd::Table or dd::Partition
-@param[in]	dd_space_id	Tablespace id, which server allocates
-@param[in,out]	dd_table	dd::Table or dd::Partition
-@param[in]	table		InnoDB table object */
 template <typename Table>
 void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
                     const dict_table_t *table) {
@@ -2027,10 +2016,6 @@ template void dd_write_table<dd::Table>(dd::Object_id, dd::Table *,
 template void dd_write_table<dd::Partition>(dd::Object_id, dd::Partition *,
                                             const dict_table_t *);
 
-/** Set options of dd::Table according to InnoDB table object
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	dd_table	dd::Table or dd::Partition
-@param[in]	table		InnoDB table object */
 template <typename Table>
 void dd_set_table_options(Table *dd_table, const dict_table_t *table) {
   dd::Table *dd_table_def = &(dd_table->table());
@@ -3684,14 +3669,6 @@ char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
   return (nullptr);
 }
 
-/** Make sure the data_dir_path is saved in dict_table_t if this is a
-remote single file tablespace. This allows DATA DIRECTORY to be
-displayed correctly for SHOW CREATE TABLE. Try to read the filepath
-from the fil_system first, then from the DD.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	table		Table object
-@param[in]	dd_table	DD table object
-@param[in]	dict_mutex_own	true if dict_sys->mutex is owned already */
 template <typename Table>
 void dd_get_and_save_data_dir_path(dict_table_t *table, const Table *dd_table,
                                    bool dict_mutex_own) {

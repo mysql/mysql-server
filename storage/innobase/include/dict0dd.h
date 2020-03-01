@@ -33,6 +33,7 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "my_compiler.h"
 #include "univ.i"
 
 #ifndef UNIV_HOTBACKUP
@@ -596,6 +597,8 @@ when old table has hidden fts doc id without fulltext index
 @param[in]	old_table	Old dd table */
 void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table);
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Find the specified dd::Index or dd::Partition_index in an InnoDB table
 @tparam		Index			dd::Index or dd::Partition_index
 @param[in]	table			InnoDB table object
@@ -603,6 +606,7 @@ void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table);
 @return	the dict_index_t object related to the index */
 template <typename Index>
 const dict_index_t *dd_find_index(const dict_table_t *table, Index *dd_index);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Acquire a shared metadata lock.
 @param[in,out]	thd	current thread
@@ -903,6 +907,8 @@ dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id, bool dict_locked);
 UNIV_INLINE
 dict_table_t *dd_table_open_on_name_in_mem(const char *name, ibool dict_locked);
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
 /** Open or load a table definition based on a Global DD object.
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	client		data dictionary client
@@ -915,6 +921,7 @@ template <typename Table>
 dict_table_t *dd_open_table(dd::cache::Dictionary_client *client,
                             const TABLE *table, const char *norm_name,
                             const Table *dd_table, THD *thd);
+MY_COMPILER_DIAGNOSTIC_POP()
 
 /** Open foreign tables reference a table.
 @param[in]	fk_list		foreign key name list

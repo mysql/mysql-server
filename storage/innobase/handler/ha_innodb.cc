@@ -13272,22 +13272,6 @@ template int create_table_info_t::create_table_update_global_dd<dd::Table>(
 template int create_table_info_t::create_table_update_global_dd<dd::Partition>(
     dd::Partition *);
 
-/** Create an InnoDB table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	thd		THD object
-@param[in]	name		Table name, format: "db/table_name"
-@param[in]	form		Table format; columns and index information
-@param[in]	create_info	Create info (including create statement string)
-@param[in,out]	dd_tab		dd::Table describing table to be created
-@param[in]	file_per_table	whether to create a tablespace too
-@param[in]	evictable	whether the caller wants the
-                                dict_table_t to be kept in memory
-@param[in]	skip_strict	whether to skip strict check for create
-                                option
-@param[in]	old_flags	old Table flags
-@param[in]	old_flags2	old Table flags2
-@return	error number
-@retval 0 on success */
 template <typename Table>
 int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
                                     HA_CREATE_INFO *create_info, Table *dd_tab,
@@ -13400,13 +13384,6 @@ template int innobase_basic_ddl::create_impl<dd::Partition>(
     THD *, const char *, TABLE *, HA_CREATE_INFO *, dd::Partition *, bool, bool,
     bool, uint32_t, uint32_t);
 
-/** Drop a table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	thd		THD object
-@param[in]	name		table name
-@param[in]	dd_tab		dd::Table describing table to be dropped
-@return	error number
-@retval 0 on success */
 template <typename Table>
 int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
                                     const Table *dd_tab) {
@@ -13510,17 +13487,6 @@ template int innobase_basic_ddl::delete_impl<dd::Table>(THD *, const char *,
 template int innobase_basic_ddl::delete_impl<dd::Partition>(
     THD *, const char *, const dd::Partition *);
 
-/** Renames an InnoDB table.
-@tparam		Table		dd::Table or dd::Partition
-@param[in,out]	thd		THD object
-@param[in]	from		old name of the table
-@param[in]	to		new name of the table
-@param[in]	from_table	dd::Table or dd::Partition of the table with
-                                old name
-@param[in]	to_table	dd::Table or dd::Partition of the table with
-                                new name
-@return	error number
-@retval	0 on success */
 template <typename Table>
 int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
                                     const Table *from_table,

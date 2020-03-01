@@ -106,14 +106,6 @@ bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists) {
   return false;
 }
 
-/**
-  Merge all components as appropriate so that the object contains only
-  components that don't overlap.
-
-  @tparam Coordsys Coordinate system type, specified using those defined in
-          boost::geometry::cs.
-  @param[out] pnull_value takes back null_value set during the operation.
- */
 template <typename Coordsys>
 void BG_geometry_collection::merge_components(bool *pnull_value) {
   if (is_comp_no_overlapped()) return;

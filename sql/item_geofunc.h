@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -166,6 +166,14 @@ class BG_geometry_collection {
   size_t num_isolated() const { return m_num_isolated; }
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
+  /**
+    Merge all components as appropriate so that the object contains only
+    components that don't overlap.
+
+    @tparam Coordsys Coordinate system type, specified using those defined in
+            boost::geometry::cs.
+    @param[out] pnull_value takes back null_value set during the operation.
+   */
   template <typename Coordsys>
   void merge_components(bool *pnull_value);
 
