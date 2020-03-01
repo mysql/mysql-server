@@ -28,6 +28,7 @@
 #include <signal.h>
 #include <time.h>
 
+#include <mutex_lock.h>
 #include <mysql/components/services/log_builtins.h>
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -938,4 +939,40 @@ bool Applier_module::queue_and_wait_on_queue_checkpoint(
     std::shared_ptr<Continuation> checkpoint_condition) {
   incoming->push(new Queue_checkpoint_packet(checkpoint_condition));
   return checkpoint_condition->wait() != 0;
+}
+
+Pipeline_member_stats *Applier_module::get_local_pipeline_stats() {
+  // We need run_lock to get protection against STOP GR command.
+
+  MUTEX_LOCK(guard, &run_lock);
+  Pipeline_member_stats *stats = nullptr;
+  auto cert = applier_module->get_certification_handler();
+  auto cert_module = (cert ? cert->get_certifier() : nullptr);
+  if (cert_module) {
+    stats = new Pipeline_member_stats(
+        get_pipeline_stats_member_collector(), get_message_queue_size(),
+        cert_module->get_negative_certified(),
+        cert_module->get_certification_info_size());
+    {
+      char *committed_transactions_buf = nullptr;
+      size_t committed_transactions_buf_length = 0;
+      int outcome = cert_module->get_group_stable_transactions_set_string(
+          &committed_transactions_buf, &committed_transactions_buf_length);
+      if (!outcome && committed_transactions_buf_length > 0)
+        stats->set_transaction_committed_all_members(
+            committed_transactions_buf, committed_transactions_buf_length);
+      my_free(committed_transactions_buf);
+    }
+    {
+      std::string last_conflict_free_transaction;
+      cert_module->get_last_conflict_free_transaction(
+          &last_conflict_free_transaction);
+      stats->set_transaction_last_conflict_free(last_conflict_free_transaction);
+    }
+
+  } else {
+    stats = new Pipeline_member_stats(get_pipeline_stats_member_collector(),
+                                      get_message_queue_size(), 0, 0);
+  }
+  return stats;
 }

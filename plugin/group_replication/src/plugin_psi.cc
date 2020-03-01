@@ -136,7 +136,8 @@ PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_plugin_stop,
     key_GR_RWLOCK_transaction_observation_list,
     key_GR_RWLOCK_transaction_consistency_manager_map,
-    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier;
+    key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
+    key_GR_RWLOCK_flow_control_module_info;
 /* clang-format on */
 
 #ifdef HAVE_PSI_INTERFACE
@@ -470,6 +471,8 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_applier,
      "RWLOCK_transaction_consistency_manager_prepared_transactions_on_my_"
      "applier",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_GR_RWLOCK_flow_control_module_info, "RWLOCK_flow_control_module_info",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 
 static PSI_stage_info *all_group_replication_stages_keys[] = {

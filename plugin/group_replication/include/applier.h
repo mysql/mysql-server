@@ -293,6 +293,11 @@ class Applier_module : public Applier_module_interface {
   int initialize_applier_thread();
 
   /**
+   * Return the local applier stats.
+   */
+  Pipeline_member_stats *get_local_pipeline_stats();
+
+  /**
     Terminates the applier thread.
 
     @return the operation status
