@@ -554,6 +554,26 @@ Pipeline_member_stats::Pipeline_member_stats(Pipeline_stats_member_message &msg)
       m_flow_control_mode(msg.get_flow_control_mode()),
       m_stamp(0) {}
 
+Pipeline_member_stats::Pipeline_member_stats(
+    Pipeline_stats_member_collector *pipeline_stats, ulonglong applier_queue,
+    ulonglong negative_certified, ulonglong certification_size) {
+  m_transactions_waiting_certification = applier_queue;
+  m_transactions_waiting_apply =
+      pipeline_stats->get_transactions_waiting_apply();
+  m_transactions_certified = pipeline_stats->get_transactions_certified();
+  m_delta_transactions_certified = 0;
+  m_transactions_applied = pipeline_stats->get_transactions_applied();
+  m_delta_transactions_applied = 0;
+  m_transactions_local = pipeline_stats->get_transactions_local();
+  m_delta_transactions_local = 0;
+  m_transactions_negative_certified = negative_certified;
+  m_transactions_rows_validating = certification_size;
+  m_transactions_local_rollback =
+      pipeline_stats->get_transactions_local_rollback();
+  m_flow_control_mode = FCM_DISABLED;
+  m_stamp = 0;
+}
+
 void Pipeline_member_stats::update_member_stats(
     Pipeline_stats_member_message &msg, uint64 stamp) {
   m_transactions_waiting_certification =
@@ -651,13 +671,24 @@ int64 Pipeline_member_stats::get_transactions_local_rollback() {
   return m_transactions_local_rollback;
 }
 
-const std::string &
-Pipeline_member_stats::get_transaction_committed_all_members() {
-  return m_transactions_committed_all_members;
+void Pipeline_member_stats::get_transaction_committed_all_members(
+    std::string &value) {
+  value.assign(m_transactions_committed_all_members);
 }
 
-const std::string &Pipeline_member_stats::get_transaction_last_conflict_free() {
-  return m_transaction_last_conflict_free;
+void Pipeline_member_stats::set_transaction_committed_all_members(char *str,
+                                                                  size_t len) {
+  m_transactions_committed_all_members.assign(str, len);
+}
+
+void Pipeline_member_stats::get_transaction_last_conflict_free(
+    std::string &value) {
+  value.assign(m_transaction_last_conflict_free);
+}
+
+void Pipeline_member_stats::set_transaction_last_conflict_free(
+    std::string &value) {
+  m_transaction_last_conflict_free.assign(value);
 }
 
 Flow_control_mode Pipeline_member_stats::get_flow_control_mode() {
@@ -689,11 +720,17 @@ Flow_control_module::Flow_control_module()
                    &m_flow_control_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_GR_COND_pipeline_stats_flow_control,
                   &m_flow_control_cond);
+  m_flow_control_module_info_lock = new Checkable_rwlock(
+#ifdef HAVE_PSI_INTERFACE
+      key_GR_RWLOCK_flow_control_module_info
+#endif
+  );
 }
 
 Flow_control_module::~Flow_control_module() {
   mysql_mutex_destroy(&m_flow_control_lock);
   mysql_cond_destroy(&m_flow_control_cond);
+  delete m_flow_control_module_info_lock;
 }
 
 void Flow_control_module::flow_control_step(
@@ -760,6 +797,7 @@ void Flow_control_module::flow_control_step(
         int64 min_certifier_capacity = MAXTPS, min_applier_capacity = MAXTPS,
               safe_capacity = MAXTPS;
 
+        m_flow_control_module_info_lock->rdlock();
         Flow_control_module_info::iterator it = m_info.begin();
         while (it != m_info.end()) {
           if (it->second.get_stamp() < (m_stamp - 10)) {
@@ -810,6 +848,7 @@ void Flow_control_module::flow_control_step(
             ++it;
           }
         }
+        m_flow_control_module_info_lock->unlock();
 
         // Avoid division by zero.
         num_writing_members = num_writing_members > 0 ? num_writing_members : 1;
@@ -898,6 +937,7 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
     This method is called synchronously by communication layer, so
     we do not need concurrency control.
   */
+  m_flow_control_module_info_lock->wrlock();
   Flow_control_module_info::iterator it = m_info.find(member_id);
   if (it == m_info.end()) {
     Pipeline_member_stats stats;
@@ -920,12 +960,14 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
 #endif
   }
 
+  m_flow_control_module_info_lock->unlock();
   return error;
 }
 
 Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
     const std::string &member_id) {
   Pipeline_member_stats *member_pipeline_stats = nullptr;
+  m_flow_control_module_info_lock->rdlock();
   Flow_control_module_info::iterator it = m_info.find(member_id);
   if (it != m_info.end()) {
     try {
@@ -936,9 +978,11 @@ Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
       my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0),
                "while getting replication_group_member_stats table rows",
                "get_pipeline_stats");
+      m_flow_control_module_info_lock->unlock();
       return nullptr;
     }
   }
+  m_flow_control_module_info_lock->unlock();
   return member_pipeline_stats;
 }
 

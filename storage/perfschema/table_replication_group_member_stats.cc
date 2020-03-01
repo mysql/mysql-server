@@ -243,16 +243,15 @@ int table_replication_group_member_stats::rnd_next(void) {
 }
 
 int table_replication_group_member_stats::rnd_pos(const void *pos) {
-  if (!is_group_replication_plugin_loaded()) {
+  if (!is_group_replication_plugin_loaded() || get_row_count() == 0) {
     return HA_ERR_END_OF_FILE;
   }
 
-  if (get_row_count() == 0) {
-    return HA_ERR_END_OF_FILE;
+  if (m_pos.m_index >= get_row_count()) {
+    return HA_ERR_RECORD_DELETED;
   }
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < get_row_count());
   return make_row(m_pos.m_index);
 }
 

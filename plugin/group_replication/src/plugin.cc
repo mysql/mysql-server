@@ -1011,7 +1011,9 @@ int plugin_group_replication_stop(char **error_message) {
   transaction_consistency_manager->plugin_is_stopping();
 
   DBUG_EXECUTE_IF("group_replication_hold_stop_before_leave_the_group", {
-    const char act[] = "now wait_for signal.resume_stop_before_leave_the_group";
+    const char act[] =
+        "now signal signal.reached_stop_before_leave_the_group "
+        "wait_for signal.resume_stop_before_leave_the_group";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
