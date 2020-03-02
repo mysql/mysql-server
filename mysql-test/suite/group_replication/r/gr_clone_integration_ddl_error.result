@@ -73,7 +73,7 @@ include/clean_monitoring_process.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("Clone removing all user data for provisioning: Started");
 call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
-call mtr.add_suppression("Due to the number of missing transactions being higher than the configured threshold of 1, this member will start distributed recovery using clone.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of 1.");
 call mtr.add_suppression("Internal query: CLONE INSTANCE FROM \'root\'@\'127.0.0.1\':[0-9]+ IDENTIFIED BY \'\\*\\*\\*\\*\\*\' REQUIRE NO SSL; result in error. Error number:*");
 call mtr.add_suppression("There was an issue when cloning from another server: Error number: 3862 Error message: Clone Donor Error: 3633 : Concurrent DDL is performed during clone operation. Please try again.");
 call mtr.add_suppression("Due to a critical cloning error or lack of donors, distributed recovery cannot be executed. The member will now leave the group.");
