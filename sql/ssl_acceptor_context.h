@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,9 @@ class SslAcceptorContext {
   /**
     Re-initialize the single instance of the acceptor
 
-    @param[out] error
+    @param[out] error  return the actual error code if creating a new SSL
+    context failed. @sa  sslGetErrString() for what the individual SSL error
+    codes mean
     @param  force activate the SSL settings even if this will lead to
     disabling SSL
   */
@@ -221,15 +223,16 @@ class SslAcceptorContext {
     to receive a copy of the relevant value that you will then need to
     dispose of.
 
-    @param [out] ca
-    @param [out] capath
-    @param [out] version
-    @param [out] cert
-    @param [out] cipher
-    @param [out] ciphersuites
-    @param [out] key
-    @param [out] crl
-    @param [out] crl_path
+    @param [out] ca placeholder for the ca file path returned
+    @param [out] capath placeholder for the CApath directory path returned
+    @param [out] version placeholder for the TLS version returned
+    @param [out] cert placeholder for the certificate file path returned
+    @param [out] cipher placeholder for the allowed TLS ciphers list
+    @param [out] ciphersuites placeholder for the allowed TLS 1.1.x ciphersuite
+    list returned
+    @param [out] key placeholder for the private key file path returned
+    @param [out] crl placeholder for the CRL file path returned
+    @param [out] crl_path placeholder for the CRLpath directory path returned
   */
   static void read_parameters(
       OptionalString *ca = nullptr, OptionalString *capath = nullptr,
