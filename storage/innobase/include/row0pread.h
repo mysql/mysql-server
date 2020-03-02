@@ -196,7 +196,7 @@ class Parallel_reader {
     size_t m_read_level{0};
 
     /** Partition id if the index to be scanned belongs to a partitioned table,
-    else std::numeric_limits<uint64_t>::max(). */
+    else std::numeric_limits<size_t>::max(). */
     size_t m_partition_id{std::numeric_limits<size_t>::max()};
 
     /** if true then enable separate read ahead threads. */
@@ -708,7 +708,7 @@ class Parallel_reader::Ctx {
   }
 
   /** @return the partition id of the index.
-  @note this is std::numeric_limits<uint64_t>::max() if the index does not
+  @note this is std::numeric_limits<size_t>::max() if the index does not
   belong to a partition. */
   size_t partition_id() const MY_ATTRIBUTE((warn_unused_result)) {
     return m_scan_ctx->m_config.m_partition_id;
