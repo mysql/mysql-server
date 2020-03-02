@@ -1156,3 +1156,21 @@ eval explain $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #30912972 ASSERTION KEYLEN == M_START_KEY.LENGTH FAILED|PARTITION_HANDLER.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key bigint DEFAULT NULL,
+  KEY(col_int_key)
+) PARTITION BY KEY(col_int_key) PARTITIONS 10;
+
+INSERT INTO t1 VALUES
+(NULL);
+
+SELECT 42
+WHERE 11 NOT IN
+(SELECT col_int_key FROM t1);
+
+DROP TABLE t1;
