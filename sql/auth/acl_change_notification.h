@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "my_sqlcommand.h"  // enum_sql_command
 #include "sql/table.h"      // LEX_USER, LEX_CSTRING, List
 
+class Rewrite_params;  // forward declaration
+
 class Acl_change_notification {
  public:
   struct User {
@@ -39,23 +41,24 @@ class Acl_change_notification {
 
   Acl_change_notification(class THD *thd, enum_sql_command op,
                           const List<LEX_USER> *users,
+                          Rewrite_params *rewrite_params,
                           const List<LEX_CSTRING> *dynamic_privs);
 
  private:
   enum_sql_command operation;
   std::string db;
-  std::string query;
   std::vector<User> user_list;
   std::vector<std::string> dynamic_privilege_list;
+  Rewrite_params *rewrite_params;
 
  public:
   enum_sql_command get_operation() const { return operation; }
   const std::string &get_db() const { return db; }
-  const std::string &get_query_for_logging() const { return query; }
   const std::vector<User> &get_user_list() const { return user_list; }
   const std::vector<std::string> &get_dynamic_privilege_list() const {
     return dynamic_privilege_list;
   }
+  Rewrite_params *get_rewrite_params() const { return rewrite_params; }
 };
 
 #endif
