@@ -209,6 +209,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             bool log_to_binlog = true);
 void acl_notify_htons(THD *thd, enum_sql_command operation,
                       const List<LEX_USER> *users,
+                      std::set<LEX_USER *> *rewrite_users = nullptr,
                       const List<LEX_CSTRING> *dynamic_privs = nullptr);
 
 /* sql_authorization */

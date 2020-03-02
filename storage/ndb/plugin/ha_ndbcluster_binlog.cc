@@ -40,6 +40,7 @@
 #include "sql/rpl_injector.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_rewrite.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/sql_thd_internal_api.h"
 #include "sql/thd_raii.h"
@@ -596,8 +597,17 @@ static void ndbcluster_acl_notify(THD *thd,
     return;
   }
 
-  const std::string &query = notice->get_query_for_logging();
+  /* Obtain the query in a form suitable for writing to the error log.
+     The password is replaced with the string "<secret>".
+  */
+  std::string query;
+  if (thd->rewritten_query().length())
+    query.assign(thd->rewritten_query().ptr(), thd->rewritten_query().length());
+  else
+    query.assign(thd->query().str, thd->query().length);
+  DBUG_ASSERT(query.length());
   ndb_log_verbose(9, "ACL considering: %s", query.c_str());
+
   std::string user_list;
   bool dist_use_db = false;   // Prepend "use [db];" to statement
   bool dist_refresh = false;  // All participants must refresh their caches
@@ -632,6 +642,19 @@ static void ndbcluster_acl_notify(THD *thd,
 
   DBUG_ASSERT(strategy == Ndb_stored_grants::Strategy::STATEMENT);
   ndb_log_verbose(9, "ACL change distribution: STATEMENT");
+
+  /* If the notice contains rewrite_params, query is an ALTER USER or SET
+     PASSWORD statement and must be rewritten again, as if for the binlog,
+     replacing a plaintext password with a crytpographic hash.
+  */
+  if (notice->get_rewrite_params()) {
+    String rewritten_query;
+    mysql_rewrite_acl_query(thd, rewritten_query, Consumer_type::BINLOG,
+                            notice->get_rewrite_params(), false);
+    query.assign(rewritten_query.c_ptr_safe(), rewritten_query.length());
+    DBUG_ASSERT(query.length());
+  }
+
   if (!schema_dist_client.acl_notify(
           dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
           query.length(), dist_refresh))

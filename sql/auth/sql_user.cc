@@ -1578,11 +1578,11 @@ bool change_password(THD *thd, LEX_USER *lex_user, const char *new_password,
         authentication_plugin.c_str(), is_role, nullptr, nullptr);
   } /* Critical section */
 
-  /* Notify storage engines */
+  /* Notify storage engines (including rewrite list) */
   if (!(result || commit_result)) {
     List<LEX_USER> user_list;
     user_list.push_back(lex_user);
-    acl_notify_htons(thd, SQLCOM_SET_PASSWORD, &user_list);
+    acl_notify_htons(thd, SQLCOM_SET_PASSWORD, &user_list, &users);
   }
 
   return result || commit_result;
@@ -2819,8 +2819,8 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
         reset_mqh(thd, extra_user, false);
       }
     }
-    /* Notify storage engines */
-    acl_notify_htons(thd, SQLCOM_ALTER_USER, &list);
+    /* Notify storage engines (including rewrite list) */
+    acl_notify_htons(thd, SQLCOM_ALTER_USER, &list, &extra_users);
   }
 
   if (result == 0) {
