@@ -36,7 +36,8 @@
 #include "mysql/plugin.h"
 #include "mysql/plugin_group_replication.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysqld_error.h"  // ER_*
+#include "mysqld_error.h"       // ER_*
+#include "sql/clone_handler.h"  // is_data_dropped
 #include "sql/log.h"
 #include "sql/log_event.h"           // MAX_MAX_ALLOWED_PACKET
 #include "sql/mysqld.h"              // mysqld_port
@@ -530,3 +531,5 @@ unsigned long get_max_slave_max_allowed_packet() {
 }
 
 bool is_server_restarting_after_clone() { return clone_startup; }
+
+bool is_server_data_dropped() { return Clone_handler::is_data_dropped(); }
