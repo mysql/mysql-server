@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2020 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -62,7 +62,8 @@ Histogram_sampler::Histogram_sampler(size_t max_threads, int sampling_seed,
 
   m_n_sampled = 0;
 
-  m_parallel_reader.set_finish_callback([&](size_t thread_id) {
+  m_parallel_reader.set_finish_callback([&](Parallel_reader::Ctx *ctx,
+                                            size_t thread_id) {
     DBUG_PRINT("histogram_sampler_buffering_print", ("-> Buffering complete."));
 
     DBUG_LOG("histogram_sampler_buffering_print",

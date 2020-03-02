@@ -4420,14 +4420,17 @@ class handler {
   /**
     This callback is called by each parallel load thread when processing
     of rows is required for the adapter scan.
-    @param[in] cookie    The cookie for this thread
-    @param[in] nrows     The nrows that are available
-    @param[in] rowdata   The mysql-in-memory row data buffer. This is a memory
-                         buffer for nrows records. The length of each record
-                         is fixed and communicated via Load_init_cbk
+    @param[in] cookie       The cookie for this thread
+    @param[in] nrows        The nrows that are available
+    @param[in] rowdata      The mysql-in-memory row data buffer. This is a
+    memory buffer for nrows records. The length of each record is fixed and
+    communicated via Load_init_cbk
+    @param[in] partition_id Partition id if it's a partitioned table, else
+    std::numeric_limits<uint64_t>::max()
     @returns true if there is an error, false otherwise.
   */
-  using Load_cbk = std::function<bool(void *cookie, uint nrows, void *rowdata)>;
+  using Load_cbk = std::function<bool(void *cookie, uint nrows, void *rowdata,
+                                      uint64_t partition_id)>;
 
   /**
     This callback is called by each parallel load thread when processing
