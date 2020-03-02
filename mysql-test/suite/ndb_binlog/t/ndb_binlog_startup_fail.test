@@ -26,6 +26,7 @@ call mtr.add_suppression("TIMESTAMP");
 call mtr.add_suppression("Insecure");
 call mtr.add_suppression("ndbcluster_end");
 call mtr.add_suppression("Attempting backtrace");
+call mtr.add_suppression("An incident event has been written");
 --enable_query_log
 
 #
