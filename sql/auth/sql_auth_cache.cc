@@ -1197,7 +1197,7 @@ static void insert_entry_in_db_cache(THD *thd, acl_entry *entry) {
   @param ip    Ip
   @param user  user name
   @param db    We look for the ACL of this database
-  @param db_is_pattern
+  @param db_is_pattern true if @p db can be considered a pattern or false if not
 
   @return Database ACL
 */

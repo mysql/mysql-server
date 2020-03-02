@@ -1437,8 +1437,6 @@ Restrictions::Restrictions(const Restrictions &restrictions)
 
 /**
   Move constructor for Restrictions
-
-  @param [in] restrictions
 */
 Restrictions::Restrictions(Restrictions &&restrictions)
     : m_db_restrictions(restrictions.m_db_restrictions) {}

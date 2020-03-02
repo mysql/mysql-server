@@ -228,14 +228,14 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   Initialize this security context from the passed in credentials
   and activate it in the current thread.
 
-  @param       thd
-  @param       definer_user
-  @param       definer_host
-  @param       db
-  @param[out]  backup  Save a pointer to the current security context
-                       in the thread. In case of success it points to the
-                       saved old context, otherwise it points to NULL.
-  @param       force   Force context switch
+  @param       thd           Thread handle.
+  @param       definer_user  user part of a 'definer' value.
+  @param       definer_host  host part of a 'definer' value.
+  @param       db            Database name.
+  @param[out]  backup        Save a pointer to the current security context
+                             in the thread. In case of success it points to the
+                             saved old context, otherwise it points to NULL.
+  @param       force         Force context switch
 
 
   @note The Security_context_factory should be used as a replacement to this

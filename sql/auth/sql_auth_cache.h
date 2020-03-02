@@ -592,14 +592,14 @@ class Acl_cache {
     A new object will also be created if the role graph version counter is
     different than the acl map object's version.
 
-    @param uid
+    @param uid user id
   */
   Acl_map *checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                             List_of_auth_id_refs &active_roles);
   /**
     When the security context is done with the acl map it calls the cache
     to decrease the reference count on that object.
-    @param map
+    @param map acl map
   */
   void return_acl_map(Acl_map *map);
   /**

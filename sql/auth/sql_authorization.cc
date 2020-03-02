@@ -724,10 +724,10 @@ bool drop_role(THD *thd, TABLE *edge_table, TABLE *defaults_table,
 
 /**
   Used by @ref mysql_drop_user. Will drop all
-  @param thd
-  @param edge_table
-  @param defaults_table
-  @param user_name
+  @param thd             THD handle
+  @param edge_table      Handle to table that stores role grants
+  @param defaults_table  Handle to table that stores default role information
+  @param user_name       User being dropped
 
   @retval true An error occurred
   @retval false Success
@@ -4637,8 +4637,8 @@ void get_privilege_access_maps(
 
 /**
   SHOW GRANTS FOR user USING [ALL | role [,role ...]]
-  @param thd
-  @param lex_user
+  @param thd         thread handler
+  @param lex_user    The user,host descriptor
   @param using_roles An forward iterable container of LEX_STRING std::pair
   @param show_mandatory_roles true means mandatory roles are listed
   @param have_using_clause true means there's a non-empty USING clause specified
@@ -6678,11 +6678,12 @@ bool is_mandatory_role(LEX_CSTRING role, LEX_CSTRING role_host,
 
 /**
   Grant one privilege to one user
-  @param str_priv
-  @param str_user
-  @param str_host
-  @param with_grant_option
-  @param update_table
+  @param str_priv           Dynamic privilege being granted
+  @param str_user           Username part of the grantee
+  @param str_host           Hostname part of the grantee
+  @param with_grant_option  Flag that determines if grantee can manage the
+  dynamic privilege
+  @param update_table       Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6736,9 +6737,9 @@ bool grant_dynamic_privilege(const LEX_CSTRING &str_priv,
 
 /**
   Grant grant option to one user for all dynamic privileges
-  @param str_user
-  @param str_host
-  @param update_table
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6786,9 +6787,9 @@ bool grant_grant_option_for_all_dynamic_privileges(
 
 /**
   Revoke grant option to one user for all dynamic privileges
-  @param str_user
-  @param str_host
-  @param update_table
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
@@ -6877,11 +6878,12 @@ void revoke_dynamic_privileges_from_auth_id(
 }
 
 /**
-  Revoke one privilege from one user
-  @param str_priv
-  @param str_user
-  @param str_host
-  @param update_table
+  Revoke one privilege from one user.
+
+  @param str_priv      Privilege being revoked
+  @param str_user      Username part of the grantee
+  @param str_host      Hostname part of the grantee
+  @param update_table  Table update handler
 
   @return Error state
     @retval true An error occurred. DA must be checked.
