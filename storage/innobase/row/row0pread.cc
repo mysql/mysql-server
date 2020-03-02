@@ -1052,8 +1052,6 @@ dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
 }
 
 void Parallel_reader::read_ahead_worker(page_no_t n_pages) {
-  DBUG_EXECUTE_IF("bug28079850", set_error_state(DB_INTERRUPTED););
-
   while (is_active() && !is_error_set()) {
     uint64_t dequeue_count{};
 
@@ -1160,6 +1158,8 @@ void Parallel_reader::parallel_read() {
     /* Start the read ahead threads. */
     read_ahead();
   }
+
+  DBUG_EXECUTE_IF("bug28079850", set_error_state(DB_INTERRUPTED););
 
   /* Don't wait for the threads to finish if the read is not synchronous. */
   if (!m_sync) {
