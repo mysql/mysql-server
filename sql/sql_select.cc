@@ -897,6 +897,20 @@ static bool optimize_secondary_engine(THD *thd) {
     return true;
   }
 
+  if (thd->secondary_engine_optimization() ==
+          Secondary_engine_optimization::PRIMARY_TENTATIVELY &&
+      thd->lex->m_sql_cmd != nullptr &&
+      thd->lex->m_sql_cmd->is_optional_transform_prepared()) {
+    // For some reason we could not use secondary engine and we have a
+    // secondary engine specific prepare and the primary engine didn't have the
+    // same set of optional transforms enabled, so we need to reprepare for
+    // primary engine without those optional transforms
+    thd->lex->m_sql_cmd->set_optional_transform_prepared(false);
+    thd->get_stmt_da()->reset_diagnostics_area();
+    thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
+    return true;
+  }
+
   const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
   return secondary_engine != nullptr &&
          secondary_engine->optimize_secondary_engine != nullptr &&
@@ -4187,11 +4201,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
     /*
       Pushing parts of HAVING to an internal temporary table.
       Fields in HAVING condition may have been replaced with fields in an
-      internal temporary table. This table has map=1, hence we check that
-      we have no fields from other tables (outer references are fine).
-      Unfortunaly, update_used_tables() is not reliable for subquery
-      items, which could thus still have other tables in their
-      used_tables() information.
+      internal temporary table. This table has map=1.
     */
     DBUG_ASSERT(having_cond->has_subquery() ||
                 !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));

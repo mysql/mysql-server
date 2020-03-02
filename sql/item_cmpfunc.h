@@ -652,6 +652,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   }
   bool cast_incompatible_args(uchar *) override;
   const Arg_comparator *get_comparator() const { return &cmp; }
+  Item *replace_scalar_subquery(uchar *) override;
   friend class Arg_comparator;
 };
 
@@ -2244,6 +2245,7 @@ class Item_func_like final : public Item_bool_func2 {
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
   void cleanup() override;
+  Item *replace_scalar_subquery(uchar *) override;
   bool cast_incompatible_args(uchar *) override { return false; }
   void update_used_tables() override;
   /**

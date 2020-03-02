@@ -1295,7 +1295,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 2,
               "message": "No tables used"
@@ -1322,7 +1322,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 3,
               "message": "No tables used"
@@ -1423,7 +1423,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 2,
               "message": "No tables used"
@@ -2839,7 +2839,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 2,
               "message": "No tables used"
@@ -2866,7 +2866,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 3,
               "message": "No tables used"
@@ -2967,7 +2967,7 @@ EXPLAIN
           "materialized_from_subquery": {
             "using_temporary_table": true,
             "dependent": true,
-            "cacheable": true,
+            "cacheable": false,
             "query_block": {
               "select_id": 2,
               "message": "No tables used"

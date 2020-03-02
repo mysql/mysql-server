@@ -699,12 +699,26 @@ void Item_subselect::fix_after_pullout(SELECT_LEX *parent_select,
 
   // Accumulate properties like INNER_TABLE_BIT
   accumulate_properties();
+
+  const uint8 uncacheable = unit->uncacheable;
+  if (uncacheable) {
+    if (uncacheable & UNCACHEABLE_RAND) used_tables_cache |= RAND_TABLE_BIT;
+  }
 }
 
 bool Item_in_subselect::walk(Item_processor processor, enum_walk walk,
                              uchar *arg) {
   if (left_expr->walk(processor, walk, arg)) return true;
   return Item_subselect::walk(processor, walk, arg);
+}
+
+Item *Item_in_subselect::transform(Item_transformer transformer, uchar *arg) {
+  Item *new_item = left_expr->transform(transformer, arg);
+  if (new_item == nullptr) return nullptr;
+  if (left_expr != new_item)
+    current_thd->change_item_tree(&left_expr, new_item);
+
+  return (this->*transformer)(arg);
 }
 
 /*
@@ -2664,6 +2678,12 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   return false;
 }
 
+bool Item_subselect::collect_subqueries(uchar *arg) {
+  Collect_subq_info *info = pointer_cast<Collect_subq_info *>(arg);
+  if (unit->outer_select() == info->m_select) info->list.push_back(this);
+  return false;
+}
+
 Item_subselect::trans_res Item_allany_subselect::select_transformer(
     THD *thd, SELECT_LEX *select) {
   DBUG_TRACE;
@@ -2686,6 +2706,139 @@ void Item_allany_subselect::print(const THD *thd, String *str,
     str->append(all ? " all " : " any ", 5);
   }
   Item_subselect::print(thd, str, query_type);
+}
+
+bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
+  auto *info = pointer_cast<Collect_scalar_subquery_info *>(arg);
+  const table_map map = used_tables();
+
+  // Skip transformation if more than one column is selected or column contains
+  // a non-deterministic function.
+  // Also exclude scalar subqueries with references to outer query blocks
+  if (info->is_stopped(this) ||
+      unit->first_select()->fields_list.elements != 1 ||
+      (map & ~PSEUDO_TABLE_BITS) != 0 || (map & OUTER_REF_TABLE_BIT) != 0 ||
+      (map & RAND_TABLE_BIT)) {
+    return false;
+  }
+
+  List_iterator<Item> li(unit->first_select()->fields_list);
+  Item *i = li++;
+  /*
+    [1] Only allow implicitly grouped queries for now
+    [1.1] Was implicitly grouped before in a transformation on a deeper level
+    [2] Only allow if no set operations are present (union)
+  */
+  if (((i->has_aggregation() &&
+        unit->first_select()->is_implicitly_grouped()) ||    // [1]
+       (unit->first_select()->m_was_implicitly_grouped)) &&  // [1.1]
+      unit->first_select()->next_select() == nullptr) {      // [2]
+    /*
+      Check if it has been already added. Can happen after other
+      transformations, eg. IN -> EXISTS and when aggregates are repeated in
+      HAVING clause:
+        SELECT SUM(a), (SELECT SUM(b) FROM t3) AS scalar
+        FROM t1 HAVING SUM(a) > scalar
+    */
+    for (auto &e : info->list) {
+      if (e.item == this) {
+        e.m_location |= info->m_location;
+        return false;
+      }
+    }
+    info->list.emplace_back(Collect_scalar_subquery_info::Css_info{
+        info->m_location, this, info->m_join_condition_context});
+  }
+  return false;
+}
+
+Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
+  auto *const info = pointer_cast<Scalar_subquery_replacement *>(arg);
+  if (info->m_target != this) return this;
+
+  auto *scalar_item = new (current_thd->mem_root) Item_field(info->m_field);
+  if (scalar_item == nullptr) return nullptr;
+
+  Item **ref = info->m_outer_select->add_hidden_item(scalar_item);
+  Item *result;
+
+  if (unit->place() == CTX_HAVING) {
+    result = new (current_thd->mem_root)
+        Item_ref(&info->m_outer_select->context, ref, scalar_item->table_name,
+                 scalar_item->field_name);
+    // nullptr is error, but no separate return needed here
+  } else {
+    result = scalar_item;
+  }
+  return result;
+}
+
+Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {
+  auto replace_and_update = [arg, t](Item *expr, Item **ref) {
+    Item *new_expr = expr->transform(t, arg);
+    if (new_expr == nullptr) return true;
+    if (new_expr != expr) current_thd->change_item_tree(ref, new_expr);
+    new_expr->update_used_tables();
+    return false;
+  };
+
+  auto *info = pointer_cast<Item::Item_replacement *>(arg);
+  auto *old_current = info->m_curr_block;
+  for (SELECT_LEX *slave = unit->first_select(); slave != nullptr;
+       slave = slave->next_select()) {
+    info->m_curr_block = slave;
+
+    List_iterator<Item> it(slave->all_fields);
+    for (Item *expr = it++; expr != nullptr; expr = it++) {
+      if (replace_and_update(expr, it.ref())) return nullptr;
+    }
+    if (slave->where_cond() != nullptr &&
+        replace_and_update(slave->where_cond(), slave->where_cond_ref()))
+      return nullptr;
+
+    for (ORDER *ord = slave->group_list.first; ord != nullptr;
+         ord = ord->next) {
+      if (replace_and_update(*ord->item, ord->item)) return nullptr;
+    }
+    if (slave->having_cond() != nullptr &&
+        replace_and_update(slave->having_cond(), slave->having_cond_ref()))
+      return nullptr;
+
+    for (ORDER *ord = slave->order_list.first; ord != nullptr;
+         ord = ord->next) {
+      if (replace_and_update(*ord->item, ord->item)) return nullptr;
+    }
+    List_iterator<Window> wit(slave->m_windows);
+    Window *w;
+    while ((w = wit++)) {
+      for (auto itr : {w->first_order_by(), w->first_partition_by()}) {
+        if (itr != nullptr) {
+          for (ORDER *ord = itr; ord != nullptr; ord = ord->next) {
+            if (replace_and_update(*ord->item, ord->item)) return nullptr;
+          }
+        }
+      }
+    }
+  }
+
+  info->m_curr_block = old_current;
+  return this;
+}
+
+/**
+  Transform processor. Dives into a subquery's expressions.
+  See Item[_field]::replace_item_field for more details.
+*/
+Item *Item_subselect::replace_item_field(uchar *arg) {
+  return replace_item(&Item::replace_item_field, arg);
+}
+
+/**
+  Transform processor. Dives into a subquery's expressions.
+  See Item[_field]::replace_item_view_ref for more details.
+*/
+Item *Item_subselect::replace_item_view_ref(uchar *arg) {
+  return replace_item(&Item::replace_item_view_ref, arg);
 }
 
 void SubqueryWithResult::cleanup(THD *thd) {

@@ -721,6 +721,16 @@ class SELECT_LEX_UNIT {
   /// Points to subquery if this query expression is used in one, otherwise NULL
   Item_subselect *item;
   /**
+    Used by transform_scalar_subqueries_to_derived to remember where we came
+    from, i.e. the place value of SELECT_LEX_UNIT::item. This is needed because
+    at EXECUTE time, we re-resolve the subquery that was transformed into
+    a derived table during PREPARE, in the position where it was originally
+    located, i.e. in the SELECT list. For this resolution to work, we need the
+    correct place information. This helps us get that, cf.
+    SELECT_LEX_UNIT::place. Can be removed after WL#6570.
+  */
+  enum_parsing_context m_place_before_transform{CTX_NONE};
+  /**
     Helper query block for query expression with UNION or multi-level
     ORDER BY/LIMIT
   */
@@ -985,8 +995,10 @@ enum class enum_explain_type {
 class SELECT_LEX {
  public:
   Item *where_cond() const { return m_where_cond; }
+  Item **where_cond_ref() { return &m_where_cond; }
   void set_where_cond(Item *cond) { m_where_cond = cond; }
   Item *having_cond() const { return m_having_cond; }
+  Item **having_cond_ref() { return &m_having_cond; }
   void set_having_cond(Item *cond) { m_having_cond = cond; }
   void set_query_result(Query_result *result) { m_query_result = result; }
   Query_result *query_result() const { return m_query_result; }
@@ -1044,6 +1056,12 @@ class SELECT_LEX {
 
   /// @returns a map of all tables references in the query block
   table_map all_tables_map() const { return (1ULL << leaf_table_count) - 1; }
+
+  TABLE_LIST *synthesize_derived(THD *thd, SELECT_LEX_UNIT *unit,
+                                 Item *join_cond, uint i, bool left_outer);
+  bool field_of_table_present(TABLE_LIST *tl, bool *found);
+  void remove_derived(THD *thd, TABLE_LIST *tl);
+  bool remove_aggregates(THD *thd, SELECT_LEX *select);
 
  private:
   /**
@@ -1183,7 +1201,13 @@ class SELECT_LEX {
   int hidden_group_field_count;
 
   List<Item> &fields_list;  ///< hold field list
-  List<Item> all_fields;    ///< to store all expressions used in query
+
+  /**
+    All expressions needed after join and filtering, ie
+    select list, group by list, having clause, window clause, order by clause.
+    Does not include join conditions nor where clause.
+  */
+  List<Item> all_fields;
   /**
     Usually a pointer to ftfunc_list_alloc, but in UNION this is used to create
     fake select_lex that consolidates result fields of UNION
@@ -1335,6 +1359,16 @@ class SELECT_LEX {
      TABLE_LIST, in this recursive member, referencing the query
      name.
   */
+
+  /// Used by nested scalar_to_derived transformations
+  bool m_was_implicitly_grouped{false};
+
+  /// Keep track for allocation of base_ref_items: scalar subqueries may be
+  /// replaced by a field during scalar_to_derived transformation
+  uint n_scalar_subqueries{0};
+
+  List<TABLE_LIST> m_scalar_to_derived;
+
   TABLE_LIST *recursive_reference;
   /**
      To pass the first steps of resolution, a recursive reference is made to
@@ -1942,6 +1976,43 @@ class SELECT_LEX {
   /// Merge name resolution context objects of a subquery into its parent
   void merge_contexts(SELECT_LEX *inner);
 
+  /**
+    Transform eligible scalar subqueries in the SELECT list, WHERE condition,
+    HAVING condition or JOIN conditions of a query block[*] to an equivalent
+    derived table of a LEFT OUTER join, e.g. as shown in this uncorrelated
+    subquery:
+
+    [*] a.k.a "transformed query block" throughout this method and its minions.
+
+    <pre>
+      SELECT * FROM t1
+        WHERE t1.a > (SELECT COUNT(a) AS cnt FROM t2);  ->
+
+      SELECT t1.* FROM t1 LEFT OUTER JOIN
+                       (SELECT COUNT(a) AS cnt FROM t2) AS derived
+        ON TRUE WHERE t1.a > derived.cnt;
+    </pre>
+
+    Grouping in the transformed query block may necessitate the grouping to be
+    moved down to another derived table, cf.  transform_grouped_to_derived.
+
+    Limitations:
+    - only implicitly grouped subqueries (guaranteed to have cardinality one)
+      are identified as scalar subqueries.
+    _ Correlated subqueries are not handled
+
+    @param[in,out] thd the session context
+    @returns       true on error
+  */
+  bool transform_scalar_subqueries_to_derived(THD *thd);
+  bool transform_grouped_to_derived(THD *thd, bool *break_off);
+  bool replace_subquery_in_expr(THD *thd, Item_singlerow_subselect *subquery,
+                                Item **expr);
+  TABLE_LIST *nest_derived(THD *thd, Item *join_cond,
+                           mem_root_deque<TABLE_LIST *> *join_list,
+                           TABLE_LIST *new_derived_table);
+  void update_join_cond_context(SELECT_LEX *new_context,
+                                mem_root_deque<TABLE_LIST *> *join_list);
   /**
     Returns which subquery execution strategies can be used for this query
     block.
@@ -3631,6 +3702,25 @@ struct LEX : public Query_tables_list {
 
   /// Create query expression and query block in existing memory objects.
   void new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select);
+
+  /// Create query expression under current_select and a query block under the
+  /// new query expression. The new query expression is linked in under
+  /// current_select. The new query block is linked in under the new
+  /// query expression.
+  ///
+  /// @param thd            current session context
+  /// @param current_select the root under which we create the new expression
+  ///                       and block
+  /// @param where_clause   any where clause for the block
+  /// @param having_clause  any having clause for the block
+  /// @param ctx            the parsing context
+  ///
+  /// @returns              the new query expression, or nullptr on error.
+  SELECT_LEX_UNIT *create_query_expr_and_block(THD *thd,
+                                               SELECT_LEX *current_select,
+                                               Item *where_clause,
+                                               Item *having_clause,
+                                               enum_parsing_context ctx);
 
   inline bool is_ps_or_view_context_analysis() {
     return (context_analysis_only &

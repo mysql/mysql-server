@@ -5750,7 +5750,6 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return 0;  // Fatal error flag is set
-
   TABLE_LIST *const tl = tab->table_ref;
   tab->set_skip_records_in_range(
       check_skip_records_in_range_qualification(tab, thd));
@@ -7586,10 +7585,10 @@ static bool add_key_fields_for_nj(THD *thd, JOIN *join,
   table_map tables = 0;
   TABLE_LIST *table;
 
-  while (
-      (table = (li != li_end) ? *li++ : nullptr) ||
-      (have_another && li2 != join_list.end() &&
-       (li = li2, li_end = li2_end, have_another = false, (table = *li++)))) {
+  while ((table = (li != li_end) ? *li++ : nullptr) ||
+         (have_another && li2 != join_list.end() &&
+          (li = li2, li_end = li2_end, have_another = false,
+           (li != li_end) && (table = *li++)))) {
     if (table->nested_join) {
       if (!table->join_cond_optim()) {
         /* It's a semi-join nest. Walk into it as if it wasn't a nest */

@@ -1478,6 +1478,12 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
     thd->push_protocol(thd->protocol_binary);
   }
 
+  // Initially, optimize the statement for the primary storage engine.
+  // If an eligible secondary storage engine is found, the statement
+  // may be reprepared for the secondary storage engine later.
+  const auto saved_secondary_engine = thd->secondary_engine_optimization();
+  thd->set_secondary_engine_optimization(
+      Secondary_engine_optimization::PRIMARY_TENTATIVELY);
   /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt =
       MYSQL_CREATE_PS(stmt, stmt->id, thd->m_statement_psi, stmt->name().str,
@@ -1490,6 +1496,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
     thd->stmt_map.erase(stmt);
   }
 
+  thd->set_secondary_engine_optimization(saved_secondary_engine);
   if (switch_protocol) thd->pop_protocol();
 
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
@@ -2848,16 +2855,23 @@ reexecute:
                          Sql_condition::SL_ERROR, da->message_text());
       }
     } else {
-      // Otherwise, if repreparation for a secondary storage engine was
-      // requested, try again in the secondary engine.
-      if (thd->get_stmt_da()->mysql_errno() ==
-          ER_PREPARE_FOR_SECONDARY_ENGINE) {
-        DBUG_ASSERT(thd->secondary_engine_optimization() ==
-                    Secondary_engine_optimization::PRIMARY_TENTATIVELY);
+      // Otherwise, if repreparation was requested, try again in the primary
+      // or secondary engine, depending on cause.
+      const uint err_seen = thd->get_stmt_da()->mysql_errno();
+      if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE ||
+          (err_seen == ER_NEED_REPREPARE &&
+           reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)) {
+        DBUG_ASSERT((thd->secondary_engine_optimization() ==
+                     Secondary_engine_optimization::PRIMARY_TENTATIVELY) ||
+                    err_seen == ER_NEED_REPREPARE);
         DBUG_ASSERT(!lex->unit->is_executed());
         thd->clear_error();
-        thd->set_secondary_engine_optimization(
-            Secondary_engine_optimization::SECONDARY);
+        if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE)
+          thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::SECONDARY);
+        else
+          thd->set_secondary_engine_optimization(
+              Secondary_engine_optimization::PRIMARY_ONLY);
         // Disable the general log. The query was written to the general log in
         // the first attempt to execute it. No need to write it twice.
         general_log_temporarily_disabled |= disable_general_log(thd);

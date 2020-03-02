@@ -1194,6 +1194,9 @@ bool Group_check::do_ident_check(Item_ident *i, table_map tm,
 
   switch (type) {
     case CHECK_GROUP:
+      if (i->type() == Item::FIELD_ITEM &&
+          down_cast<Item_field *>(i)->table_ref->m_was_scalar_subquery)
+        return false;
       if (!is_fd_on_source(i)) {
         // It is not FD on source columns:
         if (!is_child()) failed_ident = i;

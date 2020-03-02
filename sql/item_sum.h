@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,7 +624,28 @@ class Item_sum : public Item_result_field {
   }
   virtual void make_unique() { force_copy_fields = true; }
   virtual Field *create_tmp_field(bool group, TABLE *table);
+
+  /// argument used by walk method collect_grouped_aggregates ("cga")
+  struct Collect_grouped_aggregate_info {
+    /// accumulated all aggregates found
+    std::vector<Item_sum *> list;
+    /**
+      The query block we walk from. All found aggregates must aggregate in
+      this; if some aggregate in outer query blocks, break off transformation.
+    */
+    SELECT_LEX *m_select{nullptr};
+    /// true: break off transformation
+    bool m_break_off{false};
+    Collect_grouped_aggregate_info(SELECT_LEX *select) : m_select(select) {}
+  };
+
+  bool collect_grouped_aggregates(uchar *) override;
+  Item *replace_aggregate(uchar *) override;
+  bool collect_scalar_subqueries(uchar *) override;
+  bool collect_item_field_or_view_ref_processor(uchar *) override;
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
+  Item *transform(Item_transformer transformer, uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
@@ -2149,8 +2170,8 @@ class Item_func_group_concat final : public Item_sum {
   void no_rows_in_result() override {}
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  bool change_context_processor(uchar *cntx) override {
-    context = reinterpret_cast<Name_resolution_context *>(cntx);
+  bool change_context_processor(uchar *arg) override {
+    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 

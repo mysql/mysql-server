@@ -509,6 +509,29 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument) {
 }
 
 /**
+ Transform an Item_func object with a transformer callback function.
+
+ The function recursively applies the transform method to each
+ argument of the Item_func node.
+ If the call of the method for an argument item returns a new item
+ the old item is substituted for a new one.
+ After this the transformer is applied to the root node
+ of the Item_func object.
+ */
+
+Item *Item_sum::transform(Item_transformer transformer, uchar *argument) {
+  if (arg_count) {
+    Item **arg, **arg_end;
+    for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
+      Item *new_item = (*arg)->transform(transformer, argument);
+      if (new_item == nullptr) return nullptr;
+      if (*arg != new_item) current_thd->change_item_tree(arg, new_item);
+    }
+  }
+  return (this->*transformer)(argument);
+}
+
+/**
   Remove the item from the list of inner aggregation functions in the
   SELECT_LEX it was moved to by Item_sum::check_sum_func().
 
@@ -685,6 +708,64 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
   }
   if (field) field->init(table);
   return field;
+}
+
+bool Item_sum::collect_grouped_aggregates(uchar *arg) {
+  auto *info = pointer_cast<Collect_grouped_aggregate_info *>(arg);
+
+  if (m_is_window_function || info->m_break_off) return false;
+
+  if (info->m_select == aggr_select && (used_tables() & OUTER_REF_TABLE_BIT)) {
+    // This aggregate function aggregates in the transformed query block, but is
+    // located inside a subquery. Currently, transform cannot get to this since
+    // it doesn't descend into subqueries. This means we cannot substitute a
+    // field for this aggregates, so break off. TODO.
+    info->m_break_off = true;
+    return false;
+  }
+
+  if (info->m_select != aggr_select) {
+    // Aggregated either inside a subquery of the transformed query block or
+    // outside of it. In either case, ignore it.
+    return false;
+  }
+
+  for (auto e : info->list) {  // eliminate duplicates
+    if (e == this) {
+      return false;
+    }
+  }
+
+  info->list.emplace_back(this);
+  return false;
+}
+
+Item *Item_sum::replace_aggregate(uchar *arg) {
+  auto *info = pointer_cast<Item::Aggregate_replacement *>(arg);
+  if (info->m_target == this)
+    return info->m_replacement;
+  else
+    return this;
+}
+
+bool Item_sum::collect_scalar_subqueries(uchar *arg) {
+  if (!m_is_window_function) {
+    auto *info = pointer_cast<Collect_scalar_subquery_info *>(arg);
+    /// Don't walk below grouped aggregate functions
+    if (info->is_stopped(this)) return false;
+    info->stop_at(this);
+  }
+  return false;
+}
+
+bool Item_sum::collect_item_field_or_view_ref_processor(uchar *arg) {
+  if (!m_is_window_function) {
+    auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
+    /// Don't walk below grouped aggregate functions
+    if (info->is_stopped(this)) return false;
+    info->stop_at(this);
+  }
+  return false;
 }
 
 void Item_sum::update_used_tables() {

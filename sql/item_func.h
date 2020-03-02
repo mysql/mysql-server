@@ -3740,8 +3740,8 @@ class Item_func_sp final : public Item_func {
 
   bool val_json(Json_wrapper *result) override;
 
-  bool change_context_processor(uchar *cntx) override {
-    context = reinterpret_cast<Name_resolution_context *>(cntx);
+  bool change_context_processor(uchar *arg) override {
+    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 

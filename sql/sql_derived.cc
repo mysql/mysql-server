@@ -287,6 +287,9 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
 
   if (!is_view_or_derived() || is_merged() || is_table_function()) return false;
 
+  // This early return can be deleted after WL#6570.
+  if (derived->is_prepared()) return false;
+
   // Dummy derived tables for recursive references disappear before this stage
   DBUG_ASSERT(this != select_lex->recursive_reference);
 

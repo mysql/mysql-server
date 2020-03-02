@@ -69,6 +69,8 @@
 
 class Item;
 class Item_field;
+class Item_singlerow_subselect;
+class Item_sum;
 class Json_wrapper;
 class Protocol;
 class SELECT_LEX;
@@ -534,6 +536,10 @@ class Name_resolution_context_state {
     context->resolve_in_select_list = save_resolve_in_select_list;
   }
 
+  void update_next_local(TABLE_LIST *table_list) {
+    save_next_local = table_list;
+  }
+
   TABLE_LIST *get_first_name_resolution_table() {
     return save_first_name_resolution_table;
   }
@@ -656,8 +662,80 @@ class Settable_routine_parameter {
 
 */
 typedef bool (Item::*Item_analyzer)(uchar **argp);
+
+/**
+  Type for transformers used by Item::transform and Item::compile
+  @param arg  Argument used by the transformer. Really a typeless pointer
+              in spite of the uchar type (historical reasons). The
+              transformer needs to cast this to the desired pointer type
+  @returns    The transformed item
+*/
 typedef Item *(Item::*Item_transformer)(uchar *arg);
 typedef void (*Cond_traverser)(const Item *item, void *arg);
+
+/**
+  Re-usable shortcut, when it does not make sense to do copy objects of a
+  class named "myclass"; add this to a private section of the class. The
+  implementations are intentionally not created, so if someone tries to use
+  them like in "myclass A= B" there will be a linker error.
+*/
+#define FORBID_COPY_CTOR_AND_ASSIGN_OP(myclass) \
+  myclass(myclass const &);                     \
+  void operator=(myclass const &)
+
+/**
+  Utility mixin class to be able to walk() only parts of item trees.
+
+  Used with PREFIX+POSTFIX walk: in the prefix call of the Item
+  processor, we process the item X, may decide that its children should not
+  be processed (just like if they didn't exist): processor calls stop_at(X)
+  for that. Then walk() goes to a child Y; the processor tests is_stopped(Y)
+  which returns true, so processor sees that it must not do any processing
+  and returns immediately. Finally, the postfix call to the processor on X
+  tests is_stopped(X) which returns "true" and understands that the
+  not-to-be-processed children have been skipped so calls restart(). Thus,
+  any sibling of X, any part of the Item tree not under X, can then be
+  processed.
+*/
+class Item_tree_walker {
+ protected:
+  Item_tree_walker() : stopped_at_item(nullptr) {}
+  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
+
+  /// Stops walking children of this item
+  void stop_at(const Item *i) {
+    DBUG_ASSERT(!stopped_at_item);
+    stopped_at_item = i;
+  }
+
+  /**
+   @returns if we are stopped. If item 'i' is where we stopped, restarts the
+   walk for next items.
+   */
+  bool is_stopped(const Item *i) {
+    if (stopped_at_item) {
+      /*
+       Walking was disabled for a tree part rooted a one ancestor of 'i' or
+       rooted at 'i'.
+       */
+      if (stopped_at_item == i) {
+        /*
+         Walking was disabled for the tree part rooted at 'i'; we have now just
+         returned back to this root (POSTFIX call), left the tree part:
+         enable the walk again, for other tree parts.
+         */
+        stopped_at_item = nullptr;
+      }
+      // No further processing to do for this item:
+      return true;
+    }
+    return false;
+  }
+
+ private:
+  const Item *stopped_at_item;
+  FORBID_COPY_CTOR_AND_ASSIGN_OP(Item_tree_walker);
+};
 
 class Item : public Parse_tree_node {
   typedef Parse_tree_node super;
@@ -2078,6 +2156,35 @@ class Item : public Parse_tree_node {
 
   virtual bool collect_item_field_processor(uchar *) { return false; }
 
+  class Collect_item_fields : public Item_tree_walker {
+   public:
+    List<Item_field> *m_item_fields;
+    Collect_item_fields(List<Item_field> *fields) : m_item_fields(fields) {}
+    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields);
+
+    friend class Item_sum;
+    friend class Item_field;
+  };
+
+  class Collect_item_fields_or_view_refs : public Item_tree_walker {
+   public:
+    List<Item> *m_item_fields_or_view_refs;
+    SELECT_LEX *m_transformed_block;
+    Collect_item_fields_or_view_refs(List<Item> *fields_or_vr,
+                                     SELECT_LEX *transformed_block)
+        : m_item_fields_or_view_refs(fields_or_vr),
+          m_transformed_block(transformed_block) {}
+    FORBID_COPY_CTOR_AND_ASSIGN_OP(Collect_item_fields_or_view_refs);
+
+    friend class Item_sum;
+    friend class Item_field;
+    friend class Item_view_ref;
+  };
+
+  virtual bool collect_item_field_or_view_ref_processor(uchar *) {
+    return false;
+  }
+
   /**
     Item::walk function. Set bit in table->tmp_set for all fields in
     table 'arg' that are referred to by the Item.
@@ -2245,6 +2352,32 @@ class Item : public Parse_tree_node {
     return Bool3::false3();
   }
 
+  /// argument used by walk method collect_scalar_subqueries ("css")
+  struct Collect_scalar_subquery_info : public Item_tree_walker {
+    enum Location { L_SELECT = 1, L_WHERE = 2, L_HAVING = 4, L_JOIN_COND = 8 };
+    struct Css_info {
+      int8 m_location{0};  ///< set of locations
+      /// the scalar subquery
+      Item_singlerow_subselect *item{nullptr};
+      /// Where did we find item above? Used when m_location == L_JOIN_COND,
+      /// nullptr for other locations.
+      Item *m_join_condition{nullptr};
+    };
+
+    /// accumulated all scalar subqueries found
+    std::vector<Css_info> list;
+    /// we are currently looking at this kind of clause, cf. enum Location
+    int8 m_location;
+    Item *m_join_condition_context{nullptr};
+    Collect_scalar_subquery_info() {}
+    friend class Item_sum;
+    friend class Item_singlerow_subselect;
+  };
+
+  virtual bool collect_scalar_subqueries(uchar *) { return false; }
+  virtual bool collect_grouped_aggregates(uchar *) { return false; }
+  virtual bool collect_subqueries(uchar *) { return false; }
+  virtual bool update_depended_from(uchar *) { return false; }
   /**
     Check if an aggregate is referenced from within the GROUP BY
     clause of the query block in which it is aggregated. Such
@@ -2390,6 +2523,74 @@ class Item : public Parse_tree_node {
     return nullptr;
   }
   virtual Item *update_value_transformer(uchar *) { return this; }
+
+  struct Item_replacement {
+    SELECT_LEX *m_trans_block;  ///< Transformed query block
+    SELECT_LEX *m_curr_block;   ///< Transformed query block or a contained
+    ///< subquery. Pushed when diving into
+    ///< subqueries.
+    Item_replacement(SELECT_LEX *transformed_block, SELECT_LEX *current_block)
+        : m_trans_block(transformed_block), m_curr_block(current_block) {}
+  };
+  struct Item_field_replacement : Item_replacement {
+    Field *m_target;           ///< The field to be replaced
+    Item_field *m_item;        ///< The replacement field
+    bool m_keep_alias{false};  ///< Needed for SELECT list alias preservation
+    Item_field_replacement(Field *target, Item_field *item, SELECT_LEX *select,
+                           bool keep)
+        : Item_replacement(select, select),
+          m_target(target),
+          m_item(item),
+          m_keep_alias(keep) {}
+  };
+
+  struct Item_view_ref_replacement : Item_replacement {
+    Item *m_target;  ///< The item identifying the view_ref to be replaced
+    Field *m_field;  ///< The replacement field
+    ///< subquery. Pushed when diving into
+    ///< subqueries.
+    Item_view_ref_replacement(Item *target, Field *field, SELECT_LEX *select)
+        : Item_replacement(select, select), m_target(target), m_field(field) {}
+  };
+
+  struct Aggregate_replacement {
+    Item_sum *m_target;
+    Item_field *m_replacement;
+    Aggregate_replacement(Item_sum *target, Item_field *replacement)
+        : m_target(target), m_replacement(replacement) {}
+  };
+
+  /**
+    When walking the item tree seeing an Item_singlerow_subselect matching
+    a target, replace it with a substitute field used when transforming
+    scalar subqueries into derived tables. Cf.
+    SELECT_LEX::transform_scalar_subqueries_to_derived.
+  */
+  virtual Item *replace_scalar_subquery(uchar *) { return this; }
+
+  /**
+    Transform processor used by SELECT_LEX::transform_grouped_to_derived
+    to replace fields which used to be at the transformed query block
+    with corresponding fields in the new derived table containing the grouping
+    operation of the original transformed query block.
+  */
+  virtual Item *replace_item_field(uchar *) { return this; }
+  virtual Item *replace_item_view_ref(uchar *) { return this; }
+  virtual Item *replace_aggregate(uchar *) { return this; }
+  virtual bool update_context(uchar *) { return false; }
+
+  struct Aggregate_ref_update {
+    Item_sum *m_target;
+    SELECT_LEX *m_owner;
+    Aggregate_ref_update(Item_sum *target, SELECT_LEX *owner)
+        : m_target(target), m_owner(owner) {}
+  };
+
+  /**
+    A walker processor overridden by Item_aggregate_ref, q.v.
+  */
+  virtual bool update_aggr_refs(uchar *) { return false; }
+
   virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
   void delete_self() {
     cleanup();
@@ -3256,6 +3457,13 @@ class Item_ident : public Item {
     return true;
   }
 
+  ///< Used for permanent transformations so we can re-bind. Remove after
+  ///< WL#6570.
+  void set_orig_names() {
+    orig_field_name = field_name;
+    orig_table_name = table_name;
+  }
+
  protected:
   /**
     Function to print column name for a table
@@ -3284,8 +3492,15 @@ class Item_ident : public Item {
              const char *db_name_arg, const char *table_name_arg) const;
 
  public:
-  bool change_context_processor(uchar *cntx) override {
-    context = reinterpret_cast<Name_resolution_context *>(cntx);
+  ///< Argument object to change_context_processor
+  struct Change_context {
+    Name_resolution_context *m_context;
+    bool m_permanent{false};  // Can be removed with WL#6570
+    Change_context(Name_resolution_context *context, bool permanent = false)
+        : m_context(context), m_permanent(permanent) {}
+  };
+  bool change_context_processor(uchar *arg) override {
+    context = reinterpret_cast<Change_context *>(arg)->m_context;
     return false;
   }
 
@@ -3303,6 +3518,16 @@ class Item_ident : public Item {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
+
+  /**
+    Argument structure for walk processor Item::update_depended_from
+  */
+  struct Depended_change {
+    SELECT_LEX *old_depended_from;  // the transformed query block
+    SELECT_LEX *new_depended_from;  // the new derived table for grouping
+  };
+
+  bool update_depended_from(uchar *) override;
 
   /**
      @returns true if a part of this Item's full name (name or table name) is
@@ -3428,8 +3653,7 @@ class Item_field : public Item_ident {
   Item_field(THD *thd, Name_resolution_context *context_arg, Field *field);
   /*
     If this constructor is used, fix_fields() won't work, because
-    db_name, table_name and column_name are unknown. It's necessary to call
-    reset_field() before fix_fields() for all fields created this way.
+    db_name, table_name and column_name are unknown.
   */
   Item_field(Field *field);
 
@@ -3476,6 +3700,7 @@ class Item_field : public Item_ident {
   }
   Item *get_tmp_table_item(THD *thd) override;
   bool collect_item_field_processor(uchar *arg) override;
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   bool add_field_to_set_processor(uchar *arg) override;
   bool add_field_to_cond_set_processor(uchar *) override;
   bool remove_column_from_bitmap(uchar *arg) override;
@@ -3498,6 +3723,13 @@ class Item_field : public Item_ident {
   Item_equal *find_item_equal(COND_EQUAL *cond_equal) const;
   bool subst_argument_checker(uchar **arg) override;
   Item *equal_fields_propagator(uchar *arg) override;
+  Item *replace_item_field(uchar *) override;
+  /// Argument to update_context
+  struct Context_info {
+    SELECT_LEX *old_block;
+    SELECT_LEX *new_block;
+  };
+  bool update_context(uchar *) override;
   bool set_no_const_sub(uchar *) override;
   Item *replace_equal_field(uchar *) override;
   inline uint32 max_disp_length() { return field->max_display_length(); }
@@ -4971,6 +5203,9 @@ class Item_view_ref final : public Item_ref {
   bool val_json(Json_wrapper *wr) override;
   bool is_null() override;
   bool send(Protocol *prot, String *tmp) override;
+  bool change_context_processor(uchar *arg) override;
+  bool collect_item_field_or_view_ref_processor(uchar *arg) override;
+  Item *replace_item_view_ref(uchar *arg) override;
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
@@ -4997,8 +5232,6 @@ class Item_view_ref final : public Item_ref {
   The ref field may also point to an Item_field instance.
   See also comments of the Item_field::fix_outer_field() function.
 */
-
-class Item_sum;
 
 class Item_outer_ref final : public Item_ref {
   typedef Item_ref super;

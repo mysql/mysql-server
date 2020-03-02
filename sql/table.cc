@@ -2400,8 +2400,9 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
   context->table_list = &tables;
   context->first_name_resolution_table = &tables;
   context->last_name_resolution_table = nullptr;
+  Item_ident::Change_context ctx(context);
   func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
-                  (uchar *)context);
+                  (uchar *)&ctx);
   save_where = thd->where;
 
   std::string where_str;
@@ -2458,7 +2459,9 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
     (top query, subquery). So, underlying items are not situated in a defined
     place: give them a null context.
   */
-  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX, nullptr);
+  Item_ident::Change_context nul_ctx(nullptr);
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
+                  (uchar *)&nul_ctx);
 
   if (unlikely(error)) {
     DBUG_PRINT("info",
@@ -4423,21 +4426,30 @@ bool TABLE_LIST::merge_underlying_tables(SELECT_LEX *select) {
 /**
    Reset a table before starting optimization
 */
-void TABLE_LIST::reset() {
-  // @todo If TABLE::init() was always called, this would not be necessary:
-  table->const_table = false;
-  table->set_not_started();
+void TABLE::reset() {
+  const_table = false;
+  nullable = false;
+  set_not_started();
 
-  table->force_index = force_index;
-  table->force_index_order = table->force_index_group = false;
-  table->covering_keys = table->s->keys_for_keyread;
-  table->merge_keys.clear_all();
-  table->quick_keys.clear_all();
-  table->possible_quick_keys.clear_all();
-  table->set_keyread(false);
-  table->reginfo.not_exists_optimize = false;
-  table->m_record_buffer = Record_buffer{0, 0, nullptr};
-  memset(table->const_key_parts, 0, sizeof(key_part_map) * table->s->keys);
+  force_index = force_index;
+  force_index_order = false;
+  force_index_group = false;
+  merge_keys.clear_all();
+  quick_keys.clear_all();
+  covering_keys = s->keys_for_keyread;
+  possible_quick_keys.clear_all();
+  set_keyread(false);
+  no_keyread = false;
+  reginfo.not_exists_optimize = false;
+  reginfo.impossible_range = false;
+  m_record_buffer = Record_buffer{0, 0, nullptr};
+  memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
+  insert_values = nullptr;
+  autoinc_field_has_explicit_non_null_value = false;
+
+  file->ft_handler = nullptr;
+
+  pos_in_table_list = nullptr;
 }
 
 /**
@@ -5135,6 +5147,10 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   */
   Item *item = new Item_view_ref(context, field_ref, view->alias, table_name,
                                  name, view);
+  if (item != nullptr && (*field_ref)->type() == Item::FIELD_ITEM &&
+      down_cast<Item_field *>(*field_ref)->table_ref->m_was_scalar_subquery)
+    // This logic can be removed after WL#6570
+    thd->alias_rollback(field_ref);
   return item;
 }
 

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,6 +232,25 @@ class Item_subselect : public Item_result_field {
     return true;
   }
 
+  /// argument used by walk method collect_scalar_subqueries ("css")
+  struct Collect_subq_info {
+    ///< accumulated all subq (or aggregates) found
+    std::vector<Item_subselect *> list;
+    SELECT_LEX *m_select{nullptr};
+    Collect_subq_info(SELECT_LEX *owner) : m_select(owner) {}
+    bool contains(SELECT_LEX_UNIT *candidate) {
+      for (auto sq : list) {
+        if (sq->unit == candidate) return true;
+      }
+      return false;
+    }
+  };
+
+  bool collect_subqueries(uchar *) override;
+  Item *replace_item_field(uchar *arg) override;
+  Item *replace_item_view_ref(uchar *arg) override;
+  Item *replace_item(Item_transformer t, uchar *arg);
+
   friend class Query_result_interceptor;
   friend class Item_in_optimizer;
   friend bool Item_field::fix_fields(THD *, Item **);
@@ -254,6 +273,8 @@ class Item_singlerow_subselect : public Item_subselect {
   Item_cache *value, **row;
   bool no_rows;  ///< @c no_rows_in_result
  public:
+  TABLE_LIST *m_derived_replacement{nullptr};  ///< when subquery is transformed
+
   Item_singlerow_subselect(SELECT_LEX *select_lex);
   Item_singlerow_subselect()
       : Item_subselect(), value(nullptr), row(nullptr), no_rows(false) {}
@@ -298,6 +319,27 @@ class Item_singlerow_subselect : public Item_subselect {
   bool null_inside() override;
   void bring_value() override;
 
+  bool collect_scalar_subqueries(uchar *) override;
+
+  /**
+    Argument for walk method replace_scalar_subquery
+  */
+  struct Scalar_subquery_replacement {
+    Item_singlerow_subselect *m_target;  ///< subquery to be replaced with field
+    Field *m_field;                      ///< the replacement field
+    SELECT_LEX *m_outer_select;          ///< The transformed query block.
+    SELECT_LEX *m_inner_select;  ///< The immediately surrounding query block.
+                                 ///< This will be the transformed block or a
+                                 ///< subquery of it
+    Scalar_subquery_replacement(Item_singlerow_subselect *target, Field *field,
+                                SELECT_LEX *select)
+        : m_target(target),
+          m_field(field),
+          m_outer_select(select),
+          m_inner_select(select) {}
+  };
+
+  Item *replace_scalar_subquery(uchar *arge) override;
   /**
     This method is used to implement a special case of semantic tree
     rewriting, mandated by a SQL:2003 exception in the specification.
@@ -311,7 +353,6 @@ class Item_singlerow_subselect : public Item_subselect {
     @return the SELECT_LEX structure that was given in the constructor.
   */
   SELECT_LEX *invalidate_and_restore_select_lex();
-
   friend class Query_result_scalar_subquery;
 };
 
@@ -384,6 +425,11 @@ class Item_exists_subselect : public Item_subselect {
       NULL              - for all other locations. It also means that the
                           predicate is not a candidate for transformation.
     See also THD::emb_on_expr_nest.
+
+    As for the second case above (the join nest pointer), note that this value
+    may change if scalar subqueries are transformed to derived tables,
+    cf. transform_scalar_subqueries_to_derived, due to the need to build new
+    join nests. The change is performed in SELECT_LEX::nest_derived.
   */
   TABLE_LIST *embedding_join_nest{nullptr};
 
@@ -608,6 +654,7 @@ class Item_in_subselect : public Item_exists_subselect {
   bool subquery_allows_materialization(THD *thd, SELECT_LEX *select_lex,
                                        const SELECT_LEX *outer);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
+  Item *transform(Item_transformer transformer, uchar *arg) override;
   bool exec(THD *thd) override;
   longlong val_int() override;
   double val_real() override;

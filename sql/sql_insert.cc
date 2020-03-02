@@ -1018,7 +1018,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   lex->in_update_value_clause = false;
 
   // first_select_table is the first table after the table inserted into
-  TABLE_LIST *const first_select_table = table_list->next_local;
+  TABLE_LIST *first_select_table = table_list->next_local;
 
   // Setup the insert table only
   table_list->next_local = nullptr;
@@ -1315,7 +1315,13 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
 
     if (unit->prepare(thd, result, added_options, 0)) return true;
 
-    // Restore the insert table but not the name resolution context
+    /* Restore the insert table but not the name resolution context */
+    if (first_select_table != select->table_list.first) {
+      // If we have transformation of the top block table list
+      // by SELECT_LEX::transform_grouped_to_derived, we must update:
+      first_select_table = select->table_list.first;
+      ctx_state.update_next_local(first_select_table);
+    }
     select->table_list.first = context->table_list = table_list;
     table_list->next_local = first_select_table;
 
