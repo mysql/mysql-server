@@ -103,7 +103,6 @@ class Parallel_reader_adapter {
 
   /** Send a batch of records.
   @param[in]  ctx       Parallel read context.
-  @param[in]  thread_id ID of the thread.
   @param[in]  n_recs    Number of records to send.
   @return DB_SUCCESS or error code. */
   dberr_t send_batch(const Parallel_reader::Ctx *ctx, uint64_t n_recs)
