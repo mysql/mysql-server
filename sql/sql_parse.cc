@@ -2619,7 +2619,11 @@ static inline void binlog_gtid_end_transaction(THD *thd) {
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
-  @param first_level
+  @param first_level               whether invocation of the
+  mysql_execute_command() is a top level query or sub query. At the highest
+  level, first_level value is true. Stored procedures can execute sub queries.
+  In such cases first_level (recursive mysql_execute_command() call) will be
+  false.
 
   @todo this is workaround. right way will be move invalidating in
     the unlock procedure.

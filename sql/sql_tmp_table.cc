@@ -266,8 +266,8 @@ static Field *create_tmp_field_for_schema(const Item *item, TABLE *table) {
   @param table_cant_handle_bit_fields if table can't handle bit-fields and
   bit-fields shall be converted to long @see
   Temp_table_param::bit_fields_as_long
-  @param make_copy_field if true, a copy of the result field should be stored in
-  from_field,  otherwise the item should be wrapped in Func_ptr and stored in
+  @param make_copy_field if true, a pointer of the result field should be stored
+  in from_field,  otherwise the item should be wrapped in Func_ptr and stored in
   copy_func
   @param copy_result_field true <=> save item's result_field in the from_field
                        arg, before changing it. This is used for a window's
