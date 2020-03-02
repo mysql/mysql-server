@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,7 @@ int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
 int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
                                  const char * db, const char * tabname);
+void ndbcluster_handle_incomplete_binlog_setup();
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl,
                         bool full, bool allow_hardcoded_name = true);
