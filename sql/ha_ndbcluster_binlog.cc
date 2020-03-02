@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,7 @@ extern my_bool opt_ndb_log_transaction_id;
 extern my_bool log_bin_use_v1_row_events;
 extern my_bool opt_ndb_log_empty_update;
 extern my_bool opt_ndb_clear_apply_status;
+extern my_bool opt_ndb_log_fail_terminate;
 
 bool ndb_log_empty_epochs(void);
 
@@ -1482,6 +1483,12 @@ int find_all_files(THD *thd, Ndb* ndb)
   }
   while (unhandled && retries);
 
+  if (unhandled)
+  {
+    sql_print_error("NDB Binlog: Failed setting up binlogging");
+    ndbcluster_handle_incomplete_binlog_setup();
+  }
+
   DBUG_RETURN(-(skipped + unhandled));
 }
 
@@ -2592,7 +2599,7 @@ class Ndb_schema_event_handler {
   }; //class Ndb_schema_op
 
   static void
-  print_could_not_discover_error(THD *thd,
+  handle_could_not_discover_error(THD *thd,
                                  const Ndb_schema_op *schema)
   {
     sql_print_error("NDB Binlog: Could not discover table '%s.%s' from "
@@ -2601,6 +2608,10 @@ class Ndb_schema_event_handler {
                     schema->db, schema->name, schema->query,
                     schema->node_id, my_errno());
     thd_print_warning_list(thd, "NDB Binlog");
+    if (opt_ndb_log_fail_terminate)
+    {
+      ndbcluster_handle_incomplete_binlog_setup();
+    }
   }
 
 
@@ -3281,7 +3292,7 @@ class Ndb_schema_event_handler {
     // Instantiate a new 'share' for the altered table.
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
-      print_could_not_discover_error(m_thd, schema);
+      handle_could_not_discover_error(m_thd, schema);
     }
     DBUG_VOID_RETURN;
   }
@@ -3637,7 +3648,7 @@ class Ndb_schema_event_handler {
 
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
-      print_could_not_discover_error(m_thd, schema);
+      handle_could_not_discover_error(m_thd, schema);
     }
 
     DBUG_VOID_RETURN;
@@ -3667,7 +3678,7 @@ class Ndb_schema_event_handler {
 
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
-      print_could_not_discover_error(m_thd, schema);
+      handle_could_not_discover_error(m_thd, schema);
     }
 
     mysqld_close_cached_tables_referenced_by(schema->db, schema->name);
@@ -4849,6 +4860,13 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
 }
 
 
+void ndbcluster_handle_incomplete_binlog_setup()
+{
+  sql_print_error("NDB Binlog: ndbcluster_handle_incomplete_binlog_setup");
+  if (opt_ndb_log_fail_terminate)
+    kill_mysql();
+}
+
 /*
   Common function for setting up everything for logging a table at
   create/discover.
@@ -4955,14 +4973,20 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     if (ndbcluster_create_event_ops(thd, share,
                                     ndbtab, event_name.c_ptr()))
     {
-      sql_print_error("NDB Binlog:"
+      sql_print_error("NDB Binlog: "
                       "FAILED CREATE (DISCOVER) EVENT OPERATIONS Event: %s",
                       event_name.c_ptr());
       /* a warning has been issued to the client */
       break;
     }
+    DBUG_EXECUTE_IF("ndb_binlog_fail_setup", { ndbcluster_handle_incomplete_binlog_setup(); });
     DBUG_RETURN(0);
   }
+  /*
+   * Handle failure of setting up binlogging of one table during startup
+   */
+  ndbcluster_handle_incomplete_binlog_setup();
+
   DBUG_RETURN(-1);
 }
 
