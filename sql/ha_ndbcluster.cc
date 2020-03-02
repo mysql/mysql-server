@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -19170,6 +19170,16 @@ static MYSQL_SYSVAR_STR(
   NULL                              /* default */
 );
 
+my_bool opt_ndb_log_fail_terminate;
+static MYSQL_SYSVAR_BOOL(
+  log_fail_terminate,               /* name */
+  opt_ndb_log_fail_terminate,       /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Terminate mysqld if complete logging of all found row events is not possible",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0                                 /* default */
+);
 
 static MYSQL_SYSVAR_STR(
   mgmd_host,                        /* name */
@@ -19400,6 +19410,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(log_empty_epochs),
   MYSQL_SYSVAR(log_apply_status),
   MYSQL_SYSVAR(log_transaction_id),
+  MYSQL_SYSVAR(log_fail_terminate),
   MYSQL_SYSVAR(clear_apply_status),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
