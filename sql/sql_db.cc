@@ -1370,7 +1370,8 @@ done:
                                   and "length" is updated accordingly.
                                   Otherwise "str" is set to NULL and
                                   "length" is set to 0.
-  @param          force_switch    @see mysql_change_db()
+  @param          force_switch    if the change of the current database shall be
+  forced @see mysql_change_db()
   @param[out]     cur_db_changed  out-flag to indicate whether the current
                                   database has been changed (valid only if
                                   the function suceeded)

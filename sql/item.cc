@@ -23,6 +23,7 @@
 
 #include "sql/item.h"
 
+#include "my_compiler.h"
 #include "my_config.h"
 
 #include <stdio.h>
@@ -5735,7 +5736,7 @@ void Item_empty_string::make_field(Send_field *tmp_field) {
 
 /**
   Verifies that the input string is well-formed according to its character set.
-  @param str
+  @param str          input string to verify
   @param send_error   If true, call my_error if string is not well-formed.
   @param truncate     If true, set to null/truncate if not well-formed.
 
@@ -6257,7 +6258,8 @@ static type_conversion_status save_int_value_in_field(Field *field, longlong nr,
   @retval !TYPE_OK  Warning/error as indicated by type_conversion_status enum
                     value
 */
-type_conversion_status Item_int::save_in_field_inner(Field *field, bool) {
+type_conversion_status Item_int::save_in_field_inner(
+    Field *field, bool no_conversions MY_ATTRIBUTE((unused))) {
   return save_int_value_in_field(field, val_int(), null_value, unsigned_flag);
 }
 

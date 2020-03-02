@@ -986,7 +986,7 @@ void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
    If the security context is not that of the connected user, inform the trace
    system that a privilege is missing. With one exception: see below.
 
-   @param thd
+   @param  thd         the THD
 
    This serves to eliminate the following issue.
    Any information readable by a SELECT may theoretically end up in
@@ -1050,7 +1050,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
 
   For triggers, see note in sp_head::execute_trigger().
 
-  @param thd
+  @param thd The THD
   @param sp  routine to check
  */
 void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp);

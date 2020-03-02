@@ -1571,7 +1571,7 @@ class Json_wrapper {
   /**
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
-    @param[in]  msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @param[out] err    true <=> error occur during coercion
@@ -1591,7 +1591,7 @@ class Json_wrapper {
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
-    @param[in]  msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @param[out] err    true <=> error occur during coercion
@@ -1609,7 +1609,7 @@ class Json_wrapper {
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
-    @param[in]  msgnam to use in error message in conversion failed
+    @param[in]  msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @param[out] err    true <=> error occur during coercion
@@ -1627,7 +1627,7 @@ class Json_wrapper {
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @param[in] date_flags_arg Flags to use for string -> date conversion
@@ -1641,7 +1641,7 @@ class Json_wrapper {
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param msgnam
+    @param msgnam  to use in error message if conversion failed
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
 

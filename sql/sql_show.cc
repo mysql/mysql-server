@@ -1013,7 +1013,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   Print "ON UPDATE" clause of a field into a string.
 
   @param field             The field to generate ON UPDATE clause for.
-  @param val
+  @param val               String to write ON UPDATE clause to to
   @param lcase             Whether to print in lower case.
   @return                  false on success, true on error.
 */

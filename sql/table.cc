@@ -5519,7 +5519,7 @@ void TABLE::mark_columns_used_by_index(uint index) {
   column_bitmaps_set(bitmap, bitmap);
 }
 
-/*
+/**
   mark columns used by key, but don't reset other fields
 
   The parameter key_parts is used for controlling how many of the
@@ -5807,7 +5807,7 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
   Allocate space for keys, for a materialized derived table.
 
   @param key_count     Number of keys to allocate.
-  @param modify_share  Do modificationts to TABLE_SHARE.
+  @param modify_share  Do modifications to TABLE_SHARE.
 
   When modifying TABLE, modifications to TABLE_SHARE are needed, so that both
   objects remain consistent. Even if several TABLEs point to the same
@@ -5858,7 +5858,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share) {
   @param key_name       name of the key
   @param invisible      If true, set up bitmaps so the key is never used by
                         this TABLE
-  @param modify_share   @see alloc_tmp_keys
+  @param modify_share   Do modifications to TABLE_SHARE.  @see alloc_tmp_keys
 
   @details
   Creates a key for this table from fields which corresponds the bits set to 1
@@ -6003,7 +6003,7 @@ uint TABLE_SHARE::find_first_unused_tmp_key(const Key_map &k) {
   the first not-yet-used position (which is lower).
 
   @param old_idx        source position
-  @param modify_share   @see alloc_tmp_keys
+  @param modify_share   Do modifications to TABLE_SHARE. @see alloc_tmp_keys
 */
 void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
   if (modify_share)
@@ -6035,7 +6035,8 @@ void TABLE::copy_tmp_key(int old_idx, bool modify_share) {
   For a materialized derived table: after copy_tmp_key() has copied all
   definitions of used KEYs, in TABLE::key_info we have a head of used keys
   followed by a tail of unused keys; this function chops the tail.
-  @param modify_share   @see alloc_tmp_keys
+
+  @param modify_share   Do modifications to TABLE_SHARE. @see alloc_tmp_keys
 */
 void TABLE::drop_unused_tmp_keys(bool modify_share) {
   if (modify_share) {
@@ -6100,16 +6101,13 @@ void TABLE::mark_columns_needed_for_insert(THD *thd) {
     mark_check_constraint_columns(false);
 }
 
-/*
+/**
   @brief Update the write/read_set for generated columns
          when doing update and insert operation.
 
   @param        is_update  true means the operation is UPDATE.
                            false means it's INSERT.
 
-  @return       void
-
-  @detail
 
   Prerequisites for INSERT:
 
@@ -6196,7 +6194,7 @@ void TABLE::mark_generated_columns(bool is_update) {
   if (bitmap_updated) file->column_bitmaps_signal();
 }
 
-/*
+/**
   Update the read_map with columns needed for check constraint evaluation when
   doing update and insert operations.
 
@@ -6207,8 +6205,6 @@ void TABLE::mark_generated_columns(bool is_update) {
 
   @param        is_update  true means the operation is UPDATE.
                            false means it's INSERT.
-
-  @return       void
 */
 void TABLE::mark_check_constraint_columns(bool is_update) {
   DBUG_ASSERT(table_check_constraint_list != nullptr);
@@ -6579,16 +6575,20 @@ int TABLE_LIST::fetch_number_of_rows() {
   Each generated key consists of fields of derived table used in equi-join.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 and tt.f2=t1.f4;
+  @endcode
 
   In this case for the derived table tt one key will be generated. It will
   consist of two parts f1 and f2.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=t1.f3 JOIN
                   t2 ON tt.f2=t2.f4;
+  @endcode
 
   In this case for the derived table tt two keys will be generated.
   One key over f1 field, and another key over f2 field.
@@ -6597,8 +6597,10 @@ int TABLE_LIST::fetch_number_of_rows() {
   See also JOIN::finalize_derived_keys function.
   Example:
 
+  @code
     SELECT * FROM (SELECT f1, f2, count(*) FROM t1 GROUP BY f1) tt JOIN
                   t1 ON tt.f1=a_function(t1.f3);
+  @endcode
 
   In this case for the derived table tt one key will be generated. It will
   consist of one field - f1.
@@ -6606,31 +6608,33 @@ int TABLE_LIST::fetch_number_of_rows() {
   It includes all fields referenced by other tables.
 
   Implementation is split in three steps:
-    gather information on all used fields of derived tables/view and
+
+  1.  gather information on all used fields of derived tables/view and
       store it in lists of possible keys, one per a derived table/view.
-    add keys to result tables of derived tables/view using info from above
+  2.  add keys to result tables of derived tables/view using info from above
       lists.
-    (...Planner selects best key...)
-    drop unused keys from the table.
+      (...Planner selects best key...)
+  3. drop unused keys from the table.
 
   The above procedure is implemented in 4 functions:
-    TABLE_LIST::update_derived_keys
+  1. TABLE_LIST::update_derived_keys()
                           Create/extend list of possible keys for one derived
                           table/view based on given field/used tables info.
                           (Step one)
-    JOIN::generate_derived_keys
+  2. JOIN::generate_derived_keys()
                           This function is called from update_ref_and_keys
                           when all possible info on keys is gathered and it's
                           safe to add keys - no keys or key parts would be
                           missed.  Walk over list of derived tables/views and
                           call to TABLE_LIST::generate_keys to actually
                           generate keys. (Step two)
-    TABLE_LIST::generate_keys
+  3. TABLE_LIST::generate_keys()
                           Walks over list of possible keys for this derived
                           table/view to add keys to the result table.
-                          Calls to TABLE::add_tmp_key to actually add
-                          keys (i.e. KEY objects in TABLE::key_info). (Step two)
-    TABLE::add_tmp_key    Creates one index description according to given
+                          Calls to TABLE::add_tmp_key() to actually add
+                          keys (i.e. KEY objects in TABLE::key_info). (Step
+  two)
+  4. TABLE::add_tmp_key()   Creates one index description according to given
                           bitmap of used fields. (Step two)
     [ Planner runs and possibly chooses one key, stored in Key_use->key ]
     JOIN::finalize_derived_keys Walk over list of derived tables/views to
@@ -6639,21 +6643,21 @@ int TABLE_LIST::fetch_number_of_rows() {
   This design is used for derived tables, views and CTEs. As a CTE
   can be multi-referenced, some points are worth noting:
 
-  1) Definitions
+  ## Definitions
 
   - let's call the CTE 'X'
   - Key creation/deletion happens in a window between the start of
   update_derived_keys() and the end of finalize_derived_keys().
 
-  2) Key array locking
+  ## Key array locking
 
   - Evaluation of constant subqueries (and thus their optimization)
   may happen either before, inside, or after the window above:
-    * an example of "before": WHERE 1=(subq)), due to optimize_cond()
-    * an example of "inside": WHERE col<>(subq), as make_join_plan()
+    * an example of "before": `WHERE 1=(subq))`, due to optimize_cond()
+    * an example of "inside": `WHERE col<>(subq)`, as make_join_plan()
   calls estimate_rowcount() which calls the range optimizer for <>, which
   evaluates subq
-    * an example of "after": WHERE key_col=(subq), due to
+    * an example of "after": `WHERE key_col=(subq)`, due to
   create_ref_for_key().
   - let's say that a being-optimized query block 'QB1' is entering that
   window; other query blocks are QB2, etc; let's say (subq) above is QB2, a
@@ -6666,18 +6670,22 @@ int TABLE_LIST::fetch_number_of_rows() {
   it yet; only that query block is allowed to read/write possible keys for
   this table.
 
-  3) Key array growth
+  ## Key array growth
 
   - let's say that a being-optimized query block 'QB1' is entering the
   window; other query blocks are QB2 (not necessarily the same QB2 as in
   previous paragraph), etc.
   - let's call "local" the references to X in QB1, let's call "nonlocal" the
   ones in other query blocks. For example,
+
+  @code
   with X(n) as (select 1)
   select /+ QB_NAME(QB2) *_/ n from X as X2
   where X2.n = (select /+* QB_NAME(QB1) *_/ X1.n from X as X1)
   union
   select n+2 from X as X3;
+  @endcode
+
   QB1 owns the window, then X1 is local, X2 and X3 are nonlocal.
   - when QB1 enters the window, update_derived_keys() starts for the local
   reference X1, other references to X may already have keys,
@@ -6691,9 +6699,11 @@ int TABLE_LIST::fetch_number_of_rows() {
   to the left, "E" meaning "an existing key, created by previous
   optimizations", "-" meaning "an empty cell created by alloc_keys()".
 
+  @verbatim
   EEEEEEEEEE-----------
             ^ s->first_unused_keys
             ^ s->keys
+  @endverbatim
 
   - generate_keys() extends the key_info array and adds "possible" keys to the
   end. "Possible" is defined as "not yet existing", "might be dropped in the
@@ -6705,9 +6715,12 @@ int TABLE_LIST::fetch_number_of_rows() {
   can be left to the window's owner. Key_info array now is ("P" means
   "possible key"):
 
+  @verbatim
   EEEEEEEEEEPPPPPPP---
             ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
+
 
   - All possible keys are unused, at this stage.
   - Planner selects the best key for each local reference, among existing and
@@ -6716,27 +6729,34 @@ int TABLE_LIST::fetch_number_of_rows() {
   of (existing and possible) keys which the Planner has chosen for them. We
   call this list the list of locally-used keys, marked below with "!":
 
+  @verbatim
       !       !  !
   EEEEEEEEEEPPPPPPP---
             ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
 
   - Any possible key which isn't locally-used is unnecessary.
 
   - finalize_derived_keys() re-organizes the possible locally-used keys and
   unnecessary keys, and does needed updates to TABLEs' bitmaps.
 
+  @verbatim
       !     !!
   EEEEEEEEEEPPPPPPP---
               ^ s->first_unused_keys
                    ^ s->keys
+  @endverbatim
 
   The locally-used keys become existing keys and are made visible to nonlocal
   references. The unnecessary keys are chopped.
+
+  @verbatim
       !     !!
   EEEEEEEEEEEE-----
               ^ s->first_unused_keys
               ^ s->keys
+  @endverbatim
 
   - After that, another query block can be optimized.
   - So, query block after query block, optimization phases grow the key_info
@@ -6746,8 +6766,8 @@ int TABLE_LIST::fetch_number_of_rows() {
   which freezes the key definition: other query blocks will not be allowed to
   add keys.
 
-  @return true  OOM
-  @return false otherwise
+  @retval true  OOM
+  @retval false otherwise
 */
 
 static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
@@ -6789,7 +6809,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   return false;
 }
 
-/*
+/**
   @brief
   Update derived table's list of possible keys
 

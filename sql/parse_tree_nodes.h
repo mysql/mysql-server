@@ -404,12 +404,12 @@ class PT_table_reference : public Parse_tree_node {
   /**
     Lets us build a parse tree top-down, which is necessary due to the
     context-dependent nature of the join syntax. This function adds
-    the `<table_ref>` cross join as the left-most leaf in this join tree
+    the @<table_ref@> cross join as the left-most leaf in this join tree
     rooted at this node.
 
     @todo: comment on non-join PT_table_reference objects
 
-    @param cj This `<table ref>` will be added if it represents a cross join.
+    @param cj This @<table ref@> will be added if it represents a cross join.
 
     @return The new top-level join.
   */

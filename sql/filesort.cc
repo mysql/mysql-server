@@ -1788,7 +1788,7 @@ struct Merge_chunk_greater {
 /**
   Merge buffers to one buffer.
 
-  @param thd
+  @param thd            thread context
   @param param          Sort parameter
   @param from_file      File with source data (Merge_chunks point to this file)
   @param to_file        File to write the sorted result data.

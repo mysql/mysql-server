@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -415,7 +415,7 @@ namespace {
    SHOW CREATE VIEW.
    If a privilege is missing, notifies the trace system.
 
-   @param thd
+   @param thd thread context
    @param tbl list of tables to check
 */
 void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl) {

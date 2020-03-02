@@ -2156,13 +2156,14 @@ before_trg_err:
 }
 
 /**
-  Check that all fields with arn't null_fields are used
+  Check that all fields with aren't null_fields are used
 
   @param thd    thread handler
-  @param entry
-  @param table_list
+  @param entry  table that's checked
+  @param table_list top-level table or view, used for generating error or
+  warning message
 
-  @returns true if all fields are given values
+  @retval true if all fields are given values
 */
 
 bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,

@@ -291,7 +291,7 @@ bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
   Convert longlong value to datetime value with a warning.
   @param       nr      The value to convert from.
   @param[out]  ltime   The variable to convert to.
-  @param       flags
+  @param       flags   Conversion flags
 
   @return False on success, true on error.
 */
@@ -569,8 +569,8 @@ bool str_to_time_with_warn(String *str, MYSQL_TIME *l_time) {
   Convert time to datetime.
 
   The time value is added to the current datetime value.
-  @param thd
-  @param [in] ltime    Time value to convert from.
+  @param thd            Thread context
+  @param [in] ltime     Time value to convert from.
   @param [out] ltime2   Datetime value to convert to.
 */
 void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2) {
@@ -585,10 +585,8 @@ void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2) {
    Return format string according format name.
    If name is unknown, result is NULL
 
-   @param format
-   @param type
-
-   @return False on success, true on error.
+   @returns format string according format name.
+   @retval NULL if name is unknown.
 */
 const char *get_date_time_format_str(const Known_date_time_format *format,
                                      enum_mysql_timestamp_type type) {

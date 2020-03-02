@@ -1082,8 +1082,8 @@ class Deps_of_remaining_lateral_derived_tables {
   /**
      Constructor.
      @param j                the JOIN
-     @param plan_tables_arg  @see
-                             JOIN::deps_of_remaining_lateral_derived_tables
+     @param plan_tables_arg  table_map of derived tables @see
+     JOIN::deps_of_remaining_lateral_derived_tables
   */
   Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
       : join(j),

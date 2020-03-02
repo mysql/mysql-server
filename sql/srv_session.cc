@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -344,9 +344,8 @@ class Mutexed_map_thd_srv_session {
 
     @param key Key of the element
 
-    @return
-      value of the element
-      NULL  if not found
+    @return value of the element
+    @retval NULL  if not found
   */
   Srv_session *find(const THD *key) {
     rwlock_scoped_lock lock(&LOCK_collection, false, __FILE__, __LINE__);
@@ -360,11 +359,10 @@ class Mutexed_map_thd_srv_session {
 
     @param key     key
     @param plugin  secondary key
-    @param session
+    @param session object to be added to the collection
 
-    @return
-      false  success
-      true   failure
+    @retval false  success
+    @retval true   failure
   */
   bool add(const THD *key, const void *plugin, Srv_session *session) {
     rwlock_scoped_lock lock(&LOCK_collection, true, __FILE__, __LINE__);

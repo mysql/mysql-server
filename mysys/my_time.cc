@@ -2237,10 +2237,6 @@ uint calc_week(const MYSQL_TIME &my_time, uint week_behaviour, uint *year) {
 
 /**
    Predicate for the validity of a period.
-
-   @param period
-   @retval true if ?
-   @retval false if ?
  */
 bool valid_period(long long period) {
   if (period <= 0) return false;

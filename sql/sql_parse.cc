@@ -5856,9 +5856,10 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
-  @param index_hints_arg
-  @param partition_names
-  @param option
+  @param index_hints_arg a list of index hints(FORCE/USE/IGNORE INDEX).
+  @param partition_names List to carry partition names from PARTITION (...)
+  clause in statement
+  @param option         Used by cache index
   @param pc             Current parsing context, if available.
 
   @return Pointer to TABLE_LIST element added to the total table list

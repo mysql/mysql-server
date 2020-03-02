@@ -4419,8 +4419,8 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
   and_level
 
   @param thd      Thread handler
-  @param save_list
-  @param and_father
+  @param save_list  saved list of COND_CMP
+  @param and_father father of AND op
   @param cond       Condition where fields are replaced with constant values
   @param field      The field that will be substituted
   @param value      The substitution value
@@ -4508,8 +4508,8 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
   Propagate constant values in a condition
 
   @param thd        Thread handler
-  @param save_list
-  @param and_father
+  @param save_list  saved list of COND_CMP
+  @param and_father father of AND op
   @param cond       Condition for which constant values are propagated
 
   @returns false if success, true if error
@@ -6887,7 +6887,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
     @param  eq_func        True if we used =, <=> or IS NULL
     @param  val            Value used for comparison with field
                            Is NULL for BETWEEN and IN
-    @param  num_values
+    @param  num_values     Number of elements in the array of values
     @param  usable_tables  Tables which can be used for key optimization
     @param  sargables      IN/OUT Array of found sargable candidates
 
@@ -7759,8 +7759,8 @@ static void trace_indexes_added_group_distinct(Opt_trace_context *trace,
   index, it will not chose it (so minor calculation cost added but not
   wrong result) and b) it applies only to corner cases.
 
-  @param join
-  @param join_tab
+  @param join      the current join
+  @param join_tab  joined table
 */
 
 static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
@@ -8042,7 +8042,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
 
   @param thd         THD pointer, for memory allocation
   @param keyparts    Number of key parts in the primary key
-  @param fields
+  @param fields      fields
   @param outer_exprs List of items used for key lookup
 
   @return Pointer to created keyuse array, or NULL if error
@@ -8216,7 +8216,7 @@ void JOIN::make_outerjoin_info() {
   to root_tab, which is the first inner table of an outer join,
   or NULL if the condition being handled is the WHERE clause.
 
-  @param join
+  @param join      the current join
   @param idx       index of the first inner table for the inner-most outer join
   @param cond      the predicate to be guarded (must be set)
   @param root_idx  index of the inner table to stop at
@@ -10087,7 +10087,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
   @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
-  @param data
+  @param data                 data that's passed through to to find_func
 
   @retval
     1                    found

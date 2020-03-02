@@ -8699,12 +8699,17 @@ bool resolve_var_assignments(THD *thd, LEX *lex) {
                                 whether the expressions are selected, inserted
                                 or updated, or no operation is done.
                                 will also decide inclusion in read/write maps.
-  @param sum_func_list
+  @param[in,out] sum_func_list  If not nullptr, this is a pointer to
+                                SELECT::all_fields used by Item::split_sum_func
+                                which may add hidden fields to it.  See also
+                                description in its helper method
+                                Item::split_sum_func2.
   @param allow_sum_func         true if set operations are allowed in context.
   @param column_update          if true, reject expressions that do not resolve
                                 to a base table column
 
-  @returns false if success, true if error
+  @retval false if success
+  @retval true if error
 
   @note The function checks updatability/insertability for the table before
         checking column privileges, for consistent error reporting.

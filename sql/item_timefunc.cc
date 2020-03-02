@@ -169,7 +169,7 @@ static const Date_time_format time_24hrs_format = {{0}, {"%H:%i:%S", 8}};
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
-  @param date_time_type
+  @param date_time_type "time" or "datetime", used for the error/warning msg
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound

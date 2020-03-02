@@ -615,7 +615,7 @@ Json_dom_ptr Json_dom::parse(const char *text, size_t length,
   represent decimal or date/time values. For that, look into the
   Value an retrive field_type.
 
-  @param[in]  bintype
+  @param[in]  bintype type of json_binary
   @returns the JSON_dom JSON type.
 */
 static enum_json_type bjson2json(const json_binary::Value::enum_type bintype) {

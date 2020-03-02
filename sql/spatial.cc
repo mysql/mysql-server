@@ -429,7 +429,8 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
   object.
   @param init_stream Whether set WKB buffer pointer to returned Geometry
   object.
-  @param check_trailing
+  @param check_trailing Whether to flag an error (by returning nullptr) if there
+  are trailing bytes in the string.
   @return A Geometry object with data specified by the WKT.
  */
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
@@ -604,7 +605,7 @@ class Geometry_well_formed_checker : public WKB_scanner_event_handler {
 
     @param type Expected geometry type. If set to
                 Geometry::wkb_invalid_type, any geometry is allowed.
-    @param required_byte_order
+    @param required_byte_order The expected byted order
    */
   Geometry_well_formed_checker(Geometry::wkbType type,
                                Geometry::wkbByteOrder required_byte_order)
@@ -1088,7 +1089,7 @@ bool Geometry::create_point(String *result, wkb_parser *wkb) const {
 /**
   Create a point from coordinates.
 
-  @param [out] result
+  @param [out] result The resulting point
   @param p  coordinates for point
 
   @return  false on success, true on error
@@ -3840,7 +3841,7 @@ static inline Gis_polygon::inner_container_type *inner_rings(
   where we don't convert to a polygon pointer although it is a polygon.
 
   @param g a geometry that must be a polygon.
-  @param inns
+  @param inns The interior rings
  */
 // SUPPRESS_UBSAN Wrong downcast. FIXME
 static inline void set_inner_rings(
@@ -4419,9 +4420,9 @@ exit:
 /// @brief Constructor.
 /// @param ptr points to the geometry's wkb data's 1st byte, right after its
 /// wkb header if any.
-/// @param nbytes the byte order indicated by ptr's wkb header.
-/// @param flags
-/// @param srid
+/// @param nbytes the byte order indicated by @p ptr's wkb header.
+/// @param flags The geometry's flags
+/// @param srid The geometry's SRID
 /// @param is_bg_adapter Whether this object is created to be used by
 ///        Boost Geometry, or to be only used in MySQL code.
 template <typename T>
