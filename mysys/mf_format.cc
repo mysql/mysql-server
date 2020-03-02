@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,8 @@
   @param name file name component.
   @param dir directory component.
   @param extension filename extension
-  @param flag
+  @param flag bitset of 'Bits in last argument of fn_format' from
+  @<my_sys.h@> like MY_REPLACE_DIR
 
   @return to (destination buffer), or nullptr if overflow and
   MY_SAFE_PATH is used.

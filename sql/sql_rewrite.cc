@@ -656,8 +656,8 @@ void Rewriter_user::rewrite_password_reuse(const LEX *lex, String *str) const {
 /**
   Fetch the users from user_list in LEX struct and append them to the String.
 
-  @param [in]       lex
-  @param [in, out]  str
+  @param [in]       lex     LEX struct to check if clause is specified
+  @param [in, out]  str     The string in which clause is suffixed
 */
 void Rewriter_user::rewrite_users(LEX *lex, String *str) const {
   bool comma = false;

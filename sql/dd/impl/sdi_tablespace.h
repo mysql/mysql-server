@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,22 +54,12 @@ namespace sdi_tablespace {
 /**
   Looks up the relevant tablespaces for the table and stores the
   table SDI in each.
-
-  @param thd
-  @param hton
-  @param sdi
-  @param table
-  @param schema
  */
 bool store_tbl_sdi(THD *thd, handlerton *hton, const Sdi_type &sdi,
                    const Table &table, const dd::Schema &schema);
 
 /**
   Stores the tablespace SDI in the tablespace.
-
-  @param hton
-  @param sdi
-  @param tablespace
  */
 bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
                    const Tablespace &tablespace);
@@ -82,11 +72,6 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
   the schema SDI should also be dropped. But leaving them is not a big
   problem as the schema SDIs are small (they only contain the default
   charset for the schema).
-
-  @param thd
-  @param hton
-  @param table
-  @param schema
  */
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
                   const Schema &schema MY_ATTRIBUTE((unused)));

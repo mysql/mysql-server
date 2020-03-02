@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,9 +121,9 @@ Sdi_type serialize(const Schema &schema);
 /**
   Serialize a Table object.
 
-  @param thd
+  @param thd thread context
   @param table object which will be serialized
-  @param schema_name
+  @param schema_name name of the schema
   @return sdi (as json string).
 
 */
@@ -218,8 +218,8 @@ namespace sdi {
   Generic noop for all types that don't have a specific overload. No
   SDIs are written for these types.
 
-  @param thd
-  @param ddo
+  @param thd thread context
+  @param ddo DD object
   @return error status
     @retval false always
  */
@@ -239,7 +239,7 @@ inline bool store(THD *thd MY_ATTRIBUTE((unused)),
   if the schema's SDI file does not exist, or if is missing from the
   tablespace used to store the table.
 
-  @param thd
+  @param thd thread context
   @param t Table object.
 
   @return error status
@@ -256,7 +256,7 @@ bool store(THD *thd, const Table *t);
   handlerton api, or falls back to storing the sdi string in an .SDI
   file in the default case.
 
-  @param thd
+  @param thd thread context
   @param ts     Tablespace object.
 
   @return error status
@@ -270,7 +270,7 @@ bool store(THD *thd, const Tablespace *ts);
   Generic noop for all types that don't have a specific overload. No
   SDIs are removed for these types.
 
-  @param thd
+  @param thd thread context
   @return error status
     @retval false always
  */
@@ -287,7 +287,7 @@ inline bool drop(THD *thd MY_ATTRIBUTE((unused)), const DDT *) {
   tablespace, or falls back to deleting the .SDI file in the default
   case.
 
-  @param thd
+  @param thd thread context
   @param t Table object.
 
   @return error status
@@ -304,9 +304,9 @@ bool drop(THD *thd, const Table *t);
   Hook for SDI cleanup after updating DD object. Generic noop for all
   types that don't have a specific overload.
 
-  @param thd
-  @param old_ddo
-  @param new_ddo
+  @param thd thread context
+  @param old_ddo old DD object
+  @param new_ddo new DD object
   @return error status
     @retval false always
  */
@@ -329,7 +329,7 @@ inline bool drop_after_update(THD *thd MY_ATTRIBUTE((unused)),
   will use the same key even if the names change and the update will
   transactional so then this hook does nothing.
 
-  @param thd
+  @param thd thread context
   @param old_t old Schema object
   @param new_t new Schema object
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -452,7 +452,7 @@ namespace {
   Templated convenience wrapper which first attempts to resolve the
   handlerton using the data dictionary object's engine() string.
 
-  @param thd
+  @param thd    thread context
   @param ddt    Data dictionary object
 
   @return handlerton pointer for this object
@@ -473,7 +473,7 @@ static handlerton *resolve_hton(THD *thd, const DDT &ddt) {
   Covenience function for acquiring the schema and invoking a closure
   which uses the schema object.
 
-  @param thd
+  @param thd thread context
   @param key key to use when acquiring Schema object
   @param clos closure to invoke with the Schema object
   @return error status

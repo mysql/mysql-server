@@ -2714,7 +2714,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
    the table itself (implicit tablespace), then proceeds to acquire
    and check the "ecryption" option in table's tablespaces.
 
-   @param[in] thd
+   @param[in] thd thread context
    @param[in] t table to check
    @param[out] is_general_tablespace Denotes if we found general tablespace.
 

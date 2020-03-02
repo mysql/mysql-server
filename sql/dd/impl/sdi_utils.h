@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,10 +67,10 @@ inline bool checked_return(bool ret) {
   Convenience function for obtaining MDL. Sets up the MDL_request
   struct and populates it, before calling Mdl_context::acquire_lock.
 
-  @param thd
+  @param thd thread context
   @param ns MDL key namespace
-  @param schema_name
-  @param object_name
+  @param schema_name schema name
+  @param object_name object name
   @param mt MDL type
   @param md MDL duration
   @return value from Mdl_context::acquire_lock
@@ -118,7 +118,7 @@ class Closure_error_handler : public Internal_error_handler {
   Set up a custom error handler to use for errors from the execution
   of a closure.
 
-  @param thd
+  @param thd thread context
   @param chc closure which implements the
              Internal_error_handler::handle_condition override
   @param ac closure action for which error conditions should be handled.
