@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -462,43 +462,24 @@ class ha_innobase : public handler {
  private:
   /** @name Multi Range Read interface @{ */
 
-  /** Initialize multi range read @see DsMrr_impl::dsmrr_init
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param mode
-  @param buf */
+  /** Initialize multi range read @see DsMrr_impl::dsmrr_init */
   int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                             uint n_ranges, uint mode,
                             HANDLER_BUFFER *buf) override;
 
-  /** Process next multi range read @see DsMrr_impl::dsmrr_next
-  @param range_info */
+  /** Process next multi range read @see DsMrr_impl::dsmrr_next */
   int multi_range_read_next(char **range_info) override;
 
   /** Initialize multi range read and get information.
   @see ha_myisam::multi_range_read_info_const
-  @see DsMrr_impl::dsmrr_info_const
-  @param keyno
-  @param seq
-  @param seq_init_param
-  @param n_ranges
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info_const */
   ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                       void *seq_init_param, uint n_ranges,
                                       uint *bufsz, uint *flags,
                                       Cost_estimate *cost) override;
 
   /** Initialize multi range read and get information.
-  @see DsMrr_impl::dsmrr_info
-  @param keyno
-  @param n_ranges
-  @param keys
-  @param bufsz
-  @param flags
-  @param cost */
+  @see DsMrr_impl::dsmrr_info */
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags,
                                 Cost_estimate *cost) override;

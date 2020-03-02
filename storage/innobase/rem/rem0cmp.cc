@@ -690,7 +690,7 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
 }
 
 /** Get the pad character code point for a type.
-@param[in]	type
+@param[in]	type SQL data type
 @return		pad character code point
 @retval		ULINT_UNDEFINED if no padding is specified */
 UNIV_INLINE
