@@ -1,0 +1,89 @@
+-- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
+
+#
+#  Test autoincrement behaviours with remap column offset
+#
+
+create table t1 (a bigint auto_increment primary key,
+                 d int) engine = ndb;
+create table t2 (a int auto_increment primary key,
+                 d int) engine = ndb;
+
+insert into t1 values (400,0), (401,1), (402,2), (403,3);
+insert into t2 values (100,0), (101,1), (102,2), (103,3);
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+select table_name, auto_increment 
+  from information_schema.tables where table_schema='test';
+
+--echo Run backup
+--source include/ndb_backup.inc
+
+--echo Restore with positive offset of 200
+--let remap_args = -x test.t1.a:offset:200
+--let remap_args = $remap_args -x test.t2.a:offset:200
+truncate test.t1;
+truncate test.t2;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect that next autoincrement value
+--echo has moved forward accordingly 
+
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+show create table t1;
+show create table t2;
+
+--echo Restore with negative offset of 50
+--let remap_args = -x test.t1.a:offset:-50
+--let remap_args = $remap_args -x test.t2.a:offset:-50
+truncate test.t1;
+truncate test.t2;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect that next autoincrement value has *not*
+--echo moved back
+
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+show create table t1;
+show create table t2;
+
+--echo Restore with negative offset of 200
+--let remap_args = -x test.t1.a:offset:-200
+--let remap_args = $remap_args -x test.t2.a:offset:-200
+truncate test.t1;
+truncate test.t2;
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $remap_args $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo Expect that next autoincrement value has *not*
+--echo moved back
+
+insert into t1 (d) values (4);
+insert into t2 (d) values (4);
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+show create table t1;
+show create table t2;
+
+drop table test.t1;
+drop table test.t2;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

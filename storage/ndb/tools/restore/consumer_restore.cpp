@@ -4087,7 +4087,7 @@ bool BackupRestore::errorHandler(restore_callback_t *cb)
 void BackupRestore::exitHandler()
 {
   release();
-  exit(NdbToolsProgramExitCode::FAILED);
+  _exit(NdbToolsProgramExitCode::FAILED);
 }
 
 

@@ -8,7 +8,7 @@ let $_pre_backup_id = $the_backup_id;
 let $start_backup_records_in_use = `SELECT SUM(used) from ndbinfo.ndb\\\$pools where block_number=244 and pool_name = "Backup Record"`;
 
 --echo Starting backup
---exec $NDB_MGM --no-defaults --verbose=0 -e "start backup nowait"
+--exec $NDB_MGM --no-defaults --verbose=0 -e "start backup $start_backup_extra nowait"
 
 let $_done = 0;
 let $_start_timeout = 60;
