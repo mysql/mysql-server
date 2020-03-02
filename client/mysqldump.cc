@@ -3258,8 +3258,8 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
   This should be called after the tables have been dumped in case a trigger
   depends on the existence of a table.
 
-  @param[in] table_name
-  @param[in] db_name
+  @param[in] table_name table name
+  @param[in] db_name db name
 
   @return Error status.
     @retval true error has occurred.
