@@ -20607,7 +20607,7 @@ static void test_wl13168() {
   l_mysql = mysql_client_init(nullptr);
   DIE_UNLESS(l_mysql != nullptr);
 
-  const char *opt_my = ".", *opt_before, *opt_after;
+  const char *opt_my = ".", *opt_before = nullptr, *opt_after = nullptr;
 
   rc = mysql_get_option(l_mysql, MYSQL_OPT_LOAD_DATA_LOCAL_DIR, &opt_before);
   DIE_UNLESS(rc == 0);
