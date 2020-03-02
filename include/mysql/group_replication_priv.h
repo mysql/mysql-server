@@ -210,4 +210,9 @@ unsigned long get_max_slave_max_allowed_packet();
 */
 bool is_server_restarting_after_clone();
 
+/**
+  @returns if the server already dropped its data when cloning
+*/
+bool is_server_data_dropped();
+
 #endif /* GROUP_REPLICATION_PRIV_INCLUDE */

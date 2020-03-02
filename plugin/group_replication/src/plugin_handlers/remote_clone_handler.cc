@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -627,6 +627,14 @@ end:
   DBUG_RETURN(ret);
 }
 
+bool Remote_clone_handler::evaluate_error_code(int) {
+  // If the server dropped its data, async recovery will fail
+  if (is_server_data_dropped()) {
+    return true;
+  }
+  return false;
+}
+
 #ifndef DBUG_OFF
 void Remote_clone_handler::gr_clone_debug_point() {
   DBUG_EXECUTE_IF("gr_clone_process_before_execution", {
@@ -808,11 +816,11 @@ void Remote_clone_handler::gr_clone_debug_point() {
     error = run_clone_query(sql_command_interface, hostname, port, username,
                             password, use_ssl);
 
-    switch (error) {
-      case ER_RESTART_SERVER_FAILED:
-        critical_error = true;
-        goto thd_end;
-    }
+    // Even on critical errors we continue as another clone can fix the issue
+    if (!critical_error) critical_error = evaluate_error_code(error);
+
+    // On ER_RESTART_SERVER_FAILED it makes no sense to retry
+    if (error == ER_RESTART_SERVER_FAILED) goto thd_end;
 
     if (error && !m_being_terminated) {
       if (evaluate_server_connection(sql_command_interface)) {
