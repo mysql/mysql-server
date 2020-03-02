@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -608,7 +608,7 @@ class Fil_path {
     return (path);
   }
 
-  /** @return true if the path is an absolute path. */
+  /** @return true if the path is a relative path. */
   bool is_relative_path() const MY_ATTRIBUTE((warn_unused_result)) {
     return (type_of_path(m_path) == relative);
   }
@@ -626,10 +626,10 @@ class Fil_path {
     return (type_of_path(path) == absolute);
   }
 
-  /** Determine if a path is an absolute path or not.
-  @param[in]	path		OS directory or file path to evaluate
-  @retval true if an absolute path
-  @retval false if a relative path */
+  /** Determine what type a path is provided.
+  @param[in]  path  OS directory or file path to evaluate
+  @return the type of filepath; 'absolute', 'relative',
+  'file_name_only', or 'invalid' if the path is empty. */
   static path_type type_of_path(const std::string &path)
       MY_ATTRIBUTE((warn_unused_result)) {
     if (path.empty()) {
@@ -637,15 +637,15 @@ class Fil_path {
     }
 
     /* The most likely type is a file name only with no separators. */
-    if (path.find('\\', 0) == std::string::npos &&
-        path.find('/', 0) == std::string::npos) {
+    auto first_separator = path.find_first_of(SEPARATOR);
+    if (first_separator == std::string::npos) {
       return (file_name_only);
     }
 
     /* Any string that starts with an OS_SEPARATOR is
     an absolute path. This includes any OS and even
     paths like "\\Host\share" on Windows. */
-    if (path.at(0) == '\\' || path.at(0) == '/') {
+    if (first_separator == 0) {
       return (absolute);
     }
 
