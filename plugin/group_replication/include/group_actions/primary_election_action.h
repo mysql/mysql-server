@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ class Primary_election_action : public Group_action, Group_event_observer {
 
   /**
     Changes the phase where the action is currently
-    @param phase
+    @param phase the new election primary execution phase
   */
   void change_action_phase(enum_primary_election_phase phase);
   /** The current phase */

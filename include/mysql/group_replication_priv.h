@@ -55,10 +55,10 @@ my_thread_attr_t *get_connection_attrib();
 /**
   Returns the server hostname, port and uuid.
 
-  @param[out] hostname
-  @param[out] port
-  @param[out] uuid
-  @param[out] server_version
+  @param[out] hostname hostname
+  @param[out] port port
+  @param[out] uuid uuid
+  @param[out] server_version server version
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
                            unsigned int *server_version);
@@ -66,7 +66,7 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
 /**
   Returns the server ssl configuration values.
 
-  @param[out] server_ssl_variables
+  @param[out] server_ssl_variables server's ssl_variables
 */
 void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables);
 
@@ -94,14 +94,14 @@ ulong get_auto_increment_offset();
 /**
   Set server auto_increment_increment
 
-  @param[in] auto_increment_increment
+  @param[in] auto_increment_increment auto-increment increment
 */
 void set_auto_increment_increment(ulong auto_increment_increment);
 
 /**
   Set server auto_increment_offset
 
-  @param[in] auto_increment_offset
+  @param[in] auto_increment_offset auto-increment offset
 */
 void set_auto_increment_offset(ulong auto_increment_offset);
 
@@ -109,7 +109,7 @@ void set_auto_increment_offset(ulong auto_increment_offset);
   Returns a struct containing all server startup information needed to evaluate
   if one has conditions to proceed executing master-master replication.
 
-  @param[out] requirements
+  @param[out] requirements requirements
 
   @param[in] has_lock Caller should set this to true if the calling
   thread holds gtid_mode_lock; otherwise set it to false.

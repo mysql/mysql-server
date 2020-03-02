@@ -1015,9 +1015,8 @@ int send_to_acceptors(pax_msg *p, const char *dbg) {
   @param[out]    s   Pointer to server.
   @param[out]    ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
                       server *s, int64_t *ret) {
@@ -1067,9 +1066,8 @@ static int read_bytes(connection_descriptor const *rfd, char *p, uint32_t n,
   @param[out]    s   Pointer to server.
   @param[out]    ret Number of bytes read, or -1 if failure.
 
-  @return
-    @retval 0 if task should terminate.
-    @retval 1 if it should continue.
+  @retval 0 if task should terminate.
+  @retval 1 if it should continue.
 */
 static int buffered_read_bytes(connection_descriptor const *rfd, srv_buf *buf,
                                char *p, uint32_t n, server *s, int64_t *ret) {
