@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -380,7 +380,6 @@ int Slave_worker::init_worker(Relay_log_info *rli, ulong i) {
    minimum context for MTS recovery.
 
    @param is_gaps_collecting_phase
-
           clarifies what state the caller
           executes this method from. When it's @c true
           that is @c mts_recovery_groups() and Worker should

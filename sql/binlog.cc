@@ -4127,8 +4127,8 @@ enum enum_read_gtids_from_binlog_status {
   of the Gtid_log_event. If lock is needed in the sid_map, the caller
   must hold it.
   @param verify_checksum Set to true to verify event checksums.
-  @param is_relay_log
-
+  @param is_relay_log Set to true, if filename is a Relay Log, false if it is a
+  Binary Log.
   @retval GOT_GTIDS The file was successfully read and it contains
   both Gtid_log_events and Previous_gtids_log_events.
   This is only possible if either all_gtids or first_gtid are not null.
@@ -5822,7 +5822,8 @@ err:
 
   @param to_log	      Delete all log file name before this file.
   @param included            If true, to_log is deleted too.
-  @param need_lock_index
+  @param need_lock_index     Set to true, if the lock_index of the binary log
+  shall be acquired, false if the called is already the owner of the lock_index.
   @param need_update_threads If we want to update the log coordinates of
                              all threads. False for relay logs, true otherwise.
   @param decrease_log_space  If not null, decrement this variable of
@@ -5833,12 +5834,10 @@ err:
     If any of the logs before the deleted one is in use,
     only purge logs up to this one.
 
-  @retval
-    0			ok
-  @retval
-    LOG_INFO_EOF		to_log not found
-    LOG_INFO_EMFILE             too many files opened
-    LOG_INFO_FATAL              if any other than ENOENT error from
+  @retval 0			ok
+  @retval LOG_INFO_EOF		to_log not found
+  @retval LOG_INFO_EMFILE       too many files opened
+  @retval LOG_INFO_FATAL        if any other than ENOENT error from
                                 mysql_file_stat() or mysql_file_delete()
 */
 
