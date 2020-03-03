@@ -2905,11 +2905,10 @@
       supports fractions of a second. For example, <b>sleep 0.2</b>;
       sleeps 0.2 seconds.
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands
-      more than necessary. The more of them there are, the slower the
-      test suite becomes. In some cases, heavy reliance on sleep
-      operations is an indicator that the logic of a test should be
-      reconsidered.
+      Try not to use the <b>sleep</b> command more than necessary.
+      The more of them there are, the slower the test suite becomes.
+      In some cases, heavy reliance on sleep operations is an indicator
+      that the logic of a test should be reconsidered.
     </li>
 
     <li>
@@ -3375,17 +3374,6 @@
       <tt>`--skip-safemalloc`</tt>
 
       Do not use memory allocation checking.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>num</b>, -T <b>num</b></tt>
-
-      Cause all <b>sleep</b> commands in the test case file to sleep
-      <b><em>num</em></b> seconds. This option does not affect
-      <b>real_sleep</b> commands.
-
-      An option value of 0 can also be used, which effectively
-      disables <b>sleep</b> commands in the test case.
     </li>
 
     <li>
@@ -4943,13 +4931,6 @@
       <b>`--skip-*`</b> options not otherwise recognized by @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" are passed to the
       master server.
-    </li>
-
-    <li>
-      <tt>`--sleep`=<b>N</b></tt>
-
-      Pass <b>`--sleep`=<em>N</em></b> to @ref PAGE_MYSQLTEST
-      "mysqltest".
     </li>
 
     <li>
@@ -7144,24 +7125,6 @@
     </li>
 
     <li>
-      <tt>real_sleep <b>num</b></tt>
-
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. Unlike the <b>sleep</b> command,
-      <b>real_sleep</b> is not affected by the
-      <b>`--sleep command-line`</b> option.
-
-      @verbatim
-  --real_sleep 10
-  real_sleep 5;
-     @endverbatim
-
-     Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-     than necessary. The more of them there are, the slower the test
-     suite becomes.
-    </li>
-
-    <li>
       <tt>reap</tt>
 
       Receive the result of the statement sent with the <b>send</b>
@@ -7500,21 +7463,17 @@
     <li>
       <tt>sleep <b>num</b></tt>
 
-      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> can have
-      a fractional part. If the <b>`--sleep`</b> command-line option
-      was given, the option value overrides the value given in the
-      <b>sleep</b> command. For example, if @ref PAGE_MYSQLTEST
-      "mysqltest" is started with <b>`--sleep`=10</b>, the command
-      <b>sleep 15</b> sleeps 10 seconds, not 15.
+      Sleep <b><em>num</em></b> seconds. <b><em>num</em></b> need not be
+      a whole number and can have a fractional part as well i.e., the
+      command supports sleeping for intervals shorter than 1 second.
 
       @verbatim
   --sleep 10
   sleep 0.5;
       @endverbatim
 
-      Try not to use <b>sleep</b> or <b>real_sleep</b> commands more
-      than necessary. The more of them there are, the slower the test
-      suite becomes.
+      Try not to use <b>sleep</b> command more than necessary. The
+      more of them there are, the slower the test suite becomes.
     </li>
 
     <li>

@@ -46,7 +46,7 @@ SELECT 1;
 connection wait_con;
 while (!`select @aborted_clients`)
 {
-  real_sleep 0.1;
+  sleep 0.1;
   let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
   eval SET @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
 
@@ -101,7 +101,7 @@ SELECT 1;
 connection wait_con;
 while (!`select @aborted_clients`)
 {
-  real_sleep 0.1;
+  sleep 0.1;
   let $aborted_clients = `SHOW STATUS LIKE 'aborted_clients'`;
   eval SET @aborted_clients= SUBSTRING('$aborted_clients', 16)+0;
 

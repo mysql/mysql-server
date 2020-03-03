@@ -29,7 +29,7 @@ connection master;
 #
 # Give slave time to do at last one failed connect retry
 # This one must be short so that the slave will not stop retrying
-real_sleep 2;
+sleep 2;
 SET PASSWORD FOR root@"localhost" = '';
 # Give slave time to connect (will retry every second)
 sleep 2;

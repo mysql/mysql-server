@@ -41,7 +41,7 @@ let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (1);
 let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-real_sleep 3;
+sleep 3;
 
 connection slave;
 lock table t1 write;
@@ -80,7 +80,7 @@ let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (2);
 let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-real_sleep 3;
+sleep 3;
 
 connection slave;
 # ok, now wait for the SQL thread to start the insert
@@ -96,7 +96,7 @@ source include/wait_show_condition.inc;
 # ASSERTION: flush logs will not reset the sbm value
 flush logs;
 
-real_sleep 3;
+sleep 3;
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
 # We need to deduct execution time on master to SBM lower_bound.

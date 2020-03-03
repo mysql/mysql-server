@@ -13,7 +13,7 @@ while ($wait_counter)
 
   if (!$success)
   {
-    real_sleep $wait_timeout;
+    sleep $wait_timeout;
     dec $wait_counter;
   }
 }

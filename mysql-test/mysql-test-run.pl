@@ -104,7 +104,6 @@ my $opt_ps_protocol;
 my $opt_report_features;
 my $opt_skip_core;
 my $opt_skip_test_list;
-my $opt_sleep;
 my $opt_sp_protocol;
 my $opt_start;
 my $opt_start_dirty;
@@ -384,8 +383,8 @@ sub main {
   # --help will not reach here, so now it's safe to assume we have binaries
   My::SafeProcess::find_bin($bindir, $path_client_bindir);
 
-  $secondary_engine_support = ($secondary_engine_support and
-                find_secondary_engine($bindir)) ? 1 : 0 ;
+  $secondary_engine_support =
+    ($secondary_engine_support and find_secondary_engine($bindir)) ? 1 : 0;
 
   # Append secondary engine test suite to list of default suites if found.
   add_secondary_engine_suite() if $secondary_engine_support;
@@ -949,8 +948,7 @@ sub run_test_server ($$$) {
                          "Terminating...");
               return undef;
             }
-          }
-          else {
+          } else {
             # Remove testcase .log file produce in var/log/ to save space, if
             # test has passed, since relevant part of logfile has already been
             # appended to master log
@@ -1264,7 +1262,7 @@ sub create_unique_id_dir() {
                   "MTR_UNIQUE_IDS_DIR only if MTR is running in multiple " .
                   "environments on the same host and set it to one path " .
                   "which is accessible on all environments");
-      $build_thread_id_dir = $ENV{'MTR_UNIQUE_IDS_DIR'}."/mysql-unique-ids";
+      $build_thread_id_dir = $ENV{'MTR_UNIQUE_IDS_DIR'} . "/mysql-unique-ids";
     } else {
       $build_thread_id_dir = "/tmp/mysql-unique-ids";
     }
@@ -1368,7 +1366,6 @@ sub print_global_resfile {
   resfile_global("repeat",           $opt_repeat);
   resfile_global("sanitize",         $opt_sanitize         ? 1 : 0);
   resfile_global("shutdown-timeout", $opt_shutdown_timeout ? 1 : 0);
-  resfile_global("sleep",            $opt_sleep);
   resfile_global("sp-protocol",      $opt_sp_protocol      ? 1 : 0);
   resfile_global("start_time",       isotime $^T);
   resfile_global("suite-opt",        $opt_suite_opt);
@@ -1564,7 +1561,6 @@ sub command_line_setup {
     'retry-failure=i'       => \$opt_retry_failure,
     'retry=i'               => \$opt_retry,
     'shutdown-timeout=i'    => \$opt_shutdown_timeout,
-    'sleep=i'               => \$opt_sleep,
     'start'                 => \$opt_start,
     'start-and-exit'        => \$opt_start_exit,
     'start-dirty'           => \$opt_start_dirty,
@@ -1729,7 +1725,7 @@ sub command_line_setup {
     my $cloud_noskip_exclude_list =
       '../internal/cloud/mysql-test/include/cloud_excludenoskip.list';
     push(@noskip_exclude_lists, $cloud_noskip_exclude_list)
-       if (-e $cloud_noskip_exclude_list);
+      if (-e $cloud_noskip_exclude_list);
 
     foreach my $excludedList (@noskip_exclude_lists) {
       open(my $fh, '<', $excludedList) or
@@ -2680,9 +2676,9 @@ sub read_plugin_defs($) {
           $semi = ';';
         }
 
-        $ENV{ $plug_var . '_LOAD' }     = $load_var;
+        $ENV{ $plug_var . '_LOAD' }       = $load_var;
         $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
-        $ENV{ $plug_var . '_LOAD_ADD' } = $load_add_var;
+        $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
       }
     } else {
       $ENV{$plug_var}            = "";
@@ -2894,8 +2890,11 @@ sub environment_setup {
 
   if ($secondary_engine_support) {
     secondary_engine_environment_setup(\&find_plugin, $bindir);
-    initialize_function_pointers(\&gdb_arguments, \&mark_log, \&mysqlds,
-                                 \&run_query, \&valgrind_arguments,
+    initialize_function_pointers(\&gdb_arguments,
+                                 \&mark_log,
+                                 \&mysqlds,
+                                 \&run_query,
+                                 \&valgrind_arguments,
                                  \&report_failure_and_restart);
   }
 
@@ -3141,14 +3140,14 @@ sub setup_vardir() {
 #       in the pushbuild test environment.
 sub check_platform {
   my $platform = $ENV{PRODUCT_ID} || "";
-  if(defined $opt_platform and $platform !~ $opt_platform) {
-    print STDERR "mysql-test-run: Detected platform '$platform' does not ".
-                 "match specified platform '$opt_platform', terminating.\n";
+  if (defined $opt_platform and $platform !~ $opt_platform) {
+    print STDERR "mysql-test-run: Detected platform '$platform' does not " .
+      "match specified platform '$opt_platform', terminating.\n";
     exit(0);
   }
-  if(defined $opt_platform_exclude and $platform =~ $opt_platform_exclude) {
-    print STDERR "mysql-test-run: Detected platform '$platform' matches ".
-                 "excluded platform '$opt_platform_exclude', terminating.\n";
+  if (defined $opt_platform_exclude and $platform =~ $opt_platform_exclude) {
+    print STDERR "mysql-test-run: Detected platform '$platform' matches " .
+      "excluded platform '$opt_platform_exclude', terminating.\n";
     exit(0);
   }
 }
@@ -4005,12 +4004,10 @@ sub mysql_install_db {
               '', '', TRUE, '', now());\n");
 
   # Add help tables and data for warning detection and suppression
-  mtr_tofile($bootstrap_sql_file,
-             mtr_grab_file("include/mtr_warnings.sql"));
+  mtr_tofile($bootstrap_sql_file, mtr_grab_file("include/mtr_warnings.sql"));
 
   # Add procedures for checking server is restored after testcase
-  mtr_tofile($bootstrap_sql_file,
-             mtr_grab_file("include/mtr_check.sql"));
+  mtr_tofile($bootstrap_sql_file, mtr_grab_file("include/mtr_check.sql"));
 
   if (defined $init_file) {
     # Append the contents of the init-file to the end of bootstrap.sql
@@ -4024,10 +4021,12 @@ sub mysql_install_db {
       # options are pretty relaxed about what to use as a
       # separator: ',' ':' and ' ' all work.
       $ENV{'TSAN_OPTIONS'} .= ",";
-    } else { $ENV{'TSAN_OPTIONS'} = ""; }
+    } else {
+      $ENV{'TSAN_OPTIONS'} = "";
+    }
     # Append TSAN_OPTIONS already present in the environment
     # Set blacklist option early so it works during bootstrap
-    $ENV{'TSAN_OPTIONS'} .= "suppressions=${glob_mysql_test_dir}/tsan.supp"
+    $ENV{'TSAN_OPTIONS'} .= "suppressions=${glob_mysql_test_dir}/tsan.supp";
   }
 
   if ($opt_manual_boot_gdb) {
@@ -4728,7 +4727,7 @@ sub run_testcase ($) {
   # Maintain a queue to keep track of server processes which have
   # died expectedly in order to wait for them to be restarted.
   my @waiting_procs = ();
-  my $print_timeout     = start_timer($print_freq * 60);
+  my $print_timeout = start_timer($print_freq * 60);
 
   while (1) {
     my $proc;
@@ -4749,7 +4748,7 @@ sub run_testcase ($) {
 
         # Also check if timer has expired, if so cancel waiting
         if (has_expired($test_timeout)) {
-          $proc = undef;
+          $proc          = undef;
           @waiting_procs = ();
         }
       }
@@ -4836,7 +4835,7 @@ sub run_testcase ($) {
         if (($res == 0 and !restart_forced_by_test('force_restart')) or
             ($res == 62 and
              !restart_forced_by_test('force_restart_if_skipped'))
-        ) {
+          ) {
           $check_res = check_testcase($tinfo, "after");
 
           # Test run succeeded but failed in check-testcase, marking
@@ -5554,7 +5553,7 @@ sub check_expected_crash_and_restart($$) {
           unlink($expect_file) == 0 &&
           $! == 13 &&    # Error = 13, Permission denied
           IS_WINDOWS && $retry-- >= 0
-        ) {
+          ) {
           # Permission denied to unlink.
           # Race condition seen on windows. Wait and retry.
           mtr_milli_sleep(1000);
@@ -5851,7 +5850,8 @@ sub mysqld_arguments ($$$) {
 
   if ($opt_lock_order) {
     my $lo_dep_1 = "$basedir/mysql-test/lock_order_dependencies.txt";
-    my $lo_dep_2 = "$basedir/internal/mysql-test/lock_order_extra_dependencies.txt";
+    my $lo_dep_2 =
+      "$basedir/internal/mysql-test/lock_order_extra_dependencies.txt";
     my $lo_out = "$bindir/lock_order";
     mtr_verbose("lock_order dep_1 = $lo_dep_1");
     mtr_verbose("lock_order dep_2 = $lo_dep_2");
@@ -5860,7 +5860,7 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--loose-lock_order");
     mtr_add_arg($args, "--loose-lock_order_dependencies=$lo_dep_1");
     if (-e $lo_dep_2) {
-# mtr_add_arg($args, "--loose-lock_order_extra_dependencies=$lo_dep_2");
+      # mtr_add_arg($args, "--loose-lock_order_extra_dependencies=$lo_dep_2");
     }
     mtr_add_arg($args, "--loose-lock_order_output_directory=$lo_out");
   }
@@ -6082,7 +6082,7 @@ sub mysqld_start ($$$$) {
   if ($wait_for_pid_file &&
       !sleep_until_pid_file_created($pid_file, $opt_start_timeout,
                                     $mysqld->{'proc'})
-  ) {
+    ) {
     my $mname = $mysqld->name();
     mtr_error("Failed to start mysqld $mname with command $exe");
   }
@@ -6495,7 +6495,7 @@ sub start_servers($) {
         if (!-d $datadir or
             (!$bootstrap_opts and
              !$mysqld->{need_reinitialization})
-        ) {
+          ) {
           copytree($install_db, $datadir) if -d $install_db;
           mtr_error("Failed to copy system db to '$datadir'")
             unless -d $datadir;
@@ -6574,7 +6574,7 @@ sub start_servers($) {
     if (!sleep_until_pid_file_created($mysqld->value('pid-file'),
                                       $opt_start_timeout,
                                       $mysqld->{'proc'})
-    ) {
+      ) {
       $tinfo->{comment} = "Failed to start " . $mysqld->name();
       my $logfile = $mysqld->value('#log-error');
       if (defined $logfile and -f $logfile) {
@@ -6744,10 +6744,6 @@ sub start_mysqltest ($) {
 
   if ($opt_async_client) {
     mtr_add_arg($args, "--async-client");
-  }
-
-  if ($opt_sleep) {
-    mtr_add_arg($args, "--sleep=%d", $opt_sleep);
   }
 
   if ($opt_max_connections) {
@@ -7553,7 +7549,6 @@ Misc options
   shutdown-timeout=SECONDS
                         Max number of seconds to wait for server shutdown
                         before killing servers (default $opt_shutdown_timeout).
-  sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   start                 Only initialize and start the servers. If a testcase is
                         mentioned server is started with startup settings of the
                         testcase. If a --suite option is specified the

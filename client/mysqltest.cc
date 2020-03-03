@@ -181,7 +181,7 @@ enum {
   OPT_VIEW_PROTOCOL,
 };
 
-static int record = 0, opt_sleep = -1;
+static int record = 0;
 static char *opt_db = nullptr, *opt_pass = nullptr;
 const char *opt_user = nullptr, *opt_host = nullptr, *unix_sock = nullptr,
            *opt_basedir = "./";
@@ -429,7 +429,6 @@ enum enum_commands {
   Q_QUERY,
   Q_CONNECT,
   Q_SLEEP,
-  Q_REAL_SLEEP,
   Q_INC,
   Q_DEC,
   Q_SOURCE,
@@ -529,11 +528,10 @@ enum enum_commands {
 };
 
 const char *command_names[] = {
-    "connection", "query", "connect", "sleep", "real_sleep", "inc", "dec",
-    "source", "disconnect", "let", "echo", "expr", "while", "end",
-    "save_master_pos", "sync_with_master", "sync_slave_with_master", "error",
-    "send", "reap", "dirty_close", "replace_result", "replace_column", "ping",
-    "eval",
+    "connection", "query", "connect", "sleep", "inc", "dec", "source",
+    "disconnect", "let", "echo", "expr", "while", "end", "save_master_pos",
+    "sync_with_master", "sync_slave_with_master", "error", "send", "reap",
+    "dirty_close", "replace_result", "replace_column", "ping", "eval",
     /* Enable/disable that the _query_ is logged to result file */
     "enable_query_log", "disable_query_log",
     /* Enable/disable that the _result_ from a query is logged to result file */
@@ -5209,23 +5207,17 @@ static void do_let(struct st_command *command) {
   SYNOPSIS
   do_sleep()
   q	       called command
-  real_sleep   use the value from opt_sleep as number of seconds to sleep
-               if real_sleep is false
 
   DESCRIPTION
-  sleep <seconds>
-  real_sleep <seconds>
+  Sleep <seconds>
 
-  The difference between the sleep and real_sleep commands is that sleep
-  uses the delay from the --sleep command-line option if there is one.
-  (If the --sleep option is not given, the sleep command uses the delay
-  specified by its argument.) The real_sleep command always uses the
-  delay specified by its argument.  The logic is that sometimes delays are
-  cpu-dependent, and --sleep can be used to set this delay.  real_sleep is
-  used for cpu-independent delays.
+  The argument provided to --sleep command is not required to be
+  a whole number and can have fractional parts as well. For
+  example, '--sleep 0.1' is valid.
+
 */
 
-static int do_sleep(struct st_command *command, bool real_sleep) {
+static int do_sleep(struct st_command *command) {
   int error = 0;
   double sleep_val;
   char *p;
@@ -5254,9 +5246,6 @@ static int do_sleep(struct st_command *command, bool real_sleep) {
         static_cast<int>(command->first_word_len), command->query,
         command->first_argument);
   dynstr_free(&ds_sleep);
-
-  /* Fixed sleep time selected by --sleep option */
-  if (opt_sleep >= 0 && !real_sleep) sleep_val = opt_sleep;
 
   DBUG_PRINT("info", ("sleep_val: %f", sleep_val));
   if (sleep_val) my_sleep((ulong)(sleep_val * 1000000L));
@@ -7433,9 +7422,6 @@ static struct my_option my_long_options[] = {
      0, nullptr},
     {"silent", 's', "Suppress all normal output. Synonym for --quiet.", &silent,
      &silent, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"sleep", 'T', "Always sleep this many seconds on sleep commands.",
-     &opt_sleep, &opt_sleep, nullptr, GET_INT, REQUIRED_ARG, -1, -1, 0, nullptr,
-     0, nullptr},
     {"socket", 'S', "The socket file to use for connection.", &unix_sock,
      &unix_sock, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
@@ -9380,10 +9366,7 @@ int main(int argc, char **argv) {
           do_source(command);
           break;
         case Q_SLEEP:
-          do_sleep(command, false);
-          break;
-        case Q_REAL_SLEEP:
-          do_sleep(command, true);
+          do_sleep(command);
           break;
         case Q_WAIT_FOR_SLAVE_TO_STOP:
           do_wait_for_slave_to_stop(command);

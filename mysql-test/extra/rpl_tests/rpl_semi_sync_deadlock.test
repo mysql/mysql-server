@@ -46,7 +46,7 @@ while ($i < $n)
 
 --connection master1
 SET DEBUG_SYNC= "before_rotate_binlog SIGNAL signal.continue";
---real_sleep 3
+--sleep 3
 --echo # Rotate binlog file
 FLUSH LOGS;
 

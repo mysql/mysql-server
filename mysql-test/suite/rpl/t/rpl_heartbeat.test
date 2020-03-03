@@ -140,7 +140,7 @@ let $slave_param_value= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
 # That would cause reconnecting and relaylog rotation w/o the fix i.e
 # without a heartbeat received.
 
-real_sleep 15;
+sleep 15;
 
 # check (compare with the previous show's results) that no rotation happened
 source include/check_slave_param.inc;

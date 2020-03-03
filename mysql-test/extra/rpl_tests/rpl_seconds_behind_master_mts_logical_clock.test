@@ -67,7 +67,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 
 # Sleep on slave so we were at least 3 seconds behind the master
---real_sleep 3
+--sleep 3
 --source include/wait_for_mts_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
@@ -148,7 +148,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 
 # Sleep for 2 seconds so Seconds_Behind_Master was at least 2
---real_sleep 2
+--sleep 2
 
 --source include/wait_for_mts_checkpoint.inc
 
@@ -244,7 +244,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 --source include/wait_condition.inc
 
 # Wait for 2 seconds so Second_Behind_Master is at least 2
---real_sleep 2
+--sleep 2
 --source include/wait_for_mts_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
@@ -259,7 +259,7 @@ let $assert_cond= 2 <= $sbm AND $sbm <= $upper_bound;
 connection slave3;
 UNLOCK TABLES;
 
---real_sleep 1
+--sleep 1
 
 connection slave;
 # Wait till worker on second_test db finishes
@@ -294,7 +294,7 @@ let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
                                                                              OR State = 'update';
 --source include/wait_condition.inc
 
---real_sleep 1
+--sleep 1
 
 --source include/wait_for_mts_checkpoint.inc
 
@@ -316,7 +316,7 @@ let $wait_condition= SELECT count(*) = 3 FROM INFORMATION_SCHEMA.PROCESSLIST WHE
 # All catched up Seconds_Behind_Master should be 0. Lets wait some more to see if it does not increase
 # Seconds_Behind_Master
 
---real_sleep 1
+--sleep 1
 --source include/wait_for_mts_checkpoint.inc
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
