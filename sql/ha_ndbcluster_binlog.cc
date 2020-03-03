@@ -4859,12 +4859,17 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
+#ifndef EMBEDDED_LIBRARY
+extern void kill_mysql(void);
+#endif
 
 void ndbcluster_handle_incomplete_binlog_setup()
 {
   sql_print_error("NDB Binlog: ndbcluster_handle_incomplete_binlog_setup");
+#ifndef EMBEDDED_LIBRARY
   if (opt_ndb_log_fail_terminate)
     kill_mysql();
+#endif
 }
 
 /*
