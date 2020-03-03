@@ -276,21 +276,8 @@ lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
 
 UNIV_INLINE
 void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
-  os_thread_id_t curr_thread = os_thread_get_curr_id();
-
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-
-  lock->writer_thread = curr_thread;
+  lock->writer_thread.store(os_thread_get_curr_id(), std::memory_order_relaxed);
   lock->recursive.store(recursive, std::memory_order_release);
-
-#else /* INNODB_RW_LOCKS_USE_ATOMICS */
-
-  mutex_enter(&lock->mutex);
-  lock->writer_thread = curr_thread;
-  lock->recursive.store(recursive, std::memory_order_release);
-  mutex_exit(&lock->mutex);
-
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 /** Low-level function which tries to lock an rw-lock in s-mode. Performs no
@@ -382,7 +369,8 @@ ibool rw_lock_x_lock_func_nowait(
   if (success) {
     rw_lock_set_writer_id_and_recursion_flag(lock, true);
   } else if (lock->recursive.load(std::memory_order_acquire) &&
-             os_thread_eq(lock->writer_thread, os_thread_get_curr_id())) {
+             os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
+                          os_thread_get_curr_id())) {
     /* Relock: this lock_word modification is safe since no other
     threads can modify (lock, unlock, or reserve) lock_word while
     there is an exclusive writer and this is the writer thread. */
@@ -455,12 +443,13 @@ void rw_lock_x_unlock_func(
   ut_ad(lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR ||
         lock->lock_word <= -X_LOCK_DECR);
 
-  /* lock->recursive flag also indicates if lock->writer_thread is
-  valid or stale. If we are the last of the recursive callers
-  then we must unset lock->recursive flag to indicate that the
-  lock->writer_thread is now stale.
-  Note that since we still hold the x-lock we can safely read the
-  lock_word. */
+  /* lock->recursive == true implies that the lock->writer_thread is the
+  current writer. If we are the last of the recursive callers then we must unset
+  lock->recursive flag (or reset lock->writer_thread to the impossible
+  std::thread().native_handle()) to indicate that the lock->writer_thread is now
+  stale. Otherwise if our thread tried to reacquire the lock it would wrongly
+  believe it already has it.
+  Note that since we still hold the x-lock we can safely read the lock_word. */
   if (lock->lock_word == 0) {
     /* Last caller in a possible recursive chain. */
     lock->recursive.store(false, std::memory_order_relaxed);
@@ -518,7 +507,6 @@ void rw_lock_sx_unlock_func(
     /* Last caller in a possible recursive chain. */
     if (lock->lock_word > 0) {
       lock->recursive.store(false, std::memory_order_relaxed);
-      UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
 
       if (rw_lock_lock_word_incr(lock, X_LOCK_HALF_DECR) <= X_LOCK_HALF_DECR) {
         ut_error;

@@ -494,11 +494,10 @@ bool rw_lock_lock_word_decr(rw_lock_t *lock, ulint amount, lint threshold);
 UNIV_INLINE
 lint rw_lock_lock_word_incr(rw_lock_t *lock, ulint amount);
 
-/** This function sets the lock->writer_thread and lock->recursive fields. For
-platforms where INNODB_RW_LOCKS_USE_ATOMICS is defined we set the
+/** This function sets the lock->writer_thread and lock->recursive fields. Sets
 lock->recursive field using atomic release after setting lock->writer thread to
-ensure proper memory ordering of the two. Otherwise we use lock->mutex to ensure
-this. Note that it is assumed that the caller of this function effectively owns
+ensure proper memory ordering of the two.
+Note that it is assumed that the caller of this function effectively owns
 the lock i.e.: nobody else is allowed to modify lock->writer_thread at this
 point in time. The protocol is that lock->writer_thread MUST be updated BEFORE
 the lock->recursive flag is set.
@@ -595,9 +594,10 @@ struct rw_lock_t
   causing much memory bus traffic */
   bool writer_is_wait_ex;
 
-  /** Thread id of writer thread. Is only guaranteed to have sane
-  and non-stale value iff recursive flag is set. */
-  os_thread_id_t writer_thread;
+  /** Thread id of writer thread. Is only guaranteed to have non-stale value if
+  recursive flag is set, otherwise it may contain native thread handle of a
+  thread which already released or passed the lock. */
+  std::atomic<os_thread_id_t> writer_thread;
 
   /** Used by sync0arr.cc for thread queueing */
   os_event_t event;
