@@ -4682,6 +4682,7 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   DBUG_RETURN(false);
 }
 
+extern void kill_mysql(void);
 
 void ndbcluster_handle_incomplete_binlog_setup()
 {
