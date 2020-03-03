@@ -530,13 +530,11 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
 
     if (writer != RW_LOCK_NOT_LOCKED) {
       fprintf(file,
-              "a writer (thread id " UINT64PF
-              ") has"
-              " reserved it in mode %s",
-              (uint64_t)(rwlock->writer_thread),
+              "a writer (thread id " UINT64PF ") has reserved it in mode %s\n",
+              (uint64_t)(rwlock->writer_thread.load()),
               writer == RW_LOCK_X
-                  ? " exclusive\n"
-                  : writer == RW_LOCK_SX ? " SX\n" : " wait exclusive\n");
+                  ? "exclusive"
+                  : (writer == RW_LOCK_SX ? "SX" : "wait exclusive"));
     }
 
     fprintf(file,
