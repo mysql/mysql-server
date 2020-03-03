@@ -5435,7 +5435,7 @@ bool SELECT_LEX::transform_grouped_to_derived(THD *thd, bool *break_off) {
     sj_candidates = nullptr;
 
     DBUG_ASSERT(join_list == &top_join_list);
-    new_derived->top_join_list = top_join_list;
+    new_derived->top_join_list = std::move(top_join_list);
     top_join_list.clear();
     new_derived->join_list = &new_derived->top_join_list;
     new_derived->leaf_tables = leaf_tables;

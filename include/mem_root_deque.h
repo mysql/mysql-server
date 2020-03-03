@@ -61,7 +61,7 @@ class mem_root_deque : public std::deque<T, Mem_root_allocator<T>> {
   mem_root_deque(std::initializer_list<T> init, MEM_ROOT *mem_root)
       : super(std::move(init), Mem_root_allocator<T>(mem_root)) {}
 
-  mem_root_deque &operator=(const mem_root_deque &__c) = default;
+  mem_root_deque &operator=(const mem_root_deque &arg) = default;
 };
 
 #endif  // MEM_ROOT_DEQUE_H

@@ -4432,6 +4432,7 @@ void TABLE::reset() {
   nullable = false;
   set_not_started();
 
+  force_index = false;
   force_index_order = false;
   force_index_group = false;
   merge_keys.clear_all();
