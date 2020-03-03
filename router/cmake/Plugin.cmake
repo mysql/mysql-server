@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ FUNCTION(add_harness_plugin NAME)
   SET(_options NO_INSTALL)
   SET(_single_value LOG_DOMAIN INTERFACE DESTINATION OUTPUT_NAME)
   SET(_multi_value SOURCES REQUIRES)
-  cmake_parse_arguments(_option
+  CMAKE_PARSE_ARGUMENTS(_option
     "${_options}" "${_single_value}" "${_multi_value}" ${ARGN})
 
   IF(_option_UNPARSED_ARGUMENTS)

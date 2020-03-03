@@ -523,6 +523,7 @@ INCLUDE(CMakePushCheckState)
 # Add macros
 INCLUDE(pkg-config)
 INCLUDE(character_sets)
+INCLUDE(cmake_parse_arguments)
 INCLUDE(compile_flags)
 INCLUDE(cpu_info)
 INCLUDE(fileutils)

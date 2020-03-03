@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,14 @@
 
 # Macro to add unit tests
 
-INCLUDE(cmake_parse_arguments)
+# NDB_ADD_TEST(EXEC sources... LIBS libraries...)
 
-FUNCTION(NDB_ADD_TEST)
+FUNCTION(NDB_ADD_TEST EXEC_ARG)
   # Parse arguments passed to ADD_TEST
-  MYSQL_PARSE_ARGUMENTS(ARG
-    "LIBS"
+  CMAKE_PARSE_ARGUMENTS(ARG
     ""
+    ""
+    "LIBS"
     ${ARGN}
   )
 
@@ -37,11 +38,8 @@ FUNCTION(NDB_ADD_TEST)
     RETURN()
   ENDIF()
 
-  # Extracting the executable from DEFAULT_ARGS
-  LIST(GET ARG_DEFAULT_ARGS 0 EXEC)
-  LIST(REMOVE_AT ARG_DEFAULT_ARGS 0)
-  # Setting the source
-  SET(SRC ${ARG_DEFAULT_ARGS})
+  SET(EXEC ${EXEC_ARG})
+  SET(SRC ${ARG_UNPARSED_ARGUMENTS})
 
   # Adding executable for the test
   # - built in the default RUNTIME_OUTPUT_DIRECTORY
