@@ -1123,6 +1123,33 @@ NdbQueryBuilder::scanIndex(const NdbDictionary::Index* index,
     returnErrIf(error!=0, error);
   }
 
+  const NdbQueryOperationDefImpl *parent = op->getParentOperation();
+  if (parent != nullptr &&
+      (op->getMatchType() & NdbQueryOptions::MatchNonNull) == 0)
+  {
+    /**
+     * For an outer joined index-scan child we need to use setFirstInner()
+     * or setFirstUpper() to specify the 'first' QueryOperation of the
+     * join-nest this QueryOperation is embedded within. If we failed to
+     * specify this, the NdbQuery-API will not be able to correctly produce
+     * the outer joined result set, (or later DBUG_ASSERT).
+     * Return an error if such 'nest-info' was not specified.
+     */
+    const NdbQueryOperationDefImpl* firstInEmbeddingNest =
+      op->getFirstInEmbeddingNest();
+    returnErrIf(firstInEmbeddingNest == nullptr, QRY_NEST_NOT_SPECIFIED);
+
+    /**
+     * It is a further limitation (in prepareResultSet()) that the specified
+     * 'first' in the embedded nest is either an ancestor of this QueryOperation,
+     * or a sibling of it:
+     */
+    returnErrIf(
+        firstInEmbeddingNest->getInternalOpNo() > parent->getInternalOpNo() &&
+	firstInEmbeddingNest->getParentOperation() != parent,
+	QRY_NEST_NOT_SUPPORTED);
+  }
+
   return &op->m_interface;
 }
 

@@ -52,6 +52,9 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 #define QRY_OJ_NOT_SUPPORTED 4827
+#define QRY_NEST_NOT_SPECIFIED 4828
+#define QRY_NEST_NOT_SUPPORTED 4829
+
 
 #include <Vector.hpp>
 #include <Bitmask.hpp>
