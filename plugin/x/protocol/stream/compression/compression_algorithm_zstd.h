@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <memory>
 #include <utility>
 
+#include "my_compiler.h"
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "zstd.h"     // NOLINT(build/include_subdir)
 
@@ -52,7 +53,8 @@ class Compression_algorithm_zstd : public Compression_algorithm_interface {
 
   ~Compression_algorithm_zstd() override { ZSTD_freeCStream(m_stream); }
 
-  void set_pledged_source_size(const int src_size) override {
+  void set_pledged_source_size(
+      const int src_size MY_ATTRIBUTE((unused))) override {
     DBUG_TRACE;
     DBUG_LOG("debug", "set_pledged_source_size(" << src_size << ")");
 #if ZSTD_VERSION_NUMBER < 10400
