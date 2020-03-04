@@ -2826,7 +2826,7 @@ NdbQueryScanOperationDefImpl::serialize(const Ndb *ndb,
   Uint32 requestInfo = 0;
 
   if (!isRoot &&
-      getMatchType() != NdbQueryOptions::MatchNonNull)
+      (getMatchType() & NdbQueryOptions::MatchNonNull) == 0)
   {
     // Outer-joined child tables need updated CONF-protocol to be supported
     if (unlikely(!ndbd_send_active_bitmask(minDbNodeVer)))
