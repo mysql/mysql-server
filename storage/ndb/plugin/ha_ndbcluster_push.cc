@@ -2241,7 +2241,7 @@ int ndb_pushed_builder_ctx::build_query() {
             inner_nest.first_table(m_tables[tab_no].m_first_inner);
         options.setFirstInnerJoin(m_tables[real_first_inner].m_op);
 
-      } else if (m_tables[tab_no].m_first_upper > (int)root_no) {
+      } else if (m_tables[tab_no].m_first_upper >= 0) {
         const uint first_upper = m_tables[tab_no].m_first_upper;
         ndb_table_access_map upper_nest(full_inner_nest(first_upper, tab_no));
         upper_nest.intersect(m_join_scope);
@@ -2250,6 +2250,9 @@ int ndb_pushed_builder_ctx::build_query() {
           const uint real_first_upper =
               upper_nest.first_table(m_tables[tab_no].m_first_upper);
           options.setUpperJoin(m_tables[real_first_upper].m_op);
+        } else {
+          // There is an upper outside of the m_join_scope -> use root
+          options.setUpperJoin(m_tables[root_no].m_op);
         }
       }
     }  // if '!m_join_root'
