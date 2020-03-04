@@ -1828,7 +1828,10 @@ create_column_transform(const NdbDictionary::Column* col,
                         const BaseString& func_args,
                         BaseString& error_msg)
 {
-  if (strcasecmp("offset", func_name.c_str()) == 0)
+  BaseString lcfunc_name(func_name);
+  lcfunc_name.ndb_tolower();
+
+  if (lcfunc_name == "offset")
   {
     return OffsetTransform::parse(col, func_name, func_args, error_msg);
   }
