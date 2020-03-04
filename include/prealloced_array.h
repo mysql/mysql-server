@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,15 +184,16 @@ class Prealloced_array {
       m_array_ptr = that.m_array_ptr;
       m_capacity = that.m_capacity;
       m_size = that.m_size;
+      that.m_size = 0;
+      that.m_array_ptr = that.cast_rawbuff();
+      that.m_capacity = Prealloc;
     } else {
       // Move over each element.
       if (this->reserve(that.capacity())) return *this;
       for (Element_type *p = that.begin(); p != that.end(); ++p)
         this->push_back(std::move(*p));
+      that.clear();
     }
-    that.m_size = 0;
-    that.m_array_ptr = that.cast_rawbuff();
-    that.m_capacity = Prealloc;
     return *this;
   }
 
