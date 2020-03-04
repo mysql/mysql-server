@@ -1861,8 +1861,13 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     /**
      * Same goes for nest-level dependencies: The 'first' in each nest
      * may enforce ancestor dependencies on the members of the nest.
+     * If this table is the 'first' itself, it is embedded within the
+     * nest controlled by the 'first_upper'.
      */
-    depend_parents.add(m_tables[table.m_first_inner].m_ancestors);
+    if (table.m_first_inner < tab_no)
+      depend_parents.add(m_tables[table.m_first_inner].m_ancestors);
+    else if (table.m_first_upper > 0)
+      depend_parents.add(m_tables[table.m_first_upper].m_ancestors);
 
     /**
      * All 'depend_parents' has to be fulfilled, starting from the 'last',

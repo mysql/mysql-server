@@ -1529,6 +1529,72 @@ eval explain format=tree $query;
 eval $query;
 
 
+#####################
+# There is a limitation in the result processing in SPJ API
+# (NdbResultStream::prepareResultSet): In order to determine when
+# NULL extended rows should be generate for an outer-joined-nest
+# the nest itself has to either be a descendant or a sibling
+# of its upper nest. Enforced in code by setting the enforced
+# m_ancestors to contain the same m_ancestors as its upper nest.
+
+let $query=
+SELECT straight_join
+  table1.pk, table2.pk, table3.pk, table4.pk
+  FROM h AS table1
+    JOIN y AS table2
+      LEFT JOIN q AS table3
+        LEFT JOIN k AS table4 ON table3.col_int = table4.pk
+      ON table2.col_int = table3.col_int AND table2.col_int_unique = table3.col_int_unique
+    ON table1.col_int_unique = table2.col_int;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+# Another query, facing similar limitations as above
+
+let $query=
+SELECT straight_join
+  table1.pk, table2.pk, table3.pk, table4.pk, table5.pk, table6.pk
+FROM e AS table1
+  JOIN d as table2 ON table2.col_int_unique = table1.pk
+  LEFT JOIN m AS table3
+    LEFT JOIN q AS table4 ON table3.col_int_key = table4.col_int
+  ON table1.col_int_key = table3.col_int_key
+  LEFT JOIN s AS table5 ON table3.col_int_unique = table5.col_int
+  LEFT JOIN t AS table6 ON table4.col_int = table6.col_int
+                       AND table2.col_int_key = table6.col_int_key
+		       AND table5.col_int_unique = table6.col_int_unique
+where table1.pk between 1 and 3;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
+# And yet another with similar requirements:
+
+let $query=
+SELECT
+  table1.pk, table2.pk, table3.pk, table4.pk
+FROM c AS table1
+  INNER JOIN f AS table2 ON table1.col_int_unique =  table2.col_int
+  LEFT JOIN p AS table3
+    LEFT JOIN u AS table4 ON table3.col_int_key = table4.col_int
+                         AND table3.col_int_unique = table4.pk
+  ON table1.col_int = table3.col_int
+  AND table2.col_int_key = table3.col_int_key
+  AND table1.col_int_unique = table3.col_int_unique;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 #################################################################
 ######## Collection of other interesting RQG queries. ###########
 ######## Caused problems during development, but not  ###########

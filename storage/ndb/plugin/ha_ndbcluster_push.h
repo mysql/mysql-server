@@ -478,6 +478,63 @@ class ndb_pushed_builder_ctx {
      *
      * 2) After ::optimize_query_plan() m_ancestors will contain all
      *    ancestor tables reachable through the m_parent chain
+     *
+     * Note that we use mechanism 1) on nest level as well:
+     * The 'first_inner' in each join_nest hold the mandatory ancestor
+     * dependencies for all tables in this nest. This also include
+     * other join_nests embedded with this nest, such that the
+     * first_inner of a nest also depends on all tables in the
+     * first_upper (the 'first_inner' in the upper_nest).
+     *
+     * There are implementation limitations in the SPJ-API
+     * ::prepareResultSet() which calls for such ancestor dependencies
+     * to be enforced. It requires an outer-joined treeNode to be either
+     * a child or a sibling of the 'first-inner' of the join nest it
+     * is embedded within. (or: The first_upper)
+     *
+     * The MySQL query optimizer may use the equality set to
+     * 'move up' a joined table such that it is not depending on any
+     * tables in its own join nest (inner joined), or on tables from its
+     * upper-nest (outer joined), which breaks the requirement above.
+     * One such case may be the generic join structure:
+     *
+     *    t1 ij t2 oj (t3 oj (t4))
+     *
+     * Assume that we have the join conditions between these tables:
+     *
+     * - t1 ij t2:  t2.b = t1.a
+     * - t2 oj t3:  t3.c = t2.b
+     * - t3 oj t4:  t4.x = t3.c
+     *
+     * Thus t4 has the equality set: t4.x = [t1.a,t2.b,t3.c].
+     * The optimizer may choose to use this to change the t4 join condition
+     * to t4.x = t1.a, resulting in the dependency tree:
+     *
+     *                t1
+     *         (ij)  /  \ (oj)
+     *              t2  (t4))
+     *         (oj) |
+     *             (t3
+     *
+     * Directly transforming this onto a pushed-join queryTree, will break
+     * the ::prepareResultSet(), 'child or sibling'-rule. (t4 is not a child
+     * or sibling of its 'first_upper' t3).
+     * Such cases are resolved by the nest level m_ancestor enforcement:
+     *
+     *    - We have: t3.m_ancestors = [t1,t2]
+     *    - 'first_upper ancestors are enforced on t4:
+     *      -> t4.m_ancestors = [t1,t2]
+     *
+     * Thus, we will enforce the below SPJ-queryTree to be produced:
+     *
+     *                t1
+     *         (ij)  /
+     *              t2
+     *       (oj)  /  \  (oj)
+     *           (t3 (t4))
+     *
+     * (Note also the nest-dependeny-comments above regarding how extra
+     * dependecies between tables in the same inner-nest may be added)
      */
     ndb_table_access_map m_ancestors;
 
