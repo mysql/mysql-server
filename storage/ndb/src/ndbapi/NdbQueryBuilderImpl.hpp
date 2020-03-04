@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -343,11 +343,19 @@ public:
   const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
 
-  const NdbQueryOperationDefImpl* getFirstUpper() const
-  { return m_firstUpper; }
-
   const NdbQueryOperationDefImpl* getFirstInner() const
   { return m_firstInner; }
+
+  const NdbQueryOperationDefImpl* getFirstInEmbeddingNest() const
+  {
+    assert(m_firstInner == nullptr || m_firstUpper == nullptr);
+    if (m_firstInner != nullptr)
+      return m_firstInner;
+    else if (m_firstUpper != nullptr)
+      return m_firstUpper;
+    else
+      return nullptr;
+  }
 
   const NdbTableImpl& getTable() const
   { return m_table; }
