@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -429,8 +429,8 @@ static inline bool is_hostname_valid(const char *hostname) {
 
   @param [in]  ip_storage IP address (sockaddr). Must be set.
   @param [in]  ip_string  IP address (string). Must be set.
-  @param [out] hostname
-  @param [out] connect_errors
+  @param [out] hostname   Hostname if IP-address is valid.
+  @param [out] connect_errors  Represents number of connection errors.
 
   @return Error status
   @retval 0 Success
