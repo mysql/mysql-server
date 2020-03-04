@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -970,6 +970,10 @@ ErrorBundle ErrorCodes[] = {
     "Query has operation with empty projection." },
   { QRY_OJ_NOT_SUPPORTED, DMEC, AE,
     "Outer joined scans not supported by data nodes." },
+  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
+    "Outer joined scans need FirstInner/Upper to be specified" },
+  { QRY_NEST_NOT_SPECIFIED, DMEC, AE,
+    "FirstInner/Upper has to be an ancestor or a sibling" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

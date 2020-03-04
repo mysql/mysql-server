@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,9 @@
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
 #define QRY_EMPTY_PROJECTION 4826
 #define QRY_OJ_NOT_SUPPORTED 4827
+#define QRY_NEST_NOT_SPECIFIED 4828
+#define QRY_NEST_NOT_SUPPORTED 4829
+
 
 #include <Vector.hpp>
 #include <Bitmask.hpp>
@@ -343,11 +346,19 @@ public:
   const NdbQueryOperationDefImpl& getChildOperation(Uint32 i) const
   { return *m_children[i]; }
 
-  const NdbQueryOperationDefImpl* getFirstUpper() const
-  { return m_firstUpper; }
-
   const NdbQueryOperationDefImpl* getFirstInner() const
   { return m_firstInner; }
+
+  const NdbQueryOperationDefImpl* getFirstInEmbeddingNest() const
+  {
+    assert(m_firstInner == nullptr || m_firstUpper == nullptr);
+    if (m_firstInner != nullptr)
+      return m_firstInner;
+    else if (m_firstUpper != nullptr)
+      return m_firstUpper;
+    else
+      return nullptr;
+  }
 
   const NdbTableImpl& getTable() const
   { return m_table; }

@@ -4232,27 +4232,19 @@ NdbQueryOperationImpl::NdbQueryOperationImpl(
   }
 
   // Register the extra 'out of branch' (!isChildOf()) dependencies.
-  // If first_inner-, _upper is an ancestor of this op, it is already
-  // covered by the parent/child dependencies, and thus not added
-  // to the extra list of 'm_dependants'.
-  const NdbQueryOperationDefImpl* firstUpperDef = def.getFirstUpper();
-  if (firstUpperDef != nullptr && !def.isChildOf(firstUpperDef))
+  // If we are not an ancestor of the 'first' treeNode of the join-nest
+  // we are embedded within, we need to added to 'm_dependants' as
+  // such an 'out of branch' dependant for this 'first_inner'
+  const NdbQueryOperationDefImpl* firstInEmbeddingNestDef =
+    def.getFirstInEmbeddingNest();
+  if (firstInEmbeddingNestDef != nullptr &&
+      !def.isChildOf(firstInEmbeddingNestDef))
   {
-    const Uint32 ix = firstUpperDef->getOpNo();
-    NdbQueryOperationImpl* firstUpper = &m_queryImpl.getQueryOperation(ix);
-    const int res = firstUpper->m_dependants.push_back(this);
-    if (res != 0)
-    {
-      queryImpl.setErrorCode(Err_MemoryAlloc);
-      return;
-    }
-  }
-  const NdbQueryOperationDefImpl* firstInnerDef = def.getFirstInner();
-  if (firstInnerDef != nullptr && !def.isChildOf(firstInnerDef))
-  {
-    const Uint32 ix = firstInnerDef->getOpNo();
-    NdbQueryOperationImpl* firstInner = &m_queryImpl.getQueryOperation(ix);
-    const int res = firstInner->m_dependants.push_back(this);
+    const Uint32 ix = firstInEmbeddingNestDef->getOpNo();
+    NdbQueryOperationImpl* firstInEmbeddingNest =
+        &m_queryImpl.getQueryOperation(ix);
+
+    const int res = firstInEmbeddingNest->m_dependants.push_back(this);
     if (res != 0)
     {
       queryImpl.setErrorCode(Err_MemoryAlloc);
