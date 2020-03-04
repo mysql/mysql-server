@@ -6373,7 +6373,6 @@ class Item_aggregate_type : public Item {
   bool join_types(THD *, Item *);
   Field *make_field_by_type(TABLE *table, bool strict);
   static uint32 display_length(Item *item);
-  static enum_field_types real_data_type(Item *);
   Field::geometry_type get_geometry_type() const override {
     return geometry_type;
   }

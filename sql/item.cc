@@ -101,6 +101,8 @@ static inline bool select_alias_referencable(enum_parsing_context place) {
           place == CTX_HAVING || place == CTX_ORDER_BY);
 }
 
+static enum_field_types real_data_type(Item *item);
+
 /*****************************************************************************
 ** Item functions
 *****************************************************************************/
@@ -558,7 +560,7 @@ void Item::aggregate_type(Bounds_checked_array<Item *> items) {
 
   DBUG_ASSERT(items[itemno]->result_type() != ROW_RESULT);
 
-  enum_field_types new_type = items[itemno]->data_type();
+  enum_field_types new_type = real_data_type(items[itemno]);
   uint8 new_dec = items[itemno]->decimals;
   bool new_unsigned = items[itemno]->unsigned_flag;
   bool mixed_signs = false;
@@ -567,7 +569,7 @@ void Item::aggregate_type(Bounds_checked_array<Item *> items) {
     // Do not aggregate items with NULL type
     if (items[itemno]->data_type() == MYSQL_TYPE_NULL) continue;
     DBUG_ASSERT(items[itemno]->result_type() != ROW_RESULT);
-    new_type = Field::field_type_merge(new_type, items[itemno]->data_type());
+    new_type = Field::field_type_merge(new_type, real_data_type(items[itemno]));
     mixed_signs |= (new_unsigned != items[itemno]->unsigned_flag);
     new_dec = max<uint8>(new_dec, items[itemno]->decimals);
   }
@@ -9419,11 +9421,11 @@ Item_result Item_aggregate_type::result_type() const {
     data type which should be used to store item value
 */
 
-enum_field_types Item_aggregate_type::real_data_type(Item *item) {
+static enum_field_types real_data_type(Item *item) {
   item = item->real_item();
 
   switch (item->type()) {
-    case FIELD_ITEM: {
+    case Item::FIELD_ITEM: {
       /*
         Item_fields::field_type ask Field_type() but sometimes field return
         a different type, like for enum/set, so we need to ask real type.
@@ -9436,7 +9438,7 @@ enum_field_types Item_aggregate_type::real_data_type(Item *item) {
         return MYSQL_TYPE_VAR_STRING;
       return type;
     }
-    case SUM_FUNC_ITEM: {
+    case Item::SUM_FUNC_ITEM: {
       /*
         Argument of aggregate function sometimes should be asked about field
         type
@@ -9446,7 +9448,7 @@ enum_field_types Item_aggregate_type::real_data_type(Item *item) {
         return real_data_type(item_sum->get_arg(0));
       break;
     }
-    case FUNC_ITEM:
+    case Item::FUNC_ITEM:
       if (((Item_func *)item)->functype() == Item_func::GUSERVAR_FUNC) {
         /*
           There are work around of problem with changing variable type on the
@@ -9526,9 +9528,6 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
   */
   Item **args = new (thd->mem_root) Item *[2] { item_copy, item };
   aggregate_type(make_array(&args[0], 2));
-  // UNION with ENUM/SET fields requires type information from real_data_type()
-  set_data_type(real_type_to_type(Field::field_type_merge(
-      real_data_type(item_copy), real_data_type(item))));
 
   Item_result merge_type = Field::result_merge_type(data_type());
   if (merge_type == STRING_RESULT) {
