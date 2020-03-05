@@ -34,6 +34,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename
 #include "sql/table.h"
+#include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
 #include "storage/ndb/plugin/ndb_dummy_ts.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_tdc.h"
@@ -160,12 +161,19 @@ struct ha_ndbinfo_impl {
   Vector<const NdbInfoRecAttr *> m_columns;
   bool m_first_use;
 
-  // Indicates if table has been opened in offline mode
-  // can only be reset by closing the table
-  bool m_offline;
+  enum struct Table_Status {
+    CLOSED,
+    OFFLINE_NDBINFO_OFFLINE,  // Table offline as ndbinfo is offline
+    OFFLINE_DISCONNECTED,     // Table offline as cluster is disconnected
+    OFFLINE_UPGRADING,        // Table offline due to an ongoing upgrade
+    OPEN                      // Table is online and accessible
+  } m_status;
 
   ha_ndbinfo_impl()
-      : m_table(NULL), m_scan_op(NULL), m_first_use(true), m_offline(false) {}
+      : m_table(nullptr),
+        m_scan_op(nullptr),
+        m_first_use(true),
+        m_status(Table_Status::CLOSED) {}
 };
 
 ha_ndbinfo::ha_ndbinfo(handlerton *hton, TABLE_SHARE *table_arg)
@@ -301,16 +309,27 @@ int ha_ndbinfo::create(const char *, TABLE *, HA_CREATE_INFO *, dd::Table *) {
   return 0;
 }
 
-bool ha_ndbinfo::is_open(void) const { return m_impl.m_table != NULL; }
+bool ha_ndbinfo::is_open() const {
+  return m_impl.m_status == ha_ndbinfo_impl::Table_Status::OPEN;
+}
 
-bool ha_ndbinfo::is_offline(void) const { return m_impl.m_offline; }
+bool ha_ndbinfo::is_closed() const {
+  return m_impl.m_status == ha_ndbinfo_impl::Table_Status::CLOSED;
+}
+
+bool ha_ndbinfo::is_offline() const {
+  return m_impl.m_status ==
+             ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE ||
+         m_impl.m_status ==
+             ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED ||
+         m_impl.m_status == ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING;
+}
 
 int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s, mode: %d", name, mode));
 
   assert(is_closed());
-  assert(!is_offline());  // Closed table can not be offline
 
   if (mode == O_RDWR) {
     if (table->db_stat & HA_TRY_READ_ONLY) {
@@ -323,17 +342,29 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
 
   if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
     // Mark table as being offline and allow it to be opened
-    m_impl.m_offline = true;
+    m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE;
     return 0;
   }
 
   int err = g_ndbinfo->openTable(name, &m_impl.m_table);
   if (err) {
     assert(m_impl.m_table == 0);
-    if (err == NdbInfo::ERR_NoSuchTable) return HA_ERR_NO_SUCH_TABLE;
+    if (err == NdbInfo::ERR_NoSuchTable) {
+      if (g_ndb_cluster_connection->get_min_db_version() < NDB_VERSION_D) {
+        // The table does not exist but there is a data node from a lower
+        // version connected to this Server. This is in the middle of an upgrade
+        // and the possibility is that the data node does not have this ndbinfo
+        // table definition yet. So we open this table in an offline mode so as
+        // to allow the upgrade to continue further. The table will be reopened
+        // properly after the upgrade completes.
+        m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING;
+        return 0;
+      }
+      return HA_ERR_NO_SUCH_TABLE;
+    }
     if (err == NdbInfo::ERR_ClusterFailure) {
-      /* Not currently connected to cluster, but mark table offline */
-      m_impl.m_offline = true;
+      /* Not currently connected to cluster, but open in offline mode */
+      m_impl.m_status = ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED;
       return 0;
     }
     return err2mysql(err);
@@ -398,6 +429,9 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
     ref_length += table->field[i]->pack_length();
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
+  // Mark table as opened
+  m_impl.m_status = ha_ndbinfo_impl::Table_Status::OPEN;
+
   return 0;
 }
 
@@ -410,6 +444,7 @@ int ha_ndbinfo::close(void) {
   if (m_impl.m_table) {
     g_ndbinfo->closeTable(m_impl.m_table);
     m_impl.m_table = NULL;
+    m_impl.m_status = ha_ndbinfo_impl::Table_Status::CLOSED;
   }
   return 0;
 }
@@ -418,20 +453,38 @@ int ha_ndbinfo::rnd_init(bool scan) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("scan: %d", scan));
 
-  if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
-    push_warning(current_thd, Sql_condition::SL_NOTE, 1,
-                 "'NDBINFO' has been started in offline mode "
-                 "since the 'NDBCLUSTER' engine is disabled "
-                 "or @@global.ndbinfo_offline is turned on "
-                 "- no rows can be returned");
-    return 0;
+  if (!is_open()) {
+    switch (m_impl.m_status) {
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_NDBINFO_OFFLINE: {
+        push_warning(current_thd, Sql_condition::SL_NOTE, 1,
+                     "'NDBINFO' has been started in offline mode "
+                     "since the 'NDBCLUSTER' engine is disabled "
+                     "or @@global.ndbinfo_offline is turned on "
+                     "- no rows can be returned");
+        return 0;
+      }
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_DISCONNECTED:
+        return HA_ERR_NO_CONNECTION;
+      case ha_ndbinfo_impl::Table_Status::OFFLINE_UPGRADING: {
+        // Upgrade in progress.
+        push_warning(current_thd, Sql_condition::SL_NOTE, 1,
+                     "This table is not available as the data nodes are not "
+                     "upgraded yet - no rows can be returned");
+        // Close the table in MySQL Server's table definition cache to force
+        // reload it the next time.
+        const std::string db_name(table_share->db.str, table_share->db.length);
+        const std::string table_name(table_share->table_name.str,
+                                     table_share->table_name.length);
+        ndb_tdc_close_cached_table(current_thd, db_name.c_str(),
+                                   table_name.c_str());
+        return 0;
+      }
+      default:
+        // Should not happen
+        DBUG_ASSERT(false);
+        return 0;
+    }
   }
-
-  if (is_offline()) {
-    return HA_ERR_NO_CONNECTION;
-  }
-
-  assert(is_open());
 
   if (m_impl.m_scan_op) {
     /*
