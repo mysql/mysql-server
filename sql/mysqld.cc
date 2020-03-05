@@ -2873,7 +2873,9 @@ static bool network_init(void) {
     Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
         Mysqld_socket_listener(bind_addresses_info, mysqld_port,
                                admin_address_info, mysqld_admin_port,
-                               listen_admin_interface_in_separate_thread,
+                               admin_address_info.address.empty()
+                                   ? false
+                                   : listen_admin_interface_in_separate_thread,
                                back_log, mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == nullptr) return true;
 
