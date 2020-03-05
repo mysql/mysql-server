@@ -44,7 +44,6 @@ extern char *mysql_unix_port;
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | CLIENT_CONNECT_ATTRS |  \
    CLIENT_SESSION_TRACK | CLIENT_DEPRECATE_EOF)
 
-bool read_kerberos_user_name(char *name);
 void read_user_name(char *name);
 bool handle_local_infile(MYSQL *mysql, const char *net_filename);
 

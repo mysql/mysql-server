@@ -52,6 +52,9 @@ IF (KERBEROS_FOUND)
   ELSE()
     MESSAGE(STATUS "KERBEROS_LIBRARY_PATH      = ${KERBEROS_LIBRARY_PATH}")
     SET(AUTH_LDAP_KERBEROS_CC auth_ldap_kerberos.cc)
+    # mysys is required to use my_free and my_strdup when getting Kerberos user name.
+    # Adding mysys only when build has Kerberos support
+    SET(MY_SYS "mysys")
   ENDIF()
 ELSE()
   MESSAGE(STATUS "Without Kerberos")
@@ -71,6 +74,7 @@ MYSQL_ADD_PLUGIN(authentication_ldap_sasl_client
   ${KERBEROS_LIBRARY_PATH}
   ${SSL_LIBRARIES}
   ${LIBDL}
+  ${MY_SYS}
   CLIENT_ONLY
   MODULE_ONLY
   MODULE_OUTPUT_NAME "authentication_ldap_sasl_client")

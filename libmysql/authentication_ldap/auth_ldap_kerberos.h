@@ -78,7 +78,7 @@ class Kerberos {
       @retval true, If function is successfully able to get user name.
       @retval false, If function is failed to get user name.
   */
-  bool get_user_name(char *name);
+  bool get_user_name(std::string *name);
   void destroy_credentials();
   /**
     This function gets LDAP host from krb5.conf file.

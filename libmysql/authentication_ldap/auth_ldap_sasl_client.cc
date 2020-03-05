@@ -20,10 +20,33 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "auth_ldap_sasl_client.h"
+/*
+  In case of Kerberos authentication we need to fill user name as Kerberos user
+  name if it is empty. We need to fill user name inside mysql->user, client’s
+  uses my_strdup directly to create new string. To use MySQL alloc functions we
+  need to include "/mysql/service_mysql_alloc.h". Inside “service_mysql_alloc.h”
+  there is #define which forces all dynamic plugins to use MySQL malloc function
+  via services. Client side plugin can’t use any services as of now.   Code
+  check in “service_mysql_alloc.h” #ifdef MYSQL_DYNAMIC_PLUGIN #define my_strdup
+  mysql_malloc_service->my_strdup #else extern char *my_strdup(PSI_memory_key
+  key, const char *from, myf_t flags); #endif Client authentication plugin
+  defines MYSQL_DYNAMIC_PLUGIN. And this forces to use always my_strdup via
+  services. To use native direct my_strdup, we need to undefine
+  MYSQL_DYNAMIC_PLUGIN. And again define MYSQL_DYNAMIC_PLUGIN once correct
+  my_strdup are declared. “service_mysql_alloc.h” should provide proper fix like
+  Instead of #ifdef MYSQL_DYNAMIC_PLUGIN
+  #ifdef  MYSQL_DYNAMIC_PLUGIN  &&   ! MYSQL_CLIENT_PLUGIN
+*/
+#if defined(KERBEROS_LIB_CONFIGURED)
+#undef MYSQL_DYNAMIC_PLUGIN
+#include <mysql/service_mysql_alloc.h>
+#define MYSQL_DYNAMIC_PLUGIN
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "auth_ldap_sasl_client.h"
 #ifndef _WIN32
 #include <lber.h>
 #include <sasl/sasl.h>
@@ -290,6 +313,28 @@ int Sasl_client::sasl_step(char *server_in, int server_in_length,
 
 std::string Sasl_client::get_method() { return m_mechanism; }
 
+#if defined(KERBEROS_LIB_CONFIGURED)
+void Sasl_client::read_kerberos_user_name() {
+  std::string user_name = "";
+  bool ret_kerberos = false;
+  auth_ldap_client_kerberos_context::Kerberos kerberos("", "");
+  ret_kerberos = kerberos.get_user_name(&user_name);
+  if (m_mysql && ret_kerberos && (!user_name.empty())) {
+    /*
+      MySQL clients/lib uses my_free, my_strdup my_* string function for string
+      management. We also need to use same methods as these are used/free inside
+      libmysqlclient
+    */
+    if (m_mysql->user) {
+      my_free(m_mysql->user);
+      m_mysql->user = nullptr;
+    }
+    m_mysql->user =
+        my_strdup(PSI_NOT_INSTRUMENTED, user_name.c_str(), MYF(MY_WME));
+  }
+}
+#endif
+
 void Sasl_client::set_user_info(std::string name, std::string pwd) {
   strncpy(m_user_name, name.c_str(), sizeof(m_user_name) - 1);
   m_user_name[sizeof(m_user_name) - 1] = '\0';
@@ -315,8 +360,20 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int sasl_client_output_len = 0;
   std::stringstream log_stream;
   Sasl_client sasl_client;
-  sasl_client.set_user_info(mysql->user, mysql->passwd);
+
   sasl_client.set_plugin_info(vio, mysql);
+
+#if defined(KERBEROS_LIB_CONFIGURED)
+  /*
+    For some cases MySQL user name will be empty as user name is supposed to
+    come from kerberos TGT. Get kerberos user name from TGT and assign this as
+    MySQL user name.
+  */
+  if (!mysql->user || mysql->user[0] == '\0') {
+    sasl_client.read_kerberos_user_name();
+  }
+#endif
+
   server_packet_len = sasl_client.read_method_name_from_server();
   if (server_packet_len < 0) {
     // Callee has already logged the messages.
@@ -333,6 +390,7 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   }
 #endif
 
+  sasl_client.set_user_info(mysql->user, mysql->passwd);
   rc_sasl = sasl_client.initilize();
   if (rc_sasl != SASL_OK) {
     log_error("sasl_authenticate: initialize failed");

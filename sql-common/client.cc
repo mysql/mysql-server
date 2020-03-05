@@ -4755,8 +4755,12 @@ static bool prep_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
     strmake(end, mysql->user, USERNAME_LENGTH);
   else {
 #if defined(KERBEROS_LIB_CONFIGURED)
+    /*
+      Kerberos user name should have already read inside LDAP SASL client
+      plugin. If it is still empty we should return error.
+    */
     if (strcmp(mpvio->plugin->name, "authentication_ldap_sasl_client") == 0) {
-      if (!read_kerberos_user_name(end)) {
+      if (!mysql->user[0]) {
         set_mysql_error(mysql, CR_KERBEROS_USER_NOT_FOUND, unknown_sqlstate);
         return true;
       }
