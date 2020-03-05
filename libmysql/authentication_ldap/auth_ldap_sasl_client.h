@@ -89,6 +89,9 @@ class Sasl_client {
   void set_user_info(std::string name, std::string pwd);
   static void sasl_client_done_wrapper();
   std::string get_method();
+#if defined(KERBEROS_LIB_CONFIGURED)
+  void read_kerberos_user_name();
+#endif
 
  protected:
   char m_user_name[SASL_MAX_STR_SIZE];

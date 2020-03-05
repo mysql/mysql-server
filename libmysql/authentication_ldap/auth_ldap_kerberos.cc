@@ -497,7 +497,7 @@ void Kerberos::destroy_credentials() {
   }
 }
 
-bool Kerberos::get_user_name(char *name) {
+bool Kerberos::get_user_name(std::string *name) {
   krb5_error_code res_kerberos = 0;
   krb5_principal principal = nullptr;
   krb5_context context = nullptr;
@@ -508,6 +508,11 @@ bool Kerberos::get_user_name(char *name) {
     log_dbg("Kerberos object is not initialized.");
     goto EXIT;
   }
+  if (!name) {
+    log_dbg("Failed to get Kerberos user name");
+    goto EXIT;
+  }
+  *name = "";
   if (m_krb_credentials_cache == nullptr) {
     res_kerberos = krb5_cc_default(m_context, &m_krb_credentials_cache);
     if (res_kerberos) {
@@ -536,7 +541,7 @@ bool Kerberos::get_user_name(char *name) {
     log_stream << "SASL get user name: ";
     log_stream << user_name;
     log_info(log_stream.str());
-    strcpy(name, user_name);
+    *name = user_name;
   }
 
 EXIT:

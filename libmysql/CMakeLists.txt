@@ -187,21 +187,6 @@ SET(CLIENT_SOURCES
   ../sql/auth/sha2_password_common.cc
 )
 
-IF (KERBEROS_FOUND)
-  LIST(APPEND CLIENT_SOURCES
-    authentication_ldap/log_client.cc
-    authentication_ldap/auth_ldap_kerberos.cc
-  )
-  # Kerberos is deprecated in macOS.
-  IF(APPLE)
-    ADD_COMPILE_FLAGS(authentication_ldap/auth_ldap_kerberos.cc
-      COMPILE_FLAGS "-Wno-deprecated-declarations")
-  ENDIF()
-  IF(FREEBSD AND KERBEROS_SYSTEM_LIBRARY)
-    INCLUDE_DIRECTORIES(SYSTEM /usr/local/include)
-  ENDIF()
-ENDIF()
-
 IF (WIN32 AND OPENSSL_APPLINK_C)
   ADD_COMPILE_DEFINITIONS(
     ../sql-common/client_authentication.cc
@@ -243,10 +228,6 @@ IF(WITH_ZSTD STREQUAL "bundled")
   LIST(APPEND LIBS_TO_MERGE ${ZSTD_LIBRARY})
 ELSE()
   LIST(APPEND LIBS_TO_LINK ${ZSTD_LIBRARY})
-ENDIF()
-
-IF (KERBEROS_FOUND)
-  LIST(APPEND LIBS_TO_LINK ${KERBEROS_LIBRARY_PATH})
 ENDIF()
 
 LIST(APPEND LIBS_TO_LINK ${SSL_LIBRARIES})
