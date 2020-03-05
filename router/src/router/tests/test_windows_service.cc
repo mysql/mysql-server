@@ -194,9 +194,7 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_dir_and_file_exist) {
   EXPECT_NO_THROW(
       allow_windows_service_to_write_logs(path_to_conf_file_.str()));
 
-  // verify log file and dir have RW permissions set for LocalUser
-  ASSERT_NO_FATAL_FAILURE(check_config_file_access_rights(
-      path_to_log_file.str(), /*read_only=*/false));
+  // verify log dir has RW permissions set for LocalUser
   ASSERT_NO_FATAL_FAILURE(
       check_config_file_access_rights(log_dir_, /*read_only=*/false));
 }
@@ -283,30 +281,6 @@ TEST_F(AllowWindowsServiceToWriteLogsTest, log_dir_is_not_a_dir) {
       std::runtime_error, expected_error);
 }
 
-/**
- * @test
- * Verify that when `log file` actually refers to something else other than a
- * file (e.g. a dir), an appropriate exception is thrown
- */
-TEST_F(AllowWindowsServiceToWriteLogsTest, log_file_is_not_a_file) {
-  init_dirs_and_config();
-  const Path path_to_log_file{Path{log_dir_}.join("mysqlrouter.log")};
-
-  // create a dir same name as expected log file
-  mkdir(path_to_log_file.c_str());
-  ASSERT_TRUE(path_to_log_file.is_directory());
-  std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
-    mysql_harness::delete_dir_recursive(path_to_log_file.c_str());
-  });
-
-  // test with dir in place of log file
-  std::string expected_error = std::string("Path '") +
-                               path_to_log_file.c_str() +
-                               "' does not point to a regular file";
-  EXPECT_THROW_LIKE(
-      allow_windows_service_to_write_logs(path_to_conf_file_.str()),
-      std::runtime_error, expected_error);
-}
 #endif
 
 int main(int argc, char **argv) {
