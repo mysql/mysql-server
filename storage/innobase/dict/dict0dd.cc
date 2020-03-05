@@ -898,9 +898,26 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   }
 
   bool skip_mdl = !(thd && mdl);
-  if (!skip_mdl &&
-      dd_mdl_acquire(thd, mdl, db_name.c_str(), tbl_name.c_str())) {
-    return nullptr;
+
+  if (!skip_mdl) {
+    if (dict_locked) {
+      /* We cannot acquire MDL while holding dict_sys->mutex. The reason that
+      the caller has already locked this mutex is so that the dict_table_t
+      that we will find and return to it will not be dropped while the caller
+      is using it. So it is safe to exit, get the mdl and enter again before
+      finding this dict_table_t. */
+      mutex_exit(&dict_sys->mutex);
+    }
+
+    bool got_mdl = dd_mdl_acquire(thd, mdl, db_name.c_str(), tbl_name.c_str());
+
+    if (dict_locked) {
+      mutex_enter(&dict_sys->mutex);
+    }
+
+    if (got_mdl) {
+      return nullptr;
+    }
   }
 
   if (!dict_locked) {
