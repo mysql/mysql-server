@@ -24,6 +24,8 @@
 
 #include "unicode/utypes.h"
 
+#if U_SHOW_CPLUSPLUS_API
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "unicode/parseerr.h"
@@ -771,8 +773,8 @@ public:
          * @stable ICU 4.8
          */
         UMessagePatternArgType getArgType() const {
-            UMessagePatternPartType type=getType();
-            if(type==UMSGPAT_PART_TYPE_ARG_START || type==UMSGPAT_PART_TYPE_ARG_LIMIT) {
+            UMessagePatternPartType msgType=getType();
+            if(msgType ==UMSGPAT_PART_TYPE_ARG_START || msgType ==UMSGPAT_PART_TYPE_ARG_LIMIT) {
                 return (UMessagePatternArgType)value;
             } else {
                 return UMSGPAT_ARG_TYPE_NONE;
@@ -941,5 +943,7 @@ private:
 U_NAMESPACE_END
 
 #endif  // !UCONFIG_NO_FORMATTING
+
+#endif /* U_SHOW_CPLUSPLUS_API */
 
 #endif  // __MESSAGEPATTERN_H__

@@ -167,9 +167,13 @@ udat_open(UDateFormatStyle  timeStyle,
         }
     }
 
-    if(fmt == 0) {
+    if(fmt == nullptr) {
         *status = U_MEMORY_ALLOCATION_ERROR;
-        return 0;
+        return nullptr;
+    }
+    if (U_FAILURE(*status)) {
+        delete fmt;
+        return nullptr;
     }
 
     if(tzID != 0) {
@@ -603,7 +607,7 @@ udat_getSymbols(const   UDateFormat     *fmt,
     } else {
         return -1;
     }
-    int32_t count;
+    int32_t count = 0;
     const UnicodeString *res = NULL;
 
     switch(type) {

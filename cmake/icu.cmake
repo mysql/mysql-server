@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -115,15 +115,6 @@ IF(NOT WITH_ICU)
 ENDIF()
 
 MACRO (MYSQL_CHECK_ICU)
-  ADD_DEFINITIONS(
-    -DUNISTR_FROM_STRING_EXPLICIT=explicit
-    -DUNISTR_FROM_CHAR_EXPLICIT=explicit
-
-    # This will not work with a 'system' build. The shared libraries are
-    # compiled with renaming turned on.
-    #
-    #    -DU_DISABLE_RENAMING
-  )
 
   FILE(TO_CMAKE_PATH "${WITH_ICU}" WITH_ICU)
 

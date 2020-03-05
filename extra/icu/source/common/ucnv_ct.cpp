@@ -180,7 +180,7 @@ _CompoundTextgetName(const UConverter* cnv);
 
 
 static int32_t findNextEsc(const char *source, const char *sourceLimit) {
-    int32_t length = sourceLimit - source;
+    int32_t length = static_cast<int32_t>(sourceLimit - source);
     int32_t i;
     for (i = 1; i < length; i++) {
         if (*(source + i) == 0x1B) {
@@ -315,6 +315,7 @@ _CompoundTextClose(UConverter *converter) {
         }
 
         uprv_free(converter->extraInfo);
+        converter->extraInfo = NULL;
     }
 }
 
@@ -519,7 +520,7 @@ UConverter_toUnicode_CompoundText_OFFSETS(UConverterToUnicodeArgs *args,
                     currentState = tmpState;
                 }
 
-                sourceOffset = uprv_strlen((char*)escSeqCompoundText[currentState]) - args->converter->toULength;
+                sourceOffset = static_cast<int32_t>(uprv_strlen((char*)escSeqCompoundText[currentState]) - args->converter->toULength);
 
                 mySource += sourceOffset;
 

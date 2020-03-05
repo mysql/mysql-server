@@ -446,6 +446,13 @@ uprv_copyEbcdic(const UDataSwapper *ds,
     return length;
 }
 
+U_CFUNC UBool
+uprv_isEbcdicAtSign(char c) {
+    static const uint8_t ebcdicAtSigns[] = {
+        0x7C, 0x44, 0x66, 0x80, 0xAC, 0xAE, 0xAF, 0xB5, 0xEC, 0xEF, 0x00 };
+    return c != 0 && uprv_strchr((const char *)ebcdicAtSigns, c) != nullptr;
+}
+
 /* compare invariant strings; variant characters compare less than others and unlike each other */
 U_CFUNC int32_t
 uprv_compareInvAscii(const UDataSwapper *ds,
@@ -563,6 +570,11 @@ uprv_compareInvEbcdicAsAscii(const char *s1, const char *s2) {
 }
 
 U_CAPI char U_EXPORT2
+uprv_ebcdicToAscii(char c) {
+    return (char)asciiFromEbcdic[(uint8_t)c];
+}
+
+U_CAPI char U_EXPORT2
 uprv_ebcdicToLowercaseAscii(char c) {
     return (char)lowercaseAsciiFromEbcdic[(uint8_t)c];
 }
@@ -573,7 +585,7 @@ uprv_aestrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
   uint8_t *orig_dst = dst;
 
   if(n==-1) { 
-    n = uprv_strlen((const char*)src)+1; /* copy NUL */
+    n = static_cast<int32_t>(uprv_strlen((const char*)src)+1); /* copy NUL */
   }
   /* copy non-null */
   while(*src && n>0) {
@@ -594,7 +606,7 @@ uprv_eastrncpy(uint8_t *dst, const uint8_t *src, int32_t n)
   uint8_t *orig_dst = dst;
 
   if(n==-1) { 
-    n = uprv_strlen((const char*)src)+1; /* copy NUL */
+    n = static_cast<int32_t>(uprv_strlen((const char*)src)+1); /* copy NUL */
   }
   /* copy non-null */
   while(*src && n>0) {

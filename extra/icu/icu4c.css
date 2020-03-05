@@ -500,7 +500,9 @@ td.proto {
 	font-size: smaller;
 }
 
-
+.no-left-margin {
+    margin-left: 0;
+}
 
 @media print {
 	div#toc {

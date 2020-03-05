@@ -966,26 +966,26 @@ _LMBCSFromUnicode(UConverterFromUnicodeArgs*     args,
 
                 if(extraInfo->localeConverterIndex < ULMBCS_DOUBLEOPTGROUP_START)
                 {
-                  bytes_written = LMBCSConversionWorker (extraInfo,
+                  bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                      ULMBCS_GRP_L1, pLMBCS, &uniChar,
                      &lastConverterIndex, groups_tried);
 
                   if(!bytes_written)
                   {
-                     bytes_written = LMBCSConversionWorker (extraInfo,
+                     bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                          ULMBCS_GRP_EXCEPT, pLMBCS, &uniChar,
                          &lastConverterIndex, groups_tried);
                   }
                   if(!bytes_written)
                   {
-                      bytes_written = LMBCSConversionWorker (extraInfo,
+                      bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                           extraInfo->localeConverterIndex, pLMBCS, &uniChar,
                           &lastConverterIndex, groups_tried);
                   }
                 }
                 else
                 {
-                     bytes_written = LMBCSConversionWorker (extraInfo,
+                     bytes_written = (int32_t)LMBCSConversionWorker (extraInfo,
                          extraInfo->localeConverterIndex, pLMBCS, &uniChar,
                          &lastConverterIndex, groups_tried);
                 }
@@ -1107,11 +1107,13 @@ GetUniFromLMBCSUni(char const ** ppLMBCSin)  /* Called with LMBCS-style Unicode 
    all input as required by ICU converter semantics.
 */
 
-#define CHECK_SOURCE_LIMIT(index) \
-     if (args->source+index > args->sourceLimit){\
-         *err = U_TRUNCATED_CHAR_FOUND;\
-         args->source = args->sourceLimit;\
-         return 0xffff;}
+#define CHECK_SOURCE_LIMIT(index) UPRV_BLOCK_MACRO_BEGIN { \
+    if (args->source+index > args->sourceLimit) { \
+        *err = U_TRUNCATED_CHAR_FOUND; \
+        args->source = args->sourceLimit; \
+        return 0xffff; \
+    } \
+} UPRV_BLOCK_MACRO_END
 
 /* Return the Unicode representation for the current LMBCS character */
 

@@ -21,6 +21,9 @@
 #define SCHRITER_H
 
 #include "unicode/utypes.h"
+
+#if U_SHOW_CPLUSPLUS_API
+
 #include "unicode/chariter.h"
 #include "unicode/uchriter.h"
 
@@ -69,7 +72,7 @@ public:
    * Create an iterator over the UnicodeString referred to by "textStr".
    * The UnicodeString object is copied.
    * The iteration range begins with the code unit specified by
-   * "textBegin" and ends with the code unit BEFORE the code unit specfied
+   * "textBegin" and ends with the code unit BEFORE the code unit specified
    * by "textEnd".  The starting position is specified by "textPos".  If
    * "textBegin" and "textEnd" don't form a valid range on "text" (i.e.,
    * textBegin >= textEnd or either is negative or greater than text.size()),
@@ -130,7 +133,7 @@ public:
    * @return the newly cloned object.
    * @stable ICU 2.0
    */
-  virtual CharacterIterator* clone(void) const;
+  virtual StringCharacterIterator* clone() const;
 
   /**
    * Sets the iterator to iterate over the provided string.
@@ -186,4 +189,7 @@ protected:
 };
 
 U_NAMESPACE_END
+
+#endif /* U_SHOW_CPLUSPLUS_API */
+
 #endif

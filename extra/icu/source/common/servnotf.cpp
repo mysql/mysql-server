@@ -21,7 +21,7 @@ U_NAMESPACE_BEGIN
 EventListener::~EventListener() {}
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(EventListener)
 
-static UMutex notifyLock = U_MUTEX_INITIALIZER;
+static UMutex notifyLock;
 
 ICUNotifier::ICUNotifier(void) 
 : listeners(NULL) 

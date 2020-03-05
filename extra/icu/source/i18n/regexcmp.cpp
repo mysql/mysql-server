@@ -28,6 +28,7 @@
 #include "patternprops.h"
 #include "putilimp.h"
 #include "cmemory.h"
+#include "cstr.h"
 #include "cstring.h"
 #include "uvectr32.h"
 #include "uvectr64.h"
@@ -560,7 +561,7 @@ UBool RegexCompile::doParseActions(int32_t action)
         //               sequence; don't change without making updates there too.
         //
         // Compiles to
-        //    1    START_LA     dataLoc     Saves SP, Input Pos
+        //    1    LA_START     dataLoc     Saves SP, Input Pos, Active input region.
         //    2.   STATE_SAVE   4            on failure of lookahead, goto 4
         //    3    JMP          6           continue ...
         //
@@ -574,10 +575,14 @@ UBool RegexCompile::doParseActions(int32_t action)
         //    8.     code for parenthesized stuff.
         //    9.   LA_END
         //
-        //  Two data slots are reserved, for saving the stack ptr and the input position.
+        //  Four data slots are reserved, for saving state on entry to the look-around
+        //    0:   stack pointer on entry.
+        //    1:   input position on entry.
+        //    2:   fActiveStart, the active bounds start on entry.
+        //    3:   fActiveLimit, the active bounds limit on entry.
         {
             fixLiterals();
-            int32_t dataLoc = allocateData(2);
+            int32_t dataLoc = allocateData(4);
             appendOp(URX_LA_START, dataLoc);
             appendOp(URX_STATE_SAVE, fRXPat->fCompiledPat->size()+ 2);
             appendOp(URX_JMP, fRXPat->fCompiledPat->size()+ 3);
@@ -598,18 +603,23 @@ UBool RegexCompile::doParseActions(int32_t action)
     case doOpenLookAheadNeg:
         // Negated Lookahead.   (?! stuff )
         // Compiles to
-        //    1.    START_LA    dataloc
+        //    1.    LA_START    dataloc
         //    2.    SAVE_STATE  7         // Fail within look-ahead block restores to this state,
         //                                //   which continues with the match.
         //    3.    NOP                   // Std. Open Paren sequence, for possible '|'
         //    4.       code for parenthesized stuff.
-        //    5.    END_LA                // Cut back stack, remove saved state from step 2.
+        //    5.    LA_END                // Cut back stack, remove saved state from step 2.
         //    6.    BACKTRACK             // code in block succeeded, so neg. lookahead fails.
         //    7.    END_LA                // Restore match region, in case look-ahead was using
         //                                        an alternate (transparent) region.
+        //  Four data slots are reserved, for saving state on entry to the look-around
+        //    0:   stack pointer on entry.
+        //    1:   input position on entry.
+        //    2:   fActiveStart, the active bounds start on entry.
+        //    3:   fActiveLimit, the active bounds limit on entry.
         {
             fixLiterals();
-            int32_t dataLoc = allocateData(2);
+            int32_t dataLoc = allocateData(4);
             appendOp(URX_LA_START, dataLoc);
             appendOp(URX_STATE_SAVE, 0);    // dest address will be patched later.
             appendOp(URX_NOP, 0);
@@ -643,14 +653,16 @@ UBool RegexCompile::doParseActions(int32_t action)
             //          Allocate a block of matcher data, to contain (when running a match)
             //              0:    Stack ptr on entry
             //              1:    Input Index on entry
-            //              2:    Start index of match current match attempt.
-            //              3:    Original Input String len.
+            //              2:    fActiveStart, the active bounds start on entry.
+            //              3:    fActiveLimit, the active bounds limit on entry.
+            //              4:    Start index of match current match attempt.
+            //          The first four items must match the layout of data for LA_START / LA_END
 
             // Generate match code for any pending literals.
             fixLiterals();
 
             // Allocate data space
-            int32_t dataLoc = allocateData(4);
+            int32_t dataLoc = allocateData(5);
 
             // Emit URX_LB_START
             appendOp(URX_LB_START, dataLoc);
@@ -695,14 +707,16 @@ UBool RegexCompile::doParseActions(int32_t action)
             //          Allocate a block of matcher data, to contain (when running a match)
             //              0:    Stack ptr on entry
             //              1:    Input Index on entry
-            //              2:    Start index of match current match attempt.
-            //              3:    Original Input String len.
+            //              2:    fActiveStart, the active bounds start on entry.
+            //              3:    fActiveLimit, the active bounds limit on entry.
+            //              4:    Start index of match current match attempt.
+            //          The first four items must match the layout of data for LA_START / LA_END
 
             // Generate match code for any pending literals.
             fixLiterals();
 
             // Allocate data space
-            int32_t dataLoc = allocateData(4);
+            int32_t dataLoc = allocateData(5);
 
             // Emit URX_LB_START
             appendOp(URX_LB_START, dataLoc);
@@ -1464,7 +1478,7 @@ UBool RegexCompile::doParseActions(int32_t action)
             case 0x78: /* 'x' */   bit = UREGEX_COMMENTS;         break;
             case 0x2d: /* '-' */   fSetModeFlag = FALSE;          break;
             default:
-                U_ASSERT(FALSE);   // Should never happen.  Other chars are filtered out
+                UPRV_UNREACHABLE;   // Should never happen.  Other chars are filtered out
                                    // by the scanner.
             }
             if (fSetModeFlag) {
@@ -1839,9 +1853,7 @@ UBool RegexCompile::doParseActions(int32_t action)
         }
 
     default:
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        break;
+        UPRV_UNREACHABLE;
     }
 
     if (U_FAILURE(*fStatus)) {
@@ -1948,25 +1960,17 @@ int32_t RegexCompile::buildOp(int32_t type, int32_t val) {
         return 0;
     }
     if (type < 0 || type > 255) {
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        type = URX_RESERVED_OP;
+        UPRV_UNREACHABLE;
     }
     if (val > 0x00ffffff) {
-        U_ASSERT(FALSE);
-        error(U_REGEX_INTERNAL_ERROR);
-        val = 0;
+        UPRV_UNREACHABLE;
     }
     if (val < 0) {
         if (!(type == URX_RESERVED_OP_N || type == URX_RESERVED_OP)) {
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
-            return -1;
+            UPRV_UNREACHABLE;
         }
         if (URX_TYPE(val) != 0xff) {
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
-            return -1;
+            UPRV_UNREACHABLE;
         }
         type = URX_RESERVED_OP_N;
     }
@@ -2294,6 +2298,13 @@ void  RegexCompile::handleCloseParen() {
                 error(U_REGEX_LOOK_BEHIND_LIMIT);
                 break;
             }
+            if (minML == INT32_MAX) {
+                // This condition happens when no match is possible, such as with a
+                // [set] expression containing no elements.
+                // In principle, the generated code to evaluate the expression could be deleted,
+                // but it's probably not worth the complication.
+                minML = 0;
+            }
             U_ASSERT(minML <= maxML);
 
             // Insert the min and max match len bounds into the URX_LB_CONT op that
@@ -2330,6 +2341,14 @@ void  RegexCompile::handleCloseParen() {
                 error(U_REGEX_LOOK_BEHIND_LIMIT);
                 break;
             }
+            if (minML == INT32_MAX) {
+                // This condition happens when no match is possible, such as with a
+                // [set] expression containing no elements.
+                // In principle, the generated code to evaluate the expression could be deleted,
+                // but it's probably not worth the complication.
+                minML = 0;
+            }
+
             U_ASSERT(minML <= maxML);
 
             // Insert the min and max match len bounds into the URX_LB_CONT op that
@@ -2347,7 +2366,7 @@ void  RegexCompile::handleCloseParen() {
 
 
     default:
-        U_ASSERT(FALSE);
+        UPRV_UNREACHABLE;
     }
 
     // remember the next location in the compiled pattern.
@@ -2607,8 +2626,7 @@ void  RegexCompile::findCaseInsensitiveStarters(UChar32 c, UnicodeSet *starterCh
 
     if (c < UCHAR_MIN_VALUE || c > UCHAR_MAX_VALUE) {
         // This function should never be called with an invalid input character.
-        U_ASSERT(FALSE);
-        starterChars->clear();
+        UPRV_UNREACHABLE;
     } else if (u_hasBinaryProperty(c, UCHAR_CASE_SENSITIVE)) {
         UChar32 caseFoldedC  = u_foldCase(c, U_FOLD_CASE_DEFAULT);
         starterChars->set(caseFoldedC, caseFoldedC);
@@ -3102,13 +3120,10 @@ void   RegexCompile::matchStartType() {
         case URX_LB_END:
         case URX_LBN_CONT:
         case URX_LBN_END:
-            U_ASSERT(FALSE);     // Shouldn't get here.  These ops should be
+            UPRV_UNREACHABLE;     // Shouldn't get here.  These ops should be
                                  //  consumed by the scan in URX_LA_START and LB_START
-
-            break;
-
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
             }
 
         }
@@ -3379,7 +3394,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
                 //   it assumes that the look-ahead match might be zero-length.
                 //   TODO:  Positive lookahead could recursively do the block, then continue
                 //          with the longer of the block or the value coming in.  Ticket 6060
-                int32_t  depth = (opType == URX_LA_START? 2: 1);;
+                int32_t  depth = (opType == URX_LA_START? 2: 1);
                 for (;;) {
                     loc++;
                     op = (int32_t)fRXPat->fCompiledPat->elementAti(loc);
@@ -3428,7 +3443,7 @@ int32_t   RegexCompile::minMatchLength(int32_t start, int32_t end) {
             break;
 
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
             }
 
         }
@@ -3460,7 +3475,6 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
     }
     U_ASSERT(start <= end);
     U_ASSERT(end < fRXPat->fCompiledPat->size());
-
 
     int32_t    loc;
     int32_t    op;
@@ -3670,10 +3684,9 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
 
         case URX_CTR_LOOP:
         case URX_CTR_LOOP_NG:
-            // These opcodes will be skipped over by code for URX_CRT_INIT.
+            // These opcodes will be skipped over by code for URX_CTR_INIT.
             // We shouldn't encounter them here.
-            U_ASSERT(FALSE);
-            break;
+            UPRV_UNREACHABLE;
 
         case URX_LOOP_SR_I:
         case URX_LOOP_DOT_I:
@@ -3693,33 +3706,26 @@ int32_t   RegexCompile::maxMatchLength(int32_t start, int32_t end) {
 
             // End of look-ahead ops should always be consumed by the processing at
             //  the URX_LA_START op.
-            // U_ASSERT(FALSE);
-            // break;
+            // UPRV_UNREACHABLE;
 
         case URX_LB_START:
             {
                 // Look-behind.  Scan forward until the matching look-around end,
                 //   without processing the look-behind block.
-                int32_t  depth = 0;
-                for (;;) {
-                    loc++;
+                int32_t dataLoc = URX_VAL(op);
+                for (loc = loc + 1; loc < end; ++loc) {
                     op = (int32_t)fRXPat->fCompiledPat->elementAti(loc);
-                    if (URX_TYPE(op) == URX_LA_START || URX_TYPE(op) == URX_LB_START) {
-                        depth++;
+                    int32_t opType = URX_TYPE(op);
+                    if ((opType == URX_LA_END || opType == URX_LBN_END) && (URX_VAL(op) == dataLoc)) {
+                        break;
                     }
-                    if (URX_TYPE(op) == URX_LA_END || URX_TYPE(op)==URX_LBN_END) {
-                        if (depth == 0) {
-                            break;
-                        }
-                        depth--;
-                    }
-                    U_ASSERT(loc < end);
                 }
+                U_ASSERT(loc < end);
             }
             break;
 
         default:
-            U_ASSERT(FALSE);
+            UPRV_UNREACHABLE;
         }
 
 
@@ -3874,8 +3880,7 @@ void RegexCompile::stripNOPs() {
 
         default:
             // Some op is unaccounted for.
-            U_ASSERT(FALSE);
-            error(U_REGEX_INTERNAL_ERROR);
+            UPRV_UNREACHABLE;
         }
     }
 
@@ -3892,7 +3897,7 @@ void RegexCompile::stripNOPs() {
 //
 //------------------------------------------------------------------------------
 void RegexCompile::error(UErrorCode e) {
-    if (U_SUCCESS(*fStatus)) {
+    if (U_SUCCESS(*fStatus) || e == U_MEMORY_ALLOCATION_ERROR) {
         *fStatus = e;
         // Hmm. fParseErr (UParseError) line & offset fields are int32_t in public
         // API (see common/unicode/parseerr.h), while fLineNum and fCharNum are
@@ -4011,7 +4016,7 @@ UChar32  RegexCompile::peekCharLL() {
 //
 //------------------------------------------------------------------------------
 void RegexCompile::nextChar(RegexPatternChar &c) {
-
+  tailRecursion:
     fScanIndex = UTEXT_GETNATIVEINDEX(fRXPat->fPattern);
     c.fChar    = nextCharLL();
     c.fQuoted  = FALSE;
@@ -4022,7 +4027,9 @@ void RegexCompile::nextChar(RegexPatternChar &c) {
             c.fChar == (UChar32)-1) {
             fQuoteMode = FALSE;  //  Exit quote mode,
             nextCharLL();        // discard the E
-            nextChar(c);         // recurse to get the real next char
+            // nextChar(c);      // recurse to get the real next char
+            goto tailRecursion;  // Note: fuzz testing produced testcases that
+                                 //       resulted in stack overflow here.
         }
     }
     else if (fInBackslashQuote) {
@@ -4140,8 +4147,10 @@ void RegexCompile::nextChar(RegexPatternChar &c) {
             else if (peekCharLL() == chQ) {
                 //  "\Q"  enter quote mode, which will continue until "\E"
                 fQuoteMode = TRUE;
-                nextCharLL();       // discard the 'Q'.
-                nextChar(c);        // recurse to get the real next char.
+                nextCharLL();        // discard the 'Q'.
+                // nextChar(c);      // recurse to get the real next char.
+                goto tailRecursion;  // Note: fuzz testing produced test cases that
+                //                            resulted in stack overflow here.
             }
             else
             {
@@ -4370,209 +4379,207 @@ static inline void addIdentifierIgnorable(UnicodeSet *set, UErrorCode& ec) {
 //     Includes trying the Java "properties" that aren't supported as
 //     normal ICU UnicodeSet properties
 //
-static const UChar posSetPrefix[] = {0x5b, 0x5c, 0x70, 0x7b, 0}; // "[\p{"
-static const UChar negSetPrefix[] = {0x5b, 0x5c, 0x50, 0x7b, 0}; // "[\P{"
 UnicodeSet *RegexCompile::createSetForProperty(const UnicodeString &propName, UBool negated) {
-    UnicodeString   setExpr;
-    UnicodeSet      *set;
-    uint32_t        usetFlags = 0;
 
     if (U_FAILURE(*fStatus)) {
-        return NULL;
+        return nullptr;
     }
+    LocalPointer<UnicodeSet> set;
+    UErrorCode status = U_ZERO_ERROR;
 
-    //
-    //  First try the property as we received it
-    //
-    if (negated) {
-        setExpr.append(negSetPrefix, -1);
-    } else {
-        setExpr.append(posSetPrefix, -1);
-    }
-    setExpr.append(propName);
-    setExpr.append(chRBrace);
-    setExpr.append(chRBracket);
-    if (fModeFlags & UREGEX_CASE_INSENSITIVE) {
-        usetFlags |= USET_CASE_INSENSITIVE;
-    }
-    set = new UnicodeSet(setExpr, usetFlags, NULL, *fStatus);
-    if (U_SUCCESS(*fStatus)) {
-       return set;
-    }
-    delete set;
-    set = NULL;
-
-    //
-    //  The property as it was didn't work.
-
-    //  Do [:word:]. It is not recognized as a property by UnicodeSet.  "word" not standard POSIX
-    //     or standard Java, but many other regular expression packages do recognize it.
-
-    if (propName.caseCompare(UNICODE_STRING_SIMPLE("word"), 0) == 0) {
-        *fStatus = U_ZERO_ERROR;
-        set = new UnicodeSet(*(fRXPat->fStaticSets[URX_ISWORD_SET]));
-        if (set == NULL) {
-            *fStatus = U_MEMORY_ALLOCATION_ERROR;
-            return set;
+    do {      // non-loop, exists to allow breaks from the block.
+        //
+        //  First try the property as we received it
+        //
+        UnicodeString   setExpr;
+        uint32_t        usetFlags = 0;
+        setExpr.append(u"[\\p{", -1);
+        setExpr.append(propName);
+        setExpr.append(u"}]", -1);
+        if (fModeFlags & UREGEX_CASE_INSENSITIVE) {
+            usetFlags |= USET_CASE_INSENSITIVE;
         }
+        set.adoptInsteadAndCheckErrorCode(new UnicodeSet(setExpr, usetFlags, NULL, status), status);
+        if (U_SUCCESS(status) || status == U_MEMORY_ALLOCATION_ERROR) {
+            break;
+        }
+
+        //
+        //  The incoming property wasn't directly recognized by ICU.
+
+        //  Check [:word:] and [:all:]. These are not recognized as a properties by ICU UnicodeSet.
+        //     Java accepts 'word' with mixed case.
+        //     Java accepts 'all' only in all lower case.
+
+        status = U_ZERO_ERROR;
+        if (propName.caseCompare(u"word", -1, 0) == 0) {
+            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(*(fRXPat->fStaticSets[URX_ISWORD_SET])), status);
+            break;
+        }
+        if (propName.compare(u"all", -1) == 0) {
+            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(0, 0x10ffff), status);
+            break;
+        }
+
+
+        //    Do Java InBlock expressions
+        //
+        UnicodeString mPropName = propName;
+        if (mPropName.startsWith(u"In", 2) && mPropName.length() >= 3) {
+            status = U_ZERO_ERROR;
+            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(), status);
+            if (U_FAILURE(status)) {
+                break;
+            }
+            UnicodeString blockName(mPropName, 2);  // Property with the leading "In" removed.
+            set->applyPropertyAlias(UnicodeString(u"Block"), blockName, status);
+            break;
+        }
+
+        //  Check for the Java form "IsBooleanPropertyValue", which we will recast
+        //  as "BooleanPropertyValue". The property value can be either a
+        //  a General Category or a Script Name.
+
+        if (propName.startsWith(u"Is", 2) && propName.length()>=3) {
+            mPropName.remove(0, 2);      // Strip the "Is"
+            if (mPropName.indexOf(u'=') >= 0) {
+                // Reject any "Is..." property expression containing an '=', that is,
+                // any non-binary property expression.
+                status = U_REGEX_PROPERTY_SYNTAX;
+                break;
+            }
+
+            if (mPropName.caseCompare(u"assigned", -1, 0) == 0) {
+                mPropName.setTo(u"unassigned", -1);
+                negated = !negated;
+            } else if (mPropName.caseCompare(u"TitleCase", -1, 0) == 0) {
+                mPropName.setTo(u"Titlecase_Letter", -1);
+            }
+
+            mPropName.insert(0, u"[\\p{", -1);
+            mPropName.append(u"}]", -1);
+            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(mPropName, *fStatus), status);
+
+            if (U_SUCCESS(status) && !set->isEmpty() && (usetFlags & USET_CASE_INSENSITIVE)) {
+                set->closeOver(USET_CASE_INSENSITIVE);
+            }
+            break;
+
+        }
+
+        if (propName.startsWith(u"java", -1)) {
+            status = U_ZERO_ERROR;
+            set.adoptInsteadAndCheckErrorCode(new UnicodeSet(), status);
+            if (U_FAILURE(status)) {
+                break;
+            }
+            //
+            //  Try the various Java specific properties.
+            //   These all begin with "java"
+            //
+            if (propName.compare(u"javaDefined", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_CN_MASK, status);
+                set->complement();
+            }
+            else if (propName.compare(u"javaDigit", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_ND_MASK, status);
+            }
+            else if (propName.compare(u"javaIdentifierIgnorable", -1) == 0) {
+                addIdentifierIgnorable(set.getAlias(), status);
+            }
+            else if (propName.compare(u"javaISOControl", -1) == 0) {
+                set->add(0, 0x1F).add(0x7F, 0x9F);
+            }
+            else if (propName.compare(u"javaJavaIdentifierPart", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+                addCategory(set.getAlias(), U_GC_SC_MASK, status);
+                addCategory(set.getAlias(), U_GC_PC_MASK, status);
+                addCategory(set.getAlias(), U_GC_ND_MASK, status);
+                addCategory(set.getAlias(), U_GC_NL_MASK, status);
+                addCategory(set.getAlias(), U_GC_MC_MASK, status);
+                addCategory(set.getAlias(), U_GC_MN_MASK, status);
+                addIdentifierIgnorable(set.getAlias(), status);
+            }
+            else if (propName.compare(u"javaJavaIdentifierStart", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+                addCategory(set.getAlias(), U_GC_NL_MASK, status);
+                addCategory(set.getAlias(), U_GC_SC_MASK, status);
+                addCategory(set.getAlias(), U_GC_PC_MASK, status);
+            }
+            else if (propName.compare(u"javaLetter", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+            }
+            else if (propName.compare(u"javaLetterOrDigit", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+                addCategory(set.getAlias(), U_GC_ND_MASK, status);
+            }
+            else if (propName.compare(u"javaLowerCase", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_LL_MASK, status);
+            }
+            else if (propName.compare(u"javaMirrored", -1) == 0) {
+                set->applyIntPropertyValue(UCHAR_BIDI_MIRRORED, 1, status);
+            }
+            else if (propName.compare(u"javaSpaceChar", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_Z_MASK, status);
+            }
+            else if (propName.compare(u"javaSupplementaryCodePoint", -1) == 0) {
+                set->add(0x10000, UnicodeSet::MAX_VALUE);
+            }
+            else if (propName.compare(u"javaTitleCase", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_LT_MASK, status);
+            }
+            else if (propName.compare(u"javaUnicodeIdentifierStart", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+                addCategory(set.getAlias(), U_GC_NL_MASK, status);
+            }
+            else if (propName.compare(u"javaUnicodeIdentifierPart", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_L_MASK, status);
+                addCategory(set.getAlias(), U_GC_PC_MASK, status);
+                addCategory(set.getAlias(), U_GC_ND_MASK, status);
+                addCategory(set.getAlias(), U_GC_NL_MASK, status);
+                addCategory(set.getAlias(), U_GC_MC_MASK, status);
+                addCategory(set.getAlias(), U_GC_MN_MASK, status);
+                addIdentifierIgnorable(set.getAlias(), status);
+            }
+            else if (propName.compare(u"javaUpperCase", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_LU_MASK, status);
+            }
+            else if (propName.compare(u"javaValidCodePoint", -1) == 0) {
+                set->add(0, UnicodeSet::MAX_VALUE);
+            }
+            else if (propName.compare(u"javaWhitespace", -1) == 0) {
+                addCategory(set.getAlias(), U_GC_Z_MASK, status);
+                set->removeAll(UnicodeSet().add(0xa0).add(0x2007).add(0x202f));
+                set->add(9, 0x0d).add(0x1c, 0x1f);
+            } else {
+                status = U_REGEX_PROPERTY_SYNTAX;
+            }
+
+            if (U_SUCCESS(status) && !set->isEmpty() && (usetFlags & USET_CASE_INSENSITIVE)) {
+                set->closeOver(USET_CASE_INSENSITIVE);
+            }
+            break;
+        }
+
+        // Unrecognized property. ICU didn't like it as it was, and none of the Java compatibility
+        // extensions matched it.
+        status = U_REGEX_PROPERTY_SYNTAX;
+    } while (false);   // End of do loop block. Code above breaks out of the block on success or hard failure.
+
+    if (U_SUCCESS(status)) {
+        U_ASSERT(set.isValid());
         if (negated) {
             set->complement();
         }
-        return set;
+        return set.orphan();
+    } else {
+        if (status == U_ILLEGAL_ARGUMENT_ERROR) {
+            status = U_REGEX_PROPERTY_SYNTAX;
+        }
+        error(status);
+        return nullptr;
     }
-
-
-    //    Do Java fixes -
-    //       InGreek -> InGreek or Coptic, that being the official Unicode name for that block.
-    //       InCombiningMarksforSymbols -> InCombiningDiacriticalMarksforSymbols.
-    //
-    //       Note on Spaces:  either "InCombiningMarksForSymbols" or "InCombining Marks for Symbols"
-    //                        is accepted by Java.  The property part of the name is compared
-    //                        case-insenstively.  The spaces must be exactly as shown, either
-    //                        all there, or all omitted, with exactly one at each position
-    //                        if they are present.  From checking against JDK 1.6
-    //
-    //       This code should be removed when ICU properties support the Java  compatibility names
-    //          (ICU 4.0?)
-    //
-    UnicodeString mPropName = propName;
-    if (mPropName.caseCompare(UNICODE_STRING_SIMPLE("InGreek"), 0) == 0) {
-        mPropName = UNICODE_STRING_SIMPLE("InGreek and Coptic");
-    }
-    if (mPropName.caseCompare(UNICODE_STRING_SIMPLE("InCombining Marks for Symbols"), 0) == 0 ||
-        mPropName.caseCompare(UNICODE_STRING_SIMPLE("InCombiningMarksforSymbols"), 0) == 0) {
-        mPropName = UNICODE_STRING_SIMPLE("InCombining Diacritical Marks for Symbols");
-    }
-    else if (mPropName.compare(UNICODE_STRING_SIMPLE("all")) == 0) {
-        mPropName = UNICODE_STRING_SIMPLE("javaValidCodePoint");
-    }
-
-    //    See if the property looks like a Java "InBlockName", which
-    //    we will recast as "Block=BlockName"
-    //
-    static const UChar IN[] = {0x49, 0x6E, 0};  // "In"
-    static const UChar BLOCK[] = {0x42, 0x6C, 0x6f, 0x63, 0x6b, 0x3d, 00};  // "Block="
-    if (mPropName.startsWith(IN, 2) && propName.length()>=3) {
-        setExpr.truncate(4);   // Leaves "[\p{", or "[\P{"
-        setExpr.append(BLOCK, -1);
-        setExpr.append(UnicodeString(mPropName, 2));  // Property with the leading "In" removed.
-        setExpr.append(chRBrace);
-        setExpr.append(chRBracket);
-        *fStatus = U_ZERO_ERROR;
-        set = new UnicodeSet(setExpr, usetFlags, NULL, *fStatus);
-        if (U_SUCCESS(*fStatus)) {
-            return set;
-        }
-        delete set;
-        set = NULL;
-    }
-
-    if (propName.startsWith(UNICODE_STRING_SIMPLE("java")) ||
-        propName.compare(UNICODE_STRING_SIMPLE("all")) == 0)
-    {
-        UErrorCode localStatus = U_ZERO_ERROR;
-        //setExpr.remove();
-        set = new UnicodeSet();
-        //
-        //  Try the various Java specific properties.
-        //   These all begin with "java"
-        //
-        if (mPropName.compare(UNICODE_STRING_SIMPLE("javaDefined")) == 0) {
-            addCategory(set, U_GC_CN_MASK, localStatus);
-            set->complement();
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaDigit")) == 0) {
-            addCategory(set, U_GC_ND_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaIdentifierIgnorable")) == 0) {
-            addIdentifierIgnorable(set, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaISOControl")) == 0) {
-            set->add(0, 0x1F).add(0x7F, 0x9F);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaJavaIdentifierPart")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-            addCategory(set, U_GC_SC_MASK, localStatus);
-            addCategory(set, U_GC_PC_MASK, localStatus);
-            addCategory(set, U_GC_ND_MASK, localStatus);
-            addCategory(set, U_GC_NL_MASK, localStatus);
-            addCategory(set, U_GC_MC_MASK, localStatus);
-            addCategory(set, U_GC_MN_MASK, localStatus);
-            addIdentifierIgnorable(set, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaJavaIdentifierStart")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-            addCategory(set, U_GC_NL_MASK, localStatus);
-            addCategory(set, U_GC_SC_MASK, localStatus);
-            addCategory(set, U_GC_PC_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaLetter")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaLetterOrDigit")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-            addCategory(set, U_GC_ND_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaLowerCase")) == 0) {
-            addCategory(set, U_GC_LL_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaMirrored")) == 0) {
-            set->applyIntPropertyValue(UCHAR_BIDI_MIRRORED, 1, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaSpaceChar")) == 0) {
-            addCategory(set, U_GC_Z_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaSupplementaryCodePoint")) == 0) {
-            set->add(0x10000, UnicodeSet::MAX_VALUE);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaTitleCase")) == 0) {
-            addCategory(set, U_GC_LT_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaUnicodeIdentifierStart")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-            addCategory(set, U_GC_NL_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaUnicodeIdentifierPart")) == 0) {
-            addCategory(set, U_GC_L_MASK, localStatus);
-            addCategory(set, U_GC_PC_MASK, localStatus);
-            addCategory(set, U_GC_ND_MASK, localStatus);
-            addCategory(set, U_GC_NL_MASK, localStatus);
-            addCategory(set, U_GC_MC_MASK, localStatus);
-            addCategory(set, U_GC_MN_MASK, localStatus);
-            addIdentifierIgnorable(set, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaUpperCase")) == 0) {
-            addCategory(set, U_GC_LU_MASK, localStatus);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaValidCodePoint")) == 0) {
-            set->add(0, UnicodeSet::MAX_VALUE);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("javaWhitespace")) == 0) {
-            addCategory(set, U_GC_Z_MASK, localStatus);
-            set->removeAll(UnicodeSet().add(0xa0).add(0x2007).add(0x202f));
-            set->add(9, 0x0d).add(0x1c, 0x1f);
-        }
-        else if (mPropName.compare(UNICODE_STRING_SIMPLE("all")) == 0) {
-            set->add(0, UnicodeSet::MAX_VALUE);
-        }
-
-        if (U_SUCCESS(localStatus) && !set->isEmpty()) {
-            *fStatus = U_ZERO_ERROR;
-            if (usetFlags & USET_CASE_INSENSITIVE) {
-                set->closeOver(USET_CASE_INSENSITIVE);
-            }
-            if (negated) {
-                set->complement();
-            }
-            return set;
-        }
-        delete set;
-        set = NULL;
-    }
-    error(*fStatus);
-    return NULL;
 }
-
 
 
 //
@@ -4623,8 +4630,7 @@ void RegexCompile::setEval(int32_t nextOp) {
                 delete rightOperand;
                 break;
             default:
-                U_ASSERT(FALSE);
-                break;
+                UPRV_UNREACHABLE;
             }
         }
     }
