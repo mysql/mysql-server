@@ -3428,6 +3428,20 @@ Tsman::client_unlock()
   }
 }
 
+bool Tsman::is_datafile_ready(Uint32 file_no)
+{
+  Ptr<Datafile> file_ptr;
+  Datafile file_key;
+  file_key.m_file_no = file_no;
+  if (m_file_hash.find(file_ptr, file_key))
+  {
+    if (file_ptr.p->m_state == Datafile::FS_CREATING)
+      return false;
+    return true;
+  }
+  return false;
+}
+
 void Tsman::lock_extent_page(Uint32 file_no, Uint32 page_no)
 {
   if (isNdbMtLqh())
