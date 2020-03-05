@@ -3256,33 +3256,44 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
     {
       Tablespace_client tsman(signal, this, c_tsman, 0, 0, 0, 0);
       jam();
-      tsman.lock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
-      if ((ptr.p->m_state & Page_entry::DIRTY) &&
-          !(ptr.p->m_state & Page_entry::PAGEOUT))
+      bool is_file_ready = tsman.is_datafile_ready(ptr.p->m_file_no);
+      if (is_file_ready)
       {
-        jam();
-        Ptr<GlobalPage> org, copy;
-        ndbrequire(m_global_page_pool.seize(copy));
-        m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
-        memcpy(copy.p, org.p, sizeof(GlobalPage));
-        ptr.p->m_copy_page_i = copy.i;
+        /**
+         * An extent page is placed into SL_LOCKED pages before the
+         * data file is ready for use. This means that we haven't even
+         * initialised the mutexes yet and also not initialised all
+         * the extent pages. Avoid checkpointing those pages until
+         * the data file is ready.
+         */
+        tsman.lock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
+        if ((ptr.p->m_state & Page_entry::DIRTY) &&
+            !(ptr.p->m_state & Page_entry::PAGEOUT))
+        {
+          jam();
+          Ptr<GlobalPage> org, copy;
+          ndbrequire(m_global_page_pool.seize(copy));
+          m_global_page_pool.getPtr(org, ptr.p->m_real_page_i);
+          memcpy(copy.p, org.p, sizeof(GlobalPage));
+          ptr.p->m_copy_page_i = copy.i;
 
-        ptr.p->m_state |= Page_entry::LCP;
+          ptr.p->m_state |= Page_entry::LCP;
 
-        DEB_PGMAN_PAGE(("(%u)pageout():extent, page(%u,%u):%u:%x",
-                        instance(),
-                        ptr.p->m_file_no,
-                        ptr.p->m_page_no,
-                        ptr.i,
-                        (unsigned int)ptr.p->m_state));
+          DEB_PGMAN_PAGE(("(%u)pageout():extent, page(%u,%u):%u:%x",
+                          instance(),
+                          ptr.p->m_file_no,
+                          ptr.p->m_page_no,
+                          ptr.i,
+                          (unsigned int)ptr.p->m_state));
 
-        pageout(signal, ptr);
-        m_lcp_outstanding++;
-        m_current_lcp_pageouts++;
-        m_available_lcp_pageouts_used++;
-        break_flag = true;
+          pageout(signal, ptr);
+          m_lcp_outstanding++;
+          m_current_lcp_pageouts++;
+          m_available_lcp_pageouts_used++;
+          break_flag = true;
+        }
+        tsman.unlock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
       }
-      tsman.unlock_extent_page(ptr.p->m_file_no, ptr.p->m_page_no);
     }
   
     Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
