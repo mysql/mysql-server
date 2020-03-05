@@ -2116,6 +2116,15 @@ static int proposer_task(task_arg arg) {
   TASK_END;
 }
 
+static xcom_proto constexpr first_protocol_that_ignores_intermediate_forced_configs_or_views =
+    x_1_8;
+
+static bool constexpr should_ignore_forced_config_or_view(
+    xcom_proto protocol_version) {
+  return protocol_version >=
+         first_protocol_that_ignores_intermediate_forced_configs_or_views;
+}
+
 static node_no leader(site_def const *s) {
   node_no leader = 0;
   for (leader = 0; leader < get_maxnodes(s); leader++) {
@@ -2148,14 +2157,21 @@ void execute_msg(site_def *site, pax_machine *pma, pax_msg *p) {
               COPY_AND_FREE_GOUT(dbg_pax_msg(pma->learner.msg)););
         if (site && site->global_node_set.node_set_len ==
                         a->body.app_u_u.present.node_set_len) {
-          assert(site->global_node_set.node_set_len ==
-                 a->body.app_u_u.present.node_set_len);
-          copy_node_set(&a->body.app_u_u.present, &site->global_node_set);
-          deliver_global_view_msg(site, p->synode);
-          ADD_DBG(D_BASE,
-                  add_event(EVENT_DUMP_PAD,
-                            string_arg("deliver_global_view_msg p->synode"));
-                  add_synode_event(p->synode););
+          if ((p->force_delivery != 0) &&
+              should_ignore_forced_config_or_view(site->x_proto)) {
+            G_DEBUG(
+                "execute_msg: Ignoring a forced intermediate, pending "
+                "view_msg");
+          } else {
+            assert(site->global_node_set.node_set_len ==
+                   a->body.app_u_u.present.node_set_len);
+            copy_node_set(&a->body.app_u_u.present, &site->global_node_set);
+            deliver_global_view_msg(site, p->synode);
+            ADD_DBG(D_BASE,
+                    add_event(EVENT_DUMP_PAD,
+                              string_arg("deliver_global_view_msg p->synode"));
+                    add_synode_event(p->synode););
+          }
         }
         break;
       default:
@@ -2807,11 +2823,63 @@ site_def *handle_remove_node(app_data_ptr a) {
   return site;
 }
 
-bool_t handle_config(app_data_ptr a) {
+static void log_ignored_forced_config(app_data_ptr a,
+                                      char const *const caller_name) {
+  switch (a->body.c_t) {
+    case unified_boot_type:
+      G_DEBUG("%s: Ignoring a forced intermediate, pending unified_boot",
+              caller_name);
+      break;
+    case add_node_type:
+      G_DEBUG("%s: Ignoring a forced intermediate, pending add_node for %s",
+              caller_name, a->body.app_u_u.nodes.node_list_val[0].address);
+      break;
+    case remove_node_type:
+      G_DEBUG("%s: Ignoring a forced intermediate, pending remove_node for %s",
+              caller_name, a->body.app_u_u.nodes.node_list_val[0].address);
+      break;
+    case set_event_horizon_type:
+      G_DEBUG(
+          "%s: Ignoring a forced intermediate, pending set_event_horizon for "
+          "%" PRIu32,
+          caller_name, a->body.app_u_u.event_horizon);
+      break;
+    case force_config_type:
+      G_DEBUG("%s: Ignoring a forced intermediate, pending force_config",
+              caller_name);
+      break;
+    case abort_trans:
+    case app_type:
+    case begin_trans:
+    case convert_into_local_server_type:
+    case disable_arbitrator:
+    case enable_arbitrator:
+    case exit_type:
+    case get_event_horizon_type:
+    case get_synode_app_data_type:
+    case prepared_trans:
+    case remove_reset_type:
+    case reset_type:
+    case set_cache_limit:
+    case view_msg:
+    case x_terminate_and_exit:
+    case xcom_boot_type:
+    case xcom_set_group:
+      // Meaningless for any other `cargo_type`s. Ignore.
+      break;
+  }
+}
+
+bool_t handle_config(app_data_ptr a, bool const forced) {
   assert(a->body.c_t == unified_boot_type ||
          a->next == NULL); /* Reconfiguration commands are not batched. */
   {
     bool_t success = FALSE;
+    if (forced &&
+        should_ignore_forced_config_or_view(get_executor_site()->x_proto)) {
+      log_ignored_forced_config(a, "handle_config");
+      goto end;
+    }
     switch (a->body.c_t) {
       case unified_boot_type:
         success = (install_node_group(a) != NULL);
@@ -2842,6 +2910,7 @@ bool_t handle_config(app_data_ptr a) {
         assert(FALSE); /* Boy oh boy, something is really wrong... */
         break;
     }
+  end:
     return success;
   }
 }
@@ -3104,7 +3173,8 @@ static void x_fetch(execute_context *xc) {
       synode_gt(executed_msg, get_site_def()->boot_key)) /* Redo test */
   {
     site_def *site = 0;
-    bool_t reconfiguration_successful = handle_config(app);
+    bool_t reconfiguration_successful =
+        handle_config(app, (xc->p->learner.msg->force_delivery != 0));
     if (reconfiguration_successful) {
       /* If the reconfiguration failed then it does not have any
        * effect. What follows only makes sense if the reconfiguration
@@ -4022,12 +4092,22 @@ void handle_learn(site_def const *site, pax_machine *p, pax_msg *m) {
       switch (m->a->body.c_t) {
         case add_node_type:
           /* purecov: begin deadcode */
-          start_force_config(clone_site_def(handle_add_node(m->a)), 0);
+          if (should_ignore_forced_config_or_view(
+                  find_site_def(p->synode)->x_proto)) {
+            log_ignored_forced_config(m->a, "handle_learn");
+          } else {
+            start_force_config(clone_site_def(handle_add_node(m->a)), 0);
+          }
           break;
         /* purecov: end */
         case remove_node_type:
           /* purecov: begin deadcode */
-          start_force_config(clone_site_def(handle_remove_node(m->a)), 0);
+          if (should_ignore_forced_config_or_view(
+                  find_site_def(p->synode)->x_proto)) {
+            log_ignored_forced_config(m->a, "handle_learn");
+          } else {
+            start_force_config(clone_site_def(handle_remove_node(m->a)), 0);
+          }
           break;
         /* purecov: end */
         case force_config_type:

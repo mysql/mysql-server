@@ -123,7 +123,7 @@ FOREACH(X xcom_vp)
       #
       COMMAND ${CMAKE_COMMAND} -E remove -f ${x_gen_h}
       COMMAND ${CMAKE_COMMAND} -E remove -f ${x_tmp_h}
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=107 -Dversion="" -Drpcgen_output=${x_tmp_h} -Dx_gen_h=${x_gen_h} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${enumfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="" -Drpcgen_output=${x_tmp_h} -Dx_gen_h=${x_gen_h} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${enumfix}
 
       #
       # Generate xdr functions for all versions of the xdr protocol
@@ -143,14 +143,15 @@ FOREACH(X xcom_vp)
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=104 -Dversion="_1_4" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=105 -Dversion="_1_5" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=106 -Dversion="_1_6" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=107 -Dversion="_1_7" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       #
       # The latest version is generated twice, once with the version suffix, and once without the suffix
       # To add a new version, change the two next lines so they correspond
       # to the latest version, and add a line for the previous version above
       # this comment block.
       #
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=107 -Dversion="_1_7" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
-      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=107 -Dversion="" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="_1_8" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
+      COMMAND ${CMAKE_COMMAND} -DRPCGEN_EXECUTABLE=${RPCGEN_EXECUTABLE} -DXCOM_PROTO_VERS=108 -Dversion="" -Drpcgen_output=${x_tmp_c} -Dx_gen_c=${x_gen_c} -Dx_tmp_x_canonical_name=${x_tmp_x_canonical_name} -P ${versionfix}
       WORKING_DIRECTORY ${gen_xdr_dir}
 
       DEPENDS

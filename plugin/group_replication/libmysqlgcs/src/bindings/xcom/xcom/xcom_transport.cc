@@ -73,7 +73,7 @@
 #include "xcom/xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_7
+#define MY_XCOM_PROTO x_1_8
 
 xcom_proto const my_min_xcom_version =
     x_1_0; /* The minimum protocol version I am able to understand */
@@ -485,16 +485,19 @@ extern "C" bool_t xdr_pax_msg_1_4(XDR *, pax_msg *);
 extern "C" bool_t xdr_pax_msg_1_5(XDR *, pax_msg *);
 extern "C" bool_t xdr_pax_msg_1_6(XDR *, pax_msg *);
 extern "C" bool_t xdr_pax_msg_1_7(XDR *, pax_msg *);
+extern "C" bool_t xdr_pax_msg_1_8(XDR *, pax_msg *);
 
-static xdrproc_t pax_msg_func[] = {(xdrproc_t)0,
-                                   (xdrproc_t)xdr_pax_msg_1_0,
-                                   (xdrproc_t)xdr_pax_msg_1_1,
-                                   (xdrproc_t)xdr_pax_msg_1_2,
-                                   (xdrproc_t)xdr_pax_msg_1_3,
-                                   (xdrproc_t)xdr_pax_msg_1_4,
-                                   (xdrproc_t)xdr_pax_msg_1_5,
-                                   (xdrproc_t)xdr_pax_msg_1_6,
-                                   (xdrproc_t)xdr_pax_msg_1_7};
+static xdrproc_t pax_msg_func[] = {
+    reinterpret_cast<xdrproc_t>(0),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_0),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_1),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_2),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_3),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_4),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_5),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_6),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_7),
+    reinterpret_cast<xdrproc_t>(xdr_pax_msg_1_8)};
 
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen,
                   char **buf) {

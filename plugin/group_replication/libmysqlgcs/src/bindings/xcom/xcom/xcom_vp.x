@@ -62,10 +62,10 @@ takes care of insering a suitable value instead of actually reading
 the value from the serialized struct, since the earlier protocol 
 version does not contain the new member.
 
-After adding a new protocol version, set MY_XCOM_PROTO to this version in xcom_transport.c (xcom_transport.c:/MY_XCOM_PROTO)
-In addition, the xdr_pax_msg, in this case xdr_pax_msg_1_7 must be added to the dispatch table pax_msg_func in xcom_transport.c (xcom_transport.c:/pax_msg_func)
+After adding a new protocol version, set MY_XCOM_PROTO to this version in xcom_transport.cc (xcom_transport.cc:/MY_XCOM_PROTO)
+In addition, the xdr_pax_msg, in this case xdr_pax_msg_1_7 must be added to the dispatch table pax_msg_func in xcom_transport.cc (xcom_transport.cc:/pax_msg_func)
 
-For conversion of the new enum value to a string, add an entry in xcom_proto_to_str (xcom_vp_str.c:/xcom_proto_to_str)
+For conversion of the new enum value to a string, add an entry in xcom_proto_to_str (xcom_vp_str.cc:/xcom_proto_to_str)
 
 To actually generate the xdr functions for the new protocol version, see comments in rpcgen.cmake
 */
@@ -79,7 +79,8 @@ enum xcom_proto {
   x_1_4 = 5,
   x_1_5 = 6,
   x_1_6 = 7,
-  x_1_7 = 8
+  x_1_7 = 8,
+  x_1_8 = 9
 };
 
 enum delivery_status {
