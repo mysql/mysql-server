@@ -25,9 +25,11 @@
 #include "plugin/x/src/module_mysqlx.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "plugin/x/src/module_cache.h"
+#include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/server/builder/server_builder.h"
 #include "plugin/x/src/services/mysqlx_group_member_status_listener.h"
 #include "plugin/x/src/services/mysqlx_group_membership_listener.h"
@@ -129,6 +131,10 @@ int Module_mysqlx::initialize(MYSQL_PLUGIN plugin_handle) {
     provide_udfs();
     require_services();
     provide_services();
+
+    if (mysqld::get_initialize()) {
+      return 0;
+    }
 
     xpl::Server_builder builder(plugin_handle);
 

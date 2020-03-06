@@ -345,44 +345,52 @@ void Server::on_accept(xpl::iface::Connection_acceptor *connection_acceptor) {
   // That means that the event loop was just break in the stop()
   if (m_state.is(State_terminating)) return;
 
-  ::Vio *vio = connection_acceptor->accept();
+  // The server sends an audit event with information that its initialized
+  // and we can handle incoming connections, still the state is updated
+  // after sending the audit event. To synchronize with that state we must
+  // wait here for srv_session api.
+  if (xpl::Sql_data_context::wait_api_ready(
+          [this]() { return is_terminating(); })) {
+    ::Vio *vio = connection_acceptor->accept();
 
-  if (nullptr == vio) {
-    ++xpl::Global_status_variables::instance().m_connection_errors_count;
-    ++xpl::Global_status_variables::instance().m_connection_accept_errors_count;
+    if (nullptr == vio) {
+      ++xpl::Global_status_variables::instance().m_connection_errors_count;
+      ++xpl::Global_status_variables::instance()
+            .m_connection_accept_errors_count;
 
-    if (0 == (m_errors_while_accepting++ & 255)) {
-      // error accepting client
-      log_error(ER_XPLUGIN_FAILED_TO_ACCEPT_CLIENT);
-    }
-    const time_t microseconds_to_sleep = 100000;
+      if (0 == (m_errors_while_accepting++ & 255)) {
+        // error accepting client
+        log_error(ER_XPLUGIN_FAILED_TO_ACCEPT_CLIENT);
+      }
+      const time_t microseconds_to_sleep = 100000;
 
-    my_sleep(microseconds_to_sleep);
+      my_sleep(microseconds_to_sleep);
 
-    return;
-  }
-
-  auto client = will_accept_client(vio);
-
-  if (client) {
-    // connection accepted, add to client list and start handshake etc
-    client->reset_accept_time();
-
-    Scheduler_dynamic::Task *task =
-        ngs::allocate_object<Scheduler_dynamic::Task>(
-            std::bind(&xpl::iface::Client::run, client));
-
-    const uint64_t client_id = client->client_id_num();
-    client.reset();
-
-    // all references to client object should be removed at this thread
-    if (!m_worker_scheduler->post(task)) {
-      log_error(ER_XPLUGIN_FAILED_TO_SCHEDULE_CLIENT);
-      free_object(task);
-      m_client_list.remove(client_id);
+      return;
     }
 
-    restart_client_supervision_timer();
+    auto client = will_accept_client(vio);
+
+    if (client) {
+      // connection accepted, add to client list and start handshake etc
+      client->reset_accept_time();
+
+      Scheduler_dynamic::Task *task =
+          ngs::allocate_object<Scheduler_dynamic::Task>(
+              std::bind(&xpl::iface::Client::run, client));
+
+      const uint64_t client_id = client->client_id_num();
+      client.reset();
+
+      // all references to client object should be removed at this thread
+      if (!m_worker_scheduler->post(task)) {
+        log_error(ER_XPLUGIN_FAILED_TO_SCHEDULE_CLIENT);
+        free_object(task);
+        m_client_list.remove(client_id);
+      }
+
+      restart_client_supervision_timer();
+    }
   }
 }
 
