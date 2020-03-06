@@ -170,7 +170,7 @@ DELETE d1, d2 FROM t1 AS d1, t1 AS d2 WHERE d1.a<>d2.a;
 DROP TABLE t1;
 
 --echo # DELETE query fails with table re-open error without patch.
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+--exec $MYSQL -e "SET SQL_LOG_BIN=0; SOURCE $MYSQLTEST_VARDIR/tmp/bug28642318.sql;"
 
 --echo # Clean up.
 --connection con1
@@ -198,7 +198,7 @@ DROP TABLE t1;
 --exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/bug28642318.sql
 
 --echo # DROP table query fails with unknown table error without patch.
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug28642318.sql
+--exec $MYSQL -e "SET SQL_LOG_BIN=0; SOURCE $MYSQLTEST_VARDIR/tmp/bug28642318.sql;"
 
 --echo # Clean up
 --connection default
