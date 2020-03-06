@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1180,6 +1180,7 @@ static struct message *parse_message_string(struct message *new_message,
 
   if (!*str) {
     /* It was not a message line, but an empty line. */
+    fprintf(stderr, "No error message was found on line.\n");
     DBUG_PRINT("info", ("str: %s", str));
     return nullptr;
   }
@@ -1197,7 +1198,7 @@ static struct message *parse_message_string(struct message *new_message,
   while (*str == ' ' || *str == '\t' || *str == '\n') str++;
 
   if (*str != '"') {
-    fprintf(stderr, "Unexpected EOL");
+    fprintf(stderr, "Unexpected EOL.\n");
     DBUG_PRINT("info", ("str: %s", str));
     return nullptr;
   }
