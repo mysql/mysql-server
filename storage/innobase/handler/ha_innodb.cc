@@ -14571,7 +14571,22 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
   }
 
   /* Validate the ADD DATAFILE name. */
-  Fil_path filepath(alter_info->data_file_name, true);
+  std::string data_file_name(alter_info->data_file_name);
+
+  /* If this is an undo tablespace basename and the innodb-undo-directory
+  is not the datadir, then use an undo::Tablespace object to get the name
+  since it will to attach a basename to the undo directory instead of the
+  datadir. */
+  undo::Tablespace undo_space(0);
+
+  if (alter_info->ts_cmd_type == CREATE_UNDO_TABLESPACE &&
+      std::string::npos == data_file_name.find_first_of(Fil_path::SEPARATOR) &&
+      !MySQL_undo_path.is_same_as(MySQL_datadir_path)) {
+    undo_space.set_file_name(data_file_name.c_str());
+    data_file_name = undo_space.file_name();
+  }
+
+  Fil_path filepath(data_file_name, true);
 
   /* If this path contains a circular section such as "/anydir/../" then
   reject it since if that unnecessary directory reference is deleted
@@ -14644,7 +14659,7 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
     error = HA_ERR_WRONG_FILE_NAME;
   }
 
-  Fil_path dirpath(alter_info->data_file_name, dirname_len, true);
+  Fil_path dirpath(data_file_name.c_str(), dirname_len, true);
 
   if (dirpath.len() > 0 && !dirpath.is_directory_and_exists()) {
     ib::error(ER_IB_MSG_DIR_DOES_NOT_EXIST, dirpath.path().c_str());
