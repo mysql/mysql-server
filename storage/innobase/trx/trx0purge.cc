@@ -779,9 +779,15 @@ void Tablespace::set_file_name(const char *file_name) {
   /* Explicit undo tablespaces use an IBU extension. */
   m_implicit = (Fil_path::has_suffix(IBU, file_name) ? false : true);
 
-  size_t size_undo_dir = strlen(srv_undo_dir);
-  size_t size_sep =
-      srv_undo_dir[size_undo_dir - 1] == OS_PATH_SEPARATOR ? 0 : 1;
+  /* We cannot allow a circular reference (has "..") in an ADD DATAFILE
+  file name. So if srv_undo_dir is circular, use the full path. */
+  const char *undo_dir = srv_undo_dir;
+  if (MySQL_undo_path.is_circular()) {
+    undo_dir = MySQL_undo_path.abs_path().c_str();
+  }
+
+  size_t size_undo_dir = strlen(undo_dir);
+  size_t size_sep = undo_dir[size_undo_dir - 1] == OS_PATH_SEPARATOR ? 0 : 1;
 
   /* Make a copy of the filename and normalize it. */
   char fn[FN_REFLEN];
@@ -793,7 +799,7 @@ void Tablespace::set_file_name(const char *file_name) {
   ADD DATAFILE for undo tablespaces does not accept a relative path.
   If a relative path comes in here, it was the scanned name and is
   relative to the datadir.
-  So only prepend the srv_undo_dir if this is just a basename. */
+  So only prepend the undo_dir if this is just a basename. */
   char *sep = strchr(fn, OS_PATH_SEPARATOR);
   char *col = strchr(fn, ':');
   if (sep != nullptr || col != nullptr) {
@@ -806,7 +812,7 @@ void Tablespace::set_file_name(const char *file_name) {
 
   char *ptr = m_file_name;
   if (size_undo_dir > 0) {
-    memcpy(ptr, srv_undo_dir, size_undo_dir);
+    memcpy(ptr, undo_dir, size_undo_dir);
     ptr += size_undo_dir;
   }
   if (size_sep > 0) {
