@@ -771,57 +771,40 @@ void Tablespace::set_space_name(const char *new_space_name) {
 }
 
 void Tablespace::set_file_name(const char *file_name) {
-  if (m_file_name != nullptr) {
-    ut_free(m_file_name);
-    m_file_name = nullptr;
-  }
+  /* Make a copy of the filename and normalize it. */
+  char norm_fn[FN_REFLEN];
+  strncpy(norm_fn, file_name, FN_REFLEN - 1);
+  Fil_path::normalize(norm_fn);
+  std::string tmp_fn{norm_fn};
 
   /* Explicit undo tablespaces use an IBU extension. */
-  m_implicit = (Fil_path::has_suffix(IBU, file_name) ? false : true);
+  m_implicit = (Fil_path::has_suffix(IBU, tmp_fn) ? false : true);
 
-  /* We cannot allow a circular reference (has "..") in an ADD DATAFILE
-  file name. So if srv_undo_dir is circular, use the full path. */
-  const char *undo_dir = srv_undo_dir;
-  if (MySQL_undo_path.is_circular()) {
-    undo_dir = MySQL_undo_path.abs_path().c_str();
+  /* This name can come in three forms: absolute path, relative path,
+  and basename. ADD DATAFILE for undo tablespaces does not accept a
+  relative path. If a relative path comes in here, it was the scanned
+  name and is relative to the datadir. So only prepend the undo_dir if
+  this is just a basename. */
+  std::string final_fn;
+  if (tmp_fn.find_first_of(":/\\") == std::string::npos) {
+    /* Prepend the undo directory. */
+    bool is_circ = MySQL_undo_path.is_circular();
+    final_fn += (is_circ ? MySQL_undo_path.abs_path() : MySQL_undo_path.path());
+    char back = (is_circ ? MySQL_undo_path.abs_path().back()
+                         : MySQL_undo_path.path().back());
+    final_fn += (back == OS_PATH_SEPARATOR ? "" : OS_PATH_SEPARATOR_STR);
+  }
+  final_fn += tmp_fn;
+
+  /* We are going to replace any existing m_file_name. */
+  if (m_file_name != nullptr) {
+    ut_free(m_file_name);
   }
 
-  size_t size_undo_dir = strlen(undo_dir);
-  size_t size_sep = undo_dir[size_undo_dir - 1] == OS_PATH_SEPARATOR ? 0 : 1;
-
-  /* Make a copy of the filename and normalize it. */
-  char fn[FN_REFLEN];
-  strncpy(fn, file_name, FN_REFLEN - 1);
-  Fil_path::normalize(fn);
-
-  /** This name can come in three forms:
-  absolute path, relative path, and basename.
-  ADD DATAFILE for undo tablespaces does not accept a relative path.
-  If a relative path comes in here, it was the scanned name and is
-  relative to the datadir.
-  So only prepend the undo_dir if this is just a basename. */
-  char *sep = strchr(fn, OS_PATH_SEPARATOR);
-  char *col = strchr(fn, ':');
-  if (sep != nullptr || col != nullptr) {
-    size_undo_dir = size_sep = 0;
-  }
-
-  size_t file_name_size = strlen(fn);
-  size_t size = file_name_size + 1 + size_undo_dir + size_sep;
-  m_file_name = static_cast<char *>(ut_malloc_nokey(size));
-
-  char *ptr = m_file_name;
-  if (size_undo_dir > 0) {
-    memcpy(ptr, undo_dir, size_undo_dir);
-    ptr += size_undo_dir;
-  }
-  if (size_sep > 0) {
-    ptr[0] = OS_PATH_SEPARATOR;
-    ptr++;
-  }
-  memcpy(ptr, fn, file_name_size);
-  ptr += file_name_size;
-  ptr[0] = '\0';
+  size_t len = final_fn.size();
+  m_file_name = static_cast<char *>(ut_malloc_nokey(len + 1));
+  memcpy(m_file_name, final_fn.c_str(), len);
+  m_file_name[len] = '\0';
 }
 
 /** Populate log file name based on space_id

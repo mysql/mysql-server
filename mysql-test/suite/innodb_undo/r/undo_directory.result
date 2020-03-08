@@ -11,7 +11,7 @@ undo_002
 #
 # Start the DB server with the temp datadir and undo directory
 #
-# restart: --datadir=MYSQL_DATA_DIR --innodb-undo-directory=MYSQL_UNDO_DIR
+# restart: --datadir=MYSQL_DATA_DIR --innodb-undo-directory=MYSQL_UNDO_DIR --innodb-page-size=PAGE_SIZE
 #
 # Create 2 undo tablespaces in the undo directory
 #
