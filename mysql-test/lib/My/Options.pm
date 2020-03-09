@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ sub is_set {
     foreach my $set_opt (@$set_opts){
       my ($opt_name2, $value2)= _split_option($set_opt);
 
-      if ($opt_name1 eq $opt_name2){
+      if (option_equals($opt_name1,$opt_name2)){
 	# Option already set
 	return 1;
       }
@@ -189,6 +189,15 @@ sub toStr {
     "['", join("', '", @_), "']\n";
 }
 
+
+sub option_equals {
+  my ($string1, $string2) = @_;
+
+  $string1 =~ s/_/-/g;
+  $string2 =~ s/_/-/g;
+
+  return ( $string1 eq $string2 );
+}
 
 1;
 

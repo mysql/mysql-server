@@ -20,6 +20,14 @@
 # See rpl_gtid_skip_incident_caused_by_insufficient_stmt_cache.test
 
 --source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
 # Test in this file is binlog format agnostic, thus no need
 # to rerun it for every format.
 --source include/have_binlog_format_row.inc
@@ -69,15 +77,242 @@ BEGIN;
 COMMIT;
 SET GTID_NEXT=AUTOMATIC;
 --source include/start_slave_sql.inc
+--source include/rpl_reset.inc
+
+#
+# Test for GRANT commands that result in error after the user is created.
+#
+# In case of partial execution, master logs an Incident event to the binary log
+# and causes the the slave SQL thread to error out with ER_SLAVE_INCIDENT.
+#
+# Since this is an expected behavior, we wait till the SQL thread errors out
+# and we prepare the slave to skip the incident event by its GTID.
+#
+# ==== References ====
+#
+# Bug #30566518: SLAVE STOPS WITH INTERMITTENT ERROR 1396: ERROR 'OPERATION
+#                DROP USER FAILED FOR
+# Bug #30324661: INVALID GRANT COMMAND BREAK GTID BASED REPLICATION
+
+--source include/rpl_connection_master.inc
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+   INSERT INTO t1 VALUES (1,1);
+END//
+DELIMITER ;//
+
+--let $i=2
+while ($i > 0) {
+
+  if ($i == 1) {
+    SET SESSION SQL_MODE= default;
+  }
+  if ($i == 2) {
+    SET SESSION SQL_MODE= '';
+  }
+  --let $j=7
+  while ($j > 0) {
+
+    # Test for GRANT
+    --connect(con1, localhost, root, , , $MASTER_MYPORT)
+    --connection con1
+    if ($j == 1) {
+      # Global privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT ALL ON *.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 2) {
+      # DB privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT UPDATE ON `test`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 3) {
+      # Table privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT SELECT ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 4) {
+      # Column privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT SELECT(a) ON `test`.`t1` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 5) {
+      # Procedure privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT EXECUTE ON PROCEDURE p1 TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 6) {
+      # Proxy privilege
+      --error ER_PASSWORD_NO_MATCH
+      GRANT PROXY ON `proxy_user` TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    if ($j == 7) {
+      # Mix of DB and GLOBAL ACLs
+      --error ER_WRONG_USAGE
+      GRANT PROCESS ON `invalid_db`.* TO u1@h, u2@h IDENTIFIED BY 'pass', u3;
+    }
+    --disconnect con1
+
+    --source include/rpl_connection_slave.inc
+    --let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+    --source include/wait_for_slave_sql_error.inc
+    --let $rpl_only_running_threads= 1
+    --source include/rpl_reset.inc
+
+    # Test for REVOKE
+    #
+    # Before testing revoke, grant all priveleges to user u2.
+    # Since u2 doesn't exist on slave, disable the binary log for the session
+    # while executing GRANT statement.
+    --source include/rpl_connection_master.inc
+    SET SQL_LOG_BIN=0;
+    GRANT ALL ON *.* TO u2@h;
+    SET SQL_LOG_BIN=1;
+    --let $expect_incident= 1
+    --connect(con2, localhost, root, , , $MASTER_MYPORT)
+    --connection con2
+    if ($j == 1) {
+      # Global privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE ALL ON *.* FROM u2@h, u3;
+    }
+    if ($j == 2) {
+      # DB privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE UPDATE ON `test`.* FROM u2@h, u3;
+    }
+    if ($j == 3) {
+      # Table privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE SELECT ON `test`.`t1` FROM u2@h, u3;
+    }
+    if ($j == 4) {
+      # Column privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE SELECT(a) ON `test`.`t1` FROM u2@h, u3;
+    }
+    if ($j == 5) {
+      # Procedure privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE EXECUTE ON PROCEDURE p1 FROM u2@h, u3;
+    }
+    if ($j == 6) {
+      # Proxy privilege
+      --error ER_NONEXISTING_GRANT
+      REVOKE PROXY ON `proxy_user` FROM u2@h, u3;
+    }
+    if ($j == 7) {
+      # Mix of DB and GLOBAL ACLs
+      --error ER_WRONG_USAGE
+      REVOKE PROCESS ON `invalid_db`.* FROM u2@h, u3;
+      # The query is a no-op on master
+      --let $expect_incident= 0
+    }
+
+    if ($expect_incident == 1) {
+      --source include/rpl_connection_slave.inc
+      --let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+      --source include/wait_for_slave_sql_error.inc
+      --let $rpl_only_running_threads= 1
+      --connection con2
+    }
+    # Cleanup for next iteration
+    --disconnect con2
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    --source include/rpl_connection_master.inc
+    DROP USER u2@h;
+    --let $rpl_skip_sync= 1
+    --source include/rpl_reset.inc
+    --dec $j
+  }
+  --dec $i
+}
+
+# Testing the failure of cache creation while writing incident events.
+#
+# Since generation of GTIDs is tightly coupled with IO caches, if there is any
+# failure in creating IO cache for writing GTIDs, we will allow
+# binlog_error_action to decide whether or not to abort.
+--connect(con3, localhost, root, , , $MASTER_MYPORT)
+--connection con3
+
+# Add a debug point so that cache creation fails.
+--let $debug_point= simulate_cache_creation_failure
+--source include/add_debug_point.inc
+
+# Testing with binlog_error_action = IGNORE_ERROR.
+SET GLOBAL binlog_error_action = IGNORE_ERROR;
+
+--error ER_PASSWORD_NO_MATCH
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+
+# Test to prove that binary log is disabled
+--error ER_NO_BINARY_LOGGING
+SHOW BINARY LOGS;
+
+# Check that error is present in error log
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_skip_incident_caused_by_partially_failed_grant
+--let $assert_count = 1
+--let $assert_select = Hence turning logging off for the whole duration of the MySQL server process.
+--let $assert_text = Found the message about the failure of cache creation in the error log.
+--source include/assert_grep.inc
+
+# Restart the master server so that binary log is enabled again and we can do
+# the below test.
+--enable_reconnect
+--let $rpl_server_number= 1
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_master.inc
+--let $debug_point= simulate_cache_creation_failure
+--source include/add_debug_point.inc
+
+# Testing with binlog_error_action = ABORT_SERVER.
+# Check that server aborts and the client gets ER_BINLOG_LOGGING_IMPOSSIBLE
+# when binlog_error_action= 'ABORT_SERVER'.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--connection con3
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+GRANT SELECT(a) ON t1 TO u1@h, u2@h;
+
+--echo # Restart the master server
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+# Check that error is present in error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after = CURRENT_TEST: rpl.rpl_gtid_skip_incident_caused_by_partially_failed_grant
+--let $assert_count = 1
+--let $assert_select = Could not create IO cache while writing an incident event to the binary log.*Hence aborting the server.
+--let $assert_text = Found the message about the failure of cache creation in the error log.
+--source include/assert_grep.inc
+
+# Suppress the errors on master
+--source include/rpl_connection_master.inc
+CALL mtr.add_suppression("REVOKE/GRANT failed while granting/revoking privileges in databases. An incident event has been written to the binary log which will stop the slaves.");
+CALL mtr.add_suppression("REVOKE/GRANT failed while storing routine level grants in the privilege tables. An incident event has been written to the binary log which will stop the slaves.");
+CALL mtr.add_suppression("Attempting backtrace. You can use the following information to find out*");
+CALL mtr.add_suppression("ERROR.*Could not create IO cache while writing an incident event to the binary log.*");
+
+# Suppress the errors on slave
+--source include/rpl_connection_slave.inc
+CALL mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master. Message: REVOKE/GRANT failed while granting/revoking privileges in databases.") ;
+CALL mtr.add_suppression("Slave SQL for channel '': The incident LOST_EVENTS occured on the master. Message: REVOKE/GRANT failed while storing routine level grants in the privilege tables.");
 
 # Cleanup
 --source include/rpl_connection_master.inc
 DROP USER u1@h;
+DROP PROCEDURE p1;
 DROP TABLE t1;
-
-#--source include/sync_slave_sql_with_master.inc
-# When mts is enabled, restart slave sql threads to make 'CHANGE MASTER TO
-# MASTER_AUTO_POSITION= 0' avoid MTS GAPS.
-#--source include/restart_slave_sql.inc
 
 --source include/rpl_end.inc

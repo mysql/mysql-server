@@ -1,0 +1,11 @@
+#
+# Bug #83144: mysqlpump reads mysql_dump group, not mysqlpump in config-group
+#
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+DROP DATABASE db1;
+DROP DATABASE db2;
+SHOW DATABASES like 'db%';
+Database (db%)
+db2
+DROP DATABASE db2;

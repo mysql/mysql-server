@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -588,6 +588,9 @@ dtuple_create_with_vcol(
 
 	tuple = dtuple_create_from_mem(buf, buf_size, n_fields, n_v_fields);
 
+#ifdef UNIV_DEBUG
+	tuple->m_heap = heap;
+#endif /* UNIV_DEBUG */
 	return(tuple);
 }
 

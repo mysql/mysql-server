@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1036,9 +1036,10 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
       7. We're not in a confluent table-less subquery, like "SELECT 1".
-      8. No execution method was already chosen (by a prepared statement)
-      9. Parent select is not a confluent table-less select
-      10. Neither parent nor child select have STRAIGHT_JOIN option.
+      8. No execution method was already chosen (by a prepared statement).
+      9. Parent query block is not a confluent table-less query block.
+      10. Neither parent nor child query block has straight join.
+      11. Parent query block does not prohibit semi-join.
   */
   if (semijoin_enabled(thd) &&
       in_predicate &&                                                   // 1
@@ -1049,12 +1050,13 @@ bool SELECT_LEX::resolve_subquery(THD *thd)
        outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5a
       !outer->semijoin_disallowed &&                                    // 5b
       outer->sj_candidates &&                                           // 6
-      leaf_table_count &&                                               // 7
+      leaf_table_count > 0 &&                                           // 7
       in_predicate->exec_method ==
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
       outer->leaf_table_count &&                                        // 9
       !((active_options() | outer->active_options()) &
-       SELECT_STRAIGHT_JOIN))                                           //10
+        SELECT_STRAIGHT_JOIN) &&                                        //10
+      !(outer->active_options() & SELECT_NO_SEMI_JOIN))                 //11
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
@@ -2744,6 +2746,19 @@ bool SELECT_LEX::flatten_subqueries()
 
   sj_candidates->clear();
   DBUG_RETURN(FALSE);
+}
+
+bool SELECT_LEX::is_in_select_list(Item *cand) {
+  List_iterator<Item> li(fields_list);
+  Item *item;
+  while ((item = li++)) {
+    // Use a walker to detect if cand is present in this select item
+
+    if (item->walk(&Item::find_item_processor, Item::WALK_SUBQUERY_POSTFIX,
+                   pointer_cast<uchar *>(cand)))
+      return true;
+  }
+  return false;
 }
 
 /**

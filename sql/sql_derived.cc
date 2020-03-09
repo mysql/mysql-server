@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     The SELECT_STRAIGHT_JOIN option prevents semi-join transformation.
   */
   if (derived->prepare(thd, derived_result,
-                       !apply_semijoin ? SELECT_STRAIGHT_JOIN : 0, 0))
+                       !apply_semijoin ? SELECT_NO_SEMI_JOIN : 0, 0))
     DBUG_RETURN(true);
 
   if (check_duplicate_names(derived->types, 0))
