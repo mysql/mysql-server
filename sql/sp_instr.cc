@@ -967,7 +967,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       problem.
     */
     DBUG_ASSERT((thd->query_name_consts == 0) ||
-                (thd->rewritten_query.length() == 0));
+                (thd->rewritten_query().length() == 0));
   }
   else
     *nextp= get_ip() + 1;

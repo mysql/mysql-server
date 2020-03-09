@@ -735,15 +735,30 @@ rtr_adjust_upper_level(
 		cursor.rtr_info = sea_cur->rtr_info;
 		cursor.tree_height = sea_cur->tree_height;
 
+		mem_heap_t *new_heap = NULL;
+
+		DBUG_EXECUTE_IF("rtr_page_need_first_split", {
+			DBUG_SET("+d,rtr_page_need_second_split");
+		});
+
 		err = btr_cur_pessimistic_insert(flags
 						 | BTR_NO_LOCKING_FLAG
 						 | BTR_KEEP_SYS_FLAG
 						 | BTR_NO_UNDO_LOG_FLAG,
-						 &cursor, &offsets, &heap,
+						 &cursor, &offsets, &new_heap,
 						 node_ptr_upper, &rec,
 						 &dummy_big_rec, 0, NULL, mtr);
+
+		DBUG_EXECUTE_IF("rtr_page_need_first_split", {
+			DBUG_SET("-d,rtr_page_need_second_split");
+		});
+
 		cursor.rtr_info = NULL;
 		ut_a(err == DB_SUCCESS);
+
+		if (new_heap) {
+			mem_heap_free(new_heap);
+		}
 	}
 
 	prdt.data = static_cast<void*>(mbr);
@@ -1039,6 +1054,7 @@ rtr_page_split_and_insert(
 	}
 
 func_start:
+	ut_ad(tuple->m_heap != *heap);
 	mem_heap_empty(*heap);
 	*offsets = NULL;
 

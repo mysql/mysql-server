@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -667,7 +667,7 @@ sub optimize_cases {
 	# The test supports different binlog formats
 	# check if the selected one is ok
 	my $supported=
-	  grep { $_ eq $binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { $_ eq lc $binlog_format } @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -685,15 +685,17 @@ sub optimize_cases {
       # Get binlog-format used by this test from master_opt
       my $test_binlog_format;
       foreach my $opt ( @{$tinfo->{master_opt}} ) {
+       (my $dash_opt = $opt) =~ s/_/-/g;
 	$test_binlog_format=
-	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
+	  mtr_match_prefix($dash_opt, "--binlog-format=") || $test_binlog_format;
       }
 
       if (defined $test_binlog_format and
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_, lc $test_binlog_format) }
+            @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -711,10 +713,11 @@ sub optimize_cases {
     my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
+     (my $dash_opt = $opt) =~ s/_/-/g;
       my $default_engine=
-	mtr_match_prefix($opt, "--default-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine=
-	mtr_match_prefix($opt, "--default-tmp-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
@@ -1099,7 +1102,7 @@ sub collect_one_test_case {
   }
   if ( $tinfo->{'need_binlog'} )
   {
-    if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+    if (grep(/^--skip[-_]log[-_]bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test needs binlog";
@@ -1232,11 +1235,11 @@ my @tags=
 (
  ["include/have_binlog_format_row.inc", "binlog_formats", ["row"]],
  ["include/have_binlog_format_statement.inc", "binlog_formats", ["statement"]],
- ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed"]],
+ ["include/have_binlog_format_mixed.inc", "binlog_formats", ["mixed", "mix"]],
  ["include/have_binlog_format_mixed_or_row.inc",
-  "binlog_formats", ["mixed", "row"]],
+  "binlog_formats", ["mixed", "mix", "row"]],
  ["include/have_binlog_format_mixed_or_statement.inc",
-  "binlog_formats", ["mixed", "statement"]],
+  "binlog_formats", ["mixed", "mix", "statement"]],
  ["include/have_binlog_format_row_or_statement.inc",
   "binlog_formats", ["row", "statement"]],
 

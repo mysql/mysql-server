@@ -778,145 +778,35 @@ String *Item_func_from_base64::val_str(String *str)
   Don't reallocate val_str() if not absolute necessary.
 */
 
-String *Item_func_concat::val_str(String *str)
-{
+String *Item_func_concat::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
-  String *res,*res2,*use_as_buff;
-  uint i;
-  bool is_const= 0;
+  String *res;
 
-  null_value=0;
-  if (!(res=args[0]->val_str(str)))
-    goto null;
-  use_as_buff= &tmp_value;
-  /* Item_subselect in --ps-protocol mode will state it as a non-const */
-  is_const= args[0]->const_item() || !args[0]->used_tables();
-  for (i=1 ; i < arg_count ; i++)
-  {
-    if (res->length() == 0)
-    {
-      if (!(res=args[i]->val_str(str)))
-	goto null;
-      /*
-       CONCAT accumulates its result in the result of its the first
-       non-empty argument. Because of this we need is_const to be 
-       evaluated only for it.
-      */
-      is_const= args[i]->const_item() || !args[i]->used_tables();
+  THD *thd = current_thd;
+  null_value = false;
+  tmp_value.length(0);
+  for (uint i = 0; i < arg_count; ++i) {
+    if (!(res = args[i]->val_str(str))) {
+      null_value = 1;
+      return 0;
     }
-    else
-    {
-      if (!(res2=args[i]->val_str(use_as_buff)))
-	goto null;
-      if (res2->length() == 0)
-	continue;
-      if (res->length()+res2->length() >
-	  current_thd->variables.max_allowed_packet)
-      {
-	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-			    current_thd->variables.max_allowed_packet);
-	goto null;
-      }
-      if (!is_const && res->alloced_length() >= res->length()+res2->length())
-      {						// Use old buffer
-	res->append(*res2);
-      }
-      else if (str->alloced_length() >= res->length()+res2->length())
-      {
-	if (str->ptr() == res2->ptr())
-	  str->replace(0,0,*res);
-	else
-	{
-          // If res2 is a substring of str, then clone it first.
-          char buff[STRING_BUFFER_USUAL_SIZE];
-          String res2_clone(buff, sizeof(buff), system_charset_info);
-          if (res2->uses_buffer_owned_by(str))
-          {
-            if (res2_clone.copy(*res2))
-              goto null;
-            res2= &res2_clone;
-          }
- 	  str->copy(*res);
-	  str->append(*res2);
-	}
-        res= str;
-        use_as_buff= &tmp_value;
-      }
-      else if (res == &tmp_value)
-      {
-	if (res->append(*res2))			// Must be a blob
-	  goto null;
-      }
-      else if (res2 == &tmp_value)
-      {						// This can happend only 1 time
-	if (tmp_value.replace(0,0,*res))
-	  goto null;
-	res= &tmp_value;
-	use_as_buff=str;			// Put next arg here
-      }
-      else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-	       res2->ptr() <= tmp_value.ptr() + tmp_value.alloced_length())
-      {
-	/*
-	  This happens really seldom:
-	  In this case res2 is sub string of tmp_value.  We will
-	  now work in place in tmp_value to set it to res | res2
-	*/
-	/* Chop the last characters in tmp_value that isn't in res2 */
-	tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
-			 res2->length());
-	/* Place res2 at start of tmp_value, remove chars before res2 */
-	if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-			      *res))
-	  goto null;
-	res= &tmp_value;
-	use_as_buff=str;			// Put next arg here
-      }
-      else
-      {						// Two big const strings
-        /*
-          NOTE: We should be prudent in the initial allocation unit -- the
-          size of the arguments is a function of data distribution, which
-          can be any. Instead of overcommitting at the first row, we grow
-          the allocated amount by the factor of 2. This ensures that no
-          more than 25% of memory will be overcommitted on average.
-        */
-
-        size_t concat_len= res->length() + res2->length();
-
-        if (tmp_value.alloced_length() < concat_len)
-        {
-          if (tmp_value.alloced_length() == 0)
-          {
-            if (tmp_value.alloc(concat_len))
-              goto null;
-          }
-          else
-          {
-            size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
-
-            if (tmp_value.mem_realloc(new_len))
-              goto null;
-          }
-        }
-
-	if (tmp_value.copy(*res) || tmp_value.append(*res2))
-	  goto null;
-
-	res= &tmp_value;
-	use_as_buff=str;
-      }
-      is_const= 0;
+    if (res->length() + tmp_value.length() >
+        thd->variables.max_allowed_packet) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          thd->variables.max_allowed_packet);
+      null_value = 1;
+      return 0;
+    }
+    if (tmp_value.append(*res)) {
+      null_value = 1;
+      return 0;
     }
   }
+  res = &tmp_value;
   res->set_charset(collation.collation);
   return res;
-
-null:
-  null_value=1;
-  return 0;
 }
 
 
@@ -1126,155 +1016,57 @@ wrong_key:
   concat_ws takes at least two arguments.
 */
 
-String *Item_func_concat_ws::val_str(String *str)
-{
+String *Item_func_concat_ws::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   char tmp_str_buff[10];
-  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
-         *sep_str, *res, *res2,*use_as_buff;
+  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff), default_charset_info);
+  String *sep_str, *res = NULL, *res2;
   uint i;
-  bool is_const= 0;
 
-  null_value=0;
-  if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
-    goto null;
-
-  use_as_buff= &tmp_value;
-  str->length(0);				// QQ; Should be removed
-  res=str;
+  THD *thd = current_thd;
+  null_value = false;
+  if (!(sep_str = args[0]->val_str(&tmp_sep_str))) {
+    null_value = 1;
+    return 0;
+  }
+  tmp_value.length(0);
 
   // Skip until non-null argument is found.
   // If not, return the empty string
-  for (i=1; i < arg_count; i++)
-    if ((res= args[i]->val_str(str)))
-    {
-      is_const= args[i]->const_item() || !args[i]->used_tables();
+  for (i = 1; i < arg_count; i++)
+    if ((res = args[i]->val_str(str))) {
       break;
     }
 
-  if (i ==  arg_count)
+  if (i == arg_count)
     return make_empty_result();
 
-  for (i++; i < arg_count ; i++)
-  {
-    if (!(res2= args[i]->val_str(use_as_buff)))
-      continue;					// Skip NULL
+  if (tmp_value.append(*res)) {
+    null_value = 1;
+    return 0;
+  }
 
-    if (res->length() + sep_str->length() + res2->length() >
-	current_thd->variables.max_allowed_packet)
-    {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			  ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			  ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-			  current_thd->variables.max_allowed_packet);
-      goto null;
-    }
-    if (!is_const && res->alloced_length() >=
-	res->length() + sep_str->length() + res2->length())
-    {						// Use old buffer
-      res->append(*sep_str);			// res->length() > 0 always
-      res->append(*res2);
-    }
-    else if (str->alloced_length() >=
-	     res->length() + sep_str->length() + res2->length())
-    {
-      /* We have room in str;  We can't get any errors here */
-      if (str->ptr() == res2->ptr())
-      {						// This is quite uncommon!
-	str->replace(0,0,*sep_str);
-	str->replace(0,0,*res);
-      }
-      else
-      {
-        // If res2 is a substring of str, then clone it first.
-        char buff[STRING_BUFFER_USUAL_SIZE];
-        String res2_clone(buff, sizeof(buff), system_charset_info);
-        if (res2->uses_buffer_owned_by(str))
-        {
-          if (res2_clone.copy(*res2))
-            goto null;
-          res2= &res2_clone;
-        }
-	str->copy(*res);
-	str->append(*sep_str);
-	str->append(*res2);
-      }
-      res=str;
-      use_as_buff= &tmp_value;
-    }
-    else if (res == &tmp_value)
-    {
-      if (res->append(*sep_str) || res->append(*res2))
-	goto null; // Must be a blob
-    }
-    else if (res2 == &tmp_value)
-    {						// This can happend only 1 time
-      if (tmp_value.replace(0,0,*sep_str) || tmp_value.replace(0,0,*res))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;				// Put next arg here
-    }
-    else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-	     res2->ptr() < tmp_value.ptr() + tmp_value.alloced_length())
-    {
-      /*
-	This happens really seldom:
-	In this case res2 is sub string of tmp_value.  We will
-	now work in place in tmp_value to set it to res | sep_str | res2
-      */
-      /* Chop the last characters in tmp_value that isn't in res2 */
-      tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
-		       res2->length());
-      /* Place res2 at start of tmp_value, remove chars before res2 */
-      if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-			    *res) ||
-	  tmp_value.replace(res->length(),0, *sep_str))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;			// Put next arg here
-    }
-    else
-    {						// Two big const strings
-      /*
-        NOTE: We should be prudent in the initial allocation unit -- the
-        size of the arguments is a function of data distribution, which can
-        be any. Instead of overcommitting at the first row, we grow the
-        allocated amount by the factor of 2. This ensures that no more than
-        25% of memory will be overcommitted on average.
-      */
+  for (i++; i < arg_count; i++) {
+    if (!(res2 = args[i]->val_str(str)))
+      continue; // Skip NULL
 
-      size_t concat_len= res->length() + sep_str->length() + res2->length();
-
-      if (tmp_value.alloced_length() < concat_len)
-      {
-        if (tmp_value.alloced_length() == 0)
-        {
-          if (tmp_value.alloc(concat_len))
-            goto null;
-        }
-        else
-        {
-          size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
-
-          if (tmp_value.mem_realloc(new_len))
-            goto null;
-        }
-      }
-
-      if (tmp_value.copy(*res) ||
-	  tmp_value.append(*sep_str) ||
-	  tmp_value.append(*res2))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;
+    if (tmp_value.length() + sep_str->length() + res2->length() >
+        thd->variables.max_allowed_packet) {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
+                          thd->variables.max_allowed_packet);
+      null_value = 1;
+      return 0;
+    }
+    if (tmp_value.append(*sep_str) || tmp_value.append(*res2)) {
+      null_value = 1;
+      return 0;
     }
   }
+  res = &tmp_value;
   res->set_charset(collation.collation);
   return res;
-
-null:
-  null_value=1;
-  return 0;
 }
 
 

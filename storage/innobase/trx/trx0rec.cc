@@ -2129,7 +2129,7 @@ trx_undo_get_undo_rec_low(
 		page_id_t(rseg->space, page_no), rseg->page_size,
 		&mtr);
 
-	undo_rec = trx_undo_rec_copy(undo_page + offset, heap);
+	undo_rec = trx_undo_rec_copy(undo_page, offset, heap);
 
 	mtr_commit(&mtr);
 

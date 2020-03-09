@@ -895,7 +895,7 @@ select json_type('3.14');
 json_type('3.14')
 DOUBLE
 select json_type(CAST(CAST('2015-01-15' AS DATE) as CHAR CHARACTER SET 'utf8'));
-ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not follow by other values." at position 4.
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "The document root must not be followed by other values." at position 4.
 # ----------------------------------------------------------------------
 # Test of CAST(literal AS JSON)
 # ----------------------------------------------------------------------
@@ -3151,11 +3151,11 @@ SELECT JSON_EXTRACT('1E+308', '$');
 JSON_EXTRACT('1E+308', '$')
 1e308
 SELECT JSON_EXTRACT('1E+309', '$');
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 0.
 SELECT JSON_EXTRACT('1E+36181012216111515851075235238', '$');
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 6.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 0.
 SELECT JSON_EXTRACT('-1E+36181012216111515851075235238', '$');
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 7.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Number too big to be stored in double." at position 0.
 #
 # Bug#21383284: ASSERTION IN SELECT_LEX::SETUP_CONDS
 #

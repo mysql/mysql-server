@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,6 @@ static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
 char* fts_internal_tbl_name		= NULL;
-char* fts_internal_tbl_name2		= NULL;
 
 /** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
@@ -1783,9 +1782,10 @@ ulint
 fts_get_table_flags2_for_aux_tables(
 	ulint	flags2)
 {
-	/* Extract the file_per_table flag & temporary file flag
-	from the main FTS table flags2 */
+	/* Extract the file_per_table flag, temporary file flag and
+	encryption flag from the main FTS table flags2 */
 	return((flags2 & DICT_TF2_USE_FILE_PER_TABLE) |
+               (flags2 & DICT_TF2_ENCRYPTION) |
 	       (flags2 & DICT_TF2_TEMPORARY));
 }
 

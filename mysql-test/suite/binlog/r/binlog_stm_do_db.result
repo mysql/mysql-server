@@ -33,7 +33,7 @@ ERROR HY000: Cannot execute statement: impossible to write to binary log since B
 UPDATE b42829_filtered.t1 ft1, b42829.t1 nft1 SET ft1.x=1, nft1.x=2;
 ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
 INSERT INTO t1 SELECT * FROM t2;
-ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging.
 COMMIT;
 ### assertion: filtered events did not make into the binlog
 include/show_binlog_events.inc

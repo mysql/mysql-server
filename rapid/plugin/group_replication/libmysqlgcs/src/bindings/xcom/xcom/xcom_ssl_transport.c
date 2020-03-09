@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -513,7 +513,28 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   int verify_server= SSL_VERIFY_NONE;
   int verify_client= SSL_VERIFY_NONE;
 
+  /*
+    HAVE_STATIC_OPENSSL:
+    This is OpenSSL version >= 1.1.1 and we are linking statically.
+    We must disable all atexit() processing in OpenSSL, otherwise
+    dlclose() of plugins might destroy data structures which are needed
+    by the application.
+
+    Otherwise: "system" OpenSSL may be any version > 1.0.0
+    For 1.0.x : SSL_library_init is a function.
+    For 1.1.y : SSL_library_init is a macro: OPENSSL_init_ssl(0, NULL)
+
+    Note that we cannot in general call OPENSSL_cleanup(). Doing so from plugins
+    would break the embedding main program. Doing so from client code may
+    break e.g. ODBC clients (if the client also uses SSL).
+  */
+
+#if defined(HAVE_STATIC_OPENSSL)
+  OPENSSL_init_crypto(OPENSSL_INIT_NO_ATEXIT, NULL);
+#else
   SSL_library_init();
+#endif
+
   SSL_load_error_strings();
 
   if (ssl_mode == SSL_DISABLED) {

@@ -1559,7 +1559,6 @@ trx_purge_get_next_rec(
 		undo_page = trx_undo_page_get_s_latched(
 			page_id_t(space, page_no), page_size, &mtr);
 
-		rec = undo_page + offset;
 	} else {
 		page = page_align(rec2);
 
@@ -1574,10 +1573,8 @@ trx_purge_get_next_rec(
 		}
 	}
 
-	rec_copy = trx_undo_rec_copy(rec, heap);
-
+	rec_copy = trx_undo_rec_copy(undo_page, offset, heap);
 	mtr_commit(&mtr);
-
 	return(rec_copy);
 }
 

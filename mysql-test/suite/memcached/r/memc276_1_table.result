@@ -64,11 +64,13 @@ Oldenburg|Mitte|87654|Deich|2|B|b|Y
 Koeln|West|76543|Rhein|3|C|c|X
 Stuttgart|Nord|65432|Fernsehturm|4|D|d|U
 Here the memcached results with c2 of desct13:
+test/t1
 D|City
 O|Mitte
 K|West
 S|Nord
 Here the memcached results with c2 of desct12:
+test/t1
 D|Duesseldorf
 O|Oldenburg
 K|Koeln

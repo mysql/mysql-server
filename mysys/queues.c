@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,10 +242,20 @@ void queue_insert(QUEUE *queue, uchar *element)
 uchar *queue_remove(QUEUE *queue, uint idx)
 {
   uchar *element;
+  my_bool use_downheap;
+
   DBUG_ASSERT(idx < queue->max_elements);
+  /*
+    If we remove the top element in the queue, we use _downheap else queue_fix
+    to maintain the heap property.
+  */
+  use_downheap = (idx == 0);
   element= queue->root[++idx];  /* Intern index starts from 1 */
   queue->root[idx]= queue->root[queue->elements--];
-  _downheap(queue, idx);
+  if (use_downheap)
+    _downheap(queue, idx);
+  else
+    queue_fix(queue);
   return element;
 }
 
@@ -612,6 +622,71 @@ static void benchmark_test()
   delete_queue(queue);
 }
 
+/**
+  Bug#30301356 - SOME EVENTS ARE DELAYED AFTER DROPPING EVENT
+
+  Test that ensures heap property is not violated if we remove an
+  element from an interior node. In the below test, we remove the
+  element 90 at index 6 in the array. After 90 is removed, the
+  parent node's of the deleted node violates the heap property
+  with the queue_remove function. We need to ensure the heap
+  property is satisfied by call queue_fix after removal from an
+  interior node in the queue_remove() function.
+*/
+
+// Element comparator for comparison of elements in heap.
+static int element_comparator(void *null_arg MY_ATTRIBUTE((unused)), uchar *lhs, uchar *rhs)
+{
+  int lkey = *(int *)lhs;
+  int rkey = *(int *)rhs;
+
+  return (lkey < rkey ? -1 : (lkey > rkey ? 1 : 0));
+}
+
+static my_bool is_tree_heap(uint index, QUEUE *queue)
+{
+  uint left, right;
+
+  if (index > queue->elements) return TRUE;
+  left = 2 * index;
+  right = 2 * index + 1;
+
+  if (left <= queue->elements &&
+      element_comparator(NULL, queue->root[index], queue->root[left]) == 1)
+    return FALSE;
+
+  if (left <= queue->elements &&
+      element_comparator(NULL, queue->root[index], queue->root[right]) == 1)
+    return FALSE;
+
+  return is_tree_heap(left, queue) && is_tree_heap(right, queue);
+}
+
+// Check if queue is a valid heap
+static my_bool is_queue_valid(QUEUE *queue)
+{
+  unsigned i;
+
+  for(i = 0; i <= queue->elements; i++)
+    if (queue->root[i] == NULL) return FALSE;
+
+  return is_tree_heap(1, queue);
+}
+
+static void remove_queue_element_test()
+{
+  QUEUE queue;
+  int keys[11] = {60, 65, 84, 75, 80, 85, 90, 95, 100, 105, 82};
+  int i;
+  init_queue(&queue, 11, 0, 0, element_comparator, NULL);
+  for (i = 0; i < 11; i++)
+    queue_insert(&queue, (uchar*)&keys[i]);
+  assert(is_queue_valid(&queue));
+  queue_remove(&queue, 6);
+  assert(is_queue_valid(&queue));
+  delete_queue(&queue);
+}
+
 int main()
 {
   int i, add= 1;
@@ -628,6 +703,7 @@ int main()
       return -1;
   }
   benchmark_test();
+  remove_queue_element_test();
   printf("OK\n");
   return 0;
 }
