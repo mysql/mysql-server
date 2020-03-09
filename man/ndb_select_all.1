@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_select_all\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SELECT_ALL\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SELECT_ALL\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -60,7 +60,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.298.\ \&Command\-line options for the ndb_select_all program
+.B Table\ \&22.269.\ \&Command\-line options for the ndb_select_all program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -88,148 +88,148 @@ l l l
 l l l.
 T{
 .PP
---database=dbname,
+\fB--database=dbname\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
 Name of the database in which the table is found
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---parallelism=#,
+\fB--parallelism=#\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
 Degree of parallelism
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---lock=#,
+\fB--lock=#\fR,
 .PP
--l
+\fB \fR\fB-l\fR\fB \fR
 T}:T{
 Lock type
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---order=index,
+\fB--order=index\fR,
 .PP
--o
+\fB \fR\fB-o\fR\fB \fR
 T}:T{
 Sort resultset according to index whose name is supplied
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---descending,
+\fB--descending\fR,
 .PP
--z
+\fB \fR\fB-z\fR\fB \fR
 T}:T{
 Sort resultset in descending order (requires order flag)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---header,
+\fB--header\fR,
 .PP
--h
+\fB \fR\fB-h\fR\fB \fR
 T}:T{
 Print header (set to 0|FALSE to disable headers in output)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---useHexFormat,
+\fB--useHexFormat\fR,
 .PP
--x
+\fB \fR\fB-x\fR\fB \fR
 T}:T{
 Output numbers in hexadecimal format
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---delimiter=char,
+\fB--delimiter=char\fR,
 .PP
--D
+\fB \fR\fB-D\fR\fB \fR
 T}:T{
 Set a column delimiter
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---disk
+\fB \fR\fB--disk\fR\fB \fR
 T}:T{
 Print disk references (useful only for Disk Data tables having
               nonindexed columns)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rowid
+\fB \fR\fB--rowid\fR\fB \fR
 T}:T{
 Print rowid
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---gci
+\fB \fR\fB--gci\fR\fB \fR
 T}:T{
 Include GCI in output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---gci64
+\fB \fR\fB--gci64\fR\fB \fR
 T}:T{
 Include GCI and row epoch in output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---tupscan,
+\fB--tupscan\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Scan in tup order
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---nodata
+\fB \fR\fB--nodata\fR\fB \fR
 T}:T{
 Do not print table column data
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -493,7 +493,8 @@ Scan the table in the order of the tuples\&.
 .sp
 Causes any table data to be omitted\&.
 .RE
-Sample Output.PP
+Sample Output
+.PP
 Output from a MySQL
 SELECT
 statement:
@@ -590,7 +591,7 @@ NDBT_ProgramExit: 0 \- OK
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

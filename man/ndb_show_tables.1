@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_show_tables\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SHOW_TABLES\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SHOW_TABLES\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.301.\ \&Command\-line options for the ndb_show_tables program
+.B Table\ \&22.272.\ \&Command\-line options for the ndb_show_tables program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -71,67 +71,68 @@ l l l
 l l l.
 T{
 .PP
---database=string,
+\fB--database=string\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
-Specifies the database in which the table is found
+Specifies database in which table is found; database name must be
+              followed by table name
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---loops=#,
+\fB--loops=#\fR,
 .PP
--l
+\fB \fR\fB-l\fR\fB \fR
 T}:T{
 Number of times to repeat output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---parsable,
+\fB--parsable\fR,
 .PP
--p
+\fB \fR\fB-p\fR\fB \fR
 T}:T{
-Return output suitable for MySQL LOAD DATA INFILE statement
+Return output suitable for MySQL LOAD DATA statement
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---show-temp-status
+\fB \fR\fB--show-temp-status\fR\fB \fR
 T}:T{
 Show table temporary flag
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---type=#,
+\fB--type=#\fR,
 .PP
--t
+\fB \fR\fB-t\fR\fB \fR
 T}:T{
 Limit output to objects of this type
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---unqualified,
+\fB--unqualified\fR,
 .PP
--u
+\fB \fR\fB-u\fR\fB \fR
 T}:T{
 Do not qualify table names
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -158,7 +159,9 @@ ndb_show_tables [\-c \fIconnection_string\fR]
 \fB\-\-database\fR,
 \fB\-d\fR
 .sp
-Specifies the name of the database in which the tables are found\&. If this option has not been specified, and no tables are found in the
+Specifies the name of the database in which the desired table is found\&. If this option is given, the name of a table must follow the database name\&.
+.sp
+If this option has not been specified, and no tables are found in the
 TEST_DB
 database,
 \fBndb_show_tables\fR
@@ -295,10 +298,16 @@ API applications such as
 \fBndb_select_all\fR(1))\&.
 .sp .5v
 .RE
+.PP
+Prior to NDB 8\&.0\&.20, this program printed
+NDBT_ProgramExit \- \fIstatus\fR
+upon completion of its run, due to an unnecessary dependency on the
+NDBT
+testing library\&. This dependency has been removed, eliminating the extraneous output\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

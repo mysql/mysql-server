@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -622,6 +622,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o,/tmp/mysqlbinlog\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -635,6 +640,11 @@ d:t:o,/tmp/mysqlbinlog\&.trace\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -648,6 +658,11 @@ Print some debugging information when the program exits\&.
 \fB\-\-debug\-info\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -1243,6 +1258,45 @@ option value is treated as a prefix that modifies output file names\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-require\-row\-format\fR
+.sp
+Require row\-based binary logging format for events\&. This option enforces row\-based replication events for
+\fBmysqlbinlog\fR
+output\&. The stream of events produced with this option would be accepted by a replication channel that is secured using the
+REQUIRE_ROW_FORMAT
+option of the
+CHANGE MASTER TO
+statement\&.
+binlog_format=ROW
+must be set on the server where the binary log was written\&. When you specify this option,
+\fBmysqlbinlog\fR
+stops with an error message if it encounters any events that are disallowed under the
+REQUIRE_ROW_FORMAT
+restrictions, including
+LOAD DATA INFILE
+instructions, creating or dropping temporary tables,
+INTVAR,
+RAND, or
+USER_VAR
+events, and non\-row\-based events within a DML transaction\&.
+\fBmysqlbinlog\fR
+also prints a
+SET @@session\&.require_row_format
+statement at the start of its output to apply the restrictions when the output is executed, and does not print the
+SET @@session\&.pseudo_thread_id
+statement\&.
+.sp
+This option was added in MySQL 8\&.0\&.19\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-rewrite\-db=\*(Aq\fR\fB\fIfrom_name\fR\fR\fB\->\fR\fB\fIto_name\fR\fR\fB\*(Aq\fR
 .sp
 When reading from a row\-based or statement\-based log, rewrite all occurrences of
@@ -1308,17 +1362,6 @@ before applying the
 \fB\-\-database\fR
 option, there remain no updates that match
 \fB\-\-database=mydb\fR\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-secure\-auth\fR
 .RE
 .sp
 .RS 4
@@ -2653,7 +2696,8 @@ Example: mysqldump + mysqlbinlog for Backup and Restore
 .\}
 mysqlbinlog Backup Restrictions
 .RE
-mysqlbinlog Backup Capabilities.PP
+mysqlbinlog Backup Capabilities
+.PP
 \fBmysqlbinlog\fR
 can read binary log files and write new files containing the same content\(emthat is, in binary format rather than text format\&. This capability enables you to easily back up a binary log in its original format\&.
 \fBmysqlbinlog\fR
@@ -2684,7 +2728,8 @@ can back up both encrypted and unencrypted binary log files \&. However, copies 
 are stored in an unencrypted format\&.
 .sp .5v
 .RE
-mysqlbinlog Backup Options.PP
+mysqlbinlog Backup Options
+.PP
 Binary log backup requires that you invoke
 \fBmysqlbinlog\fR
 with two options at minimum:
@@ -2772,7 +2817,8 @@ the section called \(lqSPECIFYING THE MYSQLBINLOG SERVER ID\(rq\&.
 .\}
 \fB\-\-result\-file\fR: A prefix for output file names, as described later\&.
 .RE
-Static and Live Backups.PP
+Static and Live Backups
+.PP
 To back up a server\*(Aqs binary log files with
 \fBmysqlbinlog\fR, you must specify file names that actually exist on the server\&. If you do not know the names, connect to the server and use the
 SHOW BINARY LOGS
@@ -2865,7 +2911,8 @@ With
 \fB\-\-to\-last\-log\fR
 to read to the last log file because that option is implied\&.
 .RE
-Output File Naming.PP
+Output File Naming
+.PP
 Without
 \fB\-\-raw\fR,
 \fBmysqlbinlog\fR
@@ -2923,7 +2970,8 @@ T}:T{
 T}
 .TE
 .sp 1
-Example: mysqldump + mysqlbinlog for Backup and Restore.PP
+Example: mysqldump + mysqlbinlog for Backup and Restore
+.PP
 The following example describes a simple scenario that shows how to use
 \fBmysqldump\fR
 and
@@ -3013,7 +3061,8 @@ mysqlbinlog \-\-start\-position=27284 binlog\&.001002 binlog\&.001003 binlog\&.0
 You might find it easier to copy the backup files (dump file and binary log files) to the server host to make it easier to perform the restore operation, or if MySQL does not allow remote
 root
 access\&.
-mysqlbinlog Backup Restrictions.PP
+mysqlbinlog Backup Restrictions
+.PP
 Binary log backups with
 \fBmysqlbinlog\fR
 are subject to these restrictions:
@@ -3123,7 +3172,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

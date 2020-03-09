@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_redo_log_reader\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_REDO_LOG_READER\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_REDO_LOG_READER\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -39,23 +39,6 @@ Reads a redo log file, checking it for errors, printing its contents in a human\
 is intended for use primarily by NDB Cluster developers and Support personnel in debugging and diagnosing problems\&.
 .PP
 This utility remains under development, and its syntax and behavior are subject to change in future NDB Cluster releases\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-Prior to NDB 7\&.2, this utility was named
-\fBndbd_redo_log_reader\fR\&.
-.sp .5v
-.RE
 .PP
 The C++ source files for
 \fBndb_redo_log_reader\fR
@@ -71,7 +54,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.294.\ \&Command\-line options for the ndb_redo_log_reader program
+.B Table\ \&22.265.\ \&Command\-line options for the ndb_redo_log_reader program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -97,111 +80,111 @@ l l l
 l l l.
 T{
 .PP
--dump
+\fB \fR\fB-dump\fR\fB \fR
 T}:T{
 Print dump info
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--filedescriptors
+\fB \fR\fB-filedescriptors\fR\fB \fR
 T}:T{
 Print file descriptors only
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---help
+\fB \fR\fB--help\fR\fB \fR
 T}:T{
 Print usage information
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--lap
+\fB \fR\fB-lap\fR\fB \fR
 T}:T{
 Provide lap info, with max GCI started and completed
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--mbyte #
+\fB \fR\fB-mbyte #\fR\fB \fR
 T}:T{
 Starting megabyte
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--mbyteheaders
+\fB \fR\fB-mbyteheaders\fR\fB \fR
 T}:T{
 Show only the first page header of every megabyte in the file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--nocheck
+\fB \fR\fB-nocheck\fR\fB \fR
 T}:T{
 Do not check records for errors
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--noprint
+\fB \fR\fB-noprint\fR\fB \fR
 T}:T{
 Do not print records
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--page #
+\fB \fR\fB-page #\fR\fB \fR
 T}:T{
 Start with this page
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--pageheaders
+\fB \fR\fB-pageheaders\fR\fB \fR
 T}:T{
 Show page headers only
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--pageindex #
+\fB \fR\fB-pageindex #\fR\fB \fR
 T}:T{
 Start with this page index
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
--twiddle
+\fB \fR\fB-twiddle\fR\fB \fR
 T}:T{
 Bit-shifted dump
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -762,7 +745,7 @@ must be run on a cluster data node, since it accesses the data node file system 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_index_stat\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_INDEX_STAT\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_INDEX_STAT\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,7 +38,8 @@ ndb_index_stat \- NDB index statistics utility
 provides per\-fragment statistical information about indexes on
 NDB
 tables\&. This includes cache version and age, number of index entries per partition, and memory consumption by indexes\&.
-Usage.PP
+Usage
+.PP
 To obtain basic index statistics about a given
 NDB
 table, invoke
@@ -165,7 +166,8 @@ ANALYZE TABLE
 on the table in the
 \fBmysql\fR
 client\&.
-Options.PP
+Options
+.PP
 The following table includes options that are specific to the NDB Cluster
 \fBndb_index_stat\fR
 utility\&. Additional descriptions are listed following the table\&. For options common to most NDB Cluster programs (including
@@ -176,7 +178,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.291.\ \&Command\-line options for the ndb_index_stat program
+.B Table\ \&22.262.\ \&Command\-line options for the ndb_index_stat program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -204,140 +206,140 @@ l l l
 l l l.
 T{
 .PP
---database=name,
+\fB--database=name\fR,
 .PP
--d
+\fB \fR\fB-d\fR\fB \fR
 T}:T{
-Name of the database containing the table.
+Name of the database containing the table
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---delete
+\fB \fR\fB--delete\fR\fB \fR
 T}:T{
 Delete index statistics for the given table, stopping any auto-update
-              previously configured.
+              previously configured
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---update
+\fB \fR\fB--update\fR\fB \fR
 T}:T{
 Update index statistics for the given table, restarting any auto-update
-              previously configured.
+              previously configured
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---dump
+\fB \fR\fB--dump\fR\fB \fR
 T}:T{
-Print the query cache.
+Print the query cache
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---query=#
+\fB \fR\fB--query=#\fR\fB \fR
 T}:T{
 Perform a number of random range queries on first key attr (must be int
-              unsigned).
+              unsigned)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-drop
+\fB \fR\fB--sys-drop\fR\fB \fR
 T}:T{
 Drop any statistics tables and events in NDB kernel (all statistics are
               lost)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create
+\fB \fR\fB--sys-create\fR\fB \fR
 T}:T{
 Create all statistics tables and events in NDB kernel, if none of them
               already exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create-if-not-exist
+\fB \fR\fB--sys-create-if-not-exist\fR\fB \fR
 T}:T{
 Create any statistics tables and events in NDB kernel that do not
-              already exist.
+              already exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-create-if-not-valid
+\fB \fR\fB--sys-create-if-not-valid\fR\fB \fR
 T}:T{
 Create any statistics tables or events that do not already exist in the
-              NDB kernel. after dropping any that are invalid.
+              NDB kernel. after dropping any that are invalid
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-check
+\fB \fR\fB--sys-check\fR\fB \fR
 T}:T{
-Verify that NDB system index statistics and event tables exist.
+Verify that NDB system index statistics and event tables exist
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-skip-tables
+\fB \fR\fB--sys-skip-tables\fR\fB \fR
 T}:T{
-Do not apply sys-* options to tables.
+Do not apply sys-* options to tables
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---sys-skip-events
+\fB \fR\fB--sys-skip-events\fR\fB \fR
 T}:T{
-Do not apply sys-* options to events.
+Do not apply sys-* options to events
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
 Turn on verbose output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---loops=#
+\fB \fR\fB--loops=#\fR\fB \fR
 T}:T{
-Set the number of times to perform a given command. Default is 0.
+Set the number of times to perform a given command. Default is 0
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -1074,7 +1076,7 @@ Repeat commands this number of times (for use in testing)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
