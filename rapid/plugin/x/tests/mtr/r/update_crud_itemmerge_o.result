@@ -1041,7 +1041,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "The document root must not follow by other values." at position 11. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "The document root must not be followed by other values." at position 11. (code 3141)
 Update with missing comma
 send Mysqlx.Crud.Update {
   collection {
@@ -1087,7 +1087,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 19. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 18. (code 3141)
 ================================================================================
 CLEAN UP
 ================================================================================

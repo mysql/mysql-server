@@ -1467,7 +1467,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 99 in value for column 'main_collection.doc'. (code 3140)
+Got expected error: Invalid JSON text: "Missing a comma or '}' after an object member." at position 98 in value for column 'main_collection.doc'. (code 3140)
 ================================================================================
 CLEAN UP
 ================================================================================

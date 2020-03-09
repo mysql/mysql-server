@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -274,7 +274,7 @@ public:
 
     m_container[i] = m_container[m_container.size() - 1];
     m_container.pop_back();
-    heapify(i);
+    update(i);
   }
 
   /**

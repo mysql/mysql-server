@@ -57,6 +57,7 @@
 #ifdef HAVE_REPLICATION
 #include "rpl_rli_pdb.h"                     // Slave_worker
 #include "rpl_slave_commit_order_manager.h"
+#include "rpl_master.h"                      // unregister_slave
 #endif
 
 #include "pfs_file_provider.h"
@@ -1912,6 +1913,12 @@ THD::~THD()
   }
   if (rli_slave)
     rli_slave->cleanup_after_session();
+  /*
+    As slaves can be added in one mysql command like COM_REGISTER_SLAVE
+    but then need to be removed on error scenarios, we call this method
+    here.
+  */
+  unregister_slave(this, true, true);
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -4360,6 +4367,37 @@ void THD::set_query(const LEX_CSTRING& query_arg)
   DBUG_ASSERT(this == current_thd);
   mysql_mutex_lock(&LOCK_thd_query);
   m_query_string= query_arg;
+  mysql_mutex_unlock(&LOCK_thd_query);
+}
+
+
+/**
+  Set the rewritten query (with passwords obfuscated etc.) on the THD.
+  Wraps this in the LOCK_thd_query mutex to protect against race conditions
+  with SHOW PROCESSLIST inspecting that string.
+
+  This uses swap() and therefore "steals" the argument from the caller;
+  the caller MUST take care not to try to use its own string after calling
+  this function! This is an optimization for mysql_rewrite_query() so we
+  don't copy its temporary string (which may get very long, up to
+  @@max_allowed_packet).
+
+  Using this outside of mysql_rewrite_query() is almost certainly wrong;
+  please check with the runtime team!
+
+  @param query_arg  The rewritten query to use for slow/bin/general logging.
+                    The value will be released in the caller and MUST NOT
+                    be used there after calling this function.
+*/
+void THD::swap_rewritten_query(String& query_arg)
+{
+  DBUG_ASSERT(this == current_thd);
+
+  mysql_mutex_lock(&LOCK_thd_query);
+  m_rewritten_query.mem_free();
+  m_rewritten_query.swap(query_arg);
+  // The rewritten query should always be a valid C string, just in case.
+  (void) m_rewritten_query.c_ptr_safe();
   mysql_mutex_unlock(&LOCK_thd_query);
 }
 

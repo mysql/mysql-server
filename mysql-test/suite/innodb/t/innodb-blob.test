@@ -211,3 +211,31 @@ SELECT a FROM t3;
 SELECT * FROM t2;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #29866408	SERVER CRASHES WHEN ADDING LONGTEXT COLUMN
+--echo #
+
+CREATE TABLE t1 (
+  id int(11) COLLATE utf8mb4_unicode_ci NOT NULL,
+  data longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY unq_id (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO t1 VALUES (1,'');
+SET @old_mode=@@sql_mode;
+SET GLOBAL SQL_MODE="";
+
+let $num = 3;
+while($num)
+{
+connect (con1,localhost,root,,);
+connection con1;
+eval ALTER TABLE t1 ADD COLUMN d$num DATETIME NOT NULL;
+disconnect con1;
+dec $num;
+}
+connection default;
+SET GLOBAL SQL_MODE=@old_mode;
+DROP TABLE t1;

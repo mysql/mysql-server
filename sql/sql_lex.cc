@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1238,17 +1238,27 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
+  // only one level of nested comments are allowed
+  DBUG_ASSERT(remaining_recursions_permitted == 0 ||
+              remaining_recursions_permitted == 1);
   uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
 
-    if (remaining_recursions_permitted > 0)
+    if (remaining_recursions_permitted == 1)
     {
       if ((c == '/') && (lip->yyPeek() == '*'))
       {
+        lip->yyUnput('(');  // Replace nested "/*..." with "(*..."
+        lip->yySkip();      // and skip "("
+
         lip->yySkip(); /* Eat asterisk */
-        consume_comment(lip, remaining_recursions_permitted-1);
+        if (consume_comment(lip, 0))
+          return true;
+
+        lip->yyUnput(')');  // Replace "...*/" with "...*)"
+        lip->yySkip();      // and skip ")"
         continue;
       }
     }

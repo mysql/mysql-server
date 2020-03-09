@@ -117,6 +117,7 @@ $val = $memd->get('@@desct11.S');
 if ($val) { print "$val\n"; }
 print "Here the memcached results with c2 of desct13:\n";
 $val = $memd->get('@@desct13');
+if ($val) { print "$val\n"; }
 $val = $memd->get('Duesseldorf');
 if ($val) { print "$val\n"; }
 $val = $memd->get("Oldenburg");
@@ -127,6 +128,7 @@ $val = $memd->get('Stuttgart');
 if ($val) { print "$val\n"; }
 print "Here the memcached results with c2 of desct12:\n";
 $val = $memd->get('@@desct12');
+if ($val) { print "$val\n"; }
 $val = $memd->get('Duesseldorf');
 if ($val) { print "$val\n"; }
 $val = $memd->get("Oldenburg");

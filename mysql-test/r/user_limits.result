@@ -112,6 +112,19 @@ ERROR 42000: User 'mysqltest_1' has exceeded the 'max_user_connections' resource
 set global max_user_connections= 0;
 drop user mysqltest_1@localhost;
 drop table t1;
+#
+# Bug #30578217 : ALTER USER IF EXISTS ... WITH_MAX_USER_CONNECTIONS 9999 NOT APPLIED CORRECTLY
+#
+CREATE USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 2;
+connect(localhost,mysqltest_2,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_2' has exceeded the 'max_user_connections' resource (current value: 2)
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 3;
+connect(localhost,mysqltest_2,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_2' has exceeded the 'max_user_connections' resource (current value: 3)
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 2;
+connect(localhost,mysqltest_2,,test,MYSQL_PORT,MYSQL_SOCK);
+ERROR 42000: User 'mysqltest_2' has exceeded the 'max_user_connections' resource (current value: 2)
+DROP USER mysqltest_2@localhost;
 set sql_mode= @orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

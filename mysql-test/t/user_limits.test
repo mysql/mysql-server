@@ -175,6 +175,56 @@ drop user mysqltest_1@localhost;
 # Final cleanup
 drop table t1;
 
+-- echo #
+-- echo # Bug #30578217 : ALTER USER IF EXISTS ... WITH_MAX_USER_CONNECTIONS 9999 NOT APPLIED CORRECTLY
+-- echo #
+
+# Test of MAX_USER_CONNECTIONS limit (using ALTER command)
+
+CREATE USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 2;
+
+connect (muc1, localhost, mysqltest_2,,);
+connection muc1;
+
+connect (muc2, localhost, mysqltest_2,,);
+connection muc2;
+
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muc3, localhost, mysqltest_2,,);
+
+# Closing of one of connections should help
+disconnect muc1;
+connect (muc3, localhost, mysqltest_2,,);
+
+# Changing of limit should also help (and immediately)
+# Increasing the MAX_USER_CONNECTIONS
+connection default;
+
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 3;
+connect (muc4, localhost, mysqltest_2,,);
+connection muc4;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muc5, localhost, mysqltest_2,,);
+
+# Decreasing the MAX_USER_CONNECTIONS
+connection default;
+
+ALTER USER mysqltest_2@localhost WITH MAX_USER_CONNECTIONS 2;
+disconnect muc2;
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+connect (muc2, localhost, mysqltest_2,,);
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+--error ER_USER_LIMIT_REACHED
+
+# Clean up
+connection default;
+disconnect muc3;
+disconnect muc4;
+DROP USER mysqltest_2@localhost;
+
 set sql_mode= @orig_sql_mode;
 
 # Wait till all disconnects are completed
