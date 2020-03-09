@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,6 @@ UNIV_INTERN mysql_pfs_key_t	fts_pll_tokenize_mutex_key;
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
 UNIV_INTERN char* fts_internal_tbl_name		= NULL;
-UNIV_INTERN char* fts_internal_tbl_name2	= NULL;
 
 /** InnoDB default stopword list:
 There are different versions of stopwords, the stop words listed
