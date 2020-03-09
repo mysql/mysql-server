@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -495,7 +495,8 @@ shell> \fBmysql \-\-login\-path=remote \-\-host=remote2\&.example\&.com\fR
 .RE
 .\}
 .sp
-mysql_config_editor General Options.PP
+mysql_config_editor General Options
+.PP
 \fBmysql_config_editor\fR
 supports the following general options, which may be used preceding any command named on the command line\&. For descriptions of command\-specific options, see
 mysql_config_editor Commands and Command-Specific Options\&.
@@ -547,6 +548,11 @@ Write a debugging log\&. A typical
 string is
 d:t:o,\fIfile_name\fR\&. The default is
 d:t:o,/tmp/mysql_config_editor\&.trace\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -576,7 +582,8 @@ Verbose mode\&. Print more information about what the program does\&. This optio
 .sp
 Display version information and exit\&.
 .RE
-mysql_config_editor Commands and Command\-Specific Options.PP
+mysql_config_editor Commands and Command\-Specific Options
+.PP
 This section describes the permitted
 \fBmysql_config_editor\fR
 commands, and, for each one, the command\-specific options permitted following the command name on the command line\&.
@@ -1075,7 +1082,7 @@ to disable it\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

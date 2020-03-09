@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/05/2020
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "03/05/2020" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -103,7 +103,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 shell> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.19 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.21 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -1088,6 +1088,61 @@ T}
 Enables the
 \fBuse_gr_notifications\fR
 [metadata_cache] option during bootstrap\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-pid\-file \fR\fB\fIpath\fR\fR
+.TS
+allbox tab(:);
+lB lB.
+T{
+Property
+T}:T{
+Value
+T}
+.T&
+l l
+l l
+l l.
+T{
+\fBCommand-Line Format\fR
+T}:T{
+--pid-file path
+T}
+T{
+\fBIntroduced\fR
+T}:T{
+8.0.20
+T}
+T{
+\fBType\fR
+T}:T{
+String
+T}
+.TE
+.sp 1
+Sets location of the PID file\&. This can be set in three different ways (in order of precedence): this
+\fB\-\-pid\-file\fR
+command\-line option, setting
+\fBpid_file\fR
+in Router\*(Aqs configuration file, or defining the
+ROUTER_PID
+environment variable\&.
+.sp
+If
+\fB\-\-bootstrap\fR
+is specified, then setting \-\-pid\-file causes Router to fail\&. This is unlike ROUTER_PID and the pid_file configuration option, which are ignored if \-\-bootstrap is specified\&.
+.sp
+If
+\fB\-\-bootstrap\fR
+is not specified, then the following cause Router to fail: the \-\-pid\-file already exists, pid_file or ROUTER_PID are set but empty, or if Router can\*(Aqt write the PID file\&.
 .RE
 .sp
 .RS 4
@@ -2404,7 +2459,7 @@ This option is only available on Windows, and refers to its password vault\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

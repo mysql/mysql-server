@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -497,6 +497,11 @@ built using this option\&.
 \fB\-\-debug\-check\fR
 .sp
 Print some debugging information when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -511,6 +516,11 @@ Print some debugging information when the program exits\&.
 \fB\-T\fR
 .sp
 Print debugging information and memory and CPU usage statistics when the program exits\&.
+.sp
+This option is available only if MySQL was built using
+\fBWITH_DEBUG\fR\&. MySQL release binaries provided by Oracle are
+\fInot\fR
+built using this option\&.
 .RE
 .sp
 .RS 4
@@ -827,17 +837,26 @@ Write line numbers for errors\&. Disable this with
 .\}
 \fB\-\-local\-infile[={0|1}]\fR
 .sp
-Enable or disable
+By default,
 LOCAL
 capability for
-LOAD DATA\&. For
-\fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
-LOCAL\&. The option may be given as
+LOAD DATA
+is determined by the default compiled into the MySQL client library\&. To enable or disable
+LOCAL
+explicitly, use the
+\fB\-\-local\-infile\fR
+option\&. When given with no value, the option enables
+LOCAL\&. When given as
 \fB\-\-local\-infile=0\fR
 or
-\fB\-\-local\-infile=1\fR
-to explicitly disable or enable
-LOCAL\&. Enabling local data loading also requires that the server permits it; see
+\fB\-\-local\-infile=1\fR, the option explicitly disables or enables
+LOCAL\&.
+.sp
+Successful use of
+LOCAL
+load operations within
+\fBmysql\fR
+also requires that the server permits local loading; see
 Section\ \&6.1.6, \(lqSecurity Issues with LOAD DATA LOCAL\(rq
 .RE
 .sp
@@ -1339,19 +1358,6 @@ statements that produce (or are estimated to produce) very large result sets\&. 
 \fB\-\-skip\-safe\-updates\fR
 on the command line to override it\&. For more information about this option, see
 Using Safe-Updates Mode (--safe-updates)\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-secure\-auth\fR
-.sp
-This option was removed in MySQL 8\&.0\&.3\&.
 .RE
 .sp
 .RS 4
@@ -2080,7 +2086,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&28.6.22, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&28.7.22, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2323,8 +2329,8 @@ Reset the connection to clear the session state\&.
 Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
-Section\ \&28.6.6.3, \(lqmysql_change_user()\(rq, and
-Section\ \&28.6.27, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&28.7.6.3, \(lqmysql_change_user()\(rq, and
+Section\ \&28.7.27, \(lqC API Automatic Reconnection Control\(rq\&.
 .sp
 This example shows how
 resetconnection
@@ -3038,7 +3044,8 @@ Controlling the History File
 .\}
 syslog Logging Characteristics
 .RE
-How Logging Occurs.PP
+How Logging Occurs
+.PP
 For each enabled logging destination, statement logging occurs as follows:
 .sp
 .RS 4
@@ -3192,7 +3199,8 @@ shell> \fBmysql \-\-histignore="*UPDATE*:*DELETE*"\fR
 .RE
 .\}
 .sp
-Controlling the History File.PP
+Controlling the History File
+.PP
 The
 \&.mysql_history
 file should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
@@ -3244,7 +3252,8 @@ shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
 .RE
 .\}
 .RE
-syslog Logging Characteristics.PP
+syslog Logging Characteristics
+.PP
 If the
 \fB\-\-syslog\fR
 option is given,
@@ -3700,7 +3709,8 @@ Disabling mysql Auto-Reconnect
 .\}
 mysql Client Parser Versus Server Parser
 .RE
-Input\-Line Editing.PP
+Input\-Line Editing
+.PP
 \fBmysql\fR
 supports input\-line editing, which enables you to modify the current input line in place or recall previous input lines\&. For example, the
 left\-arrow
@@ -3772,7 +3782,8 @@ at the end of
 \&.editrc\&.
 \fBmysql\fR
 will show the bindings when it starts\&.
-Disabling Interactive History.PP
+Disabling Interactive History
+.PP
 The
 up\-arrow
 key enables you to recall input lines from current and previous sessions\&. In cases where a console is shared, this behavior may be unsuitable\&.
@@ -3811,7 +3822,8 @@ to start the
 client, the interactive history recall facility is disabled fully\&. Alternatively, if you omit the
 \fB\-\-histignore\fR
 option, you can recall the input lines entered during the current session\&.
-Unicode Support on Windows.PP
+Unicode Support on Windows
+.PP
 Windows provides APIs based on UTF\-16LE for reading from and writing to the console; the
 \fBmysql\fR
 client for Windows is able to use these APIs\&. The Windows installer creates an item in the MySQL menu named
@@ -3893,7 +3905,8 @@ default\-character\-set=utf8
 .RE
 .\}
 .sp
-Displaying Query Results Vertically.PP
+Displaying Query Results Vertically
+.PP
 Some query results are much more readable when displayed vertically, instead of in the usual horizontal table format\&. Queries can be displayed vertically by terminating the query with \eG instead of a semicolon\&. For example, longer text values that include newlines often are much easier to read with vertical output:
 .sp
 .if n \{\
@@ -3924,7 +3937,8 @@ Jones
 .RE
 .\}
 .sp
-Using Safe\-Updates Mode (\-\-safe\-updates).PP
+Using Safe\-Updates Mode (\-\-safe\-updates)
+.PP
 For beginners, a useful startup option is
 \fB\-\-safe\-updates\fR
 (or
@@ -4133,7 +4147,8 @@ value was exceeded or type conversion occurred, either of which can preclude use
 .\}
 For multiple\-table deletes and updates, an error is produced with safe updates enabled only if any target table uses a table scan\&.
 .RE
-Disabling mysql Auto\-Reconnect.PP
+Disabling mysql Auto\-Reconnect
+.PP
 If the
 \fBmysql\fR
 client loses its connection to the server while sending a statement, it immediately and automatically tries to reconnect once to the server and send the statement again\&. However, even if
@@ -4175,8 +4190,9 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&28.6.27, \(lqC API Automatic Reconnection Control\(rq\&.
-mysql Client Parser Versus Server Parser.PP
+Section\ \&28.7.27, \(lqC API Automatic Reconnection Control\(rq\&.
+mysql Client Parser Versus Server Parser
+.PP
 The
 \fBmysql\fR
 client uses a parser on the client side that is not a duplicate of the complete parser used by the
@@ -4247,7 +4263,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

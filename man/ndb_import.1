@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_import\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2019
+.\"      Date: 03/06/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_IMPORT\FR" "1" "11/23/2019" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_IMPORT\FR" "1" "03/06/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -188,7 +188,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.290.\ \&Command\-line options for the ndb_import program
+.B Table\ \&22.261.\ \&Command\-line options for the ndb_import program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -239,246 +239,238 @@ l l l
 l l l
 l l l
 l l l
-l l l
 l l l.
 T{
 .PP
---abort-on-error
+\fB \fR\fB--abort-on-error\fR\fB \fR
 T}:T{
 Dump core on any fatal error; used for debugging
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---ai-increment=#
+\fB \fR\fB--ai-increment=#\fR\fB \fR
 T}:T{
 For table with hidden PK, specify autoincrement increment. See mysqld
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---ai-offset=#
+\fB \fR\fB--ai-offset=#\fR\fB \fR
 T}:T{
 For table with hidden PK, specify autoincrement offset. See mysqld
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---ai-prefetch-sz=#
+\fB \fR\fB--ai-prefetch-sz=#\fR\fB \fR
 T}:T{
 For table with hidden PK, specify number of autoincrement values that
               are prefetched. See mysqld
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---connections=#
+\fB \fR\fB--connections=#\fR\fB \fR
 T}:T{
 Number of cluster connections to create
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---continue
+\fB \fR\fB--continue\fR\fB \fR
 T}:T{
 When job fails, continue to next job
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---db-workers=#
+\fB \fR\fB--db-workers=#\fR\fB \fR
 T}:T{
 Number of threads, per data node, executing database operations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---errins-type=name
+\fB \fR\fB--errins-type=name\fR\fB \fR
 T}:T{
 Error insert type, for testing purposes; use "list" to obtain all
               possible values
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---errins-delay=#
+\fB \fR\fB--errins-delay=#\fR\fB \fR
 T}:T{
 Error insert delay in milliseconds; random variation is added
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-enclosed-by=char
+\fB \fR\fB--fields-enclosed-by=char\fR\fB \fR
 T}:T{
 Same as FIELDS ENCLOSED BY option for LOAD DATA statements. For CSV
               input this is same as using
               --fields-optionally-enclosed-by
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-escaped-by=name
+\fB \fR\fB--fields-escaped-by=name\fR\fB \fR
 T}:T{
 Same as FIELDS ESCAPED BY option for LOAD DATA statements
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-optionally-enclosed-by=char
+\fB \fR\fB--fields-optionally-enclosed-by=char\fR\fB \fR
 T}:T{
 Same as FIELDS OPTIONALLY ENCLOSED BY option for LOAD DATA statements
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---fields-terminated-by=char
+\fB \fR\fB--fields-terminated-by=char\fR\fB \fR
 T}:T{
-Same as FIELDS TERMINATED BY option for LOAD DATA statements.
+Same as FIELDS TERMINATED BY option for LOAD DATA statements
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---idlesleep=#
+\fB \fR\fB--idlesleep=#\fR\fB \fR
 T}:T{
 Number of milliseconds to sleep waiting for more to do
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---idlespin=#
+\fB \fR\fB--idlespin=#\fR\fB \fR
 T}:T{
 Number of times to re-try before idlesleep
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---ignore-lines=#
+\fB \fR\fB--ignore-lines=#\fR\fB \fR
 T}:T{
-Ignore first # lines in input file. Used to skip a non-data header.
+Ignore first # lines in input file. Used to skip a non-data header
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---input-type=name
+\fB \fR\fB--input-type=name\fR\fB \fR
 T}:T{
 Input type: random or csv
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---input-workers=#
+\fB \fR\fB--input-workers=#\fR\fB \fR
 T}:T{
 Number of threads processing input. Must be 2 or more if --input-type is
-              csv.
+              csv
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---keep-state
+\fB \fR\fB--keep-state\fR\fB \fR
 T}:T{
-Preserve state files
+State files (except non-empty *.rej files) are normally removed on job
+              completion. Using this option causes all state files to be
+              preserved instead
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---lines-terminated-by=name
+\fB \fR\fB--lines-terminated-by=name\fR\fB \fR
 T}:T{
 Same as LINES TERMINATED BY option for LOAD DATA statements
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---log-level=#
-T}:T{
-Set internal logging level; for debugging and development
-T}:T{
-.PP
-All NDB 8.0 releases
-T}
-T{
-.PP
---max-rows=#
+\fB \fR\fB--max-rows=#\fR\fB \fR
 T}:T{
 Import only this number of input data rows; default is 0, which imports
               all rows
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---monitor=#
+\fB \fR\fB--monitor=#\fR\fB \fR
 T}:T{
 Periodically print status of running job if something has changed
               (status, rejected rows, temporary errors). Value 0
               disables. Value 1 prints any change seen. Higher values
               reduce status printing exponentially up to some
-              pre-defined limit.
+              pre-defined limit
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---no-asynch
+\fB \fR\fB--no-asynch\fR\fB \fR
 T}:T{
 Run database operations as batches, in single transactions
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---no-hint
+\fB \fR\fB--no-hint\fR\fB \fR
 T}:T{
 Do not use distribution key hint to select data node (TC)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---opbatch=#
+\fB \fR\fB--opbatch=#\fR\fB \fR
 T}:T{
 A db execution batch is a set of transactions and operations sent to NDB
               kernel. This option limits NDB operations (including blob
@@ -486,67 +478,67 @@ A db execution batch is a set of transactions and operations sent to NDB
               limits number of asynch transactions. Value 0 is not valid
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---opbytes=#
+\fB \fR\fB--opbytes=#\fR\fB \fR
 T}:T{
 Limit bytes in execution batch (default 0 = no limit)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---output-type=name
+\fB \fR\fB--output-type=name\fR\fB \fR
 T}:T{
 Output type: ndb is default, null used for testing
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---output-workers=#
+\fB \fR\fB--output-workers=#\fR\fB \fR
 T}:T{
 Number of threads processing output or relaying database operations
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---pagesize=#
+\fB \fR\fB--pagesize=#\fR\fB \fR
 T}:T{
 Align I/O buffers to given size
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---pagecnt=#
+\fB \fR\fB--pagecnt=#\fR\fB \fR
 T}:T{
 Size of I/O buffers as multiple of page size. CSV input worker allocates
               a double-sized buffer
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---polltimeout=#
+\fB \fR\fB--polltimeout=#\fR\fB \fR
 T}:T{
 Timeout per poll for completed asynchonous transactions; polling
               continues until all polls are completed, or error occurs
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rejects=#
+\fB \fR\fB--rejects=#\fR\fB \fR
 T}:T{
 Limit number of rejected rows (rows with permanent error) in data load.
               Default is 0 which means that any rejected row causes a
@@ -554,69 +546,69 @@ Limit number of rejected rows (rows with permanent error) in data load.
               *.rej
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---resume
+\fB \fR\fB--resume\fR\fB \fR
 T}:T{
 If job aborted (temporary error, user interrupt), resume with rows not
               yet processed
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rowbatch=#
+\fB \fR\fB--rowbatch=#\fR\fB \fR
 T}:T{
 Limit rows in row queues (default 0 = no limit); must be 1 or more if
               --input-type is random
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---rowbytes=#
+\fB \fR\fB--rowbytes=#\fR\fB \fR
 T}:T{
 Limit bytes in row queues (0 = no limit)
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---state-dir=name
+\fB \fR\fB--state-dir=name\fR\fB \fR
 T}:T{
 Where to write state files; currect directory is default
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---stats
+\fB \fR\fB--stats\fR\fB \fR
 T}:T{
-Save performance and statistics information in
-              *.sto and *.stt
-              files
+Save performance related options and internal statistics in *.sto and
+              *.stt files. These files are kept on successful completion
+              even if --keep-state is not used
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---tempdelay=#
+\fB \fR\fB--tempdelay=#\fR\fB \fR
 T}:T{
 Number of milliseconds to sleep between temporary errors
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---temperrors=#
+\fB \fR\fB--temperrors=#\fR\fB \fR
 T}:T{
 Number of times a transaction can fail due to a temporary error, per
               execution batch; 0 means any temporary error is fatal.
@@ -624,18 +616,18 @@ Number of times a transaction can fail due to a temporary error, per
               file
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
---verbose=#,
+\fB--verbose\fR,
 .PP
--v
+\fB \fR\fB-v\fR\fB \fR
 T}:T{
 Enable verbose output
 T}:T{
 .PP
-All NDB 8.0 releases
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -2716,7 +2708,7 @@ was added in NDB 7\&.6\&.2\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
