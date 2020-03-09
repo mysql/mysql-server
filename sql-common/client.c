@@ -1513,9 +1513,22 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
     /* old protocol, for backward compatibility */
     for (row=data->data; row ; row = row->next,field++)
     {
+      /*
+       If any of the row->data[] below is NULL, it can result in a
+       crash. Error out early as it indicates a malformed packet.
+       For data[0], data[1] and data[5], strmake_root will handle
+       NULL values.
+      */
+      if (!row->data[2] || !row->data[3] || !row->data[4])
+      {
+        free_rows(data);
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(0);
+      }
+
       cli_fetch_lengths(&lengths[0], row->data, default_value ? 6 : 5);
-      field->org_table= field->table=  strdup_root(alloc,(char*) row->data[0]);
-      field->name=   strdup_root(alloc,(char*) row->data[1]);
+      field->org_table= field->table=  strmake_root(alloc,(char*) row->data[0], lengths[0]);
+      field->name=   strmake_root(alloc,(char*) row->data[1], lengths[1]);
       field->length= (uint) uint3korr(row->data[2]);
       field->type=   (enum enum_field_types) (uchar) row->data[3][0];
 
@@ -1540,7 +1553,7 @@ unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
         field->flags|= NUM_FLAG;
       if (default_value && row->data[5])
       {
-        field->def=strdup_root(alloc,(char*) row->data[5]);
+        field->def= strmake_root(alloc,(char*) row->data[5], lengths[5]);
 	field->def_length= lengths[5];
       }
       else

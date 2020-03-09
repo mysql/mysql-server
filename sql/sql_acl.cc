@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +76,8 @@
 #if defined(HAVE_OPENSSL)
 #define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 #endif /* HAVE_OPENSSL */
+
+#include <string>
 
 using std::min;
 using std::max;
@@ -10319,10 +10321,18 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   DBUG_ENTER("send_plugin_request_packet");
   mpvio->status= MPVIO_EXT::FAILURE; // the status is no longer RESTART
 
-  const char *client_auth_plugin=
-    ((st_mysql_auth *) (plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
+  std::string client_auth_plugin(
+      ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))
+          ->client_auth_plugin);
 
-  DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(client_auth_plugin.c_str());
+ 
+  DBUG_EXECUTE_IF("invalidate_client_auth_plugin", {
+    client_auth_plugin.clear();
+    client_auth_plugin = std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("..") + std::string(FN_DIRSEP) +
+                         std::string("mysql_native_password");
+  });
 
   /*
     we send an old "short 4.0 scramble request", if we need to request a
@@ -10335,7 +10345,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   */
   bool switch_from_long_to_short_scramble=
     native_password_plugin_name.str == mpvio->cached_client_reply.plugin &&
-    client_auth_plugin == old_password_plugin_name.str;
+    client_auth_plugin.c_str() == old_password_plugin_name.str;
 
   if (switch_from_long_to_short_scramble)
     DBUG_RETURN (secure_auth(mpvio) ||
@@ -10349,7 +10359,7 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   */
   bool switch_from_short_to_long_scramble=
     old_password_plugin_name.str == mpvio->cached_client_reply.plugin && 
-    client_auth_plugin == native_password_plugin_name.str;
+    client_auth_plugin.c_str() == native_password_plugin_name.str;
 
   if (switch_from_short_to_long_scramble)
   {
@@ -10377,10 +10387,10 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   }
 
   DBUG_PRINT("info", ("requesting client to use the %s plugin", 
-                      client_auth_plugin));
+                      client_auth_plugin.c_str()));
   DBUG_RETURN(net_write_command(net, switch_plugin_request_buf[0],
-                                (uchar*) client_auth_plugin,
-                                strlen(client_auth_plugin) + 1,
+                                (uchar*) client_auth_plugin.c_str(),
+                                client_auth_plugin.size() + 1,
                                 (uchar*) data, data_len));
 }
 
