@@ -89,42 +89,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 
 
 /**
-  Helper class to hold a mutex for the duration of the
-  block.
-
-  Eliminates the need for explicit unlocking of mutexes on, e.g.,
-  error returns.  On passing a null pointer, the sentry will not do
-  anything.
- */
-class Mutex_sentry
-{
-public:
-  Mutex_sentry(mysql_mutex_t *mutex)
-    : m_mutex(mutex)
-  {
-    if (m_mutex)
-      mysql_mutex_lock(mutex);
-  }
-
-  ~Mutex_sentry()
-  {
-    if (m_mutex)
-      mysql_mutex_unlock(m_mutex);
-#ifndef DBUG_OFF
-    m_mutex= 0;
-#endif
-  }
-
-private:
-  mysql_mutex_t *m_mutex;
-
-  // It's not allowed to copy this object in any way
-  Mutex_sentry(Mutex_sentry const&);
-  void operator=(Mutex_sentry const&);
-};
-
-
-/**
   Print system time.
  */
 

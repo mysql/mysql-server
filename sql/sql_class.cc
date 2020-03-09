@@ -45,6 +45,7 @@
 #include "rpl_rli.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
+#include "rpl_master.h"                       // unregister_slave
 #include "rpl_slave.h"
 #include <my_bitmap.h>
 #include "log_event.h"
@@ -1651,12 +1652,19 @@ THD::~THD()
     DBUG_ASSERT(0);
 #endif
   }
-  
+
   mysql_audit_free_thd(this);
   if (rli_slave)
     rli_slave->cleanup_after_session();
-#endif
 
+  /*
+    As slaves can be added in one mysql command like COM_REGISTER_SLAVE
+    but then need to be removed on error scenarios, we call this method
+    here
+  */
+  unregister_slave(this, true, true);
+
+#endif
   free_root(&main_mem_root, MYF(0));
 
   if (m_token_array != NULL)

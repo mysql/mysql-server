@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1849,6 +1849,7 @@ search_done:
 
 		result->col_value[MCI_COL_VALUE].value_str = conn_data->row_buf;
 		result->col_value[MCI_COL_VALUE].value_len = strlen(table_name);
+		result->col_value[MCI_COL_VALUE].is_str = true;
 	}
 
 	result->col_value[MCI_COL_KEY].value_str = (char*)key;
